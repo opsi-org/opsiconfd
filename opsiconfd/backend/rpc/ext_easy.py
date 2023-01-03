@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 class RPCExtEasyMixin(Protocol):
-	@rpc_method
+	@rpc_method(deprecated=True, alternative_method="host_getObjects")
 	def getClients(self: BackendProtocol) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client hashes.
@@ -69,7 +69,7 @@ class RPCExtEasyMixin(Protocol):
 
 		return results
 
-	@rpc_method
+	@rpc_method(deprecated=True, alternative_method="host_getIdents")
 	def getClientIDs(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs.
@@ -78,7 +78,7 @@ class RPCExtEasyMixin(Protocol):
 		"""
 		return self.host_getIdents(type="OpsiClient")
 
-	@rpc_method
+	@rpc_method(deprecated=True, alternative_method="configState_getClientToDepotserver")
 	def getClientsOnDepot(self: BackendProtocol, depotIds: list[str]) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs that can be found on the given depots.
@@ -97,7 +97,7 @@ class RPCExtEasyMixin(Protocol):
 			in self.configState_getClientToDepotserver(depotIds=depotIds)
 		]
 
-	@rpc_method
+	@rpc_method(deprecated=True)
 	def getClientsWithProducts(self: BackendProtocol, productIds: list[str], installationStatus: str | None = None) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs with the given productIds independent from
@@ -126,7 +126,7 @@ class RPCExtEasyMixin(Protocol):
 
 		return list({poc.clientId for poc in self.productOnClient_getObjects(**poc_filter)})
 
-	@rpc_method
+	@rpc_method(deprecated=True)
 	def getClientsWithActionRequest(self: BackendProtocol, actionRequests: list[str]) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs that have the given actionRequests set.

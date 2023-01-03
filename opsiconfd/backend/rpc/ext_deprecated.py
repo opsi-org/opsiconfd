@@ -50,7 +50,7 @@ class RPCExtDeprecatedMixin(Protocol):
 	def deleteGroup(self: BackendProtocol, groupId: str) -> None:  # pylint: disable=invalid-name
 		self.group_delete(id=groupId)
 
-	@rpc_method(deprecated=True)
+	@rpc_method(deprecated=True, alternative_method="productDependency_delete")
 	def deleteProductDependency(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		productId: str,
@@ -78,7 +78,7 @@ class RPCExtDeprecatedMixin(Protocol):
 	def deleteServer(self: BackendProtocol, serverId: str) -> None:  # pylint: disable=invalid-name
 		self.host_delete(id=forceHostId(serverId))
 
-	@rpc_method(deprecated=True)
+	@rpc_method(deprecated=True, alternative_method="host_updateObject")
 	def setHostLastSeen(self: BackendProtocol, hostId: str, timestamp: str) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		hosts = self.host_getObjects(id=hostId)
@@ -87,7 +87,7 @@ class RPCExtDeprecatedMixin(Protocol):
 		hosts[0].setLastSeen(timestamp)
 		self.host_updateObject(hosts[0])
 
-	@rpc_method(deprecated=True, alternative_method="getClients")
+	@rpc_method(deprecated=True, alternative_method="host_getObjects")
 	def getClients_listOfHashes(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		serverId: str | None = None,

@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 
 class RPCExtOpsiMixin(Protocol):
-	@rpc_method
+	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects")
 	def setProductActionRequestWithDependencies(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
 	) -> None:
@@ -98,22 +98,22 @@ class RPCExtOpsiMixin(Protocol):
 		if pocsToUpdate:
 			self.productOnClient_updateObjects(pocsToUpdate)
 
-	@rpc_method
+	@rpc_method(deprecated=True, alternative_method="accessControl_userIsReadOnlyUser")
 	def userIsReadOnlyUser(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
 		return self.accessControl_userIsReadOnlyUser()
 
-	@rpc_method
+	@rpc_method(deprecated=True)
 	def getServiceTime(self: BackendProtocol, utctime: bool = False) -> str:  # pylint: disable=invalid-name
 		if utctime:
 			return str(datetime.datetime.utcnow())
 		return str(datetime.datetime.now())
 
-	@rpc_method
+	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects")
 	def getSoftwareAuditDataCount(self: BackendProtocol) -> int:  # pylint: disable=invalid-name
 		"""Get the count of data relevant to the software audit."""
 		return len(self.auditSoftware_getObjects()) + len(self.auditSoftwareOnClient_getObjects())
 
-	@rpc_method
+	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects")
 	def getHardwareAuditDataCount(self: BackendProtocol) -> int:  # pylint: disable=invalid-name
 		"""Get the count of data relevant to the hardware audit."""
 		return len(self.auditHardware_getObjects()) + len(self.auditHardwareOnHost_getObjects())
@@ -170,7 +170,7 @@ class RPCExtOpsiMixin(Protocol):
 		sortedList = OPSI.SharedAlgorithm.generateProductSequence_algorithm1(available_products, product_dependencies)
 		return {"not_sorted": productIds, "sorted": sortedList}
 
-	@rpc_method
+	@rpc_method(deprecated=True)
 	def setRights(self: BackendProtocol, path: str | None = None) -> str:  # pylint: disable=invalid-name
 		"""
 		Setting rights for a specified path.

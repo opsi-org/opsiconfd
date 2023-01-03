@@ -13,7 +13,11 @@ from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
 
 import pytest
 
-from opsiconfd.utils import aes_decrypt, aes_encrypt, ip_address_in_network
+from opsiconfd.utils import (
+	aes_decrypt_with_password,
+	aes_encrypt_with_password,
+	ip_address_in_network,
+)
 
 
 @pytest.mark.parametrize(
@@ -51,6 +55,6 @@ def test_ip_address_in_network(address: str | IPv4Address | IPv6Address, network
 def test_aes_encrypt_decrypt(password: str, plaintext: bytes, exc: type[Exception | None]) -> None:
 	ctx = pytest.raises(exc) if exc else nullcontext()  # type: ignore[type-var]
 	with ctx:  # type: ignore[attr-defined]
-		ciphertext, key_salt, mac_tag, nonce = aes_encrypt(plaintext=plaintext, password=password)
-		decytped_data = aes_decrypt(ciphertext=ciphertext, key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password)
+		ciphertext, key_salt, mac_tag, nonce = aes_encrypt_with_password(plaintext=plaintext, password=password)
+		decytped_data = aes_decrypt_with_password(ciphertext=ciphertext, key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password)
 		assert decytped_data == plaintext

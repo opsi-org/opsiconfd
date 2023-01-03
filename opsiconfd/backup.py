@@ -38,7 +38,12 @@ from opsiconfd.config import (
 )
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.redis import redis_lock
-from opsiconfd.utils import aes_decrypt, aes_encrypt, compress_data, decompress_data
+from opsiconfd.utils import (
+	aes_decrypt_with_password,
+	aes_encrypt_with_password,
+	compress_data,
+	decompress_data,
+)
 
 OBJECT_CLASSES = (
 	"Host",
@@ -233,7 +238,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 			logger.notice("Encrypting data")
 			if progress:
 				progress.console.print("Encrypting data")
-			ciphertext, key_salt, mac_tag, nonce = aes_encrypt(plaintext=bdata, password=password)
+			ciphertext, key_salt, mac_tag, nonce = aes_encrypt_with_password(plaintext=bdata, password=password)
 			bdata = b"{aes-256-gcm-sha256}" + key_salt + mac_tag + nonce + ciphertext
 
 		logger.notice("Writing data to file %s", backup_file)
@@ -282,7 +287,9 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 				key_salt = bdata[pos : pos + 32]
 				mac_tag = bdata[pos + 32 : pos + 48]
 				nonce = bdata[pos + 48 : pos + 64]
-				bdata = aes_decrypt(ciphertext=bdata[pos + 64 :], key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password)
+				bdata = aes_decrypt_with_password(
+					ciphertext=bdata[pos + 64 :], key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password
+				)
 				head = bdata[0:4].hex()
 
 			compression = None

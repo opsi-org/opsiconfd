@@ -27,6 +27,7 @@ from opsicommon.types import forceHostId  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
 from rich.console import Console
 from rich.progress import Progress
+from rich.prompt import Prompt
 
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
@@ -76,7 +77,14 @@ def health_check_main() -> None:
 
 def backup_main() -> None:
 	console = Console(quiet=config.quiet)
+	backup_file = None
 	try:
+		if config.password is None:
+			# Argument --pasword given without value
+			if config.quiet:
+				raise ValueError("Interactive password prompt not available in quiet mode")
+			config.password = Prompt.ask("Please enter password", console=console, password=True)
+
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)
 			if not config.backup_file:
@@ -134,7 +142,8 @@ def backup_main() -> None:
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		console.print(f"[bold red]Failed to create backup file '{str(backup_file)}': {err}[/bold red]")
+		baf = f"'{str(backup_file)}'" if backup_file else ""
+		console.print(f"[bold red]Failed to create backup file {baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
 

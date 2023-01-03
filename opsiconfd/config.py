@@ -299,9 +299,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		secret_filter.add_secrets(self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase)
 
 		try:
-			if not self._config.password:
-				self._config.password = None
-			else:
+			if self._config.password:
 				secret_filter.add_secrets(self._config.password)
 		except AttributeError:
 			pass
@@ -1125,7 +1123,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			)
 			self._parser.add(
 				"--password",
-				help=self._help(("backup", "restore"), "Password for backup encryption and decryption."),
+				nargs="?",
+				default=False,
+				help=self._help(
+					("backup", "restore"),
+					"Password for backup encryption and decryption. "
+					"If the argument is given without a value, the user will be prompted for a password.",
+				),
 			)
 
 		if self._sub_command == "backup":

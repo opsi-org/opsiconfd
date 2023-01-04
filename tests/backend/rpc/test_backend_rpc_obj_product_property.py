@@ -8,10 +8,6 @@
 test opsiconfd.backend.rpc.obj_product
 """
 
-from typing import Generator
-
-import pytest
-
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -24,7 +20,7 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 from .test_backend_rpc_obj_product import create_test_products
-from .utils import cleanup_database
+from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name

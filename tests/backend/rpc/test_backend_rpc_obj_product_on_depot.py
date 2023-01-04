@@ -8,10 +8,6 @@
 test opsiconfd.backend.rpc.obj_product
 """
 
-from typing import Generator
-
-import pytest
-
 from opsiconfd.config import FQDN
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

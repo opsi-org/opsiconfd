@@ -462,7 +462,7 @@ class Client:
 
 		if self.test_case.encoding == "json":
 			headers["content-type"] = "application/json"
-			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, request)
+			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, request)  # pylint: disable=no-member
 		elif self.test_case.encoding == "msgpack":
 			headers["content-type"] = "application/msgpack"
 			data = await asyncio.get_event_loop().run_in_executor(executor, msgpack.dumps, request)
@@ -496,7 +496,7 @@ class Client:
 				if http_response.headers.get("content-type") == "application/msgpack":
 					response = await asyncio.get_event_loop().run_in_executor(executor, msgpack.loads, body)
 				else:
-					response = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)
+					response = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)  # pylint: disable=no-member
 				if response.get("error"):
 					error = response["error"]
 

@@ -671,9 +671,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 				if return_type == "dict":
 					return [
-						self._row_to_dict(
-							row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates, conversions=conversions
-						)
+						self._row_to_object(row=row, object_type=object_type, aggregates=l_aggregates, conversions=conversions).to_hash()
 						for row in result
 					]
 				return [

@@ -8,6 +8,7 @@
 test backup
 """
 import asyncio
+from copy import deepcopy
 from os.path import abspath
 from threading import Thread
 
@@ -61,7 +62,8 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 
 		mysql._database = database  # pylint: disable=protected-access
 		mysql.connect()
-		restore_backup(backup)
+
+		restore_backup(deepcopy(backup))
 		with mysql.session() as session:
 			databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
 			assert database in databases
@@ -71,6 +73,12 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 		with mysql.session() as session:
 			session.execute(f"DROP DATABASE IF EXISTS {database}")
 
+		import pprint
+
+		print("===================================================")
+		pprint.pprint(backup["objects"])
+		print("===================================================")
+		pprint.pprint(backup2["objects"])
 		assert backup["objects"] == backup2["objects"]
 	finally:
 		app.set_app_state(ShutdownState())

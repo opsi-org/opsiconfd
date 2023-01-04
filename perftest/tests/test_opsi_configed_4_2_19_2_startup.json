@@ -1,0 +1,1565 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 1,
+	"iterations": 1,
+	"test_cases": [
+		{
+			"name": "opsi-configed 4.2.19.2 startup calls",
+			"compression": "gzip",
+			"requests": {
+				"test": [
+					[
+						"jsonrpc",
+						"authenticated",
+						[]
+					],
+					[
+						"jsonrpc",
+						"getPossibleMethods_listOfHashes",
+						[]
+					],
+					[
+						"jsonrpc",
+						"backend_getLicensingInfo",
+						[
+							true,
+							false,
+							true,
+							false
+						]
+					],
+					[
+						"jsonrpc",
+						"backend_info",
+						[]
+					],
+					[
+						"jsonrpc",
+						"host_getObjects",
+						[]
+					],
+					[
+						"jsonrpc",
+						"configState_getObjects",
+						[]
+					],
+					[
+						"jsonrpc",
+						"auditHardware_getConfig",
+						[]
+					],
+					[
+						"jsonrpc",
+						"config_getObjects",
+						[]
+					],
+					[
+						"jsonrpc",
+						"authenticated",
+						[]
+					],
+					[
+						"jsonrpc",
+						"accessControl_userIsReadOnlyUser",
+						[]
+					],
+					[
+						"jsonrpc",
+						"group_getObjects",
+						[
+							[],
+							{
+								"type": "HostGroup"
+							}
+						]
+					],
+					[
+						"jsonrpc",
+						"group_getObjects",
+						[
+							[],
+							{
+								"type": "ProductGroup"
+							}
+						]
+					],
+					[
+						"jsonrpc",
+						"config_updateObjects",
+						[
+							[
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.ssh.menu_serverconsole.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.ssh.serverconfiguration.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.ssh.commandmanagement.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.ssh.commands.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.all.registered_readonly",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.privilege.host.opsiserver.write",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.depotaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.product.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.privilege.host.createclient",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										""
+									],
+									"editable": false,
+									"description": "which role should determine this users configuration",
+									"defaultValues": [
+										""
+									],
+									"id": "user.role.{default}.has_role",
+									"type": "UnicodeConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										"0000-00-00 00:00:00"
+									],
+									"editable": false,
+									"description": "user.role.{default}.modified",
+									"defaultValues": [
+										"0000-00-00 00:00:00"
+									],
+									"id": "user.role.{default}.modified",
+									"type": "UnicodeConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is false",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.depotaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										"{{depot_id}}"
+									],
+									"editable": false,
+									"description": "the primary value setting is an empty selection list, but all existing items as option",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "user.role.{default}.privilege.host.depotaccess.depots"
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is false",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [],
+									"editable": false,
+									"description": "the primary value setting is an empty selection list, but all existing items as option",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "user.role.{default}.privilege.host.groupaccess.hostgroups"
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is false",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.product.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [],
+									"editable": false,
+									"description": "the primary value setting is an empty selection list, but all existing items as option",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "user.role.{default}.privilege.product.groupaccess.productgroups"
+								},
+								{
+									"possibleValues": "[2022-12-16 09:46:46 set by role prototype]",
+									"editable": false,
+									"description": "last modification time for entries of this user",
+									"defaultValues": "[2022-12-16 09:46:46 set by role prototype]",
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "user.role.{default}.modified"
+								}
+							]
+						]
+					],
+					[
+						"jsonrpc",
+						"config_updateObjects",
+						[
+							[
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "Use SQL calls for search if SQL backend is active",
+									"defaultValues": [
+										true
+									],
+									"id": "configed.search_by_sql",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "Use install by shutdown if possible",
+									"defaultValues": [
+										false
+									],
+									"id": "opsiclientd.event_on_shutdown.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										"algorithm1",
+										"algorithm2"
+									],
+									"editable": false,
+									"description": "algorithm1 = dependencies first; algorithm2 = priorities first",
+									"defaultValues": [
+										"algorithm1"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "product_sort_algorithm"
+								},
+								{
+									"possibleValues": [
+										"description",
+										"inventoryNumber",
+										"notes",
+										"ipAddress",
+										"lastSeen"
+									],
+									"editable": false,
+									"description": "Zusatzspalten zur Host-Beschreibung\nin der Tabelle \"Abgleich mit Inventarisierung\"\nBitte nach Änderungen configed neu starten",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "configed.license_inventory_extradisplayfields"
+								},
+								{
+									"possibleValues": [
+										"xterm +hold -e ping %host%"
+									],
+									"editable": true,
+									"description": "ping, started in a Linux environment",
+									"defaultValues": [
+										"xterm +hold -e ping %host%"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_linux"
+								},
+								{
+									"possibleValues": [
+										true
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										true
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_linux.editable"
+								},
+								{
+									"possibleValues": [
+										"ping, started in a Linux environment"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"ping, started in a Linux environment"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_linux.description"
+								},
+								{
+									"possibleValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"editable": true,
+									"description": "ping, started in a Windows terminal",
+									"defaultValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows"
+								},
+								{
+									"possibleValues": [
+										true
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										true
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.editable"
+								},
+								{
+									"possibleValues": [
+										"ping, started in a Windows terminal"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"ping, started in a Windows terminal"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.description"
+								},
+								{
+									"possibleValues": [
+										"firefox https://%host%:4441/info.html"
+									],
+									"editable": true,
+									"description": "opsiclientd  timeline, called from a Linux environment, firefox recommended",
+									"defaultValues": [
+										"firefox https://%host%:4441/info.html"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_linux"
+								},
+								{
+									"possibleValues": [
+										false
+									],
+									"editable": true,
+									"description": "(command may not be edited)",
+									"defaultValues": [
+										false
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_linux.editable"
+								},
+								{
+									"possibleValues": [
+										"opsiclientd  timeline, called from a Linux environment, firefox recommended"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"opsiclientd  timeline, called from a Linux environment, firefox recommended"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_linux.description"
+								},
+								{
+									"possibleValues": [
+										"cmd.exe /c start https://%host%:4441/info.html"
+									],
+									"editable": true,
+									"description": "opsiclientd  timeline, called rfrom a Windows environment",
+									"defaultValues": [
+										"cmd.exe /c start https://%host%:4441/info.html"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_windows"
+								},
+								{
+									"possibleValues": [
+										false
+									],
+									"editable": true,
+									"description": "(command may not be edited)",
+									"defaultValues": [
+										false
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_windows.editable"
+								},
+								{
+									"possibleValues": [
+										"opsiclientd  timeline, called rfrom a Windows environment"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"opsiclientd  timeline, called rfrom a Windows environment"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_windows.description"
+								},
+								{
+									"possibleValues": [
+										"select hostId, productId, installationStatus from  HOST, PRODUCT_ON_CLIENT  WHERE HOST.hostId  = PRODUCT_ON_CLIENT.clientId  AND =  installationStatus='installed'  order by hostId, productId "
+									],
+									"editable": true,
+									"description": "all hosts and their installed products",
+									"defaultValues": [
+										"select hostId, productId, installationStatus from  HOST, PRODUCT_ON_CLIENT  WHERE HOST.hostId  = PRODUCT_ON_CLIENT.clientId  AND =  installationStatus='installed'  order by hostId, productId "
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.query_supplementary.hosts_with_products"
+								},
+								{
+									"possibleValues": [
+										false
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										false
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.query_supplementary.hosts_with_products.editable"
+								},
+								{
+									"possibleValues": [
+										"all hosts and their installed products"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"all hosts and their installed products"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.query_supplementary.hosts_with_products.description"
+								},
+								{
+									"possibleValues": [
+										"add client",
+										"remove client",
+										"free licences for client"
+									],
+									"editable": false,
+									"description": "",
+									"defaultValues": [],
+									"id": "configed.host_actions_disabled",
+									"type": "UnicodeConfig",
+									"multiValue": true
+								},
+								{
+									"possibleValues": [
+										"{ \"version\" : \"2\", \"data\" : { \"element\" : null,  \"elementPath\" : null, \"operation\" : \"SoftwareOperation\", \"dataType\" : null, \"data\" : null,  \"children\" : [ { \"element\" : \"SoftwareActionResultElement\", \"elementPath\" : [ \"Product\", \"Action Result\" ], \"operation\" : \"StringEqualsOperation\", \"dataType\" : TextType, \"data\" : \"failed\", \"children\" : null } ] } }"
+									],
+									"editable": true,
+									"description": "any product failed",
+									"defaultValues": [
+										"{ \"version\" : \"2\", \"data\" : { \"element\" : null,  \"elementPath\" : null, \"operation\" : \"SoftwareOperation\", \"dataType\" : null, \"data\" : null,  \"children\" : [ { \"element\" : \"SoftwareActionResultElement\", \"elementPath\" : [ \"Product\", \"Action Result\" ], \"operation\" : \"StringEqualsOperation\", \"dataType\" : TextType, \"data\" : \"failed\", \"children\" : null } ] } }"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.saved_search.product_failed"
+								},
+								{
+									"possibleValues": [
+										"any product failed"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"any product failed"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.saved_search.product_failed.description"
+								},
+								{
+									"possibleValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"editable": true,
+									"description": "ping, started in a Windows terminal",
+									"defaultValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows"
+								},
+								{
+									"possibleValues": [
+										true
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										true
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.editable"
+								},
+								{
+									"possibleValues": [
+										"ping, started in a Windows terminal"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"ping, started in a Windows terminal"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.description"
+								},
+								{
+									"possibleValues": [
+										"add client",
+										"remove client"
+									],
+									"editable": false,
+									"description": "",
+									"defaultValues": [],
+									"id": "configed.host_actions_disabled",
+									"type": "UnicodeConfig",
+									"multiValue": true
+								}
+							]
+						]
+					],
+					[
+						"jsonrpc",
+						"config_deleteObjects",
+						[
+							[
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.commands.active"
+								},
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.serverconfiguration.active"
+								},
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.menu_serverconsole.active"
+								},
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.commandmanagement.active"
+								}
+							]
+						]
+					],
+					[
+						"jsonrpc",
+						"objectToGroup_getObjects",
+						[]
+					],
+					[
+						"jsonrpc",
+						"config_updateObjects",
+						[
+							{
+								"possibleValues": [
+									"clientName",
+									"clientDescription",
+									"clientSessionInfo",
+									"clientConnected",
+									"clientLastSeen",
+									"WANmode",
+									"clientIPAddress",
+									"clientHardwareAddress",
+									"clientInventoryNumber",
+									"UEFIboot",
+									"installByShutdown",
+									"clientCreated",
+									"depotId"
+								],
+								"editable": false,
+								"description": "",
+								"defaultValues": [
+									"clientConnected",
+									"clientDescription",
+									"clientIPAddress",
+									"clientLastSeen",
+									"clientName"
+								],
+								"type": "UnicodeConfig",
+								"multiValue": true,
+								"id": "configed.host_displayfields"
+							}
+						]
+					],
+					[
+						"jsonrpc",
+						"SSHCommand_getObjects",
+						[]
+					],
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[
+								"id",
+								"productVersion",
+								"packageVersion",
+								"setupScript",
+								"updateScript",
+								"uninstallScript",
+								"alwaysScript",
+								"onceScript",
+								"customScript",
+								"userLoginScript",
+								"priority",
+								"advice",
+								"name",
+								"description"
+							],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"productOnDepot_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"productDependency_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"accessControl_userIsReadOnlyUser",
+						[]
+					],
+					[
+						"jsonrpc",
+						"config_updateObjects",
+						[
+							[
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.ssh.menu_serverconsole.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.ssh.serverconfiguration.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.ssh.commandmanagement.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.ssh.commands.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.all.registered_readonly",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.privilege.host.opsiserver.write",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.depotaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.product.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is based on the user group",
+									"defaultValues": [
+										true
+									],
+									"id": "user.role.{default}.privilege.host.createclient",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										""
+									],
+									"editable": false,
+									"description": "which role should determine this users configuration",
+									"defaultValues": [
+										""
+									],
+									"id": "user.role.{default}.has_role",
+									"type": "UnicodeConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										"0000-00-00 00:00:00"
+									],
+									"editable": false,
+									"description": "user.role.{default}.modified",
+									"defaultValues": [
+										"0000-00-00 00:00:00"
+									],
+									"id": "user.role.{default}.modified",
+									"type": "UnicodeConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is false",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.depotaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										"{{depot_id}}"
+									],
+									"editable": false,
+									"description": "the primary value setting is an empty selection list, but all existing items as option",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "user.role.{default}.privilege.host.depotaccess.depots"
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is false",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.host.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [],
+									"editable": false,
+									"description": "the primary value setting is an empty selection list, but all existing items as option",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "user.role.{default}.privilege.host.groupaccess.hostgroups"
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "the primary value setting is false",
+									"defaultValues": [
+										false
+									],
+									"id": "user.role.{default}.privilege.product.groupaccess.configured",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [],
+									"editable": false,
+									"description": "the primary value setting is an empty selection list, but all existing items as option",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "user.role.{default}.privilege.product.groupaccess.productgroups"
+								},
+								{
+									"possibleValues": "[2022-12-16 09:46:50 set by role prototype]",
+									"editable": false,
+									"description": "last modification time for entries of this user",
+									"defaultValues": "[2022-12-16 09:46:50 set by role prototype]",
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "user.role.{default}.modified"
+								}
+							]
+						]
+					],
+					[
+						"jsonrpc",
+						"config_updateObjects",
+						[
+							[
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "Use SQL calls for search if SQL backend is active",
+									"defaultValues": [
+										true
+									],
+									"id": "configed.search_by_sql",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										true,
+										false
+									],
+									"editable": false,
+									"description": "Use install by shutdown if possible",
+									"defaultValues": [
+										false
+									],
+									"id": "opsiclientd.event_on_shutdown.active",
+									"type": "BoolConfig",
+									"multiValue": false
+								},
+								{
+									"possibleValues": [
+										"algorithm1",
+										"algorithm2"
+									],
+									"editable": false,
+									"description": "algorithm1 = dependencies first; algorithm2 = priorities first",
+									"defaultValues": [
+										"algorithm1"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "product_sort_algorithm"
+								},
+								{
+									"possibleValues": [
+										"description",
+										"inventoryNumber",
+										"notes",
+										"ipAddress",
+										"lastSeen"
+									],
+									"editable": false,
+									"description": "Zusatzspalten zur Host-Beschreibung\nin der Tabelle \"Abgleich mit Inventarisierung\"\nBitte nach Änderungen configed neu starten",
+									"defaultValues": [],
+									"type": "UnicodeConfig",
+									"multiValue": true,
+									"id": "configed.license_inventory_extradisplayfields"
+								},
+								{
+									"possibleValues": [
+										"xterm +hold -e ping %host%"
+									],
+									"editable": true,
+									"description": "ping, started in a Linux environment",
+									"defaultValues": [
+										"xterm +hold -e ping %host%"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_linux"
+								},
+								{
+									"possibleValues": [
+										true
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										true
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_linux.editable"
+								},
+								{
+									"possibleValues": [
+										"ping, started in a Linux environment"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"ping, started in a Linux environment"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_linux.description"
+								},
+								{
+									"possibleValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"editable": true,
+									"description": "ping, started in a Windows terminal",
+									"defaultValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows"
+								},
+								{
+									"possibleValues": [
+										true
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										true
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.editable"
+								},
+								{
+									"possibleValues": [
+										"ping, started in a Windows terminal"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"ping, started in a Windows terminal"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.description"
+								},
+								{
+									"possibleValues": [
+										"firefox https://%host%:4441/info.html"
+									],
+									"editable": true,
+									"description": "opsiclientd  timeline, called from a Linux environment, firefox recommended",
+									"defaultValues": [
+										"firefox https://%host%:4441/info.html"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_linux"
+								},
+								{
+									"possibleValues": [
+										false
+									],
+									"editable": true,
+									"description": "(command may not be edited)",
+									"defaultValues": [
+										false
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_linux.editable"
+								},
+								{
+									"possibleValues": [
+										"opsiclientd  timeline, called from a Linux environment, firefox recommended"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"opsiclientd  timeline, called from a Linux environment, firefox recommended"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_linux.description"
+								},
+								{
+									"possibleValues": [
+										"cmd.exe /c start https://%host%:4441/info.html"
+									],
+									"editable": true,
+									"description": "opsiclientd  timeline, called rfrom a Windows environment",
+									"defaultValues": [
+										"cmd.exe /c start https://%host%:4441/info.html"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_windows"
+								},
+								{
+									"possibleValues": [
+										false
+									],
+									"editable": true,
+									"description": "(command may not be edited)",
+									"defaultValues": [
+										false
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_windows.editable"
+								},
+								{
+									"possibleValues": [
+										"opsiclientd  timeline, called rfrom a Windows environment"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"opsiclientd  timeline, called rfrom a Windows environment"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.opsiclientd_timeline_windows.description"
+								},
+								{
+									"possibleValues": [
+										"select hostId, productId, installationStatus from  HOST, PRODUCT_ON_CLIENT  WHERE HOST.hostId  = PRODUCT_ON_CLIENT.clientId  AND =  installationStatus='installed'  order by hostId, productId "
+									],
+									"editable": true,
+									"description": "all hosts and their installed products",
+									"defaultValues": [
+										"select hostId, productId, installationStatus from  HOST, PRODUCT_ON_CLIENT  WHERE HOST.hostId  = PRODUCT_ON_CLIENT.clientId  AND =  installationStatus='installed'  order by hostId, productId "
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.query_supplementary.hosts_with_products"
+								},
+								{
+									"possibleValues": [
+										false
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										false
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.query_supplementary.hosts_with_products.editable"
+								},
+								{
+									"possibleValues": [
+										"all hosts and their installed products"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"all hosts and their installed products"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.query_supplementary.hosts_with_products.description"
+								},
+								{
+									"possibleValues": [
+										"add client",
+										"remove client",
+										"free licences for client"
+									],
+									"editable": false,
+									"description": "",
+									"defaultValues": [],
+									"id": "configed.host_actions_disabled",
+									"type": "UnicodeConfig",
+									"multiValue": true
+								},
+								{
+									"possibleValues": [
+										"{ \"version\" : \"2\", \"data\" : { \"element\" : null,  \"elementPath\" : null, \"operation\" : \"SoftwareOperation\", \"dataType\" : null, \"data\" : null,  \"children\" : [ { \"element\" : \"SoftwareActionResultElement\", \"elementPath\" : [ \"Product\", \"Action Result\" ], \"operation\" : \"StringEqualsOperation\", \"dataType\" : TextType, \"data\" : \"failed\", \"children\" : null } ] } }"
+									],
+									"editable": true,
+									"description": "any product failed",
+									"defaultValues": [
+										"{ \"version\" : \"2\", \"data\" : { \"element\" : null,  \"elementPath\" : null, \"operation\" : \"SoftwareOperation\", \"dataType\" : null, \"data\" : null,  \"children\" : [ { \"element\" : \"SoftwareActionResultElement\", \"elementPath\" : [ \"Product\", \"Action Result\" ], \"operation\" : \"StringEqualsOperation\", \"dataType\" : TextType, \"data\" : \"failed\", \"children\" : null } ] } }"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.saved_search.product_failed"
+								},
+								{
+									"possibleValues": [
+										"any product failed"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"any product failed"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.saved_search.product_failed.description"
+								},
+								{
+									"possibleValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"editable": true,
+									"description": "ping, started in a Windows terminal",
+									"defaultValues": [
+										"cmd.exe /c start ping %host%"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows"
+								},
+								{
+									"possibleValues": [
+										true
+									],
+									"editable": true,
+									"description": "(command may be edited)",
+									"defaultValues": [
+										true
+									],
+									"type": "BoolConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.editable"
+								},
+								{
+									"possibleValues": [
+										"ping, started in a Windows terminal"
+									],
+									"editable": true,
+									"description": "",
+									"defaultValues": [
+										"ping, started in a Windows terminal"
+									],
+									"type": "UnicodeConfig",
+									"multiValue": false,
+									"id": "configed.remote_control.ping_windows.description"
+								},
+								{
+									"possibleValues": [
+										"add client",
+										"remove client"
+									],
+									"editable": false,
+									"description": "",
+									"defaultValues": [],
+									"id": "configed.host_actions_disabled",
+									"type": "UnicodeConfig",
+									"multiValue": true
+								}
+							]
+						]
+					],
+					[
+						"jsonrpc",
+						"config_deleteObjects",
+						[
+							[
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.commands.active"
+								},
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.serverconfiguration.active"
+								},
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.menu_serverconsole.active"
+								},
+								{
+									"type": "BoolConfig",
+									"id": "user.{}.ssh.commandmanagement.active"
+								}
+							]
+						]
+					],
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[
+								"id",
+								"productVersion",
+								"packageVersion",
+								"setupScript",
+								"updateScript",
+								"uninstallScript",
+								"alwaysScript",
+								"onceScript",
+								"customScript",
+								"userLoginScript",
+								"priority",
+								"advice",
+								"name",
+								"description"
+							],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"productOnDepot_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"getProductOrdering",
+						[
+							""
+						]
+					],
+					[
+						"jsonrpc",
+						"productProperty_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"getProductOrdering",
+						[
+							"{{depot_id}}"
+						]
+					],
+					[
+						"jsonrpc",
+						"getDomain",
+						[]
+					],
+					[
+						"jsonrpc",
+						"group_getObjects",
+						[
+							[],
+							{
+								"type": "ProductGroup"
+							}
+						]
+					],
+					[
+						"jsonrpc",
+						"objectToGroup_getObjects",
+						[
+							[],
+							{
+								"groupType": "ProductGroup"
+							}
+						]
+					],
+					[
+						"jsonrpc",
+						"auditHardware_getConfig",
+						[
+							"de_DE"
+						]
+					],
+					[
+						"jsonrpc",
+						"productDependency_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"productPropertyState_getObjects",
+						[
+							[],
+							{
+								"objectId": [
+									"{{depot_id}}"
+								]
+							}
+						]
+					],
+					[
+						"jsonrpc",
+						"auditSoftware_getHashes",
+						[
+							[
+								"name",
+								"version",
+								"subVersion",
+								"language",
+								"architecture",
+								"windowsSoftwareId"
+							],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"config_getObjects",
+						[
+							[],
+							{}
+						]
+					]
+				]
+			}
+		}
+	]
+}

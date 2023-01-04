@@ -11,9 +11,9 @@ test opsiconfd.backend.rpc.obj_product
 from typing import Generator
 
 import pytest
+from opsicommon.objects import ProductOnClient  # type: ignore[import]
 
-from .test_backend_rpc_obj_product_on_depot import create_test_pods
-from .utils import (  # pylint: disable=unused-import
+from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,
@@ -24,22 +24,8 @@ from .utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-
-@pytest.fixture(autouse=False)
-def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	cursor.execute("DELETE FROM `PRODUCT_ON_CLIENT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `PRODUCT_ON_DEPOT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `PRODUCT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-host%'")
-	database_connection.commit()
-	yield
-	cursor.execute("DELETE FROM `PRODUCT_ON_CLIENT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `PRODUCT_ON_DEPOT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `PRODUCT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-host%'")
-	database_connection.commit()
-	cursor.close()
+from .test_backend_rpc_obj_product_on_depot import create_test_pods
+from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
@@ -404,3 +390,24 @@ def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 	poc = res["result"][0]
 	for attr, val in poc2.items():
 		assert val == poc[attr]
+
+
+# def test_product_on_client_generateSequence(  # pylint: disable=invalid-name
+# 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+# ) -> None:
+# 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+# 	create_test_product_dependencies(test_client)
+# 	poc1, poc2 = create_test_products(test_client)
+# 	poc1["type"] = "ProductOnClient"
+# 	poc2["type"] = "ProductOnClient"
+
+# 	rpc = {
+# 		"jsonrpc": "2.0",
+# 		"id": 1,
+# 		"method": "productOnClient_generateSequence",
+# 		"params": [[poc2]],
+# 	}
+# 	res = test_client.post("/rpc", json=rpc).json()
+# 	assert "error" not in res
+# 	print(res)
+# 	assert 1 == 0

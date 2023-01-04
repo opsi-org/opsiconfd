@@ -23,6 +23,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	ProductOnClient,
 )
 from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceObjectClass  # type: ignore[import]
 
 from . import rpc_method
 
@@ -126,6 +127,7 @@ class RPCProductOnClientMixin(Protocol):
 		product_on_clients_by_client: dict[str, list[ProductOnClient]] = {}
 		product_ids = set()
 		for poc in product_on_clients:
+			poc = forceObjectClass(poc, ProductOnClient)
 			try:  # pylint: disable=loop-try-except-usage
 				product_on_clients_by_client[poc.getClientId()].append(poc)
 			except KeyError:

@@ -16,7 +16,7 @@ from opsiconfd.backend import (
 	get_unprotected_backend,
 )
 
-from .utils import (  # pylint: disable=unused-import
+from ..utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,

@@ -18,8 +18,7 @@ from opsiconfd.backend.rpc.cache import (
 	rpc_cache_load,
 	rpc_cache_store,
 )
-
-from .utils import (  # pylint: disable=unused-import
+from tests.utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	clean_redis,
 	delete_products_jsonrpc,

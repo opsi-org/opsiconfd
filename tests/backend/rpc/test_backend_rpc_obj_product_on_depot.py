@@ -13,9 +13,7 @@ from typing import Generator
 import pytest
 
 from opsiconfd.config import FQDN
-
-from .test_backend_rpc_obj_product import create_test_products
-from .utils import (  # pylint: disable=unused-import
+from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,
@@ -26,18 +24,8 @@ from .utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-
-@pytest.fixture(autouse=True)
-def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	cursor.execute("DELETE FROM `PRODUCT_ON_DEPOT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `PRODUCT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	database_connection.commit()
-	yield
-	cursor.execute("DELETE FROM `PRODUCT_ON_DEPOT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	cursor.execute("DELETE FROM `PRODUCT` WHERE productId LIKE 'test-backend-rpc-product%'")
-	database_connection.commit()
-	cursor.close()
+from .test_backend_rpc_obj_product import create_test_products
+from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name

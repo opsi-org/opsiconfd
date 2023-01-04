@@ -12,8 +12,7 @@ from inspect import getmembers, ismethod
 from pathlib import Path
 
 from opsiconfd.backend.rpc.extender import RPCExtenderMixin
-
-from .utils import get_config  # pylint: disable=unused-import
+from tests.utils import get_config  # pylint: disable=unused-import
 
 
 class Backend(RPCExtenderMixin):  # pylint: disable=too-few-public-methods

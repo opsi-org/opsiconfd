@@ -90,6 +90,7 @@ indent = "\t"
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+follow_imports = "silent"
 
 [tool.pylint.MASTER]
 load-plugins = "pylint_pydantic"

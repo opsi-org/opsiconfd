@@ -161,26 +161,29 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 	if not state_key:
 		return
 
-	async with redis.pipeline(transaction=True) as pipe:
-		attempt = 0
-		while True:
-			attempt += 1
-			try:  # pylint: disable=loop-try-except-usage
-				await pipe.watch(state_key)
-				val = await pipe.hget(state_key, "websocket_count")
-				val = max(0, int(val or 0)) + increment
-				pipe.multi()
-				pipe.hset(state_key, "websocket_count", val)
-				await pipe.execute()
-				break
-			except WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
-				pass
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
-				break
-			if attempt >= 10:
-				logger.error("Failed to update messagebus websocket count")  # pylint: disable=loop-global-usage
-			await sleep(0.1)
+	try:
+		async with redis.pipeline(transaction=True) as pipe:
+			attempt = 0
+			while True:
+				attempt += 1
+				try:  # pylint: disable=loop-try-except-usage
+					await pipe.watch(state_key)
+					val = await pipe.hget(state_key, "websocket_count")
+					val = max(0, int(val or 0)) + increment
+					pipe.multi()
+					pipe.hset(state_key, "websocket_count", val)
+					await pipe.execute()
+					break
+				except WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+					pass
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
+					break
+				if attempt >= 10:
+					logger.error("Failed to update messagebus websocket count")  # pylint: disable=loop-global-usage
+				await sleep(0.1)
+	except CancelledError:
+		pass
 
 
 async def get_websocket_connected_client_ids(client_ids: list[str] | None = None) -> AsyncGenerator[str, None]:

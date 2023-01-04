@@ -189,7 +189,8 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
 	`productVersion` varchar(32) DEFAULT NULL,
 	`packageVersion` varchar(16) DEFAULT NULL,
 	`modificationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	PRIMARY KEY (`productId`,`clientId`),
+	PRIMARY KEY (`productId`,`productType`,`clientId`),
+	UNIQUE INDEX (`productId`, `clientId`),
 	KEY `FK_PRODUCT_ON_CLIENT_HOST` (`clientId`),
 	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -201,13 +202,15 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	`depotId` varchar(255) NOT NULL,
 	`productType` varchar(16) NOT NULL,
 	`locked` tinyint(1) DEFAULT NULL,
-	PRIMARY KEY (`productId`,`depotId`),
+	PRIMARY KEY (`productId`,`productType`,`productVersion`,`packageVersion`,`depotId`),
+	UNIQUE INDEX (`productId`, `depotId`),
 	KEY `productId` (`productId`,`productVersion`,`packageVersion`),
 	KEY `depotId` (`depotId`),
 	KEY `index_product_on_depot_productType` (`productType`),
 	FOREIGN KEY (`depotId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY` (
 	`productId` varchar(255) NOT NULL,
@@ -474,6 +477,9 @@ def create_index(session: Session, database: str, table: str, index: str, column
 			if index_columns:
 				session.execute(f"ALTER TABLE `{table}` DROP PRIMARY KEY")
 			session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
+		elif index == "UNIQUE":
+			logger.info("Setting new UNIQUE KEY on table %r", table)
+			session.execute(f"ALTER TABLE `{table}` ADD UNIQUE KEY ({key})")
 		else:
 			logger.info("Setting new index %r on table %r", index, table)
 			if index_columns:
@@ -637,12 +643,40 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 				logger.info("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
 
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_ON_CLIENT",
+			index="PRIMARY",
+			columns=["productId", "productType", "clientId"],
+		)
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_ON_CLIENT",
+			index="UNIQUE",
+			columns=["productId", "clientId"],
+		)
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
 			foreign_key=OpsiForeignKey(table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]),
 		)
 
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_ON_DEPOT",
+			index="PRIMARY",
+			columns=["productId", "productType", "productVersion", "packageVersion", "depotId"],
+		)
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_ON_DEPOT",
+			index="UNIQUE",
+			columns=["productId", "depotId"],
+		)
 		create_foreign_key(
 			session=session,
 			database=mysql.database,

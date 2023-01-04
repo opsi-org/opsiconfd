@@ -18,7 +18,7 @@ from shlex import quote
 from socket import AF_UNIX, SOCK_STREAM, socket
 from threading import Lock, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, Generator, Protocol
+from typing import TYPE_CHECKING, Any, Generator, Protocol
 
 from OPSI.Util import serialize  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]

@@ -73,12 +73,6 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 		with mysql.session() as session:
 			session.execute(f"DROP DATABASE IF EXISTS {database}")
 
-		import pprint
-
-		print("===================================================")
-		pprint.pprint(backup["objects"])
-		print("===================================================")
-		pprint.pprint(backup2["objects"])
 		assert backup["objects"] == backup2["objects"]
 	finally:
 		app.set_app_state(ShutdownState())

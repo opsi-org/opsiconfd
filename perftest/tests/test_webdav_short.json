@@ -12,15 +12,15 @@
 					[
 						"webdav",
 						"PUT",
-						"{http_client_id}.txt",
-						"{random_data:100000000}"
+						"{{http_client_id}}.txt",
+						"{{random_data:100000000}}"
 					]
 				],
 				"teardown": [
 					[
 						"webdav",
 						"DELETE",
-						"{http_client_id}.txt"
+						"{{http_client_id}}.txt"
 					]
 				]
 			}

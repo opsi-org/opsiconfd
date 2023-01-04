@@ -19,6 +19,7 @@ git:
 
 pyinstaller-poetry:
   one_file: no
+  strip: yes
   hidden_imports:
     all:
       - ipaddress

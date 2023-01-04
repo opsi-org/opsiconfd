@@ -43,7 +43,6 @@
 		"python.linting.mypyArgs": [
 			"--show-error-codes"
 		],
-		"files.trimTrailingWhitespace": true,
 		"python.languageServer": "Pylance"
 	},
 	"extensions": [

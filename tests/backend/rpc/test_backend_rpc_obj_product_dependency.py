@@ -384,7 +384,7 @@ def test_product_dependency_delete(  # pylint: disable=invalid-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {}]}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_getObjects", "params": [[], {}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 2
 

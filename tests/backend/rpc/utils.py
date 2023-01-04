@@ -24,7 +24,7 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture(autouse=True)
 def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
 	cursor = database_connection.cursor()
 	cursor.execute("DELETE FROM `PRODUCT_ON_CLIENT` WHERE productId LIKE 'test-backend-rpc-product%'")

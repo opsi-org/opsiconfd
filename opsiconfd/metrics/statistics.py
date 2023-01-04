@@ -11,7 +11,6 @@ statistics
 import asyncio
 import re
 import time
-from typing import Dict
 
 import yappi  # type: ignore[import]
 from fastapi import FastAPI
@@ -77,7 +76,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 
 				cmd = f"TS.INFO {orig_key}"
 				info = client.execute_command(cmd)
-				existing_rules: Dict[str, Dict[str, str]] = {}  # pylint: disable=loop-invariant-statement
+				existing_rules: dict[str, dict[str, str]] = {}  # pylint: disable=loop-invariant-statement
 				for idx, val in enumerate(info):
 					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
 						rules = info[idx + 1]

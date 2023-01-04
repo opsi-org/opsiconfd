@@ -521,12 +521,29 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			return tuple(ident.values())
 		raise ValueError(f"Invalid ident type {ident_type!r}")
 
-	def _row_to_dict(
+	def _process_aggregates(self, data: dict[str, Any], aggregates: list[str]) -> None:
+		for attr in aggregates:
+			try:  # pylint: disable=loop-try-except-usage
+				data[attr] = data[attr].split(self.record_separator) if data[attr] else []
+			except KeyError:
+				pass
+
+	def _process_conversions(self, data: dict[str, Any], conversions: dict[str, Callable]) -> None:
+		for attr, func in conversions.items():
+			try:  # pylint: disable=loop-try-except-usage
+				data[attr] = func(data[attr])
+			except KeyError:
+				pass
+			except JSONDecodeError as err:
+				logger.warning(err)
+
+	def _row_to_dict(  # pylint: disable=too-many-arguments
 		self,
 		row: Row,
 		object_type: Type[BaseObject] | None = None,
 		ident_type: IdentType | None = None,
 		aggregates: list[str] | None = None,
+		conversions: dict[str, Callable] | None = None,
 	) -> dict[str, Any]:
 		data = dict(row)
 		try:
@@ -534,23 +551,16 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		except KeyError:
 			pass
 
-		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore
 		possible_attributes = self._get_possible_class_attributes(object_type)  # type: ignore
-		conversions = self._get_read_conversions(object_type)  # type: ignore
 
-		res = {}
-		for key, val in data.items():
-			if key not in possible_attributes:
-				continue
-			if aggregates and key in aggregates:
-				val = val.split(self.record_separator) if val else []
+		if aggregates:
+			self._process_aggregates(data, aggregates)
+		if conversions:
+			self._process_conversions(data, conversions)
 
-			conv = conversions.get(key)
-			if conv:
-				val = conv(val)
-			res[key] = val
-
+		res = {attr: val for attr, val in data.items() if attr in possible_attributes}
 		if ident_type:
+			ident_attributes = self._get_ident_attributes(object_type)  # type: ignore
 			res["ident"] = self.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type)
 
 		return res
@@ -559,31 +569,17 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		row: Row,
 		object_type: Type[BaseObjectT] | None = None,
-		conversions: dict[str, Callable] | None = None,
 		aggregates: list[str] | None = None,
+		conversions: dict[str, Callable] | None = None
 	) -> BaseObject:
 		data = dict(row)
 
 		if aggregates:
-			for attr in aggregates:
-				try:  # pylint: disable=loop-try-except-usage
-					data[attr] = data[attr].split(self.record_separator) if data[attr] else []
-				except KeyError:
-					pass
+			self._process_aggregates(data, aggregates)
 		if conversions:
-			for attr, func in conversions.items():
-				try:  # pylint: disable=loop-try-except-usage
-					data[attr] = func(data[attr])
-				except KeyError:
-					pass
-				except JSONDecodeError as err:
-					logger.warning(err)
+			self._process_conversions(data, conversions)
 
-		try:
-			object_type = self._get_object_type(data.pop("type")) or object_type  # type: ignore[assignment]
-		except KeyError:
-			pass
-		return object_type(**data)  # type: ignore
+		return object_type.fromHash(data)  # type: ignore
 
 	def get_allowed_client_ids(self, ace: list[RPCACE]) -> list[str] | None:
 		allowed_client_ids: list[str] | None = None
@@ -685,16 +681,15 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					return []
 				if return_type == "ident":
 					return [self.get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result]
+
+				conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 				if return_type == "dict":
-					conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 					return [
-						self._row_to_object(row=row, object_type=object_type, conversions=conversions, aggregates=l_aggregates).to_hash()
+						self._row_to_dict(row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates, conversions=conversions)
 						for row in result
 					]
-					# return [self._row_to_dict(row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates) for row in result]
-				conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 				return [
-					self._row_to_object(row=row, object_type=object_type, conversions=conversions, aggregates=l_aggregates) for row in result
+					self._row_to_object(row=row, object_type=object_type, aggregates=l_aggregates, conversions=conversions) for row in result
 				]
 
 	def get_idents(  # pylint: disable=too-many-arguments

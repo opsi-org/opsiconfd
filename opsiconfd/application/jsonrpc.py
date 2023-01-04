@@ -16,9 +16,8 @@ import traceback
 import urllib.parse
 import warnings
 from datetime import datetime
-from functools import lru_cache
 from os import makedirs
-from typing import Any, AsyncGenerator, Dict, Optional, Type
+from typing import Any, AsyncGenerator, Optional
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
@@ -29,7 +28,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	JSONRPCResponseMessage,
 	Message,
 )
-from opsicommon.objects import OBJECT_CLASSES, BaseObject  # type: ignore[import]
+from opsicommon.objects import BaseObject, get_object_type  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
@@ -138,7 +137,7 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 	raise ValueError(f"Unhandled serialization {serialization!r}")
 
 
-async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client_info: str) -> None:  # pylint: disable=too-many-locals
+async def store_rpc_info(rpc: Any, result: dict[str, Any], duration: float, date: datetime, client_info: str) -> None:  # pylint: disable=too-many-locals
 	is_error = bool(result.get("error"))
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
@@ -202,7 +201,7 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		await pipe.execute()
 
 
-async def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
+async def execute_rpc(client_info: str, rpc: dict[str, Any]) -> Any:
 	method_name = rpc["method"]
 	params = rpc["params"]
 	backend = get_protected_backend()
@@ -261,11 +260,6 @@ def serialize(obj: Any, deep: bool = False) -> Any:
 	return obj
 
 
-@lru_cache(maxsize=0)
-def get_object_type(object_type: str) -> Type[BaseObject] | None:
-	return OBJECT_CLASSES[object_type]
-
-
 def deserialize(obj: Any, deep: bool = False) -> Any:  # pylint: disable=invalid-name
 	# This is performance critical!
 	if isinstance(obj, list):
@@ -287,7 +281,7 @@ def deserialize(obj: Any, deep: bool = False) -> Any:  # pylint: disable=invalid
 
 
 def write_debug_log(
-	client_info: str, request: Dict[str, Any] | None = None, response: Any = None, exception: Exception | None = None
+	client_info: str, request: dict[str, Any] | None = None, response: Any = None, exception: Exception | None = None
 ) -> None:
 	now = int(time.time() * 1_000_000)
 	makedirs(RPC_DEBUG_DIR, exist_ok=True)
@@ -307,7 +301,7 @@ def write_debug_log(
 		log_file.write(msgspec.json.encode(msg))  # pylint: disable=no-member
 
 
-async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] | None = None) -> Any:
+async def process_rpc_error(client_info: str, exception: Exception, rpc: dict[str, Any] | None = None) -> Any:
 	_id = rpc.get("id") if rpc else None
 	message = str(exception)
 	_class = exception.__class__.__name__
@@ -349,7 +343,7 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[st
 	return response
 
 
-async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
+async def process_rpc(client_info: str, rpc: dict[str, Any]) -> dict[str, Any]:
 	if "id" not in rpc:
 		rpc["id"] = 0
 	if "params" not in rpc:
@@ -375,7 +369,7 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	return response
 
 
-async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any], None]:
+async def process_rpcs(client_info: str, *rpcs: dict[str, Any]) -> AsyncGenerator[dict[str, Any], None]:
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector:

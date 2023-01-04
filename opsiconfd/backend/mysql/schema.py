@@ -969,6 +969,10 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			logger.info("Dropping table CONFIG_STATE_LOG")
 			session.execute("DROP TABLE IF EXISTS `CONFIG_STATE_LOG`")
 
+		for table in mysql.tables:
+			if table.startswith("HARDWARE_CONFIG_"):
+				session.execute(f"DELETE FROM `{table}` WHERE state != 1")
+
 		logger.info("All updates completed")
 
 		if not schema_version or schema_version < mysql.schema_version:

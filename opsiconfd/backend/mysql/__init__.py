@@ -383,7 +383,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				if self_selected and self_ace:
 					if client_id_column is None:  # pylint: disable=loop-invariant-statement
 						raise RuntimeError(f"No client id attribute defined for table {first_table} using ace {self_ace}")
-					res[attr].select = f"IF(`{first_table}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
+					if client_id_column:
+						res[attr].select = f"IF(`{first_table}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
 		return res
 
 	def get_where(  # pylint: disable=too-many-locals,too-many-branches

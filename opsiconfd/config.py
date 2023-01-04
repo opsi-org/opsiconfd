@@ -33,6 +33,7 @@ from urllib.parse import urlparse
 import certifi
 import configargparse  # type: ignore[import]
 import psutil
+import sqlalchemy.util.deprecations  # type: ignore[import]
 from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
@@ -80,6 +81,8 @@ opsi_config = OpsiConfig()
 
 
 def configure_warnings() -> None:
+	# Disable sqlalchemy 2.0 deprecation warnings
+	sqlalchemy.util.deprecations.SILENCE_UBER_WARNING = True
 	warnings.filterwarnings(
 		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
 	)

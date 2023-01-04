@@ -72,35 +72,25 @@ class ColumnInfo:
 class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 	execute_attempts = 3
 
-	def execute(
-		self,
-		statement: str,
-		params: Any | None = None,
-		execution_options: immutabledict = EMPTY_DICT,
-		bind_arguments: Any | None = None,
-		_parent_execute_state: Any | None = None,
-		_add_event: Any | None = None,
-		**kw: Any
-	) -> Result:
+	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
 		retry_wait = 0.01
 		with server_timing("database") as timing:
 			while True:
 				attempt += 1
 				try:  # pylint: disable=loop-try-except-usage
-					result = super().execute(  # pylint: disable=loop-invariant-statement
-						statement=statement,
-						params=params,
-						execution_options=execution_options,
-						bind_arguments=bind_arguments,
-						_parent_execute_state=_parent_execute_state,
-						_add_event=_add_event,
-						*kw
+					result = super().execute(statement=statement, params=params)  # pylint: disable=loop-invariant-statement
+					logger.trace(
+						"Statement %r with params %r took %0.4f ms",
+						statement,
+						params,
+						timing["database"],  # pylint: disable=loop-invariant-statement
 					)
-					logger.trace("Statement %r with params %r took %0.4f ms", statement, params, timing["database"])  # pylint: disable=loop-invariant-statement
 					return result
 				except DatabaseError as err:
-					logger.trace("Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True)
+					logger.trace(
+						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True
+					)
 					if attempt >= self.execute_attempts or "deadlock" not in str(err).lower():  # pylint: disable=loop-invariant-statement
 						raise
 					sleep(retry_wait)
@@ -484,9 +474,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return OBJECT_CLASSES.get(object_type)
 
 	@overload
-	def get_ident(
-		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["unicode", "str"]
-	) -> str:
+	def get_ident(self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["unicode", "str"]) -> str:
 		...
 
 	@overload
@@ -496,9 +484,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		...
 
 	@overload
-	def get_ident(
-		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["list"]
-	) -> list[Any]:
+	def get_ident(self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["list"]) -> list[Any]:
 		...
 
 	@overload
@@ -570,7 +556,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		row: Row,
 		object_type: Type[BaseObjectT] | None = None,
 		aggregates: list[str] | None = None,
-		conversions: dict[str, Callable] | None = None
+		conversions: dict[str, Callable] | None = None,
 	) -> BaseObject:
 		data = dict(row)
 
@@ -685,11 +671,14 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 				if return_type == "dict":
 					return [
-						self._row_to_dict(row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates, conversions=conversions)
+						self._row_to_dict(
+							row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates, conversions=conversions
+						)
 						for row in result
 					]
 				return [
-					self._row_to_object(row=row, object_type=object_type, aggregates=l_aggregates, conversions=conversions) for row in result
+					self._row_to_object(row=row, object_type=object_type, aggregates=l_aggregates, conversions=conversions)
+					for row in result
 				]
 
 	def get_idents(  # pylint: disable=too-many-arguments
@@ -788,7 +777,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		create: bool = True,
 		set_null: bool = True,
 		additional_data: dict[str, Any] | None = None,
-		session: Session | None = None
+		session: Session | None = None,
 	) -> Any:
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:

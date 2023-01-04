@@ -7,6 +7,7 @@
 """
 opsiconfd.backend.mysql.schema
 """
+# pylint: disable=too-many-lines
 
 from __future__ import annotations
 
@@ -190,7 +191,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
 	`packageVersion` varchar(16) DEFAULT NULL,
 	`modificationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (`productId`,`productType`,`clientId`),
-	UNIQUE INDEX (`productId`, `clientId`),
+	UNIQUE INDEX `productId-clientId` (`productId`, `clientId`),
 	KEY `FK_PRODUCT_ON_CLIENT_HOST` (`clientId`),
 	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -203,8 +204,8 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	`productType` varchar(16) NOT NULL,
 	`locked` tinyint(1) DEFAULT NULL,
 	PRIMARY KEY (`productId`,`productType`,`productVersion`,`packageVersion`,`depotId`),
-	UNIQUE INDEX (`productId`, `depotId`),
-	KEY `productId` (`productId`,`productVersion`,`packageVersion`),
+	UNIQUE INDEX `productId-depotId` (`productId`, `depotId`),
+	KEY `productId-productVersion-packageVersion` (`productId`,`productVersion`,`packageVersion`),
 	KEY `depotId` (`depotId`),
 	KEY `index_product_on_depot_productType` (`productType`),
 	FOREIGN KEY (`depotId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE,

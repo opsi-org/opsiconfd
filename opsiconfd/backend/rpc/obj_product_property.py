@@ -152,5 +152,14 @@ class RPCProductPropertyMixin(Protocol):
 			remove_orphans_product_property_state(session)
 
 	@rpc_method(check_acl=False)
-	def productProperty_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productProperty_deleteObjects([{"id": id}])
+	def productProperty_delete(self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, propertyId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.productProperty_deleteObjects(
+			[
+				{
+					"productId": productId,
+					"productVersion": productVersion,
+					"packageVersion": packageVersion,
+					"propertyId": propertyId
+				}
+			]
+		)

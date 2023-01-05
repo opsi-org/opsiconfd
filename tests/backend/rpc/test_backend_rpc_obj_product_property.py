@@ -255,111 +255,107 @@ def test_product_property_updateObject(  # pylint: disable=invalid-name
 			assert product_property[attr] == val
 
 
-# def test_product_dependency_getHashes(  # pylint: disable=invalid-name
-# 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-# ) -> None:
-# 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-# 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
+def test_product_property_getHashes(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	product_property1, product_property2 = create_test_product_properties(test_client)
 
-# 	rpc = {
-# 		"jsonrpc": "2.0",
-# 		"id": 1,
-# 		"method": "productDependency_getHashes",
-# 		"params": [[], {"productId": product_dependency1["productId"]}],
-# 	}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
-# 	print(res)
-# 	poc = res["result"][0]
-# 	for attr, val in product_dependency1.items():
-# 		assert val == poc[attr]
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productProperty_getHashes",
+		"params": [[], {"productId": product_property1["productId"]}],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	print(res)
+	poc = res["result"][0]
+	for attr, val in product_property1.items():
+		assert val == poc[attr]
 
-# 	rpc = {
-# 		"jsonrpc": "2.0",
-# 		"id": 1,
-# 		"method": "productDependency_getHashes",
-# 		"params": [[], {"productId": product_dependency2["productId"]}],
-# 	}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
-# 	print(res)
-# 	poc = res["result"][0]
-# 	for attr, val in product_dependency2.items():
-# 		assert val == poc[attr]
-
-
-# def test_product_dependency_getIdents(  # pylint: disable=invalid-name
-# 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-# ) -> None:
-# 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-# 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
-
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_getIdents", "params": [[], {"productId": "test-backend-rpc-product*"}]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
-
-# 	assert res["result"] == [
-# 		(
-# 			f"{product_dependency1['productId']};"
-# 			f"{product_dependency1['productVersion']};"
-# 			f"{product_dependency1['packageVersion']};"
-# 			f"{product_dependency1['productAction']};"
-# 			f"{product_dependency1['requiredProductId']}"
-# 		),
-# 		(
-# 			f"{product_dependency2['productId']};"
-# 			f"{product_dependency2['productVersion']};"
-# 			f"{product_dependency2['packageVersion']};"
-# 			f"{product_dependency2['productAction']};"
-# 			f"{product_dependency2['requiredProductId']}"
-# 		),
-# 	]
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productProperty_getHashes",
+		"params": [[], {"productId": product_property2["productId"]}],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	print(res)
+	poc = res["result"][0]
+	for attr, val in product_property2.items():
+		assert val == poc[attr]
 
 
-# def test_product_dependency_delete(  # pylint: disable=invalid-name
-# 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-# ) -> None:
-# 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-# 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
+def test_product_property_getIdents(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	product_property1, product_property2 = create_test_product_properties(test_client)
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {}]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert len(res["result"]) == 2
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_getIdents", "params": [[], {"productId": "test-backend-rpc-product*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
-# 	rpc = {
-# 		"jsonrpc": "2.0",
-# 		"id": 1,
-# 		"method": "productDependency_delete",
-# 		"params": [
-# 			product_dependency1["productId"],
-# 			product_dependency1["productVersion"],
-# 			product_dependency1["packageVersion"],
-# 			product_dependency1["productAction"],
-# 			product_dependency1["requiredProductId"],
-# 		],
-# 	}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
+	assert res["result"] == [
+		(
+			f"{product_property1['productId']};"
+			f"{product_property1['productVersion']};"
+			f"{product_property1['packageVersion']};"
+			f"{product_property1['propertyId']}"
+		),
+		(
+			f"{product_property2['productId']};"
+			f"{product_property2['productVersion']};"
+			f"{product_property2['packageVersion']};"
+			f"{product_property2['propertyId']}"
+		),
+	]
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert len(res["result"]) == 1
 
-# 	rpc = {
-# 		"jsonrpc": "2.0",
-# 		"id": 1,
-# 		"method": "productDependency_delete",
-# 		"params": [
-# 			product_dependency2["productId"],
-# 			product_dependency2["productVersion"],
-# 			product_dependency2["packageVersion"],
-# 			product_dependency2["productAction"],
-# 			product_dependency2["requiredProductId"],
-# 		],
-# 	}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
+def test_product_property_delete(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	product_property1, product_property2 = create_test_product_properties(test_client)
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert len(res["result"]) == 0
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_getObjects", "params": [[], {}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert len(res["result"]) == 2
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productProperty_delete",
+		"params": [
+			product_property1["productId"],
+			product_property1["productVersion"],
+			product_property1["packageVersion"],
+			product_property1["propertyId"],
+		],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert len(res["result"]) == 1
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productProperty_delete",
+		"params": [
+			product_property2["productId"],
+			product_property2["productVersion"],
+			product_property2["packageVersion"],
+			product_property2["propertyId"],
+		],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert len(res["result"]) == 0

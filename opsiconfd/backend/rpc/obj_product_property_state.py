@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from opsicommon.objects import ProductPropertyState  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
 	forceList,
+	forceObjectClass,
 	forceObjectIdList,
 	forceUnicodeList,
 )
@@ -87,11 +88,13 @@ class RPCProductPropertyStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productPropertyState_insertObject(self: BackendProtocol, productPropertyState: dict | ProductPropertyState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productPropertyState_insertObject")
+		productPropertyState = forceObjectClass(productPropertyState, ProductPropertyState)
 		self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=productPropertyState, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_updateObject(self: BackendProtocol, productPropertyState: dict | ProductPropertyState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productPropertyState_updateObject")
+		productPropertyState = forceObjectClass(productPropertyState, ProductPropertyState)
 		self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=productPropertyState, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -101,6 +104,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		ace = self._get_ace("productPropertyState_createObjects")
 		with self._mysql.session() as session:
 			for product_property_state in forceList(productPropertyStates):
+				product_property_state = forceObjectClass(product_property_state, ProductPropertyState)
 				self._mysql.insert_object(
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=True, session=session
 				)
@@ -112,6 +116,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		ace = self._get_ace("productPropertyState_updateObjects")
 		with self._mysql.session() as session:
 			for product_property_state in forceList(productPropertyStates):
+				product_property_state = forceObjectClass(product_property_state, ProductPropertyState)
 				self._mysql.insert_object(
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=False, session=session
 				)
@@ -157,5 +162,5 @@ class RPCProductPropertyStateMixin(Protocol):
 		self.productPropertyState_createObjects(ProductPropertyState.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productProperty_deleteObjects([{"id": id}])
+	def productPropertyState_delete(self: BackendProtocol, productId: str, propertyId: str, objectId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.productPropertyState_deleteObjects([{"productId": productId, "propertyId": propertyId, "objectId": objectId}])

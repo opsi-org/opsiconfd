@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-test opsiconfd.backend.rpc.obj_product
+test opsiconfd.backend.rpc.obj_product_property
 """
 
 from tests.utils import (  # pylint: disable=unused-import

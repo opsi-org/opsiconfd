@@ -797,8 +797,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			raise BackendPermissionDeniedError("No permission")
 		allowed_client_ids = self.get_allowed_client_ids(ace)
 
-		# TODO do all attributes have to be assigned values?
-
 		conditions = []
 		params: dict[str, Any] = {}
 		idents: list[dict[str, Any]] = []
@@ -815,9 +813,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				if not val:
 					if attr == "type":
 						continue
-					# if val is None:
-					# 	# Empty string allowed
-					# 	raise ValueError(f"No value for ident attribute {attr!r}")
+					if val is None:
+						# Empty string allowed
+						raise ValueError(f"No value for ident attribute {attr!r}")
 
 				if (
 					col.client_id_column
@@ -828,10 +826,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					break
 
 				param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-				if val:  # TODO do all attributes have to be assigned values?
-					cond.append(f"`{col.column}` = :{param}")
-					params[param] = val
-					ident[attr] = val
+				cond.append(f"`{col.column}` = :{param}")
+				params[param] = val
+				ident[attr] = val
 			if cond and ident:
 				idents.append(ident)
 				conditions.append(f"({' AND '.join(cond)})")

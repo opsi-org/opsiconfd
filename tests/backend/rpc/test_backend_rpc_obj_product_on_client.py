@@ -347,7 +347,12 @@ def test_product_on_client_delete(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 2
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_delete", "params": [poc1["productId"], poc1["clientId"]]}
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnClient_delete",
+		"params": [poc1["productId"], poc1["productType"], poc1["clientId"]],
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
@@ -355,7 +360,12 @@ def test_product_on_client_delete(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 1
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_delete", "params": [poc2["productId"], poc2["clientId"]]}
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnClient_delete",
+		"params": [poc2["productId"], poc1["productType"], poc2["clientId"]],
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 

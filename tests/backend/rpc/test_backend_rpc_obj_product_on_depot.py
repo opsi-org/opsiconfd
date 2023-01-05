@@ -235,7 +235,12 @@ def test_product_on_depot_delete(  # pylint: disable=invalid-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	pod1, pod2 = create_test_pods(test_client)
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_delete", "params": [pod1["productId"], pod1["depotId"]]}
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnDepot_delete",
+		"params": [pod1["productId"], pod1["productType"], pod1["productVersion"], pod1["packageVersion"], pod1["depotId"]],
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
@@ -243,7 +248,12 @@ def test_product_on_depot_delete(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 1
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_delete", "params": [pod2["productId"], pod2["depotId"]]}
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnDepot_delete",
+		"params": [pod2["productId"], pod2["productType"], pod2["productVersion"], pod2["packageVersion"], pod2["depotId"]],
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 

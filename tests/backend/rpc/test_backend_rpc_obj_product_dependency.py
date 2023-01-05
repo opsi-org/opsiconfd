@@ -266,7 +266,7 @@ def test_product_dependency_updateObject(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 0
 
-	# update 2 products
+	# update 2 product dependencies
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,

@@ -23,7 +23,7 @@ from .test_backend_rpc_obj_product_property import create_test_product_propertie
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 
-def create_test_client(test_client: OpsiconfdTestClient) -> dict:
+def create_test_client(test_client: OpsiconfdTestClient) -> dict:  # pylint: disable=redefined-outer-name
 	client1 = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",

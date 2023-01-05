@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ProductDependency  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from . import rpc_method
 
@@ -24,15 +24,13 @@ class RPCProductDependencyMixin(Protocol):
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_insertObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productDependency_insertObject")
-		if isinstance(productDependency, dict):
-			productDependency["type"] = "ProductDependency"
+		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productDependency_updateObject")
-		if isinstance(productDependency, dict):
-			productDependency["type"] = "ProductDependency"
+		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -42,8 +40,7 @@ class RPCProductDependencyMixin(Protocol):
 		ace = self._get_ace("productDependency_createObjects")
 		with self._mysql.session() as session:
 			for productDependency in forceList(productDependencies):
-				if isinstance(productDependency, dict):
-					productDependency["type"] = "ProductDependency"
+				productDependency = forceObjectClass(productDependency, ProductDependency)
 				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -53,8 +50,7 @@ class RPCProductDependencyMixin(Protocol):
 		ace = self._get_ace("productDependency_updateObjects")
 		with self._mysql.session() as session:
 			for productDependency in forceList(productDependencies):
-				if isinstance(productDependency, dict):
-					productDependency["type"] = "ProductDependency"
+				productDependency = forceObjectClass(productDependency, ProductDependency)
 				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)

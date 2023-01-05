@@ -13,7 +13,7 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import ProductProperty  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_product_property_state
@@ -66,11 +66,13 @@ class RPCProductPropertyMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productProperty_insertObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productProperty_insertObject")
+		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def productProperty_updateObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productProperty_updateObject")
+		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -81,6 +83,7 @@ class RPCProductPropertyMixin(Protocol):
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
 				for product_property in forceList(productProperties):
+					product_property = forceObjectClass(product_property, ProductProperty)
 					self._product_property_insert_object(
 						product_property=product_property, ace=ace, create=True, set_null=True, session=session, lock=False
 					)
@@ -93,6 +96,7 @@ class RPCProductPropertyMixin(Protocol):
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
 				for product_property in forceList(productProperties):
+					product_property = forceObjectClass(product_property, ProductProperty)
 					self._product_property_insert_object(
 						product_property=product_property, ace=ace, create=True, set_null=False, session=session, lock=False
 					)

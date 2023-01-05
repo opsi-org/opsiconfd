@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ProductOnDepot  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from . import rpc_method
 
@@ -24,15 +24,13 @@ class RPCProductOnDepotMixin(Protocol):
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_insertObject(self: BackendProtocol, productOnDepot: dict | ProductOnDepot) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productOnDepot_insertObject")
-		if isinstance(productOnDepot, dict):
-			productOnDepot["type"] = "ProductOnDepot"
+		productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
 		self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_updateObject(self: BackendProtocol, productOnDepot: dict | ProductOnDepot) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productOnDepot_updateObject")
-		if isinstance(productOnDepot, dict):
-			productOnDepot["type"] = "ProductOnDepot"
+		productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
 		self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -42,8 +40,7 @@ class RPCProductOnDepotMixin(Protocol):
 		ace = self._get_ace("productOnDepot_createObjects")
 		with self._mysql.session() as session:
 			for productOnDepot in forceList(productOnDepots):
-				if isinstance(productOnDepot, dict):
-					productOnDepot["type"] = "ProductOnDepot"
+				productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
 				self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -53,8 +50,7 @@ class RPCProductOnDepotMixin(Protocol):
 		ace = self._get_ace("productOnDepot_updateObjects")
 		with self._mysql.session() as session:
 			for productOnDepot in forceList(productOnDepots):
-				if isinstance(productOnDepot, dict):
-					productOnDepot["type"] = "ProductOnDepot"
+				productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
 				self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
@@ -86,5 +82,23 @@ class RPCProductOnDepotMixin(Protocol):
 		self._mysql.delete_objects(table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, obj=productOnDepots, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def productOnDepot_delete(self: BackendProtocol, productId: str, depotId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productOnDepot_deleteObjects([{"productId": productId, "depotId": depotId}])
+	def productOnDepot_delete(
+		self: BackendProtocol,
+		productId: str,
+		productType: str,
+		productVersion: str,
+		packageVersion: str,
+		depotId: str
+	) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.productOnDepot_deleteObjects(
+			[
+				{
+					"productId": productId,
+					"productType": productType,
+					"productVersion": productVersion,
+					"packageVersion": packageVersion,
+					"depotId": depotId
+				}
+
+			]
+		)

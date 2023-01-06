@@ -139,7 +139,7 @@ def test_product_on_client_create_objects(test_client: OpsiconfdTestClient) -> N
 		"actionResult": "none",
 		"installationStatus": "not_installed",
 	}
-	# Create pod 1 and 2
+	# Create poc 1 and 2
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_createObjects", "params": [[poc1, poc2]]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
@@ -188,7 +188,7 @@ def test_product_on_client_create(test_client: OpsiconfdTestClient) -> None:  # 
 		"productVersion": pod2["productVersion"],
 		"packageVersion": pod2["packageVersion"],
 	}
-	# Create pod 1 and 2
+	# Create poc 1 and 2
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,
@@ -278,7 +278,7 @@ def test_product_on_client_updateObject(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 0
 
-	# update 2 products
+	# update 2 poc objects
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,
@@ -397,22 +397,4 @@ def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 		assert val == poc[attr]
 
 
-# def test_product_on_client_generateSequence(  # pylint: disable=invalid-name
-# 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-# ) -> None:
-# 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-# 	create_test_product_dependencies(test_client)
-# 	poc1, poc2 = create_test_products(test_client)
-# 	poc1["type"] = "ProductOnClient"
-# 	poc2["type"] = "ProductOnClient"
-
-# 	rpc = {
-# 		"jsonrpc": "2.0",
-# 		"id": 1,
-# 		"method": "productOnClient_generateSequence",
-# 		"params": [[poc2]],
-# 	}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
-# 	print(res)
-# 	assert 1 == 0
+# TODO generateSequence

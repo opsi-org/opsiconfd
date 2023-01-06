@@ -16,6 +16,7 @@ from opsicommon.types import (  # type: ignore[import]
 	forceBool,
 	forceHostIdList,
 	forceList,
+	forceObjectClass,
 	forceObjectIdList,
 	forceProductIdList,
 	forceUnicodeList,
@@ -49,12 +50,14 @@ class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_insertObject")
+		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
 	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_updateObject")
+		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
 		self.dhcpd_control_config_states_updated(configState)
 
@@ -65,6 +68,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_createObjects")
 		with self._mysql.session() as session:
 			for config_state in forceList(configStates):
+				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
 		self.dhcpd_control_config_states_updated(configStates)
 
@@ -75,6 +79,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_updateObjects")
 		with self._mysql.session() as session:
 			for config_state in forceList(configStates):
+				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False, session=session)
 		self.dhcpd_control_config_states_updated(configStates)
 

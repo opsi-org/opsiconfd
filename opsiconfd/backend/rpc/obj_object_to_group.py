@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ObjectToGroup  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from . import rpc_method
 
@@ -24,11 +24,13 @@ class RPCObjectToGroupMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def objectToGroup_insertObject(self: BackendProtocol, objectToGroup: dict | ObjectToGroup) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("objectToGroup_insertObject")
+		objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
 		self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_updateObject(self: BackendProtocol, objectToGroup: dict | ObjectToGroup) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("objectToGroup_updateObject")
+		objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
 		self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -38,6 +40,7 @@ class RPCObjectToGroupMixin(Protocol):
 		ace = self._get_ace("objectToGroup_createObjects")
 		with self._mysql.session() as session:
 			for objectToGroup in forceList(objectToGroups):
+				objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
 				self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
@@ -47,6 +50,7 @@ class RPCObjectToGroupMixin(Protocol):
 		ace = self._get_ace("objectToGroup_updateObjects")
 		with self._mysql.session() as session:
 			for objectToGroup in forceList(objectToGroups):
+				objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
 				self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)

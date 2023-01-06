@@ -27,7 +27,11 @@ from opsicommon.objects import (  # type: ignore[import]
 	OpsiConfigserver,
 	OpsiDepotserver,
 )
-from opsicommon.types import forceHostId, forceList  # type: ignore[import]
+from opsicommon.types import (  # type: ignore[import]
+	forceHostId,
+	forceList,
+	forceObjectClass,
+)
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import config
@@ -50,12 +54,14 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_insertObject")
+		host = forceObjectClass(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		self.dhcpd_control_hosts_updated(host)
 
 	@rpc_method(check_acl=False)
 	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObject")
+		host = forceObjectClass(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		self.dhcpd_control_hosts_updated(host)
 
@@ -64,6 +70,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_createObjects")
 		with self._mysql.session() as session:
 			for host in forceList(hosts):
+				host = forceObjectClass(host, Host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
 		self.dhcpd_control_hosts_updated(hosts)
 
@@ -72,6 +79,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_updateObjects")
 		with self._mysql.session() as session:
 			for host in forceList(hosts):
+				host = forceObjectClass(host, Host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
 		self.dhcpd_control_hosts_updated(hosts)
 

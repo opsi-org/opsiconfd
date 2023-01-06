@@ -13,7 +13,7 @@ from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import BoolConfig, Config, UnicodeConfig  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_config_state
@@ -34,6 +34,7 @@ class RPCConfigMixin(Protocol):
 		session: Session | None = None,
 		lock: bool = True
 	) -> None:
+		config = forceObjectClass(config, Config)
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():

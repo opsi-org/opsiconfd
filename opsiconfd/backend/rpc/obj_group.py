@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import Group, HostGroup  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from ..mysql.cleanup import remove_orphans_object_to_group_host
 from . import rpc_method
@@ -25,11 +25,13 @@ class RPCGroupMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def group_insertObject(self: BackendProtocol, group: dict | Group) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("group_insertObject")
+		group = forceObjectClass(group, Group)
 		self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def group_updateObject(self: BackendProtocol, group: dict | Group) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("group_updateObject")
+		group = forceObjectClass(group, Group)
 		self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -39,6 +41,7 @@ class RPCGroupMixin(Protocol):
 		ace = self._get_ace("group_createObjects")
 		with self._mysql.session() as session:
 			for group in forceList(groups):
+				group = forceObjectClass(group, Group)
 				self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
@@ -48,6 +51,7 @@ class RPCGroupMixin(Protocol):
 		ace = self._get_ace("group_updateObjects")
 		with self._mysql.session() as session:
 			for group in forceList(groups):
+				group = forceObjectClass(group, Group)
 				self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)

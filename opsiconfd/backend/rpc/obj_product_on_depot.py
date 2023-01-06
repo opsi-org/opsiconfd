@@ -43,7 +43,7 @@ class RPCProductOnDepotMixin(Protocol):
 				productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
 				self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True, session=session)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_create(  # pylint: disable=too-many-arguments,invalid-name
 		self: BackendProtocol,
 		productId: str,  # pylint: disable=unused-argument

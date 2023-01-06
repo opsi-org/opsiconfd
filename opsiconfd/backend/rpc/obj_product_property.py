@@ -10,7 +10,7 @@ opsiconfd.backend.rpc.product_property
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, List, Literal, Protocol
 
 from opsicommon.objects import ProductProperty  # type: ignore[import]
 from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
@@ -87,6 +87,24 @@ class RPCProductPropertyMixin(Protocol):
 					self._product_property_insert_object(
 						product_property=product_property, ace=ace, create=True, set_null=True, session=session, lock=False
 					)
+
+	@rpc_method(check_acl=False)
+	def productProperty_create(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		productId: str,  # pylint: disable=unused-argument
+		productVersion: str,  # pylint: disable=unused-argument
+		packageVersion: str,  # pylint: disable=unused-argument
+		propertyId: str,  # pylint: disable=unused-argument
+		type: str | None = None,  # pylint: disable=unused-argument
+		description: str | None = None,  # pylint: disable=unused-argument
+		possibleValues: List[str]| List[bool] | None = None,  # pylint: disable=unused-argument
+		defaultValues: str | None = None,  # pylint: disable=unused-argument
+		editable: str | None = None,  # pylint: disable=unused-argument
+		multiValue: str | None = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.productProperty_createObjects(ProductProperty.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
 	def productProperty_updateObjects(  # pylint: disable=invalid-name

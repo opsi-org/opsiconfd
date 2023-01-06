@@ -409,7 +409,9 @@ def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 
 
 # TODO: More Tests
-def test_productOnClient_sequence_dependencies(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=invalid-name
+def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-statements
+	test_client: OpsiconfdTestClient,
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	depot1 = OpsiDepotserver(id="test-backend-rpc-depot-1.opsi.test")

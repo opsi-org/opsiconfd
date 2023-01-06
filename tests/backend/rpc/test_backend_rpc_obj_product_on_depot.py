@@ -57,29 +57,70 @@ def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disa
 	return (pod1, pod2)
 
 
+def check_products_on_depot(
+	test_client: OpsiconfdTestClient, pods: list | tuple
+) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	for product_on_depot in pods:
+		rpc = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": "productOnDepot_getObjects",
+			"params": [[], {"productId": product_on_depot["productId"]}],
+		}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		print(res)
+		poc = res["result"][0]
+		for attr, val in product_on_depot.items():
+			assert val == poc[attr]
+
+
 def test_product_on_depot_insertObject(  # pylint: disable=invalid-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	pod1, pod2 = create_test_pods(test_client)
+	check_products_on_depot(test_client, create_test_pods(test_client))
 
-	# product on depot 1 should be created
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_getObjects", "params": [[], {"productId": pod1["productId"]}]}
+
+def test_product_on_depot_create(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	product1, product2 = create_test_products(test_client)
+
+	pod1 = {
+		"productId": product1["id"],
+		"productType": product1["type"],
+		"productVersion": product1["productVersion"],
+		"packageVersion": product1["packageVersion"],
+		"depotId": FQDN,
+		"locked": False,
+	}
+	pod2 = {
+		"productId": product2["id"],
+		"productType": product2["type"],
+		"productVersion": product2["productVersion"],
+		"packageVersion": product2["packageVersion"],
+		"depotId": FQDN,
+		"locked": False,
+	}
+	# Create pod 1 and 2
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnDepot_create",
+		"params": list(pod1.values()),
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-	print(res)
-	pod = res["result"][0]
-	for attr, val in pod1.items():
-		assert val == pod[attr]
-
-	# product on depot 1 should be created
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_getObjects", "params": [[], {"productId": pod2["productId"]}]}
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnDepot_create",
+		"params": list(pod2.values()),
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-	print(res)
-	pod = res["result"][0]
-	for attr, val in pod2.items():
-		assert val == pod[attr]
+
+	check_products_on_depot(test_client, [pod1, pod2])
 
 
 def test_product_on_depot_updateObject(  # pylint: disable=invalid-name

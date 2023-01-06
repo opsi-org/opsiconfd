@@ -392,7 +392,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if f_attr not in columns or f_val is None:
 				continue
 
-			values = f_val if isinstance(f_val, list) else [f_val]
+			values = []
+			if isinstance(f_val, list):
+				values = f_val
+			elif isinstance(f_val, (tuple, set)):
+				values = list(f_val)
+			else:
+				values = [f_val]
 			if len(values) == 0:
 				continue
 
@@ -800,7 +806,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		conditions = []
 		params: dict[str, Any] = {}
 		idents: list[dict[str, Any]] = []
-		for entry in obj if isinstance(obj, list) else [obj]:
+		for entry in obj if isinstance(obj, (list, tuple, set)) else [obj]:
 			cond = []
 			ident = {}
 			for attr in ident_attributes:

@@ -14,8 +14,7 @@ from typing import Generator
 import pytest
 
 from opsiconfd.backend.rpc.main import ProtectedBackend
-
-from .utils import (  # pylint: disable=unused-import
+from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,

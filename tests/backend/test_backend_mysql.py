@@ -14,7 +14,7 @@ from pathlib import Path
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
 
-from .utils import get_config
+from ..utils import get_config
 
 
 def test_config(tmp_path: Path) -> None:

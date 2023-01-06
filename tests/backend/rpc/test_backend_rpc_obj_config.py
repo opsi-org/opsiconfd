@@ -22,8 +22,7 @@ from opsicommon.objects import (  # type: ignore[import]
 )
 
 from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
-
-from .utils import (  # pylint: disable=unused-import
+from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,

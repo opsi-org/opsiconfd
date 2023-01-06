@@ -23,6 +23,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	ProductOnClient,
 )
 from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceObjectClass  # type: ignore[import]
 
 from . import rpc_method
 
@@ -35,11 +36,13 @@ class RPCProductOnClientMixin(Protocol):
 	def productOnClient_insertObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:  # pylint: disable=invalid-name
 		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_insertObject")
+		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productOnClient_updateObject")
+		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -50,6 +53,7 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_createObjects")
 		with self._mysql.session() as session:
 			for productOnClient in forceList(productOnClients):
+				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
@@ -59,6 +63,7 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_updateObjects")
 		with self._mysql.session() as session:
 			for productOnClient in forceList(productOnClients):
+				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
@@ -109,8 +114,8 @@ class RPCProductOnClientMixin(Protocol):
 		self.productOnClient_createObjects(ProductOnClient.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productOnClient_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productOnClient_deleteObjects([{"id": id}])
+	def productOnClient_delete(self: BackendProtocol, productId: str, productType: str, clientId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.productOnClient_deleteObjects([{"productId": productId, "productType": productType, "clientId": clientId}])
 
 	def _product_on_client_process_with_function(  # pylint: disable=too-many-locals,too-many-branches
 		self: BackendProtocol, product_on_clients: list[ProductOnClient], function: Callable
@@ -118,6 +123,7 @@ class RPCProductOnClientMixin(Protocol):
 		product_on_clients_by_client: dict[str, list[ProductOnClient]] = {}
 		product_ids = set()
 		for poc in product_on_clients:
+			poc = forceObjectClass(poc, ProductOnClient)
 			try:  # pylint: disable=loop-try-except-usage
 				product_on_clients_by_client[poc.getClientId()].append(poc)
 			except KeyError:

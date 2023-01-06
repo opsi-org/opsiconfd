@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ProductDependency  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from . import rpc_method
 
@@ -24,11 +24,13 @@ class RPCProductDependencyMixin(Protocol):
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_insertObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productDependency_insertObject")
+		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productDependency_updateObject")
+		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -38,6 +40,7 @@ class RPCProductDependencyMixin(Protocol):
 		ace = self._get_ace("productDependency_createObjects")
 		with self._mysql.session() as session:
 			for productDependency in forceList(productDependencies):
+				productDependency = forceObjectClass(productDependency, ProductDependency)
 				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -47,6 +50,7 @@ class RPCProductDependencyMixin(Protocol):
 		ace = self._get_ace("productDependency_updateObjects")
 		with self._mysql.session() as session:
 			for productDependency in forceList(productDependencies):
+				productDependency = forceObjectClass(productDependency, ProductDependency)
 				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
@@ -77,6 +81,7 @@ class RPCProductDependencyMixin(Protocol):
 		ace = self._get_ace("productDependency_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, obj=productDependencies, ace=ace)
 
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_create(  # pylint: disable=too-many-arguments,invalid-name
 		self: BackendProtocol,
 		productId: str,  # pylint: disable=unused-argument
@@ -95,5 +100,22 @@ class RPCProductDependencyMixin(Protocol):
 		self.productDependency_createObjects(ProductDependency.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productDependency_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productDependency_deleteObjects([{"id": id}])
+	def productDependency_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
+		self: BackendProtocol,
+		productId: str,
+		productVersion: str,
+		packageVersion: str,
+		productAction: str,
+		requiredProductId: str
+	) -> None:
+		self.productDependency_deleteObjects(
+			[
+				{
+					"productId": productId,
+					"productVersion": productVersion,
+					"packageVersion": packageVersion,
+					"productAction": productAction,
+					"requiredProductId": requiredProductId
+				}
+			]
+		)

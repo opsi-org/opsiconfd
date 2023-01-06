@@ -10,10 +10,10 @@ opsiconfd.backend.rpc.product_property
 from __future__ import annotations
 
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, List, Literal, Protocol
 
 from opsicommon.objects import ProductProperty  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_product_property_state
@@ -66,11 +66,13 @@ class RPCProductPropertyMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productProperty_insertObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productProperty_insertObject")
+		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def productProperty_updateObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productProperty_updateObject")
+		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -81,9 +83,28 @@ class RPCProductPropertyMixin(Protocol):
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
 				for product_property in forceList(productProperties):
+					product_property = forceObjectClass(product_property, ProductProperty)
 					self._product_property_insert_object(
 						product_property=product_property, ace=ace, create=True, set_null=True, session=session, lock=False
 					)
+
+	@rpc_method(check_acl=False)
+	def productProperty_create(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		productId: str,  # pylint: disable=unused-argument
+		productVersion: str,  # pylint: disable=unused-argument
+		packageVersion: str,  # pylint: disable=unused-argument
+		propertyId: str,  # pylint: disable=unused-argument
+		type: str | None = None,  # pylint: disable=unused-argument, redefined-builtin
+		description: str | None = None,  # pylint: disable=unused-argument
+		possibleValues: List[str] | List[bool] | None = None,  # pylint: disable=unused-argument
+		defaultValues: str | None = None,  # pylint: disable=unused-argument
+		editable: str | None = None,  # pylint: disable=unused-argument
+		multiValue: str | None = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.productProperty_createObjects(ProductProperty.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
 	def productProperty_updateObjects(  # pylint: disable=invalid-name
@@ -93,6 +114,7 @@ class RPCProductPropertyMixin(Protocol):
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
 				for product_property in forceList(productProperties):
+					product_property = forceObjectClass(product_property, ProductProperty)
 					self._product_property_insert_object(
 						product_property=product_property, ace=ace, create=True, set_null=False, session=session, lock=False
 					)
@@ -152,5 +174,14 @@ class RPCProductPropertyMixin(Protocol):
 			remove_orphans_product_property_state(session)
 
 	@rpc_method(check_acl=False)
-	def productProperty_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productProperty_deleteObjects([{"id": id}])
+	def productProperty_delete(self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, propertyId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.productProperty_deleteObjects(
+			[
+				{
+					"productId": productId,
+					"productVersion": productVersion,
+					"packageVersion": packageVersion,
+					"propertyId": propertyId
+				}
+			]
+		)

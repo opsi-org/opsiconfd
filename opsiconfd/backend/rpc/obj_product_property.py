@@ -95,9 +95,9 @@ class RPCProductPropertyMixin(Protocol):
 		productVersion: str,  # pylint: disable=unused-argument
 		packageVersion: str,  # pylint: disable=unused-argument
 		propertyId: str,  # pylint: disable=unused-argument
-		type: str | None = None,  # pylint: disable=unused-argument
+		type: str | None = None,  # pylint: disable=unused-argument, redefined-builtin
 		description: str | None = None,  # pylint: disable=unused-argument
-		possibleValues: List[str]| List[bool] | None = None,  # pylint: disable=unused-argument
+		possibleValues: List[str] | List[bool] | None = None,  # pylint: disable=unused-argument
 		defaultValues: str | None = None,  # pylint: disable=unused-argument
 		editable: str | None = None,  # pylint: disable=unused-argument
 		multiValue: str | None = None,  # pylint: disable=unused-argument

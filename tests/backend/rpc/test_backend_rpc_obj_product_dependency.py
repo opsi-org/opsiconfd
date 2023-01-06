@@ -84,7 +84,7 @@ def test_product_dependency_insertObject(  # pylint: disable=invalid-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
 
-	# productDependency 2 should be created
+	# productDependency 1 and 2 should be created
 	check_products_dependencies(test_client, [product_dependency1, product_dependency2])
 
 
@@ -118,7 +118,7 @@ def test_product_dependency_createObject(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
-	# productDependency 2 should be created
+	# productDependency 1 and 2 should be created
 	check_products_dependencies(test_client, [product_dependency1, product_dependency2])
 
 
@@ -174,20 +174,6 @@ def test_product_dependency_create(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
-	# productDependency 1 should be created
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productDependency_getObjects",
-		"params": [[], {"productId": product_dependency1["productId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	print(res)
-	product_dependency = res["result"][0]
-	for attr, val in product_dependency1.items():
-		assert val == product_dependency[attr]
-
 	# productDependency 2 should be created
 	check_products_dependencies(test_client, [product_dependency1, product_dependency2])
 
@@ -198,19 +184,8 @@ def test_product_dependency_updateObject(  # pylint: disable=invalid-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
 
-	# product 1 should be created
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productDependency_getObjects",
-		"params": [[], {"productId": product_dependency1["productId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	print(res)
-	product_dependency = res["result"][0]
-	for attr, val in product_dependency1.items():
-		assert val == product_dependency[attr]
+	# product 1 and 2 should be created
+	check_products_dependencies(test_client, [product_dependency1, product_dependency2])
 
 	# Update product 1
 	rpc = {
@@ -243,7 +218,7 @@ def test_product_dependency_updateObject(  # pylint: disable=invalid-name
 		else:
 			assert product_dependency[attr] == val
 
-	# No new product should be created.
+	# No new product dependency should be created.
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,

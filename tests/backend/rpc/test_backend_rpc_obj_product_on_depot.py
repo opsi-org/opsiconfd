@@ -129,14 +129,7 @@ def test_product_on_depot_updateObject(  # pylint: disable=invalid-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	pod1, pod2 = create_test_pods(test_client)
 
-	# product on depot 1 should be created
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_getObjects", "params": [[], {"productId": pod1["productId"]}]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	print(res)
-	pod = res["result"][0]
-	for attr, val in pod1.items():
-		assert val == pod[attr]
+	check_products_on_depot(test_client, [pod1, pod2])
 
 	# Update product on depot 1
 	rpc = {

@@ -12,20 +12,19 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Callable, Protocol
 
-from OPSI.SharedAlgorithm import (  # type: ignore[import]
-	addDependentProductOnClients,
-	generateProductOnClientSequence_algorithm1,
-)
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]
 	Product,
 	ProductDependency,
 	ProductOnClient,
 )
-from opsicommon.types import forceList  # type: ignore[import]
-from opsicommon.types import forceObjectClass  # type: ignore[import]
+from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
 
 from . import rpc_method
+from .obj_product_dependency import (
+	add_dependent_product_on_clients,
+	generate_product_on_client_sequence,
+)
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
@@ -214,9 +213,9 @@ class RPCProductOnClientMixin(Protocol):
 
 				product_on_clients.extend(
 					function(
-						productOnClients=product_on_clients_by_client[client_id],
-						availableProducts=products,
-						productDependencies=product_dependencies,
+						product_on_clients=product_on_clients_by_client[client_id],
+						available_products=products,
+						product_dependencies=product_dependencies,
 					)
 				)
 
@@ -224,8 +223,9 @@ class RPCProductOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnClient_generateSequence(self: BackendProtocol, productOnClients: list[ProductOnClient]) -> list[ProductOnClient]:  # pylint: disable=invalid-name
-		return self._product_on_client_process_with_function(productOnClients, generateProductOnClientSequence_algorithm1)
+		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_addDependencies(self: BackendProtocol, productOnClients: list[ProductOnClient]) -> list[ProductOnClient]:  # pylint: disable=invalid-name
-		return self._product_on_client_process_with_function(productOnClients, addDependentProductOnClients)
+		productOnClients = self._product_on_client_process_with_function(productOnClients, add_dependent_product_on_clients)
+		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)

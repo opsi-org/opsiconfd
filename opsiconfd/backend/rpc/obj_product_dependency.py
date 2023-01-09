@@ -195,7 +195,7 @@ def add_dependent_product_on_clients(
 		logger.debug("Adding dependent productOnClients for client %s", client_id)
 
 		added_info: dict[str, dict[str, str | None]] = {}  # pylint: disable=loop-invariant-statement
-		for product_id in product_on_client_by_product_id:
+		for product_id in list(product_on_client_by_product_id):
 			add_action_request(
 				product_on_client_by_product_id, product_id, product_dependencies_by_product_id, available_products_by_product_id, added_info
 			)
@@ -517,28 +517,31 @@ class OrderBuild:  # pylint: disable=too-many-instance-attributes
 		return self.ordering
 
 
-def get_setup_requirements(product_dependencies: list[ProductDependency]) -> list[tuple[str, str]]:
+def get_setup_and_uninstall_requirements(product_dependencies: list[ProductDependency]) -> list[tuple[str, str]]:
 	# Requirements are list of pairs (install_prior, install_posterior)
-	# We treat only setup requirements
-	setup_requirements = []
+	# We treat setup an uninstall requirements only
+	requirements = []
 
 	for dependency in product_dependencies:
-		if dependency.productAction != "setup":
+		if dependency.productAction not in ("setup", "uninstall"):
 			continue
-		if dependency.requiredInstallationStatus != "installed" and dependency.requiredAction != "setup":
+		if (
+			dependency.requiredInstallationStatus not in ("not_installed", "installed") and
+			dependency.requiredAction not in ("setup", "uninstall")
+		):
 			continue
 		if dependency.requirementType == "before":
-			setup_requirements.append((dependency.requiredProductId, dependency.productId))
-		elif dependency.requirementType == "after":
-			setup_requirements.append((dependency.productId, dependency.requiredProductId))
+			requirements.append((dependency.requiredProductId, dependency.productId))
+		elif not dependency.requirementType or dependency.requirementType == "after":
+			requirements.append((dependency.productId, dependency.requiredProductId))
 
-	return setup_requirements
+	return requirements
 
 
 def generate_product_sequence(available_products: list[Product], product_dependencies: list[ProductDependency]) -> list[str]:
 	logger.info("Generating product sequence")
-	setup_requirements = get_setup_requirements(product_dependencies)
-	return generate_product_sequence_from_requ_pairs(available_products, setup_requirements)
+	requirements = get_setup_and_uninstall_requirements(product_dependencies)
+	return generate_product_sequence_from_requ_pairs(available_products, requirements)
 
 
 def modify_sorting_classes(products: list[XClassifiedProduct], setup_requirements: list[tuple[str, str]]) -> bool:  # pylint: disable=too-many-branches
@@ -703,13 +706,12 @@ def generate_product_sequence_from_requ_pairs(  # pylint: disable=too-many-local
 				orderings_by_classes[prioclasskey] = order_build.get_ordering()
 				logger.debug("prioclasskey, ordering %s, %s", prioclasskey, order_build.get_ordering())
 
-		assert order_build
 		for prioclasskey in found_classes:
 			prioclass = priority_classes[prioclasskey]
 			logger.debug("prioclasskey has prioclass %s, %s", prioclasskey, prioclass)
 			if prioclasskey in orderings_by_classes:
 				ordering = orderings_by_classes[prioclasskey]
-
+				assert order_build
 				logger.debug("prioclasskey in found classes, ordering %s, %s", prioclasskey, order_build.get_ordering())
 
 				sorted_list += [prioclass[idx] for idx in ordering]
@@ -728,8 +730,8 @@ def generate_product_on_client_sequence(
 	product_on_clients: list[ProductOnClient], available_products: list[Product], product_dependencies: list[ProductDependency]
 ) -> list[ProductOnClient]:
 	logger.info("Generating productOnClient sequence")
-	setup_requirements = get_setup_requirements(product_dependencies)
-	sorted_product_list = generate_product_sequence_from_requ_pairs(available_products, setup_requirements)
+	requirements = get_setup_and_uninstall_requirements(product_dependencies)
+	sorted_product_list = generate_product_sequence_from_requ_pairs(available_products, requirements)
 
 	pocs_by_client_id_and_product_id: dict[str, dict[str, ProductOnClient]] = defaultdict(dict)
 	for product_on_client in product_on_clients:
@@ -746,7 +748,7 @@ def generate_product_on_client_sequence(
 				sequence += 1
 
 		if sorted_product_list:
-			logger.debug("Handle remaining if existing  ")
+			logger.debug("Handle remaining if existing")
 			for product_id in product_on_clients_by_product_id.keys():
 				product_on_clients_by_product_id[product_id].actionSequence = sequence
 				product_on_clients.append(product_on_clients_by_product_id[product_id])

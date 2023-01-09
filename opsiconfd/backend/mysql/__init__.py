@@ -390,7 +390,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		params: dict[str, Any] = {}
 		for f_attr, f_val in filter.items():
 			if f_attr not in columns or f_val is None:
-				logger.warning("Invalid filter attribute %r used, possible attributes are: %s", f_attr, ", ".join(columns))
+				logger.warning(
+					"Invalid filter attribute %r used, possible attributes are: %s",
+					f_attr,
+					", ".join(columns),  # pylint: disable=loop-invariant-statement
+				)
 				continue
 
 			values = []

@@ -8,7 +8,9 @@
 test opsiconfd.backend.rpc.obj_product
 """
 
+from pprint import pprint
 
+import pytest
 from opsicommon.objects import (
 	ConfigState,
 	LocalbootProduct,
@@ -408,28 +410,31 @@ def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 		assert val == poc[attr]
 
 
-# TODO: More Tests
-def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-statements,too-many-locals
+def _prepare_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-statements,too-many-locals,too-many-arguments
 	test_client: OpsiconfdTestClient,
-) -> None:
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-
+	poc_status: list[tuple[str, str, str]],
+	# productAction, requiredAction, requiredInstallationStatus, requirementType
+	requirement: tuple[str | None, str | None, str | None, str | None],
+) -> list[ProductOnClient]:
 	depot1 = OpsiDepotserver(id="test-backend-rpc-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-backend-rpc-host-1.opsi.test")
-	product1 = LocalbootProduct(id="product1", productVersion="1", packageVersion="1", priority=-100)
-	product2 = LocalbootProduct(id="product2", productVersion="1", packageVersion="1", priority=80)
-	product3 = LocalbootProduct(id="product3", productVersion="1", packageVersion="1", priority=100)
-	product_dependency = ProductDependency(
-		productId=product2.id,
-		productVersion=product2.productVersion,
-		packageVersion=product2.packageVersion,
-		productAction="setup",
-		requiredProductId=product1.id,
-		requiredProductVersion=product1.productVersion,
-		requiredPackageVersion=product1.packageVersion,
-		requiredInstallationStatus="installed",
-		requirementType="before",
-	)
+	product1 = LocalbootProduct(id="test-backend-rpc-product1", productVersion="1", packageVersion="1", priority=100)
+	product2 = LocalbootProduct(id="test-backend-rpc-product2", productVersion="1", packageVersion="1", priority=0)
+	product3 = LocalbootProduct(id="test-backend-rpc-product3", productVersion="1", packageVersion="1", priority=-100)
+	product_dependency = None
+	if requirement[0]:
+		product_dependency = ProductDependency(
+			productId=product2.id,
+			productVersion=product2.productVersion,
+			packageVersion=product2.packageVersion,
+			productAction=requirement[0],
+			requiredProductId=product3.id,
+			requiredProductVersion=product3.productVersion,
+			requiredPackageVersion=product3.packageVersion,
+			requiredAction=requirement[1],
+			requiredInstallationStatus=requirement[2],
+			requirementType=requirement[3],
+		)
 	product_on_depot1 = ProductOnDepot(
 		productId=product1.id,
 		productType=product1.getType(),
@@ -451,89 +456,180 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 		packageVersion=product3.packageVersion,
 		depotId=depot1.id,
 	)
-	product_on_client1 = ProductOnClient(
-		productId=product1.id,
-		productType=product1.getType(),
-		clientId=client1.id,
-		installationStatus="not_installed",
-		actionRequest="none",
-	)
-	product_on_client2 = ProductOnClient(
-		productId=product2.id,
-		productType=product2.getType(),
-		clientId=client1.id,
-		installationStatus="not_installed",
-		actionRequest="setup",
-	)
-	product_on_client1 = ProductOnClient(
-		productId=product1.id,
-		productType=product1.getType(),
-		clientId=client1.id,
-		installationStatus="not_installed",
-		actionRequest="setup",
-	)
 	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client1.id, values=[depot1.id])
+
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[depot1.to_hash(), client1.to_hash()]]}
 	res = test_client.post("/rpc", json=rpc).json()
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product1.to_hash(), product2.to_hash()]]}
+	assert "error" not in res
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "product_createObjects",
+		"params": [[product1.to_hash(), product2.to_hash(), product3.to_hash()]],
+	}
 	res = test_client.post("/rpc", json=rpc).json()
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_createObjects", "params": [[product_dependency.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	if product_dependency:
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_createObjects", "params": [[product_dependency.to_hash()]]}
+		res = test_client.post("/rpc", json=rpc).json()
+
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "productOnDepot_createObjects",
-		"params": [[product_on_depot1.to_hash(), product_on_depot2.to_hash()]],
+		"params": [[product_on_depot1.to_hash(), product_on_depot2.to_hash(), product_on_depot3.to_hash()]],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_createObjects", "params": [[config_state.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	product_on_clients = [
+		ProductOnClient(
+			productId=f"test-backend-rpc-{poc[0]}",
+			productType="LocalbootProduct",
+			clientId=client1.id,
+			installationStatus=poc[1],
+			actionRequest=poc[2],
+		)
+		for poc in poc_status
+	]
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "productOnClient_createObjects",
-		"params": [[product_on_client1.to_hash(), product_on_client2.to_hash()]],
+		"params": [[poc.to_hash() for poc in product_on_clients]],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_createObjects", "params": [[config_state.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_addDependencies", "params": [[product_on_client2.to_hash()]]}
+	return product_on_clients
+
+
+# priorities: product1=100, product2=0, product3=-100
+# product2 depends on product3
+@pytest.mark.parametrize(
+	"poc_status, requirement, expected_actions",
+	(
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "setup")],
+			# productAction, requiredAction, requiredInstallationStatus, requirementType
+			(None, None, None, None),
+			# No product dependencies, order must be based on priority only
+			[("product1", "setup"), ("product2", "setup"), ("product3", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires installationStatus "installed" before
+			("setup", None, "installed", "before"),
+			[("product1", "setup"), ("product3", "setup"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup")],
+			# productAction "setup" requires installationStatus "installed" before
+			("setup", None, "installed", "before"),
+			[("product1", "setup"), ("product3", "setup"), ("product2", "setup")],
+		),
+		(
+			[("product2", "not_installed", "setup")],
+			# productAction "setup" requires installationStatus "installed" before
+			("setup", None, "installed", "before"),
+			[("product3", "setup"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
+			# productAction "setup" requires installationStatus "installed" before (fulfilled)
+			("setup", None, "installed", "before"),
+			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires installationStatus "installed"
+			("setup", None, "installed", None),
+			[("product1", "setup"), ("product2", "setup"), ("product3", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires installationStatus "installed" after
+			("setup", None, "installed", "after"),
+			[("product1", "setup"), ("product2", "setup"), ("product3", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires actionRequest "setup" before
+			("setup", "setup", None, "before"),
+			[("product1", "setup"), ("product3", "setup"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
+			# productAction "setup" requires actionRequest "setup" before
+			("setup", "setup", None, "before"),
+			[("product1", "setup"), ("product3", "setup"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
+			# productAction "setup" requires actionRequest "setup" after
+			("setup", "setup", None, "after"),
+			[("product1", "setup"), ("product2", "setup"), ("product3", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
+			# productAction "setup" requires installationStatus "not_installed" before (fulfilled)
+			("setup", None, "not_installed", "before"),
+			[("product1", "setup"), ("product3", "uninstall"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires installationStatus "not_installed" before (fulfilled)
+			("setup", None, "not_installed", "before"),
+			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires actionRequest "uninstall" before
+			("setup", "uninstall", None, "before"),
+			[("product1", "setup"), ("product3", "uninstall"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires actionRequest "uninstall" after
+			("setup", "uninstall", None, "after"),
+			[("product1", "setup"), ("product2", "setup"), ("product3", "uninstall")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "uninstall"), ("product3", "not_installed", "none")],
+			# productAction "uninstall" requires actionRequest "uninstall" before
+			("uninstall", "uninstall", None, "before"),
+			[("product1", "setup"), ("product3", "uninstall"), ("product2", "uninstall")],
+		),
+	),
+)
+def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-arguments
+	test_client: OpsiconfdTestClient,
+	poc_status: list[tuple[str, str, str]],
+	requirement: tuple[str | None, str | None, str | None, str | None],
+	expected_actions: list[tuple[str, str]],
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	product_on_clients = _prepare_productOnClient_sequence_dependencies(
+		test_client=test_client, poc_status=poc_status, requirement=requirement
+	)
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnClient_addDependencies",
+		"params": [[poc.to_hash() for poc in product_on_clients]],
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
 	pocs = res["result"]
-	assert len(pocs) == 2
-	assert pocs[0]["productId"] == product2.id
-	assert pocs[0]["actionRequest"] == "setup"
-	assert pocs[1]["productId"] == product1.id
-	assert pocs[1]["actionRequest"] == "setup"
-
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_generateSequence", "params": [pocs]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	pocs = res["result"]
-	assert len(pocs) == 2
-	assert pocs[0]["productId"] == product1.id
-	assert pocs[0]["actionRequest"] == "setup"
-	assert pocs[1]["productId"] == product2.id
-	assert pocs[1]["actionRequest"] == "setup"
-
-	# not_installed before
-	product_dependency.requiredInstallationStatus = "not_installed"
-	product_on_client1.installationStatus = "installed"
-
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_createObjects", "params": [[product_dependency.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_createObjects", "params": [[product_on_client1.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
-
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_addDependencies", "params": [[product_on_client2.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	pocs = res["result"]
-	# assert len(pocs) == 2
-	# assert pocs[0]["productId"] == product2.id
-	# assert pocs[0]["actionRequest"] == "setup"
-	# assert pocs[1]["productId"] == product1.id
-	# assert pocs[1]["actionRequest"] == "setup"
+	pprint(pocs)
+	assert len(pocs) == len(expected_actions)
+	for idx, expected in enumerate(expected_actions):
+		assert pocs[idx]["productId"] == f"test-backend-rpc-{expected[0]}"
+		assert pocs[idx]["actionRequest"] == expected[1]

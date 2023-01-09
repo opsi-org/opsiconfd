@@ -163,4 +163,6 @@ class RPCProductPropertyStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_delete(self: BackendProtocol, productId: str, propertyId: str, objectId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productPropertyState_deleteObjects([{"productId": productId, "propertyId": propertyId, "objectId": objectId}])
+		self.productPropertyState_deleteObjects(
+			self.productPropertyState_getIdents(returnType="dict", productId=productId, propertyId=propertyId, objectId=objectId)
+		)

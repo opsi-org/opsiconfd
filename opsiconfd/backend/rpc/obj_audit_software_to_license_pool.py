@@ -102,5 +102,37 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.auditSoftwareToLicensePool_deleteObjects([{"id": id}])
+	def auditSoftwareToLicensePool_create(  # pylint: disable=invalid-name,unused-argument,too-many-arguments
+		self: BackendProtocol,
+		name: str,
+		version: str,
+		subVersion: str,
+		language: str,
+		architecture: str,
+		licensePoolId: str
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.auditSoftwareToLicensePool_createObjects(AuditSoftwareToLicensePool.fromHash(_hash))
+
+	@rpc_method(check_acl=False)
+	def auditSoftwareToLicensePool_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
+		self: BackendProtocol,
+		name: str,
+		version: str,
+		subVersion: str,
+		language: str,
+		architecture: str,
+		licensePoolId: str
+	) -> None:
+		self.auditSoftwareToLicensePool_deleteObjects(
+			self.auditSoftwareToLicensePool_getIdents(
+				returnType="dict",
+				name=name,
+				version=version,
+				subVersion=subVersion,
+				language=language,
+				architecture=architecture,
+				licensePoolId=licensePoolId
+			)
+		)

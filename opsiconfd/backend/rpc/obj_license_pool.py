@@ -85,4 +85,6 @@ class RPCLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licensePool_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.licensePool_deleteObjects([{"id": id}])
+		self.licensePool_deleteObjects(
+			self.licensePool_getIdents(returnType="dict", id=id)
+		)

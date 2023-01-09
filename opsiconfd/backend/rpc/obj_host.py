@@ -118,7 +118,9 @@ class RPCHostMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def host_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.host_deleteObjects([{"id": id}])
+		self.host_deleteObjects(
+			self.host_getIdents(returnType="dict", id=id)
+		)
 
 	@rpc_method(check_acl=False)
 	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name

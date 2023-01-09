@@ -28,12 +28,10 @@ DOC_INSERT_OBJECT = """Creates a new object in the backend.
 If the object already exists, it will be completely overwritten with the new values.
 Attributes that are not passed (or passed with the value 'null') will be set to 'null' in the backend.
 """
-
 DOC_UPDATE_OBJECT = """Updates an object in the backend.
 Attributes that are not passed (or passed with the value 'null'), will not be changed in the backend.
 If the object does not exist, no change takes place, no object is created.
 """
-
 DOC_CREATE_OBJECTS = """An object or a list of objects can be passed.
 Each object will be created in the backend.
 Existing objects will be overwritten.
@@ -63,6 +61,7 @@ DOC_DELETE_OBJECTS = """Deletes a list of objects.
 Only the attributes identifying the object ('type'/'id'/'ident') are used to select the objects to be deleted.
 """
 DOC_DELETE = """Deletes the object identified by the specified parameters.
+For string attributes, "*" can be used as a wildcard.
 """
 
 

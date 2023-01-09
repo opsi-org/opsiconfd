@@ -103,12 +103,12 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 
 	def auditSoftwareOnClient_delete(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
-		name: list[str] | str | None = None,
-		version: list[str] | str | None = None,
-		subVersion: list[str] | str | None = None,
-		language: list[str] | str | None = None,
-		architecture: list[str] | str | None = None,
-		clientId: list[str] | str | None = None
+		name: list[str] | str,
+		version: list[str] | str,
+		subVersion: list[str] | str,
+		language: list[str] | str,
+		architecture: list[str] | str,
+		clientId: list[str] | str
 	) -> None:
 		if name is None:
 			name = []  # pylint: disable=use-tuple-over-list

@@ -76,5 +76,33 @@ class RPCAuditSoftwareMixin(Protocol):
 		self._mysql.delete_objects(table="SOFTWARE", object_type=AuditSoftware, obj=auditSoftwares, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.auditSoftware_deleteObjects([{"id": id}])
+	def auditSoftware_create(  # pylint: disable=invalid-name,unused-argument,too-many-arguments
+		self: BackendProtocol,
+		name: str,
+		version: str,
+		subVersion: str,
+		language: str,
+		architecture: str,
+		windowsSoftwareId: str | None = None,
+		windowsDisplayName: str | None = None,
+		windowsDisplayVersion: str | None = None,
+		installSize: int | None = None
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.auditSoftware_createObjects(AuditSoftware.fromHash(_hash))
+
+	@rpc_method(check_acl=False)
+	def auditSoftware_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
+		self: BackendProtocol,
+		name: str,
+		version: str,
+		subVersion: str,
+		language: str,
+		architecture: str
+	) -> None:
+		self.auditSoftware_deleteObjects(
+			self.auditSoftware_getIdents(
+				returnType="dict", name=name, version=version, subVersion=subVersion, language=language, architecture=architecture
+			)
+		)

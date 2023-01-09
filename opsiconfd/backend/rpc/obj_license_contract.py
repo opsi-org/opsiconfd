@@ -81,7 +81,9 @@ class RPCLicenseContractMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licenseContract_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.licenseContract_deleteObjects([{"id": id}])
+		self.licenseContract_deleteObjects(
+			self.licenseContract_getIdents(returnType="dict", id=id)
+		)
 
 	@rpc_method(check_acl=False)
 	def licenseContract_create(  # pylint: disable=too-many-arguments,invalid-name

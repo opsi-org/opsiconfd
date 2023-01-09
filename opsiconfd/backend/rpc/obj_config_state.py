@@ -117,7 +117,9 @@ class RPCConfigStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def configState_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.config_deleteObjects([{"id": id}])
+		self.configState_deleteObjects(
+			self.configState_getIdents(returnType="dict", id=id)
+		)
 
 	@rpc_method(check_acl=False)
 	def configState_getClientToDepotserver(  # pylint: disable=invalid-name,too-many-locals,too-many-branches

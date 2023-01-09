@@ -315,5 +315,16 @@ class RPCAuditHardwareMixin(Protocol):
 		self._mysql.delete_objects(table="AUDIT_HARDWARE", object_type=AuditHardware, obj=auditHardwares, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def auditHardware_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.auditHardware_deleteObjects([{"id": id}])
+	def auditHardware_create(self, hardwareClass: str, **kwargs: Any) -> None:  # pylint: disable=unused-argument,invalid-name
+		_hash = locals()
+		del _hash["self"]
+		return self.auditHardware_createObjects(AuditHardware.fromHash(_hash))
+
+	@rpc_method(check_acl=False)
+	def auditHardware_delete(self, hardwareClass: str, **kwargs: Any) -> None:  # pylint: disable=invalid-name
+		if hardwareClass is None:
+			hardwareClass = []
+
+		kwargs = {key: [] if val is None else val for key, val in kwargs.items()}
+
+		return self.auditHardware_deleteObjects(self.auditHardware_getObjects(hardwareClass=hardwareClass, **kwargs))

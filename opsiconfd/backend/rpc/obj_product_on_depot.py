@@ -105,14 +105,12 @@ class RPCProductOnDepotMixin(Protocol):
 		depotId: str
 	) -> None:
 		self.productOnDepot_deleteObjects(
-			[
-				{
-					"productId": productId,
-					"productType": productType,
-					"productVersion": productVersion,
-					"packageVersion": packageVersion,
-					"depotId": depotId
-				}
-
-			]
+			self.productOnDepot_getIdents(
+				returnType="dict",
+				productId=productId,
+				productType=productType,
+				productVersion=productVersion,
+				packageVersion=packageVersion,
+				depotId=depotId
+			)
 		)

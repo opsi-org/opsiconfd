@@ -846,13 +846,11 @@ class RPCProductDependencyMixin(Protocol):
 		requiredProductId: str
 	) -> None:
 		self.productDependency_deleteObjects(
-			[
-				{
-					"productId": productId,
-					"productVersion": productVersion,
-					"packageVersion": packageVersion,
-					"productAction": productAction,
-					"requiredProductId": requiredProductId
-				}
-			]
+			self.productDependency_getIdents(
+				returnType="dict",
+				productId=productId,
+				productVersion=productVersion,
+				packageVersion=packageVersion,
+				productAction=productAction,
+				requiredProductId=requiredProductId)
 		)

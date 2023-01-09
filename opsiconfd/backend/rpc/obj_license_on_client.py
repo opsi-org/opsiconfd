@@ -104,8 +104,10 @@ class RPCLicenseOnClientMixin(Protocol):
 		self.licenseOnClient_createObjects(LicenseOnClient.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.licenseOnClient_deleteObjects([{"id": id}])
+	def licenseOnClient_delete(self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, clientId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.licenseOnClient_deleteObjects(
+			self.licenseOnClient_getIdents(returnType="dict", softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=clientId)
+		)
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_getOrCreateObject(  # pylint: disable=invalid-name,too-many-branches

@@ -409,7 +409,7 @@ def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 
 
 # TODO: More Tests
-def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-statements
+def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-statements,too-many-locals
 	test_client: OpsiconfdTestClient,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -417,7 +417,8 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 	depot1 = OpsiDepotserver(id="test-backend-rpc-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-backend-rpc-host-1.opsi.test")
 	product1 = LocalbootProduct(id="product1", productVersion="1", packageVersion="1", priority=-100)
-	product2 = LocalbootProduct(id="product2", productVersion="1", packageVersion="1", priority=100)
+	product2 = LocalbootProduct(id="product2", productVersion="1", packageVersion="1", priority=80)
+	product3 = LocalbootProduct(id="product3", productVersion="1", packageVersion="1", priority=100)
 	product_dependency = ProductDependency(
 		productId=product2.id,
 		productVersion=product2.productVersion,
@@ -443,12 +444,30 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 		packageVersion=product2.packageVersion,
 		depotId=depot1.id,
 	)
+	product_on_depot3 = ProductOnDepot(
+		productId=product3.id,
+		productType=product3.getType(),
+		productVersion=product3.productVersion,
+		packageVersion=product3.packageVersion,
+		depotId=depot1.id,
+	)
 	product_on_client1 = ProductOnClient(
-		productId=product1.id, productType=product1.getType(), clientId=client1.id, installationStatus="not_installed"
+		productId=product1.id,
+		productType=product1.getType(),
+		clientId=client1.id,
+		installationStatus="not_installed",
+		actionRequest="none",
 	)
 	product_on_client2 = ProductOnClient(
 		productId=product2.id,
 		productType=product2.getType(),
+		clientId=client1.id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client1 = ProductOnClient(
+		productId=product1.id,
+		productType=product1.getType(),
 		clientId=client1.id,
 		installationStatus="not_installed",
 		actionRequest="setup",

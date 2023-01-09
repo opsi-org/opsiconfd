@@ -20,7 +20,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-from .test_backend_rpc_obj_product import create_test_products
+from .test_obj_product import create_test_products
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 
@@ -207,7 +207,7 @@ def test_product_dependency_updateObject(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_getObjects", "params": [[], {"id": "test-backend-rpc-product*"}]}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 	print(res)

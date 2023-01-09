@@ -19,7 +19,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-from .test_backend_rpc_obj_product_property import create_test_product_properties
+from .test_obj_product_property import create_test_product_properties
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 

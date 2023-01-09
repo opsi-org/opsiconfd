@@ -8,7 +8,7 @@
 test opsiconfd.backend.rpc.obj_product
 """
 
-from opsiconfd.config import FQDN
+from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -20,20 +20,20 @@ from tests.utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-from .test_backend_rpc_obj_product import create_test_products
+from .test_obj_product import create_test_products
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
 
 	product1, product2 = create_test_products(test_client)
-
+	depot_id = get_depotserver_id()
 	pod1 = {
 		"productId": product1["id"],
 		"productVersion": product1["productVersion"],
 		"packageVersion": product1["packageVersion"],
 		"productType": product1["type"],
-		"depotId": FQDN,
+		"depotId": depot_id,
 		"locked": False,
 	}
 	pod2 = {
@@ -41,7 +41,7 @@ def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disa
 		"productVersion": product2["productVersion"],
 		"packageVersion": product2["packageVersion"],
 		"productType": product2["type"],
-		"depotId": FQDN,
+		"depotId": depot_id,
 		"locked": False,
 	}
 	# Create pod 1
@@ -85,13 +85,13 @@ def test_product_on_depot_insertObject(  # pylint: disable=invalid-name
 def test_product_on_depot_create(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product1, product2 = create_test_products(test_client)
-
+	depot_id = get_depotserver_id()
 	pod1 = {
 		"productId": product1["id"],
 		"productType": product1["type"],
 		"productVersion": product1["productVersion"],
 		"packageVersion": product1["packageVersion"],
-		"depotId": FQDN,
+		"depotId": depot_id,
 		"locked": False,
 	}
 	pod2 = {
@@ -99,7 +99,7 @@ def test_product_on_depot_create(test_client: OpsiconfdTestClient) -> None:  # p
 		"productType": product2["type"],
 		"productVersion": product2["productVersion"],
 		"packageVersion": product2["packageVersion"],
-		"depotId": FQDN,
+		"depotId": depot_id,
 		"locked": False,
 	}
 	# Create pod 1 and 2
@@ -127,6 +127,7 @@ def test_product_on_depot_updateObject(  # pylint: disable=invalid-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	depot_id = get_depotserver_id()
 	pod1, pod2 = create_test_pods(test_client)
 
 	check_products_on_depot(test_client, [pod1, pod2])
@@ -193,7 +194,7 @@ def test_product_on_depot_updateObject(  # pylint: disable=invalid-name
 				"productVersion": product3["productVersion"],
 				"packageVersion": product3["packageVersion"],
 				"productType": product3["type"],
-				"depotId": FQDN,
+				"depotId": depot_id,
 			}
 		],
 	}

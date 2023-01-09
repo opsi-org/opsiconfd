@@ -30,7 +30,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-from .test_backend_rpc_obj_product_on_depot import create_test_pods
+from .test_obj_product_on_depot import create_test_pods
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 

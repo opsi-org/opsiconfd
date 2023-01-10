@@ -42,6 +42,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendPermissionDeniedError,
 )
 from opsicommon.license import (  # type: ignore[import]
+	OPSI_CLIENT_INACTIVE_AFTER,
 	OPSI_MODULE_IDS,
 	OPSI_OBSOLETE_MODULE_IDS,
 	get_default_opsi_license_pool,
@@ -285,14 +286,26 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	def _get_client_info(self: BackendProtocol) -> dict[str, int]:
 		logger.info("%s fetching client info", self)
-		_all = len(self.host_getObjects(attributes=["id"], type="OpsiClient"))
-		macos = len(
-			self.productOnClient_getObjects(attributes=["clientId"], installationStatus="installed", productId="opsi-mac-client-agent")
-		)
-		linux = len(
-			self.productOnClient_getObjects(attributes=["clientId"], installationStatus="installed", productId="opsi-linux-client-agent")
-		)
-		return {"macos": macos, "linux": linux, "windows": _all - macos - linux}
+		now = datetime.now()
+		client_ids = [
+			host.id
+			for host in self.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
+			if (host.lastSeen and now - datetime.fromisoformat(host.lastSeen)).days < OPSI_CLIENT_INACTIVE_AFTER
+		]
+		macos = 0
+		linux = 0
+		if client_ids:
+			macos = len(
+				self.productOnClient_getObjects(
+					attributes=["clientId"], installationStatus="installed", productId="opsi-mac-client-agent", clientId=client_ids
+				)
+			)
+			linux = len(
+				self.productOnClient_getObjects(
+					attributes=["clientId"], installationStatus="installed", productId="opsi-linux-client-agent", clientId=client_ids
+				)
+			)
+		return {"macos": macos, "linux": linux, "windows": len(client_ids) - macos - linux}
 
 	@lru_cache(maxsize=10)
 	def _get_licensing_info(

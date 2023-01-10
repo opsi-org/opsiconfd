@@ -181,7 +181,13 @@ def worker_state() -> None:
 def clean_mysql() -> None:  # pylint: disable=redefined-outer-name
 	mysql = get_mysql()  # pylint: disable=invalid-name
 	with mysql.session() as session:
-		session.execute("DELETE FROM HOST WHERE type='OpsiClient'")
+		session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
+		session.execute("DELETE FROM `PRODUCT_ON_CLIENT`")
+		session.execute("DELETE FROM `PRODUCT_ON_DEPOT`")
+		session.execute("DELETE FROM `PRODUCT_DEPENDENCY`")
+		session.execute("DELETE FROM `PRODUCT_PROPERTY_VALUE`")
+		session.execute("DELETE FROM `PRODUCT_PROPERTY`")
+		session.execute("DELETE FROM `PRODUCT`")
 
 
 def create_depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None) -> dict[str, Any]:

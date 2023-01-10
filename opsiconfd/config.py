@@ -775,14 +775,14 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
 			type=int,
-			default=360,
+			default=730,
 			help=self._help("expert", "The period of validity of the opsi ssl ca certificate in days."),
 		)
 		self._parser.add(
 			"--ssl-ca-cert-renew-days",
 			env_var="OPSICONFD_SSL_CA_CERT_RENEW_DAYS",
 			type=int,
-			default=300,
+			default=700,
 			help=self._help("expert", "The CA will be renewed if the validity falls below the specified number of days."),
 		)
 		self._parser.add(

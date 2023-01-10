@@ -502,7 +502,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_delete")
 	def deleteSoftwareInformation(self: BackendProtocol, hostId: str) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
-		self.auditSoftwareOnClient_delete(clientId=hostId)
+		self.auditSoftwareOnClient_delete(clientId=hostId, name=[], version=[], subVersion=[], language=[], architecture=[])
 
 	@rpc_method(deprecated=True, alternative_method="auditHardware_getConfig")
 	def getOpsiHWAuditConf(self: BackendProtocol, locale: str | None = None) -> list:  # pylint: disable=invalid-name

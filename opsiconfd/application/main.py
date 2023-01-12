@@ -80,6 +80,11 @@ async def index_options() -> Response:
 	return Response(headers={"Allow": "OPTIONS, GET, HEAD"})
 
 
+@app.head("/")
+async def index_head() -> Response:
+	return Response()
+
+
 @app.get("/login")
 async def login_index(request: Request) -> Response:
 	context = {

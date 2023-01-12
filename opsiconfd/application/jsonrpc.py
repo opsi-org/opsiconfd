@@ -28,7 +28,12 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	JSONRPCResponseMessage,
 	Message,
 )
-from opsicommon.objects import BaseObject, get_object_type  # type: ignore[import]
+from opsicommon.objects import (  # type: ignore[import]
+	BaseObject,
+	deserialize,
+	get_object_type,
+	serialize,
+)
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
@@ -245,39 +250,6 @@ async def execute_rpc(client_info: str, rpc: dict[str, Any]) -> Any:
 
 	with server_timing("serialize_objects"):
 		return await run_in_threadpool(serialize, result)
-
-
-def serialize(obj: Any, deep: bool = False) -> Any:
-	# This is performance critical!
-	if isinstance(obj, list):
-		return [serialize(o, deep) for o in obj]
-	if isinstance(obj, BaseObject):
-		return obj.serialize()
-	if not deep:
-		return obj
-	if isinstance(obj, dict):
-		return {k: serialize(v, deep) for k, v in obj.items()}
-	return obj
-
-
-def deserialize(obj: Any, deep: bool = False) -> Any:  # pylint: disable=invalid-name
-	# This is performance critical!
-	if isinstance(obj, list):
-		return [deserialize(o) for o in obj]
-	if isinstance(obj, dict):
-		try:
-			obj_type = get_object_type(obj["type"])
-			return obj_type.fromHash(obj)  # type: ignore[union-attr]
-		except KeyError:
-			pass
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
-			raise ValueError(f"Failed to create object from dict {obj}: {err}") from err
-	if not deep:
-		return obj
-	if isinstance(obj, dict):
-		return {k: deserialize(v) for k, v in obj.items()}
-	return obj
 
 
 def write_debug_log(

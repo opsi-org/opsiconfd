@@ -483,7 +483,7 @@ def test_get_routes(  # pylint: disable=redefined-outer-name, unused-argument
 	assert response.status_code == 200
 
 	routes_to_test = {
-		"/": "opsiconfd.application.main.index_options",
+		"/": "opsiconfd.application.main.index_head",
 		"/admin/": "opsiconfd.application.admininterface.admin_interface_index",
 		"/admin/addons": "opsiconfd.application.admininterface.get_addon_list",
 		"/admin/addons/install": "opsiconfd.application.admininterface.install_addon",

@@ -518,21 +518,25 @@ class OrderBuild:  # pylint: disable=too-many-instance-attributes
 		return self.ordering
 
 
-def get_setup_and_uninstall_requirements(product_dependencies: list[ProductDependency]) -> list[tuple[str, str]]:
+def get_requirements(product_dependencies: list[ProductDependency], uninstall: bool = False) -> list[tuple[str, str]]:
 	# Requirements are list of pairs (install_prior, install_posterior)
 	# We treat setup an uninstall requirements only
 	requirements = []
-
 	for dependency in product_dependencies:
-		if dependency.productAction not in ("setup", "uninstall"):
+		if dependency.productAction not in ("setup", "uninstall") if uninstall else ("setup", ):
 			continue
-		if dependency.requiredInstallationStatus not in ("not_installed", "installed"):
+		if (
+			dependency.requiredInstallationStatus not in ("not_installed", "installed") and
+			dependency.requiredAction not in ("setup", "uninstall")
+		):
 			continue
-		if dependency.requiredAction not in ("setup", "uninstall"):
-			continue
+
+		if dependency.requiredInstallationStatus and dependency.requiredAction:
+			raise OpsiProductOrderingError(f"{dependency} defines requiredInstallationStatus and requiredAction")
+
 		if dependency.requirementType == "before":
 			requirements.append((dependency.requiredProductId, dependency.productId))
-		elif not dependency.requirementType or dependency.requirementType == "after":
+		elif dependency.requirementType == "after":
 			requirements.append((dependency.productId, dependency.requiredProductId))
 
 	return requirements
@@ -540,7 +544,7 @@ def get_setup_and_uninstall_requirements(product_dependencies: list[ProductDepen
 
 def generate_product_sequence(available_products: list[Product], product_dependencies: list[ProductDependency]) -> list[str]:
 	logger.info("Generating product sequence")
-	requirements = get_setup_and_uninstall_requirements(product_dependencies)
+	requirements = get_requirements(product_dependencies, uninstall=False)
 	return generate_product_sequence_from_requ_pairs(available_products, requirements)
 
 
@@ -730,7 +734,7 @@ def generate_product_on_client_sequence(
 	product_on_clients: list[ProductOnClient], available_products: list[Product], product_dependencies: list[ProductDependency]
 ) -> list[ProductOnClient]:
 	logger.info("Generating productOnClient sequence")
-	requirements = get_setup_and_uninstall_requirements(product_dependencies)
+	requirements = get_requirements(product_dependencies, uninstall=True)
 	sorted_product_list = generate_product_sequence_from_requ_pairs(available_products, requirements)
 
 	pocs_by_client_id_and_product_id: dict[str, dict[str, ProductOnClient]] = defaultdict(dict)

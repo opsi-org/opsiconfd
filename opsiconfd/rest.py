@@ -68,7 +68,8 @@ class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-man
 		http_status: int = status.HTTP_200_OK,
 		headers: dict[str, str] | None = None
 	):
-		super().__init__(status_code=http_status)
+		super().__init__()
+		self.status = http_status
 		self._headers = MutableHeaders(headers or {})
 		self.content = data
 		self.total = total
@@ -97,12 +98,13 @@ class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-man
 		return self._total
 
 	@total.setter
-	def total(self, total: int) -> None:
+	def total(self, total: int | None) -> None:
 		if not isinstance(total, (int, NoneType)):
 			raise TypeError("RESTResponse total must be integer.")
 		self._total = total
-		self._headers["Access-Control-Expose-Headers"] = "x-total-count"
-		self._headers["X-Total-Count"] = str(self._total)
+		if total is not None:
+			self._headers["Access-Control-Expose-Headers"] = "x-total-count"
+			self._headers["X-Total-Count"] = str(self._total)
 
 	@property
 	def headers(self) -> MutableHeaders:

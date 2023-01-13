@@ -43,7 +43,7 @@ def test_restresponse(data: Any, output: Any) -> None:
 	assert rest_response.content == output["content"]
 	assert rest_response.total == output["total"]
 	assert rest_response.status == output["http_status"]
-	assert rest_response.headers == output["headers"]
+	assert dict(rest_response.headers) == output["headers"]
 	assert rest_response.type == output["type"]
 
 	json_response = rest_response.to_jsonresponse()
@@ -131,4 +131,4 @@ def test_resterrorresponse(data: Any, output: Any) -> None:
 	}
 	assert rest_response.total == output["total"]
 	assert rest_response.status == output["http_status"]
-	assert rest_response.headers == output["headers"]
+	assert dict(rest_response.headers) == output["headers"]

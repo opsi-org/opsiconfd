@@ -21,7 +21,7 @@ stages:
   export DEBIAN_FRONTEND=noninteractive
 
   wget -q https://apt.grafana.com/gpg.key -O /usr/share/keyrings/grafana.key
-  echo "deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+  echo "deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main" > /etc/apt/sources.list.d/grafana.list
 
   apt update
   apt -y install mariadb-client bc grafana

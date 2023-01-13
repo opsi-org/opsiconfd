@@ -26,6 +26,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	Connection,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
 	database_connection,
 	get_config,

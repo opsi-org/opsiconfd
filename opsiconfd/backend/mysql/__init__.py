@@ -39,6 +39,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	BaseObject,
 	BaseObjectT,
 	get_ident_attributes,
+	get_object_type,
 	get_possible_class_attributes,
 )
 from sqlalchemy import create_engine  # type: ignore[import]
@@ -473,21 +474,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				conversions[name] = dumps
 		return conversions
 
-	@lru_cache(maxsize=0)
-	def _get_possible_class_attributes(self, object_type: Type[BaseObject]) -> set[str]:
-		return get_possible_class_attributes(object_type)  # type: ignore[arg-type]
-
-	@lru_cache(maxsize=0)
-	def _get_ident_attributes(self, object_type: Type[BaseObject]) -> tuple[str, ...]:
-		ident_attributes = get_ident_attributes(object_type)
-		if "hardwareClass" in ident_attributes:
-			ident_attributes = tuple([a for a in ident_attributes if a != "hardwareClass"])  # pylint: disable=consider-using-generator
-		return ident_attributes
-
-	@lru_cache(maxsize=0)
-	def _get_object_type(self, object_type: str) -> Type[BaseObject] | None:
-		return OBJECT_CLASSES.get(object_type)
-
 	@overload
 	def get_ident(self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["unicode", "str"]) -> str:
 		...
@@ -548,11 +534,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	) -> dict[str, Any]:
 		data = dict(row)
 		try:
-			object_type = self._get_object_type(data["type"]) or object_type
+			object_type = get_object_type(data["type"]) or object_type
 		except KeyError:
 			pass
 
-		possible_attributes = self._get_possible_class_attributes(object_type)  # type: ignore
+		possible_attributes = get_possible_class_attributes(object_type)  # type: ignore
 
 		if aggregates:
 			self._process_aggregates(data, aggregates)
@@ -561,7 +547,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		res = {attr: val for attr, val in data.items() if attr in possible_attributes}
 		if ident_type:
-			ident_attributes = self._get_ident_attributes(object_type)  # type: ignore
+			ident_attributes = get_ident_attributes(object_type)  # type: ignore
 			res["ident"] = self.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type)
 
 		return res
@@ -645,7 +631,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		ident_attributes: tuple[str, ...] = tuple()
 		if return_type == "ident" or attributes or aggregates:
-			ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
+			ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
 
 		if return_type == "ident":
 			attributes = ident_attributes
@@ -702,7 +688,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		ident_type: IdentType = "str",
 		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
-		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
+		ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
 		if not ident_attributes:
 			raise ValueError(f"Failed to get ident attributes for {object_type}")
 		return self.get_objects(  # type: ignore[call-overload]
@@ -806,7 +792,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		obj: list[BaseObjectT] | BaseObjectT | list[dict[str, Any]] | dict[str, Any],
 		ace: list[RPCACE],
 	) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
-		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
+		ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
 		columns = self.get_columns(tables=[table], ace=ace, attributes=ident_attributes)
 		if len(columns) < len(ident_attributes):
 			raise BackendPermissionDeniedError("No permission")

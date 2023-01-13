@@ -72,19 +72,10 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 		client_ids = backend.host_getIdents(type="OpsiClient")
 
 	clients_on_depot = defaultdict(list)
-	for config_object, config_state in backend.configState_getValues(
-		config_ids=["clientconfig.depot.id"], object_ids=client_ids, with_defaults=True
-	).items():
-		if not config_state.get("clientconfig.depot.id") or not config_state.get("clientconfig.depot.id")[0]:
-			logger.error("No depot server configured for client '%s'", config_object)
-			continue
+	for entry in backend.configState_getClientToDepotserver(clientIds=client_ids, masterOnly=True):  # pylint: disable=use-list-copy
+		clients_on_depot[entry["depotId"]].append(entry["clientId"])
 
-		depot_id = config_state.get("clientconfig.depot.id")[0]
-		if depot_id not in depot_ids:
-			continue
-
-		clients_on_depot[depot_id].append(config_object)
-
+	print(clients_on_depot)
 	if not clients_on_depot:
 		return generate_response(
 			State.UNKNOWN, f"Depots and clients dont match. Selected depots: {depot_ids}, selected clients: {client_ids}"

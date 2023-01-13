@@ -3754,11 +3754,11 @@ python-multipart = [
 ]
 python-opsi = [
     {file = "python_opsi-4.3.0.3-py3-none-any.whl", hash = "sha256:26be286d2f7539a85dec548e12d417d6e3b036487a953a23b540e01c89de9025"},
-    {file = "python_opsi-4.3.0.3.tar.gz", hash = "sha256:c16f91ab36743a0c1d8859e2bb453e692472f7083c46087c7c6b10667708b0df"},
+    {file = "python_opsi-4.3.0.3.tar.gz", hash = "sha256:069273ab62ff8fc82dba20b1bafcedfb99f5bb4e9daa932d6734a490bb274a13"},
 ]
 python-opsi-common = [
     {file = "python_opsi_common-4.3.0.2-py3-none-any.whl", hash = "sha256:cda52a20b68b97a707c90822499d7942f5a0ca06b888a03c3d21d3446a2655b1"},
-    {file = "python_opsi_common-4.3.0.2.tar.gz", hash = "sha256:39aa031ba5d219d6cd0e555b402316e90b2088a052e0eeebccd90e905dec0394"},
+    {file = "python_opsi_common-4.3.0.2.tar.gz", hash = "sha256:1cd14074369d6226776db816a9fa1fdca4d04ec3f04343898fccc1dcdb900125"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

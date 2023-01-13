@@ -28,10 +28,12 @@ from _pytest.nodes import Item
 from pytest import fixture, hookimpl, skip
 
 from opsiconfd.application.main import application_setup
+from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.mysql.schema import drop_database
 from opsiconfd.config import config as _config
 from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
-from opsiconfd.setup import setup_ssl
+from opsiconfd.setup import setup_backend, setup_ssl
 from opsiconfd.worker import Worker
 
 from .utils import sync_clean_redis
@@ -78,11 +80,15 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
 		GRAFANA_AVAILABLE = True
 
+	mysql = MySQLConnection()
+	mysql.connect()
+	drop_database(mysql)
+	setup_backend(full=True)
+
 	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
 		setup_ssl()
 
 	Worker._instance = Worker("pytest", 1)  # pylint: disable=protected-access
-
 	application_setup()
 
 

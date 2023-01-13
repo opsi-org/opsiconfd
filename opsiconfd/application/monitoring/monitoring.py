@@ -101,7 +101,7 @@ async def monitoring(request: Request) -> JSONResponse:  # pylint: disable=too-m
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})
 	except Exception as err:  # pylint: disable=broad-except
-		logger.error(err)
+		logger.error(err, exc_info=True)
 		response = JSONResponse({"state": State.UNKNOWN, "message": str(err)})
 
 	return response

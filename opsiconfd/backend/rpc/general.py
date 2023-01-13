@@ -290,7 +290,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		client_ids = [
 			host.id
 			for host in self.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
-			if (host.lastSeen and now - datetime.fromisoformat(host.lastSeen)).days < OPSI_CLIENT_INACTIVE_AFTER
+			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < OPSI_CLIENT_INACTIVE_AFTER
 		]
 		macos = 0
 		linux = 0

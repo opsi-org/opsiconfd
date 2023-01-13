@@ -156,6 +156,8 @@ class RPCConfigStateMixin(Protocol):
 		depotIds = forceHostIdList(depotIds)
 		productIds = forceProductIdList(productIds)
 
+		config_server_id = self.host_getIdents(type="OpsiConfigserver")[0]
+
 		depotIds = self.host_getIdents(type="OpsiDepotserver", id=depotIds)
 		if not depotIds:
 			return []
@@ -169,7 +171,7 @@ class RPCConfigStateMixin(Protocol):
 		used_depot_ids = set()
 		result = []
 
-		for client_id, configs in self.configState_getValues(config_ids=["clientconfig.depot.id"], object_ids=clientIds).items():
+		for client_id, configs in self.configState_getValues(config_ids=["clientconfig.depot.id"], object_ids=list(clientIds)).items():
 			try:  # pylint: disable=loop-try-except-usage
 				depotId = configs["clientconfig.depot.id"][0]
 				if not depotId:
@@ -183,6 +185,11 @@ class RPCConfigStateMixin(Protocol):
 			used_depot_ids.add(depotId)
 
 			result.append({"depotId": depotId, "clientId": client_id, "alternativeDepotIds": []})
+			clientIds.remove(client_id)
+
+		if clientIds:
+			used_depot_ids.add(config_server_id)
+			result += [{"depotId": config_server_id, "clientId": client_id, "alternativeDepotIds": []} for client_id in clientIds]
 
 		if forceBool(masterOnly):
 			return result

@@ -11,7 +11,6 @@ Tests for the opsiconfd monitoring module
 
 import asyncio
 import json
-import socket
 import time
 from typing import Any
 
@@ -19,6 +18,7 @@ import pytest
 from redis import asyncio as async_redis
 
 from opsiconfd.application.monitoring.utils import get_workers
+from opsiconfd.config import get_depotserver_id
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from tests.monitoring.test_monitoring import (  # pylint: disable=unused-import
 	MONITORING_CHECK_DAYS,
@@ -89,7 +89,7 @@ def test_check_product_status_none(  # pylint: disable=redefined-outer-name,too-
 			False,
 			{
 				"message": (
-					f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\n" "For product 'pytest-prod-1' action set on 1 clients!\n"
+					f"WARNING: \nResult for Depot: '{get_depotserver_id()}':\n" "For product 'pytest-prod-1' action set on 1 clients!\n"
 				),
 				"state": 1,
 			},
@@ -100,7 +100,9 @@ def test_check_product_status_none(  # pylint: disable=redefined-outer-name,too-
 			False,
 			{
 				"message": (
-					"CRITICAL: \n" f"Result for Depot: '{socket.getfqdn()}':\n" "For product 'pytest-prod-2' problems found on 2 clients!\n"
+					"CRITICAL: \n"
+					f"Result for Depot: '{get_depotserver_id()}':\n"
+					"For product 'pytest-prod-2' problems found on 2 clients!\n"
 				),
 				"state": 2,
 			},
@@ -111,7 +113,7 @@ def test_check_product_status_none(  # pylint: disable=redefined-outer-name,too-
 			False,
 			{
 				"message": (
-					f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+					f"CRITICAL: \nResult for Depot: '{get_depotserver_id()}':\n"
 					"For product 'pytest-prod-1' action set on 1 clients!\n"
 					"For product 'pytest-prod-2' problems found on 2 clients!\n"
 				),
@@ -125,7 +127,7 @@ def test_check_product_status_none(  # pylint: disable=redefined-outer-name,too-
 			False,
 			{
 				"message": (
-					f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+					f"CRITICAL: \nResult for Depot: '{get_depotserver_id()}':\n"
 					"For product 'pytest-prod-1' action set on 1 clients!\n"
 					"For product 'pytest-prod-2' problems found on 2 clients!\n"
 				),
@@ -134,7 +136,7 @@ def test_check_product_status_none(  # pylint: disable=redefined-outer-name,too-
 		),
 	],
 )
-def test_check_product_status(  # pylint: disable=redefined-outer-name,too-many-arguments
+def test_check_product_status_not_none(  # pylint: disable=redefined-outer-name,too-many-arguments
 	test_client: OpsiconfdTestClient, config: Config, products: list[str], verbose: bool, strict: bool, expected_result: Any
 ) -> None:
 	data = json.dumps(
@@ -423,39 +425,39 @@ def test_check_client_status(  # pylint: disable=redefined-outer-name
 	"depot_ids, product_ids, exclude, strict, verbose, expected_result",
 	[
 		(
-			[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
 			False,
-			{"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
 		),
 		(
-			[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			True,
 			False,
-			{"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
 		),
 		(
-			[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
 			True,
-			{"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
 		),
 		(
-			[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			True,
 			True,
-			{"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
 		),
 		(
-			[socket.getfqdn(), "pytest-test-depot2.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot2.uib.gmbh"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
@@ -463,7 +465,7 @@ def test_check_client_status(  # pylint: disable=redefined-outer-name
 			{"message": "WARNING: Differences found for 1 products", "state": 1},
 		),
 		(
-			[socket.getfqdn(), "pytest-test-depot2.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot2.uib.gmbh"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
@@ -471,14 +473,14 @@ def test_check_client_status(  # pylint: disable=redefined-outer-name
 			{
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
-					f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
+					f"product 'pytest-prod-1': {get_depotserver_id()} (1.0-1) \n"
 					"pytest-test-depot2.uib.gmbh (2.0-1) \n"
 				),
 				"state": 1,
 			},
 		),
 		(
-			[socket.getfqdn(), "pytest-test-depot2.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot2.uib.gmbh"],
 			["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 			[],
 			True,
@@ -486,14 +488,14 @@ def test_check_client_status(  # pylint: disable=redefined-outer-name
 			{
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
-					f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
+					f"product 'pytest-prod-1': {get_depotserver_id()} (1.0-1) \n"
 					"pytest-test-depot2.uib.gmbh (2.0-1) \n"
 				),
 				"state": 1,
 			},
 		),
 		(
-			["pytest-test-depot2.uib.gmbh", socket.getfqdn()],
+			["pytest-test-depot2.uib.gmbh", get_depotserver_id()],
 			["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 			[],
 			True,
@@ -502,13 +504,13 @@ def test_check_client_status(  # pylint: disable=redefined-outer-name
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
 					"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
-					f"{socket.getfqdn()} (1.0-1) \n"
+					f"{get_depotserver_id()} (1.0-1) \n"
 				),
 				"state": 1,
 			},
 		),
 		(
-			["pytest-test-depot2.uib.gmbh", socket.getfqdn()],
+			["pytest-test-depot2.uib.gmbh", get_depotserver_id()],
 			["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 			["pytest-prod-3"],
 			True,
@@ -517,7 +519,7 @@ def test_check_client_status(  # pylint: disable=redefined-outer-name
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
 					"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
-					f"{socket.getfqdn()} (1.0-1) \n"
+					f"{get_depotserver_id()} (1.0-1) \n"
 				),
 				"state": 1,
 			},  # pylint: disable=too-many-arguments

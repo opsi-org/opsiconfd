@@ -11,7 +11,7 @@ check short product status
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 def check_short_product_status(  # pylint: disable=too-many-statements, dangerous-default-value, too-many-locals, too-many-branches
-	backend: Backend, product_id: str | None = None, thresholds: Dict[str, str] | None = None
+	backend: Backend, product_id: str | None = None, thresholds: dict[str, str] | None = None
 ) -> JSONResponse:
 
 	thresholds = thresholds or {}

@@ -26,6 +26,7 @@ from opsiconfd.application.monitoring.check_plugin_on_client import (
 from opsiconfd.application.monitoring.check_short_product_status import (
 	check_short_product_status,
 )
+from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	Config,
 	Connection,
@@ -36,6 +37,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	config,
 	create_depot_jsonrpc,
 	database_connection,
+	delete_mysql_data,
 	test_client,
 )
 
@@ -128,41 +130,24 @@ test_data: tuple[tuple[Any, Any, Any, Any], ...] = (
 def create_check_data(
 	test_client: OpsiconfdTestClient, config: Config, database_connection: Connection  # pylint: disable=redefined-outer-name
 ) -> Generator[None, None, None]:
+	delete_mysql_data()
+
 	mysql = database_connection
 	mysql.autocommit(True)
+	cursor = mysql.cursor()
 
 	now = datetime.now()
 
-	cursor = mysql.cursor()
-	cursor.execute(
-		(
-			"DELETE FROM PRODUCT_ON_DEPOT;"
-			"DELETE FROM PRODUCT_ON_CLIENT;"
-			"DELETE FROM PRODUCT_PROPERTY_VALUE;"
-			"DELETE FROM PRODUCT_PROPERTY;"
-			"DELETE FROM PRODUCT_DEPENDENCY;"
-			"DELETE FROM OBJECT_TO_GROUP;"
-			"DELETE FROM PRODUCT;"
-			'DELETE FROM HOST WHERE type != "OpsiConfigserver";'
-			"DELETE FROM `GROUP`;"
-			'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
-		)
-	)
-
 	# Product
-	for i in range(5):
-		cursor.execute(
-			f"INSERT INTO HOST (hostId, `type`, created, lastSeen, hardwareAddress, `description`, notes, inventoryNumber) "
-			f'VALUES ("pytest-client-{i}.uib.local", "OpsiClient", "{now}", "{now}", "af:fe:af:fe:af:f{i}", '
-			f'"description client{i}", "notes client{i}", "{i}");'
-		)
+	for idx in range(5):
 		cursor.execute(
 			"INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority, setupScript, uninstallScript) VALUES "
-			f'("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i}, "setup.opsiscript", "uninstall.opsiscript");'
+			f'("pytest-prod-{idx}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {idx}", 60+{idx},'
+			' "setup.opsiscript", "uninstall.opsiscript");'
 		)
 		cursor.execute(
 			f"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
-			f'("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");'  # pylint: disable=dotted-import-in-loop
+			f'("pytest-prod-{idx}", "1.0", "1", "{get_depotserver_id()}", "LocalbootProduct");'  # pylint: disable=dotted-import-in-loop
 		)
 
 	cursor.execute(
@@ -172,6 +157,12 @@ def create_check_data(
 	)
 
 	# Host
+	for idx in range(5):
+		cursor.execute(
+			f"INSERT INTO HOST (hostId, `type`, created, lastSeen, hardwareAddress, `description`, notes, inventoryNumber) "
+			f'VALUES ("pytest-client-{idx}.uib.local", "OpsiClient", "{now}", "{now}", "af:fe:af:fe:af:f{idx}", '
+			f'"description client{idx}", "notes client{idx}", "{idx}");'
+		)
 	cursor.execute(
 		"INSERT INTO HOST (hostId, type, created, lastSeen) VALUES "
 		f'("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}"),'
@@ -231,7 +222,7 @@ def create_check_data(
 		)
 
 		cursor.execute(
-			"INSERT INTO CONFIG_VALUE (configId, value, isDefault) VALUES " f'("clientconfig.depot.id", "{socket.getfqdn()}", 1);'
+			"INSERT INTO CONFIG_VALUE (configId, value, isDefault) VALUES " f'("clientconfig.depot.id", "{get_depotserver_id()}", 1);'
 		)
 
 	# Clients to Depots
@@ -308,7 +299,7 @@ def test_check_locked_products(
 
 	result = check_locked_products(backend, depot_ids=[])
 	assert json.loads(result.body) == {
-		"message": (f"OK: No products locked on depots: {socket.getfqdn()}," "pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh"),
+		"message": (f"OK: No products locked on depots: {get_depotserver_id()}," "pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh"),
 		"state": 0,
 	}
 
@@ -335,7 +326,7 @@ def test_check_locked_products(
 		"state": 1,
 	}
 
-	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()])
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", get_depotserver_id()])
 	assert json.loads(result.body) == {
 		"message": (
 			"WARNING: 2 products are in locked state.\n"
@@ -345,7 +336,7 @@ def test_check_locked_products(
 		"state": 1,
 	}
 
-	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()], product_ids=["pytest-prod-2"])
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", get_depotserver_id()], product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
 		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh"),
 		"state": 1,

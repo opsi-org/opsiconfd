@@ -177,8 +177,7 @@ def worker_state() -> None:
 		)
 
 
-@pytest_asyncio.fixture(autouse=True)
-def clean_mysql() -> None:  # pylint: disable=redefined-outer-name
+def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 	mysql = get_mysql()  # pylint: disable=invalid-name
 	with mysql.session() as session:
 		session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
@@ -188,6 +187,14 @@ def clean_mysql() -> None:  # pylint: disable=redefined-outer-name
 		session.execute("DELETE FROM `PRODUCT_PROPERTY_VALUE`")
 		session.execute("DELETE FROM `PRODUCT_PROPERTY`")
 		session.execute("DELETE FROM `PRODUCT`")
+		session.execute("DELETE FROM `OBJECT_TO_GROUP`")
+		session.execute("DELETE FROM `GROUP`")
+		session.execute("DELETE FROM `CONFIG_STATE`")
+
+
+@pytest_asyncio.fixture(autouse=True)
+def clean_mysql() -> None:  # pylint: disable=redefined-outer-name
+	delete_mysql_data()
 
 
 def create_depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None) -> dict[str, Any]:

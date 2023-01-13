@@ -15,13 +15,8 @@ import os
 import subprocess
 from typing import TYPE_CHECKING, Protocol
 
-import OPSI.SharedAlgorithm  # type: ignore[import]
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
-from opsicommon.objects import (  # type: ignore[import]
-	LocalbootProduct,
-	ProductDependency,
-	ProductOnClient,
-)
+from opsicommon.objects import ProductOnClient  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
 	forceActionRequest,
 	forceHostId,
@@ -117,58 +112,6 @@ class RPCExtOpsiMixin(Protocol):
 	def getHardwareAuditDataCount(self: BackendProtocol) -> int:  # pylint: disable=invalid-name
 		"""Get the count of data relevant to the hardware audit."""
 		return len(self.auditHardware_getObjects()) + len(self.auditHardwareOnHost_getObjects())
-
-	@rpc_method(use_cache="product_ordering")
-	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
-		self: BackendProtocol, depotId: str, sortAlgorithm: str | None = None
-	) -> dict[str, list]:
-		if sortAlgorithm and sortAlgorithm != "algorithm1":
-			raise ValueError(f"Invalid sort algorithm {sortAlgorithm!r}")
-
-		products_by_id_and_version: dict[str, dict[str, dict[str, LocalbootProduct]]] = {}
-		for product in self.product_getObjects(type="LocalbootProduct"):
-			if product.id not in products_by_id_and_version:
-				products_by_id_and_version[product.id] = {}
-			if product.productVersion not in products_by_id_and_version[product.id]:
-				products_by_id_and_version[product.id][product.productVersion] = {}
-
-			products_by_id_and_version[product.id][product.productVersion][product.packageVersion] = product
-
-		products_dependencies_by_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]] = {}
-		for prod_dep in self.productDependency_getObjects(productAction="setup"):
-			if prod_dep.productId not in products_dependencies_by_id_and_version:
-				products_dependencies_by_id_and_version[prod_dep.productId] = {}
-			if prod_dep.productVersion not in products_dependencies_by_id_and_version[prod_dep.productId]:
-				products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion] = {}
-			if prod_dep.packageVersion not in products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion]:
-				products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion][prod_dep.packageVersion] = []
-
-			products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion][prod_dep.packageVersion].append(prod_dep)
-
-		available_products = []
-		product_dependencies = []
-		productIds = []
-		for productOnDepot in self.productOnDepot_getObjects(depotId=depotId, productType="LocalbootProduct"):
-			product = (
-				products_by_id_and_version.get(productOnDepot.productId, {})
-				.get(productOnDepot.productVersion, {})
-				.get(productOnDepot.packageVersion)
-			)
-			if not product:
-				continue
-			available_products.append(product)
-			productIds.append(product.id)
-			if not product.setupScript:
-				continue
-			product_dependencies.extend(
-				products_dependencies_by_id_and_version.get(productOnDepot.productId, {})
-				.get(productOnDepot.productVersion, {})
-				.get(productOnDepot.packageVersion, [])
-			)
-
-		productIds.sort()
-		sortedList = OPSI.SharedAlgorithm.generateProductSequence_algorithm1(available_products, product_dependencies)
-		return {"not_sorted": productIds, "sorted": sortedList}
 
 	@rpc_method(deprecated=True)
 	def setRights(self: BackendProtocol, path: str | None = None) -> str:  # pylint: disable=invalid-name

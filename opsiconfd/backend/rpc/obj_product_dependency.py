@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.exceptions import OpsiProductOrderingError
 from opsicommon.objects import (  # type: ignore[import]
+	LocalbootProduct,
 	Product,
 	ProductDependency,
 	ProductOnClient,
@@ -525,10 +526,9 @@ def get_setup_and_uninstall_requirements(product_dependencies: list[ProductDepen
 	for dependency in product_dependencies:
 		if dependency.productAction not in ("setup", "uninstall"):
 			continue
-		if (
-			dependency.requiredInstallationStatus not in ("not_installed", "installed") and
-			dependency.requiredAction not in ("setup", "uninstall")
-		):
+		if dependency.requiredInstallationStatus not in ("not_installed", "installed"):
+			continue
+		if dependency.requiredAction not in ("setup", "uninstall"):
 			continue
 		if dependency.requirementType == "before":
 			requirements.append((dependency.requiredProductId, dependency.productId))
@@ -854,3 +854,55 @@ class RPCProductDependencyMixin(Protocol):
 				productAction=productAction,
 				requiredProductId=requiredProductId)
 		)
+
+	@rpc_method(use_cache="product_ordering")
+	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
+		self: BackendProtocol, depotId: str, sortAlgorithm: str | None = None
+	) -> dict[str, list]:
+		if sortAlgorithm and sortAlgorithm != "algorithm1":
+			raise ValueError(f"Invalid sort algorithm {sortAlgorithm!r}")
+
+		products_by_id_and_version: dict[str, dict[str, dict[str, LocalbootProduct]]] = {}
+		for product in self.product_getObjects(type="LocalbootProduct"):
+			if product.id not in products_by_id_and_version:
+				products_by_id_and_version[product.id] = {}
+			if product.productVersion not in products_by_id_and_version[product.id]:
+				products_by_id_and_version[product.id][product.productVersion] = {}
+
+			products_by_id_and_version[product.id][product.productVersion][product.packageVersion] = product
+
+		products_dependencies_by_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]] = {}
+		for prod_dep in self.productDependency_getObjects(productAction="setup"):
+			if prod_dep.productId not in products_dependencies_by_id_and_version:
+				products_dependencies_by_id_and_version[prod_dep.productId] = {}
+			if prod_dep.productVersion not in products_dependencies_by_id_and_version[prod_dep.productId]:
+				products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion] = {}
+			if prod_dep.packageVersion not in products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion]:
+				products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion][prod_dep.packageVersion] = []
+
+			products_dependencies_by_id_and_version[prod_dep.productId][prod_dep.productVersion][prod_dep.packageVersion].append(prod_dep)
+
+		available_products = []
+		product_dependencies = []
+		product_ids = []
+		for product_on_depot in self.productOnDepot_getObjects(depotId=depotId, productType="LocalbootProduct"):
+			product = (
+				products_by_id_and_version.get(product_on_depot.productId, {})
+				.get(product_on_depot.productVersion, {})
+				.get(product_on_depot.packageVersion)
+			)
+			if not product:
+				continue
+			available_products.append(product)
+			product_ids.append(product.id)
+			if not product.setupScript:
+				continue
+			product_dependencies.extend(
+				products_dependencies_by_id_and_version.get(product_on_depot.productId, {})
+				.get(product_on_depot.productVersion, {})
+				.get(product_on_depot.packageVersion, [])
+			)
+
+		product_ids.sort()
+		sorted_list = generate_product_sequence(available_products, product_dependencies)
+		return {"not_sorted": product_ids, "sorted": sorted_list}

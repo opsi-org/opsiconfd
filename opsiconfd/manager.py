@@ -25,6 +25,7 @@ from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
 from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.backend.rpc.cache import rpc_cache_clear
 from opsiconfd.config import config
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
@@ -354,6 +355,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._loop.create_task(self._metrics_collector.main_loop())
 
 		# TODO: Multiple managers on different nodes
+		await run_in_threadpool(rpc_cache_clear)
 		await messagebus_cleanup(full=True)
 
 		app_state: NormalState | MaintenanceState = NormalState()

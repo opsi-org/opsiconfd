@@ -28,12 +28,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	JSONRPCResponseMessage,
 	Message,
 )
-from opsicommon.objects import (  # type: ignore[import]
-	BaseObject,
-	deserialize,
-	get_object_type,
-	serialize,
-)
+from opsicommon.objects import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing

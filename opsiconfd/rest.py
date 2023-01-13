@@ -18,11 +18,11 @@ from types import NoneType
 from typing import Any, Callable, Optional, Union
 
 from fastapi import Body, Query, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import asc, column, desc  # type: ignore[import]
 from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
-from starlette.datastructures import URL
+from starlette.datastructures import URL, MutableHeaders
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.application.utils import parse_list
@@ -60,19 +60,18 @@ class OpsiApiException(Exception):
 		super().__init__(self.message)
 
 
-class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance-attributes
+class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-many-instance-attributes
 
 	def __init__(
 		self,
 		data: None | int | str | list | dict = None,
 		total: None | int = None,
 		http_status: int = status.HTTP_200_OK,
-		headers: dict = {}
-	):  # pylint: disable=dangerous-default-value
-		self.status = http_status
+		headers: dict[str, str] | None = None,
+	):
+		super().__init__(status_code=http_status, headers=headers)
 		self.content = data
 		self.total = total
-		self.headers = headers
 
 	@property
 	def content(self) -> None | int | str | list | dict:
@@ -104,14 +103,12 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 		self._total = total
 
 	@property
-	def headers(self) -> dict:
+	def headers(self) -> MutableHeaders:
 		return self._headers
 
 	@headers.setter
-	def headers(self, headers: dict = {}) -> None:  # pylint: disable=dangerous-default-value
-		if not isinstance(headers, dict):
-			headers = {}
-		self._headers = headers
+	def headers(self, headers: dict | None = None) -> None:
+		self._headers = MutableHeaders(headers or {})
 		if self._total:
 			self._headers["Access-Control-Expose-Headers"] = "x-total-count"
 			self._headers["X-Total-Count"] = str(self._total)
@@ -121,7 +118,7 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 		return self._content_type
 
 	def to_jsonresponse(self) -> JSONResponse:
-		return JSONResponse(content=self._content, status_code=self._status, headers=self._headers)
+		return JSONResponse(content=self.content, status_code=self.status, headers=dict(self._headers))
 
 
 class RESTErrorResponse(RESTResponse):

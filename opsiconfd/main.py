@@ -75,7 +75,7 @@ def health_check_main() -> None:
 	sys.exit(console_health_check())
 
 
-def backup_main() -> None:  # pylint: disable=too-many-branches
+def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-statements
 	console = Console(quiet=config.quiet)
 	backup_file = None
 	try:

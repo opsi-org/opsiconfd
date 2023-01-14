@@ -125,7 +125,6 @@ class OpsiconfdApp(FastAPI):
 		self._app_state_handler: set[Callable] = set()
 		self._app_state: AppState = StartupState()
 		self._manager_task_should_stop = False
-		#self.app_state_updated = Event()
 		self.application_setup_done = False
 
 	@property
@@ -149,7 +148,6 @@ class OpsiconfdApp(FastAPI):
 
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
 		app_state.accomplished = False
-		#self.app_state_updated.clear()
 		print(current_thread().ident, "SET APP STATE START", app_state)
 		with redis_lock("app-state", acquire_timeout=2.0, lock_timeout=5.0):
 			self.store_app_state_in_redis(app_state)
@@ -213,16 +211,15 @@ class OpsiconfdApp(FastAPI):
 	def stop_app_state_manager_task(self) -> None:
 		self._manager_task_should_stop = True
 
-	async def app_state_manager_task(
+	async def app_state_manager_task(  # pylint: disable=too-many-branches
 		self,
 		manager_mode: bool = False,
 		init_app_state: AppState | tuple[AppState, ...] | None = None,
 		initalized_event: Event | None = None
-	) -> None:  # pylint: disable=too-many-branches
+	) -> None:
 		"""
 		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
 		"""
-		#self.app_state_updated.clear()
 		self._manager_task_should_stop = False
 
 		if manager_mode and init_app_state:
@@ -243,7 +240,6 @@ class OpsiconfdApp(FastAPI):
 			app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)
 			print(current_thread().ident, "loop app_state", app_state)
 			if app_state:
-				#self.app_state_updated.set()
 				if initalized_event:
 					initalized_event.set()
 				self._app_state = app_state

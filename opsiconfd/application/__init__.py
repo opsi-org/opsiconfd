@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from threading import Event, Lock
@@ -27,7 +28,12 @@ from starlette.concurrency import run_in_threadpool
 from opsiconfd import __version__
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.redis import async_redis_client, redis_client
+from opsiconfd.redis import (
+	async_redis_client,
+	async_redis_lock,
+	redis_client,
+	redis_lock,
+)
 from opsiconfd.rest import RestApiValidationError
 
 AppStateT = TypeVar('AppStateT', bound='AppState')
@@ -118,7 +124,6 @@ class OpsiconfdApp(FastAPI):
 		)
 		self._app_state_handler: set[Callable] = set()
 		self._app_state: AppState = StartupState()
-		self._app_state_lock = Lock()
 		self._manager_task_should_stop = False
 		self.app_state_updated = Event()
 		self.application_setup_done = False
@@ -145,33 +150,34 @@ class OpsiconfdApp(FastAPI):
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
 		app_state.accomplished = False
 		self.app_state_updated.clear()
-		print("SET APP STATE START")
-		with self._app_state_lock:
+		print("SET APP STATE START", app_state)
+		with redis_lock("app-state", acquire_timeout=2.0, lock_timeout=5.0):
 			self.store_app_state_in_redis(app_state)
-		print("SET APP STATE DONE")
+		print("SET APP STATE DONE", app_state)
 		if wait_accomplished is not None and wait_accomplished > 0:
 			self.wait_for_app_state(app_state, wait_accomplished)
 
 	async def load_app_state_from_redis(self, update_accomplished: bool = False) -> AppState | None:
 		redis = await async_redis_client()
-		msgpack_data = await redis.get(f"{config.redis_key('state')}:application:app_state")
-		if not msgpack_data:
-			return None
+		async with async_redis_lock("app-state", acquire_timeout=2.0, lock_timeout=10.0) if update_accomplished else nullcontext():
+			msgpack_data = await redis.get(f"{config.redis_key('state')}:application:app_state")
+			if not msgpack_data:
+				return None
 
-		try:
-			app_state = AppState.from_dict(msgpack.decode(msgpack_data))
-			if update_accomplished and not app_state.accomplished:
-				accomplished = True
-				async for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
-					if (await redis.hget(redis_key_b, "app_state")) != app_state.type.encode("utf-8"):
-						accomplished = False
-						break
-				if accomplished:
-					app_state.accomplished = accomplished
-					await self.async_store_app_state_in_redis(app_state)
-			return app_state
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
+			try:
+				app_state = AppState.from_dict(msgpack.decode(msgpack_data))
+				if update_accomplished and not app_state.accomplished:
+					accomplished = True
+					async for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
+						if (await redis.hget(redis_key_b, "app_state")) != app_state.type.encode("utf-8"):
+							accomplished = False
+							break
+					if accomplished:
+						app_state.accomplished = accomplished
+						await self.async_store_app_state_in_redis(app_state)
+				return app_state
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
 		return None
 
 	async def async_store_app_state_in_redis(self, app_state: AppState) -> None:
@@ -215,29 +221,25 @@ class OpsiconfdApp(FastAPI):
 		self._manager_task_should_stop = False
 
 		if manager_mode and init_app_state:
-			app_state = await self.load_app_state_from_redis(update_accomplished=False)
-			if not isinstance(init_app_state, tuple):
-				init_app_state = (init_app_state,)
-			if not app_state or app_state.type not in [a.type for a in init_app_state]:
-				app_state = init_app_state[0]
-			await self.async_store_app_state_in_redis(app_state)  # type: ignore[arg-type]
-			if app_state:
-				self._app_state = app_state
+			async with async_redis_lock("app-state", acquire_timeout=2.0, lock_timeout=10.0):
+				app_state = await self.load_app_state_from_redis(update_accomplished=False)
+				if not isinstance(init_app_state, tuple):
+					init_app_state = (init_app_state,)
+				if not app_state or app_state.type not in [a.type for a in init_app_state]:
+					app_state = init_app_state[0]
+				await self.async_store_app_state_in_redis(app_state)  # type: ignore[arg-type]
+				if app_state:
+					self._app_state = app_state
 
 		interval = 1
 		while not self._manager_task_should_stop:
 			print("loop")
 			cur_state = self._app_state
-
-			await run_in_threadpool(self._app_state_lock.acquire)
-			try:
-				app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)
-				print("loop app_state", app_state)
-				if app_state:
-					self.app_state_updated.set()
-					self._app_state = app_state
-			finally:
-				self._app_state_lock.release()
+			app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)
+			print("loop app_state", app_state)
+			if app_state:
+				self.app_state_updated.set()
+				self._app_state = app_state
 
 			if cur_state != self._app_state:
 				logger.info("App state is now: %r", self._app_state)

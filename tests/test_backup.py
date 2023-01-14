@@ -12,7 +12,7 @@ from copy import deepcopy
 from os.path import abspath
 from threading import Thread
 
-from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
+from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backup import create_backup, restore_backup
 
@@ -29,7 +29,7 @@ def test_create_backup(
 	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState())], daemon=True)
 	thread.start()
 	try:
-		app.app_state_updated.wait(5)
+		print("app_state_updated =", app.app_state_updated.wait(10))
 
 		backup = create_backup()
 		assert backup["meta"]["version"] == "1"
@@ -40,17 +40,16 @@ def test_create_backup(
 		backup = create_backup(config_files=False)
 		assert not backup["config_files"]
 	finally:
-		app.set_app_state(ShutdownState())
+		app.set_app_state(NormalState(), wait_accomplished=None)
+		app.stop_app_state_manager_task()
 		thread.join(5)
 
 
 def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	thread = Thread(
-		target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=MaintenanceState())], daemon=True
-	)
+	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState())], daemon=True)
 	thread.start()
 	try:
-		app.app_state_updated.wait(5)
+		print("app_state_updated =", app.app_state_updated.wait(10))
 
 		backup = create_backup(config_files=False)
 

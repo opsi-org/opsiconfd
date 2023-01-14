@@ -209,6 +209,9 @@ class OpsiconfdApp(FastAPI):
 		"""
 		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
 		"""
+		self.app_state_updated.clear()
+		self._manager_task_should_stop = False
+
 		if manager_mode and init_app_state:
 			app_state = await self.load_app_state_from_redis(update_accomplished=False)
 			if not isinstance(init_app_state, tuple):

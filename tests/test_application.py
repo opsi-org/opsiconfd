@@ -10,7 +10,7 @@ test application
 
 import asyncio
 import time
-from threading import Thread
+from threading import Event, Thread
 from typing import Generator
 
 import pytest
@@ -103,10 +103,15 @@ def test_maintenance(
 	test_client: OpsiconfdTestClient, app_state_reader: AppStateReaderThread  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState())], daemon=True)
+	initalized_event = Event()
+	thread = Thread(
+		target=asyncio.run,
+		args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
+		daemon=True,
+	)
 	thread.start()
 	try:
-		app.app_state_updated.wait(5)
+		initalized_event.wait(5)
 
 		response = test_client.get("/session/authenticated")
 		assert response.status_code == 200

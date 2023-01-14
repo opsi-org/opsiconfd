@@ -75,5 +75,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 
 		assert backup["objects"] == backup2["objects"]
 	finally:
+		app.set_app_state(NormalState())
+		app.app_state_updated.wait(5)
 		app.stop_app_state_manager_task()
 		thread.join(5)

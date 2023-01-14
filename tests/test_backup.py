@@ -34,7 +34,7 @@ def test_create_backup(
 	)
 	thread.start()
 	try:
-		print("app_state_updated =", initalized_event.wait(10))
+		print("initalized_event =", initalized_event.wait(10))
 
 		backup = create_backup()
 		assert backup["meta"]["version"] == "1"
@@ -59,7 +59,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 	)
 	thread.start()
 	try:
-		print("app_state_updated =", initalized_event.wait(10))
+		print("initalized_event =", initalized_event.wait(10))
 
 		backup = create_backup(config_files=False)
 

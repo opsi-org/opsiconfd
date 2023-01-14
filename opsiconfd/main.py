@@ -119,12 +119,17 @@ def backup_main() -> None:  # pylint: disable=too-many-branches
 				f"encoding={encoding}, compression={compression or 'none'}, encrypt={bool(config.password)}"
 			)
 			if not config.no_maintenance:
+				initalized_event = threading.Event()
 				threading.Thread(
 					target=asyncio.run,
-					args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
+					args=[
+						app.app_state_manager_task(
+							manager_mode=True, init_app_state=(MaintenanceState(), NormalState()), initalized_event=initalized_event
+						)
+					],
 					daemon=True,
 				).start()
-				app.app_state_updated.wait(5)
+				initalized_event.wait(5)
 
 			create_backup(
 				config_files=not config.no_config_files,
@@ -177,12 +182,17 @@ def restore_main() -> None:
 				f"Using arguments: config_files={config.config_files}, server_id={server_id}, decrypt={bool(config.password)}"
 			)
 
+			initalized_event = threading.Event()
 			threading.Thread(
 				target=asyncio.run,
-				args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
+				args=[
+					app.app_state_manager_task(
+						manager_mode=True, init_app_state=(MaintenanceState(), NormalState()), initalized_event=initalized_event
+					)
+				],
 				daemon=True,
 			).start()
-			app.app_state_updated.wait(5)
+			initalized_event.wait(5)
 
 			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, password=config.password, progress=progress)
 

@@ -10,7 +10,7 @@ test backup
 import asyncio
 from copy import deepcopy
 from os.path import abspath
-from threading import Thread
+from threading import Event, Thread
 
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
@@ -26,10 +26,15 @@ from .utils import Config, clean_redis, config  # pylint: disable=unused-import
 def test_create_backup(
 	config: Config, app_state_reader: AppStateReaderThread  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState())], daemon=True)
+	initalized_event = Event()
+	thread = Thread(
+		target=asyncio.run,
+		args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
+		daemon=True,
+	)
 	thread.start()
 	try:
-		print("app_state_updated =", app.app_state_updated.wait(10))
+		print("app_state_updated =", initalized_event.wait(10))
 
 		backup = create_backup()
 		assert backup["meta"]["version"] == "1"
@@ -46,10 +51,15 @@ def test_create_backup(
 
 
 def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState())], daemon=True)
+	initalized_event = Event()
+	thread = Thread(
+		target=asyncio.run,
+		args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
+		daemon=True,
+	)
 	thread.start()
 	try:
-		print("app_state_updated =", app.app_state_updated.wait(10))
+		print("app_state_updated =", initalized_event.wait(10))
 
 		backup = create_backup(config_files=False)
 

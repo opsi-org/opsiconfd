@@ -119,6 +119,7 @@ class OpsiconfdApp(FastAPI):
 		self._app_state_handler: set[Callable] = set()
 		self._app_state: AppState = StartupState()
 		self._app_state_lock = Lock()
+		self._manager_task_should_stop = False
 		self.app_state_updated = Event()
 		self.application_setup_done = False
 
@@ -201,6 +202,9 @@ class OpsiconfdApp(FastAPI):
 		)
 		await send_message(event)
 
+	def stop_app_state_manager_task(self) -> None:
+		self._manager_task_should_stop = True
+
 	async def app_state_manager_task(self, manager_mode: bool = False, init_app_state: AppState | tuple[AppState, ...] | None = None) -> None:  # pylint: disable=too-many-branches
 		"""
 		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
@@ -216,7 +220,7 @@ class OpsiconfdApp(FastAPI):
 				self._app_state = app_state
 
 		interval = 1
-		while self._app_state != ShutdownState(accomplished=True):
+		while not self._manager_task_should_stop:
 			cur_state = self._app_state
 
 			await run_in_threadpool(self._app_state_lock.acquire)
@@ -242,6 +246,9 @@ class OpsiconfdApp(FastAPI):
 						await handler(self._app_state)
 					else:
 						await run_in_threadpool(handler, self._app_state)
+
+			if self._app_state == ShutdownState(accomplished=True):
+				self._manager_task_should_stop = True
 
 			await asyncio.sleep(interval)  # pylint: disable=dotted-import-in-loop
 

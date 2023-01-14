@@ -40,7 +40,7 @@ def test_create_backup(
 		backup = create_backup(config_files=False)
 		assert not backup["config_files"]
 	finally:
-		app.set_app_state(NormalState(), wait_accomplished=None)
+		app.set_app_state(NormalState())
 		app.stop_app_state_manager_task()
 		thread.join(5)
 
@@ -74,6 +74,6 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 
 		assert backup["objects"] == backup2["objects"]
 	finally:
-		app.set_app_state(NormalState(), wait_accomplished=None)
+		app.set_app_state(NormalState())
 		app.stop_app_state_manager_task()
 		thread.join(5)

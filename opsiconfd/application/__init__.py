@@ -145,8 +145,10 @@ class OpsiconfdApp(FastAPI):
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
 		app_state.accomplished = False
 		self.app_state_updated.clear()
+		print("SET APP STATE START")
 		with self._app_state_lock:
 			self.store_app_state_in_redis(app_state)
+		print("SET APP STATE DONE")
 		if wait_accomplished is not None and wait_accomplished > 0:
 			self.wait_for_app_state(app_state, wait_accomplished)
 
@@ -224,11 +226,13 @@ class OpsiconfdApp(FastAPI):
 
 		interval = 1
 		while not self._manager_task_should_stop:
+			print("loop")
 			cur_state = self._app_state
 
 			await run_in_threadpool(self._app_state_lock.acquire)
 			try:
 				app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)
+				print("loop app_state", app_state)
 				if app_state:
 					self.app_state_updated.set()
 					self._app_state = app_state

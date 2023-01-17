@@ -704,7 +704,7 @@ def generate_product_sequence_from_requ_pairs(  # pylint: disable=too-many-local
 
 					raise OpsiProductOrderingError(
 						"Potentially conflicting requirements for: "
-						f"{', '.join([prioclass[index] for index in err.problematicRequirements])}"  # pylint: disable=loop-invariant-statement
+						f"{', '.join([prioclass[int(index)] for index in err.problematicRequirements])}"  # pylint: disable=loop-invariant-statement
 					) from err
 
 				orderings_by_classes[prioclasskey] = order_build.get_ordering()

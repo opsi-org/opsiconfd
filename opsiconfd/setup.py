@@ -12,6 +12,7 @@ import getpass
 import grp
 import os
 import pwd
+import re
 import resource
 import subprocess
 import time
@@ -22,7 +23,12 @@ from OPSI.System.Posix import (  # type: ignore[import]
 	getNetworkConfiguration,
 	locateDHCPDConfig,
 )
-from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
+from opsicommon.objects import (  # type: ignore[import]
+	BoolConfig,
+	ConfigState,
+	OpsiConfigserver,
+	UnicodeConfig,
+)
 from opsicommon.server.rights import (  # type: ignore[import]
 	DirPermission,
 	FilePermission,
@@ -58,6 +64,7 @@ from opsiconfd.config import (
 	WORKBENCH_DIR,
 	config,
 	get_configserver_id,
+	get_depotserver_id,
 	opsi_config,
 )
 from opsiconfd.grafana import setup_grafana
@@ -281,7 +288,23 @@ def cleanup_log_files() -> None:
 			logger.warning(err)
 
 
-def setup_configs() -> None:
+def _get_windows_domain() -> str | None:
+	try:
+		out = subprocess.run(["net", "getdomainsid"], capture_output=True, check=True).stdout.decode()
+		match = re.search(r"domain\s(\S+)\s", out)
+		if not match:
+			match = re.search(r"machine\s(\S+)\s", out)
+		if match:
+			return match.group(1)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.info("Could not get domain: %s", err)
+	return None
+
+
+def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-branches
+	if opsi_config.get("host", "server-role") != "configserver":
+		return
+
 	from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
 
 	backend = get_unprotected_backend()
@@ -294,6 +317,222 @@ def setup_configs() -> None:
 			remove_configs.append({"id": config_id})
 	if remove_configs:
 		backend.config_deleteObjects(remove_configs)
+
+	add_configs: list[BoolConfig | UnicodeConfig] = []
+	add_config_states: list[ConfigState] = []
+
+	if "clientconfig.depot.user" not in config_ids:
+		logger.info("Missing clientconfig.depot.user - adding it.")
+
+		depot_user = "pcpatch"
+		domain = _get_windows_domain()
+		if domain:
+			depot_user = f"{domain}\\{depot_user}"
+		logger.info("Using '%s' as clientconfig.depot.user", depot_user)
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.depot.user",
+				description="User for depot share",
+				possibleValues=[],
+				defaultValues=[depot_user],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "clientconfig.configserver.url" not in config_ids:
+		logger.info("Missing clientconfig.configserver.url - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.configserver.url",
+				description="URL(s) of opsi config service(s) to use",
+				possibleValues=[config.external_url],
+				defaultValues=[config.external_url],
+				editable=True,
+				multiValue=True,
+			)
+		)
+
+	if "clientconfig.depot.id" not in config_ids:
+		logger.info("Missing clientconfig.depot.id - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.depot.id",
+				description="ID of the opsi depot to use",
+				possibleValues=[get_depotserver_id()],
+				defaultValues=[get_depotserver_id()],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "clientconfig.depot.dynamic" not in config_ids:
+		logger.info("Missing clientconfig.depot.dynamic - adding it.")
+		add_configs.append(BoolConfig(id="clientconfig.depot.dynamic", description="Use dynamic depot selection", defaultValues=[False]))
+
+	if "clientconfig.depot.drive" not in config_ids:
+		logger.info("Missing clientconfig.depot.drive - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.depot.drive",
+				description="Drive letter for depot share",
+				possibleValues=[
+					"a:",
+					"b:",
+					"c:",
+					"d:",
+					"e:",
+					"f:",
+					"g:",
+					"h:",
+					"i:",
+					"j:",
+					"k:",
+					"l:",
+					"m:",
+					"n:",
+					"o:",
+					"p:",
+					"q:",
+					"r:",
+					"s:",
+					"t:",
+					"u:",
+					"v:",
+					"w:",
+					"x:",
+					"y:",
+					"z:",
+					"dynamic",
+				],
+				defaultValues=["p:"],
+				editable=False,
+				multiValue=False,
+			)
+		)
+
+	if "clientconfig.depot.protocol" not in config_ids:
+		logger.info("Missing clientconfig.depot.protocol - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.depot.protocol",
+				description="Protocol to use when mounting an depot share on the client",
+				possibleValues=["cifs", "webdav"],
+				defaultValues=["cifs"],
+				editable=False,
+				multiValue=False,
+			)
+		)
+
+	if "clientconfig.depot.protocol.netboot" not in config_ids:
+		logger.info("Missing clientconfig.depot.protocol.netboot - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.depot.protocol.netboot",
+				description="Protocol to use when mounting an depot share in netboot environment",
+				possibleValues=["cifs", "webdav"],
+				defaultValues=["cifs"],
+				editable=False,
+				multiValue=False,
+			)
+		)
+
+	if "clientconfig.windows.domain" not in config_ids:
+		logger.info("Missing clientconfig.windows.domain - adding it.")
+		domain = _get_windows_domain()
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.windows.domain",
+				description="Windows domain",
+				possibleValues=[],
+				defaultValues=[domain] if domain else [],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "opsiclientd.global.verify_server_cert" not in config_ids:
+		logger.info("Missing opsiclientd.global.verify_server_cert - adding it.")
+		add_configs.append(
+			BoolConfig(id="opsiclientd.global.verify_server_cert", description="Verify opsi server TLS certificates", defaultValues=[True])
+		)
+
+	if "opsiclientd.global.install_opsi_ca_into_os_store" not in config_ids:
+		logger.info("Missing opsiclientd.global.install_opsi_ca_into_os_store - adding it.")
+		add_configs.append(
+			BoolConfig(
+				id="opsiclientd.global.install_opsi_ca_into_os_store",
+				description="Automatically install opsi CA into operating systems certificate store",
+				defaultValues=[False],
+			)
+		)
+
+	if "opsi-linux-bootimage.append" not in config_ids:
+		logger.info("Missing opsi-linux-bootimage.append - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.append",
+				description="Extra options to append to kernel command line",
+				possibleValues=[
+					"acpi=off",
+					"irqpoll",
+					"noapic",
+					"pci=nomsi",
+					"vga=normal",
+					"reboot=b",
+					"mem=2G",
+					"nomodeset",
+					"ramdisk_size=2097152",
+					"dhclienttimeout=N",
+				],
+				defaultValues=[""],
+				editable=True,
+				multiValue=True,
+			)
+		)
+
+	if "license-management.use" not in config_ids:
+		logger.info("Missing license-management.use - adding it.")
+		add_configs.append(BoolConfig(id="license-management.use", description="Activate license management", defaultValues=[False]))
+
+	if "software-on-demand.active" not in config_ids:
+		logger.info("Missing software-on-demand.active - adding it.")
+		add_configs.append(BoolConfig(id="software-on-demand.active", description="Activate software-on-demand", defaultValues=[False]))
+
+	if "software-on-demand.product-group-ids" not in config_ids:
+		logger.info("Missing software-on-demand.product-group-ids - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="software-on-demand.product-group-ids",
+				description=("Product group ids containing products which are " "allowed to be installed on demand"),
+				possibleValues=["software-on-demand"],
+				defaultValues=["software-on-demand"],
+				editable=True,
+				multiValue=True,
+			)
+		)
+
+	if "clientconfig.dhcpd.filename" not in config_ids:
+		logger.info("Missing clientconfig.dhcpd.filename - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.dhcpd.filename",
+				description=(
+					"The name of the file that will be presented to the "
+					"client on an TFTP request. For an client that should "
+					"boot via UEFI this must include the term 'elilo'."
+				),
+				possibleValues=["elilo"],
+				defaultValues=[""],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if add_configs:
+		backend.config_createObjects(add_configs)
+	if add_config_states:
+		backend.configState_createObjects(add_config_states)
 
 
 def setup_redis() -> None:

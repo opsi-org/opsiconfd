@@ -7,9 +7,16 @@
 """
 rpc methods dynamic depot
 """
-from typing import Protocol
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
+
+from opsiconfd.logging import logger
 
 from . import rpc_method
+
+if TYPE_CHECKING:
+	from .protocol import BackendProtocol
 
 SHOW_DEPOT_INFO_FUNCTION = """
 	def showDepotInfo():
@@ -232,10 +239,23 @@ class RPCExtDynamicDepotMixin(Protocol):
 		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS_BEST_MATCH
 
 	@rpc_method
-	def getDepotSelectionAlgorithm(self) -> str:  # pylint: disable=invalid-name
+	def getDepotSelectionAlgorithm(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
 		"""Returns the selected depot selection algorithm."""
-		# return self.getDepotSelectionAlgorithmByMasterDepotAndLatency()
-		# return self.getDepotSelectionAlgorithmByLatency()
+		mode = "network_address"
+		configs = self.config_getObjects(id="clientconfig.depot.selection_mode")
+		if configs and configs[0].defaultValues:
+			mode = configs[0].defaultValues[0]
+
+		if mode == "master_and_latency":
+			return self.getDepotSelectionAlgorithmByMasterDepotAndLatency()
+		if mode == "latency":
+			return self.getDepotSelectionAlgorithmByLatency()
+		if mode == "network_address":
+			return self.getDepotSelectionAlgorithmByNetworkAddress()
+		if mode == "network_address_best_match":
+			return self.getDepotSelectionAlgorithmByNetworkAddressBestMatch()
+		if mode == "random":
+			return self.getDepotSelectionAlgorithmByRandom()
+
+		logger.error("Invalid 'clientconfig.depot.selection_mode': %s", mode)
 		return self.getDepotSelectionAlgorithmByNetworkAddress()
-		# return self.getDepotSelectionAlgorithmByNetworkAddressBestMatch
-		# return self.getDepotSelectionAlgorithmByRandom()

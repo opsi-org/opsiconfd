@@ -310,13 +310,6 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	backend = get_unprotected_backend()
 
 	config_ids = set(backend.config_getIdents(returnType="str"))
-	remove_configs = []
-	for config_id in config_ids:
-		if config_id.endswith(".product.cache.outdated") or config_id == "product_sort_algorithm":
-			logger.info("Removing config %r", config_id)
-			remove_configs.append({"id": config_id})
-	if remove_configs:
-		backend.config_deleteObjects(remove_configs)
 
 	add_configs: list[BoolConfig | UnicodeConfig] = []
 	add_config_states: list[ConfigState] = []
@@ -369,6 +362,19 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	if "clientconfig.depot.dynamic" not in config_ids:
 		logger.info("Missing clientconfig.depot.dynamic - adding it.")
 		add_configs.append(BoolConfig(id="clientconfig.depot.dynamic", description="Use dynamic depot selection", defaultValues=[False]))
+
+	if "clientconfig.depot.selection_mode" not in config_ids:
+		logger.info("Missing clientconfig.depot.selection_mode - adding it.")
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.depot.selection_mode",
+				description="Depot selection mode.",
+				possibleValues=["master_and_latency", "latency", "network_address", "network_address_best_match", "random"],
+				defaultValues=["network_address"],
+				editable=False,
+				multiValue=False,
+			)
+		)
 
 	if "clientconfig.depot.drive" not in config_ids:
 		logger.info("Missing clientconfig.depot.drive - adding it.")
@@ -533,6 +539,14 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		backend.config_createObjects(add_configs)
 	if add_config_states:
 		backend.configState_createObjects(add_config_states)
+
+	remove_configs = []
+	for config_id in config_ids:
+		if config_id.endswith(".product.cache.outdated") or config_id == "product_sort_algorithm":
+			logger.info("Removing config %r", config_id)
+			remove_configs.append({"id": config_id})
+	if remove_configs:
+		backend.config_deleteObjects(remove_configs)
 
 
 def setup_redis() -> None:

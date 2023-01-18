@@ -10,6 +10,7 @@ test opsiconfd.backend.mysql
 
 from pathlib import Path
 from typing import Generator
+from uuid import uuid4
 
 import pytest
 
@@ -69,6 +70,7 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 		"description": "description",
 		"notes": "notes",
 		"oneTimePassword": "secret",
+		"systemUUID": str(uuid4()),
 	}
 	client2 = {
 		"type": "OpsiClient",

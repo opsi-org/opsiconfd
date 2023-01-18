@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`lastSeen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`opsiHostKey` varchar(32) DEFAULT NULL,
 	`oneTimePassword` varchar(32) DEFAULT NULL,
+	`systemUUID` varchar(36) DEFAULT NULL,
 	`maxBandwidth` int(11) DEFAULT NULL,
 	`depotLocalUrl` varchar(128) DEFAULT NULL,
 	`depotRemoteUrl` varchar(255) DEFAULT NULL,
@@ -594,11 +595,11 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 
 		if "workbenchLocalUrl" not in mysql.tables["HOST"]:
 			logger.info("Adding column 'workbenchLocalUrl' on table HOST.")
-			session.execute("ALTER TABLE `HOST` add `workbenchLocalUrl` varchar(128)")
+			session.execute("ALTER TABLE `HOST` ADD `workbenchLocalUrl` varchar(128)")
 
 		if "workbenchRemoteUrl" not in mysql.tables["HOST"]:
 			logger.info("Adding column 'workbenchRemoteUrl' on table HOST.")
-			session.execute("ALTER TABLE `HOST` add `workbenchRemoteUrl` varchar(255)")
+			session.execute("ALTER TABLE `HOST` ADD `workbenchRemoteUrl` varchar(255)")
 
 		if mysql.tables["OBJECT_TO_GROUP"]["groupId"]["type"] != "varchar(255)":
 			logger.info("Changing size of column 'groupId' on table OBJECT_TO_GROUP")
@@ -643,6 +644,10 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			if row_dict["TABLE_COLLATION"] != "utf8_general_ci":
 				logger.info("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
+
+		if "systemUUID" not in mysql.tables["HOST"]:
+			logger.info("Creating column 'systemUUID' on table HOST")
+			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
 
 		create_index(
 			session=session,

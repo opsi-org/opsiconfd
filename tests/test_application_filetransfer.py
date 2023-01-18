@@ -10,6 +10,7 @@ test application.filetransfer
 
 from pathlib import Path
 from time import sleep, time
+from typing import Generator
 from unittest.mock import patch
 
 from msgspec import json
@@ -141,3 +142,35 @@ def test_cleanup_file_storage(tmp_path: Path) -> None:
 			if not path.is_file():
 				continue
 			assert path.name in valid_filenames
+
+
+def test_raw_file_stream_upload(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		blocksize = 1024
+		chunks = 10
+
+		def read_chunks() -> Generator[bytes, None, None]:
+			for chunk in range(chunks):
+				yield chunk.to_bytes() * blocksize
+
+		resp = test_client.post("/file-transfer/raw", content=read_chunks())
+		assert resp.status_code == 201
+		file_id = resp.json()["file_id"]
+		assert file_id
+		try:
+			file_path = tmp_path / file_id
+			file_data = file_path.read_bytes()
+			assert len(file_data) == chunks * blocksize
+
+			data = b""
+			with test_client.stream("GET", f"/file-transfer/{file_id}") as resp:
+				for chunk in resp.iter_raw(blocksize):
+					data += chunk
+
+			assert resp.status_code == 200
+			assert data == file_data
+		finally:
+			resp = test_client.delete(f"/file-transfer/{file_id}")
+			assert resp.status_code == 200
+			assert resp.json()["file_id"] == file_id

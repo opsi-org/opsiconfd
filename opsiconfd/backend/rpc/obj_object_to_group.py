@@ -21,6 +21,9 @@ if TYPE_CHECKING:
 
 
 class RPCObjectToGroupMixin(Protocol):
+	def objectToGroup_bulkInsertObjects(self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="OBJECT_TO_GROUP", objs=objectToGroups)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def objectToGroup_insertObject(self: BackendProtocol, objectToGroup: dict | ObjectToGroup) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("objectToGroup_insertObject")

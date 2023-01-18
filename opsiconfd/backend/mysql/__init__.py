@@ -11,6 +11,7 @@ opsiconfd.backend.mysql
 from __future__ import annotations
 
 import re
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
@@ -49,7 +50,6 @@ from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
 from sqlalchemy.exc import DatabaseError, OperationalError  # type: ignore[import]
 from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
-from sqlalchemy.util import EMPTY_DICT, immutabledict  # type: ignore[import]
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.config import config
@@ -378,7 +378,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 						res[attr].select = f"IF(`{first_table}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
 		return res
 
-	def get_where(  # pylint: disable=too-many-locals,too-many-branches
+	def get_where(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		self,
 		columns: dict[str, ColumnInfo],
 		ace: list[RPCACE],
@@ -784,6 +784,43 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				result = session.execute(query, params=params)
 				return result.lastrowid
 		return None
+
+	def bulk_insert_objects(  # pylint: disable=too-many-locals,too-many-arguments
+		self,
+		table: str,
+		objs: list[BaseObject | dict[str, Any]],
+		session: Session | None = None,
+	) -> Any:
+		obj_type = type(objs[0]) if isinstance(objs[0], BaseObject) else OBJECT_CLASSES[objs[0]["type"]]
+		columns = self.get_columns([table], ace=[])
+		conversions = self._get_write_conversions(obj_type)  # type: ignore[arg-type]
+
+		cols = []
+		vals = []
+		attrs = []
+		for attr, column in columns.items():
+			attrs.append(attr)
+			cols.append(f"`{column.column}`")
+			vals.append(f":{attr}")
+
+		data = []
+		for obj in objs:
+			if isinstance(obj, BaseObject):
+				obj = obj.to_hash()
+
+			dat = {}
+			for attr in attrs:
+				val = obj.get(attr)
+				if val is not None:
+					conv = conversions.get(attr)
+					if conv:
+						val = conv(val)
+				dat[attr] = val
+			data.append(dat)
+
+		query = f"INSERT INTO `{table}` ({','.join(cols)}) VALUES ({','.join(vals)})"
+		with self.session(session) as session:  # pylint: disable=redefined-argument-from-local
+			session.execute(query, params=data)
 
 	def delete_query(  # pylint: disable=too-many-locals
 		self,

@@ -85,6 +85,9 @@ class RPCProductPropertyStateMixin(Protocol):
 
 		return res
 
+	def productPropertyState_bulkInsertObjects(self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="PRODUCT_PROPERTY_STATE", objs=productPropertyStates)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def productPropertyState_insertObject(self: BackendProtocol, productPropertyState: dict | ProductPropertyState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productPropertyState_insertObject")

@@ -31,6 +31,9 @@ if TYPE_CHECKING:
 
 
 class RPCProductOnClientMixin(Protocol):
+	def productOnClient_bulkInsertObjects(self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="PRODUCT_ON_CLIENT", objs=productOnClients)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def productOnClient_insertObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:  # pylint: disable=invalid-name
 		self._check_module("mysql_backend")

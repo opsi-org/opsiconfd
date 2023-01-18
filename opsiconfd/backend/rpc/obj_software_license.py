@@ -27,6 +27,9 @@ if TYPE_CHECKING:
 
 
 class RPCSoftwareLicenseMixin(Protocol):
+	def softwareLicense_bulkInsertObjects(self: BackendProtocol, softwareLicenses: list[dict] | list[SoftwareLicense]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="SOFTWARE_LICENSE", objs=softwareLicenses)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def softwareLicense_insertObject(self: BackendProtocol, softwareLicense: dict | SoftwareLicense) -> None:  # pylint: disable=invalid-name
 		self._check_module("license_management")

@@ -51,6 +51,9 @@ if TYPE_CHECKING:
 
 
 class RPCHostMixin(Protocol):
+	def host_bulkInsertObjects(self: BackendProtocol, hosts: list[dict] | list[Host]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="HOST", objs=hosts)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_insertObject")

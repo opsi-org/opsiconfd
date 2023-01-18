@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 
 
 class RPCLicenseOnClientMixin(Protocol):
+	def licenseOnClient_bulkInsertObjects(self: BackendProtocol, licenseOnClients: list[dict] | list[LicenseOnClient]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="LICENSE_ON_CLIENT", objs=licenseOnClients)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def licenseOnClient_insertObject(self: BackendProtocol, licenseOnClient: dict | LicenseOnClient) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("licenseOnClient_insertObject")

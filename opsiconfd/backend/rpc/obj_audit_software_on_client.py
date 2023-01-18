@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 
 class RPCAuditSoftwareOnClientMixin(Protocol):
+	def auditSoftwareOnClient_bulkInsertObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, auditSoftwareOnClients: list[dict] | list[AuditSoftwareOnClient]
+	) -> None:
+		self._mysql.bulk_insert_objects(table="SOFTWARE_CONFIG", objs=auditSoftwareOnClients)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_insertObject(self: BackendProtocol, auditSoftwareOnClient: dict | AuditSoftwareOnClient) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditSoftwareOnClient_insertObject")

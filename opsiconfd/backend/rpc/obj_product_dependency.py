@@ -762,6 +762,9 @@ def generate_product_on_client_sequence(
 
 
 class RPCProductDependencyMixin(Protocol):
+	def productDependency_bulkInsertObjects(self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="PRODUCT_DEPENDENCY", objs=productDependencies)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_insertObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productDependency_insertObject")

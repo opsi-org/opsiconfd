@@ -21,6 +21,9 @@ if TYPE_CHECKING:
 
 
 class RPCLicensePoolMixin(Protocol):
+	def licensePool_bulkInsertObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool]) -> None:  # pylint: disable=invalid-name
+		self._mysql.bulk_insert_objects(table="LICENSE_POOL", objs=licensePools)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def licensePool_insertObject(self: BackendProtocol, licensePool: dict | LicensePool) -> None:  # pylint: disable=invalid-name
 		self._check_module("license_management")

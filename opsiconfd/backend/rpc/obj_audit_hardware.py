@@ -183,6 +183,10 @@ class RPCAuditHardwareMixin(Protocol):
 
 		return get_audit_hardware_config(language)
 
+	def auditHardware_bulkInsertObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware]) -> None:  # pylint: disable=invalid-name
+		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
+			self._mysql.bulk_insert_objects(table=f"HARDWARE_DEVICE_{hardware_class}", objs=auh)  # type: ignore[arg-type]
+
 	@rpc_method(check_acl=False)
 	def auditHardware_insertObject(self: BackendProtocol, auditHardware: dict | AuditHardware) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditHardware_insertObject")
@@ -323,7 +327,7 @@ class RPCAuditHardwareMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def auditHardware_delete(self, hardwareClass: str, **kwargs: Any) -> None:  # pylint: disable=invalid-name
 		if hardwareClass is None:
-			hardwareClass = []
+			hardwareClass = []  # pylint: disable=use-tuple-over-list
 
 		kwargs = {key: [] if val is None else val for key, val in kwargs.items()}
 

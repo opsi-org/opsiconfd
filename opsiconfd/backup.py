@@ -8,6 +8,7 @@
 backup
 """
 
+import time
 from contextlib import contextmanager, nullcontext
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +27,7 @@ from opsiconfd.backend.mysql.schema import (
 	drop_database,
 	update_database,
 )
+from opsiconfd.backend.rpc.cache import rpc_cache_clear
 from opsiconfd.config import (
 	FQDN,
 	OPSI_LICENSE_DIR,
@@ -351,13 +353,17 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 			if progress:
 				progress.advance(db_task)
 				progress.console.print("Creating database")
+
 			logger.notice("Creating database")
 			create_database(mysql)
 			if progress:
 				progress.advance(db_task)
 				progress.console.print("Updating database")
+
 			logger.notice("Reconnecting database")
 			mysql.disconnect()
+			time.sleep(2)
+
 			mysql.connect()
 			logger.notice("Updating database")
 			update_database(mysql, force=True)
@@ -396,9 +402,10 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 					check_config = obj_class == "Config"
 					check_config_state = obj_class == "ConfigState"
 
-				method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_insertObject")
+				method_prefix = f"{obj_class[0].lower()}{obj_class[1:]}"
+				method = getattr(backend, f"{method_prefix}_insertObject")
 				if batch:
-					method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_createObjects")
+					method = getattr(backend, f"{method_prefix}_bulkInsertObjects", getattr(backend, f"{method_prefix}_createObjects"))
 
 				for obj in objects:
 					if host_attr:
@@ -420,6 +427,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 
 					logger.trace("Insert %s object: %s", obj_class, obj)
 					if not batch:
+						print(obj)
 						method(obj)
 						if progress:
 							progress.advance(restore_task)
@@ -429,6 +437,8 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 					method(objects)
 					if progress:
 						progress.advance(restore_task, advance=num_objects)
+
+			rpc_cache_clear()
 
 			if config_files and data.get("config_files"):
 				logger.notice("Restoring config files")
@@ -446,7 +456,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 					else:
 						logger.info("Skipping config file %r (%s)", name, file)
 
-			server_key = backend.host_getObjects(returnType="opsiHostKey", type="OpsiConfigserver")[0].opsiHostKey
+			server_key = backend.host_getObjects(attributes=["opsiHostKey"], type="OpsiConfigserver")[0].opsiHostKey
 			secret_filter.add_secrets(server_key)
 
 			if opsi_config.get("host", "id") != server_id:

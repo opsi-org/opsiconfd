@@ -55,6 +55,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_insertObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
+		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
@@ -62,6 +63,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_updateObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
+		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
@@ -73,6 +75,7 @@ class RPCConfigStateMixin(Protocol):
 			for config_state in forceList(configStates):
 				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
+		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
@@ -84,6 +87,7 @@ class RPCConfigStateMixin(Protocol):
 			for config_state in forceList(configStates):
 				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False, session=session)
+		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
@@ -111,6 +115,7 @@ class RPCConfigStateMixin(Protocol):
 	def configState_deleteObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_deleteObjects")
 		self._mysql.delete_objects(table="CONFIG_STATE", object_type=ConfigState, obj=configStates, ace=ace)
+		self.opsipxeconfd_config_states_deleted(configStates)
 
 	@rpc_method(check_acl=False)
 	def configState_create(self: BackendProtocol, configId: str, objectId: str, values: list[Any] | None = None) -> None:  # pylint: disable=invalid-name,unused-argument

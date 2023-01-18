@@ -59,6 +59,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_insertObject")
 		host = forceObjectClass(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
+		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(host)
 
 	@rpc_method(check_acl=False)
@@ -66,6 +67,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_updateObject")
 		host = forceObjectClass(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
+		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(host)
 
 	@rpc_method(check_acl=False)
@@ -75,6 +77,7 @@ class RPCHostMixin(Protocol):
 			for host in forceList(hosts):
 				host = forceObjectClass(host, Host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
+		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
@@ -84,6 +87,7 @@ class RPCHostMixin(Protocol):
 			for host in forceList(hosts):
 				host = forceObjectClass(host, Host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
+		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
@@ -117,6 +121,7 @@ class RPCHostMixin(Protocol):
 			for table in self._mysql.tables:
 				if table.startswith("HARDWARE_CONFIG_"):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+		self.opsipxeconfd_hosts_deleted(hosts)
 		self.dhcpd_control_hosts_deleted(hosts)
 
 	@rpc_method(check_acl=False)

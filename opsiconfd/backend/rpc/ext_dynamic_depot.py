@@ -257,5 +257,5 @@ class RPCExtDynamicDepotMixin(Protocol):
 		if mode == "random":
 			return self.getDepotSelectionAlgorithmByRandom()
 
-		logger.error("Invalid 'clientconfig.depot.selection_mode': %s", mode)
+		logger.error("Invalid 'clientconfig.depot.selection_mode': %r", mode)
 		return self.getDepotSelectionAlgorithmByNetworkAddress()

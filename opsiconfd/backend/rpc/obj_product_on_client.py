@@ -40,12 +40,14 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
+		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productOnClient_updateObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
+		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_createObjects(  # pylint: disable=invalid-name
@@ -57,6 +59,7 @@ class RPCProductOnClientMixin(Protocol):
 			for productOnClient in forceList(productOnClients):
 				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session)
+		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObjects(  # pylint: disable=invalid-name
@@ -67,6 +70,7 @@ class RPCProductOnClientMixin(Protocol):
 			for productOnClient in forceList(productOnClients):
 				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session)
+		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ProductOnClient]:  # pylint: disable=redefined-builtin,invalid-name
@@ -95,6 +99,7 @@ class RPCProductOnClientMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productOnClient_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, obj=productOnClients, ace=ace)
+		self.opsipxeconfd_product_on_clients_deleted(productOnClients)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_create(  # pylint: disable=too-many-arguments,invalid-name

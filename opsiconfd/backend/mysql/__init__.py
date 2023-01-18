@@ -392,12 +392,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		for f_attr, f_val in filter.items():
 			if f_attr not in columns:
 				if f_attr != "type":
-					logger.warning(
-						"Invalid filter %r=%r used, possible attributes are: %s",
-						f_attr,
-						f_val,
-						", ".join(columns),  # pylint: disable=loop-invariant-statement
-					)
+					# logger.warning(
+					# 	"Invalid filter %r=%r used, possible attributes are: %s",
+					# 	f_attr,
+					# 	f_val,
+					# 	", ".join(columns),  # pylint: disable=loop-invariant-statement
+					# )
+					raise ValueError(f"Invalid filter {f_attr!r}={f_val!r} used, possible attributes are: {', '.join(columns)}")
 				continue
 			if f_val is None:
 				continue

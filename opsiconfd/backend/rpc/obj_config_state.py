@@ -55,7 +55,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_insertObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
-		self.opsipxeconfd_config_states_updated(configStates)
+		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
@@ -63,7 +63,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_updateObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
-		self.opsipxeconfd_config_states_updated(configStates)
+		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)

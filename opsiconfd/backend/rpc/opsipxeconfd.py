@@ -162,7 +162,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 
 		product_on_clients = self.productOnClient_getObjects(
 			productType="NetbootProduct",
-			client_id=client_id,
+			clientId=client_id,
 			actionRequest=["setup", "uninstall", "update", "always", "once", "custom"],
 		)
 		try:
@@ -195,7 +195,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 
 		for config_id, values in self.configState_getValues(
 			config_ids=["opsi-linux-bootimage.append", "clientconfig.configserver.url", "clientconfig.dhcpd.filename"],
-			object_ids=["client_id"],
+			object_ids=[client_id],
 			with_defaults=True,
 		)[client_id].items():
 			if config_id == "clientconfig.configserver.url":

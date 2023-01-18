@@ -10,17 +10,13 @@ opsiconfd.backend.rpc.extender
 
 from __future__ import annotations
 
-import json
-import tempfile
 from contextlib import closing, contextmanager
 from pathlib import Path
-from shlex import quote
 from socket import AF_UNIX, SOCK_STREAM, socket
 from threading import Lock, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generator, Protocol
+from typing import TYPE_CHECKING, Generator, Protocol
 
-from OPSI.Util import serialize  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]
 	ConfigState,
 	Host,
@@ -149,128 +145,6 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			for update_thread in _opsipxeconfd_connection_threads.values():  # pylint: disable=loop-global-usage
 				update_thread.join(3)
 
-	def _collect_data_for_update(  # pylint: disable=too-many-locals,too-many-branches
-		self: BackendProtocol, client_id: str, depot_id: str
-	) -> Any:
-		logger.debug("Collecting data for opsipxeconfd...")
-
-		try:
-			host = self.host_getObjects(attributes=["hardwareAddress", "opsiHostKey", "ipAddress"], id=client_id)[0]
-		except IndexError:
-			logger.debug("No matching host found - fast exit.")
-			return serialize({"host": None, "productOnClient": []})
-
-		product_on_clients = self.productOnClient_getObjects(
-			productType="NetbootProduct",
-			clientId=client_id,
-			actionRequest=["setup", "uninstall", "update", "always", "once", "custom"],
-		)
-		try:
-			product_on_client = product_on_clients[0]
-		except IndexError:
-			logger.debug("No productOnClient found - fast exit.")
-			return serialize({"host": host, "productOnClient": []})
-
-		try:
-			product_on_depot = self.productOnDepot_getObjects(
-				productType="NetbootProduct", productId=product_on_client.productId, depotId=depot_id
-			)[0]
-		except IndexError:
-			logger.debug("No productOnDepot found - fast exit.")
-			return serialize({"host": host, "productOnClient": product_on_client, "productOnDepot": None})
-
-		# Get the product information for the version present on
-		# the depot.
-		product = self.product_getObjects(
-			attributes=["id", "pxeConfigTemplate"],
-			type="NetbootProduct",
-			id=product_on_client.productId,
-			productVersion=product_on_depot.productVersion,
-			packageVersion=product_on_depot.packageVersion,
-		)[0]
-
-		elilo_mode = None
-		service_address = None
-		bootimage_append = ""
-
-		for config_id, values in self.configState_getValues(
-			config_ids=["opsi-linux-bootimage.append", "clientconfig.configserver.url", "clientconfig.dhcpd.filename"],
-			object_ids=[client_id],
-			with_defaults=True,
-		)[client_id].items():
-			if config_id == "clientconfig.configserver.url":
-				service_address = values[0]
-			elif config_id == "opsi-linux-bootimage.append":
-				bootimage_append = ConfigState(configId=config_id, objectId=client_id, values=values)  # type: ignore[assignment]
-			elif config_id == "clientconfig.dhcpd.filename":
-				try:  # pylint: disable=loop-try-except-usage
-					value = values[0]
-					if "elilo" in value or "shim" in value:
-						if "x86" in value:
-							elilo_mode = "x86"
-						else:
-							elilo_mode = "x64"
-				except IndexError:
-					# There is no default value set and no items are present
-					pass
-				except Exception as err:  # pylint: disable=broad-except
-					logger.debug("Failed to detect elilo setting for %s: %s", client_id, err)
-
-		product_property_states = {
-			property_id: ",".join([str(v) for v in values])
-			for property_id, values in self.productPropertyState_getValues(
-				product_ids=[product_on_client.productId], object_ids=[client_id], with_defaults=True
-			)[client_id][product_on_client.productId].items()
-		}
-		logger.debug("Collected product property states: %s", product_property_states)
-
-		backend_info = self.backend_info()
-		backend_info["hostCount"] = len(self.host_getIdents(type="OpsiClient"))
-		data = {
-			"backendInfo": backend_info,
-			"host": host,
-			"productOnClient": product_on_client,
-			"depotId": depot_id,
-			"productOnDepot": product_on_depot,
-			"elilo": elilo_mode,
-			"serviceAddress": service_address,
-			"product": product,
-			"bootimageAppend": bootimage_append,
-			"productPropertyStates": product_property_states,
-		}
-
-		data = serialize(data)
-		logger.debug("Collected data for opsipxeconfd (client %r): %s", client_id, data)
-		return data
-
-	@staticmethod
-	def _write_opsipxeconfd_cache_file(client_id: str, data: Any) -> Path | None:
-		"""
-		Save data used by opsipxeconfd to a cache file.
-
-		:param client_id: The client for whom this data is.
-		:type client_id: str
-		:param data: Collected data for opsipxeconfd.
-		:type data: dict
-		:rtype: str
-		:returns: The path of the cache file. None if no file could be written.
-		"""
-		directory = Path("/var/run/opsipxeconfd")
-		if not directory.exists():
-			directory = Path(tempfile.gettempdir()) / ".opsipxeconfd"
-			directory.mkdir(mode=0o775, exist_ok=True)
-		cache_file = directory / f"{client_id}.json"
-
-		logger.trace("Writing data to '%s': %s", cache_file, data)
-		try:
-			cache_file.write_text(json.dumps(serialize(data)), encoding="utf-8")
-			cache_file.chmod(0o640)
-			return cache_file
-		except (OSError, IOError) as err:
-			logger.debug(err, exc_info=True)
-			logger.debug("Failed to write cahce file '%s': %s", cache_file, err)
-		return None
-
 	def _opsipxeconfd_send_command(self: BackendProtocol, client_id: str, command: str) -> None:
 		with _opsipxeconfd_connection_threads_lock:
 			connection_thread = _opsipxeconfd_connection_threads.get(client_id)
@@ -292,18 +166,12 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			logger.error("Failed to get responsible depot for client %r", client_id)
 			return
 
-		try:
-			data = self._collect_data_for_update(client_id, responsible_depot_id)
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error("Failed to collect data for opsipxeconfd (client %r): %s", client_id, err, exc_info=True)
-			return
-
 		if self._opsipxeconfd_control_on_depot and responsible_depot_id != self._depot_id:
 			logger.info("Not responsible for client '%s', forwarding request to depot %s", client_id, responsible_depot_id)
 			jsonrpc = self._get_depot_jsonrpc_connection(responsible_depot_id)
-			jsonrpc.execute_rpc(method="opsipxeconfd_updatePXEBootConfiguration", params=[client_id, data])
+			jsonrpc.execute_rpc(method="opsipxeconfd_updatePXEBootConfiguration", params=[client_id])
 		else:
-			self.opsipxeconfd_updatePXEBootConfiguration(client_id, data)
+			self.opsipxeconfd_updatePXEBootConfiguration(client_id)
 
 	def _delete_pxe_boot_configuration(self: BackendProtocol, client_id: str, all_depots: bool = False) -> None:
 		if self._shutting_down:
@@ -409,9 +277,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 		self.opsipxeconfd_config_states_updated(config_states)
 
 	@rpc_method
-	def opsipxeconfd_updatePXEBootConfiguration(  # pylint: disable=invalid-name
-		self: BackendProtocol, client_id: str, data: dict[str, Any] | None = None
-	) -> None:
+	def opsipxeconfd_updatePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
 		"""
 		Update the boot configuration of a specific client.
 		This method will relay calls to opsipxeconfd who does the handling.
@@ -423,11 +289,6 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 		logger.debug("Updating PXE boot config of %s", client_id)
 
 		command = f"update {client_id}"
-		if data:
-			cache_file_path = self._write_opsipxeconfd_cache_file(client_id, data)
-			if cache_file_path:
-				command = f"{command} {quote(str(cache_file_path))}"
-
 		self._opsipxeconfd_send_command(client_id, command)
 
 	@rpc_method

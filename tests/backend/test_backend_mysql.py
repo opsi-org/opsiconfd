@@ -100,12 +100,20 @@ def test_get_columns() -> None:
 				assert info.select is None
 
 	denied_attributes = {"opsiHostKey", "notes"}
-	ace = [
+	ace = [  # pylint: disable=use-tuple-over-list
 		RPCACE(method_re=re.compile(".*"), type="self", id=client_id, denied_attributes=denied_attributes),
 		RPCACE(method_re=re.compile(".*"), type="opsi_client", allowed_attributes=allowed_attributes),
 	]
 	with con.connection():
-		selected_attributes = ["id", "type", "description", "opsiHostKey", "notes", "hardwareAddress", "lastSeen"]
+		selected_attributes = [  # pylint: disable=use-tuple-over-list
+			"id",
+			"type",
+			"description",
+			"opsiHostKey",
+			"notes",
+			"hardwareAddress",
+			"lastSeen",
+		]
 		columns = con.get_columns(tables=["HOST"], ace=ace, attributes=selected_attributes)
 		for col, info in columns.items():
 			if col == "type":

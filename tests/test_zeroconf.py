@@ -9,7 +9,6 @@ zeroconf tests
 """
 
 import asyncio
-import socket
 
 from aiozeroconf import (  # type: ignore[import]
 	ServiceBrowser,

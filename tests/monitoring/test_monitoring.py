@@ -138,6 +138,9 @@ def create_check_data(
 
 	now = datetime.now()
 
+	cursor.execute("SELECT * FROM HOST WHERE type != 'OpsiClient'")
+	print("Server objects in MySQL:", cursor.fetchall())
+
 	# Product
 	for idx in range(5):
 		cursor.execute(

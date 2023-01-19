@@ -231,10 +231,11 @@ def setup_backend(full: bool) -> None:
 		cleanup_database(mysql)
 
 		if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
-			logger.notice("No configserver found in backend, creating")
+			config_server_id = get_configserver_id()
+			logger.notice("No configserver found in backend, creating %r", config_server_id)
 			network_config = getNetworkConfiguration()
 			config_server = OpsiConfigserver(
-				id=get_configserver_id(),
+				id=config_server_id,
 				opsiHostKey=None,
 				depotLocalUrl=f"file://{DEPOT_DIR}",
 				depotRemoteUrl=f"smb://{FQDN}/opsi_depot",

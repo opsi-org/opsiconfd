@@ -32,7 +32,13 @@ from rich.prompt import Prompt
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
 from opsiconfd.backup import create_backup, restore_backup
-from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_config
+from opsiconfd.config import (
+	GC_THRESHOLDS,
+	config,
+	configure_warnings,
+	get_depotserver_id,
+	opsi_config,
+)
 from opsiconfd.logging import (
 	AsyncRedisLogAdapter,
 	init_logging,
@@ -255,7 +261,9 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 		init_logging(log_mode=config.log_mode)
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
 
-		logger.essential("Opsiconfd version %s starting as %s", __version__, opsi_config.get("host", "server-role"))
+		logger.essential(
+			"Opsiconfd version %r starting on %r as %r", __version__, get_depotserver_id(), opsi_config.get("host", "server-role")
+		)
 		log_config()
 
 		setup(full=bool(config.setup))

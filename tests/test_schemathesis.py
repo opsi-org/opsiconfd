@@ -21,9 +21,7 @@ from opsiconfd.application import app
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Config,
 	OpsiconfdTestClient,
-	config,
 	sync_clean_redis,
 	test_client,
 )
@@ -39,7 +37,7 @@ pytest_asyncio.plugin._hypothesis_test_wraps_coroutine = _hypothesis_test_wraps_
 
 
 @pytest.fixture
-def get_schemathesis(config: Config, test_client: OpsiconfdTestClient) -> BaseOpenAPISchema:  # pylint: disable=redefined-outer-name
+def get_schemathesis(test_client: OpsiconfdTestClient) -> BaseOpenAPISchema:  # pylint: disable=redefined-outer-name
 	response = test_client.get("/openapi.json", auth=(ADMIN_USER, ADMIN_PASS))
 	return from_file(response.text, app=app)
 
@@ -50,20 +48,20 @@ schema = from_pytest_fixture("get_schemathesis")
 @schema.parametrize(endpoint="^/rpc$")
 def test_rpc(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	case.call(session=test_client)
+	case.call(session=test_client)  # type: ignore[arg-type]
 
 
 @schema.parametrize(endpoint="^/admin/(?!memory)")
 def test_admin(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	case.call(session=test_client)
+	case.call(session=test_client)  # type: ignore[arg-type]
 
 
 @schema.parametrize(endpoint="^/ssl")
 def test_ssl(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	case.call(session=test_client)
-	case.call(session=test_client)
+	case.call(session=test_client)  # type: ignore[arg-type]
+	case.call(session=test_client)  # type: ignore[arg-type]
 	sync_clean_redis()
-	case.call(session=test_client)
-	case.call(session=test_client)
+	case.call(session=test_client)  # type: ignore[arg-type]
+	case.call(session=test_client)  # type: ignore[arg-type]

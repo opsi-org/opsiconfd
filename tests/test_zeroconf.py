@@ -34,7 +34,7 @@ async def on_service_state_change_process(zeroconf: Zeroconf, service_type: str,
 	# print(f"Service {name} of type {service_type} state changed: {state_change}")
 	info = await zeroconf.get_service_info(service_type, name)
 	# print(info)
-	key = f"{socket.inet_ntoa(info.address)}:{info.port}"
+	key = f"{info.server}:{info.port}"
 	if state_change is ServiceStateChange.Added:
 		services[key] = info
 	elif state_change is ServiceStateChange.Removed:
@@ -60,7 +60,7 @@ async def test_register_opsi_services() -> None:
 
 			await asyncio.sleep(1)
 			await unregister_opsi_services()
-			await asyncio.sleep(1)
+			await asyncio.sleep(5)
 			assert len(services) == 0
 		finally:
 			browser.cancel()

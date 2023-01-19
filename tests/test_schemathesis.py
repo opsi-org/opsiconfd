@@ -12,14 +12,20 @@ from typing import Any
 
 import pytest
 import pytest_asyncio.plugin
-import schemathesis
+from schemathesis import from_file, from_pytest_fixture
+from schemathesis.models import Case
+from schemathesis.specs.openapi.schemas import BaseOpenAPISchema
+
+from opsiconfd.application import app
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
+	OpsiconfdTestClient,
 	config,
 	sync_clean_redis,
+	test_client,
 )
 
 
@@ -33,28 +39,31 @@ pytest_asyncio.plugin._hypothesis_test_wraps_coroutine = _hypothesis_test_wraps_
 
 
 @pytest.fixture
-def get_schemathesis(config: Config) -> schemathesis.specs.openapi.schemas.BaseOpenAPISchema:  # pylint: disable=redefined-outer-name
-	return schemathesis.from_uri(f"{config.internal_url}/openapi.json", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+def get_schemathesis(config: Config, test_client: OpsiconfdTestClient) -> BaseOpenAPISchema:  # pylint: disable=redefined-outer-name
+	response = test_client.get("/openapi.json", auth=(ADMIN_USER, ADMIN_PASS))
+	return from_file(response.text, app=app)
 
 
-schema = schemathesis.from_pytest_fixture("get_schemathesis")
+schema = from_pytest_fixture("get_schemathesis")
 
 
 @schema.parametrize(endpoint="^/rpc$")
-def test_rpc(case: schemathesis.models.Case) -> None:  # pylint: disable=redefined-outer-name
+def test_rpc(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	# case.call_and_validate(auth=(ADMIN_USER, ADMIN_PASS))
-	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	case.call(session=test_client)
 
 
 @schema.parametrize(endpoint="^/admin/(?!memory)")
-def test_admin(case: schemathesis.models.Case) -> None:  # pylint: disable=redefined-outer-name
+def test_admin(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	# case.call_and_validate(auth=(ADMIN_USER, ADMIN_PASS))
-	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	case.call(session=test_client)
 
 
 @schema.parametrize(endpoint="^/ssl")
-def test_ssl(case: schemathesis.models.Case) -> None:  # pylint: disable=redefined-outer-name
+def test_ssl(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	case.call(session=test_client)
+	case.call(session=test_client)
+	sync_clean_redis()
+	case.call(session=test_client)
+	case.call(session=test_client)

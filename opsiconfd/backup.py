@@ -407,36 +407,36 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 				if batch:
 					method = getattr(backend, f"{method_prefix}_bulkInsertObjects", getattr(backend, f"{method_prefix}_createObjects"))
 
-				for obj in objects:
-					if host_attr:
-						if obj[host_attr] == backup_server_id:
-							obj[host_attr] = server_id
-					if check_config and obj["id"] == "clientconfig.depot.id":
-						obj["possibleValues"] = [
-							server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
-							for v in obj["possibleValues"]  # pylint: disable=loop-invariant-statement
-						]
-						obj["defaultValues"] = [
-							server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
-							for v in obj["defaultValues"]
-						]
-					if check_config_state and obj["configId"] == "clientconfig.depot.id":
-						obj["values"] = [
-							server_id if v == backup_server_id else v for v in obj["values"]  # pylint: disable=loop-invariant-statement
-						]
+				with backend.events_disabled():
+					for obj in objects:
+						if host_attr:
+							if obj[host_attr] == backup_server_id:
+								obj[host_attr] = server_id
+						if check_config and obj["id"] == "clientconfig.depot.id":
+							obj["possibleValues"] = [
+								server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
+								for v in obj["possibleValues"]  # pylint: disable=loop-invariant-statement
+							]
+							obj["defaultValues"] = [
+								server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
+								for v in obj["defaultValues"]
+							]
+						if check_config_state and obj["configId"] == "clientconfig.depot.id":
+							obj["values"] = [
+								server_id if v == backup_server_id else v for v in obj["values"]  # pylint: disable=loop-invariant-statement
+							]
 
-					logger.trace("Insert %s object: %s", obj_class, obj)
-					if not batch:
-						print(obj)
-						method(obj)
+						logger.trace("Insert %s object: %s", obj_class, obj)
+						if not batch:
+							method(obj)
+							if progress:
+								progress.advance(restore_task)
+
+					if batch:
+						logger.info("Batch inserting %d objects", len(objects))
+						method(objects)
 						if progress:
-							progress.advance(restore_task)
-
-				if batch:
-					logger.info("Batch inserting %d objects", len(objects))
-					method(objects)
-					if progress:
-						progress.advance(restore_task, advance=num_objects)
+							progress.advance(restore_task, advance=num_objects)
 
 			rpc_cache_clear()
 

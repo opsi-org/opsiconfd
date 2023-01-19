@@ -10,9 +10,10 @@ opsiconfd backend interface
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from inspect import getmembers, ismethod
 from types import MethodType
-from typing import Any
+from typing import Any, Generator
 
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]
@@ -119,6 +120,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			return
 		self.__initialized = True
 
+		self._events_enabled = True
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
 		self._depot_connections: dict[str, ServiceClient] = {}
@@ -237,8 +239,18 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._interface_list = self._service_client.jsonrpc(method="backend_getInterface")
 		self._create_jsonrpc_instance_methods()
 
+	@contextmanager
+	def events_disabled(self) -> Generator[None, None, None]:
+		events_enabled = self._events_enabled
+		self._events_enabled = False
+		try:
+			yield
+		finally:
+			self._events_enabled = events_enabled
+
 	def shutdown(self) -> None:
 		self._shutting_down = True
+		self._events_enabled = False
 		for jsonrpc_client in self._depot_connections.values():
 			jsonrpc_client.disconnect()
 		for base in self.__class__.__bases__:

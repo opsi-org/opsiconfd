@@ -123,6 +123,10 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	def _shutting_down(self) -> bool:
 		...
 
+	@property
+	def _events_enabled(self) -> bool:
+		...
+
 	def _get_ace(self, method: str) -> list[RPCACE]:
 		...
 

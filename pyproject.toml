@@ -51,7 +51,6 @@ yappi = "^1.4"
 rich = "^13.0"
 
 [tool.poetry.dev-dependencies]
-flake8 = "^6.0"
 hypothesis = "^6.32"
 idna = "^3.3"
 mock = "^5.0"

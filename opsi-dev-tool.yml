@@ -3,7 +3,7 @@ project:
     - license: AGPL-3.0
       header: |
         opsiconfd is part of the desktop management solution opsi http://www.opsi.org
-        Copyright (c) 2020-{year} uib GmbH <info@uib.de>
+        Copyright (c) 2023-{year} uib GmbH <info@uib.de>
         All rights reserved.
         License: {license}
 
@@ -12,8 +12,6 @@ git:
     pre-push: |
       echo "Running pylint..."
       poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
-      echo "Running flake8..."
-      poetry run flake8 opsiconfd tests
       echo "Running mypy..."
       poetry run mypy opsiconfd tests
 

@@ -265,8 +265,8 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 					assert responses[3].result is None
 					assert responses[3].error == {
 						"code": 0,
-						"message": "Backend permission denied error: No permission for method 'hostControl_start'",
-						"data": {"class": "BackendPermissionDeniedError", "details": None},
+						"message": "Opsi service permission error: No permission for method 'hostControl_start'",
+						"data": {"class": "OpsiServicePermissionError", "details": None},
 					}
 
 

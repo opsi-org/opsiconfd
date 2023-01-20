@@ -15,6 +15,7 @@ import shutil
 import sys
 import threading
 import warnings
+from pathlib import Path
 from tempfile import mkdtemp
 from types import FrameType
 from typing import Any, Generator
@@ -60,6 +61,7 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
 	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
 
+	Path("tests/data/opsi-config/opsi.conf").unlink(missing_ok=True)
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
 
@@ -151,4 +153,5 @@ def disable_warnings() -> None:
 	# message="There is no current event loop", category=DeprecationWarning, module="redis.asyncio.connection", lineno=677
 	warnings.filterwarnings(
 		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
+	)
 	)

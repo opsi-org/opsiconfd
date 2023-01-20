@@ -42,7 +42,7 @@ stages:
   cp -a ../opsi-server/opsi-server_data/etc /etc/opsi
 
   # Configure opsiconfd
-  mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
+  mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot /var/lib/opsi/workbench
 
   echo "redis-internal-url = redis://redis" >> tests/data/default-opsiconfd.conf
   echo "log-level-stderr = 0" >> tests/data/default-opsiconfd.conf

@@ -74,8 +74,8 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`hardwareAddress` varchar(17) DEFAULT NULL,
 	`ipAddress` varchar(255) DEFAULT NULL,
 	`inventoryNumber` varchar(64) DEFAULT NULL,
-	`created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	`lastSeen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`created` timestamp NULL DEFAULT NULL,
+	`lastSeen` timestamp NULL DEFAULT NULL,
 	`opsiHostKey` varchar(32) DEFAULT NULL,
 	`oneTimePassword` varchar(32) DEFAULT NULL,
 	`systemUUID` varchar(36) DEFAULT NULL,
@@ -645,6 +645,8 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 				logger.info("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
 
+		session.execute("ALTER TABLE `HOST` MODIFY COLUMN `created` timestamp NULL DEFAULT NULL")
+		session.execute("ALTER TABLE `HOST` MODIFY COLUMN `lastSeen` timestamp NULL DEFAULT NULL")
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")

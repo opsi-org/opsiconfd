@@ -17,7 +17,7 @@ from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from OPSI.Exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
-	BackendPermissionDeniedError,
+	OpsiServicePermissionError,
 )
 from starlette.types import Receive, Send
 
@@ -112,7 +112,7 @@ class AddonTest1(Addon):
 		"""Called on every request exception where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 
-		if isinstance(err, (HTTPException, BackendAuthenticationError, BackendPermissionDeniedError)):
+		if isinstance(err, (HTTPException, BackendAuthenticationError, OpsiServicePermissionError)):
 			response = PlainTextResponse(
 				status_code=status.HTTP_401_UNAUTHORIZED, content="addon_test1_error", headers={"X-Addon": "test1"}
 			)

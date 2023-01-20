@@ -126,7 +126,7 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 			res = test_client.post("/rpc", json=rpc)
 			res.raise_for_status()
 			res_dict = res.json()
-			assert res_dict["error"]["class"] == "BackendPermissionDeniedError"
+			assert res_dict["error"]["class"] == "OpsiServicePermissionError"
 		finally:
 			test_client.reset_cookies()
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)

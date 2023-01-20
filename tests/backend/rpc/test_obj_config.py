@@ -118,7 +118,7 @@ def test_config_insertObject(  # pylint: disable=invalid-name
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_insertObject", "params": [config1.to_hash()]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
 def test_config_updateObject(  # pylint: disable=invalid-name
@@ -175,7 +175,7 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_updateObject", "params": [config1.to_hash()]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
 def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name

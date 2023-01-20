@@ -127,7 +127,7 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 	client2["description"] = "client changed"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client2]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
 def test_host_updateObject(  # pylint: disable=invalid-name
@@ -198,7 +198,7 @@ def test_host_updateObject(  # pylint: disable=invalid-name
 	client2["description"] = "client changed"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client2]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
 def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
@@ -272,7 +272,7 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 	for method in ("host_getObjects", "host_getHashes"):
 		rpc = {
@@ -378,7 +378,7 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client2]]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
 def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements
@@ -468,7 +468,7 @@ def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client2["id"]}]]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 	# Delete clients
 	test_client.reset_cookies()

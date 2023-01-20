@@ -102,7 +102,7 @@ def setup_users_and_groups() -> None:
 
 def setup_files() -> None:
 	for _dir in (os.path.dirname(config.log_file), VAR_ADDON_DIR, OPSI_LICENSE_PATH):  # pylint: disable=dotted-import-in-loop
-		if not os.path.isdir(_dir):  # pylint: disable=dotted-import-in-loop
+		if not os.path.isdir(_dir) and not os.path.islink(_dir):  # pylint: disable=dotted-import-in-loop
 			os.makedirs(_dir)  # pylint: disable=dotted-import-in-loop
 
 
@@ -161,7 +161,7 @@ def setup_systemd() -> None:
 	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment())
 
 
-def setup_backend() -> None:
+def setup_backend(full: bool = True) -> None:
 	logger.info("Setup backend")
 	initializeBackends()
 	backend = BackendManager()
@@ -177,7 +177,7 @@ def setup_backend() -> None:
 			updateMySQLBackend,
 		)
 
-		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"))
+		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"), force=full)
 
 
 def cleanup_log_files() -> None:
@@ -223,7 +223,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 		setup_limits()
 	if "backend" not in config.skip_setup:
 		try:
-			setup_backend()
+			setup_backend(full)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing

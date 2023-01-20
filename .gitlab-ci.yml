@@ -106,7 +106,7 @@ stages:
   echo "Run tests"
   echo "---------------------------------------"
   exit_code=0
-  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/monitoring
+  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_backup.py
   #poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py || exit_code=$?
   #if [ $exit_code -ne 0 ]; then
   #  echo "---------------------------------------"

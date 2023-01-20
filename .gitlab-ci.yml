@@ -67,7 +67,6 @@ stages:
   poetry config experimental.new-installer false
   poetry lock --no-update
   poetry install
-  ###poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l6 setup
 
   # Create adminuser used in tests
   useradd adminuser
@@ -77,6 +76,7 @@ stages:
 
 
 .perftest: &perftest |
+  poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l6 setup
   poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --max-session-per-ip=20000 &
   sleep 10
 
@@ -100,22 +100,11 @@ stages:
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
-  ####poetry run opsiconfd -c tests/data/default-opsiconfd.conf --max-session-per-ip=20000 &
-  ####sleep 10
   echo "---------------------------------------"
   echo "Run tests"
   echo "---------------------------------------"
   exit_code=0
-  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_backup.py
-  #poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py || exit_code=$?
-  #if [ $exit_code -ne 0 ]; then
-  #  echo "---------------------------------------"
-  #  echo "opsiconfd log"
-  #  echo "---------------------------------------"
-  #  cat /tmp/opsiconfd.log
-  #  exit $exit_code
-  #fi
-  #poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
+  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
 
 .run_linters: &run_linters |
   echo "---------------------------------------"

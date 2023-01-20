@@ -39,7 +39,7 @@
 		"python.testing.pytestEnabled": true,
 		"python.testing.pytestPath": ".venv/bin/pytest",
 		"python.linting.enabled": true,
-		"python.linting.flake8Enabled": true,
+		"python.linting.flake8Enabled": false,
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintCategorySeverity.refactor": "Information",
 		"python.linting.pylintArgs": [

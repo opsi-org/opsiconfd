@@ -67,7 +67,7 @@ stages:
   poetry config experimental.new-installer false
   poetry lock --no-update
   poetry install
-  poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l6 setup
+  ###poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l6 setup
 
   # Create adminuser used in tests
   useradd adminuser

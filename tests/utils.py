@@ -180,7 +180,6 @@ def worker_state() -> None:
 def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 	mysql = get_mysql()  # pylint: disable=invalid-name
 	with mysql.session() as session:
-		session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
 		session.execute("DELETE FROM `PRODUCT_ON_CLIENT`")
 		session.execute("DELETE FROM `PRODUCT_ON_DEPOT`")
 		session.execute("DELETE FROM `PRODUCT_DEPENDENCY`")
@@ -190,6 +189,7 @@ def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 		session.execute("DELETE FROM `OBJECT_TO_GROUP`")
 		session.execute("DELETE FROM `GROUP`")
 		session.execute("DELETE FROM `CONFIG_STATE`")
+		session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
 
 
 @pytest_asyncio.fixture(autouse=True)

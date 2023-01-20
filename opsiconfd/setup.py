@@ -232,7 +232,7 @@ def setup_backend(full: bool) -> None:
 
 		if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
 			config_server_id = get_configserver_id()
-			logger.notice("No configserver found in backend, creating %r", config_server_id)
+			logger.notice("Creating config:server %r", config_server_id)
 			network_config = getNetworkConfiguration()
 			config_server = OpsiConfigserver(
 				id=config_server_id,
@@ -316,7 +316,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	add_config_states: list[ConfigState] = []
 
 	if "clientconfig.depot.user" not in config_ids:
-		logger.info("Missing clientconfig.depot.user - adding it.")
+		logger.info("Creating config: clientconfig.depot.user")
 
 		depot_user = "pcpatch"
 		domain = _get_windows_domain()
@@ -335,7 +335,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.configserver.url" not in config_ids:
-		logger.info("Missing clientconfig.configserver.url - adding it.")
+		logger.info("Creating config: clientconfig.configserver.url")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.configserver.url",
@@ -348,7 +348,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.id" not in config_ids:
-		logger.info("Missing clientconfig.depot.id - adding it.")
+		logger.info("Creating config: clientconfig.depot.id")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.id",
@@ -361,11 +361,11 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.dynamic" not in config_ids:
-		logger.info("Missing clientconfig.depot.dynamic - adding it.")
+		logger.info("Creating config: clientconfig.depot.dynamic")
 		add_configs.append(BoolConfig(id="clientconfig.depot.dynamic", description="Use dynamic depot selection", defaultValues=[False]))
 
 	if "clientconfig.depot.selection_mode" not in config_ids:
-		logger.info("Missing clientconfig.depot.selection_mode - adding it.")
+		logger.info("Creating config: clientconfig.depot.selection_mode")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.selection_mode",
@@ -378,7 +378,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.drive" not in config_ids:
-		logger.info("Missing clientconfig.depot.drive - adding it.")
+		logger.info("Creating config: clientconfig.depot.drive")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.drive",
@@ -419,7 +419,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.protocol" not in config_ids:
-		logger.info("Missing clientconfig.depot.protocol - adding it.")
+		logger.info("Creating config: clientconfig.depot.protocol")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.protocol",
@@ -432,7 +432,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.protocol.netboot" not in config_ids:
-		logger.info("Missing clientconfig.depot.protocol.netboot - adding it.")
+		logger.info("Creating config: clientconfig.depot.protocol.netboot")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.protocol.netboot",
@@ -445,7 +445,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.windows.domain" not in config_ids:
-		logger.info("Missing clientconfig.windows.domain - adding it.")
+		logger.info("Creating config: clientconfig.windows.domain")
 		domain = _get_windows_domain()
 		add_configs.append(
 			UnicodeConfig(
@@ -459,13 +459,13 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "opsiclientd.global.verify_server_cert" not in config_ids:
-		logger.info("Missing opsiclientd.global.verify_server_cert - adding it.")
+		logger.info("Creating config: opsiclientd.global.verify_server_cert")
 		add_configs.append(
 			BoolConfig(id="opsiclientd.global.verify_server_cert", description="Verify opsi server TLS certificates", defaultValues=[True])
 		)
 
 	if "opsiclientd.global.install_opsi_ca_into_os_store" not in config_ids:
-		logger.info("Missing opsiclientd.global.install_opsi_ca_into_os_store - adding it.")
+		logger.info("Creating config: opsiclientd.global.install_opsi_ca_into_os_store")
 		add_configs.append(
 			BoolConfig(
 				id="opsiclientd.global.install_opsi_ca_into_os_store",
@@ -475,7 +475,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "opsi-linux-bootimage.append" not in config_ids:
-		logger.info("Missing opsi-linux-bootimage.append - adding it.")
+		logger.info("Creating config: opsi-linux-bootimage.append")
 		add_configs.append(
 			UnicodeConfig(
 				id="opsi-linux-bootimage.append",
@@ -499,15 +499,15 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "license-management.use" not in config_ids:
-		logger.info("Missing license-management.use - adding it.")
+		logger.info("Creating config: license-management.use")
 		add_configs.append(BoolConfig(id="license-management.use", description="Activate license management", defaultValues=[False]))
 
 	if "software-on-demand.active" not in config_ids:
-		logger.info("Missing software-on-demand.active - adding it.")
+		logger.info("Creating config: software-on-demand.active")
 		add_configs.append(BoolConfig(id="software-on-demand.active", description="Activate software-on-demand", defaultValues=[False]))
 
 	if "software-on-demand.product-group-ids" not in config_ids:
-		logger.info("Missing software-on-demand.product-group-ids - adding it.")
+		logger.info("Creating config: software-on-demand.product-group-ids")
 		add_configs.append(
 			UnicodeConfig(
 				id="software-on-demand.product-group-ids",
@@ -520,7 +520,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.dhcpd.filename" not in config_ids:
-		logger.info("Missing clientconfig.dhcpd.filename - adding it.")
+		logger.info("Creating config: clientconfig.dhcpd.filename")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.dhcpd.filename",

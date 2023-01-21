@@ -45,6 +45,8 @@ from opsicommon.server.setup import (  # type: ignore[import]
 from opsicommon.server.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
+from rich.prompt import Confirm, Prompt
+from sqlalchemy.exc import OperationalError as MySQLOperationalError
 
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
@@ -72,6 +74,7 @@ from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import delete_recursively
 from opsiconfd.ssl import setup_ssl, setup_ssl_file_permissions
+from opsiconfd.utils import get_random_string
 
 
 def setup_limits() -> None:
@@ -220,11 +223,64 @@ def setup_systemd() -> None:
 	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"])
 
 
+def setup_mysql_user(root_mysql: MySQLConnection) -> None:
+	mysql = MySQLConnection()
+	mysql.password = get_random_string(16)
+
+	logger.info("Creating user %r and granting all rights on %r", mysql.username, mysql.database)
+	with root_mysql.session() as session:
+		session.execute(f"CREATE USER IF NOT EXISTS '{mysql.username}'@'{mysql.address}'")
+		try:
+			session.execute(f"ALTER USER '{mysql.username}'@'{mysql.address}' IDENTIFIED WITH mysql_native_password BY '{mysql.password}'")
+		except Exception as err:  # pylint: disable=broad-except
+			logger.debug(err)
+			try:
+				session.execute(f"ALTER USER '{mysql.username}'@'{mysql.address}' IDENTIFIED BY '{mysql.password}'")
+			except Exception as err2:  # pylint: disable=broad-except
+				logger.debug(err2)
+				session.execute(f"SET PASSWORD FOR '{mysql.username}'@'{mysql.address}' = PASSWORD('{mysql.password}')")
+		session.execute(f"GRANT ALL ON {mysql.database}.* TO '{mysql.username}'@'{mysql.address}'")
+		session.execute("FLUSH PRIVILEGES")
+		logger.notice("User %r created and privileges set", mysql.username)
+
+	mysql.update_config_file()
+
+
+def setup_mysql_connection() -> None:
+	mysql_root = MySQLConnection()
+	# Try unix socket connection as user root
+	##mysql_root.username = "root"
+	mysql_root.username = "qroot"
+	mysql_root.password = ""
+	while True:
+		try:  # pylint: disable=loop-try-except-usage
+			with mysql_root.connection():
+				setup_mysql_user(mysql_root)
+				break
+		except MySQLOperationalError as err:  # pylint: disable=loop-invariant-statement
+			if "access denied" not in str(err).lower():  # pylint: disable=loop-invariant-statement
+				raise
+			print("FAILED")
+			if not Confirm.ask("Try again?"):
+				raise
+			mysql_root.username = Prompt.ask("Enter username", default=mysql_root.username, show_default=True)
+			mysql_root.password = Prompt.ask("Enter password", password=True)
+
+
 def setup_backend(full: bool) -> None:
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
 	mysql = MySQLConnection()
+	try:
+		with mysql.connection():
+			pass
+	except MySQLOperationalError as err:
+		if "access denied" not in str(err).lower():
+			raise
+		setup_mysql_connection()
+		mysql.read_config_file()
+
 	with mysql.connection():
 		create_database(mysql)
 		update_database(mysql, force=full)
@@ -571,9 +627,11 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 	if "limits" not in config.skip_setup:
 		setup_limits()
 
+	backend_available = False
 	if "backend" not in config.skip_setup:
 		try:
 			setup_backend(full)
+			backend_available = True
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing
@@ -601,7 +659,8 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 	if "log_files" not in config.skip_setup:
 		cleanup_log_files()
 
-	setup_configs()
+	if backend_available:
+		setup_configs()
 
 	if "grafana" not in config.skip_setup:
 		try:
@@ -621,4 +680,5 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 		setup_ssl()
 	except Exception as err:  # pylint: disable=broad-except
 		# This can fail if fqdn is not valid
+		logger.error("Failed to setup ssl: %s", err, exc_info=True)
 		logger.error("Failed to setup ssl: %s", err, exc_info=True)

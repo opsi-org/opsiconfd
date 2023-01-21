@@ -69,7 +69,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 		with mysql.session() as session:
 			session.execute(f"DROP DATABASE IF EXISTS {database}")
 
-		mysql._database = database  # pylint: disable=protected-access
+		mysql.database = database  # pylint: disable=protected-access
 		mysql.connect()
 
 		restore_backup(deepcopy(backup))

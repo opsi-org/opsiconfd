@@ -128,10 +128,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	schema_version = 9
 
 	def __init__(self) -> None:
-		self._address = "localhost"
-		self._username = "opsi"
-		self._password = "opsi"
-		self._database = "opsi"
+		self.address = "localhost"
+		self.username = "opsi"
+		self.password = "opsi"
+		self.database = "opsi"
 		self._database_charset = "utf8"
 		self._connection_pool_size = 20
 		self._connection_pool_max_overflow = 10
@@ -144,13 +144,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self._engine = None
 		self.tables: dict[str, dict[str, dict[str, str | bool | None]]] = {}
 
-		self._read_config_file()
-		secret_filter.add_secrets(self._password)
+		self.read_config_file()
+		secret_filter.add_secrets(self.password)
 
 	def __repr__(self) -> str:
-		return f"<{self.__class__.__name__}(address={self._address})>"
+		return f"<{self.__class__.__name__}(address={self.address})>"
 
-	def _read_config_file(self) -> None:
+	def read_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
 		loc: dict[str, Any] = {}
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
@@ -158,16 +158,27 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		for key, val in loc["config"].items():
 			if "password" in key:
 				secret_filter.add_secrets(val)
-			attr = "_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
+			attr = "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if hasattr(self, attr):
 				setattr(self, attr, val)
+			elif hasattr(self, f"_{attr}"):
+				setattr(self, f"_{attr}", val)
 
-		if self._address == "::1":
-			self._address = "[::1]"
+		if self.address == "::1":
+			self.address = "[::1]"
 
-	@property
-	def database(self) -> str:
-		return self._database
+	def update_config_file(self) -> None:
+		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
+		config_regex = re.compile(r'^(\s*)"([^"]+)"(\s*:\s*)\S.*$')
+		lines = mysql_conf.read_text(encoding="utf-8").split("\n")
+		for idx, line in enumerate(lines):
+			match = config_regex.search(line)
+			if match:
+				option = match.group(2)
+				if option in ("address", "database", "username", "password"):
+					value = getattr(self, option)
+					lines[idx] = f'{match.group(1)}"{option}"{match.group(3)}"{value}",'
+		mysql_conf.write_text("\n".join(lines), encoding="utf-8")
 
 	def _create_engine(self, uri: str) -> None:
 		self._engine = create_engine(
@@ -210,21 +221,21 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		# conn.execute("SHOW VARIABLES LIKE 'sql_mode';").fetchone()
 
 	def _init_connection(self) -> None:
-		password = quote(self._password)
+		password = quote(self.password)
 		secret_filter.add_secrets(password)
 
 		properties = {}
 		if self._database_charset == "utf8":
 			properties["charset"] = "utf8mb4"
 
-		address = self._address
+		address = self.address
 		if address.startswith("/"):
 			properties["unix_socket"] = address
 			address = "localhost"
 
 		params = f"?{urlencode(properties)}" if properties else ""
 
-		uri = f"mysql://{quote(self._username)}:{password}@{address}/{self.database}{params}"
+		uri = f"mysql://{quote(self.username)}:{password}@{address}/{self.database}{params}"
 		self._create_engine(uri)
 
 		logger.info("Connecting to %s", uri)
@@ -236,7 +247,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				if not str(err.orig).startswith("(1049"):
 					raise
 				# 1049 - Unknown database
-				self._create_engine(f"mysql://{quote(self._username)}:{password}@{address}/{params}")
+				self._create_engine(f"mysql://{quote(self.username)}:{password}@{address}/{params}")
 				create_database(self)
 				self._create_engine(uri)
 				version_string = session.execute("SELECT @@VERSION").fetchone()[0]
@@ -268,10 +279,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		try:
 			self._init_connection()
 		except OperationalError as err:
-			if self._address != "localhost":
+			if self.address != "localhost":
 				raise
 			logger.info("Failed to connect to socket (%s), retrying with tcp/ip", err)
-			self._address = "127.0.0.1"
+			self.address = "127.0.0.1"
 			self._init_connection()
 		self.read_tables()
 
@@ -457,7 +468,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			return "WHERE " + " AND ".join([f"({c})" for c in conditions]), params
 		return "", {}
 
-	@lru_cache(maxsize=0)
+	@lru_cache()
 	def _get_read_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
@@ -466,7 +477,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				conversions[name] = loads
 		return conversions
 
-	@lru_cache(maxsize=0)
+	@lru_cache()
 	def _get_write_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))

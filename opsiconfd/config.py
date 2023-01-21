@@ -14,6 +14,7 @@ import os
 import re
 import socket
 import sys
+import warnings
 from argparse import (
 	OPTIONAL,
 	SUPPRESS,
@@ -28,6 +29,7 @@ from urllib.parse import urlparse
 import certifi
 import configargparse  # type: ignore[import]
 import psutil
+import sqlalchemy
 from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
@@ -56,6 +58,11 @@ VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
 REDIS_PREFIX_MESSAGEBUS = "opsiconfd:messagebus"
 REDIS_PREFIX_SESSION = "opsiconfd:session"
+
+
+def configure_warnings() -> None:
+	# Disable sqlalchemy 2.0 deprecation warnings
+	sqlalchemy.util.deprecations.SILENCE_UBER_WARNING = True
 
 
 if running_in_docker():

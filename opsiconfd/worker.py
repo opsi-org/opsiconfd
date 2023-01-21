@@ -24,7 +24,7 @@ from . import ssl
 from .addon import AddonManager
 from .application import app
 from .backend import get_backend, get_client_backend
-from .config import config
+from .config import config, configure_warnings
 from .logging import init_logging, logger
 from .metrics import WorkerMetricsCollector
 from .utils import Singleton, async_redis_client, get_manager_pid
@@ -52,6 +52,7 @@ class Worker(metaclass=Singleton):
 		self._should_stop = False
 
 	async def startup(self) -> None:
+		configure_warnings()
 		self._init_worker_num()
 		logger.notice("Startup worker %d (pid %s)", self.worker_num, os.getpid())
 		loop = asyncio.get_running_loop()

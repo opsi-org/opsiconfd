@@ -24,7 +24,7 @@ from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 
 from . import __version__
 from .check import console_health_check
-from .config import config
+from .config import config, configure_warnings
 from .logging import (
 	AsyncRedisLogAdapter,
 	init_logging,
@@ -48,6 +48,7 @@ async def log_viewer() -> None:
 
 
 def main() -> None:  # pylint: disable=too-many-statements, too-many-branches too-many-locals
+	configure_warnings()
 	secret_filter.add_secrets(config.ssl_ca_key_passphrase, config.ssl_server_key_passphrase)
 
 	if config.version:

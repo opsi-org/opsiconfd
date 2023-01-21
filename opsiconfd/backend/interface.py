@@ -25,7 +25,7 @@ from opsiconfd.logging import logger
 from opsiconfd.utils import Singleton
 
 
-@lru_cache(maxsize=0)
+@lru_cache()
 def get_backend_interface() -> List[Dict[str, Any]]:
 	backend_interface = get_client_backend().backend_getInterface()
 	backend_methods = [method["name"] for method in backend_interface]

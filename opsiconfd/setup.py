@@ -45,8 +45,8 @@ from opsicommon.server.setup import (  # type: ignore[import]
 from opsicommon.server.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
+from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
-from sqlalchemy.exc import OperationalError as MySQLOperationalError
 
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
@@ -225,6 +225,8 @@ def setup_systemd() -> None:
 
 def setup_mysql_user(root_mysql: MySQLConnection) -> None:
 	mysql = MySQLConnection()
+	mysql.address = root_mysql.address
+	mysql.database = root_mysql.database
 	mysql.password = get_random_string(16)
 
 	logger.info("Creating user %r and granting all rights on %r", mysql.username, mysql.database)
@@ -246,25 +248,61 @@ def setup_mysql_user(root_mysql: MySQLConnection) -> None:
 	mysql.update_config_file()
 
 
-def setup_mysql_connection() -> None:
+def setup_mysql_connection(interactive: bool = False) -> None:
+	if opsi_config.get("host", "server-role") != "configserver":
+		return
+
+	error: Exception | None = None
+	mysql = MySQLConnection()
+	try:
+		with mysql.connection():
+			# OK
+			return
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to connect to database: %s", err)
+		error = err
+
 	mysql_root = MySQLConnection()
-	# Try unix socket connection as user root
-	##mysql_root.username = "root"
-	mysql_root.username = "qroot"
-	mysql_root.password = ""
+	auto_try = False
+	if mysql_root.address in ("localhost", "127.0.0.1", "::1"):
+		# Try unix socket connection as user root
+		auto_try = True
+		mysql_root.database = "localhost"
+		mysql_root.username = "root"
+		mysql_root.password = ""
+		logger.info("Trying to connect to local database as %s", mysql_root.username)
+
 	while True:
+		if not auto_try:
+			if not interactive:
+				raise error  # type: ignore[misc]
+			error_str = str(error).split("\n", 1)[0]
+			match = re.search(r"(\(\d+,\s.*)", error_str)  # pylint: disable=dotted-import-in-loop
+			if match:
+				error_str = match.group(1).strip("()")
+			rich_print(f"[b][red]Failed to connect to database[/red]: {error_str}[/b]")
+			if not Confirm.ask("Do you want to configure the database connection?"):
+				raise error  # type: ignore[misc]
+			mysql_root.address = Prompt.ask("Enter address", default=mysql_root.address, show_default=True)
+			mysql_root.database = Prompt.ask("Enter database", default=mysql_root.database, show_default=True)
+			mysql_root.username = Prompt.ask("Enter admin username", default="root", show_default=True)
+			mysql_root.password = Prompt.ask("Enter admin password", password=True)
+			mysql_root.password = ""
 		try:  # pylint: disable=loop-try-except-usage
 			with mysql_root.connection():
+				if not auto_try:
+					rich_print("[b][green]MySQL admin connection established[/green][/b]")
+					rich_print("[b]Setting up MySQL user[/b]")
 				setup_mysql_user(mysql_root)
+				if not auto_try:
+					rich_print("[b][green]MySQL user setup successful[/green][/b]")
 				break
-		except MySQLOperationalError as err:  # pylint: disable=loop-invariant-statement
-			if "access denied" not in str(err).lower():  # pylint: disable=loop-invariant-statement
-				raise
-			print("FAILED")
-			if not Confirm.ask("Try again?"):
-				raise
-			mysql_root.username = Prompt.ask("Enter username", default=mysql_root.username, show_default=True)
-			mysql_root.password = Prompt.ask("Enter password", password=True)
+		except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
+			if not auto_try:
+				error = err
+
+		auto_try = False
+		mysql_root = MySQLConnection()
 
 
 def setup_backend(full: bool) -> None:
@@ -272,15 +310,6 @@ def setup_backend(full: bool) -> None:
 		return
 
 	mysql = MySQLConnection()
-	try:
-		with mysql.connection():
-			pass
-	except MySQLOperationalError as err:
-		if "access denied" not in str(err).lower():
-			raise
-		setup_mysql_connection()
-		mysql.read_config_file()
-
 	with mysql.connection():
 		create_database(mysql)
 		update_database(mysql, force=full)
@@ -612,7 +641,7 @@ def setup_redis() -> None:
 		delete_recursively(delete_key)
 
 
-def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
+def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	logger.notice("Running opsiconfd setup")
 
 	if config.skip_setup:
@@ -627,16 +656,27 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 	if "limits" not in config.skip_setup:
 		setup_limits()
 
-	backend_available = False
-	if "backend" not in config.skip_setup:
+	backend_available = True
+	if opsi_config.get("host", "server-role") != "configserver":
 		try:
-			setup_backend(full)
-			backend_available = True
+			setup_mysql_connection(interactive=full)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing
-			logger.debug("Failed to setup backend: %s", err, exc_info=True)
+			logger.debug("Failed to setup MySQL: %s", err, exc_info=True)
+			backend_available = False
+			if not full:
+				raise
+
+	if "backend" not in config.skip_setup and backend_available:
+		try:
+			setup_backend(full)
+		except Exception as err:  # pylint: disable=broad-except
+			# This can happen during package installation
+			# where backend config files are missing
 			logger.warning("Failed to setup backend: %s", err, exc_info=True)
+			backend_available = False
+
 	if full:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			po_setup_users_and_groups(ignore_errors=True)
@@ -680,5 +720,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 		setup_ssl()
 	except Exception as err:  # pylint: disable=broad-except
 		# This can fail if fqdn is not valid
+		logger.error("Failed to setup ssl: %s", err, exc_info=True)
+		logger.error("Failed to setup ssl: %s", err, exc_info=True)
 		logger.error("Failed to setup ssl: %s", err, exc_info=True)
 		logger.error("Failed to setup ssl: %s", err, exc_info=True)

@@ -14,7 +14,6 @@ import os
 import re
 import socket
 import sys
-import warnings
 from argparse import (
 	OPTIONAL,
 	SUPPRESS,
@@ -29,7 +28,7 @@ from urllib.parse import urlparse
 import certifi
 import configargparse  # type: ignore[import]
 import psutil
-import sqlalchemy
+import sqlalchemy  # type: ignore[import]
 from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates

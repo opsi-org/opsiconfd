@@ -9,7 +9,6 @@ utils
 """
 
 import asyncio
-import codecs
 import datetime
 import functools
 import gzip

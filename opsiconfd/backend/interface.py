@@ -9,6 +9,7 @@ opsiconfd backend interface
 """
 
 import socket
+from functools import lru_cache
 from ipaddress import ip_address
 from typing import Any, Dict, List
 from urllib.parse import urlparse
@@ -23,18 +24,15 @@ from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import Singleton
 
-backend_interface = None  # pylint: disable=invalid-name
 
-
+@lru_cache(maxsize=0)
 def get_backend_interface() -> List[Dict[str, Any]]:
-	global backend_interface  # pylint: disable=invalid-name, global-statement
-	if backend_interface is None:
-		backend_interface = get_client_backend().backend_getInterface()
-		backend_methods = [method["name"] for method in backend_interface]
-		for opsiconfd_method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
-			if opsiconfd_method["name"] not in backend_methods:  # pylint: disable=loop-global-usage
-				backend_interface.append(opsiconfd_method)  # pylint: disable=loop-global-usage
-	return backend_interface  # type: ignore
+	backend_interface = get_client_backend().backend_getInterface()
+	backend_methods = [method["name"] for method in backend_interface]
+	for opsiconfd_method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
+		if opsiconfd_method["name"] not in backend_methods:  # pylint: disable=loop-global-usage
+			backend_interface.append(opsiconfd_method)  # pylint: disable=loop-global-usage
+	return backend_interface
 
 
 class OpsiconfdBackend(metaclass=Singleton):
@@ -58,9 +56,9 @@ class OpsiconfdBackend(metaclass=Singleton):
 	def get_interface(self) -> List[Dict[str, Any]]:
 		return self._interface
 
-	# overwrite method from python-opsi to get confd methods
+	# Overwrite method from python-opsi to get confd methods
 	def backend_getInterface(self) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
-		return self.get_interface()
+		return get_backend_interface()
 
 	def backend_exit(self) -> None:
 		session = contextvar_client_session.get()

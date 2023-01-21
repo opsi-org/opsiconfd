@@ -15,6 +15,7 @@ import pwd
 import re
 import resource
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -659,7 +660,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	backend_available = True
 	if opsi_config.get("host", "server-role") != "configserver":
 		try:
-			setup_mysql_connection(interactive=full)
+			setup_mysql_connection(interactive=sys.stdout.isatty() and full)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing

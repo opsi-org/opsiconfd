@@ -1339,14 +1339,14 @@ reference = "uibpypi"
 
 [[package]]
 name = "hypothesis"
-version = "6.63.0"
+version = "6.64.0"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "hypothesis-6.63.0-py3-none-any.whl", hash = "sha256:279624e1ba2d1d58b85f57218e6dd6bb6f735f5430eeb16a7d3abbfe141c3243"},
-    {file = "hypothesis-6.63.0.tar.gz", hash = "sha256:9d7108bc21437bb7682737430a7b4b46f468cf108343436a4777aa392d8fa9d6"},
+    {file = "hypothesis-6.64.0-py3-none-any.whl", hash = "sha256:5a1617d6b4d1d61079a8cc5bf2d29c1fef6619e1f3e0463e19375ce0e3613048"},
+    {file = "hypothesis-6.64.0.tar.gz", hash = "sha256:ecae4b94c8f9e5a2faa7d070c2c7aae40f5c0e5ac5860c996c45dee7ee64a378"},
 ]
 
 [package.dependencies]
@@ -2935,14 +2935,14 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.321"
+version = "4.2.0.322"
 description = "The opsi python library"
 category = "main"
 optional = false
 python-versions = ">=3.8,<3.11"
 files = [
-    {file = "python_opsi-4.2.0.321-py3-none-any.whl", hash = "sha256:7e26bf53770843ba5aa8d5cb3ddcf95b296f02dc8b9cbefc5a2f9cd749e31c30"},
-    {file = "python_opsi-4.2.0.321.tar.gz", hash = "sha256:268a758f7df75ecc3d5986b49134fb757b6309e4f5e43ebda8d47f3b31761fb5"},
+    {file = "python_opsi-4.2.0.322-py3-none-any.whl", hash = "sha256:b52b5902106705301cb9fc71d9646287d52ac78616be7a96375d34b9aec351ca"},
+    {file = "python_opsi-4.2.0.322.tar.gz", hash = "sha256:db53ae41687530fb8fb78093856ffb4c1022c9aef913479375ad935d03de41e1"},
 ]
 
 [package.dependencies]

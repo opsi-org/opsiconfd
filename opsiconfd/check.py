@@ -20,6 +20,12 @@ from typing import Any
 
 import requests
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
+from opsicommon.logging.constants import (
+	LEVEL_TO_NAME,
+	LOG_DEBUG,
+	LOG_TRACE,
+	OPSI_LEVEL_TO_LEVEL,
+)
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -74,12 +80,21 @@ STYLES = {CheckStatus.OK: "[bold green]", CheckStatus.WARNING: "[bold yellow]", 
 
 
 def health_check() -> list[CheckResult]:
-	return [check_system_packages(), check_opsi_packages(), check_redis(), check_mysql(), check_opsi_licenses(), check_deprecated_calls()]
+	return [
+		check_opsiconfd_config(),
+		check_system_packages(),
+		check_opsi_packages(),
+		check_redis(),
+		check_mysql(),
+		check_opsi_licenses(),
+		check_deprecated_calls(),
+	]
 
 
 def console_health_check() -> int:
 	console = Console(log_time=False)
 	checks = (
+		(check_opsiconfd_config, print_check_opsiconfd_config),
 		(check_system_packages, print_check_system_packages_result),
 		(check_opsi_packages, print_check_opsi_packages_result),
 		(check_redis, print_check_result),
@@ -131,6 +146,70 @@ def get_repo_versions() -> dict[str, str | None]:
 			repo_versions[package] = version
 			logger.debug("Available version for %s: %s", package, version)
 	return repo_versions
+
+
+def check_opsiconfd_config() -> CheckResult:
+	result = CheckResult(
+		check_id="opsiconfd_config",
+		check_name="Opsiconfd config",
+		check_description="Check opsiconfd configuration",
+		message="No issues found in the configuration.",
+	)
+	issues = 0
+	for attribute in "log-level-stderr", "log-level-file", "log-level":
+		value = getattr(config, attribute.replace("-", "_"))
+		level_name = LEVEL_TO_NAME[OPSI_LEVEL_TO_LEVEL[value]]
+		partial_result = PartialCheckResult(
+			check_id=f"opsiconfd_config:{attribute}",
+			message=f"Log level {level_name} is suitable for productive use.",
+			details={"config": attribute, "value": value},
+		)
+		if value >= LOG_TRACE:
+			issues += 1
+			partial_result.check_status = CheckStatus.ERROR
+			partial_result.message = f"Log level {level_name} is much to high for productive use."
+		elif value >= LOG_DEBUG:
+			issues += 1
+			partial_result.check_status = CheckStatus.WARNING
+			partial_result.message = f"Log level {level_name} is to high for productive use."
+		result.add_partial_result(partial_result)
+
+	partial_result = PartialCheckResult(
+		check_id="opsiconfd_config:debug-options",
+		message="No debug options are set.",
+		details={"config": "debug-options", "value": config.debug_options},
+	)
+	if config.debug_options:
+		issues += 1
+		partial_result.check_status = CheckStatus.ERROR
+		partial_result.message = f"The following debug options are set: {', '.join(config.debug_options)}."
+	result.add_partial_result(partial_result)
+
+	partial_result = PartialCheckResult(
+		check_id="opsiconfd_config:profiler",
+		message="Profiler is not enabled.",
+		details={"config": "profiler", "value": config.profiler},
+	)
+	if config.profiler:
+		issues += 1
+		partial_result.check_status = CheckStatus.ERROR
+		partial_result.message = "Profiler is enabled."
+	result.add_partial_result(partial_result)
+
+	partial_result = PartialCheckResult(
+		check_id="opsiconfd_config:run-as-user",
+		message=f"Opsiconfd is runnning as user {config.run_as_user}.",
+		details={"config": "profiler", "value": config.run_as_user},
+	)
+	if config.run_as_user == "root":
+		issues += 1
+		partial_result.check_status = CheckStatus.ERROR
+	result.add_partial_result(partial_result)
+
+	if issues > 0:
+		result.message = f"{issues} issues found in the configuration."
+
+	return result
 
 
 def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches, too-many-statements, too-many-locals
@@ -388,6 +467,13 @@ def console_print(msg: str, console: Console, style: str = "", indent_level: int
 
 def print_check_result(check_result: CheckResult, console: Console) -> None:
 	console_print(check_result.message, console, STYLES[check_result.check_status], 1)
+
+
+def print_check_opsiconfd_config(check_result: CheckResult, console: Console) -> None:
+	style = STYLES[check_result.check_status]
+	console_print(check_result.message, console, style, 1)
+	for partial_result in check_result.partial_results:
+		console_print(partial_result.message, console, style, 1)
 
 
 def print_check_deprecated_calls_result(check_result: CheckResult, console: Console) -> None:

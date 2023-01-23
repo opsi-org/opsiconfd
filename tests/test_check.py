@@ -27,6 +27,7 @@ from opsiconfd.check import (
 	check_deprecated_calls,
 	check_mysql,
 	check_opsi_licenses,
+	check_opsiconfd_config,
 	check_redis,
 	check_system_packages,
 	get_repo_versions,
@@ -40,11 +41,12 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	get_config,
 	sync_clean_redis,
 	test_client,
 )
 
-DEPRECATED_METHOD = "getClients_listOfHashes"
+DEPRECATED_METHOD = "getClientIds_list"
 
 
 def captured_function_output(func: Callable, **kwargs: Any) -> str:
@@ -55,7 +57,29 @@ def captured_function_output(func: Callable, **kwargs: Any) -> str:
 	return captured_output.getvalue()
 
 
-def test_check_redis() -> None:  # pylint: disable=redefined-outer-name
+def test_check_opsiconfd_config() -> None:
+	with get_config({"log_level_stderr": 9, "debug_options": ["rpc-log", "asyncio"]}):
+		result = check_opsiconfd_config()
+		# print(result)
+		ids_found = 0
+		assert result.check_status == CheckStatus.ERROR
+		assert result.message == "2 issues found in the configuration."
+		for partial_result in result.partial_results:
+			assert partial_result.check_id.startswith("opsiconfd_config:")
+			if partial_result.check_id == "opsiconfd_config:log-level-stderr":
+				ids_found += 1
+				assert partial_result.check_status == CheckStatus.ERROR
+				assert partial_result.message == "Log level SECRET is much to high for productive use."
+				assert partial_result.details == {'config': 'log-level-stderr', 'value': 9}
+			elif partial_result.check_id == "opsiconfd_config:debug-options":
+				assert partial_result.check_status == CheckStatus.ERROR
+				assert partial_result.message == "The following debug options are set: rpc-log, asyncio."
+				assert partial_result.details == {'config': 'debug-options', 'value':  ['rpc-log', 'asyncio']}  # pylint: disable=loop-invariant-statement
+				ids_found += 1
+		assert ids_found == 2
+
+
+def test_check_redis() -> None:
 	console = Console(log_time=False)
 	result = check_redis()
 	captured_output = captured_function_output(print_check_result, check_result=result, console=console)

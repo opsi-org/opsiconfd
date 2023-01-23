@@ -70,7 +70,7 @@ def test_check_redis_error() -> None:
 		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		assert "Cannot connect to Redis" in captured_output
-		assert result.check_status  == "error"
+		assert result.check_status == "error"
 		assert result.message == "Cannot connect to Redis: Redis test error"
 
 
@@ -192,14 +192,14 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		"---+----------------------+-------+---------------------+--------+------------------------------",
 	] + [
 		f"i  | {name}            | Paket | {version} | x86_64 | opsi 4.2 (openSUSE_Leap_15.2)"
-		for name, version in repo_versions.items()
+		for name, version in installed_versions.items()
 	]
 
 	class Proc:  # pylint: disable=too-few-public-methods
 		stdout = "\n".join(zypper_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=installed_versions)),
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"opensuse"})),
 	):
@@ -224,14 +224,14 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"] + [
 		f"{name}.x86_64     {version}    @home_uibmz_opsi_4.2_stable "
-		for name, version in repo_versions.items()
+		for name, version in installed_versions.items()
 	]
 
 	class Proc:  # pylint: disable=too-few-public-methods
 		stdout = "\n".join(yum_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=installed_versions)),
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"rhel"})),
 	):

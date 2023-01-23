@@ -60,8 +60,7 @@ def test_check_redis() -> None:  # pylint: disable=redefined-outer-name
 	result = check_redis()
 	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 	assert "Redis is running and RedisTimeSeries is loaded." in captured_output
-
-	assert result.check_status  == "ok"
+	assert result.check_status == "ok"
 
 
 def test_check_redis_error() -> None:

@@ -229,9 +229,6 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		for name, version in installed_versions.items()
 	]
 
-	class Proc:  # pylint: disable=too-few-public-methods
-		stdout = "\n".join(yum_lines) + "\n"
-
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=yum_lines)),

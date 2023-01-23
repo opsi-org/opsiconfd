@@ -605,31 +605,15 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			)
 		)
 
-	if "clientconfig.dhcpd.filename" not in config_ids:
-		logger.info("Creating config: clientconfig.dhcpd.filename")
-		add_configs.append(
-			UnicodeConfig(
-				id="clientconfig.dhcpd.filename",
-				description=(
-					"The name of the file that will be presented to the "
-					"client on an TFTP request. For an client that should "
-					"boot via UEFI this must include the term 'elilo'."
-				),
-				possibleValues=["elilo"],
-				defaultValues=[""],
-				editable=True,
-				multiValue=False,
-			)
-		)
-
 	if add_configs:
 		backend.config_createObjects(add_configs)
 	if add_config_states:
 		backend.configState_createObjects(add_config_states)
 
+	# Delete obsolete configs
 	remove_configs = []
 	for config_id in config_ids:
-		if config_id.endswith(".product.cache.outdated") or config_id == "product_sort_algorithm":
+		if config_id.endswith(".product.cache.outdated") or config_id in ("product_sort_algorithm", "clientconfig.dhcpd.filename"):
 			logger.info("Removing config %r", config_id)
 			remove_configs.append({"id": config_id})
 	if remove_configs:

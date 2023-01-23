@@ -11,8 +11,10 @@ check tests
 
 import io
 import sys
-from typing import Any, Callable, Dict
+from datetime import datetime, timezone
+from typing import Any, Callable
 from unittest import mock
+from warnings import catch_warnings, simplefilter
 
 import requests
 from MySQLdb import OperationalError  # type: ignore[import]
@@ -45,10 +47,10 @@ from .utils import (  # pylint: disable=unused-import
 DEPRECATED_METHOD = "getClientIds_list"
 
 
-def captured_function_output(func: Callable, args: Dict[str, Any]) -> str:
+def captured_function_output(func: Callable, **kwargs: Any) -> str:
 	captured_output = io.StringIO()
 	sys.stdout = captured_output
-	func(**args)
+	func(**kwargs)
 	sys.stdout = sys.__stdout__
 	return captured_output.getvalue()
 
@@ -56,51 +58,44 @@ def captured_function_output(func: Callable, args: Dict[str, Any]) -> str:
 def test_check_redis() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False)
 	result = check_redis()
-	captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
+	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 	assert "Redis is running and RedisTimeSeries is loaded." in captured_output
-
-	assert result.get("status") is not None
-	assert result["status"] == "ok"
+	assert result.check_status == "ok"
 
 
 def test_check_redis_error() -> None:
-
 	with mock.patch("opsiconfd.utils.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
 		console = Console(log_time=False)
 		result = check_redis()
-		captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		assert "Cannot connect to Redis" in captured_output
-		assert result.get("status") is not None
-		assert result["status"] == "error"
-		assert result["message"] == "Cannot connect to Redis: Redis test error"
+		assert result.check_status == "error"
+		assert result.message == "Cannot connect to Redis: Redis test error"
 
 
 def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False)
 	result = check_mysql()
-	captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
+	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 	assert "Connection to MySQL is working." in captured_output
-	assert result.get("status") is not None
-	assert result["status"] == "ok"
-	assert result["message"] == "Connection to MySQL is working."
+	assert result.check_status == "ok"
+	assert result.message == "Connection to MySQL is working."
 
 
 def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
-
 	with mock.patch(
 		"opsiconfd.check.get_mysql", side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
 	):
 		console = Console(log_time=False)
 		result = check_mysql()
-		captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		assert "Could not connect to MySQL:" in captured_output
 		assert "(MySQLdb.OperationalError)" in captured_output
-		assert result.get("status") is not None
-		assert result["status"] == "error"
-		assert result["message"] == 'Could not connect to MySQL: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
+		assert result.check_status == "error"
+		assert result.message == 'Could not connect to MySQL: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
 
 
 def test_get_repo_versions() -> None:
@@ -119,154 +114,154 @@ def test_get_repo_versions() -> None:
 	for package in packages:
 		assert package in result
 		if package == "opsiconfd":
-			assert result.get(package, {}).get("version") == "4.2.0.286-1"
+			assert result[package] == "4.2.0.286-1"
 		if package == "opsi-utils":
-			assert result.get(package, {}).get("version") == "4.2.0.183-1"
+			assert result[package] == "4.2.0.183-1"
 
 
 def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-outer-name
 	# test up to date packages - status sould be ok and output should be green
-	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
-	dpkg_lines = []
-	test_package_versions = {}
-	console = Console(log_time=False, width=1000)
-	for name, version in packages.items():
-		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
-		test_package_versions[name] = {"version": version, "status": None}
+	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
+	console = Console(log_time=False, width=1000, highlight=False)
+	dpkg_lines = [
+		f"ii  {name}                         {version}                       amd64        Package description"
+		for name, version in installed_versions.items()
+	]
+
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = "\n".join(dpkg_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
 	):
-
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, {"check_result": result, "console": console})
+		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
 
-		for name, version in packages.items():
+		for name, version in installed_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
-		partial_check = result.get("partial_checks", {})
-		for name, version in packages.items():
-			assert result.get("message") == "All packages are up to date."
-			assert result.get("status") == CheckStatus.OK
-			assert partial_check.get(name, {}).get("status") is not None
-			assert partial_check.get(name, {}).get("status") == "ok"
-			assert partial_check[name]["message"] == f"Package {name} is up to date. Installed version: {version}"
+
+		assert result.message == "All packages are up to date."
+		assert result.check_status == CheckStatus.OK
+
+		for partial_result in result.partial_results:
+			assert partial_result.check_status == "ok"
+			assert partial_result.message == (
+				f"Package {partial_result.details['package']} is up to date. "
+				f"Installed version: {partial_result.details['version']}"
+			)
 
 	# test outdated packages - status sould be warn and output sould be in yellow
-	packages = {"opsiconfd": "4.2.0.100-1", "opsi-utils": "4.2.0.100-1"}
-	dpkg_lines = []
-	for name, version in packages.items():  # pylint: disable=use-list-copy
-		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
+	installed_versions = {"opsiconfd": "4.2.0.100-1", "opsi-utils": "4.2.0.100-1"}
+	dpkg_lines = [
+		f"ii  {name}                         {version}                       amd64        Package description"
+		for name, version in installed_versions.items()
+	]
+	Proc.stdout = "\n".join(dpkg_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
-
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, {"check_result": result, "console": console})
 
-		for name, version in packages.items():
-			assert f"Package {name} is out of date. Installed version: {version}" in captured_output
-
-		partial_check = result.get("partial_checks", {})
-		for name, version in packages.items():
-			assert result.get("message") == "Out of 2 packages checked, 0 are not installed and 2 are out of date."
-			assert result.get("status") == CheckStatus.WARNING
-			assert partial_check.get(name, {}).get("status") is not None
-			assert partial_check.get(name, {}).get("status") == CheckStatus.WARNING
-			assert (
-				partial_check[name]["message"]
-				== f"Package {name} is out of date. Installed version: {version} - available version: {test_package_versions[name]['version']}"
+		assert result.message == "Out of 2 packages checked, 0 are not installed and 2 are out of date."
+		assert result.check_status == CheckStatus.WARNING
+		for partial_result in result.partial_results:
+			assert partial_result.check_status == CheckStatus.WARNING
+			assert partial_result.message == (
+				f"Package {partial_result.details['package']} is out of date. "
+				f"Installed version: {partial_result.details['version']} - "
+				f"available version: {repo_versions[partial_result.details['package']]}"
 			)
+
+		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+
+		for name, version in installed_versions.items():
+			assert f"Package {name} is out of date. Installed version: {version}" in captured_output
 
 
 def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined-outer-name
-	console = Console(log_time=False, width=1000)
-	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
-
+	console = Console(log_time=False, width=1000, highlight=False)
+	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	zypper_lines = [
 		"S  | Name                 | Typ   | Version             | Arch   | Repository",
 		"---+----------------------+-------+---------------------+--------+------------------------------",
+	] + [
+		f"i  | {name}            | Paket | {version} | x86_64 | opsi 4.2 (openSUSE_Leap_15.2)"
+		for name, version in installed_versions.items()
 	]
-	test_package_versions = {}
-
-	for name, version in packages.items():
-		zypper_lines.append(f"i  | {name}            | Paket | {version} | x86_64 | opsi 4.2 (openSUSE_Leap_15.2)")
-		test_package_versions[name] = {"version": version, "status": None}
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=zypper_lines)),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=True)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
-
-
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, {"check_result": result, "console": console})
+		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
 
-		for name, version in packages.items():
+		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
-		partial_check = result.get("partial_checks", {})
-		for name, version in packages.items():
-			assert result.get("message") == "All packages are up to date."
-			assert result.get("status") == CheckStatus.OK
-			assert partial_check.get(name, {}).get("status") is not None
-			assert partial_check.get(name, {}).get("status") == CheckStatus.OK
-			assert partial_check[name]["message"] == f"Package {name} is up to date. Installed version: {version}"
+
+		assert result.message == "All packages are up to date."
+		assert result.check_status == CheckStatus.OK
+		for partial_result in result.partial_results:
+			assert partial_result.check_status == CheckStatus.OK
+			assert partial_result.message == (
+				f"Package {partial_result.details['package']} is up to date. "
+				f"Installed version: {partial_result.details['version']}"
+			)
 
 
 def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-outer-name
-	console = Console(log_time=False, width=1000)
-	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
+	console = Console(log_time=False, width=1000, highlight=False)
+	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
+	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"] + [
+		f"{name}.x86_64     {version}    @home_uibmz_opsi_4.2_stable "
+		for name, version in installed_versions.items()
+	]
 
-	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"]
-	test_package_versions = {}
-
-	for name, version in packages.items():
-		yum_lines.append(f"{name}.x86_64     {version}    @home_uibmz_opsi_4.2_stable ")
-		test_package_versions[name] = {"version": version, "status": None}
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = "\n".join(yum_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=yum_lines)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True)),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, {"check_result": result, "console": console})
+		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
 
-		for name, version in packages.items():
+		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
-		partial_check = result.get("partial_checks", {})
-		for name, version in packages.items():
-			assert result.get("message") == "All packages are up to date."
-			assert result.get("status") == CheckStatus.OK
-			assert partial_check.get(name, {}).get("status") is not None
-			assert partial_check.get(name, {}).get("status") == CheckStatus.OK
-			assert partial_check[name]["message"] == f"Package {name} is up to date. Installed version: {version}"
+
+		assert result.message == "All packages are up to date."
+		assert result.check_status == CheckStatus.OK
+
+		for partial_result in result.partial_results:
+			assert partial_result.check_status == CheckStatus.OK
+			assert partial_result.message == (
+				f"Package {partial_result.details['package']} is up to date. "
+				f"Installed version: {partial_result.details['version']}"
+			)
 
 
 def test_health_check() -> None:
 	sync_clean_redis()
-	result = health_check()
-	assert result.get("system_packages") is not None
-	assert result.get("redis") is not None
-	assert result["redis"]["status"] == CheckStatus.OK
-	assert result.get("mysql") is not None
-	assert result["mysql"]["status"] == CheckStatus.OK
-	assert result.get("opsi_packages") is not None
-	assert result.get("licenses") is not None
-	assert result["licenses"]["status"] == CheckStatus.OK
-	assert result.get("deprecated_calls") is not None
-	assert result["deprecated_calls"]["status"] == CheckStatus.OK
+	results = health_check()
+	assert len(results) == 6
+	for result in results:
+		print(result)
+		if result.check_id not in ("system_packages", "opsi_packages"):
+			assert result.check_status == CheckStatus.OK
 
 
 def test_check_deprecated_calls(
@@ -275,29 +270,35 @@ def test_check_deprecated_calls(
 	sync_clean_redis()
 	console = Console(log_time=False, width=1000)
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_deprecated_calls_result, {"check_result": result, "console": console})
+	captured_output = captured_function_output(print_check_deprecated_calls_result, check_result=result, console=console)
 	assert "No deprecated method calls found." in captured_output
-	assert result.get("status") is not None
-	assert result["status"] == CheckStatus.OK
+	assert result.check_status == CheckStatus.OK
 
 	rpc = {"id": 1, "method": DEPRECATED_METHOD, "params": []}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	current_dt = datetime.utcnow().astimezone(timezone.utc)
+	with catch_warnings():
+		simplefilter("ignore")
+		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_deprecated_calls_result, {"check_result": result, "console": console})
+	captured_output = captured_function_output(print_check_deprecated_calls_result, check_result=result, console=console)
 
-	assert result["status"] == CheckStatus.WARNING
-	assert result["details"] is not None
-	assert result["details"][DEPRECATED_METHOD] is not None
-	assert result["details"][DEPRECATED_METHOD]["calls"] == "1"
-	assert isinstance(result["details"][DEPRECATED_METHOD]["clients"], set)
-	assert result["details"][DEPRECATED_METHOD]["clients"] == {"testclient"}
+	assert result.check_status == CheckStatus.WARNING
+	assert len(result.partial_results) == 1
+	partial_result = result.partial_results[0]
+	print(partial_result.details)
+	assert partial_result.details["method"] == DEPRECATED_METHOD
+	assert partial_result.details["calls"] == "1"
+	assert partial_result.details["last_call"]
+	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"].replace("Z", "")).astimezone(timezone.utc)
+	assert (last_call_dt - current_dt).total_seconds() < 3
+	assert isinstance(partial_result.details["clients"], set)
+	assert partial_result.details["clients"] == {"testclient"}
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 
 	result = check_opsi_licenses()
-	assert result.get("status") is not None
-	assert result["status"] == "ok"
-	assert result["partial_checks"] is not None
+	assert result.check_status == "ok"
+	assert result.partial_results is not None

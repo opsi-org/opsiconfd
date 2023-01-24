@@ -31,9 +31,7 @@ from opsiconfd.check import (
 	check_system_packages,
 	get_repo_versions,
 	health_check,
-	print_check_deprecated_calls_result,
 	print_check_result,
-	print_check_system_packages_result,
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -139,7 +137,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in installed_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -181,7 +179,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 				f"available version: {repo_versions[partial_result.details['package']]}"
 			)
 
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in installed_versions.items():
 			assert f"Package {name} is out of date. Installed version: {version}" in captured_output
@@ -206,7 +204,7 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -235,7 +233,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True)),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -267,7 +265,7 @@ def test_check_deprecated_calls(
 	sync_clean_redis()
 	console = Console(log_time=False, width=1000)
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_deprecated_calls_result, check_result=result, console=console)
+	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 	assert "No deprecated method calls found." in captured_output
 	assert result.check_status == CheckStatus.OK
 
@@ -279,7 +277,7 @@ def test_check_deprecated_calls(
 	assert res.status_code == 200
 
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_deprecated_calls_result, check_result=result, console=console)
+	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 	assert result.check_status == CheckStatus.WARNING
 	assert len(result.partial_results) == 1

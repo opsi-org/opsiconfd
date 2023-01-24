@@ -88,6 +88,8 @@ class CheckStatus(StrEnum):
 @dataclass(slots=True, kw_only=True)
 class PartialCheckResult:
 	check_id: str
+	check_name: str = ""
+	check_description: str = ""
 	check_status: CheckStatus = CheckStatus.OK
 	message: str = ""
 	details: dict[str, Any] = field(default_factory=dict)
@@ -95,8 +97,6 @@ class PartialCheckResult:
 
 @dataclass(slots=True, kw_only=True)
 class CheckResult(PartialCheckResult):
-	check_name: str = ""
-	check_description: str = ""
 	partial_results: list[PartialCheckResult] = field(default_factory=list)
 
 	def add_partial_result(self, partial_result: PartialCheckResult) -> None:
@@ -231,7 +231,9 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 			"version": installed_versions.get(package),
 			"outdated": False,
 		}
-		partial_result = PartialCheckResult(check_id=f"system_packages:{package}", details=details)
+		partial_result = PartialCheckResult(
+			check_id=f"system_packages:{package}", check_name=f"System package {package!r}", details=details
+		)
 		if not details["version"]:
 			partial_result.check_status = CheckStatus.ERROR
 			partial_result.message = f"Package '{package}' is not installed."
@@ -313,8 +315,9 @@ def check_deprecated_calls() -> CheckResult:
 			result.add_partial_result(
 				PartialCheckResult(
 					check_id=f"deprecated_calls:{method_name}",
+					check_name=f"Deprecated method {method_name!r}",
 					check_status=CheckStatus.WARNING,
-					message=f"Deprecated method '{method_name}' was called {calls} times.",
+					message=f"Deprecated method {method_name!r} was called {calls} times.",
 					details={"method": method_name, "calls": calls, "last_call": last_call, "clients": list(clients)},
 				)
 			)
@@ -347,7 +350,9 @@ def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too
 	for depot_id in depots:
 		for product_id, available_version in available_packages.items():
 			partial_result = PartialCheckResult(
-				check_id=f"opsi_packages:{depot_id}:{product_id}", details={"depot_id": depot_id, "product_id": product_id}
+				check_id=f"opsi_packages:{depot_id}:{product_id}",
+				check_name=f"OPSI package {product_id!r} on {depot_id!r}",
+				details={"depot_id": depot_id, "product_id": product_id},
 			)
 			try:  # pylint: disable=loop-try-except-usage
 				product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[0]  # pylint: disable=no-member
@@ -391,6 +396,7 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 
 		partial_result = PartialCheckResult(
 			check_id=f"opsi_licenses:{module_id}",
+			check_name=f"OPSI license for module {module_id!r}",
 			details={"module_id": module_id, "state": module_data["state"], "client_number": module_data["client_number"]},
 		)
 		if module_data["state"] == "close_to_limit":

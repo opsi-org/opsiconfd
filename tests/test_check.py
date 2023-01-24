@@ -29,6 +29,7 @@ from opsiconfd.check import (
 	PartialCheckResult,
 	check_depotservers,
 	check_deprecated_calls,
+	check_disk_usage,
 	check_mysql,
 	check_opsi_licenses,
 	check_opsiconfd_config,
@@ -67,6 +68,11 @@ def test_upgrade_issue() -> None:
 	result.add_partial_result(partial_result)
 	assert result.check_status == CheckStatus.WARNING
 	assert result.upgrade_issue == "5.0"
+
+
+def test_check_disk_usage() -> None:
+	result = check_disk_usage()
+	assert result.check_status
 
 
 def test_check_opsiconfd_config() -> None:
@@ -310,7 +316,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 
 def test_health_check() -> None:
 	sync_clean_redis()
-	results = health_check()
+	results = list(health_check())
 	assert len(results) == 8
 	for result in results:
 		# print(result.check_id, result.check_status)

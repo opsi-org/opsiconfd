@@ -165,7 +165,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def service_checkHealth(self: BackendProtocol) -> list[CheckResult]:  # pylint: disable=invalid-name
 		self._check_role("admin")
-		return health_check()
+		return list(health_check())
 
 	@rpc_method
 	def service_createBackup(  # pylint: disable=invalid-name

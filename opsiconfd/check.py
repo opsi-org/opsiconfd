@@ -15,8 +15,9 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from re import findall
 from subprocess import run
-from typing import Any
+from typing import Any, Iterator
 
+import psutil
 import requests
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.logging.constants import (
@@ -82,37 +83,28 @@ class CheckResult(PartialCheckResult):
 STYLES = {CheckStatus.OK: "[bold green]", CheckStatus.WARNING: "[bold yellow]", CheckStatus.ERROR: "[bold red]"}
 
 
-def health_check() -> list[CheckResult]:
-	return [
-		check_opsiconfd_config(),
-		check_depotservers(),
-		check_system_packages(),
-		check_opsi_packages(),
-		check_redis(),
-		check_mysql(),
-		check_opsi_licenses(),
-		check_deprecated_calls(),
-	]
+def health_check() -> Iterator[CheckResult]:
+	for check in (
+		check_opsiconfd_config,
+		check_disk_usage,
+		check_depotservers,
+		check_system_packages,
+		check_opsi_packages,
+		check_redis,
+		check_mysql,
+		check_opsi_licenses,
+		check_deprecated_calls,
+	):
+		yield check()
 
 
 def console_health_check() -> int:
 	console = Console(log_time=False)
-	checks = (
-		(check_opsiconfd_config, print_check_result),
-		(check_depotservers, print_check_result),
-		(check_system_packages, print_check_result),
-		(check_opsi_packages, print_check_result),
-		(check_redis, print_check_result),
-		(check_mysql, print_check_result),
-		(check_opsi_licenses, print_check_result),
-		(check_deprecated_calls, print_check_result),
-	)
 	res = 0
 	console.print("Checking server health...")
 	style = STYLES
 	with console.status("Checking...", spinner="arrow3"):
-		for check_function, print_function in checks:
-			result = check_function()  # type: ignore
+		for result in health_check():
 			if result.check_status == CheckStatus.OK:
 				console.print(f"{style[result.check_status]} {result.check_name}: {CheckStatus.OK.upper()} ")
 			elif result.check_status == CheckStatus.WARNING:
@@ -122,7 +114,7 @@ def console_health_check() -> int:
 				console.print(f"{style[result.check_status]} {result.check_name}: {CheckStatus.ERROR.upper()} ")
 				res = 1
 			if config.detailed:
-				print_function(result, console)  # type: ignore
+				print_check_result(result, console)
 	console.print("Done")
 	return res
 
@@ -153,11 +145,57 @@ def get_repo_versions() -> dict[str, str | None]:
 	return repo_versions
 
 
+def check_disk_usage() -> CheckResult:
+	result = CheckResult(
+		check_id="disk_usage",
+		check_name="Disk usage",
+		check_description="Check disk usage",
+		message="Sufficient free space on all file systems.",
+	)
+	partitions = psutil.disk_partitions()
+	check_mountpoints = set()
+	var_added = False
+	for mountpoint in sorted([p.mountpoint for p in partitions if p.fstype], reverse=True):
+		if mountpoint in ("/", "/tmp") or mountpoint.startswith("/var/lib/opsi/"):
+			check_mountpoints.add(mountpoint)
+		elif mountpoint in ("/var", "/var/lib", "/var/lib/opsi") and not var_added:
+			check_mountpoints.add(mountpoint)
+			var_added = True
+
+	count = 0
+	for mountpoint in check_mountpoints:  # pylint: disable=dotted-import-in-loop
+		usage = psutil.disk_usage(mountpoint)  # pylint: disable=dotted-import-in-loop
+		percent_free = usage.free * 100 / usage.total
+		free_gb = usage.free / 1_000_000_000
+		check_status = CheckStatus.OK
+		if free_gb < 7.5:
+			count += 1
+			check_status = CheckStatus.ERROR
+		elif free_gb < 15:
+			count += 1
+			check_status = CheckStatus.WARNING
+		partial_result = PartialCheckResult(
+			check_id=f"disk_usage:{mountpoint}",
+			check_name=f"Disk usage on filesystem {mountpoint!r}",
+			check_status=check_status,
+			message=(
+				f"{'Sufficient' if check_status == CheckStatus.OK else 'Insufficient'}"
+				f" free space of {free_gb:0.2f} GB ({percent_free:0.2f} %) on {mountpoint!r}"  # pylint: disable=loop-invariant-statement
+			),
+			details={"mountpoint": mountpoint, "total": usage.total, "used": usage.used, "free": usage.free},
+		)
+		result.add_partial_result(partial_result)
+
+	if result.check_status != CheckStatus.OK:
+		result.message = f"Insufficient free space on {count} file system{'s' if count > 1 else ''}."
+	return result
+
+
 def check_depotservers() -> CheckResult:
 	result = CheckResult(
 		check_id="depotservers",
 		check_name="Depotserver check",
-		check_description="Checks configuration and state of depotservers",
+		check_description="Check configuration and state of depotservers",
 		message="No problems found with the depot servers.",
 	)
 	backend = get_unprotected_backend()

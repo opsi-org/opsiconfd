@@ -315,8 +315,8 @@ def test_check_deprecated_calls(
 	assert partial_result.details["last_call"]
 	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"])
 	assert (last_call_dt - current_dt).total_seconds() < 3
-	assert isinstance(partial_result.details["clients"], set)
-	assert partial_result.details["clients"] == {"testclient"}
+	assert isinstance(partial_result.details["clients"], list)
+	assert partial_result.details["clients"] == ["testclient"]
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument

@@ -11,7 +11,7 @@ opsiconfd backend interface
 import socket
 from functools import lru_cache
 from ipaddress import ip_address
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import urlparse
 
 from OPSI.Backend.Base.Backend import describeInterface  # type: ignore[import]
@@ -19,14 +19,14 @@ from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[i
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.backend import get_client_backend
-from opsiconfd.check import health_check
+from opsiconfd.check import CheckResult, health_check
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import Singleton
 
 
 @lru_cache()
-def get_backend_interface() -> List[Dict[str, Any]]:
+def get_backend_interface() -> list[dict[str, Any]]:
 	backend_interface = get_client_backend().backend_getInterface()
 	backend_methods = [method["name"] for method in backend_interface]
 	for opsiconfd_method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
@@ -53,11 +53,11 @@ class OpsiconfdBackend(metaclass=Singleton):
 
 		raise ValueError(f"Invalid role {required_role!r}")
 
-	def get_interface(self) -> List[Dict[str, Any]]:
+	def get_interface(self) -> list[dict[str, Any]]:
 		return self._interface
 
 	# Overwrite method from python-opsi to get confd methods
-	def backend_getInterface(self) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
+	def backend_getInterface(self) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
 		return get_backend_interface()
 
 	def backend_exit(self) -> None:
@@ -65,7 +65,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 		if session:
 			session.sync_delete()
 
-	def service_healthCheck(self) -> dict:  # pylint: disable=invalid-name
+	def service_healthCheck(self) -> list[CheckResult]:  # pylint: disable=invalid-name
 		self._check_role("admin")
 		return health_check()
 

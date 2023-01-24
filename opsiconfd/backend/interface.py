@@ -32,7 +32,7 @@ def get_backend_interface() -> list[dict[str, Any]]:
 	for opsiconfd_method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
 		if opsiconfd_method["name"] not in backend_methods:  # pylint: disable=loop-global-usage
 			backend_interface.append(opsiconfd_method)  # pylint: disable=loop-global-usage
-	return backend_interface
+	return sorted(backend_interface, key=lambda m: m["name"])
 
 
 class OpsiconfdBackend(metaclass=Singleton):

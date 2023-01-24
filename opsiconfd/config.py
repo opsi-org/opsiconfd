@@ -57,6 +57,9 @@ VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
 REDIS_PREFIX_MESSAGEBUS = "opsiconfd:messagebus"
 REDIS_PREFIX_SESSION = "opsiconfd:session"
+WORKBENCH_DIR = "/var/lib/opsi/workbench"
+DEPOT_DIR = "/var/lib/opsi/depot"
+REPOSITORY_DIR = "/var/lib/opsi/repository"
 
 
 def configure_warnings() -> None:
@@ -239,6 +242,11 @@ class Config(metaclass=Singleton):
 				self._config.skip_setup.append("server_cert")
 		if not self._config.admin_interface_disabled_features:
 			self._config.admin_interface_disabled_features = []
+
+	def redis_key(self, prefix_type: str | None = None) -> str:
+		if not prefix_type:
+			return "opsiconfd"
+		return f"opsiconfd:{prefix_type}"
 
 	def reload(self) -> None:
 		self._parse_args()

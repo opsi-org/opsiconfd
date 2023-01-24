@@ -58,7 +58,7 @@ from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.application import AppState
 from opsiconfd.application.filetransfer import delete_file, prepare_file
 from opsiconfd.backup import create_backup, restore_backup
-from opsiconfd.check import health_check
+from opsiconfd.check import CheckResult, health_check
 from opsiconfd.config import (
 	FILE_TRANSFER_STORAGE_DIR,
 	FQDN,
@@ -163,7 +163,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return list(session.user_groups)
 
 	@rpc_method
-	def service_checkHealth(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
+	def service_checkHealth(self: BackendProtocol) -> list[CheckResult]:  # pylint: disable=invalid-name
 		self._check_role("admin")
 		return health_check()
 

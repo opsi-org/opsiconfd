@@ -10,7 +10,6 @@ Tests for the opsiconfd monitoring module
 """
 
 import json
-import socket
 import time
 from datetime import datetime, timedelta
 from typing import Any, Generator

@@ -24,7 +24,9 @@ from rich.console import Console
 
 from opsiconfd.check import (
 	PACKAGES,
+	CheckResult,
 	CheckStatus,
+	PartialCheckResult,
 	check_depotservers,
 	check_deprecated_calls,
 	check_mysql,
@@ -57,6 +59,16 @@ def captured_function_output(func: Callable, **kwargs: Any) -> str:
 	return captured_output.getvalue()
 
 
+def test_upgrade_issue() -> None:
+	result = CheckResult(check_id="test_upgrade_issue")
+	partial_result = PartialCheckResult(check_id="test_upgrade_issue:5.0", check_status=CheckStatus.WARNING, upgrade_issue="5.0")
+	result.add_partial_result(partial_result)
+	partial_result = PartialCheckResult(check_id="test_upgrade_issue:5.1", check_status=CheckStatus.WARNING, upgrade_issue="5.1")
+	result.add_partial_result(partial_result)
+	assert result.check_status == CheckStatus.WARNING
+	assert result.upgrade_issue == "5.0"
+
+
 def test_check_opsiconfd_config() -> None:
 	with get_config({"log_level_stderr": 9, "debug_options": ["rpc-log", "asyncio"]}):
 		result = check_opsiconfd_config()
@@ -79,7 +91,7 @@ def test_check_opsiconfd_config() -> None:
 		assert ids_found == 2
 
 
-def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:
+def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	rpc = {
 		"id": 1,
 		"method": "host_createOpsiDepotserver",
@@ -301,7 +313,7 @@ def test_health_check() -> None:
 	results = health_check()
 	assert len(results) == 8
 	for result in results:
-		#print(result.check_id, result.check_status)
+		# print(result.check_id, result.check_status)
 		if result.check_id not in ("system_packages", "opsi_packages", "depotservers"):
 			assert result.check_status == CheckStatus.OK
 
@@ -328,11 +340,11 @@ def test_check_deprecated_calls(
 	result = check_deprecated_calls()
 	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
-	#print(result)
+	# print(result)
 	assert result.check_status == CheckStatus.WARNING
 	assert len(result.partial_results) == 1
 	partial_result = result.partial_results[0]
-	#print(partial_result)
+	# print(partial_result)
 	assert partial_result.details["method"] == DEPRECATED_METHOD
 	assert partial_result.details["calls"] == "1"
 	assert partial_result.details["last_call"]

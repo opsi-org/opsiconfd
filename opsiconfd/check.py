@@ -61,6 +61,7 @@ class PartialCheckResult:
 	check_status: CheckStatus = CheckStatus.OK
 	message: str = ""
 	details: dict[str, Any] = field(default_factory=dict)
+	upgrade_issue: str = ""
 
 
 @dataclass(slots=True, kw_only=True)
@@ -73,6 +74,9 @@ class CheckResult(PartialCheckResult):
 			self.check_status = CheckStatus.ERROR
 		if partial_result.check_status == CheckStatus.WARNING and self.check_status != CheckStatus.ERROR:
 			self.check_status = CheckStatus.WARNING
+		if partial_result.upgrade_issue:
+			if not self.upgrade_issue or parse_version(partial_result.upgrade_issue) < parse_version(self.upgrade_issue):
+				self.upgrade_issue = partial_result.upgrade_issue
 
 
 STYLES = {CheckStatus.OK: "[bold green]", CheckStatus.WARNING: "[bold yellow]", CheckStatus.ERROR: "[bold red]"}

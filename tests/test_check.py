@@ -11,6 +11,7 @@ check tests
 
 import io
 import sys
+import time
 from datetime import datetime, timezone
 from typing import Any, Callable
 from unittest import mock
@@ -24,6 +25,7 @@ from rich.console import Console
 from opsiconfd.check import (
 	PACKAGES,
 	CheckStatus,
+	check_depotservers,
 	check_deprecated_calls,
 	check_mysql,
 	check_opsi_licenses,
@@ -32,9 +34,7 @@ from opsiconfd.check import (
 	check_system_packages,
 	get_repo_versions,
 	health_check,
-	print_check_deprecated_calls_result,
 	print_check_result,
-	print_check_system_packages_result,
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -77,6 +77,26 @@ def test_check_opsiconfd_config() -> None:
 				assert partial_result.details == {'config': 'debug-options', 'value':  ['rpc-log', 'asyncio']}  # pylint: disable=loop-invariant-statement
 				ids_found += 1
 		assert ids_found == 2
+
+
+def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:
+	rpc = {
+		"id": 1,
+		"method": "host_createOpsiDepotserver",
+		"params": [
+			"depot1-check.opsi.org",
+			None,
+			"file:///some/path/to/depot",
+			"smb://172.17.0.101/opsi_depot",
+			None,
+			"file:///some/path/to/repository",
+			"webdavs://172.17.0.101:4447/repository",
+		],
+	}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = check_depotservers()
+	assert result.check_status == CheckStatus.ERROR
 
 
 def test_check_redis() -> None:
@@ -162,7 +182,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 	):
 
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in installed_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -202,7 +222,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 				f"available version: {repo_versions[partial_result.details['package']]}"
 			)
 
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in installed_versions.items():
 			assert f"Package {name} is out of date. Installed version: {version}" in captured_output
@@ -228,7 +248,7 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"opensuse"})),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -260,7 +280,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"rhel"})),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_system_packages_result, check_result=result, console=console)
+		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -279,10 +299,10 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = health_check()
-	assert len(results) == 6
+	assert len(results) == 8
 	for result in results:
-		print(result)
-		if result.check_id not in ("system_packages", "opsi_packages"):
+		#print(result.check_id, result.check_status)
+		if result.check_id not in ("system_packages", "opsi_packages", "depotservers"):
 			assert result.check_status == CheckStatus.OK
 
 
@@ -292,7 +312,7 @@ def test_check_deprecated_calls(
 	sync_clean_redis()
 	console = Console(log_time=False, width=1000)
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_deprecated_calls_result, check_result=result, console=console)
+	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 	assert "No deprecated method calls found." in captured_output
 	assert result.check_status == CheckStatus.OK
 
@@ -301,26 +321,28 @@ def test_check_deprecated_calls(
 	with catch_warnings():
 		simplefilter("ignore")
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+
 	assert res.status_code == 200
+	time.sleep(3)
 
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_deprecated_calls_result, check_result=result, console=console)
+	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
+	#print(result)
 	assert result.check_status == CheckStatus.WARNING
 	assert len(result.partial_results) == 1
 	partial_result = result.partial_results[0]
-	print(partial_result.details)
+	#print(partial_result)
 	assert partial_result.details["method"] == DEPRECATED_METHOD
 	assert partial_result.details["calls"] == "1"
 	assert partial_result.details["last_call"]
 	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"])
 	assert (last_call_dt - current_dt).total_seconds() < 3
-	assert isinstance(partial_result.details["clients"], list)
-	assert partial_result.details["clients"] == ["testclient"]
+	assert isinstance(partial_result.details["applications"], list)
+	assert partial_result.details["applications"] == ["testclient"]
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-
 	result = check_opsi_licenses()
 	assert result.check_status == "ok"
 	assert result.partial_results is not None

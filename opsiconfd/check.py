@@ -11,7 +11,6 @@ health check
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import StrEnum
 from re import findall
@@ -37,7 +36,7 @@ from rich.padding import Padding
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd.backend import get_mysql, get_unprotected_backend
-from opsiconfd.config import config
+from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
 
@@ -82,6 +81,7 @@ STYLES = {CheckStatus.OK: "[bold green]", CheckStatus.WARNING: "[bold yellow]", 
 def health_check() -> list[CheckResult]:
 	return [
 		check_opsiconfd_config(),
+		check_depotservers(),
 		check_system_packages(),
 		check_opsi_packages(),
 		check_redis(),
@@ -94,13 +94,14 @@ def health_check() -> list[CheckResult]:
 def console_health_check() -> int:
 	console = Console(log_time=False)
 	checks = (
-		(check_opsiconfd_config, print_check_opsiconfd_config),
-		(check_system_packages, print_check_system_packages_result),
-		(check_opsi_packages, print_check_opsi_packages_result),
+		(check_opsiconfd_config, print_check_result),
+		(check_depotservers, print_check_result),
+		(check_system_packages, print_check_result),
+		(check_opsi_packages, print_check_result),
 		(check_redis, print_check_result),
 		(check_mysql, print_check_result),
-		(check_opsi_licenses, print_check_opsi_licenses_results),
-		(check_deprecated_calls, print_check_deprecated_calls_result),
+		(check_opsi_licenses, print_check_result),
+		(check_deprecated_calls, print_check_result),
 	)
 	res = 0
 	console.print("Checking server health...")
@@ -146,6 +147,63 @@ def get_repo_versions() -> dict[str, str | None]:
 			repo_versions[package] = version
 			logger.debug("Available version for %s: %s", package, version)
 	return repo_versions
+
+
+def check_depotservers() -> CheckResult:
+	result = CheckResult(
+		check_id="depotservers",
+		check_name="Depotserver check",
+		check_description="Checks configuration and state of depotservers",
+		message="No problems found with the depot servers.",
+	)
+	backend = get_unprotected_backend()
+	issues = 0
+	for depot in backend.host_getObjects(type="OpsiDepotserver"):
+		path = (depot.depotLocalUrl or "").removeprefix("file://").rstrip("/")
+		partial_result = PartialCheckResult(
+			check_id=f"depotservers:{depot.id}:depot_path",
+			check_name=f"Depotserver depot_path on {depot.id!r}",
+			message="The configured depot path corresponds to the default.",
+			details={"path": path},
+		)
+		if path != DEPOT_DIR:
+			issues += 1
+			partial_result.check_status = CheckStatus.ERROR
+			partial_result.message = (
+				f"The local depot path is no longer configurable and is set to {DEPOT_DIR}."  # pylint: disable=loop-invariant-statement
+			)
+		result.add_partial_result(partial_result)
+
+		path = (depot.repositoryLocalUrl or "").removeprefix("file://").rstrip("/")
+		partial_result = PartialCheckResult(
+			check_id=f"depotservers:{depot.id}:repository_path",
+			check_name=f"Depotserver repository_path on {depot.id!r}",
+			message="The configured repository path corresponds to the default.",
+			details={"path": path},
+		)
+		if path != REPOSITORY_DIR:
+			issues += 1
+			partial_result.check_status = CheckStatus.ERROR
+			partial_result.message = f"The local repository path is no longer configurable and is set to {REPOSITORY_DIR}."  # pylint: disable=loop-invariant-statement
+		result.add_partial_result(partial_result)
+
+		path = (depot.workbenchLocalUrl or "").removeprefix("file://").rstrip("/")
+		partial_result = PartialCheckResult(
+			check_id=f"depotservers:{depot.id}:workbench_path",
+			check_name=f"Depotserver workbench_path on {depot.id!r}",
+			message="The configured workbench path corresponds to the default.",
+			details={"path": path},
+		)
+		if path != WORKBENCH_DIR:
+			issues += 1
+			partial_result.check_status = CheckStatus.ERROR
+			partial_result.message = f"The path to the workbench directory is no longer configurable and is set to {WORKBENCH_DIR}."  # pylint: disable=loop-invariant-statement
+		result.add_partial_result(partial_result)
+
+	if issues > 0:
+		result.message = f"{issues} issues found with the depot servers."
+
+	return result
 
 
 def check_opsiconfd_config() -> CheckResult:
@@ -358,15 +416,21 @@ def check_deprecated_calls() -> CheckResult:
 			deprecated_methods += 1
 			method_name = method_name.decode("utf-8")
 			calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count"))
-			clients = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients"))
+			applications = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients"))
 			last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call"))
+			message = (
+				f"Deprecated method {method_name!r} was called {calls} times.\n"
+				f"Last call was {last_call}\n"
+				"The method was called from the following applications:\n"
+			)
+			message += "\n".join([f"- {app}" for app in applications])  # pylint: disable=loop-invariant-statement
 			result.add_partial_result(
 				PartialCheckResult(
 					check_id=f"deprecated_calls:{method_name}",
 					check_name=f"Deprecated method {method_name!r}",
 					check_status=CheckStatus.WARNING,
-					message=f"Deprecated method {method_name!r} was called {calls} times.",
-					details={"method": method_name, "calls": calls, "last_call": last_call, "clients": list(clients)},
+					message=message,
+					details={"method": method_name, "calls": calls, "last_call": last_call, "applications": list(applications)},
 				)
 			)
 	if deprecated_methods:
@@ -434,10 +498,15 @@ def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too
 
 
 def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
-	result = CheckResult(check_id="opsi_licenses", check_name="OPSI licenses", check_description="Check opsi licensing state")
 	backend = get_unprotected_backend()
 	licensing_info = backend.backend_getLicensingInfo()  # pylint: disable=no-member
-	result.details = {"client_numbers": licensing_info["client_numbers"]}
+	result = CheckResult(
+		check_id="opsi_licenses",
+		check_name="OPSI licenses",
+		check_description="Check opsi licensing state",
+		message=f"{licensing_info['client_numbers']['all']} active clients",
+		details={"client_numbers": licensing_info["client_numbers"]},
+	)
 	for module_id, module_data in licensing_info.get("modules", {}).items():  # pylint: disable=use-dict-comprehension
 		if module_data["state"] == "free":
 			continue
@@ -449,14 +518,19 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 		)
 		if module_data["state"] == "close_to_limit":
 			partial_result.check_status = CheckStatus.WARNING
-			partial_result.message = f"License for module '{module_id}' is close to the limit."
+			partial_result.message = f"License for module '{module_id}' is close to the limit of {module_data['client_number']}."
 		elif module_data["state"] == "over_limit":
 			partial_result.check_status = CheckStatus.ERROR
-			partial_result.message = f"License for module '{module_id}' is over the limit."
+			partial_result.message = f"License for module '{module_id}' is over the limit of {module_data['client_number']}."
 		else:
 			partial_result.check_status = CheckStatus.OK
-			partial_result.message = f"License for module '{module_id}' is valid."
+			partial_result.message = f"License for module '{module_id}' is below the limit of {module_data['client_number']}."
 		result.add_partial_result(partial_result)
+
+	if result.check_status == CheckStatus.OK:
+		result.message += ", no licensing issues."
+	else:
+		result.message += ", licensing issues detected."
 	return result
 
 
@@ -467,62 +541,13 @@ def split_name_and_version(filename: str) -> tuple:
 	return (match.group("name"), match.group("version"))
 
 
-# check result print functions
-
-
 def console_print(msg: str, console: Console, style: str = "", indent_level: int = 0) -> None:
 	indent_size = 5
 	console.print(Padding(f"{style}{msg}", (0, indent_size * indent_level)))  # pylint: disable=loop-global-usage
 
 
 def print_check_result(check_result: CheckResult, console: Console) -> None:
-	console_print(check_result.message, console, STYLES[check_result.check_status], 1)
-
-
-def print_check_opsiconfd_config(check_result: CheckResult, console: Console) -> None:
 	style = STYLES[check_result.check_status]
 	console_print(check_result.message, console, style, 1)
 	for partial_result in check_result.partial_results:
 		console_print(partial_result.message, console, style, 1)
-
-
-def print_check_deprecated_calls_result(check_result: CheckResult, console: Console) -> None:
-	style = STYLES[check_result.check_status]
-
-	console_print(check_result.message, console, style, 1)
-	for partial_result in check_result.partial_results:
-		details = partial_result.details
-		console_print(partial_result.message, console, style, 1)
-		console_print("The method was called from:", console, style, 1)
-		for client in details["clients"]:  # pylint: disable=loop-invariant-statement
-			console_print(f"- {client}", console, style, 2)  # pylint: disable=loop-invariant-statement
-		console_print(f"Last call was {details['last_call']}", console, style, 1)
-
-
-def print_check_opsi_licenses_results(check_result: CheckResult, console: Console) -> None:
-	style = STYLES[check_result.check_status]
-	console_print(f"Active clients: {check_result.details['client_numbers']['all']}", console, indent_level=1)
-	for partial_result in check_result.partial_results:
-		console_print(f"{partial_result.details['module_id']}:", console, indent_level=1)
-		console_print(f"- {partial_result.message}", console, style, 2)  # pylint: disable=loop-invariant-statement
-		console_print(f"- Client limit: {partial_result.details['client_number']}", console, style, 2)
-
-
-def print_check_opsi_packages_result(check_result: CheckResult, console: Console) -> None:
-	style = STYLES[check_result.check_status]
-	console_print(check_result.message, console, style, 1)
-
-	partial_result_depot_id: dict[str, list[PartialCheckResult]] = defaultdict(list)
-	for partial_result in check_result.partial_results:  # pylint: disable=use-list-copy
-		partial_result_depot_id[partial_result.details["depot_id"]].append(partial_result)
-
-	for depot_id, partial_results in partial_result_depot_id.items():
-		console_print(f"{depot_id}:", console, indent_level=1)
-		for partial_result in partial_results:
-			console_print(f"{partial_result.message}", console, style, 2)  # pylint: disable=loop-invariant-statement
-
-
-def print_check_system_packages_result(check_result: CheckResult, console: Console) -> None:
-	styles = STYLES
-	for partial_result in check_result.partial_results:
-		console_print(partial_result.message, console, styles[partial_result.check_status], 1)

@@ -19,7 +19,7 @@ sudo opsi-set-rights
 
 echo "* Install git hooks"
 cd $HOME
-git clone https://oauth2:UqZXUJsgG4dBGLBbTjDM@gitlab.uib.gmbh/uib/opsi-git-hooks.git .opsi-git-hooks
+git clone .opsi-git-hooks
 cd /workspace
 opsi-dev-tool git-hooks --install
 

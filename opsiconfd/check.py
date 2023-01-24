@@ -61,7 +61,7 @@ class PartialCheckResult:
 	check_status: CheckStatus = CheckStatus.OK
 	message: str = ""
 	details: dict[str, Any] = field(default_factory=dict)
-	upgrade_issue: str = ""
+	upgrade_issue: str | None = None
 
 
 @dataclass(slots=True, kw_only=True)

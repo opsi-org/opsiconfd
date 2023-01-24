@@ -258,10 +258,10 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 8
+	assert len(results) == 9
 	for result in results:
 		print(result.check_id, result.check_status)
-		if result.check_id not in ("system_packages", "opsi_packages", "depotservers"):
+		if result.check_id not in ("system_packages", "opsi_packages", "depotservers", "opsiconfd_config"):
 			assert result.check_status == CheckStatus.OK
 
 

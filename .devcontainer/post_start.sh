@@ -23,6 +23,9 @@ git clone https://oauth2:UqZXUJsgG4dBGLBbTjDM@gitlab.uib.gmbh/uib/opsi-git-hooks
 cd /workspace
 opsi-dev-tool git-hooks --install
 
+echo "* Git config"
+git config --global core.editor "code --wait"
+
 echo "* Setup poetry venv"
 cd /workspace
 poetry lock --no-update

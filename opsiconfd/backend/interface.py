@@ -67,7 +67,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 
 	def service_healthCheck(self) -> list[CheckResult]:  # pylint: disable=invalid-name
 		self._check_role("admin")
-		return health_check()
+		return list(health_check())
 
 	def getDomain(self) -> str:  # pylint: disable=invalid-name
 		try:

@@ -257,7 +257,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 
 def test_health_check() -> None:
 	sync_clean_redis()
-	results = health_check()
+	results = list(health_check())
 	assert len(results) == 8
 	for result in results:
 		print(result.check_id, result.check_status)

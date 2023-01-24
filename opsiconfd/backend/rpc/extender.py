@@ -37,7 +37,11 @@ class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
 				for function_name, function in loc.items():
 					if not function_name.startswith("_") and isfunction(function):
 						logger.info("Adding rpc extension method '%s'", function_name)
-						func = rpc_method(function)
-						setattr(self, function_name, MethodType(func, self))
+						if not hasattr(function, "rpc_interface"):
+							# rpc_method decorator not used in extension file
+							function = rpc_method(function)
+						if hasattr(self, function_name):
+							logger.warning("Extender '%s' is overriding method %s", file, function_name)
+						setattr(self, function_name, MethodType(function, self))
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error("Failed to load extension file '%s' %s", file, err, exc_info=True)

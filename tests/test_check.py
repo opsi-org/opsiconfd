@@ -260,7 +260,7 @@ def test_health_check() -> None:
 	results = health_check()
 	assert len(results) == 8
 	for result in results:
-		# print(result.check_id, result.check_status)
+		print(result.check_id, result.check_status)
 		if result.check_id not in ("system_packages", "opsi_packages", "depotservers"):
 			assert result.check_status == CheckStatus.OK
 

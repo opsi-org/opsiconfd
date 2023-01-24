@@ -315,7 +315,7 @@ def check_deprecated_calls() -> CheckResult:
 					check_id=f"deprecated_calls:{method_name}",
 					check_status=CheckStatus.WARNING,
 					message=f"Deprecated method '{method_name}' was called {calls} times.",
-					details={"method": method_name, "calls": calls, "last_call": last_call, "clients": clients},
+					details={"method": method_name, "calls": calls, "last_call": last_call, "clients": list(clients)},
 				)
 			)
 	if deprecated_methods:

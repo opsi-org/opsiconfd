@@ -131,7 +131,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
@@ -162,7 +162,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
@@ -196,9 +196,12 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		for name, version in installed_versions.items()
 	]
 
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = "\n".join(zypper_lines) + "\n"
+
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=zypper_lines)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=True)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
@@ -227,9 +230,12 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		for name, version in installed_versions.items()
 	]
 
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = "\n".join(yum_lines) + "\n"
+
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=yum_lines)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True)),
 	):
 		result = check_system_packages()
@@ -252,10 +258,10 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = health_check()
-	assert len(results) == 6
+	assert len(results) == 8
 	for result in results:
-		print(result)
-		if result.check_id not in ("system_packages", "opsi_packages"):
+		#print(result.check_id, result.check_status)
+		if result.check_id not in ("system_packages", "opsi_packages", "depotservers"):
 			assert result.check_status == CheckStatus.OK
 
 
@@ -288,8 +294,8 @@ def test_check_deprecated_calls(
 	assert partial_result.details["last_call"]
 	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"].replace("Z", "")).astimezone(timezone.utc)
 	assert (last_call_dt - current_dt).total_seconds() < 3
-	assert isinstance(partial_result.details["clients"], list)
-	assert partial_result.details["clients"] == ["testclient"]
+	assert isinstance(partial_result.details["applications"], list)
+	assert partial_result.details["applications"] == ["testclient"]
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument

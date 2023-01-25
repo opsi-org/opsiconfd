@@ -248,10 +248,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.update_config_file()
 
 
-def setup_mysql(interactive: bool = False, full: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
-	if opsi_config.get("host", "server-role") != "configserver":
-		return
-
+def setup_mysql_connection(interactive: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
 	error: Exception | None = None
 
 	mysql = MySQLConnection()
@@ -309,6 +306,13 @@ def setup_mysql(interactive: bool = False, full: bool = False, force: bool = Fal
 
 		auto_try = False
 		mysql_root = MySQLConnection()
+
+
+def setup_mysql(interactive: bool = False, full: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
+	if opsi_config.get("host", "server-role") != "configserver":
+		return
+
+	setup_mysql_connection(interactive=interactive, force=force)
 
 	mysql = MySQLConnection()
 	if interactive:
@@ -674,20 +678,23 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 		config.run_as_user = getpass.getuser()
 
 	backend_available = True
-	if opsi_config.get("host", "server-role") == "configserver" or config.configure_mysql:
-		interactive = config.configure_mysql or (sys.stdout.isatty() and full)
+	configure_mysql = getattr(config, "configure_mysql", False)
+	if opsi_config.get("host", "server-role") == "configserver" or configure_mysql:
+		interactive = configure_mysql or (sys.stdout.isatty() and full)
 		try:
-			setup_mysql(interactive=interactive, full=full, force=config.configure_mysql)
+			setup_mysql(interactive=interactive, full=full, force=configure_mysql)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing
-			log_func = logger.error if interactive else logger.debug
-			log_func("Failed to setup MySQL: %s", err, exc_info=True)
+			log_func = logger.error if interactive else logger.warning
+			log_func(
+				"Failed to setup MySQL: %s\nPlease use `opsiconfd setup --configure-mysql` to configure the MySQL connection manually.", err
+			)
 			backend_available = False
 			if not full:
 				raise
 
-		if config.configure_mysql:
+		if configure_mysql:
 			return
 
 	if "backend" not in config.skip_setup and backend_available:

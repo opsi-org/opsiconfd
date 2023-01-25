@@ -34,7 +34,7 @@ from opsiconfd.backend.mysql.schema import drop_database
 from opsiconfd.config import config as _config
 from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
-from opsiconfd.setup import setup_backend, setup_ssl
+from opsiconfd.setup import setup_backend, setup_mysql, setup_ssl
 from opsiconfd.worker import Worker
 
 from .utils import sync_clean_redis
@@ -83,9 +83,13 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		GRAFANA_AVAILABLE = True
 
 	mysql = MySQLConnection()
-	mysql.connect()
-	drop_database(mysql)
-	setup_backend(full=True)
+	try:
+		mysql.connect()
+		drop_database(mysql)
+	except Exception:  # pylint: disable=broad-except
+		pass
+	setup_mysql(full=True)
+	setup_backend()
 
 	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
 		setup_ssl()

@@ -296,7 +296,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			yield session
 			return
 
-		if not self._Session:
+		if not self._Session or not isinstance(self._Session, scoped_session):
 			raise RuntimeError("Not initialized")
 
 		session = self._Session()

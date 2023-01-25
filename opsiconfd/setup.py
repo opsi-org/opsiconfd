@@ -224,8 +224,7 @@ def setup_systemd() -> None:
 	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"])
 
 
-def setup_mysql_user(root_mysql: MySQLConnection) -> None:
-	mysql = MySQLConnection()
+def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> None:
 	mysql.address = root_mysql.address
 	mysql.database = root_mysql.database
 	mysql.password = get_random_string(16)
@@ -249,26 +248,28 @@ def setup_mysql_user(root_mysql: MySQLConnection) -> None:
 	mysql.update_config_file()
 
 
-def setup_mysql_connection(interactive: bool = False) -> None:
+def setup_mysql(interactive: bool = False, full: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
 	error: Exception | None = None
+
 	mysql = MySQLConnection()
-	try:
-		with mysql.connection():
-			# OK
-			return
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error("Failed to connect to database: %s", err)
-		error = err
+	if not force:
+		try:
+			with mysql.connection():
+				# OK
+				return
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error("Failed to connect to database: %s", err)
+			error = err
 
 	mysql_root = MySQLConnection()
 	auto_try = False
-	if mysql_root.address in ("localhost", "127.0.0.1", "::1"):
+	if not force and mysql_root.address in ("localhost", "127.0.0.1", "::1"):
 		# Try unix socket connection as user root
 		auto_try = True
-		mysql_root.database = "localhost"
+		mysql_root.database = "opsi"
 		mysql_root.username = "root"
 		mysql_root.password = ""
 		logger.info("Trying to connect to local database as %s", mysql_root.username)
@@ -277,24 +278,28 @@ def setup_mysql_connection(interactive: bool = False) -> None:
 		if not auto_try:
 			if not interactive:
 				raise error  # type: ignore[misc]
-			error_str = str(error).split("\n", 1)[0]
-			match = re.search(r"(\(\d+,\s.*)", error_str)  # pylint: disable=dotted-import-in-loop
-			if match:
-				error_str = match.group(1).strip("()")
-			rich_print(f"[b][red]Failed to connect to database[/red]: {error_str}[/b]")
-			if not Confirm.ask("Do you want to configure the database connection?"):
+			if error:
+				error_str = str(error).split("\n", 1)[0]
+				match = re.search(r"(\(\d+,\s.*)", error_str)  # pylint: disable=dotted-import-in-loop
+				if match:
+					error_str = match.group(1).strip("()")
+				rich_print(f"[b][red]Failed to connect to database[/red]: {error_str}[/b]")
+			if not Confirm.ask("Do you want to configure the MySQL database connection?"):
 				raise error  # type: ignore[misc]
-			mysql_root.address = Prompt.ask("Enter address", default=mysql_root.address, show_default=True)
-			mysql_root.database = Prompt.ask("Enter database", default=mysql_root.database, show_default=True)
-			mysql_root.username = Prompt.ask("Enter admin username", default="root", show_default=True)
-			mysql_root.password = Prompt.ask("Enter admin password", password=True)
-			mysql_root.password = ""
+			mysql_root.address = Prompt.ask("Enter MySQL server address", default=mysql_root.address, show_default=True)
+			mysql_root.database = Prompt.ask("Enter MySQL database", default=mysql_root.database, show_default=True)
+			mysql_root.username = Prompt.ask("Enter MySQL admin username", default="root", show_default=True)
+			mysql_root.password = Prompt.ask("Enter MySQL admin password", password=True)
+			if force:
+				mysql.username = Prompt.ask(  # pylint: disable=loop-invariant-statement
+					"Enter MySQL username for opsiconfd", default=mysql.username, show_default=True
+				)
 		try:  # pylint: disable=loop-try-except-usage
 			with mysql_root.connection():
 				if not auto_try:
 					rich_print("[b][green]MySQL admin connection established[/green][/b]")
 					rich_print("[b]Setting up MySQL user[/b]")
-				setup_mysql_user(mysql_root)
+				setup_mysql_user(mysql_root, mysql)
 				if not auto_try:
 					rich_print("[b][green]MySQL user setup successful[/green][/b]")
 				break
@@ -305,6 +310,41 @@ def setup_mysql_connection(interactive: bool = False) -> None:
 		auto_try = False
 		mysql_root = MySQLConnection()
 
+	mysql = MySQLConnection()
+	if interactive:
+		rich_print(f"[b]Creating database {mysql.database!r} on {mysql.address!r}[/b]")
+	try:
+		mysql.connect()
+		create_database(mysql)
+	except Exception as err:
+		if interactive:
+			rich_print(f"[b][red]Failed to create database: {err}[/red][/b]")
+		raise
+	if interactive:
+		rich_print("[b][green]Database created successfully[/green][/b]")
+
+	if interactive:
+		rich_print("[b]Updating database[/b]")
+	try:
+		update_database(mysql, force=full)
+	except Exception as err:
+		if interactive:
+			rich_print(f"[b][red]Failed to update database: {err}[/red][/b]")
+		raise
+	if interactive:
+		rich_print("[b][green]Database updated successfully[/green][/b]")
+
+	if interactive:
+		rich_print(f"[b]Cleaning up database[/b]")
+	try:
+		cleanup_database(mysql)
+	except Exception as err:
+		if interactive:
+			rich_print(f"[b][red]Failed to cleanup database: {err}[/red][/b]")
+		raise
+	if interactive:
+		rich_print("[b][green]Database cleaned up successfully[/green][/b]")
+
 
 def setup_backend(full: bool) -> None:
 	if opsi_config.get("host", "server-role") != "configserver":
@@ -312,10 +352,6 @@ def setup_backend(full: bool) -> None:
 
 	mysql = MySQLConnection()
 	with mysql.connection():
-		create_database(mysql)
-		update_database(mysql, force=full)
-		cleanup_database(mysql)
-
 		if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
 			config_server_id = get_configserver_id()
 			logger.notice("Creating config:server %r", config_server_id)
@@ -628,7 +664,6 @@ def setup_redis() -> None:
 
 def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	logger.notice("Running opsiconfd setup")
-
 	if config.skip_setup:
 		logger.notice("Skipping setup tasks: %s", ", ".join(config.skip_setup))
 
@@ -638,20 +673,22 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
 
-	if "limits" not in config.skip_setup:
-		setup_limits()
-
 	backend_available = True
-	if opsi_config.get("host", "server-role") != "configserver":
+	if opsi_config.get("host", "server-role") == "configserver" or config.configure_mysql:
+		interactive = config.configure_mysql or (sys.stdout.isatty() and full)
 		try:
-			setup_mysql_connection(interactive=sys.stdout.isatty() and full)
+			setup_mysql(interactive=interactive, full=full, force=config.configure_mysql)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing
-			logger.debug("Failed to setup MySQL: %s", err, exc_info=True)
+			log_func = logger.error if interactive else logger.debug
+			log_func("Failed to setup MySQL: %s", err, exc_info=True)
 			backend_available = False
 			if not full:
 				raise
+
+		if config.configure_mysql:
+			return
 
 	if "backend" not in config.skip_setup and backend_available:
 		try:
@@ -661,6 +698,9 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 			# where backend config files are missing
 			logger.warning("Failed to setup backend: %s", err, exc_info=True)
 			backend_available = False
+
+	if "limits" not in config.skip_setup:
+		setup_limits()
 
 	if full:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:

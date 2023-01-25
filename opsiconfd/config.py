@@ -1115,6 +1115,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			)
 			return
 
+		if self._sub_command == "setup":
+			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
+
 		if self._sub_command == "health-check":
 			self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))
 

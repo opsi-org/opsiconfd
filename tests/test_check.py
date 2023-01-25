@@ -155,7 +155,7 @@ def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 		assert "Could not connect to MySQL:" in captured_output
-		assert "(MySQLdb.OperationalError)" in captured_output
+		assert "MySQLdb.OperationalError" in captured_output
 		assert result.check_status == "error"
 		assert result.message == 'Could not connect to MySQL: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
 
@@ -328,7 +328,7 @@ def test_check_deprecated_calls(
 	test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	sync_clean_redis()
-	console = Console(log_time=False, width=1000)
+	console = Console(log_time=False, width=1000, highlight=False)
 	result = check_deprecated_calls()
 	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 	assert "No deprecated method calls found." in captured_output
@@ -344,7 +344,6 @@ def test_check_deprecated_calls(
 	time.sleep(3)
 
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
 
 	# print(result)
 	assert result.check_status == CheckStatus.WARNING
@@ -354,10 +353,14 @@ def test_check_deprecated_calls(
 	assert partial_result.details["method"] == DEPRECATED_METHOD
 	assert partial_result.details["calls"] == "1"
 	assert partial_result.details["last_call"]
+	assert partial_result.details["drop_version"] == "4.4"
 	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"])
 	assert (last_call_dt - current_dt).total_seconds() < 3
 	assert isinstance(partial_result.details["applications"], list)
 	assert partial_result.details["applications"] == ["testclient"]
+
+	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+	assert "The method will be dropped with opsiconfd version 4.4" in captured_output
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument

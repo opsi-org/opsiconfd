@@ -444,6 +444,7 @@ def check_mysql() -> CheckResult:
 
 
 def check_deprecated_calls() -> CheckResult:
+	backend = get_unprotected_backend()
 	result = CheckResult(
 		check_id="deprecated_calls",
 		check_name="Deprecated RPCs",
@@ -457,14 +458,14 @@ def check_deprecated_calls() -> CheckResult:
 		for method_name in methods:
 			deprecated_methods += 1
 			method_name = method_name.decode("utf-8")
+			interface = backend.get_method_interface(method_name)
 			calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count"))
 			applications = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients"))
 			last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call"))
-			message = (
-				f"Deprecated method {method_name!r} was called {calls} times.\n"
-				f"Last call was {last_call}\n"
-				"The method was called from the following applications:\n"
-			)
+			message = f"Deprecated method {method_name!r} was called {calls} times.\n"
+			if interface and interface.drop_version:
+				message += f"The method will be dropped with opsiconfd version {interface.drop_version}.\n"
+			message += f"Last call was {last_call}\nThe method was called from the following applications:\n"
 			message += "\n".join([f"- {app}" for app in applications])  # pylint: disable=loop-invariant-statement
 			result.add_partial_result(
 				PartialCheckResult(
@@ -472,7 +473,13 @@ def check_deprecated_calls() -> CheckResult:
 					check_name=f"Deprecated method {method_name!r}",
 					check_status=CheckStatus.WARNING,
 					message=message,
-					details={"method": method_name, "calls": calls, "last_call": last_call, "applications": list(applications)},
+					details={
+						"method": method_name,
+						"calls": calls,
+						"last_call": last_call,
+						"applications": list(applications),
+						"drop_version": interface.drop_version if interface else None,
+					},
 				)
 			)
 	if deprecated_methods:

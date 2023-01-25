@@ -3086,6 +3086,7 @@ jsonschema = [
     {file = "jsonschema-4.17.3.tar.gz", hash = "sha256:0f864437ab8b6076ba6707453ef8f98a6a0d512a80e93f8abdb676f737ecb60d"},
 ]
 junit-xml = [
+    {file = "junit-xml-1.9.tar.gz", hash = "sha256:de16a051990d4e25a3982b2dd9e89d671067548718866416faec14d9de56db9f"},
     {file = "junit_xml-1.9-py2.py3-none-any.whl", hash = "sha256:ec5ca1a55aefdd76d28fcc0b135251d156c7106fa979686a4b48d62b761b4732"},
 ]
 lazy-object-proxy = [
@@ -3746,12 +3747,12 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python_opsi-4.3.0.3-py3-none-any.whl", hash = "sha256:b300175b564500030823771b3ee875077ddda65e7c80cfd2dc1374abb6380107"},
-    {file = "python_opsi-4.3.0.3.tar.gz", hash = "sha256:2498e063b8efc05d340dd1145ee657952a42ba0a36b63b81909ad8a11b49d666"},
+    {file = "python_opsi-4.3.0.3-py3-none-any.whl", hash = "sha256:61a1d02e30d62ed73e139f18dd1d5fd2a831c19e94d29abdff467190c79c6d23"},
+    {file = "python_opsi-4.3.0.3.tar.gz", hash = "sha256:5d08473401fb04414fb472fa7851bf0ab9a295ed0e5cc9a6890890306e6fbd7a"},
 ]
 python-opsi-common = [
-    {file = "python_opsi_common-4.3.0.2-py3-none-any.whl", hash = "sha256:cbf7919fc94b0348f7382fa323b4b13939611ae72687830b7d4776d4b9580dad"},
-    {file = "python_opsi_common-4.3.0.2.tar.gz", hash = "sha256:7337be4c321df5579e74cc56de5f6dcee144b7d90166ce53ee98458699c6e4ec"},
+    {file = "python_opsi_common-4.3.0.2-py3-none-any.whl", hash = "sha256:1ad6cf5718566112e8a7189d783f1e5a72e661ec8c46c7032eb466cb0eebbf73"},
+    {file = "python_opsi_common-4.3.0.2.tar.gz", hash = "sha256:9c63900f04b378e4882094edae395cb48eb22f3970c852fb0ea19bcdd19e682e"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

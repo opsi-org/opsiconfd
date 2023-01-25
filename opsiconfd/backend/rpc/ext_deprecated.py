@@ -115,7 +115,7 @@ class RPCExtDeprecatedMixin(Protocol):
 
 		return self.getClients()
 
-	@rpc_method(deprecated=True, alternative_method="getClientIDs")
+	@rpc_method(deprecated=True, drop_version="4.4", alternative_method="getClientIDs")
 	def getClientIds_list(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		serverId: str | None = None,

@@ -335,7 +335,7 @@ def setup_mysql(interactive: bool = False, full: bool = False, force: bool = Fal
 		rich_print("[b][green]Database updated successfully[/green][/b]")
 
 	if interactive:
-		rich_print(f"[b]Cleaning up database[/b]")
+		rich_print("[b]Cleaning up database[/b]")
 	try:
 		cleanup_database(mysql)
 	except Exception as err:
@@ -346,7 +346,7 @@ def setup_mysql(interactive: bool = False, full: bool = False, force: bool = Fal
 		rich_print("[b][green]Database cleaned up successfully[/green][/b]")
 
 
-def setup_backend(full: bool) -> None:
+def setup_backend() -> None:
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
@@ -692,7 +692,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 
 	if "backend" not in config.skip_setup and backend_available:
 		try:
-			setup_backend(full)
+			setup_backend()
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing

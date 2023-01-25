@@ -80,7 +80,7 @@ class CheckResult(PartialCheckResult):
 				self.upgrade_issue = partial_result.upgrade_issue
 
 
-STYLES = {CheckStatus.OK: "[bold green]", CheckStatus.WARNING: "[bold yellow]", CheckStatus.ERROR: "[bold red]"}
+STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", CheckStatus.ERROR: "bold red"}
 
 
 def health_check() -> Iterator[CheckResult]:
@@ -101,21 +101,18 @@ def health_check() -> Iterator[CheckResult]:
 def console_health_check() -> int:
 	console = Console(log_time=False)
 	res = 0
-	console.print("Checking server health...")
 	style = STYLES
-	with console.status("Checking...", spinner="arrow3"):
+	with console.status("Health check running", spinner="arrow3"):
 		for result in health_check():
-			if result.check_status == CheckStatus.OK:
-				console.print(f"{style[result.check_status]} {result.check_name}: {CheckStatus.OK.upper()} ")
-			elif result.check_status == CheckStatus.WARNING:
-				console.print(f"{style[result.check_status]} {result.check_name}: {CheckStatus.WARNING.upper()} ")
+			console.print(
+				f"● [b]{result.check_name}[/b]: [{style[result.check_status]}]{result.check_status.upper()}[/{style[result.check_status]}]"
+			)
+			if result.check_status == CheckStatus.WARNING:
 				res = 2
-			else:
-				console.print(f"{style[result.check_status]} {result.check_name}: {CheckStatus.ERROR.upper()} ")
+			elif result.check_status == CheckStatus.ERROR:
 				res = 1
 			if config.detailed:
 				print_check_result(result, console)
-	console.print("Done")
 	return res
 
 
@@ -590,13 +587,18 @@ def split_name_and_version(filename: str) -> tuple:
 	return (match.group("name"), match.group("version"))
 
 
-def console_print(msg: str, console: Console, style: str = "", indent_level: int = 0) -> None:
-	indent_size = 5
-	console.print(Padding(f"{style}{msg}", (0, indent_size * indent_level)))  # pylint: disable=loop-global-usage
+def console_print_message(check_result: CheckResult | PartialCheckResult, console: Console, indent: int = 0) -> None:
+	style = STYLES[check_result.check_status]
+	status = check_result.check_status.upper()
+	msg_ident = " " * (len(status) + 3)
+	message = "\n".join([f"{msg_ident if i > 0 else ''}{l}" for i, l in enumerate(check_result.message.split("\n"))])
+	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
 def print_check_result(check_result: CheckResult, console: Console) -> None:
-	style = STYLES[check_result.check_status]
-	console_print(check_result.message, console, style, 1)
+	console.print(Padding(f"➔ [b]{check_result.message}[/b]", (0, 3)))
+	if check_result.partial_results:
+		console.print("")
 	for partial_result in check_result.partial_results:
-		console_print(partial_result.message, console, style, 1)
+		console_print_message(partial_result, console, 3)
+	console.print("")

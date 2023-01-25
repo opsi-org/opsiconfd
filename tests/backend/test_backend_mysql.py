@@ -37,10 +37,10 @@ def test_config(tmp_path: Path) -> None:
 			}
 			"""
 		expected = {
-			"_username": "usernameö$",
-			"_database": "databaseö$",
-			"_address": "addressö$",
-			"_password": "passwordö$",
+			"username": "usernameö$",
+			"database": "databaseö$",
+			"address": "addressö$",
+			"password": "passwordö$",
 			"_database_charset": "charset",
 			"_connection_pool_max_overflow": 11,
 			"_connection_pool_timeout": 12,

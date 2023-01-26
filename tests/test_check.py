@@ -23,7 +23,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
 from opsiconfd.check import (
-	PACKAGES,
+	CHECK_SYSTEM_PACKAGES,
 	CheckResult,
 	CheckStatus,
 	PartialCheckResult,
@@ -161,7 +161,7 @@ def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 
 def test_get_repo_versions() -> None:
 	result = get_repo_versions()
-	for package in PACKAGES:
+	for package in CHECK_SYSTEM_PACKAGES:
 		assert package in result
 
 	packages = ("opsiconfd", "opsi-utils")

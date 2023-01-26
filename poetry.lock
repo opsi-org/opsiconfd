@@ -2989,14 +2989,14 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.322"
+version = "4.2.0.323"
 description = "The opsi python library"
 category = "main"
 optional = false
 python-versions = ">=3.8,<3.11"
 files = [
-    {file = "python_opsi-4.2.0.322-py3-none-any.whl", hash = "sha256:b52b5902106705301cb9fc71d9646287d52ac78616be7a96375d34b9aec351ca"},
-    {file = "python_opsi-4.2.0.322.tar.gz", hash = "sha256:db53ae41687530fb8fb78093856ffb4c1022c9aef913479375ad935d03de41e1"},
+    {file = "python_opsi-4.2.0.323-py3-none-any.whl", hash = "sha256:55c4d94eada35f4e27d857a6246d20480afd8b025e10ac29cb5f7746469d4f9d"},
+    {file = "python_opsi-4.2.0.323.tar.gz", hash = "sha256:b5aa132d71449a6b5fc13ecf89e136fb8b12e094740564449e5b9963d397dfa8"},
 ]
 
 [package.dependencies]

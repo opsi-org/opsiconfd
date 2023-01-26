@@ -27,7 +27,7 @@ from .addon import Addon
 
 class AddonImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls: type, fullname: str, path: str = None, target: str = None) -> ModuleSpec | None:
+	def find_spec(cls: type, fullname: str, path: str | None = None, target: str | None = None) -> ModuleSpec | None:
 		if not fullname.startswith("opsiconfd.addon"):
 			return None
 		addon_path = unquote(fullname.split("_", 1)[1])

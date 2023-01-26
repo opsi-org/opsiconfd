@@ -129,7 +129,7 @@ def jsonrpc_setup(app: FastAPI) -> None:
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
-async def get_sort_algorithm(algorithm: str = None) -> str:
+async def get_sort_algorithm(algorithm: str | None = None) -> str:
 	if algorithm in ("algorithm1", "algorithm2"):
 		return algorithm
 	algorithm = "algorithm1"
@@ -425,16 +425,13 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdB
 		method = getattr(backend, method_name)
 
 	if getattr(method, "deprecated", False):
-		warnings.warn(
-			f"Client {client_info} is calling deprecated method {method_name!r}",
-			DeprecationWarning
-		)
+		warnings.warn(f"Client {client_info} is calling deprecated method {method_name!r}", DeprecationWarning)
 		store_deprecated_call(method_name, client_info)
 
 	return serialize(method(*params, **keywords))
 
 
-def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> None:
+def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] | None = None) -> None:
 	now = int(time.time() * 1_000_000)
 	makedirs(RPC_DEBUG_DIR, exist_ok=True)
 	method = None
@@ -450,14 +447,12 @@ def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] 
 		"error": str(exception),
 	}
 	prefix = f"{client_info}-{now}-".replace("/", "_").replace(".", "_")
-	with tempfile.NamedTemporaryFile(
-		delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log"
-	) as log_file:
+	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log") as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
 		log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
 
 
-async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> Any:
+async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] | None = None) -> Any:
 	if config.debug_options and "rpc-error-log" in config.debug_options:
 		try:
 			await run_in_threadpool(write_error_log, client_info, exception, rpc)
@@ -479,22 +474,10 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[st
 		return {
 			"jsonrpc": "2.0",
 			"id": _id,
-			"error": {
-				"code": 0,  # TODO
-				"message": message,
-				"data": {"class": _class, "details": details}
-			}
+			"error": {"code": 0, "message": message, "data": {"class": _class, "details": details}},  # TODO
 		}
 
-	return {
-		"id": 0 if _id is None else _id,
-		"result": None,
-		"error": {
-			"message": message,
-			"class": _class,
-			"details": details
-		}
-	}
+	return {"id": 0 if _id is None else _id, "result": None, "error": {"message": message, "class": _class, "details": details}}
 
 
 async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
@@ -559,7 +542,9 @@ async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerato
 @jsonrpc_router.post("")
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
-async def process_request(request: Request, response: Response) -> Response:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def process_request(
+	request: Request, response: Response
+) -> Response:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	request_compression = None
 	request_serialization = None
 	response_compression = None
@@ -643,12 +628,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 		contextvar_user_store.set(user_store)
 
 	client_info = message.sender
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": message.rpc_id,
-		"method": message.method,
-		"params": message.params
-	}
+	rpc = {"jsonrpc": "2.0", "id": message.rpc_id, "method": message.method, "params": message.params}
 
 	try:
 		result = await anext(process_rpcs(client_info, rpc))
@@ -662,7 +642,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 		ref_id=message.id,
 		rpc_id=result["id"],
 		result=result.get("result"),
-		error=result.get("error")
+		error=result.get("error"),
 	)
 
 	# asyncio.create_task(send_message(response_message))

@@ -42,6 +42,7 @@ logger: OPSILogger | None = None  # pylint: disable=invalid-name
 config = None  # pylint: disable=invalid-name
 if TYPE_CHECKING:
 	from config import Config  # type: ignore[import]
+
 	config: "Config" | None = None  # type: ignore[no-redef]  # pylint: disable=invalid-name
 
 redis_pool_lock = threading.Lock()
@@ -62,7 +63,7 @@ def get_logger() -> OPSILogger:
 def get_config() -> "Config":
 	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
-		from .config import (  # type: ignore[misc]  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .config import (  # type: ignore  # pylint: disable=import-outside-toplevel, redefined-outer-name
 			config,
 		)
 	return config
@@ -206,7 +207,9 @@ def retry_redis_call(func: Callable) -> Callable:
 	return wrapper_retry
 
 
-def get_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> redis.StrictRedis:  # pylint: disable=invalid-name
+def get_redis_connection(
+	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False
+) -> redis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	con_id = f"{url}/{db}"
 	while True:
@@ -215,8 +218,16 @@ def get_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connectio
 			with redis_pool_lock:  # pylint: disable=loop-global-usage
 				if con_id not in redis_connection_pool:  # pylint: disable=loop-global-usage,loop-invariant-statement
 					new_pool = True
-					redis_connection_pool[con_id] = redis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage,loop-invariant-statement
-			client = redis.StrictRedis(connection_pool=redis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-invariant-statement,loop-global-usage
+					redis_connection_pool[  # pylint: disable=dotted-import-in-loop,loop-invariant-statement,loop-global-usage
+						con_id
+					] = redis.ConnectionPool.from_url(  # pylint: disable=dotted-import-in-loop,loop-global-usage,loop-invariant-statement
+						url, db=db
+					)
+			client = redis.StrictRedis(  # pylint: disable=dotted-import-in-loop,loop-invariant-statement,loop-global-usage
+				connection_pool=redis_connection_pool[  # pylint: disable=dotted-import-in-loop,loop-invariant-statement,loop-global-usage
+					con_id
+				]  # pylint: disable=dotted-import-in-loop,loop-invariant-statement,loop-global-usage
+			)
 			if new_pool or test_connection:
 				client.ping()
 			return client
@@ -237,7 +248,9 @@ def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[r
 			con.close()
 
 
-async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
+async def get_async_redis_connection(
+	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False  # pylint: disable=invalid-name
+) -> aioredis.StrictRedis:
 	start = time.time()
 	while True:
 		try:  # pylint: disable=loop-try-except-usage
@@ -246,9 +259,15 @@ async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, te
 			async with aioredis_pool_lock:  # pylint: disable=loop-global-usage
 				if con_id not in aioredis_connection_pool:  # pylint: disable=loop-global-usage
 					new_pool = True
-					aioredis_connection_pool[con_id] = aioredis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage
+					aioredis_connection_pool[  # pylint: disable=loop-invariant-statement,loop-global-usage
+						con_id
+					] = aioredis.ConnectionPool.from_url(  # pylint: disable=dotted-import-in-loop
+						url, db=db
+					)
 			# This will return a client (no Exception) even if connection is currently lost
-			client = aioredis.StrictRedis(connection_pool=aioredis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-global-usage
+			client = aioredis.StrictRedis(  # pylint: disable=dotted-import-in-loop
+				connection_pool=aioredis_connection_pool[con_id]  # pylint: disable=loop-invariant-statement,loop-global-usage
+			)
 			if new_pool or test_connection:
 				await client.ping()
 			return client
@@ -266,6 +285,7 @@ async def async_get_redis_info(client: aioredis.StrictRedis) -> Dict[str, Any]: 
 	from opsiconfd.config import (  # pylint: disable=import-outside-toplevel
 		REDIS_PREFIX_SESSION,
 	)
+
 	stats_keys = []
 	sessions_keys = []
 	log_keys = []

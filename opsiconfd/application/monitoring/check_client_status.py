@@ -19,7 +19,7 @@ from .utils import State, generate_response
 
 
 def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-	backend: BackendManager, client_id: str, exclude_product_list: List[str] = None
+	backend: BackendManager, client_id: str, exclude_product_list: List[str] | None = None
 ) -> JSONResponse:
 	state = State.OK
 

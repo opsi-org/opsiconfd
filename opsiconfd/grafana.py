@@ -84,7 +84,9 @@ def grafana_admin_session() -> Generator[Tuple[str, requests.Session], None, Non
 
 
 @asynccontextmanager
-async def async_grafana_session(username: str = None, password: str = None) -> AsyncGenerator[Tuple[str, aiohttp.ClientSession], None]:
+async def async_grafana_session(
+	username: str | None = None, password: str | None = None
+) -> AsyncGenerator[Tuple[str, aiohttp.ClientSession], None]:
 	auth = None
 	headers = None
 	if username is not None:

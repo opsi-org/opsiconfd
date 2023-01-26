@@ -35,12 +35,12 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		vars: List[str] = [],
 		aggregation: str = "avg",
 		retention: int = 0,
-		zero_if_missing: str = None,
+		zero_if_missing: str | None = None,
 		time_related: bool = False,
 		subject: str = "worker",
-		server_timing_header_factor: int = None,
-		grafana_config: "GrafanaPanelConfig" = None,
-		downsampling: List = None,
+		server_timing_header_factor: int | None = None,
+		grafana_config: "GrafanaPanelConfig" | None = None,
+		downsampling: List | None = None,
 	):
 		"""
 		Metric constructor
@@ -239,14 +239,18 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 							if count == 0:
 								if not metric.zero_if_missing:  # pylint: disable=loop-invariant-statement
 									continue
-								if not insert_zero_timestamp and metric.zero_if_missing == "one":  # pylint: disable=loop-invariant-statement
+								if (
+									not insert_zero_timestamp and metric.zero_if_missing == "one"
+								):  # pylint: disable=loop-invariant-statement
 									del self._values[metric.id][key_string]
 
 							if metric.aggregation == "avg" and count > 0:  # pylint: disable=loop-invariant-statement
 								value /= count
 
 							label_values = key_string.split(":")
-							labels = {var: label_values[idx] for idx, var in enumerate(metric.vars)}  # pylint: disable=loop-invariant-statement
+							labels = {
+								var: label_values[idx] for idx, var in enumerate(metric.vars)
+							}  # pylint: disable=loop-invariant-statement
 
 							if insert_zero_timestamp:
 								cmds.append(self._redis_ts_cmd(metric, "ADD", 0, insert_zero_timestamp, **labels))
@@ -271,9 +275,9 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 	@staticmethod
-	def _redis_ts_cmd(metric: Metric, cmd: str, value: float, timestamp: int = None, **labels: str) -> str:
+	def _redis_ts_cmd(metric: Metric, cmd: str, value: float, timestamp: int | None = None, **labels: str) -> str:
 		timestamp_str: str = str(timestamp or "*")
-# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
+		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
 		if cmd == "ADD":
 			ts_cmd = [  # pylint: disable=use-tuple-over-list
 				"TS.ADD",
@@ -321,7 +325,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			logger.debug("Executing redis pipe (%d commands)", len(cmd))
 			return await pipe.execute()
 
-	async def add_value(self, metric_id: str, value: float, labels: dict = None, timestamp: int = None) -> None:
+	async def add_value(self, metric_id: str, value: float, labels: dict | None = None, timestamp: int | None = None) -> None:
 		if labels is None:
 			labels = {}
 		metric = metrics_registry.get_metric_by_id(metric_id)

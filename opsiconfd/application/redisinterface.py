@@ -71,7 +71,7 @@ def _get_depots() -> Dict[str, Any]:
 
 @redis_interface_router.get("/products")
 @rest_api
-def get_products(depot_id: str = None) -> RESTResponse:
+def get_products(depot_id: str | None = None) -> RESTResponse:
 	try:
 		data = {}
 		with redis_client() as redis:

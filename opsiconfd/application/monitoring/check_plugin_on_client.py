@@ -25,7 +25,7 @@ def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-bran
 	timeout: int = 30,
 	wait_for_ending: bool = True,
 	capture_stderr: bool = True,
-	statebefore: bool = None,
+	statebefore: bool | None = None,
 	output: str | None = None,
 	encoding: str | None = None,
 ) -> JSONResponse:

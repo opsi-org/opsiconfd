@@ -302,7 +302,7 @@ def setup_ca() -> bool:
 	raise ValueError(f"Invalid server role: {server_role}")
 
 
-def validate_cert(cert: X509, ca_cert: X509 = None) -> None:
+def validate_cert(cert: X509, ca_cert: X509 | None = None) -> None:
 	"""Will throw a X509StoreContextError if cert is invalid"""
 	store = X509Store()
 

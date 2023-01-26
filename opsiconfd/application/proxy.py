@@ -42,7 +42,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		base_url: str,
 		methods: tuple = ("GET", "POST"),
 		forward_authorization: bool = False,
-		forward_cookies: List[str] = None,
+		forward_cookies: List[str] | None = None,
 		preserve_host: bool = False,
 	) -> None:
 		self.mount_path = mount_path

@@ -77,7 +77,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		encoding: str = "utf-8",
 		max_bytes: int = 0,
 		keep_rotated: int = 0,
-		error_handler: Callable = None,
+		error_handler: Callable | None = None,
 	) -> None:
 		super().__init__(filename, mode, encoding)
 		self.active_lifetime = active_lifetime
@@ -127,7 +127,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 					return
 				await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
 
-	def should_rollover(self, record: LogRecord = None) -> bool:  # pylint: disable=unused-argument
+	def should_rollover(self, record: LogRecord | None = None) -> bool:  # pylint: disable=unused-argument
 		if not os.path.exists(self.absolute_file_path):
 			# This will recreate a deleted log file
 			return True
@@ -172,7 +172,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 			return await super().emit(record)
 
 	async def handle_error(self, record: LogRecord, exception: Exception) -> None:
-		if self._error_handler:
+		if self._error_handler is not None:
 			await self._error_handler(self, record, exception)
 
 
@@ -580,7 +580,7 @@ def shutdown_logging() -> None:
 
 
 class RedisLogAdapterThread(threading.Thread):
-	def __init__(self, running_event: threading.Event = None) -> None:
+	def __init__(self, running_event: threading.Event | None = None) -> None:
 		threading.Thread.__init__(self)
 		self.name = "RedisLogAdapterThread"
 		self._running_event = running_event

@@ -77,7 +77,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	def back_channel(self) -> str:
 		return self._terminal_open_request.back_channel
 
-	def set_size(self, rows: int = None, cols: int = None, pty_set_size: bool = True) -> None:
+	def set_size(self, rows: int | None = None, cols: int | None = None, pty_set_size: bool = True) -> None:
 		self.rows = min(max(1, int(rows or self.default_rows)), self.max_rows)
 		self.cols = min(max(1, int(cols or self.default_cols)), self.max_cols)
 		if pty_set_size:

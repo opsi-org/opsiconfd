@@ -26,7 +26,6 @@ from opsicommon.objects import (
 	ProductOnClient,
 	ProductOnDepot,
 )
-from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
@@ -446,9 +445,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 	assert isinstance(partial_result.details["applications"], list)
 	assert partial_result.details["applications"] == ["testclient"]
 
-	captured_output = captured_function_output(
-		process_check_result, result=result, console=console, check_version=parse_version("4.4"), detailed=True
-	)
+	captured_output = captured_function_output(process_check_result, result=result, console=console, check_version="4.4", detailed=True)
 	assert "The method will be dropped with opsiconfd version 4.4" in captured_output
 
 

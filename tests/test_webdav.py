@@ -11,6 +11,7 @@ webdav tests
 import os
 import random
 import shutil
+from string import ascii_letters
 from unittest.mock import patch
 
 import pytest

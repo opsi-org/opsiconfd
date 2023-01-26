@@ -8,7 +8,6 @@
 webdav tests
 """
 
-import requests
 from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
 from opsiconfd import set_contextvars_from_contex

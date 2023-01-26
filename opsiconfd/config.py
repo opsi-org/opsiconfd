@@ -14,6 +14,7 @@ import os
 import re
 import socket
 import sys
+import warnings
 from argparse import (
 	OPTIONAL,
 	SUPPRESS,
@@ -65,6 +66,7 @@ REPOSITORY_DIR = "/var/lib/opsi/repository"
 def configure_warnings() -> None:
 	# Disable sqlalchemy 2.0 deprecation warnings
 	sqlalchemy.util.deprecations.SILENCE_UBER_WARNING = True
+	warnings.filterwarnings("ignore", category=ResourceWarning)
 
 
 if running_in_docker():

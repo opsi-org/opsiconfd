@@ -245,9 +245,10 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			for worker in self.workers:
 				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker.worker_num}"
 				redis.hset(
-					redis_key, key=None, value=None, mapping={
-						"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num
-					}
+					redis_key,
+					key=None,
+					value=None,
+					mapping={"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num},
 				)
 				redis.expire(redis_key, 60)
 
@@ -264,7 +265,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 class Server:
 	def __init__(self) -> None:
-		self.uvicorn_config = None
+		self.uvicorn_config: Config | None = None
 		self.uvicorn_server: UvicornServer | None = None
 		self.supervisor: Supervisor | None = None
 
@@ -273,6 +274,7 @@ class Server:
 		self.create_uvicorn_config()
 
 		logger.notice("Starting server")
+		assert self.uvicorn_config
 		self.uvicorn_server = UvicornServer(config=self.uvicorn_config)
 
 		init_logging(config.log_mode)
@@ -317,10 +319,9 @@ class Server:
 			"port": config.port,
 			"workers": config.workers,
 			"log_config": None,
-			"debug": config.debug,
 			"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"]],
 			"ws_ping_interval": 15,
-			"ws_ping_timeout": 10
+			"ws_ping_timeout": 10,
 		}
 		if config.ssl_server_key and config.ssl_server_cert:
 			options["ssl_keyfile"] = config.ssl_server_key

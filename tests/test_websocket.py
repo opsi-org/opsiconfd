@@ -29,7 +29,7 @@ def test_websocket_keep_session_valid(test_client: OpsiconfdTestClient) -> None:
 		headers = {"x-opsi-session-lifetime": "5"}
 		response = test_client.get("/session/authenticated", headers=headers)
 		assert response.status_code == 200
-		cookie = list(test_client.cookies)[0]
+		cookie = list(test_client.cookies.jar)[0]
 		headers["Cookie"] = f"{cookie.name}={cookie.value}"
 
 		with test_client.websocket_connect("/ws/echo?set_cookie_interval=1", headers=headers) as websocket:

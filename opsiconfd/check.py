@@ -124,7 +124,7 @@ def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
 
 def get_repo_versions() -> dict[str, str | None]:
 	url = REPO_URL
-	packages = CHECK_OPSI_PACKAGES
+	packages = CHECK_SYSTEM_PACKAGES
 	repo_data = None
 
 	repo_versions: dict[str, str | None] = {}

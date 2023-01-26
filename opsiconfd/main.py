@@ -69,6 +69,7 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 		return
 
 	if config.action == "health-check":
+		config.log_level = config.log_level_stderr = config.log_level_file = 0
 		init_logging(log_mode="local")
 		sys.exit(console_health_check())
 

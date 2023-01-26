@@ -371,6 +371,13 @@ class Config(metaclass=Singleton):
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(prog, max_help_position=30, width=100))
 		if "health-check" in self._args:
 			self._parser.add("--detailed", action="store_true", help="Print details to each check.")
+			self._parser.add(
+				"--upgrade-check",
+				nargs="?",
+				const=True,
+				default=False,
+				help="Check for upgrade issues only. If a version number is specified, the check is performed for that specific version.",
+			)
 
 		self._parser.add(
 			"-c",

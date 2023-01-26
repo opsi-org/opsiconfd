@@ -206,7 +206,7 @@ def check_depotservers() -> CheckResult:
 	with exc_to_result(result):
 		backend = get_unprotected_backend()
 		issues = 0
-		for depot in backend.host_getObjects(type="OpsiDepotserver"):
+		for depot in backend.host_getObjects(type="OpsiDepotserver"):  # pylint: disable=no-member
 			path = (depot.depotLocalUrl or "").removeprefix("file://").rstrip("/")
 			partial_result = PartialCheckResult(
 				check_id=f"depotservers:{depot.id}:depot_path",
@@ -218,7 +218,9 @@ def check_depotservers() -> CheckResult:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.upgrade_issue = "4.3"
-				partial_result.message = f"The local depot path is no longer configurable in version 4.3 and is set to {DEPOT_DIR!r}."  # pylint: disable=loop-invariant-statement
+				partial_result.message = (
+					f"The local depot path is no longer configurable in version 4.3 and is set to {path!r} on depot {depot.id!r}."
+				)
 			result.add_partial_result(partial_result)
 
 			path = (depot.repositoryLocalUrl or "").removeprefix("file://").rstrip("/")
@@ -232,7 +234,9 @@ def check_depotservers() -> CheckResult:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.upgrade_issue = "4.3"
-				partial_result.message = f"The local repository path is no longer configurable in version 4.3 and is set to {REPOSITORY_DIR!r}."  # pylint: disable=loop-invariant-statement
+				partial_result.message = (
+					f"The local repository path is no longer configurable in version 4.3 and is set to {path!r} on depot {depot.id!r}."
+				)
 			result.add_partial_result(partial_result)
 
 			path = (depot.workbenchLocalUrl or "").removeprefix("file://").rstrip("/")
@@ -246,7 +250,9 @@ def check_depotservers() -> CheckResult:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.upgrade_issue = "4.3"
-				partial_result.message = f"The local workbench path is no longer configurable in version 4.3 and is set to {WORKBENCH_DIR!r}."  # pylint: disable=loop-invariant-statement
+				partial_result.message = (
+					f"The local workbench path is no longer configurable in version 4.3 and is set to {path!r} on depot {depot.id!r}."
+				)
 			result.add_partial_result(partial_result)
 
 		if issues > 0:

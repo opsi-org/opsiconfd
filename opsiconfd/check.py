@@ -251,7 +251,9 @@ def check_depotservers() -> CheckResult:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.upgrade_issue = "4.3"
-				partial_result.message = f"The local depot path is no longer configurable in version 4.3 and is set to {DEPOT_DIR!r}."  # pylint: disable=loop-invariant-statement
+				partial_result.message = (
+					f"The local depot path is no longer configurable in version 4.3 and is set to {path!r} on depot {depot.id!r}."
+				)
 			result.add_partial_result(partial_result)
 
 			path = (depot.repositoryLocalUrl or "").removeprefix("file://").rstrip("/")
@@ -265,7 +267,9 @@ def check_depotservers() -> CheckResult:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.upgrade_issue = "4.3"
-				partial_result.message = f"The local repository path is no longer configurable in version 4.3 and is set to {REPOSITORY_DIR!r}."  # pylint: disable=loop-invariant-statement
+				partial_result.message = (
+					f"The local repository path is no longer configurable in version 4.3 and is set to {path!r} on depot {depot.id!r}."
+				)
 			result.add_partial_result(partial_result)
 
 			path = (depot.workbenchLocalUrl or "").removeprefix("file://").rstrip("/")
@@ -279,7 +283,9 @@ def check_depotservers() -> CheckResult:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.upgrade_issue = "4.3"
-				partial_result.message = f"The local workbench path is no longer configurable in version 4.3 and is set to {WORKBENCH_DIR!r}."  # pylint: disable=loop-invariant-statement
+				partial_result.message = (
+					f"The local workbench path is no longer configurable in version 4.3 and is set to {path!r} on depot {depot.id!r}."
+				)
 			result.add_partial_result(partial_result)
 
 		if issues > 0:

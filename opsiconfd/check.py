@@ -239,7 +239,7 @@ def check_depotservers() -> CheckResult:
 				message="The configured workbench path corresponds to the default.",
 				details={"path": path},
 			)
-			if path != None:  # WORKBENCH_DIR:
+			if path != WORKBENCH_DIR:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.upgrade_issue = "4.3"

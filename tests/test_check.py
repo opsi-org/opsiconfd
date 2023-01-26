@@ -443,7 +443,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 	assert partial_result.details["method"] == DEPRECATED_METHOD
 	assert partial_result.details["calls"] == "1"
 	assert partial_result.details["last_call"]
-	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"].replace("Z", "")).astimezone(timezone.utc)
+	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"]).astimezone(timezone.utc)
 	assert (last_call_dt - current_dt).total_seconds() < 3
 	assert isinstance(partial_result.details["applications"], list)
 	assert partial_result.details["applications"] == ["testclient"]

@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from re import findall
 from subprocess import run
@@ -23,14 +23,13 @@ import psutil
 import requests
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from OPSI.System.Posix import isOpenSUSE, isRHEL, isSLES  # type: ignore[import]
+from OPSI.Util import compareVersions  # type: ignore[import]
 from opsicommon.logging.constants import (  # type: ignore[import]
 	LEVEL_TO_NAME,
 	LOG_DEBUG,
 	LOG_TRACE,
 	OPSI_LEVEL_TO_LEVEL,
 )
-from packaging.version import InvalidVersion, Version
-from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
@@ -115,7 +114,7 @@ class CheckResult(PartialCheckResult):
 		if partial_result.check_status == CheckStatus.WARNING and self.check_status != CheckStatus.ERROR:
 			self.check_status = CheckStatus.WARNING
 		if partial_result.upgrade_issue:
-			if not self.upgrade_issue or parse_version(partial_result.upgrade_issue) < parse_version(self.upgrade_issue):
+			if not self.upgrade_issue or compareVersions(partial_result.upgrade_issue, "<", self.upgrade_issue):
 				self.upgrade_issue = partial_result.upgrade_issue
 
 
@@ -431,7 +430,7 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 				partial_result.message = f"Package '{package}' is not installed."
 				partial_result.upgrade_issue = __version__
 				not_installed = not_installed + 1
-			elif parse_version(available_version or "0") > parse_version(str(details["version"])):
+			elif compareVersions(available_version or "0", ">", details["version"]):
 				outdated = outdated + 1
 				partial_result.check_status = CheckStatus.WARNING
 				partial_result.message = (
@@ -504,6 +503,8 @@ def check_deprecated_calls() -> CheckResult:
 				calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count"))
 				applications = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients"))
 				last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call"))
+				last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
+				last_call = last_call_dt.strftime("%Y-%m-%d %H:%M:%S")
 				message = f"Deprecated method {method_name!r} was called {calls} times.\n"
 				message += f"Last call was {last_call}\nThe method was called from the following applications:\n"
 				message += "\n".join([f"- {app}" for app in applications])  # pylint: disable=loop-invariant-statement
@@ -560,7 +561,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 					not_installed = not_installed + 1
 					logger.debug(error)
 					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = f"Package '{product_id}' is not installed."
+					partial_result.message = f"Product {product_id!r} is not installed on depot {depot_id!r}."
 					partial_result.upgrade_issue = "4.3"
 					result.add_partial_result(partial_result)
 					continue
@@ -569,19 +570,21 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 				partial_result.details["version"] = product_version_on_depot
 				partial_result.details["available_version"] = available_version
 
-				if parse_version(available_version) > parse_version(product_version_on_depot):
+				if compareVersions(available_version, ">", product_version_on_depot):
 					outdated = outdated + 1
 					partial_result.check_status = CheckStatus.ERROR
 					partial_result.message = (
-						f"Package '{product_id}' is outdated. Installed version {product_version_on_depot!r}"
-						f" < available version {available_version!r}"
+						f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
+						f" < available version {available_version!r}."
 					)
 				else:
 					partial_result.check_status = CheckStatus.OK
-					partial_result.message = f"Installed version: {product_version_on_depot}."
+					partial_result.message = (
+						f"Installed version of product {product_id!r} on depot {depot_id!r} is {product_version_on_depot!r}."
+					)
 
 				min_version = OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.get(product_id)  # pylint: disable=loop-global-usage
-				if min_version and parse_version(min_version) > parse_version(product_version_on_depot):
+				if min_version and compareVersions(min_version, ">", product_version_on_depot):
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
@@ -618,8 +621,6 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 
 		outdated_client_ids = set()
 		for product_id, min_version in OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.items():  # pylint: disable=loop-global-usage
-			product_version = min_version.split("-", 1)[0]
-			p_min_version = parse_version(min_version)
 			for product_on_client in backend.productOnClient_getObjects(  # pylint: disable=no-member
 				attributes=["productVersion", "packageVersion"],
 				clientId=client_ids,
@@ -627,14 +628,17 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 				installationStatus="installed",
 			):
 				version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
-				if parse_version(version) >= p_min_version:
+				if compareVersions(version, ">=", min_version):
 					continue
 				client_id = product_on_client.clientId
 				partial_result = PartialCheckResult(
 					check_status=CheckStatus.ERROR,
 					check_id=f"product_on_clients:{client_id}:{product_id}",
 					check_name=f"Product {product_id!r} on {client_id!r}",
-					message=f"Package '{product_id}' is outdated. Installed version {version!r} < recommended version {product_version!r}",
+					message=(
+						f"Product {product_id!r} is outdated on client {client_id!r}. "
+						f"Installed version {version!r} < recommended version {min_version!r}"
+					),
 					details={"client_id": client_id, "product_id": product_id, "version": version},
 					upgrade_issue="4.3",
 				)
@@ -701,7 +705,7 @@ def console_print_message(check_result: CheckResult | PartialCheckResult, consol
 def process_check_result(
 	result: CheckResult,
 	console: Console,
-	check_version: Version | None = None,
+	check_version: str | None = None,
 	detailed: bool = False,
 	summary: dict[CheckStatus, int] | None = None,
 ) -> None:
@@ -709,7 +713,7 @@ def process_check_result(
 	message = result.message
 	partial_results = []
 	for pres in result.partial_results:
-		if check_version and (not pres.upgrade_issue or parse_version(pres.upgrade_issue) > check_version):
+		if check_version and (not pres.upgrade_issue or compareVersions(pres.upgrade_issue, ">", check_version)):
 			continue
 		partial_results.append(pres)
 		if summary:
@@ -744,20 +748,15 @@ def console_health_check() -> int:  # pylint: disable=too-many-branches
 	check_version = None
 	if config.upgrade_check:
 		if config.upgrade_check is True:
-			check_version = parse_version("1000")
+			check_version = "1000"
 		else:
-			try:
-				check_version = parse_version(config.upgrade_check)
-			except InvalidVersion as err:
-				raise ValueError(str(err)) from err
+			check_version = config.upgrade_check
 
 	console = Console(log_time=False)
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
 		for result in health_check():
-			process_check_result(
-				result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary  # type: ignore
-			)
+			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary)
 	status = CheckStatus.OK
 	return_code = 0
 	if summary[CheckStatus.ERROR]:

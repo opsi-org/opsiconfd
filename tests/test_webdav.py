@@ -80,19 +80,19 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id, client_key]}
-	res = test_client.post("/rpc", json=rpc, auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-	res = res.json()
+	resp = test_client.post("/rpc", json=rpc, auth=(ADMIN_USER, ADMIN_PASS))
+	assert resp.status_code == 200
+	res = resp.json()
 	assert res.get("error") is None
 	test_client.reset_cookies()
 
 	size = 1024
-	data = bytearray(random.getrandbits(8) for _ in range(size))
+	data = ("".join(random.choice(ascii_letters) for i in range(size))).encode("ascii")
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 	for path in ("workbench", "repository", "depot"):
 		url = f"/{path}/test_file_client.bin"
 
-		res = test_client.put(url=url, data=data, headers=headers, auth=(ADMIN_USER, ADMIN_PASS))
+		res = test_client.put(url=url, content=data, headers=headers, auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code in (201, 204)
 		test_client.reset_cookies()
 

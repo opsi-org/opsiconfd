@@ -1181,22 +1181,6 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
-name = "perflint"
-version = "0.7.3"
-description = "Pylint extension with performance anti-patterns"
-category = "dev"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-pylint = ">=2.12.0,<3.0"
-
-[package.source]
-type = "legacy"
-url = "https://pypi.uib.gmbh/simple"
-reference = "uibpypi"
-
-[[package]]
 name = "pexpect"
 version = "4.8.0"
 description = "Pexpect allows easy control of interactive console applications."
@@ -2452,7 +2436,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "22545631746c36c1b48feead2567b2439f00989df9e10ebf15456d25ed4b8197"
+content-hash = "89abd1ce0a47f9b468f1b32b0590b13974e142d6a48275ef745fcb60e8ebe1ff"
 
 [metadata.files]
 aiofiles = [
@@ -3538,10 +3522,6 @@ pathspec = [
 ]
 pefile = [
     {file = "pefile-2022.5.30.tar.gz", hash = "sha256:a5488a3dd1fd021ce33f969780b88fe0f7eebb76eb20996d7318f307612a045b"},
-]
-perflint = [
-    {file = "perflint-0.7.3-py2.py3-none-any.whl", hash = "sha256:e556a82495925ec956ce607b6333564a54a6ebe2146fd47753d4b32aab82c85b"},
-    {file = "perflint-0.7.3.tar.gz", hash = "sha256:8569248d246c21974201b950af1330218ad058db285e2316cbb0044997d47554"},
 ]
 pexpect = [
     {file = "pexpect-4.8.0-py2.py3-none-any.whl", hash = "sha256:0b48a55dcb3c05f3329815901ea4fc1537514d6ba867a152b581d69ae3710937"},

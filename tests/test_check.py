@@ -19,6 +19,7 @@ from warnings import catch_warnings, simplefilter
 
 import requests
 from MySQLdb import OperationalError  # type: ignore[import]
+from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
@@ -37,7 +38,7 @@ from opsiconfd.check import (
 	check_system_packages,
 	get_repo_versions,
 	health_check,
-	print_check_result,
+	process_check_result,
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -92,7 +93,7 @@ def test_check_opsiconfd_config() -> None:
 			elif partial_result.check_id == "opsiconfd_config:debug-options":
 				assert partial_result.check_status == CheckStatus.ERROR
 				assert partial_result.message == "The following debug options are set: rpc-log, asyncio."
-				assert partial_result.details == {'config': 'debug-options', 'value':  ['rpc-log', 'asyncio']}  # pylint: disable=loop-invariant-statement
+				assert partial_result.details == {'config': 'debug-options', 'value': ['rpc-log', 'asyncio']}  # pylint: disable=loop-invariant-statement
 				ids_found += 1
 		assert ids_found == 2
 
@@ -118,18 +119,18 @@ def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:  # pylint
 
 
 def test_check_redis() -> None:
-	console = Console(log_time=False)
+	console = Console(log_time=False, force_terminal=False, width=1000)
 	result = check_redis()
-	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 	assert "Redis is running and RedisTimeSeries is loaded." in captured_output
 	assert result.check_status == "ok"
 
 
 def test_check_redis_error() -> None:
 	with mock.patch("opsiconfd.redis.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
-		console = Console(log_time=False)
+		console = Console(log_time=False, force_terminal=False, width=1000)
 		result = check_redis()
-		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		assert "Cannot connect to Redis" in captured_output
 		assert result.check_status == "error"
@@ -137,9 +138,9 @@ def test_check_redis_error() -> None:
 
 
 def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
-	console = Console(log_time=False)
+	console = Console(log_time=False, force_terminal=False, width=1000)
 	result = check_mysql()
-	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 	assert "Connection to MySQL is working." in captured_output
 	assert result.check_status == "ok"
@@ -148,16 +149,16 @@ def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 
 def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 	with mock.patch(
-		"opsiconfd.check.get_mysql", side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
+		"opsiconfd.check.MySQLConnection.connect",
+		side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
 	):
-		console = Console(log_time=False)
+		console = Console(log_time=False, force_terminal=False, width=1000)
 		result = check_mysql()
-		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
-		assert "Could not connect to MySQL:" in captured_output
-		assert "MySQLdb.OperationalError" in captured_output
+		assert '2005 - "Unknown MySQL server host bla (-3)"' in captured_output
 		assert result.check_status == "error"
-		assert result.message == 'Could not connect to MySQL: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
+		assert result.message == '2005 - "Unknown MySQL server host bla (-3)"'
 
 
 def test_get_repo_versions() -> None:
@@ -184,7 +185,7 @@ def test_get_repo_versions() -> None:
 def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-outer-name
 	# test up to date packages - status sould be ok and output should be green
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
-	console = Console(log_time=False, width=1000, highlight=False)
+	console = Console(log_time=False, force_terminal=False, width=1000)
 	dpkg_lines = [
 		f"ii  {name}                         {version}                       amd64        Package description"
 		for name, version in installed_versions.items()
@@ -200,7 +201,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 	):
 
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in installed_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -240,14 +241,14 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 				f"available version: {repo_versions[partial_result.details['package']]}"
 			)
 
-		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in installed_versions.items():
 			assert f"Package {name} is out of date. Installed version: {version}" in captured_output
 
 
 def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined-outer-name
-	console = Console(log_time=False, width=1000, highlight=False)
+	console = Console(log_time=False, force_terminal=False, width=1000)
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	zypper_lines = [
 		"S  | Name                 | Typ   | Version             | Arch   | Repository",
@@ -266,7 +267,7 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"opensuse"})),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -282,7 +283,7 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 
 
 def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-outer-name
-	console = Console(log_time=False, width=1000, highlight=False)
+	console = Console(log_time=False, force_terminal=False, width=1000)
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"] + [
 		f"{name}.x86_64     {version}    @home_uibmz_opsi_4.2_stable "
@@ -298,7 +299,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"rhel"})),
 	):
 		result = check_system_packages()
-		captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in repo_versions.items():
 			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
@@ -328,9 +329,9 @@ def test_check_deprecated_calls(
 	test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	sync_clean_redis()
-	console = Console(log_time=False, width=1000, highlight=False)
+	console = Console(log_time=False, force_terminal=False, width=1000)
 	result = check_deprecated_calls()
-	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+	captured_output = captured_function_output(process_check_result, result=result, console=console)
 	assert "No deprecated method calls found." in captured_output
 	assert result.check_status == CheckStatus.OK
 
@@ -354,12 +355,15 @@ def test_check_deprecated_calls(
 	assert partial_result.details["calls"] == "1"
 	assert partial_result.details["last_call"]
 	assert partial_result.details["drop_version"] == "4.4"
+	assert partial_result.upgrade_issue == "4.4"
 	last_call_dt = datetime.fromisoformat(partial_result.details["last_call"])
 	assert (last_call_dt - current_dt).total_seconds() < 3
 	assert isinstance(partial_result.details["applications"], list)
 	assert partial_result.details["applications"] == ["testclient"]
 
-	captured_output = captured_function_output(print_check_result, check_result=result, console=console)
+	captured_output = captured_function_output(
+		process_check_result, result=result, console=console, check_version=parse_version("4.4"), detailed=True
+	)
 	assert "The method will be dropped with opsiconfd version 4.4" in captured_output
 
 

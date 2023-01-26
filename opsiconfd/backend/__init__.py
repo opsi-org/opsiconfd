@@ -13,16 +13,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+	from opsiconfd.backend.mysql import MySQLConnection
 	from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 
 protected_backend = None  # pylint: disable=invalid-name
 unprotected_backend = None  # pylint: disable=invalid-name
 
-
 def get_protected_backend() -> ProtectedBackend:
 	global protected_backend  # pylint: disable=invalid-name,global-statement
 	if not protected_backend:
-		from .rpc.main import ProtectedBackend  # pylint: disable=import-outside-toplevel
+		from opsiconfd.backend.rpc.main import (  # pylint: disable=import-outside-toplevel
+			ProtectedBackend,
+		)
 		protected_backend = ProtectedBackend()
 	return protected_backend
 
@@ -30,9 +32,15 @@ def get_protected_backend() -> ProtectedBackend:
 def get_unprotected_backend() -> UnprotectedBackend:
 	global unprotected_backend  # pylint: disable=invalid-name,global-statement
 	if not unprotected_backend:
-		from .rpc.main import UnprotectedBackend  # pylint: disable=import-outside-toplevel
+		from opsiconfd.backend.rpc.main import (  # pylint: disable=import-outside-toplevel
+			UnprotectedBackend,
+		)
 		unprotected_backend = UnprotectedBackend()
 	return unprotected_backend
+
+
+def get_mysql() -> MySQLConnection:
+	return get_unprotected_backend()._mysql  # pylint: disable=protected-access
 
 
 def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any) -> dict:  # pylint: disable=unused-argument

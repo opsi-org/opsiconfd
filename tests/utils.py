@@ -36,7 +36,8 @@ from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
-from opsiconfd.backend import get_mysql, get_unprotected_backend
+from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
 from opsiconfd.config import config as _config
@@ -178,18 +179,19 @@ def worker_state() -> None:
 
 
 def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
-	mysql = get_mysql()  # pylint: disable=invalid-name
-	with mysql.session() as session:
-		session.execute("DELETE FROM `PRODUCT_ON_CLIENT`")
-		session.execute("DELETE FROM `PRODUCT_ON_DEPOT`")
-		session.execute("DELETE FROM `PRODUCT_DEPENDENCY`")
-		session.execute("DELETE FROM `PRODUCT_PROPERTY_VALUE`")
-		session.execute("DELETE FROM `PRODUCT_PROPERTY`")
-		session.execute("DELETE FROM `PRODUCT`")
-		session.execute("DELETE FROM `OBJECT_TO_GROUP`")
-		session.execute("DELETE FROM `GROUP`")
-		session.execute("DELETE FROM `CONFIG_STATE`")
-		session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
+	mysql = MySQLConnection()  # pylint: disable=invalid-name
+	with mysql.connection():
+		with mysql.session() as session:
+			session.execute("DELETE FROM `PRODUCT_ON_CLIENT`")
+			session.execute("DELETE FROM `PRODUCT_ON_DEPOT`")
+			session.execute("DELETE FROM `PRODUCT_DEPENDENCY`")
+			session.execute("DELETE FROM `PRODUCT_PROPERTY_VALUE`")
+			session.execute("DELETE FROM `PRODUCT_PROPERTY`")
+			session.execute("DELETE FROM `PRODUCT`")
+			session.execute("DELETE FROM `OBJECT_TO_GROUP`")
+			session.execute("DELETE FROM `GROUP`")
+			session.execute("DELETE FROM `CONFIG_STATE`")
+			session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
 
 
 @pytest_asyncio.fixture(autouse=True)

@@ -200,7 +200,11 @@ def rpc_method(
 		if iscoroutinefunction(func):
 			wrapper = async_wrapper
 
-		setattr(wrapper, "rpc_interface", get_method_interface(func, deprecated=deprecated, drop_version=drop_version, alternative_method=alternative_method))
+		setattr(
+			wrapper,
+			"rpc_interface",
+			get_method_interface(func, deprecated=deprecated, drop_version=drop_version, alternative_method=alternative_method)
+		)
 		return wrapper
 
 	if func is None:

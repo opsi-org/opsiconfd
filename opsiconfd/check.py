@@ -20,6 +20,7 @@ from typing import Any, Generator, Iterator
 
 import psutil
 import requests
+from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.logging.constants import (
 	LEVEL_TO_NAME,
 	LOG_DEBUG,
@@ -27,7 +28,7 @@ from opsicommon.logging.constants import (
 	OPSI_LEVEL_TO_LEVEL,
 )
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
-from packaging.version import InvalidVersion
+from packaging.version import InvalidVersion, Version
 from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
@@ -45,10 +46,11 @@ from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
-PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 OPSI_REPO = "https://download.uib.de"
 OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
-OPSI_PACKAGES = {"opsi-script": "0.0", "opsi-client-agent": "0.0"}
+CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
+CHECK_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent")
+OPSI_PACKAGES_MIN_VERSIONS_UPGRADE = {"opsi-script": "4.12.7.5-3", "opsi-client-agent": "4.2.0.43-3"}
 
 
 class CheckStatus(StrEnum):
@@ -105,7 +107,7 @@ def health_check() -> Iterator[CheckResult]:
 def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
 	try:
 		yield
-	except OperationalError as err:  # pylint: disable=broad-except
+	except (OperationalError, MySQLdbOperationalError) as err:  # pylint: disable=broad-except
 		result.check_status = CheckStatus.ERROR
 		error_str = str(err).split("\n", 1)[0]
 		match = re.search(r"\((\d+),\s+(\S.*)\)", error_str)  # pylint: disable=dotted-import-in-loop
@@ -122,7 +124,7 @@ def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
 
 def get_repo_versions() -> dict[str, str | None]:
 	url = REPO_URL
-	packages = PACKAGES
+	packages = CHECK_OPSI_PACKAGES
 	repo_data = None
 
 	repo_versions: dict[str, str | None] = {}
@@ -480,6 +482,7 @@ def check_deprecated_calls() -> CheckResult:
 						check_name=f"Deprecated method {method_name!r}",
 						check_status=CheckStatus.WARNING,
 						message=message,
+						upgrade_issue=interface.drop_version if interface else None,
 						details={
 							"method": method_name,
 							"calls": calls,
@@ -505,7 +508,7 @@ def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too
 			return result
 
 		result.message = "All packages are up to date."
-		available_packages = OPSI_PACKAGES
+		available_packages = {p: "0.0" for p in CHECK_OPSI_PACKAGES}
 		backend = get_unprotected_backend()
 
 		not_installed = 0
@@ -535,27 +538,33 @@ def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too
 					result.add_partial_result(partial_result)
 					continue
 
-				if parse_version(available_version) > parse_version(f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"):
+				product_version_on_depot = f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"
+				if parse_version(available_version) > parse_version(product_version_on_depot):
 					outdated = outdated + 1
 					partial_result.check_status = CheckStatus.ERROR
 					partial_result.message = (
-						f"Package '{product_id}' is outdated. Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}"
-						f"- available version: {available_version}"
+						f"Package '{product_id}' is outdated. Installed version {product_version_on_depot!r}"
+						f" < available version {available_version!r}"
 					)
 				else:
 					partial_result.check_status = CheckStatus.OK
-					partial_result.message = f"Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}."
+					partial_result.message = f"Installed version: {product_version_on_depot}."
+
+				min_version = OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.get(product_id)  # pylint: disable=loop-global-usage
+				if min_version and parse_version(min_version) > parse_version(product_version_on_depot):
+					partial_result.upgrade_issue = "4.3"
+
 				result.add_partial_result(partial_result)
 
 		result.details = {
-			"packages": len(OPSI_PACKAGES.keys()),
+			"packages": len(CHECK_OPSI_PACKAGES),
 			"depots": len(depots),
 			"not_installed": not_installed,
 			"outdated": outdated,
 		}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
-				f"Out of {len(OPSI_PACKAGES.keys())} packages on {len(depots)} depots checked, "
+				f"Out of {len(CHECK_OPSI_PACKAGES)} packages on {len(depots)} depots checked, "
 				f"{not_installed} are not installed and {outdated} are out of date."
 			)
 	return result
@@ -610,6 +619,47 @@ def console_print_message(check_result: CheckResult | PartialCheckResult, consol
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
+def process_check_result(
+	result: CheckResult,
+	console: Console,
+	check_version: Version | None = None,
+	detailed: bool = False,
+	summary: dict[CheckStatus, int] | None = None,
+) -> None:
+	status = result.check_status
+	message = result.message
+	partial_results = []
+	for pres in result.partial_results:
+		if check_version and (not pres.upgrade_issue or parse_version(pres.upgrade_issue) > check_version):
+			continue
+		partial_results.append(pres)
+		if summary:
+			summary[pres.check_status] += 1
+
+	if check_version:
+		if partial_results:
+			status = CheckStatus.ERROR  # pylint: disable=loop-invariant-statement
+			message = f"{len(partial_results)} upgrade issues"
+		else:
+			status = CheckStatus.OK  # pylint: disable=loop-invariant-statement
+			message = "No upgrade issues"
+			if not detailed:  # pylint: disable=loop-invariant-statement
+				return
+
+	style = STYLES[status]
+	console.print(f"[{style}]●[/{style}] [b]{result.check_name}[/b]: [{style}]{status.upper()}[/{style}]")
+	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
+
+	if not detailed:  # pylint: disable=loop-invariant-statement
+		return
+
+	if partial_results:
+		console.print("")
+	for partial_result in partial_results:
+		console_print_message(partial_result, console, 3)
+	console.print("")
+
+
 def console_health_check() -> int:  # pylint: disable=too-many-branches
 	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
 	check_version = None
@@ -626,37 +676,7 @@ def console_health_check() -> int:  # pylint: disable=too-many-branches
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
 		for result in health_check():
-			status = result.check_status
-			message = result.message
-			partial_results = []
-			for pres in result.partial_results:
-				if check_version and (not pres.upgrade_issue or parse_version(pres.upgrade_issue) > check_version):
-					continue
-				partial_results.append(pres)
-				summary[pres.check_status] += 1
-
-			if check_version:
-				if partial_results:
-					status = CheckStatus.ERROR  # pylint: disable=loop-invariant-statement
-					message = f"{len(partial_results)} upgrade issues"
-				else:
-					status = CheckStatus.OK  # pylint: disable=loop-invariant-statement
-					message = "No upgrade issues"
-					if not config.detailed:  # pylint: disable=loop-invariant-statement
-						continue
-
-			style = styles[status]
-			console.print(f"[{style}]●[/{style}] [b]{result.check_name}[/b]: [{style}]{status.upper()}[/{style}]")
-			console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
-
-			if not config.detailed:  # pylint: disable=loop-invariant-statement
-				continue
-
-			if partial_results:
-				console.print("")
-			for partial_result in partial_results:
-				console_print_message(partial_result, console, 3)
-			console.print("")
+			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary)
 
 	status = CheckStatus.OK
 	return_code = 0

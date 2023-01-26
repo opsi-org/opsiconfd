@@ -82,18 +82,23 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
 		GRAFANA_AVAILABLE = True
 
-	mysql = MySQLConnection()
+	print("Drop database")
 	try:
-		mysql.connect()
-		drop_database(mysql)
+		mysql = MySQLConnection()
+		with mysql.connection():
+			drop_database(mysql)
 	except Exception:  # pylint: disable=broad-except
 		pass
+	print("Setup database")
 	setup_mysql(full=True)
+	print("Setup backend")
 	setup_backend()
 
 	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
+		print("Setup SSL")
 		setup_ssl()
 
+	print("Setup application")
 	Worker._instance = Worker("pytest", 1)  # pylint: disable=protected-access
 	application_setup()
 

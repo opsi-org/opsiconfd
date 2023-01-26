@@ -433,19 +433,17 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 			)
 			if not details["version"]:
 				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = f"Package '{package}' is not installed."
+				partial_result.message = f"Package {package!r} is not installed."
 				partial_result.upgrade_issue = __version__
 				not_installed = not_installed + 1
 			elif compareVersions(available_version or "0", ">", details["version"]):
 				outdated = outdated + 1
 				partial_result.check_status = CheckStatus.WARNING
-				partial_result.message = (
-					f"Package {package} is out of date. Installed version {details['version']!r} < available version {available_version!r}"
-				)
+				partial_result.message = f"Package {package!r} is out of date. Installed version {details['version']!r} < available version {available_version!r}"
 				details["outdated"] = True
 			else:
 				partial_result.check_status = CheckStatus.OK
-				partial_result.message = f"Package {package} is up to date. Installed version: {details['version']!r}"
+				partial_result.message = f"Package {package!r} is up to date. Installed version: {details['version']!r}"
 			result.add_partial_result(partial_result)
 
 		result.details = {"packages": len(repo_versions.keys()), "not_installed": not_installed, "outdated": outdated}

@@ -216,7 +216,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in installed_versions.items():
-			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
+			assert f"Package {name!r} is up to date. Installed version: {version!r}" in captured_output
 
 		assert result.message == "All packages are up to date."
 		assert result.check_status == CheckStatus.OK
@@ -224,7 +224,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 		for partial_result in result.partial_results:
 			assert partial_result.check_status == "ok"
 			assert partial_result.message == (
-				f"Package {partial_result.details['package']} is up to date. " f"Installed version: {partial_result.details['version']}"
+				f"Package {partial_result.details['package']!r} is up to date. Installed version: {partial_result.details['version']!r}"
 			)
 
 	# test outdated packages - status sould be warn and output sould be in yellow
@@ -249,15 +249,15 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 		for partial_result in result.partial_results:
 			assert partial_result.check_status == CheckStatus.WARNING
 			assert partial_result.message == (
-				f"Package {partial_result.details['package']} is out of date. "
-				f"Installed version: {partial_result.details['version']} - "
-				f"available version: {repo_versions[partial_result.details['package']]}"
+				f"Package {partial_result.details['package']!r} is out of date. "
+				f"Installed version {partial_result.details['version']!r} < "
+				f"available version {repo_versions[partial_result.details['package']]!r}"
 			)
 
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in installed_versions.items():
-			assert f"Package {name} is out of date. Installed version: {version}" in captured_output
+			assert f"Package {name!r} is out of date. Installed version {version!r}" in captured_output
 
 
 def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined-outer-name
@@ -285,14 +285,14 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in repo_versions.items():
-			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
+			assert f"Package {name!r} is up to date. Installed version: {version!r}" in captured_output
 
 		assert result.message == "All packages are up to date."
 		assert result.check_status == CheckStatus.OK
 		for partial_result in result.partial_results:
 			assert partial_result.check_status == CheckStatus.OK
 			assert partial_result.message == (
-				f"Package {partial_result.details['package']} is up to date. " f"Installed version: {partial_result.details['version']}"
+				f"Package {partial_result.details['package']!r} is up to date. Installed version: {partial_result.details['version']!r}"
 			)
 
 
@@ -315,7 +315,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in repo_versions.items():
-			assert f"Package {name} is up to date. Installed version: {version}" in captured_output
+			assert f"Package {name!r} is up to date. Installed version: {version!r}" in captured_output
 
 		assert result.message == "All packages are up to date."
 		assert result.check_status == CheckStatus.OK
@@ -323,7 +323,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		for partial_result in result.partial_results:
 			assert partial_result.check_status == CheckStatus.OK
 			assert partial_result.message == (
-				f"Package {partial_result.details['package']} is up to date. " f"Installed version: {partial_result.details['version']}"
+				f"Package {partial_result.details['package']!r} is up to date. Installed version: {partial_result.details['version']!r}"
 			)
 
 

@@ -168,7 +168,7 @@ def test_serializations(test_client, content_type, accept, expected_content_type
 		res = test_client.post(
 			"/rpc",
 			auth=(ADMIN_USER, ADMIN_PASS),
-			data=serialize_data(rpc, serialization),
+			content=serialize_data(rpc, serialization),
 			headers=headers,
 		)
 		res.raise_for_status()
@@ -197,7 +197,7 @@ def test_compression(test_client, content_encoding, accept_encoding, status_code
 		res = test_client.post(
 			"/rpc",
 			auth=(ADMIN_USER, ADMIN_PASS),
-			data=data,
+			content=data,
 			headers={"Content-Type": "application/json", "Content-Encoding": content_encoding, "Accept-Encoding": accept_encoding},
 		)
 		assert res.status_code == status_code

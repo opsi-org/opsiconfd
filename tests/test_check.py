@@ -90,7 +90,7 @@ def test_check_opsiconfd_config() -> None:
 		# print(result)
 		ids_found = 0
 		assert result.check_status == CheckStatus.ERROR
-		assert result.message == "issues found in the configuration."
+		assert "issues found in the configuration." in result.message
 		for partial_result in result.partial_results:
 			assert partial_result.check_id.startswith("opsiconfd_config:")
 			if partial_result.check_id == "opsiconfd_config:log-level-stderr":

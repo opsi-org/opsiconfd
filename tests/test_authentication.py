@@ -176,7 +176,7 @@ def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # pylint:
 
 
 def test_public_access_put(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	res = test_client.put("/public/test.bin", data=b"test")
+	res = test_client.put("/public/test.bin", content=b"test")
 	assert res.status_code == 405
 
 
@@ -398,21 +398,21 @@ def test_auth_only_hostkey(
 
 		data = json.dumps({"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": "onlyhostkey.uib.gmbh"}]})
 
-		res = test_client.post("/rpc", auth=("", host_key), data=data)
+		res = test_client.post("/rpc", auth=("", host_key), content=data)
 		assert res.status_code == 401
 
 		config.allow_host_key_only_auth = True
 
-		res = test_client.post("/rpc", auth=(ADMIN_USER, host_key), data=data)
+		res = test_client.post("/rpc", auth=(ADMIN_USER, host_key), content=data)
 		assert res.status_code == 401
 
-		res = test_client.post("/rpc", auth=("", ADMIN_PASS), data=data)
+		res = test_client.post("/rpc", auth=("", ADMIN_PASS), content=data)
 		assert res.status_code == 401
 
-		res = test_client.post("/rpc", auth=("", host_key), data=data)
+		res = test_client.post("/rpc", auth=("", host_key), content=data)
 		assert res.status_code == 200
 
-		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 		assert res.status_code == 200
 
 	finally:
@@ -443,7 +443,7 @@ def test_auth_only_hostkey_id_header(
 
 		config.allow_host_key_only_auth = True
 
-		res = test_client.post("/rpc", auth=("", host_key), data=data)
+		res = test_client.post("/rpc", auth=("", host_key), content=data)
 		assert res.status_code == 200
 		assert res.headers.get("x-opsi-new-host-id")
 		assert res.headers["x-opsi-new-host-id"] == "onlyhostkey.uib.gmbh"

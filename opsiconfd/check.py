@@ -553,9 +553,9 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 					details={"depot_id": depot_id, "product_id": product_id},
 				)
 				try:  # pylint: disable=loop-try-except-usage
-					product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[
-						0
-					]  # pylint: disable=no-member
+					product_on_depot = backend.productOnDepot_getObjects(  # pylint: disable=no-member
+						productId=product_id, depotId=depot_id
+					)[0]
 				except IndexError as error:
 					not_installed = not_installed + 1
 					logger.debug(error)

@@ -19,7 +19,7 @@ from warnings import catch_warnings, simplefilter
 
 import requests
 from MySQLdb import OperationalError  # type: ignore[import]
-from opsicommon.objects import (
+from opsicommon.objects import (  # type: ignore[import]
 	LocalbootProduct,
 	OpsiClient,
 	OpsiDepotserver,
@@ -101,10 +101,10 @@ def test_check_opsiconfd_config() -> None:
 			elif partial_result.check_id == "opsiconfd_config:debug-options":
 				assert partial_result.check_status == CheckStatus.ERROR
 				assert partial_result.message == "The following debug options are set: rpc-log, asyncio."
-				assert partial_result.details == {
-					"config": "debug-options",
-					"value": ["rpc-log", "asyncio"],
-				}  # pylint: disable=loop-invariant-statement
+				assert partial_result.details == {  # pylint: disable=loop-invariant-statement
+					"config": "debug-options",  # pylint: disable=loop-invariant-statement
+					"value": ["rpc-log", "asyncio"],  # pylint: disable=loop-invariant-statement
+				}
 				ids_found += 1
 		assert ids_found == 2
 
@@ -328,7 +328,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 
 
 def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)  # type: ignore
 	depot = OpsiDepotserver(id="test-check-depot-1.opsi.test")
 	client = OpsiClient(id="test-check-client-1.opsi.test")
 	client.setDefaults()

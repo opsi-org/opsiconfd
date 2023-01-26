@@ -9,21 +9,29 @@
 Tests for the opsiconfd monitoring module
 """
 
-import time
 import json
 import socket
-from unittest import mock
+import time
 from datetime import datetime, timedelta
+from unittest import mock
 
-import requests
 import pytest
 
-from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
 from opsiconfd.application.monitoring.check_locked_products import check_locked_products
-from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
-from opsiconfd.application.monitoring.check_plugin_on_client import check_plugin_on_client
-
-from tests.utils import config, clean_redis, database_connection, backend, create_depot_jsonrpc  # pylint: disable=unused-import
+from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
+from opsiconfd.application.monitoring.check_plugin_on_client import (
+	check_plugin_on_client,
+)
+from opsiconfd.application.monitoring.check_short_product_status import (
+	check_short_product_status,
+)
+from tests.utils import (  # pylint: disable=unused-import
+	backend,
+	clean_redis,
+	config,
+	create_depot_jsonrpc,
+	database_connection,
+)
 
 MONITORING_CHECK_DAYS = 31
 
@@ -111,7 +119,7 @@ test_data = [
 
 
 @pytest.fixture(autouse=True)
-def create_check_data(config, database_connection):  # pylint: disable=redefined-outer-name
+def create_check_data(test_client, config, database_connection):  # pylint: disable=redefined-outer-name
 	mysql = database_connection
 	mysql.autocommit(True)
 
@@ -163,8 +171,8 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 		f'("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}");'
 	)
 
-	create_depot_jsonrpc(requests, config.internal_url, "pytest-test-depot.uib.gmbh")
-	create_depot_jsonrpc(requests, config.internal_url, "pytest-test-depot2.uib.gmbh")
+	create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot.uib.gmbh")
+	create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot2.uib.gmbh")
 
 	# Product on client
 	cursor.execute(

@@ -150,7 +150,6 @@ def test_jsonrpc20(test_client):  # pylint: disable=redefined-outer-name
 		("", "msgpack", "application/msgpack"),
 		("msgpack", "xyasdb;dsaoswe3dod", "application/msgpack"),
 		("invalid", "application/msgpack", "application/msgpack"),
-
 	),
 )
 def test_serializations(test_client, content_type, accept, expected_content_type):  # pylint: disable=redefined-outer-name
@@ -171,11 +170,10 @@ def test_serializations(test_client, content_type, accept, expected_content_type
 			auth=(ADMIN_USER, ADMIN_PASS),
 			data=serialize_data(rpc, serialization),
 			headers=headers,
-			stream=True,
 		)
 		res.raise_for_status()
 		assert res.headers["Content-Type"] == expected_content_type
-		assert deserialize_data(res.raw.read(), expected_content_type.split("/")[-1])
+		assert deserialize_data(res.content, expected_content_type.split("/")[-1])
 
 
 @pytest.mark.parametrize(
@@ -201,14 +199,13 @@ def test_compression(test_client, content_encoding, accept_encoding, status_code
 			auth=(ADMIN_USER, ADMIN_PASS),
 			data=data,
 			headers={"Content-Type": "application/json", "Content-Encoding": content_encoding, "Accept-Encoding": accept_encoding},
-			stream=True,
 		)
 		assert res.status_code == status_code
 		if accept_encoding == "invalid":
 			assert res.headers.get("Content-Encoding") is None
 		else:
 			assert res.headers.get("Content-Encoding") == accept_encoding
-		data = res.raw.read()
+		data = res.content
 		# gzip and deflate transfer-encodings are automatically decoded
 		if "lz4" in accept_encoding:
 			data = decompress_data(data, accept_encoding)
@@ -232,7 +229,11 @@ def test_error_log(test_client, tmp_path):  # pylint: disable=redefined-outer-na
 def test_store_rpc_info(test_client):  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		for num in (1, 2):
-			rpc = {"id": num, "method": "host_getObjects", "params": [["id"], {"type": "OpsiDepotserver"}]}  # pylint: disable=loop-invariant-statement
+			rpc = {
+				"id": num,
+				"method": "host_getObjects",
+				"params": [["id"], {"type": "OpsiDepotserver"}],
+			}  # pylint: disable=loop-invariant-statement
 			res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 			res.raise_for_status()
 			result = res.json()

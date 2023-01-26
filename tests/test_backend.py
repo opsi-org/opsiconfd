@@ -178,7 +178,7 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
 	res = res.json()
-	cookie = list(client.cookies)[0]
+	cookie = list(client.cookies.jar)[0]
 	session_id = cookie.value
 	assert res["result"] == option_defaults
 
@@ -186,7 +186,7 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
 	res = res.json()
-	cookie = list(client.cookies)[0]
+	cookie = list(client.cookies.jar)[0]
 	assert session_id == cookie.value
 	assert res["result"] == []
 
@@ -194,7 +194,7 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
 	res = res.json()
-	cookie = list(client.cookies)[0]
+	cookie = list(client.cookies.jar)[0]
 	assert session_id == cookie.value
 
 	options = option_defaults.copy()
@@ -203,7 +203,7 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
 	res = res.json()
-	cookie = list(client.cookies)[0]
+	cookie = list(client.cookies.jar)[0]
 	assert session_id == cookie.value
 	assert res["result"] == options
 
@@ -226,7 +226,7 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
 	res = res.json()
-	cookie = list(client.cookies)[0]
+	cookie = list(client.cookies.jar)[0]
 	assert session_id != cookie.value
 	assert res["result"] == option_defaults
 
@@ -237,12 +237,3 @@ def test_backend_options_test_client(test_client):  # pylint: disable=redefined-
 	with client_jsonrpc(test_client, "", host_id):
 		for _ in range(20):
 			_test_backend_options(test_client, "", host_id)
-
-
-def test_backend_options_requests():
-	host_id = "test-client-options-rq.opsi.org"
-	session = requests.session()
-	session.auth = (ADMIN_USER, ADMIN_PASS)
-	with client_jsonrpc(session, "https://localhost:4447", host_id):
-		for _ in range(20):
-			_test_backend_options(session, "https://localhost:4447", host_id)

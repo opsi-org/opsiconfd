@@ -8,17 +8,28 @@
 schemathesis tests
 """
 
-import schemathesis
+from typing import Any
 
 import pytest
 import pytest_asyncio.plugin
+from schemathesis import from_file, from_pytest_fixture
+from schemathesis.models import Case
+from schemathesis.specs.openapi.schemas import BaseOpenAPISchema
 
-from .utils import config, sync_clean_redis, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+from opsiconfd.application import app
+
+from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	sync_clean_redis,
+	test_client,
+)
 
 
 # Workaround for error:
 # AttributeError: 'function' object has no attribute 'hypothesis'
-def _hypothesis_test_wraps_coroutine(function) -> bool:  # pylint: disable=unused-argument
+def _hypothesis_test_wraps_coroutine(function: Any) -> bool:  # pylint: disable=unused-argument
 	return False
 
 
@@ -26,28 +37,31 @@ pytest_asyncio.plugin._hypothesis_test_wraps_coroutine = _hypothesis_test_wraps_
 
 
 @pytest.fixture
-def get_schemathesis(config):  # pylint: disable=redefined-outer-name
-	return schemathesis.from_uri(f"{config.internal_url}/openapi.json", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+def get_schemathesis(test_client: OpsiconfdTestClient) -> BaseOpenAPISchema:  # pylint: disable=redefined-outer-name
+	response = test_client.get("/openapi.json", auth=(ADMIN_USER, ADMIN_PASS))
+	return from_file(response.text, app=app)
 
 
-schema = schemathesis.from_pytest_fixture("get_schemathesis")
+schema = from_pytest_fixture("get_schemathesis")
 
 
 @schema.parametrize(endpoint="^/rpc$")
-def test_rpc(case):  # pylint: disable=redefined-outer-name
+def test_rpc(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	# case.call_and_validate(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
-	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	case.call(session=test_client)  # type: ignore[arg-type]
 
 
 @schema.parametrize(endpoint="^/admin/(?!memory)")
-def test_admin(case):  # pylint: disable=redefined-outer-name
+def test_admin(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	# case.call_and_validate(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
-	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	case.call(session=test_client)  # type: ignore[arg-type]
 
 
 @schema.parametrize(endpoint="^/ssl")
-def test_ssl(case):  # pylint: disable=redefined-outer-name
+def test_ssl(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
-	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	case.call(session=test_client)  # type: ignore[arg-type]
+	case.call(session=test_client)  # type: ignore[arg-type]
+	sync_clean_redis()
+	case.call(session=test_client)  # type: ignore[arg-type]
+	case.call(session=test_client)  # type: ignore[arg-type]

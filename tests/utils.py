@@ -214,7 +214,7 @@ def create_depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: st
 			"webdavs://172.17.0.101:4447/repository",
 		],
 	}
-	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 	return res.json()["result"]
 
@@ -226,7 +226,7 @@ def depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host
 		yield depot
 	finally:
 		rpc = {"id": 1, "method": "host_delete", "params": [host_id]}
-		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
 
 @contextmanager
@@ -234,26 +234,26 @@ def client_jsonrpc(  # pylint: disable=too-many-arguments
 	client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str = None, hardware_address: str = None, ip_address: str = None
 ) -> Generator[Dict[str, Any], None, None]:
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [host_id, host_key, "", "", hardware_address, ip_address]}
-	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 	try:
 		yield res.json()["result"]
 	finally:
 		rpc = {"id": 1, "method": "host_delete", "params": [host_id]}
-		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
 
 def create_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products: List[Dict[str, Any]]) -> None:
 	products = [LocalbootProduct(**product).to_hash() for product in products]
 	rpc = {"id": 1, "method": "product_createObjects", "params": [products]}
-	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 
 
 def delete_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products: List[Dict[str, Any]]) -> None:
 	products = [LocalbootProduct(**product).to_hash() for product in products]
 	rpc = {"id": 1, "method": "product_deleteObjects", "params": [products]}
-	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 
 
@@ -278,7 +278,7 @@ def products_jsonrpc(
 				]
 			)
 		rpc = {"id": 1, "method": "productOnDepot_createObjects", "params": [product_on_depots]}
-		res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+		res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 		res.raise_for_status()
 	try:
 		yield
@@ -306,14 +306,14 @@ def create_poc_jsonrpc(  # pylint: disable=too-many-arguments
 		action_result,
 	]  # pylint: disable=use-tuple-over-list
 	rpc = {"id": 1, "method": "productOnClient_create", "params": product}
-	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 
 
 def delete_poc_jsonrpc(http_client: OpsiconfdTestClient, base_url: str, opsi_client: str, product_id: str) -> None:
 	product = [product_id, opsi_client]  # pylint: disable=use-tuple-over-list
 	rpc = {"id": 1, "method": "productOnClient_delete", "params": product}
-	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 
 

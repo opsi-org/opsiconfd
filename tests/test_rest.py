@@ -10,6 +10,7 @@ test rest
 
 
 from types import NoneType
+from typing import Any
 
 import pytest
 from fastapi import status
@@ -31,7 +32,7 @@ from opsiconfd.rest import RESTErrorResponse, RESTResponse
 		),
 	],
 )
-def test_restresponse(data, output):
+def test_restresponse(data: Any, output: Any) -> None:
 	rest_response = RESTResponse(
 		data=data.get("content"),
 		total=data.get("total"),
@@ -42,7 +43,7 @@ def test_restresponse(data, output):
 	assert rest_response.content == output["content"]
 	assert rest_response.total == output["total"]
 	assert rest_response.status == output["http_status"]
-	assert rest_response.headers == output["headers"]
+	assert dict(rest_response.headers) == output["headers"]
 	assert rest_response.type == output["type"]
 
 	json_response = rest_response.to_jsonresponse()
@@ -53,14 +54,14 @@ def test_restresponse(data, output):
 	assert json_response.body == JSONResponse(content=output["content"], status_code=output["http_status"], headers=output["headers"]).body
 
 
-def test_restresponse_status_error():
+def test_restresponse_status_error() -> None:
 	with pytest.raises(TypeError, match="RESTResponse http status must be integer."):
-		RESTResponse(http_status="test")
+		RESTResponse(http_status="test")  # type: ignore[arg-type]
 
 
-def test_restresponse_toral_error():
+def test_restresponse_toral_error() -> None:
 	with pytest.raises(TypeError, match="RESTResponse total must be integer."):
-		RESTResponse(total="test")
+		RESTResponse(total="test")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -108,7 +109,7 @@ def test_restresponse_toral_error():
 		),
 	],
 )
-def test_resterrorresponse(data, output):
+def test_resterrorresponse(data: Any, output: Any) -> None:
 	rest_response = RESTErrorResponse(
 		message=data.get("message", "An unknown error occurred."),
 		details=data.get("details"),
@@ -130,4 +131,4 @@ def test_resterrorresponse(data, output):
 	}
 	assert rest_response.total == output["total"]
 	assert rest_response.status == output["http_status"]
-	assert rest_response.headers == output["headers"]
+	assert dict(rest_response.headers) == output["headers"]

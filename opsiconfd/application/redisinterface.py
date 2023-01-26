@@ -52,6 +52,7 @@ async def get_redis_stats() -> RESTResponse:  # pylint: disable=too-many-locals
 
 
 @redis_interface_router.get("/depot-cache")
+@redis_interface_router.post("/depot-cache")
 @rest_api
 def get_depot_cache() -> RESTResponse:
 	try:
@@ -70,6 +71,7 @@ def _get_depots() -> Dict[str, Any]:
 
 
 @redis_interface_router.get("/products")
+@redis_interface_router.post("/products")
 @rest_api
 def get_products(depot_id: str | None = None) -> RESTResponse:
 	try:

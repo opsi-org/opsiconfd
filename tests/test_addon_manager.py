@@ -9,13 +9,14 @@ test addon.manager
 """
 
 import os
-import shutil
 import pathlib
+import shutil
+
 import pytest
 
 from opsiconfd.addon import AddonManager
 
-from .utils import config, clean_redis, test_client  # pylint: disable=unused-import
+from .utils import clean_redis, config, test_client  # pylint: disable=unused-import
 
 
 @pytest.fixture()
@@ -113,40 +114,40 @@ def test_reload_addon(config, cleanup, tmpdir):  # pylint: disable=redefined-out
 
 def test_addon_static_dir(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1/static/index.html", verify=False)
+	res = test_client.get("/addons/test1/static/index.html")
 	assert res.status_code == 200
 
 
 def test_addon_public_path(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 
-	res = test_client.get("/addons/test1/public", verify=False)
+	res = test_client.get("/addons/test1/public")
 	assert res.status_code == 200
 
 
 def test_addon_auth(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 
-	res = test_client.get("/addons/test1/login", verify=False)
+	res = test_client.get("/addons/test1/login")
 	assert res.status_code == 200
 
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 200
 
-	res = test_client.get("/addons/test1/logout", verify=False)
+	res = test_client.get("/addons/test1/logout")
 	assert res.status_code == 200
 
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 
 
 def test_addon_exception_handling(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 	assert res.text == "addon_test1_error"
 	assert res.headers.get("x-addon") == "test1"

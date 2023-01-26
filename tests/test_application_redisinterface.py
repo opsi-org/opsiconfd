@@ -158,7 +158,7 @@ def test_get_depot_cache_confgserver(test_client: OpsiconfdTestClient) -> None: 
 
 		body = {"depots": [configserver]}
 
-		res = test_client.get("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
+		res = test_client.post("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_200_OK
 		assert res.json() == {"depots": [configserver]}
 
@@ -174,7 +174,7 @@ def test_get_depot_cache_error(test_client: OpsiconfdTestClient) -> None:  # pyl
 
 		body = {"depots": [configserver]}
 		with mock.patch("opsiconfd.utils.decode_redis_result", side_effect=Exception("Redis test error")):
-			res = test_client.get("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
+			res = test_client.post("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 		assert res.json() == {
 			"status": 500,
@@ -196,14 +196,14 @@ def test_get_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disa
 		get_product_ordering_jsonrpc(test_client, configserver)
 
 		body = {"depots": [configserver]}
-		res = test_client.get("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS), json=body)
+		res = test_client.post("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_200_OK
 		assert res.json() == {configserver: product_ids}
 
 
 def test_get_products_error(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with mock.patch("opsiconfd.utils.decode_redis_result", side_effect=Exception("Redis test error")):
-		res = test_client.get("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS), json={})
+		res = test_client.post("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS), json={})
 	assert res.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 	assert res.json() == {
 		"status": 500,

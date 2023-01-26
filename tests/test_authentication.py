@@ -82,7 +82,7 @@ def test_basic_auth_creates_session_on_public_path(
 def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
-	assert res.url.rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
+	assert str(res.url).rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
 
 
 def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
@@ -93,7 +93,7 @@ def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	res = test_client.get("/session/authenticated")
 	assert res.status_code == 401
 
-	res = test_client.get("/admin", allow_redirects=False)
+	res = test_client.get("/admin", follow_redirects=False)
 	assert res.status_code == 307
 
 	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
@@ -263,7 +263,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	res = test_client.get("/admin/", headers=lt_headers)
-	cookie = list(test_client.cookies)[0]
+	cookie = list(test_client.cookies.jar)[0]
 	session_id = cookie.value
 	assert res.status_code == 200
 	remain = cookie.expires - time.time()  # type: ignore[operator]
@@ -274,7 +274,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	time.sleep(lifetime + 1)
 
 	res = test_client.get("/admin/", headers=lt_headers)
-	cookie = list(test_client.cookies)[0]
+	cookie = list(test_client.cookies.jar)[0]
 	# Assert new session
 	assert res.status_code == 200
 	assert session_id != cookie.value
@@ -290,7 +290,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 		time.sleep(1)  # pylint: disable=dotted-import-in-loop
 		res = test_client.get("/session/authenticated")
 		assert res.status_code == 200
-		cookie = list(test_client.cookies)[0]
+		cookie = list(test_client.cookies.jar)[0]
 		assert session_id == cookie.value
 
 	# Let session expire
@@ -305,7 +305,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 	res = test_client.get("/admin/")
 	# res = test_client.get("/admin/", headers=lt_headers)
 	assert res.status_code == 200
-	cookie = list(test_client.cookies)[0]
+	cookie = list(test_client.cookies.jar)[0]
 	session_id = cookie.value
 	remain = cookie.expires - time.time()  # type: ignore[operator]#
 	print(remain)
@@ -318,7 +318,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
 	res = test_client.get("/admin/", headers=lt_headers)
 	assert res.status_code == 200
-	cookie = list(test_client.cookies)[0]
+	cookie = list(test_client.cookies.jar)[0]
 	remain = cookie.expires - time.time()  # type: ignore[operator]
 	assert remain <= lifetime
 	assert remain >= 100
@@ -339,12 +339,12 @@ def test_onetime_password_host_id(
 	database_connection.commit()
 	try:
 		rpc = {"id": 1, "method": "backend_info", "params": []}
-		res = test_client.get("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
+		res = test_client.post("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
 		assert res.status_code == 200
 		assert res.json()
 
 		test_client.reset_cookies()
-		res = test_client.get("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
+		res = test_client.post("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
 		assert res.status_code == 401
 	finally:
 		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
@@ -365,12 +365,12 @@ def test_onetime_password_hardware_address(
 	database_connection.commit()
 	try:
 		rpc = {"id": 1, "method": "backend_info", "params": []}
-		res = test_client.get("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
+		res = test_client.post("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
 		assert res.status_code == 200
 		assert res.json()
 
 		test_client.reset_cookies()
-		res = test_client.get("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
+		res = test_client.post("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
 		assert res.status_code == 401
 	finally:
 		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')

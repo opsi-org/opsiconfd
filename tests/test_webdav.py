@@ -51,12 +51,12 @@ def test_webdav_path_modification(test_client: OpsiconfdTestClient) -> None:  # 
 def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024
-	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
+	rand_bytes = ("".join(random.choice(ascii_letters) for i in range(size))).encode("ascii")
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 	filename = "陰陽_üß.bin"
 
 	url = f"/repository/{filename}"
-	res = test_client.put(url=url, headers=headers, data=rand_bytes)
+	res = test_client.put(url=url, headers=headers, content=rand_bytes)
 	res.raise_for_status()
 
 	assert os.path.exists(os.path.join("/var/lib/opsi/repository", filename))
@@ -152,12 +152,12 @@ def test_webdav_ignore_case_download(
 			assert file_path == f"{base_dir}/{directory + '/' if directory else ''}{filename}"
 
 		url = f"/depot/{path}"
-		res = test_client.get(url=url, stream=True)
+		res = test_client.get(url=url)
 		if exception:
 			assert res.status_code == 404
 		else:
 			res.raise_for_status()
-			assert res.raw.read().decode("utf-8") == filename
+			assert res.content.decode("utf-8") == filename
 	finally:
 		if directory:
 			shutil.rmtree(os.path.join(base_dir, directory.split("/")[0]))

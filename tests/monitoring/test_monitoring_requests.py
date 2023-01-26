@@ -70,7 +70,7 @@ def test_check_product_status_none(config, product_ids, verbose, strict, expecte
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False)
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -147,7 +147,7 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 			},
 		}
 	)
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False)
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -216,7 +216,7 @@ def test_check_product_status_groupids(
 			},
 		}
 	)
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False)
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -270,7 +270,7 @@ def test_check_product_status_short(config, product, expected_result):  # pylint
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False)
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -391,7 +391,7 @@ def test_check_client_status(config, client, exclude, expected_result):  # pylin
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False)
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -524,7 +524,7 @@ def test_check_depot_sync_status(
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False)
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -578,6 +578,6 @@ async def test_check_opsi_webservice_cpu(
 
 	await asyncio.sleep(1)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False)
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result

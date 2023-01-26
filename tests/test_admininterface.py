@@ -244,11 +244,11 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
 	config: Config, admininterface: ModuleType, test_client: OpsiconfdTestClient, rpc_request_data: Any, expected_response: Any
 ) -> None:
-	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	with sync_redis_client() as redis:
 
-		session = res.cookies.get_dict().get("opsiconfd-session")  # type: ignore[no-untyped-call]
+		session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
 		sessions = []
 		local_ip = None
 		for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):  # pylint: disable=loop-invariant-statement
@@ -286,11 +286,11 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 
 
 def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
-	response = test_client.get(f"https://192.168.1.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
+	response = test_client.get(f"https://192.168.1.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), follow_redirects=False)
 	assert response.status_code == 307
 	assert response.headers.get("location") == f"https://{getfqdn()}:{config.port}/admin/grafana"
 
-	response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
+	response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), follow_redirects=False)
 	assert response.status_code == 307
 	url = urlparse(config.grafana_external_url)
 	assert response.headers.get("location") == f"https://{url.hostname}:{config.port}/admin/grafana"

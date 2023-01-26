@@ -47,7 +47,7 @@ def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,un
 
 	client_id = "logtest.uib.local"
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id]}
-	res = test_client.post("/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", json=rpc)
 	assert res.status_code == 200
 
 	log_line = "log_line_" * 100
@@ -59,13 +59,13 @@ def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,un
 		log_data += log_line + "\n"
 
 	rpc = {"id": 1, "method": "log_write", "params": ["clientconnect", log_data, client_id, False]}
-	res = test_client.post("/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", json=rpc)
 	assert res.status_code == 200
 	res = res.json()
 	assert res.get("error") is None
 
 	rpc = {"id": 1, "method": "log_read", "params": ["clientconnect", client_id]}
-	res = test_client.post("/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", json=rpc)
 	assert res.status_code == 200
 	res = res.json()
 	assert res.get("error") is None
@@ -76,7 +76,7 @@ def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,un
 		assert line == log_line
 
 	rpc = {"id": 1, "method": "host_delete", "params": [client_id]}
-	res = test_client.post("/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", json=rpc)
 	assert res.status_code == 200
 
 

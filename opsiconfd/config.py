@@ -1120,6 +1120,16 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 
 		if self._sub_command == "health-check":
 			self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))
+			self._parser.add(
+				"--upgrade-check",
+				nargs="?",
+				const=True,
+				default=False,
+				help=self._help(
+					"health-check",
+					"Check for upgrade issues only. If a version number is specified, the check is performed for that specific version.",
+				),
+			)
 
 		if self._sub_command in ("backup", "restore"):
 			self._parser.add(

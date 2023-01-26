@@ -27,6 +27,7 @@ from opsicommon.logging.constants import (
 	OPSI_LEVEL_TO_LEVEL,
 )
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
+from packaging.version import InvalidVersion
 from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
@@ -36,6 +37,7 @@ from rich.console import Console
 from rich.padding import Padding
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
+from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config
@@ -212,9 +214,8 @@ def check_depotservers() -> CheckResult:
 			if path != DEPOT_DIR:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = (
-					f"The local depot path is no longer configurable and is set to {DEPOT_DIR}."  # pylint: disable=loop-invariant-statement
-				)
+				partial_result.upgrade_issue = "4.3"
+				partial_result.message = f"The local depot path is no longer configurable in version 4.3 and is set to {DEPOT_DIR!r}."  # pylint: disable=loop-invariant-statement
 			result.add_partial_result(partial_result)
 
 			path = (depot.repositoryLocalUrl or "").removeprefix("file://").rstrip("/")
@@ -227,7 +228,8 @@ def check_depotservers() -> CheckResult:
 			if path != REPOSITORY_DIR:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = f"The local repository path is no longer configurable and is set to {REPOSITORY_DIR}."  # pylint: disable=loop-invariant-statement
+				partial_result.upgrade_issue = "4.3"
+				partial_result.message = f"The local repository path is no longer configurable in version 4.3 and is set to {REPOSITORY_DIR!r}."  # pylint: disable=loop-invariant-statement
 			result.add_partial_result(partial_result)
 
 			path = (depot.workbenchLocalUrl or "").removeprefix("file://").rstrip("/")
@@ -237,10 +239,11 @@ def check_depotservers() -> CheckResult:
 				message="The configured workbench path corresponds to the default.",
 				details={"path": path},
 			)
-			if path != WORKBENCH_DIR:
+			if path != None:  # WORKBENCH_DIR:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = f"The path to the workbench directory is no longer configurable and is set to {WORKBENCH_DIR}."  # pylint: disable=loop-invariant-statement
+				partial_result.upgrade_issue = "4.3"
+				partial_result.message = f"The local workbench path is no longer configurable in version 4.3 and is set to {WORKBENCH_DIR!r}."  # pylint: disable=loop-invariant-statement
 			result.add_partial_result(partial_result)
 
 		if issues > 0:
@@ -389,6 +392,7 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 			if not details["version"]:
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.message = f"Package '{package}' is not installed."
+				partial_result.upgrade_issue = __version__
 				not_installed = not_installed + 1
 			elif parse_version(available_version or "0") > parse_version(str(details["version"])):
 				outdated = outdated + 1
@@ -606,27 +610,64 @@ def console_print_message(check_result: CheckResult | PartialCheckResult, consol
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
-def console_health_check() -> int:
+def console_health_check() -> int:  # pylint: disable=too-many-branches
+	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
+	check_version = None
+	if config.upgrade_check:
+		if config.upgrade_check is True:
+			check_version = parse_version("1000")
+		else:
+			try:
+				check_version = parse_version(config.upgrade_check)
+			except InvalidVersion as err:
+				raise ValueError(str(err)) from err
+
 	console = Console(log_time=False)
-	res = 0
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
 		for result in health_check():
-			style = styles[result.check_status]
-			console.print(f"[{style}]●[/{style}] [b]{result.check_name}[/b]: [{style}]{result.check_status.upper()}[/{style}]")
-			console.print(Padding(f"[{style}]➔[/{style}] [b]{result.message}[/b]", (0, 3)))
-			if result.check_status == CheckStatus.WARNING and res != 1:
-				res = 2
-			elif result.check_status == CheckStatus.ERROR:
-				res = 1
+			status = result.check_status
+			message = result.message
+			partial_results = []
+			for pres in result.partial_results:
+				if check_version and (not pres.upgrade_issue or parse_version(pres.upgrade_issue) > check_version):
+					continue
+				partial_results.append(pres)
+				summary[pres.check_status] += 1
+
+			if check_version:
+				if partial_results:
+					status = CheckStatus.ERROR  # pylint: disable=loop-invariant-statement
+					message = f"{len(partial_results)} upgrade issues"
+				else:
+					status = CheckStatus.OK  # pylint: disable=loop-invariant-statement
+					message = "No upgrade issues"
+					if not config.detailed:  # pylint: disable=loop-invariant-statement
+						continue
+
+			style = styles[status]
+			console.print(f"[{style}]●[/{style}] [b]{result.check_name}[/b]: [{style}]{status.upper()}[/{style}]")
+			console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
 
 			if not config.detailed:  # pylint: disable=loop-invariant-statement
 				continue
 
-			if result.partial_results:
+			if partial_results:
 				console.print("")
-			for partial_result in result.partial_results:
+			for partial_result in partial_results:
 				console_print_message(partial_result, console, 3)
 			console.print("")
 
-	return res
+	status = CheckStatus.OK
+	return_code = 0
+	if summary[CheckStatus.ERROR]:
+		status = CheckStatus.ERROR
+		return_code = 1
+	elif summary[CheckStatus.WARNING]:
+		status = CheckStatus.WARNING
+		return_code = 2
+
+	style = styles[status]
+	res = f"Check completed with {summary[CheckStatus.ERROR]} errors and {summary[CheckStatus.WARNING]} warnings."
+	console.print(f"[{style}]{status.upper()}[/{style}]: [b]{res}[/b]")
+	return return_code

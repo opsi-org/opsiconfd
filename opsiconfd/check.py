@@ -406,7 +406,10 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 			elif compareVersions(available_version or "0", ">", details["version"]):
 				outdated = outdated + 1
 				partial_result.check_status = CheckStatus.WARNING
-				partial_result.message = f"Package {package!r} is out of date. Installed version {details['version']!r} < available version {available_version!r}"
+				partial_result.message = (
+					f"Package {package!r} is out of date. "
+					f"Installed version {details['version']!r} < available version {available_version!r}"
+				)
 				details["outdated"] = True
 			else:
 				partial_result.check_status = CheckStatus.OK

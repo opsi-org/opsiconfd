@@ -28,7 +28,7 @@ from fastapi.testclient import TestClient
 from MySQLdb.connections import Connection  # type: ignore[import]
 from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[import]
 from requests.cookies import cookiejar_from_dict
-from starlette.testclient import WebSocketTestSession, _ASGIAdapter
+from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware, app
@@ -52,6 +52,7 @@ class WorkerMainLoopThread(Thread):
 		super().__init__()
 
 		from opsiconfd.worker import Worker  # pylint: disable=import-outside-toplevel
+
 		self.worker = Worker()
 
 		self.loop = asyncio.new_event_loop()
@@ -101,7 +102,7 @@ def test_client() -> Generator[OpsiconfdTestClient, None, None]:
 		# Get the context out for later use
 		client.context = contextvars.copy_context()
 
-	def get_client_address(asgi_adapter: _ASGIAdapter, scope: Scope) -> Tuple[str, int]:  # pylint: disable=unused-argument
+	def get_client_address(asgi_adapter: Any, scope: Scope) -> Tuple[str, int]:  # pylint: disable=unused-argument
 		return client.get_client_address()
 
 	with (
@@ -147,7 +148,7 @@ def clean_redis_keys() -> Tuple[str, ...]:
 		"opsiconfd:log",
 		"opsiconfd:jsonrpccache:*:products",
 		REDIS_PREFIX_SESSION,
-		REDIS_PREFIX_MESSAGEBUS
+		REDIS_PREFIX_MESSAGEBUS,
 	)
 
 
@@ -258,10 +259,7 @@ def delete_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products
 
 @contextmanager
 def products_jsonrpc(
-	client: OpsiconfdTestClient,
-	base_url: str,
-	products: List[Dict[str, Any]],
-	depots: List[str] | None = None
+	client: OpsiconfdTestClient, base_url: str, products: List[Dict[str, Any]], depots: List[str] | None = None
 ) -> Generator[None, None, None]:
 	create_products_jsonrpc(client, base_url, products)
 	if depots:
@@ -295,20 +293,24 @@ def create_poc_jsonrpc(  # pylint: disable=too-many-arguments
 	product_id: str,
 	install_state: str | None = None,
 	action_request: str | None = None,
-	action_result: str | None = None
+	action_result: str | None = None,
 ) -> None:
-	product = [product_id, "LocalbootProduct", opsi_client, install_state, action_request, None, None, action_result]  # pylint: disable=use-tuple-over-list
+	product = [
+		product_id,
+		"LocalbootProduct",
+		opsi_client,
+		install_state,
+		action_request,
+		None,
+		None,
+		action_result,
+	]  # pylint: disable=use-tuple-over-list
 	rpc = {"id": 1, "method": "productOnClient_create", "params": product}
 	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 	res.raise_for_status()
 
 
-def delete_poc_jsonrpc(
-	http_client: OpsiconfdTestClient,
-	base_url: str,
-	opsi_client: str,
-	product_id: str
-) -> None:
+def delete_poc_jsonrpc(http_client: OpsiconfdTestClient, base_url: str, opsi_client: str, product_id: str) -> None:
 	product = [product_id, opsi_client]  # pylint: disable=use-tuple-over-list
 	rpc = {"id": 1, "method": "productOnClient_delete", "params": product}
 	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
@@ -323,7 +325,7 @@ def poc_jsonrpc(  # pylint: disable=too-many-arguments
 	product_id: str,
 	install_state: str | None = None,
 	action_request: str | None = None,
-	action_result: str | None = None
+	action_result: str | None = None,
 ) -> Generator[None, None, None]:
 	create_poc_jsonrpc(http_client, base_url, opsi_client, product_id, install_state, action_request, action_result)
 	try:
@@ -390,10 +392,7 @@ class WebSocketMessageReader(Thread):
 		return self
 
 	def __exit__(
-		self,
-		exc_type: Type[BaseException] | None,
-		exc_value: BaseException | None,
-		traceback: types.TracebackType | None
+		self, exc_type: Type[BaseException] | None, exc_value: BaseException | None, traceback: types.TracebackType | None
 	) -> None:
 		self.stop()  # type: ignore[no-untyped-call]
 

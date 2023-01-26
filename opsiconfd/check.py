@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from re import findall
 from subprocess import run
@@ -127,7 +128,8 @@ def health_check() -> Iterator[CheckResult]:
 		check_disk_usage,
 		check_depotservers,
 		check_system_packages,
-		check_opsi_packages,
+		check_product_on_depots,
+		check_product_on_clients,
 		check_redis,
 		check_mysql,
 		check_opsi_licenses,
@@ -519,8 +521,10 @@ def check_deprecated_calls() -> CheckResult:
 	return result
 
 
-def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
-	result = CheckResult(check_id="opsi_packages", check_name="OPSI packages", check_description="Check opsi package versions")
+def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
+	result = CheckResult(
+		check_id="product_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
+	)
 	with exc_to_result(result):
 		try:
 			res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
@@ -529,7 +533,7 @@ def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too
 			result.message = f"Failed to get package info from repository '{OPSI_REPO}/{OPSI_PACKAGES_PATH}': {err}"
 			return result
 
-		result.message = "All packages are up to date."
+		result.message = "All important products are up to date on all depots."
 		available_packages = {p: "0.0" for p in CHECK_OPSI_PACKAGES}
 		backend = get_backend()
 
@@ -544,23 +548,27 @@ def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too
 		for depot_id in depots:
 			for product_id, available_version in available_packages.items():
 				partial_result = PartialCheckResult(
-					check_id=f"opsi_packages:{depot_id}:{product_id}",
-					check_name=f"OPSI package {product_id!r} on {depot_id!r}",
+					check_id=f"product_on_depots:{depot_id}:{product_id}",
+					check_name=f"Product {product_id!r} on {depot_id!r}",
 					details={"depot_id": depot_id, "product_id": product_id},
 				)
 				try:  # pylint: disable=loop-try-except-usage
-					product_on_depot = backend.productOnDepot_getObjects(  # pylint: disable=no-member
-						productId=product_id, depotId=depot_id
-					)[0]
+					product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[
+						0
+					]  # pylint: disable=no-member
 				except IndexError as error:
 					not_installed = not_installed + 1
 					logger.debug(error)
 					partial_result.check_status = CheckStatus.ERROR
 					partial_result.message = f"Package '{product_id}' is not installed."
+					partial_result.upgrade_issue = "4.3"
 					result.add_partial_result(partial_result)
 					continue
 
 				product_version_on_depot = f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"
+				partial_result.details["version"] = product_version_on_depot
+				partial_result.details["available_version"] = available_version
+
 				if parse_version(available_version) > parse_version(product_version_on_depot):
 					outdated = outdated + 1
 					partial_result.check_status = CheckStatus.ERROR
@@ -579,15 +587,64 @@ def check_opsi_packages() -> CheckResult:  # pylint: disable=too-many-locals,too
 				result.add_partial_result(partial_result)
 
 		result.details = {
-			"packages": len(CHECK_OPSI_PACKAGES),
+			"products": len(CHECK_OPSI_PACKAGES),
 			"depots": len(depots),
 			"not_installed": not_installed,
 			"outdated": outdated,
 		}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
-				f"Out of {len(CHECK_OPSI_PACKAGES)} packages on {len(depots)} depots checked, "
+				f"Out of {len(CHECK_OPSI_PACKAGES)} products on {len(depots)} depots checked, "
 				f"{not_installed} are not installed and {outdated} are out of date."
+			)
+	return result
+
+
+def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
+	result = CheckResult(
+		check_id="product_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
+	)
+	with exc_to_result(result):
+		result.message = "All important products are up to date on all clients."
+		backend = get_backend()
+		now = datetime.now()
+		client_ids = [
+			host.id
+			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")  # pylint: disable=no-member
+			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 90
+		]
+		if not client_ids:
+			return result
+
+		outdated_client_ids = set()
+		for product_id, min_version in OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.items():  # pylint: disable=loop-global-usage
+			product_version = min_version.split("-", 1)[0]
+			p_min_version = parse_version(min_version)
+			for product_on_client in backend.productOnClient_getObjects(  # pylint: disable=no-member
+				attributes=["productVersion", "packageVersion"],
+				clientId=client_ids,
+				productId=product_id,
+				installationStatus="installed",
+			):
+				version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
+				if parse_version(version) >= p_min_version:
+					continue
+				client_id = product_on_client.clientId
+				partial_result = PartialCheckResult(
+					check_status=CheckStatus.ERROR,
+					check_id=f"product_on_clients:{client_id}:{product_id}",
+					check_name=f"Product {product_id!r} on {client_id!r}",
+					message=f"Package '{product_id}' is outdated. Installed version {version!r} < recommended version {product_version!r}",
+					details={"client_id": client_id, "product_id": product_id, "version": version},
+					upgrade_issue="4.3",
+				)
+				outdated_client_ids.add(client_id)
+				result.add_partial_result(partial_result)
+
+		result.details = {"outdated_clients": len(outdated_client_ids)}
+		if outdated_client_ids:
+			result.message = (
+				f"There are {len(outdated_client_ids)} active clients (last seen < 90 days) where important products are out of date."
 			)
 	return result
 

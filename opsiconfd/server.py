@@ -170,6 +170,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		os.putenv("OPSICONFD_WORKER_WORKER_NUM", str(worker_num))
 		os.putenv("OPSICONFD_CONFIG_FILE", config.config_file)
 
+		assert self.socket
 		worker = WorkerProcess(get_subprocess(config=self.uvicorn_config, target=self.server.run, sockets=[self.socket]), worker_num)
 		worker.process.start()
 

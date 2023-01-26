@@ -18,11 +18,11 @@ from types import NoneType
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from fastapi import Body, Query, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import asc, column, desc  # type: ignore[import]
 from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
-from starlette.datastructures import URL
+from starlette.datastructures import URL, MutableHeaders
 
 from . import contextvar_client_session
 from .application.utils import parse_list
@@ -45,8 +45,8 @@ class OpsiApiException(Exception):
 		self,
 		message: str = "An unknown error occurred.",
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-		code: int = None,
-		error: Exception | str | None = None
+		code: int | None = None,
+		error: Exception | str | None = None,
 	):
 		self.message = message
 		self.http_status = http_status
@@ -60,19 +60,19 @@ class OpsiApiException(Exception):
 		super().__init__(self.message)
 
 
-class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance-attributes
-
+class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-many-instance-attributes
 	def __init__(
 		self,
 		data: None | int | str | list | dict = None,
 		total: None | int = None,
 		http_status: int = status.HTTP_200_OK,
-		headers: dict = {}
-	):  # pylint: disable=dangerous-default-value
+		headers: dict[str, str] | None = None,
+	):
+		super().__init__()
 		self.status = http_status
+		self._headers = MutableHeaders(headers or {})
 		self.content = data
 		self.total = total
-		self.headers = headers
 
 	@property
 	def content(self) -> None | int | str | list | dict:
@@ -85,66 +85,60 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 
 	@property
 	def status(self) -> int:
-		return self._status
+		return self.status_code
 
 	@status.setter
-	def status(self, http_status: int) -> None:
-		if not isinstance(http_status, int):
+	def status(self, status_code: int) -> None:
+		if not isinstance(status_code, int):
 			raise TypeError("RESTResponse http status must be integer.")
-		self._status = http_status
+		self.status_code = status_code
 
 	@property
 	def total(self) -> int | None:
 		return self._total
 
 	@total.setter
-	def total(self, total: int) -> None:
+	def total(self, total: int | None) -> None:
 		if not isinstance(total, (int, NoneType)):
 			raise TypeError("RESTResponse total must be integer.")
 		self._total = total
+		if total is not None:
+			self._headers["Access-Control-Expose-Headers"] = "x-total-count"
+			self._headers["X-Total-Count"] = str(self._total)
 
 	@property
-	def headers(self) -> dict:
+	def headers(self) -> MutableHeaders:
 		return self._headers
 
 	@headers.setter
-	def headers(self, headers: dict = {}) -> None:  # pylint: disable=dangerous-default-value
-		if not isinstance(headers, dict):
-			headers = {}
-		self._headers = headers
-		if self._total:
-			self._headers["Access-Control-Expose-Headers"] = "x-total-count"
-			self._headers["X-Total-Count"] = str(self._total)
+	def headers(self, headers: dict[str, str]) -> None:
+		self._headers = MutableHeaders(headers or {})
 
 	@property
 	def type(self) -> type:
 		return self._content_type
 
 	def to_jsonresponse(self) -> JSONResponse:
-		return JSONResponse(content=self._content, status_code=self._status, headers=self._headers)
+		return JSONResponse(content=self.content, status_code=self.status, headers=dict(self._headers))
 
 
 class RESTErrorResponse(RESTResponse):
-
 	def __init__(
 		self,
 		message: str = "An unknown error occurred.",
-		details: Union[str, Exception] = None,
-		error_class: str = None,
-		code: str = None,
+		details: Union[str, Exception] | None = None,
+		error_class: str | None = None,
+		code: str | None = None,
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-		headers: dict = None
+		headers: dict | None = None,
 	):  # pylint: disable=too-many-arguments
 
 		if isinstance(details, Exception):
 			error_class = details.__class__.__name__
 			details = str(details)
 
-		is_admin = False
 		session = contextvar_client_session.get()
-		if session and session.user_store:
-			is_admin = session.user_store.isAdmin
-		if not is_admin:
+		if not session or not session.user_store.isAdmin:
 			details = None
 		super().__init__(
 			data={
@@ -155,7 +149,7 @@ class RESTErrorResponse(RESTResponse):
 				"details": details,
 			},
 			http_status=http_status,
-			headers=headers or {}
+			headers=headers or {},
 		)
 
 
@@ -214,9 +208,7 @@ def create_link_header(total: int, commons: Dict[str, Any], url: URL) -> dict:
 				if param.startswith("pageNumber"):
 					continue
 				link += param + "&"
-			headers[
-				"Link"
-			] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+			headers["Link"] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
 	return headers
 
 
@@ -236,7 +228,9 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 			return func(*args, **kwargs)
 
 		@wraps(func)
-		async def create_response(*args: Any, **kwargs: Any) -> JSONResponse:  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+		async def create_response(
+			*args: Any, **kwargs: Any
+		) -> JSONResponse:  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
 			logger.debug("rest_api method name: %s", name)
 			content = None
 			http_status = status.HTTP_200_OK
@@ -250,7 +244,9 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 					return result.to_jsonresponse()
 				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data") is not None:
-					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
+					warnings.warn(
+						"opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning
+					)
 					if result.get("data"):
 						content = result.get("data")
 					if result.get("total") and kwargs.get("request"):
@@ -287,6 +283,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 				if not is_admin:
 					del content["details"]
 				return JSONResponse(content=content, status_code=content["status"])
+
 		return create_response
 
 	if _func:

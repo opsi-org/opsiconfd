@@ -17,7 +17,6 @@ import time
 
 import aioredis
 import pytest
-import requests
 
 from opsiconfd.application.monitoring.utils import get_workers
 from tests.monitoring.test_monitoring import (  # pylint: disable=unused-import
@@ -30,6 +29,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	clean_redis,
 	config,
 	database_connection,
+	test_client,
 )
 
 
@@ -51,7 +51,9 @@ from tests.utils import (  # pylint: disable=unused-import
 		),
 	],
 )
-def test_check_product_status_none(config, product_ids, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name
+def test_check_product_status_none(
+	test_client, config, product_ids, verbose, strict, expected_result
+):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps(
 		{
@@ -70,7 +72,7 @@ def test_check_product_status_none(config, product_ids, verbose, strict, expecte
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -129,7 +131,7 @@ def test_check_product_status_none(config, product_ids, verbose, strict, expecte
 		),
 	],
 )
-def test_check_product_status(config, products, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name
+def test_check_product_status(test_client, config, products, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps(
 		{
@@ -147,7 +149,7 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 			},
 		}
 	)
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -197,7 +199,7 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 	],
 )
 def test_check_product_status_groupids(
-	config, products, group, verbose, strict, expected_result
+	test_client, config, products, group, verbose, strict, expected_result
 ):  # pylint: disable=redefined-outer-name,too-many-arguments
 	data = json.dumps(
 		{
@@ -216,7 +218,7 @@ def test_check_product_status_groupids(
 			},
 		}
 	)
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -253,7 +255,7 @@ def test_check_product_status_groupids(
 		),
 	],
 )
-def test_check_product_status_short(config, product, expected_result):  # pylint: disable=redefined-outer-name
+def test_check_product_status_short(test_client, config, product, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps(
 		{
@@ -270,7 +272,7 @@ def test_check_product_status_short(config, product, expected_result):  # pylint
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -373,7 +375,7 @@ def test_check_product_status_short(config, product, expected_result):  # pylint
 		),
 	],
 )
-def test_check_client_status(config, client, exclude, expected_result):  # pylint: disable=redefined-outer-name
+def test_check_client_status(test_client, config, client, exclude, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps(
 		{
@@ -391,7 +393,7 @@ def test_check_client_status(config, client, exclude, expected_result):  # pylin
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -502,7 +504,7 @@ def test_check_client_status(config, client, exclude, expected_result):  # pylin
 	],
 )
 def test_check_depot_sync_status(
-	config, depot_ids, product_ids, exclude, strict, verbose, expected_result
+	test_client, config, depot_ids, product_ids, exclude, strict, verbose, expected_result
 ):  # pylint: disable=too-many-arguments,redefined-outer-name
 
 	data = json.dumps(
@@ -524,7 +526,7 @@ def test_check_depot_sync_status(
 		}
 	)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -545,7 +547,7 @@ def test_check_depot_sync_status(
 	],
 )
 async def test_check_opsi_webservice_cpu(
-	config, cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result
+	test_client, config, cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result
 ):  # pylint: disable=too-many-arguments,redefined-outer-name
 
 	data = json.dumps(
@@ -578,6 +580,6 @@ async def test_check_opsi_webservice_cpu(
 
 	await asyncio.sleep(1)
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result

@@ -31,6 +31,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	config,
 	create_depot_jsonrpc,
 	database_connection,
+	test_client,
 )
 
 MONITORING_CHECK_DAYS = 31

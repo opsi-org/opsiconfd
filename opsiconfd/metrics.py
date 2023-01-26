@@ -8,6 +8,8 @@
 metrics
 """
 
+from __future__ import annotations
+
 import asyncio
 import re
 import time
@@ -39,7 +41,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		time_related: bool = False,
 		subject: str = "worker",
 		server_timing_header_factor: int | None = None,
-		grafana_config: "GrafanaPanelConfig" | None = None,
+		grafana_config: GrafanaPanelConfig | None = None,
 		downsampling: List | None = None,
 	):
 		"""

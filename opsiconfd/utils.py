@@ -208,8 +208,8 @@ def retry_redis_call(func: Callable) -> Callable:
 
 
 def get_redis_connection(
-	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False
-) -> redis.StrictRedis:  # pylint: disable=invalid-name
+	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False  # pylint: disable=invalid-name
+) -> redis.StrictRedis:
 	start = time.time()
 	con_id = f"{url}/{db}"
 	while True:

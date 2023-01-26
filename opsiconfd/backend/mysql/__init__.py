@@ -441,6 +441,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					if "*" in val:
 						operator = "LIKE"
 						val = val.replace("*", "%")
+					elif val.startswith(("<", ">")):
+						operator = val[0]
+						val = val[1:]
 					new_values.append(val)
 				values = new_values
 

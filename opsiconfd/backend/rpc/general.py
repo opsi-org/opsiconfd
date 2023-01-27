@@ -70,6 +70,7 @@ from opsiconfd.config import (
 	config,
 	opsi_config,
 )
+from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import logger
 from opsiconfd.ssl import get_ca_cert_as_pem
 
@@ -166,6 +167,11 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	def service_checkHealth(self: BackendProtocol) -> list[CheckResult]:  # pylint: disable=invalid-name
 		self._check_role("admin")
 		return list(health_check())
+
+	@rpc_method
+	def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:  # pylint: disable=invalid-name
+		self._check_role("admin")
+		return get_diagnostic_data()
 
 	@rpc_method
 	def service_createBackup(  # pylint: disable=invalid-name

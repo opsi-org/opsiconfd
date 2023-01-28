@@ -248,7 +248,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.update_config_file()
 
 
-def setup_mysql_connection(interactive: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
+def setup_mysql_connection(interactive: bool = False, force: bool = False) -> bool:  # pylint: disable=too-many-branches
 	error: Exception | None = None
 
 	mysql = MySQLConnection()
@@ -256,7 +256,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 		try:
 			with mysql.connection():
 				# OK
-				return
+				return False
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to connect to database: %s", err)
 			error = err
@@ -266,6 +266,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 	if not force and mysql_root.address in ("localhost", "127.0.0.1", "::1"):
 		# Try unix socket connection as user root
 		auto_try = True
+		mysql_root.address = "localhost"
 		mysql_root.database = "opsi"
 		mysql_root.username = "root"
 		mysql_root.password = ""
@@ -307,12 +308,15 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 		auto_try = False
 		mysql_root = MySQLConnection()
 
+	return True
+
 
 def setup_mysql(interactive: bool = False, full: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
-	setup_mysql_connection(interactive=interactive, force=force)
+	if not setup_mysql_connection(interactive=interactive, force=force):
+		return
 
 	mysql = MySQLConnection()
 	if interactive:

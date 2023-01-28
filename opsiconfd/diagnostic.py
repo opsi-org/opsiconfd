@@ -75,12 +75,18 @@ def get_depot_info() -> dict[str, list[str]]:
 
 
 def get_diagnostic_data() -> dict[str, Any]:
+	# licenses
+	# package versions
+	# product versions
+	# processor info and usage
+	# ram info and usage
+	# backendmanager extension files
 	data = {
 		"os_release": get_os_release(),
 		"lsb_release": get_lsb_release(),
 		"config": config.items(),  # TODO: remove sensible data
-		"health_check": list(health_check()),
 		"depots": get_depot_info(),
-		"clients": get_client_info,
+		"clients": get_client_info(),
+		"health_check": list(health_check()),
 	}
 	return data

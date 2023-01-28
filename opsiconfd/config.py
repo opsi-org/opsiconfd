@@ -1181,6 +1181,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				help=self._help("restore", "Restore config files from backup."),
 			)
 			self._parser.add(
+				"--ignore-errors",
+				action="store_true",
+				help=self._help("restore", "Continue on errors."),
+			)
+			self._parser.add(
 				"--server-id",
 				env_var="OPSICONFD_SERVER_ID",
 				default="backup",

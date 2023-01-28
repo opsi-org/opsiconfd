@@ -185,7 +185,8 @@ def restore_main() -> None:
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={config.config_files}, server_id={server_id}, decrypt={bool(config.password)}"
+				f"Using arguments: config_files={config.config_files}, ignore_errors={config.ignore_errors}"
+				f", server_id={server_id}, decrypt={bool(config.password)}"
 			)
 
 			initalized_event = threading.Event()
@@ -200,7 +201,15 @@ def restore_main() -> None:
 			).start()
 			initalized_event.wait(5)
 
-			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, password=config.password, progress=progress)
+			restore_backup(
+				backup_file,
+				config_files=config.config_files,
+				ignore_errors=config.ignore_errors,
+				batch=not config.ignore_errors,
+				server_id=server_id,
+				password=config.password,
+				progress=progress,
+			)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' successfully restored.")
 	except KeyboardInterrupt:

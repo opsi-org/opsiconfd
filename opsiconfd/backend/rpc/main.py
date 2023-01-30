@@ -90,20 +90,42 @@ def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: 
 
 class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 	RPCGeneralMixin,
-	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCGroupMixin,
-	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
-	RPCProductPropertyMixin, RPCProductPropertyStateMixin,
-	RPCProductOnDepotMixin, RPCProductOnClientMixin,
-	RPCLicenseContractMixin, RPCLicenseOnClientMixin, RPCLicensePoolMixin,
-	RPCSoftwareLicenseToLicensePoolMixin, RPCSoftwareLicenseMixin,
+	RPCHostMixin,
+	RPCConfigMixin,
+	RPCConfigStateMixin,
+	RPCGroupMixin,
+	RPCObjectToGroupMixin,
+	RPCProductMixin,
+	RPCProductDependencyMixin,
+	RPCProductPropertyMixin,
+	RPCProductPropertyStateMixin,
+	RPCProductOnDepotMixin,
+	RPCProductOnClientMixin,
+	RPCLicenseContractMixin,
+	RPCLicenseOnClientMixin,
+	RPCLicensePoolMixin,
+	RPCSoftwareLicenseToLicensePoolMixin,
+	RPCSoftwareLicenseMixin,
 	RPCAuditSoftwareToLicensePoolMixin,
-	RPCAuditSoftwareMixin, RPCAuditSoftwareOnClientMixin,
-	RPCAuditHardwareMixin, RPCAuditHardwareOnHostMixin,
-	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
-	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
-	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtOpsiMixin,
-	RPCDepotserverMixin, RPCHostControlMixin, RPCDHCPDControlMixin, RPCOpsiPXEConfdControlMixin,
-	RPCExtenderMixin
+	RPCAuditSoftwareMixin,
+	RPCAuditSoftwareOnClientMixin,
+	RPCAuditHardwareMixin,
+	RPCAuditHardwareOnHostMixin,
+	RPCExtLegacyMixin,
+	RPCExtAdminTasksMixin,
+	RPCExtDeprecatedMixin,
+	RPCExtDynamicDepotMixin,
+	RPCExtEasyMixin,
+	RPCExtKioskMixin,
+	RPCExtSSHCommandsMixin,
+	RPCExtWIMMixin,
+	RPCExtWANMixin,
+	RPCExtOpsiMixin,
+	RPCDepotserverMixin,
+	RPCHostControlMixin,
+	RPCDHCPDControlMixin,
+	RPCOpsiPXEConfdControlMixin,
+	RPCExtenderMixin,
 ):
 	__instance = None
 	__initialized = False
@@ -155,7 +177,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			ace=[],
 			return_type="object",
 			attributes=["id", "opsiHostKey"],
-			filter={"type": "OpsiDepotserver", "id": self._depot_id}
+			filter={"type": "OpsiDepotserver", "id": self._depot_id},
 		)
 		if hosts:
 			self._opsi_host_key = hosts[0].opsiHostKey
@@ -228,13 +250,16 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				setattr(self, method_name, MethodType(func, self))  # pylint: disable=eval-used,dotted-import-in-loop
 
 			except Exception as err:  # pylint: disable=broad-except
-				logger.critical("Failed to create instance method '%s': %s", method, err, exc_info=True)  # pylint: disable=loop-global-usage
+				logger.critical(
+					"Failed to create instance method '%s': %s", method, err, exc_info=True
+				)  # pylint: disable=loop-global-usage
 
 	def _depot_server_init(self) -> None:
-		self._opsi_host_key = ""
-		self._depot_id = ""
-		address = ""
-		self._service_client = ServiceClient(address=address, username=self._depot_id, password=self._opsi_host_key, verify="accept_all")
+		self._depot_id = opsi_config.get("host", "id")
+		self._opsi_host_key = opsi_config.get("host", "key")
+		self._service_client = ServiceClient(
+			address=opsi_config.get("service", "url"), username=self._depot_id, password=self._opsi_host_key, verify="accept_all"
+		)
 		self._service_client.connect()
 		self._interface_list = self._service_client.jsonrpc(method="backend_getInterface")
 		self._create_jsonrpc_instance_methods()

@@ -362,7 +362,7 @@ def setup_backend() -> None:
 	with mysql.connection():
 		if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
 			config_server_id = get_configserver_id()
-			logger.notice("Creating config:server %r", config_server_id)
+			logger.notice("Creating config server %r", config_server_id)
 			network_config = getNetworkConfiguration()
 			config_server = OpsiConfigserver(
 				id=config_server_id,

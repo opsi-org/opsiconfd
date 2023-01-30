@@ -8,5 +8,4 @@ else
 	echo DEV_USER=$USER >> .env
 fi
 
-echo JEMALLOC_VERSION=5.2.1 >> .env
 echo OPSILICSRV_TOKEN=  >> .env

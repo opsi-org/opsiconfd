@@ -34,7 +34,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendPermissionDeniedError,
 )
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
-from opsicommon.objects import Host  # type: ignore[import]
+from opsicommon.objects import Host, OpsiClient  # type: ignore[import]
 from opsicommon.utils import timestamp  # type: ignore[import]
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
@@ -666,7 +666,7 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 
 	if host.opsiHostKey and session.password == host.opsiHostKey:
 		logger.info("Host '%s' authenticated by host key", host.id)
-	elif host.oneTimePassword and session.password == host.oneTimePassword:
+	elif isinstance(host, OpsiClient) and host.oneTimePassword and session.password == host.oneTimePassword:
 		logger.info("Host '%s' authenticated by onetime password", host.id)
 		host.oneTimePassword = ""
 		await backend.async_call("host_updateObject", host=host)

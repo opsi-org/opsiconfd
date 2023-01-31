@@ -50,12 +50,16 @@ async def test_message_reader_processing(config: Config) -> None:  # pylint: dis
 		assert reader.received[0][1].type == "test"
 		assert reader.received[0][1].id == "1"
 
-		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(
+			f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id"
+		)  # pylint: disable=protected-access
 		assert last_id is None
 
 		await reader.ack_message("host:test-123", reader.received[0][0])
 
-		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(
+			f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id"
+		)  # pylint: disable=protected-access
 		assert last_id.decode("utf-8") == reader.received[0][0]  # type: ignore[union-attr]
 
 		await send_message(Message(id="2", type="test", sender="*", channel="host:test-123"), context=b"context_data")
@@ -74,7 +78,9 @@ async def test_message_reader_processing(config: Config) -> None:  # pylint: dis
 		assert reader.received[2][1].id == "4"
 
 		await reader.ack_message("host:test-123", reader.received[2][0])
-		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(
+			f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id"
+		)  # pylint: disable=protected-access
 		assert last_id.decode("utf-8") == reader.received[2][0]  # type: ignore[union-attr]
 		reader.received = []
 
@@ -113,10 +119,14 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 			if reader.ack:
 				await reader.ack_message(message.channel, redis_id)
 
-	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
+	reader1 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
+	)
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
+	reader2 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
+	)
 	asyncio.create_task(reader_task(reader2))
 
 	for idx in range(1, 101):
@@ -141,11 +151,15 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	for idx in range(101, 201):
 		await send_message(Message(id=str(idx), type="test", sender="*", channel="service:config:jsonrpc"), context=b"context_data")
 
-	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
+	reader1 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
+	)
 	reader1.ack = False
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
+	reader2 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
+	)
 	reader2.ack = True
 	asyncio.create_task(reader_task(reader2))
 
@@ -163,10 +177,14 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	reader1_received_ids = [rcv[1].id for rcv in reader1.received]
 
 	# Restart readers
-	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
+	reader1 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
+	)
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
+	reader2 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
+	)
 	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
@@ -180,10 +198,14 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	assert sorted(reader1_received_ids) == sorted([rcv[1].id for rcv in reader1.received])
 
 	# Restart readers
-	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
+	reader1 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
+	)
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
+	reader2 = MyMessageReader(
+		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
+	)
 	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)

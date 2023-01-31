@@ -115,13 +115,13 @@ class OpsiPXEConfdConnectionThread(Thread):
 
 
 class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instance-attributes,too-few-public-methods
-	_opsipxeconfd_control_enabled: bool = False
-	_opsipxeconfd_control_on_depot: bool = False
+	_opsipxeconfd_control_enabled: bool = True
+	_opsipxeconfd_control_on_depot: bool = True
 	_opsipxeconfd_control_socket_path: str = "/var/run/opsipxeconfd/opsipxeconfd.socket"
 
 	def __init__(self) -> None:
 		self._opsipxeconfd_control_enabled = True
-		self._opsipxeconfd_control_on_depot = False
+		self._opsipxeconfd_control_on_depot = True
 		self._read_opsipxeconfd_control_config_file()
 
 	def _read_opsipxeconfd_control_config_file(self) -> None:
@@ -168,8 +168,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 
 		if self._opsipxeconfd_control_on_depot and responsible_depot_id != self._depot_id:
 			logger.info("Not responsible for client '%s', forwarding request to depot %s", client_id, responsible_depot_id)
-			jsonrpc = self._get_depot_jsonrpc_connection(responsible_depot_id)
-			jsonrpc.execute_rpc(method="opsipxeconfd_updatePXEBootConfiguration", params=[client_id])
+			self._execute_rpc_on_depot(depot_id=responsible_depot_id, method="opsipxeconfd_updatePXEBootConfiguration", params=[client_id])
 		else:
 			self.opsipxeconfd_updatePXEBootConfiguration(client_id)
 
@@ -193,9 +192,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 
 			logger.info("Forwarding request to depots: %s", depot_ids)
 			for depot_id in depot_ids:
-				self._get_depot_jsonrpc_connection(depot_id).execute_rpc(
-					method="opsipxeconfd_deletePXEBootConfiguration", params=[client_id]
-				)
+				self._execute_rpc_on_depot(depot_id=depot_id, method="opsipxeconfd_deletePXEBootConfiguration", params=[client_id])
 
 		if responsible_depot_id == self._depot_id or all_depots:
 			self.opsipxeconfd_deletePXEBootConfiguration(client_id)

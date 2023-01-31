@@ -18,6 +18,7 @@ import sys
 import time
 from pathlib import Path
 from urllib.parse import urlparse
+from uuid import UUID
 
 import psutil
 from OPSI.System.Posix import (  # type: ignore[import]
@@ -252,7 +253,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.update_config_file()
 
 
-def setup_mysql_connection(interactive: bool = False, force: bool = False) -> bool:  # pylint: disable=too-many-branches
+def setup_mysql_connection(interactive: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
 	error: Exception | None = None
 
 	mysql = MySQLConnection()
@@ -260,7 +261,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> bo
 		try:
 			with mysql.connection():
 				# OK
-				return False
+				return
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to connect to database: %s", err)
 			error = err
@@ -313,12 +314,9 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> bo
 		auto_try = False
 		mysql_root = MySQLConnection()
 
-	return True
-
 
 def setup_mysql(interactive: bool = False, full: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
-	if not setup_mysql_connection(interactive=interactive, force=force):
-		return
+	setup_mysql_connection(interactive=interactive, force=force)
 
 	mysql = MySQLConnection()
 	if interactive:
@@ -443,6 +441,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	backend = get_unprotected_backend()
 
 	config_ids = set(backend.config_getIdents(returnType="str"))
+	depot_ids = backend.host_getIdents(returnType="str", type="OpsiDepotserver")
 
 	add_configs: list[BoolConfig | UnicodeConfig] = []
 	add_config_states: list[ConfigState] = []
@@ -479,18 +478,17 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			)
 		)
 
-	if "clientconfig.depot.id" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.id")
-		add_configs.append(
-			UnicodeConfig(
-				id="clientconfig.depot.id",
-				description="ID of the opsi depot to use",
-				possibleValues=[get_depotserver_id()],
-				defaultValues=[get_depotserver_id()],
-				editable=True,
-				multiValue=False,
-			)
+	logger.info("Creating config: clientconfig.depot.id")
+	add_configs.append(
+		UnicodeConfig(
+			id="clientconfig.depot.id",
+			description="ID of the opsi depot to use",
+			possibleValues=depot_ids,
+			defaultValues=[get_configserver_id()],
+			editable=False,
+			multiValue=False,
 		)
+	)
 
 	if "clientconfig.depot.dynamic" not in config_ids:
 		logger.info("Creating config: clientconfig.depot.dynamic")
@@ -672,69 +670,83 @@ def setup_redis() -> None:
 		delete_recursively(delete_key)
 
 
-def setup_depotserver() -> bool:
+def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-statements
 	service = ServiceClient(opsi_config.get("service", "url"), verify="accept_all", jsonrpc_create_objects=True)
+	try:  # pylint: disable=too-many-nested-blocks
+		while True:
+			try:
+				if not Confirm.ask("Do you want to register this server as a depotserver?"):
+					return False
 
-	while True:
-		try:
-			if not Confirm.ask("Do you want to register this server as a depotserver?"):
+				url = urlparse(service.base_url)
+				hostname = url.hostname
+				if hostname in ("127.0.0.1", "::1", "localhost"):
+					hostname = ""
+				inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
+				if not inp:
+					raise ValueError(f"Invalid address {inp!r}")
+				service.set_addresses(inp)
+				service.username = Prompt.ask("Enter username for service connection", default=service.username, show_default=True)
+				service.password = Prompt.ask(f"Enter password for {service.username!r}", password=True)
+
+				rich_print(f"[b]Connecting to service {service.base_url!r}[/b]")
+				service.connect()
+				rich_print(f"[b][green]Connected to service as {service.username!r}[/green][/b]")
+				break
+			except KeyboardInterrupt:
+				print("")
 				return False
+			except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
+				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
 
-			url = urlparse(service.base_url)
-			hostname = url.hostname
-			if hostname in ("127.0.0.1", "::1", "localhost"):
-				hostname = ""
-			inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
-			if not inp:
-				raise ValueError(f"Invalid address {inp!r}")
-			service.set_addresses(inp)
-			service.username = Prompt.ask("Enter username for service connection", default=service.username, show_default=True)
-			service.password = Prompt.ask(f"Enter password for {service.username!r}")
+		depot_id = opsi_config.get("host", "id")
+		depot = OpsiDepotserver(id=depot_id)
+		while True:
+			try:
+				inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
+				depot.setId(inp)
 
-			rich_print(f"[b]Connecting to service {service.base_url!r}[/b]")
-			service.connect()
-			rich_print(f"[b][green]Connected to service as {service.username!r}[/green][/b]")
-			break
-		except KeyboardInterrupt:
-			print("")
-			return False
-		except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
-			rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
+				hosts = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})
+				if hosts:
+					depot = hosts[0]
+					if depot.getType() != "OpsiDepotserver":
+						if not Confirm.ask(f"[b][red]Host {depot.id} already exists, but is a {depot.getType()!r}, continue?[red][/b]"):
+							return False
+						depot = OpsiDepotserver.fromHash({k: v for k, v in depot.to_hash().items() if k != "type"})
 
-	depot_id = opsi_config.get("host", "id")
-	depot = OpsiDepotserver(id=depot_id)
-	while True:
-		try:
-			inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
-			depot.setId(inp)
+				depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
+				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
+				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"
+				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs:///{FQDN}:4447/depot"
+				depot.repositoryLocalUrl = f"file://{REPOSITORY_DIR}"
+				depot.repositoryRemoteUrl = depot.repositoryRemoteUrl or f"webdavs:///{FQDN}:4447/repository"
+				depot.workbenchLocalUrl = f"file://{WORKBENCH_DIR}"
+				depot.workbenchRemoteUrl = depot.workbenchRemoteUrl or f"smb:///{FQDN}/opsi_workbench"
+				try:
+					depot.systemUUID = str(UUID(Path("/sys/class/dmi/id/product_uuid").read_text(encoding="ascii").strip()))
+				except Exception as err:  # pylint: disable=broad-except
+					logger.debug(err)
 
-			hosts = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})
-			if hosts:
-				depot = hosts[0]
-				if depot.getType() != "OpsiDepotserver":
-					if not Confirm.ask(f"[b][red]Host {depot.id} already exists, but is a {depot.getType()!r}, continue?[red][/b]"):
-						return False
+				rich_print("[b]Registering depot[/b]")
+				service.jsonrpc("host_createObjects", params=[depot])
+				rich_print("[b][green]Depot succesfully registered[/green][/b]")
 
-			depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
+				depot = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})[0]
 
-			rich_print("[b]Registering depot[/b]")
-			service.jsonrpc("host_createObjects", params=[depot])
-			rich_print("[b][green]Depot succesfully registered[/green][/b]")
+				opsi_config.set("host", "server-role", "depotserver")
+				opsi_config.set("host", "id", depot_id)
+				opsi_config.set("host", "key", depot.opsiHostKey)
+				opsi_config.set("service", "url", service.base_url)
+				opsi_config.write_config_file()
 
-			depot = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})[0]
-
-			opsi_config.set("host", "server-role", "depotserver")
-			opsi_config.set("host", "id", depot_id)
-			opsi_config.set("host", "key", depot.opsiHostKey)
-			opsi_config.set("service", "url", service.base_url)
-			opsi_config.write_config_file()
-
-			return True
-		except KeyboardInterrupt:
-			print("")
-			return False
-		except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
-			rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
+				return True
+			except KeyboardInterrupt:
+				print("")
+				return False
+			except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
+				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
+	finally:
+		service.disconnect()
 
 
 def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-many-statements

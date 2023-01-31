@@ -20,15 +20,21 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
+from opsicommon.messagebus import JSONRPCRequestMessage, timestamp
 from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
 from opsicommon.types import forceHostId  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd import server_timing  # server_timing needed for jsonrpc_forward
 from opsiconfd import contextvar_client_session
 from opsiconfd.application import app
+from opsiconfd.backend import get_service_client
 from opsiconfd.backend.rpc import MethodInterface
 from opsiconfd.config import config, get_depotserver_id, opsi_config
 from opsiconfd.logging import logger, secret_filter
+from opsiconfd.messagebus import get_user_id_for_service_worker
+from opsiconfd.messagebus.redis import sync_send_message
+from opsiconfd.worker import Worker
 
 from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
 from ..mysql import MySQLConnection
@@ -129,7 +135,6 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 ):
 	__instance = None
 	__initialized = False
-	_depot_connections: dict[str, ServiceClient]
 	_shutting_down: bool = False
 
 	def __new__(cls, *args: Any, **kwargs: Any) -> Backend:
@@ -145,7 +150,6 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._events_enabled = True
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
-		self._depot_connections: dict[str, ServiceClient] = {}
 		self._depot_id: str = get_depotserver_id()
 		self._mysql = MySQLConnection()
 		self._service_client: ServiceClient | None = None
@@ -158,6 +162,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			self._config_server_init()
 		else:
 			self._depot_server_init()
+		self.available_modules = self.get_licensing_info()["available_modules"]  # type: ignore[misc]
 
 		for base in Backend.__bases__:
 			logger.debug("Init %s", base)
@@ -188,7 +193,6 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 
 		self._interface = describe_interface(self)
 		self._interface_list = [self._interface[name].as_dict() for name in sorted(list(self._interface.keys()))]
-		self.available_modules = self.get_licensing_info()["available_modules"]  # type: ignore[misc]
 
 	def _create_jsonrpc_instance_methods(self) -> None:  # pylint: disable=too-many-locals
 		if self._interface_list is None:
@@ -243,7 +247,9 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				logger.trace("%s: arg string is: %s", method_name, arg_string)  # pylint: disable=loop-global-usage
 				logger.trace("%s: call string is: %s", method_name, call_string)  # pylint: disable=loop-global-usage
 				exec(  # pylint: disable=exec-used
-					f'def {method_name}(self, {arg_string}): return self._service_client.jsonrpc(method="{method_name}", params=[{call_string}])'
+					f"def {method_name}(self, {arg_string}):\n"
+					'	with server_timing("jsonrpc_forward"):\n'
+					f'		return self._service_client.jsonrpc(method="{method_name}", params=[{call_string}])\n'
 				)
 				func = eval(method_name)  # pylint: disable=eval-used
 				setattr(func, "rpc_interface", self._interface[method_name])
@@ -255,12 +261,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				)  # pylint: disable=loop-global-usage
 
 	def _depot_server_init(self) -> None:
-		self._depot_id = opsi_config.get("host", "id")
-		self._opsi_host_key = opsi_config.get("host", "key")
-		self._service_client = ServiceClient(
-			address=opsi_config.get("service", "url"), username=self._depot_id, password=self._opsi_host_key, verify="accept_all"
-		)
-		self._service_client.connect()
+		self._service_client = get_service_client()
 		self._interface_list = self._service_client.jsonrpc(method="backend_getInterface")
 		self._create_jsonrpc_instance_methods()
 
@@ -276,14 +277,10 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	def shutdown(self) -> None:
 		self._shutting_down = True
 		self._events_enabled = False
-		for jsonrpc_client in self._depot_connections.values():
-			jsonrpc_client.disconnect()
 		for base in self.__class__.__bases__:
 			for method in base.__dict__.values():
 				if callable(method) and hasattr(method, "backend_event_shutdown"):
 					method(self)
-		if self._service_client:
-			self._service_client.disconnect()
 
 	def reload_config(self) -> None:
 		self._read_dhcpd_control_config_file()  # pylint: disable=no-member
@@ -303,26 +300,24 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		if module not in self.available_modules:
 			raise BackendModuleDisabledError(f"Module {module!r} not available")
 
-	def _get_depot_jsonrpc_connection(self, depot_id: str) -> ServiceClient:
-		depot_id = forceHostId(depot_id)
-		if depot_id == self._depot_id:
-			raise ValueError("Is local depot")
-
-		if depot_id not in self._depot_connections:
-			try:
-				self._depot_connections[depot_id] = ServiceClient(
-					address=f"https://{depot_id}:4447/rpc", username=self._depot_id, password=self._opsi_host_key, verify="strict"
-				)
-			except Exception as err:
-				raise ConnectionError(f"Failed to connect to depot '{depot_id}': {err}") from err
-		return self._depot_connections[depot_id]
-
 	def _get_responsible_depot_id(self, client_id: str) -> str | None:
 		"""This method returns the depot a client is assigned to."""
 		try:
 			return self.configState_getClientToDepotserver(clientIds=[client_id])[0]["depotId"]
 		except (IndexError, KeyError):
 			return None
+
+	def _execute_rpc_on_depot(self, depot_id: str, method: str, params: list[Any] | None = None) -> None:
+		logger.info("Executing RPC method %r on depot %r", method, depot_id)
+		worker = Worker.get_instance()
+		jsonrpc_request = JSONRPCRequestMessage(
+			sender=get_user_id_for_service_worker(worker.id),
+			channel=f"service:depot:{depot_id}:jsonrpc",
+			expires=timestamp() + int(30_000),
+			method=method,
+			params=tuple(params or []),
+		)
+		sync_send_message(jsonrpc_request)
 
 	def get_method_interface(self, method: str) -> MethodInterface | None:
 		return self._interface.get(method)

@@ -236,7 +236,7 @@ class RPCHostControlMixin(Protocol):
 		if not timeout:
 			timeout = self._host_control_host_rpc_timeout
 		timeout = float(timeout)
-		connected_client_ids = [client_id async for client_id in get_websocket_connected_users(host_ids=client_ids, host_type="client")]
+		connected_client_ids = [client_id async for client_id in get_websocket_connected_users(user_ids=client_ids, user_type="client")]
 
 		result: dict[str, dict[str, Any]] = {}
 
@@ -559,7 +559,7 @@ class RPCHostControlMixin(Protocol):
 
 		result: dict[str, bool] = {}
 		if self._host_control_use_messagebus:
-			connected_client_ids = [client_id async for client_id in get_websocket_connected_users(host_ids=client_ids, host_type="client")]
+			connected_client_ids = [client_id async for client_id in get_websocket_connected_users(user_ids=client_ids, user_type="client")]
 			result = {client_id: client_id in connected_client_ids for client_id in client_ids}
 			if self._host_control_use_messagebus != "hybrid":
 				return result

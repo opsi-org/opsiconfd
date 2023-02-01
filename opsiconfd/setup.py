@@ -49,7 +49,6 @@ from opsicommon.server.setup import (  # type: ignore[import]
 from opsicommon.server.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
-from opsicommon.types import forceHostId
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
@@ -71,7 +70,6 @@ from opsiconfd.config import (
 	WORKBENCH_DIR,
 	config,
 	get_configserver_id,
-	get_depotserver_id,
 	opsi_config,
 )
 from opsiconfd.grafana import setup_grafana

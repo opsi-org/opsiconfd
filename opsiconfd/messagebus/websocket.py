@@ -11,7 +11,7 @@ messagebus.websocket
 import traceback
 from asyncio import Task, create_task, sleep
 from time import time
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -44,6 +44,7 @@ from opsiconfd.worker import Worker
 
 from . import get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
 from .redis import (
+	ConsumerGroupMessageReader,
 	MessageReader,
 	create_messagebus_session_channel,
 	delete_channel,
@@ -78,8 +79,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		self._messagebus_user_id = ""
 		self._session_channel = ""
 		self._compression: Union[str, None] = None
-		self._messagebus_reader_task = Union[Task, None]
-		self._messagebus_reader = MessageReader()
+		self._messagebus_reader: list[MessageReader] = []
 		self._manager_task = Union[Task, None]
 		self._message_decoder = msgspec.msgpack.Decoder()
 
@@ -119,90 +119,150 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				update_session_time = now
 				await self.scope["session"].update_last_used()  # pylint: disable=loop-invariant-statement
 
-	async def messagebus_reader(self, websocket: WebSocket) -> None:
-		self._messagebus_reader = MessageReader()
-		await self._messagebus_reader.add_channels(
-			channels={
-				self._user_channel: ">",
-				self._session_channel: ">",
-			}
-		)
-		await self._send_message_to_websocket(
-			websocket,
-			ChannelSubscriptionEventMessage(
-				sender=self._messagebus_worker_id,
-				channel=self._session_channel,
-				subscribed_channels=[self._user_channel, self._session_channel],
-			),
-		)
+	async def message_reader_task(self, websocket: WebSocket, reader: MessageReader) -> None:
+		ack_all_messages = isinstance(reader, ConsumerGroupMessageReader)
 		try:
-			async for redis_id, message, _context in self._messagebus_reader.get_messages():
+			async for redis_id, message, _context in reader.get_messages():
 				await self._send_message_to_websocket(websocket, message)
-				if message.channel == self._user_channel:
+				if ack_all_messages or message.channel == self._user_channel:
 					# ACK message (set last-delivered-id)
 					# create_task(reader.ack_message(redis_id))
-					await self._messagebus_reader.ack_message(message.channel, redis_id)
+					await reader.ack_message(message.channel, redis_id)
 		except StopAsyncIteration:
 			pass
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
-	def _check_channel_access(self, channel: str) -> bool:  # pylint: disable=too-many-return-statements
+	def _check_channel_access(
+		self, channel: str, operation: Literal["read", "write"]
+	) -> bool:  # pylint: disable=too-many-return-statements
+		if operation not in ("read", "write"):
+			raise ValueError(f"Invalid channel operation {operation!r}")
+
 		if channel.startswith("session:"):
 			return True
-		if channel.startswith("service:"):
-			if channel == "service:messagebus":
-				return True
-			if channel == "service:config:jsonrpc":
-				return True
-			if channel == "service:config:terminal":
-				return True
-			raise ValueError(f"Invalid channel {channel!r}")
 		if channel == self._user_channel:
 			return True
+		if channel.startswith("service:"):
+			if channel in ("service:messagebus", "service:config:jsonrpc", "service:config:terminal"):
+				if operation == "write":
+					return True
+			elif channel.startswith("service:depot:"):
+				parts = channel.split(":")
+				if len(parts) != 4 or parts[-1] not in ("jsonrpc", "terminal"):
+					raise ValueError(f"Invalid channel {channel!r}")
+			else:
+				raise ValueError(f"Invalid channel {channel!r}")
+
 		if self.scope["session"].is_admin:
 			return True
+
 		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].username, exc_info=True)
 		return False
 
-	async def _process_channel_subscription_message(self, websocket: WebSocket, message: ChannelSubscriptionRequestMessage) -> None:
-		response = ChannelSubscriptionEventMessage(
-			sender=self._messagebus_worker_id, channel=message.back_channel or message.sender, subscribed_channels=[], error=None
+	async def _get_subscribed_channels(self) -> dict[str, MessageReader]:
+		channels = {}
+		for reader in self._messagebus_reader:
+			for channel in await reader.get_channel_names():
+				channels[channel] = reader
+		return channels
+
+	async def _process_channel_subscription(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+		self, websocket: WebSocket, channels: list[str], message: ChannelSubscriptionRequestMessage | None = None
+	) -> None:
+		subsciption_event = ChannelSubscriptionEventMessage(
+			sender=self._messagebus_worker_id,
+			channel=(message.back_channel if message else None) or self._session_channel,
+			subscribed_channels=[],
+			error=None,
 		)
-		for idx, channel in enumerate(message.channels):
+		operation = message.operation if message else ChannelSubscriptionOperation.ADD
+		if operation not in (ChannelSubscriptionOperation.ADD, ChannelSubscriptionOperation.SET, ChannelSubscriptionOperation.REMOVE):
+			err = f"Invalid operation {operation!r}"
+			if not message:
+				raise ValueError(err)
+			subsciption_event.error = Error(code=0, message=err, details=None)
+			await self._send_message_to_websocket(websocket, subsciption_event)
+
+		subscribed_channels: dict[str, MessageReader] = await self._get_subscribed_channels()
+
+		for idx, channel in enumerate(channels):
 			channel = channel.strip()
 			if channel == "@":
-				message.channels[idx] = channel = self._user_channel
+				channel = self._user_channel
 			elif channel == "$":
-				message.channels[idx] = channel = self._session_channel
+				channel = self._session_channel
+			channels[idx] = channel
 
-			if not self._check_channel_access(channel):
-				response.error = Error(  # pylint: disable=loop-invariant-statement
-					code=0,
-					message=f"Access to channel {channel!r} denied",
-					details=None,
-				)
-				break
+		remove_channels = []
+		if operation == ChannelSubscriptionOperation.REMOVE:
+			for channel in channels:
+				if channel in subscribed_channels:
+					remove_channels.append(channel)
+		elif operation == ChannelSubscriptionOperation.SET:
+			for channel in subscribed_channels:
+				if channel not in channels:
+					remove_channels.append(channel)
 
-			if channel.startswith("session:"):
-				await create_messagebus_session_channel(
-					owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True
-				)
+		remove_by_reader: dict[MessageReader, list[str]] = {}
+		for channel in remove_channels:
+			reader = subscribed_channels.get(channel)
+			if reader:
+				if not reader in remove_by_reader:
+					remove_by_reader[reader] = []
+				remove_by_reader[reader].append(channel)
 
-		if not response.error:
-			if message.operation == ChannelSubscriptionOperation.SET:
-				await self._messagebus_reader.set_channels({ch: None for ch in message.channels})
-			elif message.operation == ChannelSubscriptionOperation.ADD:
-				await self._messagebus_reader.add_channels({ch: None for ch in message.channels})
-			elif message.operation == ChannelSubscriptionOperation.REMOVE:
-				await self._messagebus_reader.remove_channels(message.channels)
+		for reader, chans in remove_by_reader.items():
+			if sorted(chans) == sorted(await reader.get_channel_names()):
+				await reader.stop(wait=False)
+				self._messagebus_reader.remove(reader)
 			else:
-				response.error = Error(code=0, message=f"Invalid operation {message.operation!r}", details=None)
+				await reader.remove_channels(chans)
 
-		if not response.error:
-			response.subscribed_channels = await self._messagebus_reader.get_channel_names()
+		if operation in (ChannelSubscriptionOperation.SET, ChannelSubscriptionOperation.ADD):
+			message_reader_channels: list[str] = []
+			for channel in channels:
+				if not self._check_channel_access(channel, "read"):
+					subsciption_event.error = Error(  # pylint: disable=loop-invariant-statement
+						code=0,
+						message=f"Write access to channel {channel!r} denied",
+						details=None,
+					)
+					await self._send_message_to_websocket(websocket, subsciption_event)
+					return
 
-		await self._send_message_to_websocket(websocket, response)
+				if channel.startswith("service:"):
+					consumer_name = f"{self._messagebus_user_id}:{self._session_channel.split(':', 1)[1]}"
+					reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=consumer_name, channels={channel: "0"})
+					self._messagebus_reader.append(reader)
+					create_task(self.message_reader_task(websocket, reader))
+				else:
+					message_reader_channels.append(channel)
+					if channel.startswith("session:") and channel != self._session_channel:
+						await create_messagebus_session_channel(
+							owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True
+						)
+
+			if message_reader_channels:
+				reader_channels = {c: ">" for c in message_reader_channels}
+				msr = [
+					# Check for exact class (ConsumerGroupMessageReader is subclass of MessageReader)
+					r
+					for r in self._messagebus_reader
+					if type(r) == MessageReader  # pylint: disable=unidiomatic-typecheck
+				]
+				if msr:
+					await msr[0].add_channels(reader_channels)  # type: ignore[arg-type]
+				else:
+					reader = MessageReader(reader_channels)  # type: ignore[arg-type]
+					self._messagebus_reader.append(reader)
+					create_task(self.message_reader_task(websocket, reader))
+
+		subsciption_event.subscribed_channels = list(await self._get_subscribed_channels())
+		await self._send_message_to_websocket(websocket, subsciption_event)
+
+	async def _process_channel_subscription_message(self, websocket: WebSocket, message: ChannelSubscriptionRequestMessage) -> None:
+		await self._process_channel_subscription(websocket=websocket, channels=message.channels, message=message)
 
 	async def dispatch(self) -> None:
 		websocket = WebSocket(self.scope, receive=self.receive, send=self.send)
@@ -265,9 +325,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			elif message.channel == "@":
 				message.channel = self._user_channel
 
-			if not self._check_channel_access(message.channel) or not self._check_channel_access(message.back_channel):
-				raise RuntimeError(f"Access to channel {message.channel!r} denied")
-
+			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):
+				raise RuntimeError(f"Read access to channel {message.channel!r} denied")
 			logger.debug("Message from websocket: %r", message)
 
 			if isinstance(message, ChannelSubscriptionRequestMessage):
@@ -330,16 +389,18 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 		await update_websocket_count(session, 1)
 
-		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)
-
-		self._messagebus_reader_task = create_task(self.messagebus_reader(websocket))
+		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=True)
+		await self._process_channel_subscription(websocket=websocket, channels=[self._user_channel, self._session_channel])
 
 		await send_message(event)
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
 		logger.info("Websocket client disconnected from messagebus")
-		if self._messagebus_reader:
-			await self._messagebus_reader.stop()
+		for reader in self._messagebus_reader:
+			try:
+				await reader.stop(wait=False)
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
 
 		session: OPSISession = self.scope["session"]
 

@@ -74,6 +74,7 @@ class MethodInterface:  # pylint: disable=too-many-instance-attributes
 	keywords: str | None
 	defaults: tuple[Any, ...] | None
 	deprecated: bool
+	drop_version: str | None
 	alternative_method: str | None
 	doc: str | None
 	annotations: dict[str, str]
@@ -83,7 +84,7 @@ class MethodInterface:  # pylint: disable=too-many-instance-attributes
 
 
 def get_method_interface(  # pylint: disable=too-many-locals
-	func: Callable, deprecated: bool = False, alternative_method: str | None = None
+	func: Callable, deprecated: bool = False, drop_version: str | None = None, alternative_method: str | None = None
 ) -> MethodInterface:
 	spec = getfullargspec(func)
 	sig = signature(func)
@@ -111,6 +112,9 @@ def get_method_interface(  # pylint: disable=too-many-locals
 	if doc:
 		doc = dedent(doc).lstrip() or None
 
+	if drop_version:
+		deprecated = True
+
 	return MethodInterface(
 		name=func.__name__,
 		params=params,
@@ -119,6 +123,7 @@ def get_method_interface(  # pylint: disable=too-many-locals
 		keywords=spec.varkw,
 		defaults=defaults,
 		deprecated=deprecated,
+		drop_version=drop_version,
 		alternative_method=alternative_method,
 		doc=doc,
 		annotations=annotations,
@@ -131,6 +136,7 @@ def rpc_method(
 	*,
 	check_acl: bool | str = True,
 	deprecated: bool = False,
+	drop_version: str | None = None,
 	alternative_method: str | None = None,
 	use_cache: str | None = None,
 	clear_cache: str | None = None
@@ -194,7 +200,11 @@ def rpc_method(
 		if iscoroutinefunction(func):
 			wrapper = async_wrapper
 
-		setattr(wrapper, "rpc_interface", get_method_interface(func, deprecated=deprecated, alternative_method=alternative_method))
+		setattr(
+			wrapper,
+			"rpc_interface",
+			get_method_interface(func, deprecated=deprecated, drop_version=drop_version, alternative_method=alternative_method)
+		)
 		return wrapper
 
 	if func is None:

@@ -8,6 +8,8 @@
 jsonrpc
 """
 
+from __future__ import annotations
+
 import asyncio
 import re
 import tempfile
@@ -17,13 +19,16 @@ import urllib.parse
 import warnings
 from datetime import datetime
 from os import makedirs
-from typing import Any, AsyncGenerator, Optional
+from queue import Empty, Queue
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
+from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.messagebus import (  # type: ignore[import]
+	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
@@ -32,8 +37,12 @@ from opsicommon.objects import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
-from opsiconfd.backend import get_protected_backend
-from opsiconfd.config import RPC_DEBUG_DIR, config
+from opsiconfd.backend import (
+	get_protected_backend,
+	get_service_client,
+	get_unprotected_backend,
+)
+from opsiconfd.config import RPC_DEBUG_DIR, config, get_depotserver_id, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
@@ -41,6 +50,10 @@ from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession
 from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.worker import Worker
+
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
+
 
 COMPRESS_MIN_SIZE = 10000
 AWAIT_STORE_RPC_INFO = False
@@ -137,7 +150,9 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 	raise ValueError(f"Unhandled serialization {serialization!r}")
 
 
-async def store_rpc_info(rpc: Any, result: dict[str, Any], duration: float, date: datetime, client_info: str) -> None:  # pylint: disable=too-many-locals
+async def store_rpc_info(
+	rpc: Any, result: dict[str, Any], duration: float, date: datetime, client_info: str
+) -> None:  # pylint: disable=too-many-locals
 	is_error = bool(result.get("error"))
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
@@ -179,11 +194,11 @@ async def store_rpc_info(rpc: Any, result: dict[str, Any], duration: float, date
 		data["duration"] * 1000,
 		data["error"],
 		data["num_results"],
-		worker.worker_num
+		worker.worker_num,
 	)
 
 	max_rpcs = 9999
-	redis_prefix_stats = config.redis_key('stats')
+	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
 		pipe.lpush(f"{redis_prefix_stats}:rpcs", msgspec.msgpack.encode(data))  # pylint: disable=c-extension-no-member
 		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)
@@ -191,7 +206,7 @@ async def store_rpc_info(rpc: Any, result: dict[str, Any], duration: float, date
 
 
 async def store_deprecated_call(method_name: str, client: str) -> None:
-	redis_prefix_stats = config.redis_key('stats')
+	redis_prefix_stats = config.redis_key("stats")
 	redis = await async_redis_client()
 	async with redis.pipeline() as pipe:
 		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
@@ -201,10 +216,9 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		await pipe.execute()
 
 
-async def execute_rpc(client_info: str, rpc: dict[str, Any]) -> Any:
+async def execute_rpc(client_info: str, rpc: dict[str, Any], backend: UnprotectedBackend | ProtectedBackend) -> Any:
 	method_name = rpc["method"]
 	params = rpc["params"]
-	backend = get_protected_backend()
 
 	method_interface = backend.get_method_interface(method_name)
 	if not method_interface:
@@ -231,10 +245,7 @@ async def execute_rpc(client_info: str, rpc: dict[str, Any]) -> Any:
 
 	method = getattr(backend, method_name)
 	if method.rpc_interface.deprecated:
-		warnings.warn(
-			f"Client {client_info} is calling deprecated method {method_name!r}",
-			DeprecationWarning
-		)
+		warnings.warn(f"Client {client_info} is calling deprecated method {method_name!r}", DeprecationWarning)
 		await store_deprecated_call(method_name, client_info)
 
 	with server_timing("method_execution"):
@@ -261,9 +272,7 @@ def write_debug_log(
 		"error": str(exception) if exception else None,
 	}
 	prefix = re.sub(r"[\s\./]", "_", f"{client_info}-{now}-")
-	with tempfile.NamedTemporaryFile(
-		delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log"
-	) as log_file:
+	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log") as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
 		log_file.write(msgspec.json.encode(msg))  # pylint: disable=no-member
 
@@ -284,22 +293,10 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: dict[st
 		response = {
 			"jsonrpc": "2.0",
 			"id": _id,
-			"error": {
-				"code": 0,  # TODO
-				"message": message,
-				"data": {"class": _class, "details": details}
-			}
+			"error": {"code": 0, "message": message, "data": {"class": _class, "details": details}},  # TODO
 		}
 	else:
-		response = {
-			"id": 0 if _id is None else _id,
-			"result": None,
-			"error": {
-				"message": message,
-				"class": _class,
-				"details": details
-			}
-		}
+		response = {"id": 0 if _id is None else _id, "result": None, "error": {"message": message, "class": _class, "details": details}}
 
 	if "rpc-log" in config.debug_options or "rpc-error-log" in config.debug_options:
 		try:
@@ -310,7 +307,7 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: dict[st
 	return response
 
 
-async def process_rpc(client_info: str, rpc: dict[str, Any]) -> dict[str, Any]:
+async def process_rpc(client_info: str, rpc: dict[str, Any], backend: ProtectedBackend | UnprotectedBackend) -> dict[str, Any]:
 	if "id" not in rpc:
 		rpc["id"] = 0
 	if "params" not in rpc:
@@ -321,7 +318,7 @@ async def process_rpc(client_info: str, rpc: dict[str, Any]) -> dict[str, Any]:
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])
 
-	result = await execute_rpc(client_info, rpc)
+	result = await execute_rpc(client_info, rpc, backend)
 	if rpc.get("jsonrpc") == "2.0":
 		response = {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
 	else:
@@ -336,7 +333,9 @@ async def process_rpc(client_info: str, rpc: dict[str, Any]) -> dict[str, Any]:
 	return response
 
 
-async def process_rpcs(client_info: str, *rpcs: dict[str, Any]) -> AsyncGenerator[dict[str, Any], None]:
+async def process_rpcs(
+	backend: ProtectedBackend | UnprotectedBackend, client_info: str, *rpcs: dict[str, Any]
+) -> AsyncGenerator[dict[str, Any], None]:
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector:
@@ -351,7 +350,7 @@ async def process_rpcs(client_info: str, *rpcs: dict[str, Any]) -> AsyncGenerato
 		with server_timing("rpc_processing") as svt:
 			try:  # pylint: disable=loop-try-except-usage
 				logger.debug("Processing request from %s for %s", client_info, rpc["method"])
-				result = await process_rpc(client_info, rpc)
+				result = await process_rpc(client_info, rpc, backend)
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 				result = await process_rpc_error(client_info, err, rpc)
@@ -369,12 +368,19 @@ async def process_rpcs(client_info: str, *rpcs: dict[str, Any]) -> AsyncGenerato
 		yield result
 
 
+@jsonrpc_router.head("")
+async def jsonrpc_head() -> Response:
+	return Response()
+
+
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get("")
 @jsonrpc_router.post("")
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
-async def process_request(request: Request, response: Response) -> Response:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def process_request(
+	request: Request, response: Response
+) -> Response:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	request_compression = None
 	request_serialization = None
 	response_compression = None
@@ -415,10 +421,11 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 			rpcs = await run_in_threadpool(deserialize_data, request_data, request_serialization)
 		logger.trace("rpcs: %s", rpcs)
 
+		backend = get_protected_backend()
 		if isinstance(rpcs, list):
-			coro = process_rpcs(client_info, *rpcs)
+			coro = process_rpcs(backend, client_info, *rpcs)
 		else:
-			coro = process_rpcs(client_info, rpcs)
+			coro = process_rpcs(backend, client_info, rpcs)
 		results = [result async for result in coro]
 		response.status_code = 200
 	except HTTPException as err:  # pylint: disable=broad-except
@@ -464,15 +471,11 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 		contextvar_client_session.set(session)
 		client_info = f"{session.client_addr}/{session.user_agent}"
 
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": message.rpc_id,
-		"method": message.method,
-		"params": message.params
-	}
+	rpc = {"jsonrpc": "2.0", "id": message.rpc_id, "method": message.method, "params": message.params}
 
 	try:
-		result = await anext(process_rpcs(client_info, rpc))
+		backend = get_protected_backend()
+		result = await anext(process_rpcs(backend, client_info, rpc))
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		result = await process_rpc_error(client_info, err)
@@ -483,7 +486,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 		ref_id=message.id,
 		rpc_id=result["id"],
 		result=result.get("result"),
-		error=result.get("error")
+		error=result.get("error"),
 	)
 
 	# asyncio.create_task(send_message(response_message))
@@ -493,7 +496,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 	await cgmr.ack_message(message.channel, redis_id)
 
 
-async def messagebus_jsonrpc_request_worker() -> None:
+async def messagebus_jsonrpc_request_worker_configserver() -> None:
 	global jsonrpc_message_reader  # pylint: disable=invalid-name,global-statement
 
 	worker = Worker.get_instance()
@@ -506,3 +509,54 @@ async def messagebus_jsonrpc_request_worker() -> None:
 			await _process_message(jsonrpc_message_reader, redis_id, message, context)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
+
+
+async def messagebus_jsonrpc_request_worker_depotserver() -> None:
+	unprotected_backend = get_unprotected_backend()
+	depot_id = get_depotserver_id()
+	service_client = await run_in_threadpool(get_service_client)
+	message = ChannelSubscriptionRequestMessage(
+		sender="@", channel="service:messagebus", channels=[f"service:depot:{depot_id}:jsonrpc"], operation="add"
+	)
+	await run_in_threadpool(service_client.messagebus.send_message, message)
+
+	message_queue: Queue[JSONRPCRequestMessage] = Queue()
+
+	class JSONRPCRequestMessageListener(MessagebusListener):
+		def message_received(self, message: Message) -> None:
+			if isinstance(message, JSONRPCRequestMessage):
+				message_queue.put(message, block=True)
+
+	listener = JSONRPCRequestMessageListener()
+
+	service_client.messagebus.register_message_listener(listener)
+	client_info = "none"
+	while True:
+		try:
+			request: JSONRPCRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
+		except Empty:
+			continue
+		rpc = {"jsonrpc": "2.0", "id": request.rpc_id, "method": request.method, "params": request.params}
+
+		try:
+			result = await anext(process_rpcs(unprotected_backend, client_info, rpc))
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
+			result = await process_rpc_error(client_info, err)
+
+		response = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+			sender="@",
+			channel=request.back_channel or request.sender,
+			ref_id=request.id,
+			rpc_id=result["id"],
+			result=result.get("result"),
+			error=result.get("error"),
+		)
+		await run_in_threadpool(service_client.messagebus.send_message, response)
+
+
+async def messagebus_jsonrpc_request_worker() -> None:
+	if opsi_config.get("host", "server-role") == "configserver":
+		await messagebus_jsonrpc_request_worker_configserver()
+	elif opsi_config.get("host", "server-role") == "depotserver":
+		await messagebus_jsonrpc_request_worker_depotserver()

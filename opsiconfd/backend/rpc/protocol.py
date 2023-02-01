@@ -136,7 +136,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	def _check_module(self, module: str) -> None:
 		...
 
-	def _get_depot_jsonrpc_connection(self, depot_id: str) -> JSONRPCClient:
+	def _execute_rpc_on_depot(self, depot_id: str, method: str, params: list[Any] | None = None) -> None:
 		...
 
 	def _get_responsible_depot_id(self, client_id: str) -> str | None:

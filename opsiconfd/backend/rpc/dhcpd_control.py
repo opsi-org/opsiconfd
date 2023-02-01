@@ -213,7 +213,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				responsible_depot_id = self._get_responsible_depot_id(host.id)
 				if responsible_depot_id and responsible_depot_id != self._depot_id:
 					logger.info("Not responsible for client '%s', forwarding request to depot '%s'", host.id, responsible_depot_id)
-					self._get_depot_jsonrpc_connection(responsible_depot_id).execute_rpc(method="dhcpd_updateHost", params=[host])
+					self._execute_rpc_on_depot(depot_id=responsible_depot_id, method="dhcpd_updateHost", params=[host])
 					continue
 
 			self.dhcpd_updateHost(host)
@@ -230,7 +230,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				depot_ids = [did for did in self.host_getIdents(returnType="str", type="OpsiDepotserver") if did != self._depot_id]
 				logger.info("Forwarding request to depots: %s", depot_ids)
 				for depot_id in depot_ids:
-					self._get_depot_jsonrpc_connection(depot_id).execute_rpc(method="dhcpd_deleteHost", params=[client])
+					self._execute_rpc_on_depot(depot_id=depot_id, method="dhcpd_deleteHost", params=[client])
 
 			self.dhcpd_deleteHost(client)
 

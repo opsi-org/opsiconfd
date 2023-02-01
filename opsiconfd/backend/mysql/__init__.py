@@ -142,6 +142,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self._Session: scoped_session | None = lambda: None  # pylint: disable=invalid-name
 		self._session_factory = None
 		self._engine = None
+
+		self.connected = False
 		self.tables: dict[str, dict[str, dict[str, str | bool | None]]] = {}
 
 		self.read_config_file()
@@ -285,8 +287,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			self.address = "127.0.0.1"
 			self._init_connection()
 		self.read_tables()
+		self.connected = True
 
 	def disconnect(self) -> None:
+		self.connected = False
 		if self._engine:
 			self._engine.dispose()
 
@@ -296,7 +300,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			yield session
 			return
 
-		if not self._Session:
+		if not self._Session or not isinstance(self._Session, scoped_session):
 			raise RuntimeError("Not initialized")
 
 		session = self._Session()
@@ -325,11 +329,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			session.execute("UNLOCK TABLES")
 
 	def read_tables(self) -> None:
-		self.tables = {}
 		with self.session() as session:
-			for trow in session.execute("SHOW TABLES").fetchall():
-				table_name = trow[0].upper()
-				self.tables[table_name] = {}
+			self.tables = {trow[0].upper(): {} for trow in session.execute("SHOW TABLES").fetchall()}
+			for table_name in self.tables:
 				for row in session.execute(f"SHOW COLUMNS FROM `{table_name}`"):  # pylint: disable=loop-invariant-statement
 					row_dict = {k.lower(): v for k, v in dict(row).items()}
 					row_dict["null"] = row_dict["null"].upper() == "YES"
@@ -439,6 +441,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					if "*" in val:
 						operator = "LIKE"
 						val = val.replace("*", "%")
+					elif val.startswith(("<", ">")):
+						operator = val[0]
+						val = val[1:]
 					new_values.append(val)
 				values = new_values
 
@@ -633,6 +638,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		attributes: list[str] | tuple[str, ...] | None = None,
 		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> list[dict] | list[BaseObjectT] | list:  # list for empty list
+		if not self.connected:
+			raise RuntimeError("Not connected to MySQL server")
 		ace = ace or []
 		aggregates = aggregates or {}
 		if not table.lstrip().upper().startswith("FROM"):
@@ -790,6 +797,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		additional_data: dict[str, Any] | None = None,
 		session: Session | None = None,
 	) -> Any:
+		if not self.connected:
+			raise RuntimeError("Not connected to MySQL server")
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:
 			with self.session(session) as session:  # pylint: disable=redefined-argument-from-local
@@ -803,6 +812,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		objs: list[BaseObject | dict[str, Any]],
 		session: Session | None = None,
 	) -> Any:
+		if not self.connected:
+			raise RuntimeError("Not connected to MySQL server")
 		obj_type = type(objs[0]) if isinstance(objs[0], BaseObject) else OBJECT_CLASSES[objs[0]["type"]]
 		columns = self.get_columns([table], ace=[])
 		conversions = self._get_write_conversions(obj_type)  # type: ignore[arg-type]
@@ -895,6 +906,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		obj: list[BaseObjectT] | BaseObjectT | list[dict[str, Any]] | dict[str, Any],
 		ace: list[RPCACE],
 	) -> None:
+		if not self.connected:
+			raise RuntimeError("Not connected to MySQL server")
 		query, params, _idents = self.delete_query(table=table, object_type=object_type, obj=obj, ace=ace)
 		with self.session() as session:
 			session.execute(query, params=params)

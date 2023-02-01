@@ -75,6 +75,6 @@ RUN useradd --create-home -s /bin/bash ${DEV_USER} \
 	&& cp -r /root/.bash* /home/adminuser/ \
 	&& cp -r /root/.bash* /home/${DEV_USER}/ \
 	&& chmod g+rw -R . \
-	&& chmod +x "/docker-entrypoint.sh" \
+	&& chmod +x /*entrypoint.sh \
 	&& mkdir tftpboot \
 	&& chown -R $DEV_USER /workspace

@@ -133,8 +133,9 @@ def get_config_files() -> dict[str, Path]:
 
 
 def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
-	config_files: bool = True,
 	backup_file: Path | None = None,
+	*,
+	config_files: bool = True,
 	file_encoding: Literal["msgpack", "json"] = "msgpack",
 	file_compression: Literal["lz4", "gz"] = "lz4",
 	password: str | None = None,
@@ -256,10 +257,12 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 
 def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 	data_or_file: dict[str, dict[str, Any]] | Path,
+	*,
 	config_files: bool = True,
 	server_id: str = "backup",
 	password: str | None = None,
 	batch: bool = True,
+	ignore_errors: bool = False,
 	maintenance_address_exceptions: list[str] | None = None,
 	progress: Progress | None = None,
 ) -> None:
@@ -428,13 +431,27 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 
 						logger.trace("Insert %s object: %s", obj_class, obj)
 						if not batch:
-							method(obj)
+							try:
+								method(obj)
+							except Exception as err:  # pylint: disable=broad-except
+								if not ignore_errors:
+									raise
+								logger.error(err)
+								if progress:
+									progress.console.print(f"[red]Ignoring error: {err}[/red]")
 							if progress:
 								progress.advance(restore_task)
 
 					if batch:
 						logger.info("Batch inserting %d objects", len(objects))
-						method(objects)
+						try:
+							method(objects)
+						except Exception as err:  # pylint: disable=broad-except
+							if not ignore_errors:
+								raise
+							logger.error(err)
+							if progress:
+								progress.console.print(f"[red]Ignoring error: {err}[/red]")
 						if progress:
 							progress.advance(restore_task, advance=num_objects)
 

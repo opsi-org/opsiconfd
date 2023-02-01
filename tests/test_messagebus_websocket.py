@@ -85,6 +85,7 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			message = Message.from_msgpack(next(reader.get_raw_messages()))
 			assert isinstance(message, ChannelSubscriptionEventMessage)
 			assert len(message.subscribed_channels) == 2
+			print(message.subscribed_channels)
 			user_channel = None
 			session_channel = None
 			for channel in message.subscribed_channels:
@@ -139,11 +140,14 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			assert sorted([msg.id for msg in messages]) == ["3", "4", "5", "6"]
 
 
-def test_messagebus_multi_client(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_multi_client_session_and_user_channel(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+) -> None:
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	with sync_redis_client() as redis:
 		assert redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") is None
+
 		with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
 			test_client.auth = (host_id, host_key)
 			with (
@@ -158,6 +162,7 @@ def test_messagebus_multi_client(config: Config, test_client: OpsiconfdTestClien
 						assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
 						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
+					sleep(1)
 					assert (
 						redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
 						== b"2"
@@ -181,6 +186,7 @@ def test_messagebus_multi_client(config: Config, test_client: OpsiconfdTestClien
 							assert len(messages[0]["subscribed_channels"]) == 2
 							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
+							sleep(1)
 							assert (
 								redis.hget(
 									f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count"
@@ -202,6 +208,52 @@ def test_messagebus_multi_client(config: Config, test_client: OpsiconfdTestClien
 					)
 			sleep(1)
 			assert redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"0"
+
+
+def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with (
+		test_client.websocket_connect("/messagebus/v1") as websocket1,
+		test_client.websocket_connect("/messagebus/v1") as websocket2,
+		test_client.websocket_connect("/messagebus/v1") as websocket3,
+	):
+		with (
+			WebSocketMessageReader(websocket1) as reader1,
+			WebSocketMessageReader(websocket2) as reader2,
+			WebSocketMessageReader(websocket3) as reader3,
+		):
+			for reader, websocket in ((reader1, websocket1), (reader2, websocket2), (reader3, websocket3)):
+				reader.wait_for_message(count=1)
+				messages = list(reader.get_messages())
+				assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+				assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
+
+				message = ChannelSubscriptionRequestMessage(
+					sender="@", channel="service:messagebus", channels=["service:config:jsonrpc"], operation="add"
+				)
+				websocket.send_bytes(message.to_msgpack())
+
+				reader.wait_for_message(count=1)
+				messages = list(reader.get_messages())
+				assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+				assert len(messages[0]["subscribed_channels"]) == 3  # type: ignore[call-overload]
+
+			count = 50
+			for rpc_id in range(count):
+				jsonrpc_request_message = JSONRPCRequestMessage(
+					sender="@", channel="service:config:jsonrpc", rpc_id=str(rpc_id), method="accessControl_userIsAdmin"
+				)
+				websocket.send_bytes(jsonrpc_request_message.to_msgpack())
+
+			sleep(5)
+			all_messages = []
+			for reader, websocket in ((reader1, websocket1), (reader2, websocket2), (reader3, websocket3)):
+				reader.wait_for_message(count=1)
+				messages = list(reader.get_messages())
+				assert len(messages) > 0
+				all_messages.extend(messages)
+
+			assert len(all_messages) == count
 
 
 def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -238,8 +290,11 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 					reader.wait_for_message(count=4)
 
 					responses = sorted(
-						[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.rpc_id  # type: ignore[arg-type,attr-defined]
+						[Message.from_dict(msg) for msg in reader.get_messages()],
+						key=lambda m: getattr(m, "rpc_id", ""),  # type: ignore[arg-type,attr-defined]
 					)
+					# for res in responses:
+					# 	print(res.to_dict())
 
 					assert isinstance(responses[0], JSONRPCResponseMessage)
 					assert responses[0].rpc_id == jsonrpc_request_message1.rpc_id

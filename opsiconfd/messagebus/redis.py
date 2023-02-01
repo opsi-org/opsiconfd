@@ -14,7 +14,7 @@ from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
 from time import time
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator
 from uuid import UUID, uuid4
 
 import msgspec
@@ -31,7 +31,7 @@ from redis.typing import StreamIdT
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
-from opsiconfd.redis import async_delete_recursively, async_redis_client
+from opsiconfd.redis import async_delete_recursively, async_redis_client, redis_client
 
 from . import get_user_id_for_host
 
@@ -76,6 +76,13 @@ async def cleanup_channels(full: bool = False) -> None:
 			await async_delete_recursively(f"{channel_prefix}{obj}")
 		await async_delete_recursively(f"{channel_prefix}session")
 
+	# async for key_b in redis.scan_iter(f"{channel_prefix}service:*"):
+	# 	key = key_b.decode("utf-8")
+	# 	stream = await redis.xinfo_stream(name=key, full=True)
+	# 	for group in stream["groups"]:
+	# 		for consumer in group["consumers"]:
+	# 			print(consumer)
+
 	remove_keys = []
 	async for key_b in redis.scan_iter(f"{channel_prefix}host:*"):
 		key = key_b.decode("utf-8")
@@ -91,6 +98,31 @@ async def cleanup_channels(full: bool = False) -> None:
 		await pipeline.execute()
 
 
+_context_encoder = msgspec.msgpack.Encoder()
+
+
+def _prepare_send_message(message: Message, context: Any = None) -> bytes | None:
+	if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+		message.trace = message.trace or {}
+		message.trace["broker_redis_send"] = timestamp()
+	context_data = None
+	if context:
+		context_data = _context_encoder.encode(context)
+	return context_data
+
+
+async def send_message(message: Message, context: Any = None) -> None:
+	context_data = _prepare_send_message(message, context)
+	logger.debug("Message to redis: %r", message)
+	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
+
+
+def sync_send_message(message: Message, context: Any = None) -> None:
+	context_data = _prepare_send_message(message, context)
+	logger.debug("Message to redis: %r", message)
+	sync_send_message_msgpack(message.channel, message.to_msgpack(), context_data)
+
+
 async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes | None = None) -> None:
 	redis = await async_redis_client()
 	fields = {"message": msgpack_data}
@@ -99,18 +131,12 @@ async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: 
 	await redis.xadd(f"{config.redis_key('messagebus')}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
 
 
-_context_encoder = msgspec.msgpack.Encoder()
-
-
-async def send_message(message: Message, context: Any = None) -> None:
-	if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
-		message.trace = message.trace or {}
-		message.trace["broker_redis_send"] = timestamp()
-	context_data = None
-	if context:
-		context_data = _context_encoder.encode(context)
-	logger.debug("Message to redis: %r", message)
-	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
+def sync_send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes | None = None) -> None:
+	with redis_client() as redis:
+		fields = {"message": msgpack_data}
+		if context_data:
+			fields["context"] = context_data
+		redis.xadd(f"{config.redis_key('messagebus')}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
@@ -207,7 +233,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 	_info_suffix = CHANNEL_INFO_SUFFIX
 	_count_readers = True
 
-	def __init__(self, channels: dict[str, Optional[StreamIdT]] | None = None, default_stream_id: str = "$") -> None:
+	def __init__(self, channels: dict[str, StreamIdT | None] | None = None, default_stream_id: str = "$") -> None:
 		"""
 		channels:
 			A dict of channel names to stream IDs, where
@@ -270,12 +296,12 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 		async with self._channels_lock:
 			return list(self._channels)
 
-	async def set_channels(self, channels: dict[str, Optional[StreamIdT]]) -> None:
+	async def set_channels(self, channels: dict[str, StreamIdT | None]) -> None:
 		async with self._channels_lock:
 			self._channels = channels
 			await self._update_streams()
 
-	async def add_channels(self, channels: dict[str, Optional[StreamIdT]]) -> None:
+	async def add_channels(self, channels: dict[str, StreamIdT | None]) -> None:
 		async with self._channels_lock:
 			self._channels.update(channels)
 			await self._update_streams()
@@ -341,7 +367,6 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 					await sleep(3)
 		except CancelledError:
 			pass
-
 		try:
 			if self._count_readers:
 				# Do not run in a pipeline, can result in problems on application shutdown
@@ -368,7 +393,7 @@ class ConsumerGroupMessageReader(MessageReader):
 	_count_readers = False
 
 	def __init__(
-		self, consumer_group: str, consumer_name: str, channels: dict[str, Optional[StreamIdT]] | None = None, default_stream_id: str = "0"
+		self, consumer_group: str, consumer_name: str, channels: dict[str, StreamIdT | None] | None = None, default_stream_id: str = "0"
 	) -> None:
 		"""
 		ID ">" means that the consumer want to receive only messages that were never delivered to any other consumer.
@@ -403,8 +428,18 @@ class ConsumerGroupMessageReader(MessageReader):
 				else:
 					raise
 
-			self._streams[stream_key] = redis_msg_id or "0"
+			start_id = redis_msg_id or "0"
+			self._streams[stream_key] = start_id
 			stream_keys.append(stream_key)
+			try:
+				# Autoclaim idle (60 seconds) pending messages (XAUTOCLAIM is available since Redis 6.2)
+				await redis.xautoclaim(stream_key, self._consumer_group, self._consumer_name, min_idle_time=60_000, start_id=start_id)
+			except ResponseError as err:
+				if "unknown command" in str(err):
+					# Redis before 6.2
+					pass
+				else:
+					raise
 
 		for stream_key in list(self._streams):
 			if stream_key not in stream_keys:

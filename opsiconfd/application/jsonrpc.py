@@ -227,21 +227,25 @@ async def execute_rpc(client_info: str, rpc: dict[str, Any], backend: Unprotecte
 
 	with server_timing("deserialize_objects"):
 		keywords = {}
-		if method_interface.keywords:
-			parameter_count = 0
-			if method_interface.args:
-				parameter_count += len(method_interface.args)
-			if method_interface.varargs:
-				parameter_count += len(method_interface.varargs)
+		if isinstance(params, dict):
+			keywords = await run_in_threadpool(deserialize, params)
+			params = []
+		else:
+			if method_interface.keywords:
+				parameter_count = 0
+				if method_interface.args:
+					parameter_count += len(method_interface.args)
+				if method_interface.varargs:
+					parameter_count += len(method_interface.varargs)
 
-			if len(params) >= parameter_count:
-				# params needs to be a copy, leave rpc["params"] unchanged
-				kwargs = params[-1]
-				params = params[:-1]
-				if not isinstance(kwargs, dict):
-					raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
-				keywords = {str(key): await run_in_threadpool(deserialize, value) for key, value in kwargs.items()}
-		params = await run_in_threadpool(deserialize, params)
+				if len(params) >= parameter_count:
+					# params needs to be a copy, leave rpc["params"] unchanged
+					kwargs = params[-1]
+					params = params[:-1]
+					if not isinstance(kwargs, dict):
+						raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
+					keywords = {str(key): await run_in_threadpool(deserialize, value) for key, value in kwargs.items()}
+			params = await run_in_threadpool(deserialize, params)
 
 	method = getattr(backend, method_name)
 	if method.rpc_interface.deprecated:

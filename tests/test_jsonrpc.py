@@ -39,7 +39,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_request_param_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	client_data = {
 		"id": "test-jsonrpc-request.opsi.org",
 		"description": "description",
@@ -59,6 +59,35 @@ def test_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=r
 	assert result["result"] is None
 
 	rpc = {"id": 12346, "method": "host_getObjects", "params": [[], {"id": client.id}]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = res.json()
+	assert result["id"] == rpc["id"]
+	assert result["error"] is None
+	for attr, val in client_data.items():
+		assert result["result"][0].get(attr) == val
+
+
+def test_request_param_dict(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	client_data = {
+		"id": "test-jsonrpc-request.opsi.org",
+		"description": "description",
+		"notes": "notes",
+		"hardwareAddress": "08:00:22:aa:66:ee",
+		"ipAddress": "192.168.10.188",
+		"inventoryNumber": "I01012393278",
+	}
+	client = OpsiClient(**client_data)
+
+	rpc = {"id": 12345, "method": "host_createOpsiClient", "params": client_data}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = res.json()
+	assert result["id"] == rpc["id"]
+	assert result["error"] is None
+	assert result["result"] is None
+
+	rpc = {"id": 12346, "method": "host_getObjects", "params": {"id": client.id}}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 	result = res.json()
@@ -152,10 +181,11 @@ def test_jsonrpc20(test_client: OpsiconfdTestClient) -> None:  # pylint: disable
 		("", "msgpack", "application/msgpack"),
 		("msgpack", "xyasdb;dsaoswe3dod", "application/msgpack"),
 		("invalid", "application/msgpack", "application/msgpack"),
-
 	),
 )
-def test_serializations(test_client: OpsiconfdTestClient, content_type: str, accept: str, expected_content_type: str) -> None:  # pylint: disable=redefined-outer-name
+def test_serializations(
+	test_client: OpsiconfdTestClient, content_type: str, accept: str, expected_content_type: str
+) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
 	with products_jsonrpc(test_client, "", products):  # Create products
@@ -168,12 +198,7 @@ def test_serializations(test_client: OpsiconfdTestClient, content_type: str, acc
 		serialization = (content_type or "").split("/")[-1]
 		if serialization not in ("json", "msgpack"):
 			serialization = "json"
-		res = test_client.post(
-			"/rpc",
-			auth=(ADMIN_USER, ADMIN_PASS),
-			content=serialize_data(rpc, serialization),
-			headers=headers
-		)
+		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), content=serialize_data(rpc, serialization), headers=headers)
 		res.raise_for_status()
 		assert res.headers["Content-Type"] == expected_content_type
 		assert deserialize_data(res.content, expected_content_type.split("/")[-1])
@@ -189,7 +214,9 @@ def test_serializations(test_client: OpsiconfdTestClient, content_type: str, acc
 		("lz4", "invalid", 400),
 	),
 )
-def test_compression(test_client: OpsiconfdTestClient, content_encoding: str, accept_encoding: str, status_code: int) -> None:  # pylint: disable=redefined-outer-name
+def test_compression(
+	test_client: OpsiconfdTestClient, content_encoding: str, accept_encoding: str, status_code: int
+) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
 	with (products_jsonrpc(test_client, "", products), patch("opsiconfd.application.jsonrpc.COMPRESS_MIN_SIZE", 0)):
@@ -202,7 +229,6 @@ def test_compression(test_client: OpsiconfdTestClient, content_encoding: str, ac
 			auth=(ADMIN_USER, ADMIN_PASS),
 			content=data,
 			headers={"Content-Type": "application/json", "Content-Encoding": content_encoding, "Accept-Encoding": accept_encoding},
-
 		)
 		assert res.status_code == status_code
 		if accept_encoding == "invalid":
@@ -234,7 +260,11 @@ def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  #
 def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with (patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True), sync_redis_client() as redis):
 		for num in (1, 2):
-			rpc = {"id": num, "method": "host_getObjects", "params": [["id"], {"type": "OpsiDepotserver"}]}  # pylint: disable=loop-invariant-statement
+			rpc = {
+				"id": num,
+				"method": "host_getObjects",
+				"params": [["id"], {"type": "OpsiDepotserver"}],
+			}  # pylint: disable=loop-invariant-statement
 			res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 			res.raise_for_status()
 			result = res.json()

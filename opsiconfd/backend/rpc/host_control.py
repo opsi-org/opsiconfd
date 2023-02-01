@@ -63,7 +63,7 @@ from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_user_id_for_host, get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import (
 	MessageReader,
-	get_websocket_connected_client_ids,
+	get_websocket_connected_users,
 	send_message,
 	session_channel,
 )
@@ -236,7 +236,7 @@ class RPCHostControlMixin(Protocol):
 		if not timeout:
 			timeout = self._host_control_host_rpc_timeout
 		timeout = float(timeout)
-		connected_client_ids = [client_id async for client_id in get_websocket_connected_client_ids(client_ids=client_ids)]
+		connected_client_ids = [client_id async for client_id in get_websocket_connected_users(host_ids=client_ids, host_type="client")]
 
 		result: dict[str, dict[str, Any]] = {}
 
@@ -559,7 +559,7 @@ class RPCHostControlMixin(Protocol):
 
 		result: dict[str, bool] = {}
 		if self._host_control_use_messagebus:
-			connected_client_ids = [client_id async for client_id in get_websocket_connected_client_ids(client_ids=client_ids)]
+			connected_client_ids = [client_id async for client_id in get_websocket_connected_users(host_ids=client_ids, host_type="client")]
 			result = {client_id: client_id in connected_client_ids for client_id in client_ids}
 			if self._host_control_use_messagebus != "hybrid":
 				return result

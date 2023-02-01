@@ -374,7 +374,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		if session.host:
 			self._messagebus_user_id = get_user_id_for_host(session.host.id)
 
-			user_type = "client" if session.host.getType() == "OpsiClient" else "depot"
+			user_type: Literal["client", "depot"] = "client" if session.host.getType() == "OpsiClient" else "depot"
 			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host.id], user_type=user_type)])
 			if not connected:
 				event.event = "host_connected"
@@ -426,7 +426,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		)
 
 		if session.host:
-			user_type = "client" if session.host.getType() == "OpsiClient" else "depot"
+			user_type: Literal["client", "depot"] = "client" if session.host.getType() == "OpsiClient" else "depot"
 			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host.id], user_type=user_type)])
 			if not connected:
 				event.event = "host_disconnected"

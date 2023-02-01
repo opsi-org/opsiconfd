@@ -218,7 +218,7 @@ async def get_websocket_connected_users(
 	redis = await async_redis_client()
 
 	state_keys = []
-	if user_type:
+	if user_type and user_ids:
 		state_keys = [f"{config.redis_key('messagebus')}:connections:{user_type}s:{i}" for i in user_ids]
 	else:
 		search_base = f"{config.redis_key('messagebus')}:connections"

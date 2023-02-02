@@ -25,7 +25,7 @@ from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 # server_timing is used for for jsonrpc_forward
-from opsiconfd import server_timing  # pylint: disable=unused_import
+from opsiconfd import server_timing  # pylint: disable=unused-import
 from opsiconfd import contextvar_client_session
 from opsiconfd.application import app
 from opsiconfd.backend import get_service_client

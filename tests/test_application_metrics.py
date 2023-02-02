@@ -71,7 +71,7 @@ async def test_get_workers(config: Config) -> None:  # pylint: disable=redefined
 				found = True
 				break
 		if not found:
-			raise Exception(f"Worker {worker} not found")
+			raise RuntimeError(f"Worker {worker} not found")
 
 
 async def test_get_nodes(config: Config) -> None:  # pylint: disable=redefined-outer-name

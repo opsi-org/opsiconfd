@@ -4,6 +4,7 @@
 <head>
 	<title>opsiconfd login</title>
 	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
+	<script src="/static/javascript/common.js"></script>
 	<script>
 		function onLoad() {
 			document.getElementById('login_form').onsubmit = function (event) {
@@ -11,9 +12,6 @@
 
 				let username = document.getElementById("login_username").value;
 				let password = document.getElementById("login_password").value;
-				let button = document.getElementById("login_button");
-				button.disabled = true;
-
 				let redirect = "/admin";
 				const params = new URLSearchParams(window.location.search)
 				if (params.has('redirect')) {
@@ -22,27 +20,7 @@
 				if (window.location.hash) {
 					redirect += window.location.hash;
 				}
-
-				let ajax = new XMLHttpRequest();
-				ajax.open("POST", "/session/login");
-				ajax.setRequestHeader("Content-Type", "application/json");
-				ajax.setRequestHeader("x-opsi-session-lifetime", "900");
-				ajax.onreadystatechange = function () {
-					if (ajax.readyState === 4) {
-						button.disabled = false;
-						let response = JSON.parse(ajax.responseText);
-						if (ajax.status == 200) {
-							location.href = redirect;
-						}
-						else {
-							console.error(response);
-							document.getElementById("login_error").innerHTML = response.message;
-						}
-					}
-				};
-				ajax.send(
-					JSON.stringify({ username: username, password: password })
-				);
+				login(username, password, redirect);
 			}
 		}
 	</script>

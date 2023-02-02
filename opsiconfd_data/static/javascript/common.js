@@ -16,11 +16,53 @@ function getOS() {
 	return "Windows";
 }
 
+
 function downloadConfiged() {
 	let os = getOS();
 	url = CONFIGED_DOWNLOAD_LINKS[os];
 	window.open(url);
 }
+
+
+function login(username, password, redirect = "/admin") {
+	let button = document.getElementById("login_button");
+	if (button) {
+		button.disabled = true;
+	}
+	let ajax = new XMLHttpRequest();
+	ajax.open("POST", "/session/login");
+	ajax.setRequestHeader("Content-Type", "application/json");
+	ajax.setRequestHeader("x-opsi-session-lifetime", "900");
+	ajax.onreadystatechange = function () {
+		if (ajax.readyState === 4) {
+			if (button) {
+				button.disabled = false;
+			}
+			localStorage.setItem('serverRole', ajax.getResponseHeader("X-opsi-server-role"));
+
+			let response = JSON.parse(ajax.responseText);
+			if (ajax.status == 200) {
+				location.href = redirect;
+			}
+			else {
+				console.error(response);
+				document.getElementById("login_error").innerHTML = response.message;
+			}
+		}
+	};
+	ajax.send(
+		JSON.stringify({ username: username, password: password })
+	);
+}
+
+
+function logout() {
+	let req = ajaxRequest("POST", "/session/logout");
+	req.then(() => {
+		location.href = "/login";
+	});
+}
+
 
 function ajaxRequest(method, url, body, requestInfos = false) {
 	// console.debug("method: ", method);

@@ -23,8 +23,9 @@
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 
 		function onLoad() {
-			messagebusConnect();
-			//setTimeout(monitorSession, 5000);
+			if (localStorage.getItem("serverRole") == "configserver") {
+				messagebusConnect();
+			}
 
 			let input = document.getElementById("redis-cmd");
 

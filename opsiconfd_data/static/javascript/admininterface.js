@@ -365,14 +365,6 @@ function reload() {
 	});
 }
 
-
-function logout() {
-	let req = ajaxRequest("POST", "/session/logout");
-	req.then(() => {
-		location.href = "/login";
-	});
-}
-
 function callRedis() {
 	let req = ajaxRequest("POST", "/redis-interface", { "cmd": document.getElementById("redis-cmd").value });
 	req.then((result) => {
@@ -933,6 +925,11 @@ function syntaxHighlightMessage(message) {
 }
 
 function messagebusConnect() {
+	const serverRole = localStorage.getItem("serverRole");
+	if (serverRole != "configserver") {
+		showNotifcation(`Messagebus unavailable on ${serverRole}`, "messagebus", "error", 10);
+		return;
+	}
 	messagebusAutoReconnect = true;
 	let params = []
 	let loc = window.location;

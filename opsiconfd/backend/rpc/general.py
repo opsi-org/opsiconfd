@@ -293,11 +293,13 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	def _get_client_info(self: BackendProtocol) -> dict[str, int]:
 		logger.info("%s fetching client info", self)
 		now = datetime.now()
-		client_ids = [
-			host.id
-			for host in self.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
-			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < OPSI_CLIENT_INACTIVE_AFTER
-		]
+		inactive = 0
+		client_ids = []
+		for host in self.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient"):
+			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < OPSI_CLIENT_INACTIVE_AFTER:
+				client_ids.append(host.id)
+			else:
+				inactive += 1
 		macos = 0
 		linux = 0
 		if client_ids:
@@ -311,7 +313,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 					attributes=["clientId"], installationStatus="installed", productId="opsi-linux-client-agent", clientId=client_ids
 				)
 			)
-		return {"macos": macos, "linux": linux, "windows": len(client_ids) - macos - linux}
+		return {"macos": macos, "linux": linux, "windows": len(client_ids) - macos - linux, "inactive": inactive}
 
 	@lru_cache(maxsize=10)
 	def _get_licensing_info(

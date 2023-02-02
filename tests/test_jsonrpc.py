@@ -46,7 +46,7 @@ TESTPACKAGE = Path(f"tests/data/jsonrpc/{TESTPACKAGE_NAME}_42.0-1337.opsi")
 CONTROLFILE = Path("tests/data/jsonrpc/control")
 
 
-def test_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_request_param_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	client_data = {
 		"id": "test-jsonrpc-request.opsi.org",
 		"description": "description",
@@ -66,6 +66,35 @@ def test_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=r
 	assert result["result"] is None
 
 	rpc = {"id": 12346, "method": "host_getObjects", "params": [[], {"id": client.id}]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = res.json()
+	assert result["id"] == rpc["id"]
+	assert result["error"] is None
+	for attr, val in client_data.items():
+		assert result["result"][0].get(attr) == val
+
+
+def test_request_param_dict(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	client_data = {
+		"id": "test-jsonrpc-request.opsi.org",
+		"description": "description",
+		"notes": "notes",
+		"hardwareAddress": "08:00:22:aa:66:ee",
+		"ipAddress": "192.168.10.188",
+		"inventoryNumber": "I01012393278",
+	}
+	client = OpsiClient(**client_data)
+
+	rpc = {"id": 12345, "method": "host_createOpsiClient", "params": client_data}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = res.json()
+	assert result["id"] == rpc["id"]
+	assert result["error"] is None
+	assert result["result"] is None
+
+	rpc = {"id": 12346, "method": "host_getObjects", "params": {"id": client.id}}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 	result = res.json()

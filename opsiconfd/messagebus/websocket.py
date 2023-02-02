@@ -48,6 +48,7 @@ from .redis import (
 	MessageReader,
 	create_messagebus_session_channel,
 	delete_channel,
+	get_websocket_connected_users,
 	send_message,
 	update_websocket_count,
 )
@@ -103,7 +104,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			data = await run_in_threadpool(compress_data, data, self._compression)
 
 		if websocket.client_state != WebSocketState.CONNECTED:
-			logger.warning("Websocket client not connected")
+			logger.debug("Websocket client not connected")
 			return
 
 		logger.debug("Message to websocket: %r", message)
@@ -220,7 +221,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				await reader.remove_channels(chans)
 
 		if operation in (ChannelSubscriptionOperation.SET, ChannelSubscriptionOperation.ADD):
-			message_reader_channels: list[str] = []
+			message_reader_channels: dict[str, str] = {}
 			for channel in channels:
 				if not self._check_channel_access(channel, "read"):
 					subsciption_event.error = Error(  # pylint: disable=loop-invariant-statement
@@ -237,14 +238,15 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					self._messagebus_reader.append(reader)
 					create_task(self.message_reader_task(websocket, reader))
 				else:
-					message_reader_channels.append(channel)
+					# ID ">" means that we want to receive all undelivered messages.
+					# ID "$" means that we only want new messages (added after reader was started).
+					message_reader_channels[channel] = "$" if channel.startswith("event:") else ">"
 					if channel.startswith("session:") and channel != self._session_channel:
 						await create_messagebus_session_channel(
 							owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True
 						)
 
 			if message_reader_channels:
-				reader_channels = {c: ">" for c in message_reader_channels}
 				msr = [
 					# Check for exact class (ConsumerGroupMessageReader is subclass of MessageReader)
 					r
@@ -252,9 +254,9 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					if type(r) == MessageReader  # pylint: disable=unidiomatic-typecheck
 				]
 				if msr:
-					await msr[0].add_channels(reader_channels)  # type: ignore[arg-type]
+					await msr[0].add_channels(message_reader_channels)  # type: ignore[arg-type]
 				else:
-					reader = MessageReader(reader_channels)  # type: ignore[arg-type]
+					reader = MessageReader(message_reader_channels)  # type: ignore[arg-type]
 					self._messagebus_reader.append(reader)
 					create_task(self.message_reader_task(websocket, reader))
 
@@ -372,18 +374,23 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		if session.host:
 			self._messagebus_user_id = get_user_id_for_host(session.host.id)
 
-			event.event = "host_connected"
-			event.channel = "event:host_connected"
-			event.data["host"] = {
-				"type": session.host.getType(),
-				"id": session.host.id,
-			}
+			user_type: Literal["client", "depot"] = "client" if session.host.getType() == "OpsiClient" else "depot"
+			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host.id], user_type=user_type)])
+			if not connected:
+				event.event = "host_connected"
+				event.channel = "event:host_connected"
+				event.data["host"] = {
+					"type": session.host.getType(),
+					"id": session.host.id,
+				}
 		elif session.username and session.is_admin:
 			self._messagebus_user_id = get_user_id_for_user(session.username)
 
-			event.event = "user_connected"
-			event.channel = "event:user_connected"
-			event.data["user"] = {"username": session.username}
+			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.username], user_type="user")])
+			if not connected:
+				event.event = "user_connected"
+				event.channel = "event:user_connected"
+				event.data["user"] = {"username": session.username}
 		else:
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session")
 
@@ -419,15 +426,20 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		)
 
 		if session.host:
-			event.event = "host_disconnected"
-			event.channel = "event:host_disconnected"
-			event.data["host"] = {
-				"type": session.host.getType(),
-				"id": session.host.id,
-			}
-			await send_message(event)
+			user_type: Literal["client", "depot"] = "client" if session.host.getType() == "OpsiClient" else "depot"
+			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host.id], user_type=user_type)])
+			if not connected:
+				event.event = "host_disconnected"
+				event.channel = "event:host_disconnected"
+				event.data["host"] = {
+					"type": session.host.getType(),
+					"id": session.host.id,
+				}
+				await send_message(event)
 		elif session.username:
-			event.event = "user_disconnected"
-			event.channel = "event:user_disconnected"
-			event.data["user"] = {"username": session.username}
-			await send_message(event)
+			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.username], user_type="user")])
+			if not connected:
+				event.event = "user_disconnected"
+				event.channel = "event:user_disconnected"
+				event.data["user"] = {"username": session.username}
+				await send_message(event)

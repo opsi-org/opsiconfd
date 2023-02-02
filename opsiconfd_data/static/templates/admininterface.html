@@ -71,11 +71,13 @@
 				getAppState();
 			}
 			else if (tabName == "clients") {
+				getMessagebusConnectedHosts();
 				loadSessionTable();
 				loadClientTable();
 				reloadTimer = setInterval(loadSessionTable, 5000);
 			}
 			else if (tabName == "depots") {
+				getMessagebusConnectedHosts();
 				loadLockedProductsTable();
 			}
 			else if (tabName == "rpc-interface") {
@@ -101,6 +103,9 @@
 			}
 			else if (tabName == "licensing") {
 				loadLicensingInfo();
+			}
+			else if (tabName == "messagebus") {
+
 			}
 
 			// Get all elements with class="tabcontent" and hide them
@@ -251,10 +256,16 @@
 				</div>
 			</div>
 
+			<div class="adminpage-box">
+				<h4>Clients connected to messagebus:</h4>
+				<div id="messagebus-connected-clients">
+					loading...
+				</div>
+			</div>
+
 			<div class="adminpage-box" id="blocked-clients">
 				<h4>Blocked Clients:</h4>
 				<div id="blocked-clients-div">
-
 				</div>
 			</div>
 
@@ -287,6 +298,13 @@
 		</div>
 
 		<div id="tab-depots" class="tabcontent">
+			<div class="adminpage-box">
+				<h4>Depots connected to messagebus:</h4>
+				<div id="messagebus-connected-depots">
+					loading...
+				</div>
+			</div>
+
 			<div class="adminpage-box">
 				<h4>Locked Products:</h4>
 				<div id="locked-products-table-div">

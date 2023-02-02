@@ -34,6 +34,7 @@ from socket import (
 )
 from socket import error as socket_error
 from socket import gethostbyname, socket
+from threading import Thread
 from typing import TYPE_CHECKING, Any, Protocol
 
 from OPSI.Util.Thread import KillableThread  # type: ignore[import]
@@ -63,7 +64,7 @@ from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_user_id_for_host, get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import (
 	MessageReader,
-	get_websocket_connected_client_ids,
+	get_websocket_connected_users,
 	send_message,
 	session_channel,
 )
@@ -121,9 +122,10 @@ class RpcThread(KillableThread):  # pylint: disable=too-many-instance-attributes
 			self.ended = time.time()
 
 
-class ConnectionThread(KillableThread):
+class ConnectionThread(Thread):  # pylint: disable=too-many-instance-attributes
 	def __init__(self, host_id: str, address: str, host_reachable_timeout: int, opsiclientd_port: int) -> None:
-		KillableThread.__init__(self)
+		Thread.__init__(self)
+		self.daemon = True
 		self.host_id = forceHostId(host_id)
 		self.address = forceIpAddress(address)
 		self.host_reachable_timeout = host_reachable_timeout
@@ -155,7 +157,7 @@ class RPCHostControlMixin(Protocol):
 	_host_control_host_rpc_timeout: int = 15
 	_host_control_host_reachable_timeout: int = 3
 	_host_control_resolve_host_address: bool = False
-	_host_control_max_connections: int = 50
+	_host_control_max_connections: int = 500
 	_host_control_broadcast_addresses: dict[IPv4Network | IPv6Network, dict[IPv4Address | IPv6Address, tuple[int, ...]]] = {}
 	_host_control_use_messagebus: str | bool = "hybrid"
 
@@ -219,13 +221,8 @@ class RPCHostControlMixin(Protocol):
 				address = gethostbyname(host.id)
 			except socket_error as err:
 				logger.trace("Failed to lookup ip address for %s: %s", host.id, err)
-		if not address:
+		else:
 			address = host.ipAddress
-		if not address and not self._host_control_resolve_host_address:
-			try:
-				address = gethostbyname(host.id)
-			except socket_error as err:
-				raise BackendUnaccomplishableError(f"Failed to resolve ip address for host '{host.id}'") from err
 		if not address:
 			raise BackendUnaccomplishableError(f"Failed to get ip address for host '{host.id}'")
 		return address
@@ -236,7 +233,7 @@ class RPCHostControlMixin(Protocol):
 		if not timeout:
 			timeout = self._host_control_host_rpc_timeout
 		timeout = float(timeout)
-		connected_client_ids = [client_id async for client_id in get_websocket_connected_client_ids(client_ids=client_ids)]
+		connected_client_ids = [client_id async for client_id in get_websocket_connected_users(user_ids=client_ids, user_type="client")]
 
 		result: dict[str, dict[str, Any]] = {}
 
@@ -559,7 +556,7 @@ class RPCHostControlMixin(Protocol):
 
 		result: dict[str, bool] = {}
 		if self._host_control_use_messagebus:
-			connected_client_ids = [client_id async for client_id in get_websocket_connected_client_ids(client_ids=client_ids)]
+			connected_client_ids = [client_id async for client_id in get_websocket_connected_users(user_ids=client_ids, user_type="client")]
 			result = {client_id: client_id in connected_client_ids for client_id in client_ids}
 			if self._host_control_use_messagebus != "hybrid":
 				return result
@@ -574,6 +571,8 @@ class RPCHostControlMixin(Protocol):
 		result = {}
 		threads: list[ConnectionThread] = []
 		for host in self.host_getObjects(id=client_ids):
+			if self._shutting_down:
+				return {}
 			try:  # pylint: disable=loop-try-except-usage
 				address = self._get_host_address(host)
 				threads.append(
@@ -590,39 +589,21 @@ class RPCHostControlMixin(Protocol):
 
 		running_threads = 0
 		while threads:  # pylint: disable=too-many-nested-blocks
+			if self._shutting_down:
+				return {}
 			new_threads = []
 			for thread in threads:
 				if thread.ended:
 					result[thread.host_id] = thread.result
 					running_threads -= 1
 					continue
-
-				if not thread.started:
-					if running_threads < self._host_control_max_connections:
-						logger.debug("Trying to check host reachable %s", thread.host_id)
-						thread.start()
-						running_threads += 1
-				else:
-					time_running = time.time() - thread.started  # pylint: disable=dotted-import-in-loop
-					if time_running >= timeout + 5:  # type: ignore[operator]  # pylint: disable=loop-invariant-statement
-						# thread still alive 5 seconds after timeout => kill
-						logger.error(
-							"Reachable check to host %s address %s timed out after %0.2f seconds, terminating",
-							thread.host_id,
-							thread.address,
-							time_running,
-						)
-						result[thread.host_id] = False
-						if not thread.ended:
-							try:  # pylint: disable=loop-try-except-usage
-								thread.terminate()
-							except Exception as err:  # pylint: disable=broad-except
-								logger.error("Failed to terminate reachable thread: %s", err)
-						running_threads -= 1
-						continue
+				if not thread.started and running_threads < self._host_control_max_connections:
+					logger.debug("Trying to check host reachable %s", thread.host_id)
+					thread.start()
+					running_threads += 1
 				new_threads.append(thread)
 			threads = new_threads
-			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+			time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
 		return result
 
 	@rpc_method

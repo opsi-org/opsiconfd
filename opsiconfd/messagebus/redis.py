@@ -14,7 +14,7 @@ from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
 from time import time
-from typing import TYPE_CHECKING, Any, AsyncGenerator
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
 import msgspec
@@ -212,19 +212,27 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 		pass
 
 
-async def get_websocket_connected_client_ids(client_ids: list[str] | None = None) -> AsyncGenerator[str, None]:
+async def get_websocket_connected_users(
+	user_ids: list[str] | None = None, user_type: Literal["client", "depot", "user"] | None = None
+) -> AsyncGenerator[str, None]:
 	redis = await async_redis_client()
-	state_keys = []  # pylint: disable=use-tuple-over-list
-	if client_ids:
-		state_keys = [f"{config.redis_key('messagebus')}:connections:clients:{c}" for c in client_ids]
+
+	state_keys = []
+	if user_type and user_ids:
+		state_keys = [f"{config.redis_key('messagebus')}:connections:{user_type}s:{i}" for i in user_ids]
 	else:
-		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{config.redis_key('messagebus')}:connections:clients:*")]
+		search_base = f"{config.redis_key('messagebus')}:connections"
+		if user_type:
+			search_base = f"{search_base}:{user_type}s"
+		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*")]
 
 	for state_key in state_keys:
 		try:  # pylint: disable=loop-try-except-usage
-			client_id = state_key.rsplit(":", 1)[-1]
+			user_id = state_key.rsplit(":", 1)[-1]
+			if user_ids and user_id not in user_ids:
+				continue
 			if int(await redis.hget(state_key, "websocket_count") or 0) > 0:
-				yield client_id
+				yield user_id
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
 

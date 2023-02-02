@@ -121,7 +121,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "astroid"
-version = "2.13.5"
+version = "2.14.1"
 description = "An abstract syntax tree for Python with inference support."
 category = "dev"
 optional = false
@@ -1390,14 +1390,14 @@ reference = "uibpypi"
 
 [[package]]
 name = "pylint"
-version = "2.15.10"
+version = "2.16.0"
 description = "python code static checker"
 category = "dev"
 optional = false
 python-versions = ">=3.7.2"
 
 [package.dependencies]
-astroid = ">=2.12.13,<=2.14.0-dev0"
+astroid = ">=2.14.1,<=2.16.0-dev0"
 colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = {version = ">=0.3.6", markers = "python_version >= \"3.11\""}
 isort = ">=4.2.5,<6"
@@ -1642,7 +1642,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.0.4"
+version = "4.3.0.5"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -1824,34 +1824,41 @@ reference = "uibpypi"
 
 [[package]]
 name = "schemathesis"
-version = "3.17.5"
+version = "3.18.0"
 description = "Property-based testing framework for Open API and GraphQL based apps"
 category = "dev"
 optional = false
-python-versions = ">=3.7,<4.0"
+python-versions = ">=3.7"
 
 [package.dependencies]
-attrs = ">=22.1.0,<23.0.0"
-backoff = ">=2.1.2,<3.0.0"
+attrs = ">=22.1"
+backoff = ">=2.1.2,<3.0"
 click = ">=7.0,<9.0"
-colorama = ">=0.4,<0.5"
-curlify = ">=2.2.1,<3.0.0"
-httpx = ">=0.22.0"
-hypothesis = ">=6.13.3,<7.0.0"
-hypothesis_graphql = ">=0.9.0,<0.10.0"
-hypothesis_jsonschema = ">=0.22.0,<0.23.0"
-jsonschema = ">=4.3.2,<5.0.0"
+colorama = ">=0.4,<1.0"
+curlify = ">=2.2.1,<3.0"
+httpx = ">=0.22.0,<1.0"
+hypothesis = ">=6.13.3,<7"
+hypothesis-graphql = ">=0.9.0,<1"
+hypothesis-jsonschema = ">=0.22.0,<1"
+jsonschema = ">=4.3.2,<5.0"
 junit-xml = ">=1.9,<2.0"
-pytest = ">4.6.4,<8"
+pytest = ">=4.6.4,<8"
 pytest-subtests = ">=0.2.1,<0.8.0"
-PyYAML = ">=5.1,<7.0"
+pyyaml = ">=5.1,<7.0"
 requests = ">=2.22,<=2.28.1"
 starlette = ">=0.13,<1"
-tomli = ">=2.0.1,<3.0.0"
-tomli-w = ">=1.0.0,<2.0.0"
+starlette-testclient = "0.2.0"
+tomli = ">=2.0.1,<3.0"
+tomli-w = ">=1.0.0,<2.0"
 typing-extensions = ">=3.7,<5"
 werkzeug = ">=0.16.0,<=2.2.2"
 yarl = ">=1.5,<2.0"
+
+[package.extras]
+cov = ["coverage-enable-subprocess", "coverage[toml] (>=5.3)"]
+dev = ["schemathesis[cov,docs,tests]"]
+docs = ["sphinx"]
+tests = ["aiohttp (>=3.8.3,<4.0)", "coverage (>=6)", "fastapi (>=0.86.0)", "flask (>=2.1.1,<3.0)", "pydantic (>=1.10.2)", "pytest-asyncio (>=0.18.0,<1.0)", "pytest-httpserver (>=1.0,<2.0)", "pytest-mock (>=3.7.0,<4.0)", "pytest-xdist (>=2.5,<3.0)", "strawberry-graphql[fastapi] (>=0.109.0)", "trustme (>=0.9.0,<1.0)"]
 
 [package.source]
 type = "legacy"
@@ -1886,7 +1893,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "setuptools"
-version = "67.0.0"
+version = "67.1.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 category = "main"
 optional = false
@@ -1991,6 +1998,23 @@ anyio = ">=3.4.0,<5"
 
 [package.extras]
 full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart", "pyyaml"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
+name = "starlette-testclient"
+version = "0.2.0"
+description = "A backport of Starlette TestClient using requests! ⏪️"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+requests = "*"
+starlette = "*"
 
 [package.source]
 type = "legacy"
@@ -2551,8 +2575,8 @@ anyio = [
     {file = "anyio-3.6.2.tar.gz", hash = "sha256:25ea0d673ae30af41a0c442f81cf3b38c7e79fdc7b60335a4c14e05eb0947421"},
 ]
 astroid = [
-    {file = "astroid-2.13.5-py3-none-any.whl", hash = "sha256:6891f444625b6edb2ac798829b689e95297e100ddf89dbed5a8c610e34901501"},
-    {file = "astroid-2.13.5.tar.gz", hash = "sha256:df164d5ac811b9f44105a72b8f9d5edfb7b5b2d7e979b04ea377a77b3229114a"},
+    {file = "astroid-2.14.1-py3-none-any.whl", hash = "sha256:23c718921acab5f08cbbbe9293967f1f8fec40c336d19cd75dc12a9ea31d2eb2"},
+    {file = "astroid-2.14.1.tar.gz", hash = "sha256:bd1aa4f9915c98e8aaebcd4e71930154d4e8c9aaf05d35ac0a63d1956091ae3f"},
 ]
 async-timeout = [
     {file = "async-timeout-4.0.2.tar.gz", hash = "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15"},
@@ -3663,8 +3687,8 @@ pyinstaller-hooks-contrib = [
     {file = "pyinstaller_hooks_contrib-2022.15-py2.py3-none-any.whl", hash = "sha256:55c1def8066d0279d06cd67eea30c12ffcdb961a5edeeaf361adac0164baef30"},
 ]
 pylint = [
-    {file = "pylint-2.15.10-py3-none-any.whl", hash = "sha256:9df0d07e8948a1c3ffa3b6e2d7e6e63d9fb457c5da5b961ed63106594780cc7e"},
-    {file = "pylint-2.15.10.tar.gz", hash = "sha256:b3dc5ef7d33858f297ac0d06cc73862f01e4f2e74025ec3eff347ce0bc60baf5"},
+    {file = "pylint-2.16.0-py3-none-any.whl", hash = "sha256:55e5cf00601c4cfe2e9404355c743a14e63be85df7409da7e482ebde5f9f14a1"},
+    {file = "pylint-2.16.0.tar.gz", hash = "sha256:43ee36c9b690507ef9429ce1802bdc4dcde49454c3d665e39c23791567019c0a"},
 ]
 pylint-plugin-utils = [
     {file = "pylint-plugin-utils-0.7.tar.gz", hash = "sha256:ce48bc0516ae9415dd5c752c940dfe601b18fe0f48aa249f2386adfa95a004dd"},
@@ -3738,8 +3762,8 @@ python-opsi = [
     {file = "python_opsi-4.3.0.3.tar.gz", hash = "sha256:5d08473401fb04414fb472fa7851bf0ab9a295ed0e5cc9a6890890306e6fbd7a"},
 ]
 python-opsi-common = [
-    {file = "python_opsi_common-4.3.0.4-py3-none-any.whl", hash = "sha256:3fc9ac0f9071b3f6d81706013787ed802eb77fdaeae75b0820d3405c068b3eb9"},
-    {file = "python_opsi_common-4.3.0.4.tar.gz", hash = "sha256:323ac4a0f26382cae5210ee639a8e9b67ea7623baa54ad0d2e9953eab7aa5f54"},
+    {file = "python_opsi_common-4.3.0.5-py3-none-any.whl", hash = "sha256:8caf35d3a53645d0c3ea79f3d997feadb0fdd828998e1ea3281df599d8a965ef"},
+    {file = "python_opsi_common-4.3.0.5.tar.gz", hash = "sha256:9fd659d7e7d21cb831312c9cd672b32f5530f85c3fc283006d8d45ee8afce101"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},
@@ -3826,16 +3850,16 @@ ruyaml = [
     {file = "ruyaml-0.91.0.tar.gz", hash = "sha256:6ce9de9f4d082d696d3bde264664d1bcdca8f5a9dff9d1a1f1a127969ab871ab"},
 ]
 schemathesis = [
-    {file = "schemathesis-3.17.5-py3-none-any.whl", hash = "sha256:14d5b7b1aae2c0b8f64e72db2e0420ff4e359702a921d010cb7c347266024b85"},
-    {file = "schemathesis-3.17.5.tar.gz", hash = "sha256:e7b645a88d890dc39ced65b6166338152b276f2bf8d442ca0432f777fcd2d0e6"},
+    {file = "schemathesis-3.18.0-py3-none-any.whl", hash = "sha256:bcc33a8fb8ebea9980fa54c3b9f4acb6bddc5656968a3e428dccaee84f097fa4"},
+    {file = "schemathesis-3.18.0.tar.gz", hash = "sha256:2d59f5fd72dd0bc8f14009428c56b5421c6e66906c42970d87f863f4a337d7a6"},
 ]
 service-identity = [
     {file = "service-identity-21.1.0.tar.gz", hash = "sha256:6e6c6086ca271dc11b033d17c3a8bea9f24ebff920c587da090afc9519419d34"},
     {file = "service_identity-21.1.0-py2.py3-none-any.whl", hash = "sha256:f0b0caac3d40627c3c04d7a51b6e06721857a0e10a8775f2d1d7e72901b3a7db"},
 ]
 setuptools = [
-    {file = "setuptools-67.0.0-py3-none-any.whl", hash = "sha256:9d790961ba6219e9ff7d9557622d2fe136816a264dd01d5997cfc057d804853d"},
-    {file = "setuptools-67.0.0.tar.gz", hash = "sha256:883131c5b6efa70b9101c7ef30b2b7b780a4283d5fc1616383cdf22c83cbefe6"},
+    {file = "setuptools-67.1.0-py3-none-any.whl", hash = "sha256:a7687c12b444eaac951ea87a9627c4f904ac757e7abdc5aac32833234af90378"},
+    {file = "setuptools-67.1.0.tar.gz", hash = "sha256:e261cdf010c11a41cb5cb5f1bf3338a7433832029f559a6a7614bd42a967c300"},
 ]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
@@ -3895,6 +3919,10 @@ sqlalchemy = [
 starlette = [
     {file = "starlette-0.22.0-py3-none-any.whl", hash = "sha256:b5eda991ad5f0ee5d8ce4c4540202a573bb6691ecd0c712262d0bc85cf8f2c50"},
     {file = "starlette-0.22.0.tar.gz", hash = "sha256:b092cbc365bea34dd6840b42861bdabb2f507f8671e642e8272d2442e08ea4ff"},
+]
+starlette-testclient = [
+    {file = "starlette_testclient-0.2.0-py3-none-any.whl", hash = "sha256:dfbcceba46302d58bec086645c789032707a3bb0256d4cf0de66d40c13ded20e"},
+    {file = "starlette_testclient-0.2.0.tar.gz", hash = "sha256:3fb6681d1dc7e9ab6dc05b5ab455b822a03f37e7371316a828e2d8380a198a4a"},
 ]
 tan = [
     {file = "tan-22.12.1-py3-none-any.whl", hash = "sha256:dc4080d55c5835934ace8cf412a4b7e8b154606fc47d735851519ac407f9035f"},

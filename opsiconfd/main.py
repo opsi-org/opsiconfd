@@ -127,7 +127,7 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 				os.setuid(user.pw_uid)
 				os.environ["HOME"] = user.pw_dir
 			except Exception as err:
-				raise Exception(f"Failed to run as user '{config.run_as_user}': {err}") from err
+				raise RuntimeError(f"Failed to run as user '{config.run_as_user}': {err}") from err
 
 		# Subprocesses will inherit file descriptors
 		# Redirectring sys.stdin to prevent S_ISFIFO(stdin) to return true

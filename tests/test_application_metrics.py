@@ -68,7 +68,7 @@ async def test_get_workers():
 				found = True
 				break
 		if not found:
-			raise Exception(f"Worker {worker} not found")
+			raise RuntimeError(f"Worker {worker} not found")
 
 
 async def test_get_nodes():

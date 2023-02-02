@@ -113,7 +113,7 @@ def merge_dicts(dict_a: dict, dict_b: dict, path: List[str] | None = None) -> di
 			elif dict_a[key] == dict_b[key]:
 				pass
 			else:
-				raise Exception(f"Conflict at { '.'.join(path + [str(key)])}")
+				raise ValueError(f"Conflict at { '.'.join(path + [str(key)])}")
 		else:
 			dict_a[key] = dict_b[key]
 	return dict_a

@@ -155,15 +155,15 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting repository directory")
 		if not depot.getRepositoryLocalUrl():
-			raise Exception(f"Repository local url for depot '{depot_id}' not found")
+			raise RuntimeError(f"Repository local url for depot '{depot_id}' not found")
 		if not depot.getRepositoryLocalUrl().startswith("file:///"):
-			raise Exception(f"Invalid repository local url '{depot.getRepositoryLocalUrl()}'")
+			raise RuntimeError(f"Invalid repository local url '{depot.getRepositoryLocalUrl()}'")
 		path = depot.getRepositoryLocalUrl()[7:]
 		logger.debug("Repository local path is '%s'", path)
 		if not os.path.isdir(path):
-			raise Exception(f"Cannot add webdav content 'repository': directory '{path}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'repository': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
 
 		filesystems["repository"] = {"path": path, "ignore_case": False, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -172,15 +172,15 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting depot directory")
 		if not depot.getDepotLocalUrl():
-			raise Exception(f"Repository local url for depot '{depot_id}' not found")
+			raise RuntimeError(f"Repository local url for depot '{depot_id}' not found")
 		if not depot.getDepotLocalUrl().startswith("file:///"):
-			raise Exception(f"Invalid repository local url '{depot.getDepotLocalUrl()}' not allowed")
+			raise RuntimeError(f"Invalid repository local url '{depot.getDepotLocalUrl()}' not allowed")
 		path = depot.getDepotLocalUrl()[7:]
 		logger.debug("Depot local path is '%s'", path)
 		if not os.path.isdir(path):
-			raise Exception(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
 
 		filesystems["depot"] = {"path": path, "ignore_case": True, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -189,15 +189,15 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting workbench directory")
 		if not depot.getWorkbenchLocalUrl():
-			raise Exception(f"Workbench local url for depot '{depot_id}' not found")
+			raise RuntimeError(f"Workbench local url for depot '{depot_id}' not found")
 		if not depot.getWorkbenchLocalUrl().startswith("file:///"):
-			raise Exception(f"Invalid workbench local url '{depot.getWorkbenchLocalUrl()}' not allowed")
+			raise RuntimeError(f"Invalid workbench local url '{depot.getWorkbenchLocalUrl()}' not allowed")
 		path = depot.getWorkbenchLocalUrl()[7:]
 		logger.debug("Workbench local path is '%s'", path)
 		if not os.path.isdir(path):
-			raise Exception(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
 
 		filesystems["workbench"] = {"path": path, "ignore_case": False, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -207,9 +207,9 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		logger.notice(f"Running on depot server '{depot_id}', exporting public directory")
 		logger.debug("Public path is '%s'", PUBLIC_FOLDER)
 		if not os.path.isdir(PUBLIC_FOLDER):
-			raise Exception(f"Cannot add webdav content 'public': directory '{PUBLIC_FOLDER}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'public': directory '{PUBLIC_FOLDER}' does not exist.")
 		if not os.access(PUBLIC_FOLDER, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'public': permissions on directory '{PUBLIC_FOLDER}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'public': permissions on directory '{PUBLIC_FOLDER}' not sufficient.")
 
 		filesystems["public"] = {"path": PUBLIC_FOLDER, "ignore_case": False, "read_only": True}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -220,7 +220,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 			path = "/tftpboot"
 			logger.notice(f"Running on depot server '{depot_id}', exporting boot directory")
 			if not os.access(path, os.R_OK | os.X_OK):
-				raise Exception(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
+				raise RuntimeError(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
 
 			filesystems["boot"] = {"path": path, "ignore_case": True, "read_only": True}
 		except Exception as err:  # pylint: disable=broad-except

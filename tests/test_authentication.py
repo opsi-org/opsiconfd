@@ -48,7 +48,7 @@ def test_login_error(
 	expected_status_code: int,
 	expected_text: str,
 ) -> None:
-	res = test_client.get("/session/authenticated", auth=(auth_data))
+	res = test_client.get("/session/authenticated", auth=auth_data)
 	assert res.status_code == expected_status_code
 	assert res.text == expected_text
 	assert res.headers.get("set-cookie", None) is not None

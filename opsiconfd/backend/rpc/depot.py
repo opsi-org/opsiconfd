@@ -10,6 +10,7 @@ opsiconfd.backend.rpc.depot
 
 from __future__ import annotations
 
+import base64
 import grp
 import os
 import re
@@ -19,18 +20,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 
 from OPSI.System import execute, getDiskSpaceUsage  # type: ignore[import]
-from OPSI.Util import (  # type: ignore[import]
-	compareVersions,
-	findFiles,
-	findFilesGenerator,
-	md5sum,
-	removeDirectory,
-)
-from OPSI.Util.File import ZsyncFile  # type: ignore[import]
-from OPSI.Util.Product import (  # type: ignore[import]
-	PACKAGE_SCRIPT_TIMEOUT,
-	PackageContentFile,
-)
+from OPSI.Util import compareVersions, md5sum, removeDirectory  # type: ignore[import]
 from OPSI.Util.Sync import (  # type: ignore[import]
 	librsyncDeltaFile,
 	librsyncPatchFile,
@@ -53,6 +43,11 @@ from opsicommon.objects import (
 	ProductPropertyState,
 )
 from opsicommon.package import OpsiPackage
+from opsicommon.package.associated_files import (
+	create_package_content_file,
+	create_package_md5_file,
+	create_package_zsync_file,
+)
 from opsicommon.types import forceBool, forceDict, forceFilename
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.types import forceUnicodeLower
@@ -67,10 +62,10 @@ from . import rpc_method  # pylint: disable=unused-import
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
 
-DEPOT_BASE_DIR = Path("/var/lib/opsi/depot")  # TODO: better place?
+PACKAGE_SCRIPT_TIMEOUT = 600  # Seconds  # TODO: better place?
 
 
-def run_package_script(opsi_package: OpsiPackage, script_path: Path, env: dict[str, str] | None = None) -> list[str]:
+def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
 	env = env or {}
 	logger.info("Attempt to run package script %s", script_path.name)
 	try:
@@ -97,7 +92,7 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, env: dict[s
 			"PRODUCT_TYPE": opsi_package.product.getType(),
 			"PRODUCT_VERSION": opsi_package.product.getProductVersion(),
 			"PACKAGE_VERSION": opsi_package.product.getPackageVersion(),
-			"CLIENT_DATA_DIR": str(DEPOT_BASE_DIR / opsi_package.product.getId()),
+			"CLIENT_DATA_DIR": str(client_data_dir),
 		}
 		sp_env.update(env)
 		logger.debug("Package script env: %s", sp_env)
@@ -109,27 +104,6 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, env: dict[s
 		) from err
 	finally:
 		logger.debug("Finished running package script %s", script_path.name)
-
-
-def create_package_content_file(opsi_package: OpsiPackage) -> Path:
-	logger.info("Creating package content file")
-	try:
-		client_data_dir = DEPOT_BASE_DIR / opsi_package.product.getId()
-		package_content_filename = client_data_dir / f"{opsi_package.product.getId()}.files"
-		package_content_file = PackageContentFile(str(package_content_filename))
-		package_content_file.setProductClientDataDir(str(client_data_dir))
-		if package_content_filename.exists():
-			package_content_filename.unlink()
-		package_content_file.setClientDataFiles(
-			list(findFilesGenerator(directory=str(client_data_dir.absolute()), followLinks=True, returnLinks=False))
-		)
-		package_content_file.generate()
-
-		logger.debug("Finished creating package content file")
-		return package_content_filename
-	except Exception as err:
-		logger.error(err, exc_info=True)
-		raise RuntimeError(f"Failed to create package content file of package '{opsi_package}': {err}") from err
 
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
@@ -196,7 +170,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self: BackendProtocol, filename: str, signature: str, deltafile: str
 	) -> None:
 		try:
-			librsyncDeltaFile(filename, signature, deltafile)
+			# json serialisation cannot handle bytes, expecting base64 encoded string here
+			signature_bytes = base64.b64decode(signature)
+			librsyncDeltaFile(filename, signature_bytes, deltafile)
 		except Exception as err:
 			raise BackendIOError(f"Failed to create librsync delta file: {err}") from err
 
@@ -251,29 +227,18 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not product_path.is_dir():
 			raise BackendIOError(f"Product dir '{product_path}' not found")
 
-		package_content_path = product_path / f"{productId}.files"
-		logger.notice("Creating package content file '%s'", package_content_path)
-
-		if package_content_path.exists():
-			package_content_path.unlink()
-
-		package_content_file = PackageContentFile(str(package_content_path))
-		package_content_file.setProductClientDataDir(str(product_path))
-		client_data_files = findFiles(str(product_path))
-		package_content_file.setClientDataFiles(client_data_files)
-		package_content_file.generate()
+		logger.notice("Creating package content file '%s'", product_path / f"{productId}.files")
+		package_content_path = create_package_content_file(Path(product_path))
 		if os.name == "posix":
-			os.chown(package_content_path, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
-			os.chmod(package_content_path, 0o660)
+			os.chown(str(package_content_path), -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
+			os.chmod(str(package_content_path), 0o660)
 
 	@rpc_method
 	def depot_createMd5SumFile(self: BackendProtocol, filename: str, md5sumFilename: str) -> None:  # pylint: disable=invalid-name
 		if not os.path.exists(filename):
 			raise BackendIOError(f"File not found: {filename}")
 		logger.info("Creating md5sum file '%s'", md5sumFilename)
-		md5 = md5sum(filename)
-		with open(md5sumFilename, "w", encoding="utf-8") as md5file:
-			md5file.write(md5)
+		create_package_md5_file(Path(filename), Path(md5sumFilename))
 		if os.name == "posix":
 			os.chown(md5sumFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(md5sumFilename, 0o660)
@@ -283,8 +248,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not os.path.exists(filename):
 			raise BackendIOError(f"File not found: {filename}")
 		logger.info("Creating zsync file '%s'", zsyncFilename)
-		zsync_file = ZsyncFile(zsyncFilename)
-		zsync_file.generate(filename)
+		create_package_zsync_file(Path(filename), Path(zsyncFilename))
 		if os.name == "posix":
 			os.chown(zsyncFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(zsyncFilename, 0o660)
@@ -428,16 +392,20 @@ class DepotserverPackageManager:
 
 		@contextmanager
 		def run_package_scripts(
-			opsi_package: OpsiPackage, unpack_dir: Path, env: dict[str, Any] | None = None
+			opsi_package: OpsiPackage, unpack_dir: Path, client_data_dir: Path, env: dict[str, Any] | None = None
 		) -> Generator[None, None, None]:
 			logger.info("Running preinst script")
-			for line in run_package_script(opsi_package, unpack_dir / "OPSI" / "preinst", env=env or {}):  # pylint: disable=loop-invariant-statement
+			for line in run_package_script(
+				opsi_package, unpack_dir / "OPSI" / "preinst", client_data_dir, env=env or {}
+			):  # pylint: disable=loop-invariant-statement
 				logger.info("[preinst] %s", line)
 
 			yield
 
 			logger.info("Running postinst script")
-			for line in run_package_script(opsi_package, unpack_dir / "OPSI" / "postinst", env=env or {}):  # pylint: disable=loop-invariant-statement
+			for line in run_package_script(
+				opsi_package, unpack_dir / "OPSI" / "postinst", client_data_dir, env=env or {}
+			):  # pylint: disable=loop-invariant-statement
 				logger.info("[postinst] %s", line)
 
 		def clean_up_products(product_id: str) -> None:
@@ -561,6 +529,9 @@ class DepotserverPackageManager:
 
 					logger.info("Creating product in backend")
 					self.backend.product_createObjects(product)
+					product_path = (
+						Path(self.backend.host_getObjects(id=self._depot_id)[0].getDepotLocalUrl().replace("file://", "")) / product_id
+					)
 
 					with lock_product(product, self._depot_id, force) as product_on_depot:
 						logger.info("Checking package dependencies")
@@ -571,13 +542,13 @@ class DepotserverPackageManager:
 							"OLD_PRODUCT_VERSION": old_product_version,
 							"OLD_PACKAGE_VERSION": old_package_version,
 						}
-						with run_package_scripts(opsi_package, tmp_unpack_dir, env):
+						with run_package_scripts(opsi_package, tmp_unpack_dir, product_path, env=env):
 							logger.info("Deleting old client-data dir")
-							if (DEPOT_BASE_DIR / product_id).exists():
-								shutil.rmtree(DEPOT_BASE_DIR / product_id)
+							if (product_path).exists():
+								shutil.rmtree(product_path)
 
 							logger.info("Unpacking package files")
-							shutil.move(tmp_unpack_dir / "CLIENT_DATA", DEPOT_BASE_DIR / product_id)
+							shutil.move(tmp_unpack_dir / "CLIENT_DATA", product_path)
 
 							logger.info("Updating product dependencies of product %s", product)
 							current_product_dependencies = {}
@@ -681,7 +652,7 @@ class DepotserverPackageManager:
 							self.backend.productPropertyState_createObjects(product_property_states)
 
 						if not suppress_package_content_file_generation:
-							create_package_content_file(opsi_package)
+							create_package_content_file(product_path)
 						else:
 							logger.debug("Suppressed generation of package content file")
 

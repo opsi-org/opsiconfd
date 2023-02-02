@@ -505,6 +505,7 @@ def get_licensing_info() -> RESTResponse:
 				"linux_clients": info["client_numbers"]["linux"],
 				"windows_clients": info["client_numbers"]["windows"],
 				"all_clients": info["client_numbers"]["all"],
+				"inactive_clients": info["client_numbers"]["inactive"],
 			},
 			"module_dates": modules,
 			"active_date": str(active_date) if active_date else None,

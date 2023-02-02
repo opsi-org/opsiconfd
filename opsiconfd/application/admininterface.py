@@ -142,7 +142,7 @@ async def set_app_state(request: Request) -> RESTResponse:
 
 @admin_interface_router.get("/messagebus-connected-hosts")
 @rest_api
-async def get_messagebus_connected_hosts(request: Request) -> RESTResponse:
+async def get_messagebus_connected_hosts() -> RESTResponse:
 	depot_ids = [h async for h in get_websocket_connected_users(user_type="depot")]
 	client_ids = [h async for h in get_websocket_connected_users(user_type="client")]
 	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids})

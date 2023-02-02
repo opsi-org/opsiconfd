@@ -104,7 +104,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			data = await run_in_threadpool(compress_data, data, self._compression)
 
 		if websocket.client_state != WebSocketState.CONNECTED:
-			logger.warning("Websocket client not connected")
+			logger.debug("Websocket client not connected")
 			return
 
 		logger.debug("Message to websocket: %r", message)

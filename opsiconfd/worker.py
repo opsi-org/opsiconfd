@@ -32,7 +32,7 @@ from opsiconfd import __version__
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import AppState, MaintenanceState, app
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
-from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings
+from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_config
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client
@@ -66,10 +66,11 @@ def uvicorn_config() -> Config:
 		"port": config.port,
 		"workers": config.workers,
 		"log_config": None,
-		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"]],
+		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"], ["X-opsi-server-role", opsi_config.get("host", "server-role")]],
 		"ws_ping_interval": 15,
-		"ws_ping_timeout": 10
+		"ws_ping_timeout": 10,
 	}
+
 	if config.ssl_server_key and config.ssl_server_cert:
 		options["ssl_keyfile"] = config.ssl_server_key
 		options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
@@ -230,7 +231,9 @@ class Worker(WorkerInfo, UvicornServer):
 	def get_connection_count(self) -> int:
 		return len(self.server_state.connections)
 
-	async def close_connections(self, address_exceptions: list[str] | None = None, wait: bool = True) -> None:  # pylint: disable=too-many-branches
+	async def close_connections(
+		self, address_exceptions: list[str] | None = None, wait: bool = True
+	) -> None:  # pylint: disable=too-many-branches
 		address_exceptions = address_exceptions or []
 		logger.info("Closing connections, address exceptions: %s", address_exceptions)
 		keep_connections = set()
@@ -258,7 +261,8 @@ class Worker(WorkerInfo, UvicornServer):
 		if self.server_state.connections and not self.force_exit:
 			logger.info(
 				"Waiting for %d connections to close (timeout=%0.2f seconds)",
-				len(self.server_state.connections) - len(keep_connections), self.connection_close_wait_timeout
+				len(self.server_state.connections) - len(keep_connections),
+				self.connection_close_wait_timeout,
 			)
 			if logger.isEnabledFor(DEBUG):
 				for connection in self.server_state.connections:
@@ -296,7 +300,7 @@ class Worker(WorkerInfo, UvicornServer):
 		info = ""
 		client = connection.client
 		if client:
-			info = f'{client[0]}:{client[1]}'
+			info = f"{client[0]}:{client[1]}"
 		headers = getattr(connection, "headers", None)
 		if headers:
 			for name, val in headers:

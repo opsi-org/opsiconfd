@@ -162,8 +162,8 @@ def test_jsonrpc20(test_client: OpsiconfdTestClient) -> None:  # pylint: disable
 	),
 )
 def test_serializations(
-	test_client: OpsiconfdTestClient, content_type: str, accept: str, expected_content_type: str
-) -> None:  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient, content_type: str, accept: str, expected_content_type: str  # pylint: disable=redefined-outer-name
+) -> None:
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
 	with products_jsonrpc(test_client, "", products):  # Create products
@@ -193,8 +193,8 @@ def test_serializations(
 	),
 )
 def test_compression(
-	test_client: OpsiconfdTestClient, content_encoding: str, accept_encoding: str, status_code: int
-) -> None:  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient, content_encoding: str, accept_encoding: str, status_code: int  # pylint: disable=redefined-outer-name
+) -> None:
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
 	with (products_jsonrpc(test_client, "", products), patch("opsiconfd.application.jsonrpc.COMPRESS_MIN_SIZE", 0)):

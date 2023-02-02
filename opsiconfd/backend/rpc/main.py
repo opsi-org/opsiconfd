@@ -22,10 +22,11 @@ from opsicommon.exceptions import (  # type: ignore[import]
 )
 from opsicommon.messagebus import JSONRPCRequestMessage, timestamp
 from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
-from opsicommon.types import forceHostId  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd import server_timing  # server_timing needed for jsonrpc_forward
+from opsiconfd import (
+	server_timing,  # server_timing needed for jsonrpc_forward  # pylint: disable=unused_import
+)
 from opsiconfd import contextvar_client_session
 from opsiconfd.application import app
 from opsiconfd.backend import get_service_client

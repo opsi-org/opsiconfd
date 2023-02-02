@@ -107,7 +107,7 @@ def merge_dicts(dict_a: dict, dict_b: dict, path: list[str] | None = None) -> di
 			elif dict_a[key] == dict_b[key]:
 				pass
 			else:
-				raise Exception(f"Conflict at { '.'.join(path + [str(key)])}")
+				raise RuntimeError(f"Conflict at { '.'.join(path + [str(key)])}")
 		else:
 			dict_a[key] = dict_b[key]
 	return dict_a
@@ -149,7 +149,9 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				if websocket.client_state != WebSocketState.CONNECTED:
 					break
 				logger.debug("Send set-cookie")
-				await websocket.send_bytes(msgspec.msgpack.encode({"type": "set-cookie", "payload": session.get_cookie()}))  # pylint: disable=dotted-import-in-loop
+				await websocket.send_bytes(
+					msgspec.msgpack.encode({"type": "set-cookie", "payload": session.get_cookie()})
+				)  # pylint: disable=dotted-import-in-loop
 		except (ConnectionClosedOK, WebSocketDisconnect) as err:
 			logger.debug("set_cookie_task: %s", err)
 

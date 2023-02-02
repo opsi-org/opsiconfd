@@ -160,9 +160,9 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		path = REPOSITORY_DIR
 		logger.info("Running on depot server %r, exporting repository directory %r", depot_id, path)
 		if not os.path.isdir(path):
-			raise Exception(f"Cannot add webdav content 'repository': directory '{path}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'repository': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
 
 		filesystems["repository"] = {"path": path, "ignore_case": False, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -172,9 +172,9 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		path = DEPOT_DIR
 		logger.info("Running on depot server %r, exporting depot directory %r", depot_id, path)
 		if not os.path.isdir(path):
-			raise Exception(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
 
 		filesystems["depot"] = {"path": path, "ignore_case": True, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -184,9 +184,9 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		path = WORKBENCH_DIR
 		logger.info("Running on depot server %r, exporting workbench directory %r", depot_id, path)
 		if not os.path.isdir(path):
-			raise Exception(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
 
 		filesystems["workbench"] = {"path": path, "ignore_case": False, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -196,9 +196,9 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		path = PUBLIC_DIR
 		logger.info("Running on depot server %r, exporting public directory %r", depot_id, path)
 		if not os.path.isdir(path):
-			raise Exception(f"Cannot add webdav content 'public': directory '{path}' does not exist.")
+			raise RuntimeError(f"Cannot add webdav content 'public': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'public': permissions on directory '{path}' not sufficient.")
+			raise RuntimeError(f"Cannot add webdav content 'public': permissions on directory '{path}' not sufficient.")
 
 		filesystems["public"] = {"path": path, "ignore_case": False, "read_only": True}
 	except Exception as exc:  # pylint: disable=broad-except
@@ -209,7 +209,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 			path = BOOT_DIR
 			logger.info("Running on depot server %r, exporting boot directory %r", depot_id, path)
 			if not os.access(path, os.R_OK | os.X_OK):
-				raise Exception(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
+				raise RuntimeError(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
 
 			filesystems["boot"] = {"path": path, "ignore_case": True, "read_only": True}
 		except Exception as err:  # pylint: disable=broad-except

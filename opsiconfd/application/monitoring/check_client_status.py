@@ -28,7 +28,7 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 	state = State.OK
 
 	if not client_id:
-		raise Exception("Failed to check: ClientId is needed for checkClientStatus")
+		raise ValueError("Failed to check: ClientId is needed for checkClientStatus")
 
 	client_obj = backend.host_getObjects(id=client_id)  # pylint: disable=protected-access
 

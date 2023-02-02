@@ -989,6 +989,34 @@ function messagebusConnect() {
 			if (message.event == "app_state_changed") {
 				outputToHTML(message.data.state, "application-state");
 			}
+			else if (message.event == "host_connected") {
+				const hostId = message.data.host.id;
+				if (message.data.host.type == "OpsiClient") {
+					if (messagebusConnectedClients.indexOf(hostId) === -1) {
+						messagebusConnectedClients.push(hostId);
+					}
+				}
+				else if (message.data.host.type == "OpsiDepotserver") {
+					if (messagebusConnectedDepots.indexOf(hostId) === -1) {
+						messagebusConnectedDepots.push(hostId);
+					}
+				}
+				updateMessagebusConnectedHosts();
+			}
+			else if (message.event == "host_disconnected") {
+				const hostId = message.data.host.id;
+				if (message.data.host.type == "OpsiClient") {
+					if (messagebusConnectedClients.indexOf(hostId) !== -1) {
+						messagebusConnectedClients.pop(hostId);
+					}
+				}
+				else if (message.data.host.type == "OpsiDepotserver") {
+					if (messagebusConnectedDepots.indexOf(hostId) !== -1) {
+						messagebusConnectedDepots.pop(hostId);
+					}
+				}
+				updateMessagebusConnectedHosts();
+			}
 		}
 		else if (message.type.startsWith("terminal_")) {
 			if (mbTerminal && mbTerminal.terminalId == message.terminal_id) {
@@ -1116,6 +1144,42 @@ function messagebusSend(message) {
 
 function messagebusSendMessage() {
 	messagebusSend(JSON.parse(document.getElementById('messagebus-message-send').value));
+}
+
+
+var messagebusConnectedDepots = [];
+var messagebusConnectedClients = [];
+function getMessagebusConnectedHosts() {
+	let req = ajaxRequest("GET", "/admin/messagebus-connected-hosts");
+	req.then((result) => {
+		messagebusConnectedDepots = result.depot_ids;
+		messagebusConnectedClients = result.client_ids;
+		updateMessagebusConnectedHosts();
+	});
+}
+
+function updateMessagebusConnectedHosts() {
+	const depots = document.getElementById("messagebus-connected-depots");
+	depots.innerHTML = "";
+	const depotList = document.createElement("ul");
+	messagebusConnectedDepots.sort();
+	messagebusConnectedDepots.forEach(depotId => {
+		const depot = document.createElement("li");
+		depot.innerHTML = depotId
+		depotList.appendChild(depot);
+	});
+	depots.appendChild(depotList);
+
+	const clients = document.getElementById("messagebus-connected-clients");
+	clients.innerHTML = "";
+	const clientList = document.createElement("ul");
+	messagebusConnectedClients.sort();
+	messagebusConnectedClients.forEach(clientId => {
+		const client = document.createElement("li");
+		client.innerHTML = clientId;
+		clientList.appendChild(client);
+	});
+	clients.appendChild(clientList);
 }
 
 

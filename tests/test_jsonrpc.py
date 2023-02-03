@@ -301,6 +301,7 @@ def test_jsonrpc_depotservermixin(test_client: OpsiconfdTestClient) -> None:  # 
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpcs)
 	res.raise_for_status()
 	response = res.json()
+        assert len(response) == 2
 	for result in response:
 		if result["id"] == 1:
 			print(result)

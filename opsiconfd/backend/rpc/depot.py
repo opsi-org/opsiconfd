@@ -230,8 +230,8 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		logger.notice("Creating package content file '%s'", product_path / f"{productId}.files")
 		package_content_path = create_package_content_file(Path(product_path))
 		if os.name == "posix":
-			os.chown(str(package_content_path), -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
-			os.chmod(str(package_content_path), 0o660)
+			os.chown(package_content_path, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
+			os.chmod(package_content_path, 0o660)
 
 	@rpc_method
 	def depot_createMd5SumFile(self: BackendProtocol, filename: str, md5sumFilename: str) -> None:  # pylint: disable=invalid-name

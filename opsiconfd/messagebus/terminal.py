@@ -350,6 +350,3 @@ async def messagebus_terminal_open_request_worker() -> None:
 		await messagebus_terminal_open_request_worker_configserver()
 	elif opsi_config.get("host", "server-role") == "depotserver":
 		await messagebus_terminal_open_request_worker_depotserver()
-
-
-close

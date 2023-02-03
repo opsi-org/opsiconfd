@@ -50,7 +50,7 @@
 			//console.info("onload: " + tab);
 			openTab(tab);
 
-			resizeObserver.observe(document.getElementById("messagebus-terminal"));
+			resizeObserver.observe(document.getElementById("terminal"));
 		}
 
 		function stopReloadTimer() {
@@ -63,7 +63,7 @@
 		function openTab(tabName) {
 			stopReloadTimer();
 			stopLog();
-			stopTerminal();
+			// stopTerminal();
 
 			if (tabName == "rpc-infos") {
 				loadRPCTable("rpc_num", false);
@@ -100,7 +100,7 @@
 				startLog();
 			}
 			else if (tabName == "terminal") {
-				setTimeout(startTerminal, 500);
+				fillTerminalSelect();
 			}
 			else if (tabName == "licensing") {
 				loadLicensingInfo();
@@ -612,23 +612,39 @@
 		</div>
 
 		<div id="tab-terminal" class="tabcontent fitheight">
-			<div id="terminal-control">
-				<button class="tab-maximize" style="margin-top: 10px; margin-right: 25px;"
-					onclick="toggleTabMaximize();">Maximize</button>
-				<button style="margin-top: 10px; margin-right: 25px;"
-					onclick="toggleFullscreenTerminal('terminal-xterm', terminal);">Fullscreen</button>
+			<div class="adminpage-box" id="terminal-controls">
+				<div id="terminal-control">
+					<label>Host:</label>
+					<select id="terminal-host-select" style="width: 200px;" onchange="terminalHostSelected();"></select>
+					<br />
+					<label>Channel:</label><input type="text" id="terminal-channel" style="width: 300px;"></input>
+					<label>Terminal id:</label><input type="text" id="terminal-id" style="width: 300px;"></input>
+					<br />
+					<button id="terminal-connect" onclick="messagebusConnectTerminal()"
+						style="margin-right: 25px;">Connect</button>
+					<button id="terminal-disconnect" onclick="stopTerminal()"
+						style="margin-right: 25px;">Disconnect</button>
+					<button class="tab-maximize" style="margin-top: 10px; margin-right: 25px;"
+						onclick="toggleTabMaximize();">Maximize</button>
+					<button style="margin-top: 10px; margin-right: 25px;"
+						onclick="toggleFullscreenTerminal('terminal-xterm', mbTerminal);">Fullscreen</button>
+					<label>Font size:</label>
+					<button id="decrease-terminal-font-size" onclick="changeTerminalFontSize(-1);">-</button>
+					<button id="increase-terminal-font-size" onclick="changeTerminalFontSize(+1);">+</button>
+					<br />
+					<label for="terminal-file-upload" class="terminal-file-upload">
+						To upload a file to the current working directory, drop it in the terminal window or click here.
+					</label>
+					<input id="terminal-file-upload" type="file"
+						onchange="messagebusFileUpload(this.files[0], mbTerminal.terminalChannel, mbTerminal.terminalId); this.value='';">
+				</div>
+			</div>
+			<div id="terminal"
+				style="width: 1000px; height: 600px; margin-bottom: 50px; overflow: hidden; resize: both;">
+				<div id="terminal-xterm" style="width: 100%; height: 100%; background-color: black;">
+				</div>
+			</div>
 
-				<label>Font size:</label>
-				<button id="decrease-terminal-font-size" onclick="changeTerminalFontSize(-1);">-</button>
-				<button id="increase-terminal-font-size" onclick="changeTerminalFontSize(+1);">+</button>
-				<label for="terminal-file-upload" class="terminal-file-upload" style="margin-left: 25px;">
-					To upload a file to the current working directory, drop it in the terminal window or click here.
-				</label>
-				<input id="terminal-file-upload" type="file"
-					onchange="terminalFileUpload(this.files[0]); this.value='';">
-			</div>
-			<div id="terminal-xterm">
-			</div>
 		</div>
 
 		<div id="tab-messagebus" class="tabcontent fitheight">
@@ -669,17 +685,6 @@
 					Show terminal data messages: <input type="checkbox"
 						id="messagebus-message-show-terminal-data-messages" style="margin-right: 25px;">
 					Show file chunk messages: <input type="checkbox" id="messagebus-message-show-file-chunk-messages">
-				</div>
-			</div>
-			<div class="adminpage-box" id="messagebus-terminal"
-				style="width: 1000px; height: 450px; resize: both; overflow: hidden; padding-bottom: 50px;">
-				<label>Channel:</label><input type="text" id="messagebus-terminal-channel"
-					style="width: 300px;"></input>
-				<label>Terminal id:</label><input type="text" id="messagebus-terminal-id" style="width: 300px;"></input>
-				<button id="messagebus-terminal-connect" onclick="messagebusConnectTerminal()"
-					style="margin-right: 25px;">Connect</button>
-				<button onclick="toggleFullscreenTerminal('messagebus-terminal-xterm', mbTerminal);">Fullscreen</button>
-				<div id="messagebus-terminal-xterm" style="margin-top: 10px; width: 100%; height: 100%;">
 				</div>
 			</div>
 			<br /><br /><br /><br /><br /><br /><br /><br /><br />

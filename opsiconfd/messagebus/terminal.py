@@ -16,10 +16,13 @@ from asyncio import get_running_loop
 from os import getuid
 from pathlib import Path
 from pwd import getpwuid
+from queue import Empty, Queue
 from time import time
-from typing import Optional
+from typing import Callable, Optional
 
+from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.messagebus import (  # type: ignore[import]
+	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
 	FileUploadRequestMessage,
 	Message,
@@ -35,13 +38,16 @@ from opsicommon.messagebus import (  # type: ignore[import]
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
 from psutil import AccessDenied, NoSuchProcess, Process  # type: ignore[import]
+from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.config import config
+from opsiconfd.backend import get_service_client
+from opsiconfd.config import config, get_depotserver_id, opsi_config
 from opsiconfd.logging import logger
 
 from . import get_messagebus_worker_id, terminals
 from .filetransfer import process_message as process_file_message
-from .redis import ConsumerGroupMessageReader, MessageReader, send_message
+from .redis import ConsumerGroupMessageReader, MessageReader
+from .redis import send_message as redis_send_message
 
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
@@ -51,11 +57,13 @@ terminal_request_reader = None  # pylint: disable=invalid-name
 
 async def async_terminal_startup() -> None:
 	if "terminal" not in config.admin_interface_disabled_features:
-		asyncio.create_task(_messagebus_terminal_request_worker())
-		asyncio.create_task(_messagebus_terminal_instance_worker())
+		asyncio.create_task(messagebus_terminal_open_request_worker())
+		asyncio.create_task(messagebus_terminal_instance_worker())
 
 
 async def async_terminal_shutdown() -> None:
+	for terminal in terminals.values():
+		await terminal.close()
 	if terminal_request_reader:
 		await terminal_request_reader.stop()
 	if terminal_instance_reader:
@@ -77,9 +85,12 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	max_cols = 300
 	idle_timeout = 600
 
-	def __init__(self, terminal_open_request: TerminalOpenRequestMessage, sender: str) -> None:  # pylint: disable=too-many-arguments
+	def __init__(
+		self, terminal_open_request: TerminalOpenRequestMessage, sender: str, send_message: Callable
+	) -> None:  # pylint: disable=too-many-arguments
 		self._terminal_open_request = terminal_open_request
 		self._sender = sender
+		self._send_message = send_message
 		self._last_usage = time()
 		self._loop = get_running_loop()
 
@@ -134,7 +145,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 					message = TerminalDataReadMessage(
 						sender=self._sender, channel=self.back_channel(), terminal_id=self.terminal_id, data=data
 					)
-					await send_message(message)
+					await self._send_message(message)
 				except TIMEOUT:  # pylint: disable=loop-invariant-statement
 					if time() > self._last_usage + self.idle_timeout:
 						logger.notice("Terminal timed out")
@@ -161,7 +172,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 				rows=self.rows,
 				cols=self.cols,
 			)
-			await send_message(res_message)
+			await self._send_message(res_message)
 		elif isinstance(message, TerminalCloseRequestMessage):
 			await self.close()
 		else:
@@ -181,7 +192,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 				ref_id=message.id if message else None,
 				terminal_id=self.terminal_id,
 			)
-			await send_message(res_message)
+			await self._send_message(res_message)
 			if self._pty:
 				self._pty.close(True)
 			if self.terminal_id in terminals:
@@ -193,13 +204,14 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 
 async def _process_message(
 	message: TerminalOpenRequestMessage | TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalCloseRequestMessage,
+	send_message: Callable,
 ) -> None:
 	terminal = terminals.get(message.terminal_id)
 
 	try:
 		if isinstance(message, TerminalOpenRequestMessage):
 			if not terminal:
-				terminal = Terminal(terminal_open_request=message, sender=get_messagebus_worker_id())
+				terminal = Terminal(terminal_open_request=message, sender=get_messagebus_worker_id(), send_message=send_message)
 				terminals[message.terminal_id] = terminal
 				open_event = TerminalOpenEventMessage(
 					sender=get_messagebus_worker_id(),
@@ -230,7 +242,7 @@ async def _process_message(
 			await send_message(close_event)
 
 
-async def _messagebus_terminal_instance_worker() -> None:
+async def messagebus_terminal_instance_worker_configserver() -> None:
 	global terminal_instance_reader  # pylint: disable=invalid-name,global-statement
 
 	channel = f"{get_messagebus_worker_id()}:terminal"
@@ -242,17 +254,54 @@ async def _messagebus_terminal_instance_worker() -> None:
 			elif isinstance(
 				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
 			):
-				await _process_message(message)
+				await _process_message(message, redis_send_message)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
 
-async def _messagebus_terminal_request_worker() -> None:
+async def messagebus_terminal_instance_worker_depotserver() -> None:
+	channel = f"{get_messagebus_worker_id()}:terminal"
+
+	service_client = await run_in_threadpool(get_service_client)
+	message = ChannelSubscriptionRequestMessage(sender="@", channel="service:messagebus", channels=[channel], operation="add")
+	await service_client.messagebus.async_send_message(message)
+
+	message_queue: Queue[
+		TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalOpenRequestMessage | TerminalCloseRequestMessage
+	] = Queue()
+
+	class TerminalMessageListener(MessagebusListener):
+		def message_received(self, message: Message) -> None:
+			if isinstance(
+				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
+			):
+				message_queue.put(message, block=True)
+
+	listener = TerminalMessageListener()
+
+	service_client.messagebus.register_message_listener(listener)
+	while True:
+		try:
+			term_message = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
+		except Empty:
+			continue
+		await _process_message(term_message, service_client.messagebus.async_send_message)
+
+
+async def messagebus_terminal_instance_worker() -> None:
+	if opsi_config.get("host", "server-role") == "configserver":
+		await messagebus_terminal_instance_worker_configserver()
+	elif opsi_config.get("host", "server-role") == "depotserver":
+		await messagebus_terminal_instance_worker_depotserver()
+
+
+async def messagebus_terminal_open_request_worker_configserver() -> None:
 	global terminal_request_reader  # pylint: disable=invalid-name,global-statement
 
 	channel = "service:config:terminal"
+
 	terminal_request_reader = ConsumerGroupMessageReader(
 		consumer_group=channel,
 		consumer_name=get_messagebus_worker_id(),
@@ -260,13 +309,47 @@ async def _messagebus_terminal_request_worker() -> None:
 	)
 	async for redis_id, message, _context in terminal_request_reader.get_messages():
 		try:
-			if isinstance(
-				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
-			):
-				await _process_message(message)
+			if isinstance(message, TerminalOpenRequestMessage):
+				await _process_message(message, redis_send_message)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 		# ACK Message
 		await terminal_request_reader.ack_message(message.channel, redis_id)
+
+
+async def messagebus_terminal_open_request_worker_depotserver() -> None:
+	depot_id = get_depotserver_id()
+	service_client = await run_in_threadpool(get_service_client)
+	message = ChannelSubscriptionRequestMessage(
+		sender="@", channel="service:messagebus", channels=[f"service:depot:{depot_id}:terminal"], operation="add"
+	)
+	await service_client.messagebus.async_send_message(message)
+
+	message_queue: Queue[TerminalOpenRequestMessage] = Queue()
+
+	class TerminalOpenRequestMessageListener(MessagebusListener):
+		def message_received(self, message: Message) -> None:
+			if isinstance(message, TerminalOpenRequestMessage):
+				message_queue.put(message, block=True)
+
+	listener = TerminalOpenRequestMessageListener()
+
+	service_client.messagebus.register_message_listener(listener)
+	while True:
+		try:
+			term_message: TerminalOpenRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
+		except Empty:
+			continue
+		await _process_message(term_message, service_client.messagebus.async_send_message)
+
+
+async def messagebus_terminal_open_request_worker() -> None:
+	if opsi_config.get("host", "server-role") == "configserver":
+		await messagebus_terminal_open_request_worker_configserver()
+	elif opsi_config.get("host", "server-role") == "depotserver":
+		await messagebus_terminal_open_request_worker_depotserver()
+
+
+close

@@ -1,0 +1,52 @@
+[Package]
+version: 1337
+depends: 
+
+[Product]
+type: localboot
+id: localboot_new
+name: localboot new
+description: this is a localboot new test package
+advice: use the new one
+version: 42.0
+priority: 0
+licenseRequired: False
+productClasses: 
+setupScript: setup.opsiscript
+uninstallScript: uninstall.opsiscript
+updateScript: update.opsiscript
+alwaysScript: always.opsiscript
+onceScript: once.opsiscript
+customScript: custom.opsiscript
+userLoginScript: userlogin.opsiscript
+
+[ProductDependency]
+action: setup
+requiredProduct: hwaudit
+requiredAction: setup
+requirementType: before
+requiredStatus: installed
+
+[ProductProperty]
+type: unicode
+name: propname
+multivalue: False
+editable: True
+description: this is a dummy property
+values: ["a","b"]
+default: ["a"]
+
+[ProductProperty]
+type: bool
+name: boolprop
+description: this is a bool property
+default: False
+
+[Changelog]
+localboot_new (42.0-1337) testing; urgency=low
+
+  * Initial package
+
+ -- test <test@uib.de>  Wed, 18 Jan 2023 12:48:39 +0000
+
+

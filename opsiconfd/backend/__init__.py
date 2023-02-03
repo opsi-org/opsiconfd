@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 
+from opsiconfd import __version__
 from opsiconfd.config import config, get_depotserver_id, opsi_config
 
 if TYPE_CHECKING:
@@ -58,10 +59,12 @@ def get_service_client() -> ServiceClient:
 			address=opsi_config.get("service", "url"),
 			username=get_depotserver_id(),
 			password=opsi_config.get("host", "key"),
+			user_agent=f"opsiconfd depotserver {__version__}",
 			verify="uib_opsi_ca",
 			ca_cert_file=config.ssl_ca_cert,
 			jsonrpc_create_objects=True,
 		)
+		service_client.messagebus.threaded_callbacks = False
 		service_client.connect()
 		service_client.connect_messagebus()
 	return service_client

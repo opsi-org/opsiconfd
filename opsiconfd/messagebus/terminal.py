@@ -62,7 +62,7 @@ async def async_terminal_startup() -> None:
 
 
 async def async_terminal_shutdown() -> None:
-	for terminal in terminals.values():
+	for terminal in list(terminals.values()):
 		await terminal.close()
 	if terminal_request_reader:
 		await terminal_request_reader.stop()

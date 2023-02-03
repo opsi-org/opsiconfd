@@ -1021,7 +1021,7 @@ function messagebusConnect() {
 					mbTerminal.write(message.data);
 				}
 				else if (message.type == "terminal_open_event") {
-					document.getElementById("messagebus-terminal-channel").value = mbTerminal.terminalChannel = message.back_channel;
+					document.getElementById("terminal-channel").value = mbTerminal.terminalChannel = message.back_channel;
 				}
 				else if (message.type == "terminal_close_event") {
 					console.log("Terminal closed");
@@ -1031,7 +1031,7 @@ function messagebusConnect() {
 			}
 		}
 		else if (message.type == "file_upload_result") {
-			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
+			document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 			let utf8Encode = new TextEncoder();
 			let dataMessage = {
 				type: "terminal_data_write",
@@ -1104,6 +1104,7 @@ function messagebusInsertMessageTemplate() {
 	}
 	else if (val == "jsonrpc_request") {
 		message.type = "jsonrpc_request"
+		message.channel = "service:config:jsonrpc"
 		message.rpc_id = "1"
 		message.method = ""
 		message.params = []
@@ -1146,12 +1147,15 @@ function messagebusSendMessage() {
 
 var messagebusConnectedDepots = [];
 var messagebusConnectedClients = [];
-function getMessagebusConnectedHosts() {
+function getMessagebusConnectedHosts(callback) {
 	let req = ajaxRequest("GET", "/admin/messagebus-connected-hosts");
 	req.then((result) => {
 		messagebusConnectedDepots = result.depot_ids;
 		messagebusConnectedClients = result.client_ids;
 		updateMessagebusConnectedHosts();
+		if (callback) {
+			callback();
+		}
 	});
 }
 
@@ -1189,21 +1193,50 @@ function messagebusToggleAutoScroll() {
 	}
 }
 
+
+function fillTerminalSelect() {
+	const select = document.getElementById('terminal-host-select');
+	select.innerHTML = "";
+
+	let option = document.createElement("option");
+	option.text = "Configserver";
+	option.dataset.channel = "service:config:terminal";
+	select.appendChild(option);
+
+	getMessagebusConnectedHosts(function () {
+		messagebusConnectedDepots.forEach(depotId => {
+			option = document.createElement("option");
+			option.text = `Depot ${depotId}`;
+			option.dataset.channel = `service:depot:${depotId}:terminal`;
+			select.appendChild(option);
+		});
+	});
+	terminalHostSelected();
+}
+
+
+function terminalHostSelected() {
+	const option = document.getElementById("terminal-host-select").selectedOptions[0];
+	document.getElementById("terminal-channel").value = option.dataset.channel;
+	document.getElementById("terminal-id").value = "";
+}
+
+
 function messagebusConnectTerminal() {
 	if (!messagebusWS) {
 		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
 		return;
 	}
-	let terminalChannel = document.getElementById("messagebus-terminal-channel").value;
+	let terminalChannel = document.getElementById("terminal-channel").value;
 	if (!terminalChannel) {
 		showNotifcation("Invalid channel.", "messagebus", "error", 3);
 		return;
 	}
 
-	let terminalId = document.getElementById("messagebus-terminal-id").value;
+	let terminalId = document.getElementById("terminal-id").value;
 	if (!terminalId) {
 		terminalId = createUUID();
-		document.getElementById("messagebus-terminal-id").value = terminalId;
+		document.getElementById("terminal-id").value = terminalId;
 	}
 	let terminalSessionChannel = `session:${terminalId}`;
 
@@ -1227,7 +1260,7 @@ function messagebusConnectTerminal() {
 	mbTerminal.fitAddon = new FitAddon.FitAddon();
 	mbTerminal.loadAddon(mbTerminal.fitAddon);
 
-	mbTerminal.open(document.getElementById('messagebus-terminal-xterm'));
+	mbTerminal.open(document.getElementById('terminal-xterm'));
 
 	const webglAddon = new WebglAddon.WebglAddon();
 	mbTerminal.loadAddon(webglAddon);
@@ -1297,7 +1330,7 @@ function messagebusConnectTerminal() {
 			messagebusSend(message);
 		});
 
-		const el = document.querySelector('#messagebus-terminal-xterm .xterm-screen');
+		const el = document.querySelector('#terminal-xterm .xterm-screen');
 		el.ondragenter = function (event) {
 			return false;
 		};
@@ -1326,7 +1359,7 @@ function messagebusFileUpload(file, channel, terminalId = null) {
 		var reader = new FileReader();
 		var blob = file.slice(offset, offset + chunkSize);
 		reader.onload = function () {
-			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
+			document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
 			//console.log(offset);
 			offset += chunkSize;
 			chunk += 1;
@@ -1357,7 +1390,7 @@ function messagebusFileUpload(file, channel, terminalId = null) {
 		reader.readAsArrayBuffer(blob);
 	}
 
-	document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
+	document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
 	let message = {
 		type: "file_upload_request",
 		id: createUUID(),
@@ -1376,8 +1409,8 @@ function messagebusFileUpload(file, channel, terminalId = null) {
 }
 
 var resizeObserver = new ResizeObserver(entries => {
-	for (let entry of entries) {
-		if (entry.target.id == "messagebus-terminal") {
+	for (const entry of entries) {
+		if (entry.target.id == "terminal") {
 			if (mbTerminal) {
 				mbTerminal.fitAddon.fit();
 			}
@@ -1386,202 +1419,47 @@ var resizeObserver = new ResizeObserver(entries => {
 });
 
 
-var terminal;
-window.onresize = function () {
-	if (terminal) terminal.fitAddon.fit();
-};
-
-
-function startTerminal() {
-	terminal = new Terminal({
-		cursorBlink: true,
-		scrollback: 1000,
-		fontSize: 14,
-		allowProposedApi: true
-	});
-
-	const searchAddon = new SearchAddon.SearchAddon();
-	terminal.loadAddon(searchAddon);
-	const webLinksAddon = new WebLinksAddon.WebLinksAddon();
-	terminal.loadAddon(webLinksAddon);
-	terminal.fitAddon = new FitAddon.FitAddon();
-	terminal.loadAddon(terminal.fitAddon);
-
-	terminal.open(document.getElementById('terminal-xterm'));
-
-	const webglAddon = new WebglAddon.WebglAddon();
-	terminal.loadAddon(webglAddon);
-
-	setTimeout(function () {
-		document.getElementsByClassName('xterm-viewport')[0].setAttribute("style", "");
-
-		terminal.fitAddon.fit();
-		terminal.focus();
-
-		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
-
-		let params = ["set_cookie_interval=30", `rows=${terminal.rows}`, `cols=${terminal.cols}`]
-		let loc = window.location;
-		let ws_uri;
-		if (loc.protocol == "https:") {
-			ws_uri = "wss:";
-		} else {
-			ws_uri = "ws:";
-		}
-		ws_uri += "//" + loc.host;
-		terminal.websocket = new WebSocket(ws_uri + "/admin/terminal/ws?" + params.join('&'));
-		terminal.websocket.binaryType = 'arraybuffer';
-		terminal.websocket.onclose = function () {
-			console.log("Terminal ws connection closed");
-			terminal.writeln("\r\n\033[1;37m> Connection closed <\033[0m");
-			terminal.write("\033[?25l"); // Make cursor invisible
-		};
-		terminal.websocket.onerror = function (error) {
-			const err = `Terminal ws connection error: ${JSON.stringify(error)}`;
-			console.error(err);
-			showNotifcation(err, "terminal", "error", 5);
-			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
-			terminal.write("\033[?25l"); // Make cursor invisible
-		};
-		terminal.websocket.onmessage = function (event) {
-			const message = msgpack.deserialize(event.data);
-			//console.log(message);
-			if (message.type == "terminal-read") {
-				terminal.write(message.payload);
-			}
-			else if (message.type == "set-cookie") {
-				console.log("Set-Cookie");
-				document.cookie = message.payload;
-			}
-			else if (message.type == "file-transfer-result") {
-				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
-				if (message.payload.error) {
-					const error = `File upload failed: ${JSON.stringify(message.payload)}.`;
-					showNotifcation(error, "terminal", "error", 10);
-					console.error(error);
-				}
-				else {
-					console.log(`File upload successful: ${JSON.stringify(message.payload)}.`)
-					const path = message.payload.result.path;
-					terminal.websocket.send(msgpack.serialize({ "type": "terminal-write", "payload": path + "\033[D".repeat(path.length) }));
-				}
-			}
-		}
-
-		terminal.onData(function (data) {
-			let message = msgpack.serialize({ "type": "terminal-write", "payload": data });
-			terminal.websocket.send(message);
-		})
-		terminal.onResize(function (event) {
-			//console.log("Resize:")
-			//console.log(event);
-			terminal.websocket.send(msgpack.serialize({ "type": "terminal-resize", "payload": { "rows": event.rows, "cols": event.cols } }));
-		});
-
-		const el = document.querySelector('#terminal-xterm .xterm-screen');
-		el.ondragenter = function (event) {
-			return false;
-		};
-		el.ondragover = function (event) {
-			event.preventDefault();
-		}
-		el.ondragleave = function (event) {
-			return false;
-		};
-		el.ondrop = function (event) {
-			event.preventDefault();
-			terminalFileUpload(event.dataTransfer.files[0]);
-		}
-	}, 100);
-}
-
-
 function toggleFullscreenTerminal(elementId, term) {
-	if (!term) return;
 	var elem = document.getElementById(elementId);
+	if (elem.getAttribute('fullscreenchangelistener') !== 'true') {
+		elem.addEventListener('fullscreenchange', (event) => {
+			setTimeout(function () {
+				term.fitAddon.fit();
+			}, 250);
+		});
+		elem.setAttribute('fullscreenchangelistener', 'true');
+	}
+
 	if (elem.requestFullscreen) {
 		elem.requestFullscreen();
 	}
-	setTimeout(function () {
-		term.fitAddon.fit();
-	}, 100);
 }
 
 
 function stopTerminal() {
-	if (!terminal) return;
-	terminal.dispose();
-	terminal.websocket.close();
+	if (!mbTerminal) return;
+
+	message = {
+		type: "terminal_close_request",
+		id: createUUID(),
+		sender: "@",
+		channel: mbTerminal.terminalChannel,
+		created: Date.now(),
+		expires: Date.now() + 10000,
+		terminal_id: mbTerminal.terminalId
+	}
+	messagebusSend(message);
+	mbTerminal.dispose();
 }
 
 
 function changeTerminalFontSize(val) {
-	if (!terminal) return;
-	let size = terminal.options.fontSize;
+	if (!mbTerminal) return;
+	let size = mbTerminal.options.fontSize;
 	size += val;
 	if (size < 1) { size = 1; }
-	terminal.options.fontSize = size;
-	terminal.fitAddon.fit();
-}
-
-
-function terminalFileUpload(file) {
-	console.log("terminalFileUpload:")
-	console.log(file);
-	if (!terminal || !terminal.websocket) {
-		console.error("No terminal connected");
-		showNotifcation("No terminal connected", "terminal", "error", 5);
-		return;
-	}
-
-	let chunkSize = 100000;
-	let fileId = createUUID();
-	let chunk = 0;
-	let offset = 0;
-
-	var readChunk = function () {
-		var reader = new FileReader();
-		var blob = file.slice(offset, offset + chunkSize);
-		reader.onload = function () {
-			//console.log(offset);
-			offset += chunkSize;
-			chunk += 1;
-			const more_data = (offset < file.size);
-			let message = msgpack.serialize({
-				"id": createUUID(),
-				"type": "file-transfer",
-				"payload": {
-					"file_id": fileId,
-					"chunk": chunk,
-					"data": new Uint8Array(reader.result),
-					"more_data": more_data
-				}
-			});
-			terminal.websocket.send(message);
-
-			if (more_data) {
-				readChunk();
-			}
-		}
-		reader.readAsArrayBuffer(blob);
-	}
-
-	document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
-	let message = msgpack.serialize({
-		"id": createUUID(),
-		"type": "file-transfer",
-		"payload": {
-			"file_id": fileId,
-			"chunk": chunk,
-			"name": file.name,
-			"size": file.size,
-			"modified": file.lastModified,
-			"data": null,
-			"more_data": true
-		}
-	});
-	terminal.websocket.send(message);
-	readChunk();
+	mbTerminal.options.fontSize = size;
+	mbTerminal.fitAddon.fit();
 }
 
 

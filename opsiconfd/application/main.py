@@ -31,7 +31,6 @@ from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from opsiconfd import __version__, contextvar_client_address, contextvar_request_id
 from opsiconfd.addon import AddonManager
-from opsiconfd.application import terminal  # pylint: disable=unused-import
 from opsiconfd.application import app
 from opsiconfd.application.admininterface import admin_interface_setup
 from opsiconfd.application.filetransfer import filetransfer_setup

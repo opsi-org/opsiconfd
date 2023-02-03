@@ -518,7 +518,7 @@ async def messagebus_jsonrpc_request_worker_configserver() -> None:
 async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 	unprotected_backend = get_unprotected_backend()
 	depot_id = get_depotserver_id()
-	service_client = await run_in_threadpool(get_service_client)
+	service_client = await run_in_threadpool(get_service_client, "messagebus jsonrpc")
 	message = ChannelSubscriptionRequestMessage(
 		sender="@", channel="service:messagebus", channels=[f"service:depot:{depot_id}:jsonrpc"], operation="add"
 	)

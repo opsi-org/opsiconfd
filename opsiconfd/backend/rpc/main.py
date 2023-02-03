@@ -261,7 +261,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				)  # pylint: disable=loop-global-usage
 
 	def _depot_server_init(self) -> None:
-		self._service_client = get_service_client()
+		self._service_client = get_service_client("backend")
 		self._interface_list = self._service_client.jsonrpc(method="backend_getInterface")
 		self._create_jsonrpc_instance_methods()
 

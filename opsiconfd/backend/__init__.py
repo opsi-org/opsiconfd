@@ -10,6 +10,7 @@ opsiconfd.backend.rpc
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import TYPE_CHECKING, Any
 
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
@@ -23,7 +24,8 @@ if TYPE_CHECKING:
 
 protected_backend = None  # pylint: disable=invalid-name
 unprotected_backend = None  # pylint: disable=invalid-name
-service_client = None  # pylint: disable=invalid-name
+service_clients = {}  # pylint: disable=invalid-name
+service_clients_lock = Lock()
 
 
 def get_protected_backend() -> ProtectedBackend:
@@ -52,22 +54,34 @@ def get_mysql() -> MySQLConnection:
 	return get_unprotected_backend()._mysql  # pylint: disable=protected-access
 
 
-def get_service_client() -> ServiceClient:
-	global service_client  # pylint: disable=invalid-name,global-statement
-	if not service_client:
-		service_client = ServiceClient(
-			address=opsi_config.get("service", "url"),
-			username=get_depotserver_id(),
-			password=opsi_config.get("host", "key"),
-			user_agent=f"opsiconfd depotserver {__version__}",
-			verify="uib_opsi_ca",
-			ca_cert_file=config.ssl_ca_cert,
-			jsonrpc_create_objects=True,
-		)
-		service_client.messagebus.threaded_callbacks = False
-		service_client.connect()
-		service_client.connect_messagebus()
-	return service_client
+def get_service_client(name: str = "") -> ServiceClient:
+	with service_clients_lock:
+		if name not in service_clients:
+			from opsiconfd.worker import Worker  # pylint: disable=import-outside-toplevel
+
+			user_agent = f"opsiconfd depotserver {__version__}"
+			try:
+				user_agent = f"{user_agent} worker {Worker.get_instance().id}"
+			except RuntimeError:
+				# No worker instance
+				pass
+			if name:
+				user_agent = f"{user_agent} {name}"
+
+			service_client = ServiceClient(
+				address=opsi_config.get("service", "url"),
+				username=get_depotserver_id(),
+				password=opsi_config.get("host", "key"),
+				user_agent=user_agent,
+				verify="uib_opsi_ca",
+				ca_cert_file=config.ssl_ca_cert,
+				jsonrpc_create_objects=True,
+			)
+			service_client.messagebus.threaded_callbacks = False
+			service_client.connect()
+			service_client.connect_messagebus()
+			service_clients[name] = service_client
+		return service_clients[name]
 
 
 def execute_on_secondary_backends(

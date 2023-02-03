@@ -10,31 +10,23 @@ opsiconfd.backend.rpc.depot
 
 from __future__ import annotations
 
+import base64
 import grp
 import os
+import re
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 
-from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
-from OPSI.Util import (  # type: ignore[import]
-	compareVersions,
-	findFiles,
-	md5sum,
-	removeDirectory,
-)
-from OPSI.Util.File import ZsyncFile  # type: ignore[import]
-from OPSI.Util.Product import (  # type: ignore[import]
-	PackageContentFile,
-	ProductPackageFile,
-	ProductPackageSource,
-)
+from OPSI.System import execute, getDiskSpaceUsage  # type: ignore[import]
+from OPSI.Util import compareVersions, md5sum, removeDirectory  # type: ignore[import]
 from OPSI.Util.Sync import (  # type: ignore[import]
 	librsyncDeltaFile,
 	librsyncPatchFile,
 	librsyncSignature,
 )
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
 	BackendIOError,
@@ -43,18 +35,23 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendTemporaryError,
 	BackendUnaccomplishableError,
 )
-from opsicommon.logging import log_context  # type: ignore[import]
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.logging import log_context
+from opsicommon.objects import (
 	Product,
 	ProductOnDepot,
 	ProductProperty,
 	ProductPropertyState,
 )
-from opsicommon.types import forceUnicodeLower  # type: ignore[import]
-from opsicommon.types import forceBool, forceDict, forceFilename  # type: ignore[import]
-from opsicommon.types import (
-	forceProductId as typeForceProductId,  # type: ignore[import]
+from opsicommon.package import OpsiPackage
+from opsicommon.package.associated_files import (
+	create_package_content_file,
+	create_package_md5_file,
+	create_package_zsync_file,
 )
+from opsicommon.types import forceBool, forceDict, forceFilename
+from opsicommon.types import forceProductId as typeForceProductId
+from opsicommon.types import forceUnicodeLower
+from opsicommon.utils import make_temp_dir
 
 from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
@@ -64,6 +61,49 @@ from . import rpc_method  # pylint: disable=unused-import
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
+
+PACKAGE_SCRIPT_TIMEOUT = 600  # Seconds  # TODO: better place?
+
+
+def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
+	env = env or {}
+	logger.info("Attempt to run package script %s", script_path.name)
+	try:
+		if not script_path.exists():
+			logger.info("Package script '%s' not found", script_path)
+			return []
+
+		with open(script_path, "rb") as file:
+			data = file.read()
+		if data.startswith(b"#!"):
+			new_data = re.sub(rb"(^|\s|/)python3?(\s+)", rb"\g<1>opsi-python\g<2>", data)  # pylint: disable=anomalous-backslash-in-string
+			if b"\r\n" in data:
+				logger.info("Replacing dos line breaks in %s", script_path.name)
+				new_data = new_data.replace(b"\r\n", b"\n")
+			if data != new_data:
+				with open(script_path, "wb") as file:
+					file.write(new_data)
+
+		logger.notice("Running package script '%s'", script_path.name)
+		os.chmod(str(script_path), 0o700)
+
+		sp_env = {
+			"PRODUCT_ID": opsi_package.product.getId(),
+			"PRODUCT_TYPE": opsi_package.product.getType(),
+			"PRODUCT_VERSION": opsi_package.product.getProductVersion(),
+			"PACKAGE_VERSION": opsi_package.product.getPackageVersion(),
+			"CLIENT_DATA_DIR": str(client_data_dir),
+		}
+		sp_env.update(env)
+		logger.debug("Package script env: %s", sp_env)
+		return execute(str(script_path), timeout=PACKAGE_SCRIPT_TIMEOUT, env=sp_env)
+	except Exception as err:
+		logger.error(err, exc_info=True)
+		raise RuntimeError(
+			f"Failed to execute package script '{script_path.name}' of package '{opsi_package.product.getId()}': {err}"
+		) from err
+	finally:
+		logger.debug("Finished running package script %s", script_path.name)
 
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
@@ -130,7 +170,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self: BackendProtocol, filename: str, signature: str, deltafile: str
 	) -> None:
 		try:
-			librsyncDeltaFile(filename, signature, deltafile)
+			# json serialisation cannot handle bytes, expecting base64 encoded string here
+			signature_bytes = base64.b64decode(signature)
+			librsyncDeltaFile(filename, signature_bytes, deltafile)
 		except Exception as err:
 			raise BackendIOError(f"Failed to create librsync delta file: {err}") from err
 
@@ -161,7 +203,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 				filename,
 				force=force,
 				property_default_values=propertyDefaultValues or {},
-				temp_dir=tempDir,
+				temp_dir=Path(tempDir) if tempDir else None,
 				force_product_id=forceProductId,
 				suppress_package_content_file_generation=suppressPackageContentFileGeneration,
 			)
@@ -185,17 +227,8 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not product_path.is_dir():
 			raise BackendIOError(f"Product dir '{product_path}' not found")
 
-		package_content_path = product_path / f"{productId}.files"
-		logger.notice("Creating package content file '%s'", package_content_path)
-
-		if package_content_path.exists():
-			package_content_path.unlink()
-
-		package_content_file = PackageContentFile(str(package_content_path))
-		package_content_file.setProductClientDataDir(str(product_path))
-		client_data_files = findFiles(str(product_path))
-		package_content_file.setClientDataFiles(client_data_files)
-		package_content_file.generate()
+		logger.notice("Creating package content file '%s'", product_path / f"{productId}.files")
+		package_content_path = create_package_content_file(Path(product_path))
 		if os.name == "posix":
 			os.chown(package_content_path, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(package_content_path, 0o660)
@@ -205,9 +238,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not os.path.exists(filename):
 			raise BackendIOError(f"File not found: {filename}")
 		logger.info("Creating md5sum file '%s'", md5sumFilename)
-		md5 = md5sum(filename)
-		with open(md5sumFilename, "w", encoding="utf-8") as md5file:
-			md5file.write(md5)
+		create_package_md5_file(Path(filename), Path(md5sumFilename))
 		if os.name == "posix":
 			os.chown(md5sumFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(md5sumFilename, 0o660)
@@ -217,8 +248,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not os.path.exists(filename):
 			raise BackendIOError(f"File not found: {filename}")
 		logger.info("Creating zsync file '%s'", zsyncFilename)
-		zsync_file = ZsyncFile(zsyncFilename)
-		zsync_file.generate(filename)
+		create_package_zsync_file(Path(filename), Path(zsyncFilename))
 		if os.name == "posix":
 			os.chown(zsyncFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(zsyncFilename, 0o660)
@@ -239,14 +269,13 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise ValueError(f"Invalid package dir '{package_path}'")
 		if not package_path.is_dir():
 			raise BackendIOError(f"Package source dir '{package_path}' does not exist")
-		pps = ProductPackageSource(
-			packageSourceDir=str(package_path), packageFileDestDir=str(package_path), format="tar", compression="gzip", dereference=False
-		)
-		package_file = pps.pack()
-		self.depot_createMd5SumFile(package_file, f"{package_file}.md5")
-		self.depot_createZsyncFile(package_file, f"{package_file}.zsync")
+		opsi_package = OpsiPackage()
+		opsi_package.find_and_parse_control_file(package_path)
+		package_file = opsi_package.create_package_archive(package_path, destination=package_path)
+		self.depot_createMd5SumFile(str(package_file), f"{package_file}.md5")
+		self.depot_createZsyncFile(str(package_file), f"{package_file}.zsync")
 		if os.name == "posix":
-			for file in (package_file, f"{package_file}.md5", f"{package_file}.zsync"):
+			for file in (str(package_file), f"{package_file}.md5", f"{package_file}.zsync"):
 				try:  # pylint: disable=loop-try-except-usage
 					os.chown(  # pylint: disable=dotted-import-in-loop
 						file, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2]  # pylint: disable=dotted-import-in-loop
@@ -254,7 +283,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 					os.chmod(file, 0o660)  # pylint: disable=dotted-import-in-loop
 				except Exception as err:  # pylint: disable=broad-except
 					logger.warning(err)
-		return package_file
+		return str(package_file)
 
 	@rpc_method
 	def workbench_installPackage(self: BackendProtocol, package_file_or_dir: str) -> None:  # pylint: disable=invalid-name
@@ -289,14 +318,16 @@ class DepotserverPackageManager:
 		filename: str,
 		force: bool = False,
 		property_default_values: dict[str, Any] | None = None,
-		temp_dir: str | None = None,
+		temp_dir: Path | None = None,
 		force_product_id: str | None = None,
 		suppress_package_content_file_generation: bool = False,
 	) -> None:
 		property_default_values = property_default_values or {}
 
 		@contextmanager
-		def product_package_file(filename: str, temp_dir: str | None, depot_id: str) -> Generator[ProductPackageFile, None, None]:
+		def get_opsi_package(
+			filename: str, temp_dir: Path | None, depot_id: str, new_product_id: str | None = None
+		) -> Generator[tuple[OpsiPackage, Path], None, None]:
 			try:
 				depots = self.backend.host_getObjects(id=depot_id)  # pylint: disable=protected-access
 				depot = depots[0]
@@ -307,20 +338,13 @@ class DepotserverPackageManager:
 			depot_local_url = depot.getDepotLocalUrl()
 			if not depot_local_url or not depot_local_url.startswith("file:///"):
 				raise BackendBadValueError(f"Value '{depot_local_url}' not allowed for depot local url (has to start with 'file:///')")
-			client_data_dir = depot_local_url[7:]
 
-			ppf = ProductPackageFile(filename, tempDir=temp_dir)
-			ppf.setClientDataDir(client_data_dir)
-			ppf.getMetaData()
-
-			try:
-				yield ppf
-				ppf.setAccessRights()
-			finally:
-				try:
-					ppf.cleanup()
-				except Exception as err:  # pylint: disable=broad-except
-					logger.error("Cleanup failed: %s", err)
+			opsi_package = OpsiPackage(Path(filename), temp_dir=temp_dir)
+			with make_temp_dir(temp_dir) as temp_unpack_dir:
+				if new_product_id:
+					logger.info("Forcing product id '%s'", new_product_id)
+				opsi_package.extract_package_archive(Path(filename), temp_unpack_dir, new_product_id=new_product_id)
+				yield opsi_package, temp_unpack_dir
 
 		@contextmanager
 		def lock_product(product: Product, depot_id: str, force_installation: bool) -> Generator[ProductOnDepot, None, None]:
@@ -367,15 +391,21 @@ class DepotserverPackageManager:
 			self.backend.productOnDepot_updateObject(product_on_depot)
 
 		@contextmanager
-		def run_package_scripts(product_package_file: ProductPackageFile, env: dict[str, Any] | None = None) -> Generator[None, None, None]:
+		def run_package_scripts(
+			opsi_package: OpsiPackage, unpack_dir: Path, client_data_dir: Path, env: dict[str, Any] | None = None
+		) -> Generator[None, None, None]:
 			logger.info("Running preinst script")
-			for line in product_package_file.runPreinst(env=env or {}):
+			for line in run_package_script(
+				opsi_package, unpack_dir / "OPSI" / "preinst", client_data_dir, env=env or {}
+			):  # pylint: disable=loop-invariant-statement
 				logger.info("[preinst] %s", line)
 
 			yield
 
 			logger.info("Running postinst script")
-			for line in product_package_file.runPostinst(env=env or {}):
+			for line in run_package_script(
+				opsi_package, unpack_dir / "OPSI" / "postinst", client_data_dir, env=env or {}
+			):  # pylint: disable=loop-invariant-statement
 				logger.info("[postinst] %s", line)
 
 		def clean_up_products(product_id: str) -> None:
@@ -477,25 +507,17 @@ class DepotserverPackageManager:
 				if property_default_values[property_id] is None:
 					property_default_values[property_id] = []
 
-			if temp_dir:
-				temp_dir = forceFilename(temp_dir)
-			else:
-				temp_dir = None
-
 			if not os.path.isfile(filename):
 				raise BackendIOError(f"Package file '{filename}' does not exist or can not be accessed.")
 			if not os.access(filename, os.R_OK):
 				raise BackendIOError(f"Read access denied for package file '{filename}'")
 
 			try:
-				with product_package_file(filename, temp_dir, self._depot_id) as ppf:
-					product = ppf.packageControlFile.getProduct()
-					if force_product_id:
-						logger.info("Forcing product id '%s'", force_product_id)
-						product.setId(force_product_id)
-						ppf.packageControlFile.setProduct(product)
-
+				with get_opsi_package(filename, temp_dir, self._depot_id, force_product_id) as (opsi_package, tmp_unpack_dir):
+					product = opsi_package.product
 					product_id = product.getId()
+					if not product_id:
+						raise BackendIOError(f"Cannot extract product from {filename}")
 					old_product_version = ""
 					old_package_version = ""
 					try:
@@ -507,22 +529,26 @@ class DepotserverPackageManager:
 
 					logger.info("Creating product in backend")
 					self.backend.product_createObjects(product)
+					product_path = (
+						Path(self.backend.host_getObjects(id=self._depot_id)[0].getDepotLocalUrl().replace("file://", "")) / product_id
+					)
 
 					with lock_product(product, self._depot_id, force) as product_on_depot:
 						logger.info("Checking package dependencies")
-						self.check_dependencies(ppf)
+						self.check_dependencies(opsi_package)
 
 						env = {
 							"DEPOT_ID": self._depot_id,
 							"OLD_PRODUCT_VERSION": old_product_version,
 							"OLD_PACKAGE_VERSION": old_package_version,
 						}
-						with run_package_scripts(ppf, env):
+						with run_package_scripts(opsi_package, tmp_unpack_dir, product_path, env=env):
 							logger.info("Deleting old client-data dir")
-							ppf.deleteProductClientDataDir()
+							if (product_path).exists():
+								shutil.rmtree(product_path)
 
 							logger.info("Unpacking package files")
-							ppf.extractData()
+							shutil.move(tmp_unpack_dir / "CLIENT_DATA", product_path)
 
 							logger.info("Updating product dependencies of product %s", product)
 							current_product_dependencies = {}
@@ -533,7 +559,7 @@ class DepotserverPackageManager:
 								current_product_dependencies[ident] = product_dependency
 
 							product_dependencies = []
-							for product_dependency in ppf.packageControlFile.getProductDependencies():
+							for product_dependency in opsi_package.product_dependencies:
 								if force_product_id:
 									product_dependency.productId = product_id
 
@@ -555,7 +581,7 @@ class DepotserverPackageManager:
 								ident = product_property.getIdent(returnType="unicode")
 								current_product_properties[ident] = product_property
 
-							for product_property in ppf.packageControlFile.getProductProperties():
+							for product_property in opsi_package.product_properties:
 								if force_product_id:
 									product_property.productId = product_id
 
@@ -583,9 +609,9 @@ class DepotserverPackageManager:
 								self.backend.productProperty_deleteObjects(list(current_product_properties.values()))
 
 							logger.info("Deleting product property states of product %s on depot '%s'", product_id, self._depot_id)
-							self.backend.productPropertyState_deleteObjects(
-								self.backend.productPropertyState_getObjects(productId=product_id, objectId=self._depot_id)
-							)
+							pp_states = self.backend.productPropertyState_getObjects(productId=product_id, objectId=self._depot_id)
+							if pp_states:
+								self.backend.productPropertyState_deleteObjects(pp_states)
 
 							logger.info("Deleting not needed property states of product %s", product_id)
 							product_property_states = self.backend.productPropertyState_getObjects(productId=product_id)
@@ -626,7 +652,7 @@ class DepotserverPackageManager:
 							self.backend.productPropertyState_createObjects(product_property_states)
 
 						if not suppress_package_content_file_generation:
-							ppf.createPackageContentFile()
+							create_package_content_file(product_path)
 						else:
 							logger.debug("Suppressed generation of package content file")
 
@@ -733,22 +759,22 @@ class DepotserverPackageManager:
 			logger.error(err, exc_info=True)
 			raise BackendError(f"Failed to uninstall product '{product_id}' on depot '{self._depot_id}': {err}") from err
 
-	def check_dependencies(self, product_package_file: ProductPackageFile) -> None:
-		for dependency in product_package_file.packageControlFile.getPackageDependencies():
-			product_on_depots = self.backend.productOnDepot_getObjects(  # pylint: disable=protected-access
-				depotId=self._depot_id, productId=dependency["package"]  # pylint: disable=protected-access
+	def check_dependencies(self, opsi_package: OpsiPackage) -> None:
+		for dependency in opsi_package.package_dependencies:
+			product_on_depots = self.backend.productOnDepot_getObjects(
+				depotId=self._depot_id, productId=dependency.package  # pylint: disable=protected-access
 			)
 			if not product_on_depots:
-				raise BackendUnaccomplishableError(f"Dependent package '{dependency['package']}' not installed")
+				raise BackendUnaccomplishableError(f"Dependent package '{dependency.package}' not installed")
 
-			if not dependency["version"]:
+			if not dependency.version:
 				logger.info("Fulfilled product dependency '%s'", dependency)
 				continue
 
 			product_on_depot = product_on_depots[0]
 			available_version = product_on_depot.getProductVersion() + "-" + product_on_depot.getPackageVersion()
 
-			if compareVersions(available_version, dependency["condition"], dependency["version"]):
+			if compareVersions(available_version, dependency.condition, dependency.version):
 				logger.info("Fulfilled package dependency %s (available version: %s)", dependency, available_version)
 			else:
 				raise BackendUnaccomplishableError(f"Unfulfilled package dependency {dependency} (available version: {available_version})")

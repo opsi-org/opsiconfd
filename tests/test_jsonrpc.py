@@ -9,6 +9,7 @@ jsonrpc tests
 """
 
 import json
+import shutil
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,6 +38,12 @@ from .utils import (  # pylint: disable=unused-import
 	sync_redis_client,
 	test_client,
 )
+
+TESTDIR = Path("tests/data/jsonrpc/test_dir")
+TESTFILE = TESTDIR / "testfile"
+TESTPACKAGE_NAME = "localboot_legacy"
+TESTPACKAGE = Path(f"tests/data/jsonrpc/{TESTPACKAGE_NAME}_42.0-1337.opsi")
+CONTROLFILE = Path("tests/data/jsonrpc/control")
 
 
 def test_request_param_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -283,3 +290,141 @@ def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> Non
 					assert info["error"] is False
 					assert info["num_results"] == num_results
 					assert info["num_params"] == 2
+
+
+def test_jsonrpc_depotservermixin(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	rpcs = (
+		# {"id": 1, "method": "depot_getHostRSAPublicKey", "params": []},  # No such file or directory: '/etc/ssh/ssh_host_rsa_key.pub'
+		{"id": 2, "method": "depot_getMD5Sum", "params": [str(TESTFILE)]},
+		{"id": 3, "method": "depot_getDiskSpaceUsage", "params": [str(TESTDIR)]},
+	)
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpcs)
+	res.raise_for_status()
+	response = res.json()
+	assert len(response) == 2
+	for result in response:
+		if result["id"] == 1:
+			print(result)
+			assert False
+		elif result["id"] == 2:
+			assert result["result"] == "d8e8fca2dc0f896fd7cb4cb0031ba249"
+		elif result["id"] == 3:
+			assert result["result"]["available"] and result["result"]["capacity"] and result["result"]["usage"] and result["result"]["used"]
+		else:
+			raise ValueError(f"Received response with unexpected id {result['id']}")
+
+
+def test_jsonrpc_package_install(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	res = test_client.post(
+		"/rpc", auth=(ADMIN_USER, ADMIN_PASS), json={"id": 1, "method": "depot_installPackage", "params": [str(TESTPACKAGE)]}
+	)
+	res.raise_for_status()
+	response = res.json()
+	assert not response["error"]
+	assert Path(f"/var/lib/opsi/depot/{TESTPACKAGE_NAME}").exists()
+	Path(f"/var/lib/opsi/depot/{TESTPACKAGE_NAME}/{TESTPACKAGE_NAME}.files").unlink()
+	res = test_client.post(
+		"/rpc", auth=(ADMIN_USER, ADMIN_PASS), json={"id": 2, "method": "depot_createPackageContentFile", "params": [TESTPACKAGE_NAME]}
+	)
+	res.raise_for_status()
+	response = res.json()
+	print(response)
+	assert not response["error"]
+	assert Path(f"/var/lib/opsi/depot/{TESTPACKAGE_NAME}/{TESTPACKAGE_NAME}.files").exists()
+	res = test_client.post(
+		"/rpc", auth=(ADMIN_USER, ADMIN_PASS), json={"id": 3, "method": "depot_uninstallPackage", "params": [TESTPACKAGE_NAME]}
+	)
+	res.raise_for_status()
+	response = res.json()
+	print(response)
+	assert not response["error"]
+	assert not Path(f"/var/lib/opsi/depot/{TESTPACKAGE_NAME}").exists()
+
+
+def test_jsonrpc_create_files(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # pylint: disable=redefined-outer-name
+	res = test_client.post(
+		"/rpc",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"id": 1, "method": "depot_createMd5SumFile", "params": [str(TESTPACKAGE), str(tmp_path / "md5file")]},
+	)
+	res.raise_for_status()
+	response = res.json()
+	assert not response["error"]
+	assert (tmp_path / "md5file").exists()
+	res = test_client.post(
+		"/rpc",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"id": 1, "method": "depot_createZsyncFile", "params": [str(TESTPACKAGE), str(tmp_path / "zsyncfile")]},
+	)
+	res.raise_for_status()
+	response = res.json()
+	assert not response["error"]
+	assert (tmp_path / "zsyncfile").exists()
+
+
+def test_jsonrpc_rsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # pylint: disable=redefined-outer-name
+	res = test_client.post(
+		"/rpc",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"id": 1, "method": "depot_librsyncSignature", "params": [str(TESTFILE)]},
+	)
+	res.raise_for_status()
+	response = res.json()
+	assert not response["error"]
+	signature = response["result"]
+
+	res = test_client.post(
+		"/rpc",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"id": 1, "method": "depot_librsyncDeltaFile", "params": [str(TESTFILE), signature, str(tmp_path / "deltafile")]},
+	)
+	res.raise_for_status()
+	response = res.json()
+	assert not response["error"]
+	assert (tmp_path / "deltafile").exists()
+	print((tmp_path / "deltafile").read_bytes())
+
+	res = test_client.post(
+		"/rpc",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={
+			"id": 1,
+			"method": "depot_librsyncPatchFile",
+			"params": [str(TESTFILE), str(tmp_path / "deltafile"), str(tmp_path / "result")],
+		},
+	)
+	res.raise_for_status()
+	response = res.json()
+	assert not response["error"]
+	assert (tmp_path / "result").exists()
+	assert (tmp_path / "result").read_text() == "test\n"
+
+
+def test_jsonrpc_workbench(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	package_dir = Path("/var/lib/opsi/workbench/testpackage")
+	Path(package_dir / "CLIENT_DATA").mkdir(parents=True, exist_ok=True)
+	Path(package_dir / "OPSI").mkdir(exist_ok=True)
+	shutil.copy(CONTROLFILE, Path(package_dir / "OPSI"))
+	res = test_client.post(
+		"/rpc",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"id": 1, "method": "workbench_buildPackage", "params": [str(package_dir)]},
+	)
+	res.raise_for_status()
+	response = res.json()
+	if response["error"]:
+		assert "Zstd not available" in response["error"]["message"]
+	else:
+		assert (package_dir / "localboot_new_42.0-1337.opsi").exists()
+
+	res = test_client.post(
+		"/rpc",
+		auth=(ADMIN_USER, ADMIN_PASS),
+		json={"id": 1, "method": "workbench_installPackage", "params": [str(package_dir)]},
+	)
+	res.raise_for_status()
+	response = res.json()
+	if response["error"]:
+		assert "Zstd not available" in response["error"]["message"]
+	else:
+		assert Path("/var/lib/opsi/depot/localboot_new").exists()

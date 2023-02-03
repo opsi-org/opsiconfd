@@ -240,7 +240,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				else:
 					# ID ">" means that we want to receive all undelivered messages.
 					# ID "$" means that we only want new messages (added after reader was started).
-					message_reader_channels[channel] = "$" if channel.startswith("event:") else ">"
+					message_reader_channels[channel] = "$" if channel.startswith(("event:", "session:")) else ">"
 					if channel.startswith("session:") and channel != self._session_channel:
 						await create_messagebus_session_channel(
 							owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True

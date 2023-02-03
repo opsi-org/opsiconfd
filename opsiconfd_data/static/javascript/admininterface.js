@@ -1020,8 +1020,20 @@ function messagebusConnect() {
 				if (message.type == "terminal_data_read") {
 					mbTerminal.write(message.data);
 				}
-				else if (message.type == "terminal_open_event") {
-					document.getElementById("terminal-channel").value = mbTerminal.terminalChannel = message.back_channel;
+				else if (message.type == "terminal_open_event" || message.type == "terminal_resize_event") {
+					if (message.type == "terminal_open_event") {
+						document.getElementById("terminal-channel").value = mbTerminal.terminalChannel = message.back_channel;
+					}
+					if (mbTerminal.cols != message.cols || mbTerminal.rows != message.rows) {
+						mbTerminal.skipResizeEvent = true;
+						const dims = mbTerminal._core._renderService.dimensions;
+						const width = dims.actualCellWidth * message.cols + 20;
+						const height = dims.actualCellHeight * message.rows + 9;
+						const terminalContainer = document.getElementById("terminal");
+						terminalContainer.style.width = width + 'px';
+						terminalContainer.style.height = height + 'px';
+						mbTerminal.fitAddon.fit();
+					}
 				}
 				else if (message.type == "terminal_close_event") {
 					console.log("Terminal closed");
@@ -1222,6 +1234,33 @@ function terminalHostSelected() {
 }
 
 
+function debounce(func, delay = 250) {
+	let timerId;
+	return (...args) => {
+		clearTimeout(timerId);
+		timerId = setTimeout(() => {
+			func.apply(this, args);
+		}, delay);
+	};
+}
+
+function messagebusTerminalResize(rows, cols) {
+	let message = {
+		type: "terminal_resize_request",
+		id: createUUID(),
+		sender: "@",
+		channel: mbTerminal.terminalChannel,
+		back_channel: mbTerminal.terminalSessionChannel,
+		created: Date.now(),
+		expires: Date.now() + 10000,
+		terminal_id: mbTerminal.terminalId,
+		rows: rows,
+		cols: cols
+	}
+	messagebusSend(message);
+}
+const debouncedMessagebusTerminalResize = debounce(messagebusTerminalResize, 250);
+
 function messagebusConnectTerminal() {
 	if (!messagebusWS) {
 		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
@@ -1250,8 +1289,10 @@ function messagebusConnectTerminal() {
 		fontSize: 14,
 		allowProposedApi: true
 	});
+	mbTerminal.skipResizeEvent = false;
 	mbTerminal.terminalId = terminalId;
 	mbTerminal.terminalChannel = terminalChannel;
+	mbTerminal.terminalSessionChannel = terminalSessionChannel;
 
 	const searchAddon = new SearchAddon.SearchAddon();
 	mbTerminal.loadAddon(searchAddon);
@@ -1274,7 +1315,7 @@ function messagebusConnectTerminal() {
 			created: Date.now(),
 			expires: Date.now() + 10000,
 			operation: "add",
-			channels: [terminalSessionChannel]
+			channels: [mbTerminal.terminalSessionChannel]
 		}
 		messagebusSend(message);
 
@@ -1290,7 +1331,7 @@ function messagebusConnectTerminal() {
 			id: createUUID(),
 			sender: "@",
 			channel: mbTerminal.terminalChannel,
-			back_channel: terminalSessionChannel,
+			back_channel: mbTerminal.terminalSessionChannel,
 			created: Date.now(),
 			expires: Date.now() + 10000,
 			terminal_id: mbTerminal.terminalId,
@@ -1316,18 +1357,12 @@ function messagebusConnectTerminal() {
 		mbTerminal.onResize(function (event) {
 			//console.log("Resize:")
 			//console.log(event);
-			let message = {
-				type: "terminal_resize_request",
-				id: createUUID(),
-				sender: "@",
-				channel: mbTerminal.terminalChannel,
-				created: Date.now(),
-				expires: Date.now() + 10000,
-				terminal_id: mbTerminal.terminalId,
-				rows: event.rows,
-				cols: event.cols
+			if (mbTerminal.skipResizeEvent) {
+				mbTerminal.skipResizeEvent = false;
 			}
-			messagebusSend(message);
+			else {
+				debouncedMessagebusTerminalResize(event.rows, event.cols);
+			}
 		});
 
 		const el = document.querySelector('#terminal-xterm .xterm-screen');

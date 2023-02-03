@@ -213,20 +213,20 @@ async def _process_message(
 			if not terminal:
 				terminal = Terminal(terminal_open_request=message, sender=get_messagebus_worker_id(), send_message=send_message)
 				terminals[message.terminal_id] = terminal
-				open_event = TerminalOpenEventMessage(
-					sender=get_messagebus_worker_id(),
-					channel=terminal.back_channel(message),
-					ref_id=message.id,
-					terminal_id=message.terminal_id,
-					back_channel=f"{get_messagebus_worker_id()}:terminal",
-					rows=terminal.rows,
-					cols=terminal.cols,
-				)
-				await send_message(open_event)
 			else:
 				# Resize to redraw screen
 				terminal.set_size(terminal.rows - 1, terminal.cols)
 				terminal.set_size(terminal.rows, terminal.cols)
+			open_event = TerminalOpenEventMessage(
+				sender=get_messagebus_worker_id(),
+				channel=terminal.back_channel(message),
+				ref_id=message.id,
+				terminal_id=message.terminal_id,
+				back_channel=f"{get_messagebus_worker_id()}:terminal",
+				rows=terminal.rows,
+				cols=terminal.cols,
+			)
+			await send_message(open_event)
 		elif terminal:
 			await terminal.process_message(message)
 		else:

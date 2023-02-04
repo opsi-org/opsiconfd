@@ -623,10 +623,12 @@ div#notifications {
 	left: 10px;
 	margin-left: auto;
 	margin-right: auto;
+	z-index: 100;
 }
 
 span.close-notification {
-	margin-left: 25px;
+	text-align: right;
+	float: right;
 	cursor: pointer;
 	font-weight: 900;
 	font-size: 1.2em;
@@ -634,6 +636,12 @@ span.close-notification {
 
 span.close-notification:after {
 	content: "\00d7";
+}
+
+div#notifications p {
+	display: flex;
+	margin-right: 25px;
+	white-space: pre-wrap;
 }
 
 div#notifications div {

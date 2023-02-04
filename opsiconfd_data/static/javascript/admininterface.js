@@ -21,7 +21,6 @@ function showNotifcation(message, group = "", type = "success", seconds = 10) {
 		notifcation.setAttribute("id", `notification-${group}`);
 	}
 	notifcation.classList.add(type);
-	notifcation.appendChild(document.createTextNode(message));
 
 	const close = document.createElement("span");
 	close.classList.add("close-notification");
@@ -31,6 +30,10 @@ function showNotifcation(message, group = "", type = "success", seconds = 10) {
 		} catch { }
 	}
 	notifcation.appendChild(close);
+
+	const msg = document.createElement("p");
+	msg.innerHTML = message;
+	notifcation.appendChild(msg);
 
 	notifications.appendChild(notifcation);
 	if (seconds > 0) {
@@ -1056,6 +1059,10 @@ function messagebusConnect() {
 				data: utf8Encode.encode(message.path + "\033[D".repeat(message.path.length))
 			}
 			messagebusSend(dataMessage);
+		}
+		else if (message.type == "general_error") {
+			console.error(message.error);
+			showNotifcation(message.error.message + "\n" + message.error.details, "", "error", 10);
 		}
 
 		if (

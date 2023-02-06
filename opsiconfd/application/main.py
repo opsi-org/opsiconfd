@@ -11,6 +11,7 @@ application main
 import asyncio
 import os
 import warnings
+from time import time
 from ctypes import c_long
 from typing import Any, AsyncGenerator
 from urllib.parse import urlparse
@@ -28,7 +29,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
-from time import time
+
 from opsiconfd import __version__, contextvar_client_address, contextvar_request_id
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import app
@@ -75,9 +76,9 @@ PATH_MAPPINGS = {
 header_logger = get_logger("opsiconfd.headers")
 
 
-server_date = (0, b"")
+server_date = (0, b"")  # pylint: disable=invalid-name
 def get_server_date():
-	global server_date
+	global server_date  # pylint: disable=global-statement
 	now = int(time())
 	if server_date[0] != now:
 		server_date = (now, datetime.fromtimestamp(now, timezone.utc).strftime('%a, %d %b %Y %H:%M:%S %Z').encode("utf-8"))

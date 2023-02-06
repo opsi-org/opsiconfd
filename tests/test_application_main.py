@@ -47,10 +47,7 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # pylint
 	assert server_date.endswith(" UTC")
 	timestamp = datetime.strptime(server_date, '%a, %d %b %Y %H:%M:%S %Z').timestamp()
 	assert abs(timestamp - time()) < 2
-
 	sleep(1)
-
 	res = test_client.get("/")
 	server_date = res.headers["date"]
 	assert timestamp < datetime.strptime(server_date, '%a, %d %b %Y %H:%M:%S %Z').timestamp()
-

@@ -14,7 +14,7 @@ import warnings
 from ctypes import c_long
 from typing import Any, AsyncGenerator
 from urllib.parse import urlparse
-
+from datetime import datetime, timezone
 import msgspec
 from fastapi import FastAPI, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -28,7 +28,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
-
+from time import time
 from opsiconfd import __version__, contextvar_client_address, contextvar_request_id
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import app
@@ -73,6 +73,15 @@ PATH_MAPPINGS = {
 }
 
 header_logger = get_logger("opsiconfd.headers")
+
+
+server_date = (0, b"")
+def get_server_date():
+	global server_date
+	now = int(time())
+	if server_date[0] != now:
+		server_date = (now, datetime.fromtimestamp(now, timezone.utc).strftime('%a, %d %b %Y %H:%M:%S %Z').encode("utf-8"))
+	return server_date[1]
 
 
 @app.get("/")
@@ -287,15 +296,16 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 			self.before_send(scope, receive, send)
 
-			if (
-				"headers" in message
-				and scope["full_path"]
-				and scope["full_path"].startswith("/public/boot")
-				and req_headers.get("user-agent", "").startswith("UefiHttpBoot")
-			):
-				# Grub 2.06 needs titled headers (Content-Length instead of content-length)
-				message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
+			if "headers" in message:
+				if (
+					scope["full_path"]
+					and scope["full_path"].startswith("/public/boot")
+					and req_headers.get("user-agent", "").startswith("UefiHttpBoot")
+				):
+					# Grub 2.06 needs titled headers (Content-Length instead of content-length)
+					message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
 
+				message["headers"].append((b"Date", get_server_date()))
 			await send(message)
 
 		return await self.app(scope, receive, send_wrapper)

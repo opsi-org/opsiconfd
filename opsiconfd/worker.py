@@ -66,6 +66,8 @@ def uvicorn_config() -> Config:
 		"port": config.port,
 		"workers": config.workers,
 		"log_config": None,
+		"date_header": False,
+		"server_header": False,
 		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"], ["X-opsi-server-role", opsi_config.get("host", "server-role")]],
 		"ws_ping_interval": 15,
 		"ws_ping_timeout": 10,

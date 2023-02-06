@@ -10,7 +10,8 @@ test application.main
 
 import warnings
 from unittest.mock import patch
-
+from datetime import datetime
+from time import time, sleep
 from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware
@@ -39,3 +40,17 @@ def test_http_1_0_warning(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 			assert len(warns) > 0
 			for warn in warns:
 				assert "is using http version 1.0" in str(warn.message)
+
+def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	res = test_client.get("/")
+	server_date = res.headers["date"]
+	assert server_date.endswith(" UTC")
+	timestamp = datetime.strptime(server_date, '%a, %d %b %Y %H:%M:%S %Z').timestamp()
+	assert abs(timestamp - time()) < 2
+
+	sleep(1)
+
+	res = test_client.get("/")
+	server_date = res.headers["date"]
+	assert timestamp < datetime.strptime(server_date, '%a, %d %b %Y %H:%M:%S %Z').timestamp()
+

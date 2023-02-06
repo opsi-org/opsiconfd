@@ -81,7 +81,7 @@ def get_server_date():
 	global server_date  # pylint: disable=global-statement,invalid-name
 	now = int(time())
 	if server_date[0] != now:
-		server_date = (now, datetime.fromtimestamp(now, timezone.utc).strftime('%a, %d %b %Y %H:%M:%S %Z').encode("utf-8"))
+		server_date = (now, datetime.fromtimestamp(now, timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %Z").encode("utf-8"))
 	return server_date[1]
 
 

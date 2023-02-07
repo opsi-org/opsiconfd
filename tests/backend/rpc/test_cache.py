@@ -120,7 +120,7 @@ def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> Non
 def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	depot_id = "test-product-ordering-depot.uib.gmbh"
 	products = get_dummy_products(100)
-	additional_products = [  # pylint: disable=use-tuple-over-list
+	additional_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 	]
@@ -150,18 +150,18 @@ def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> Non
 		# Execution of method getProductOrdering will fill the product ordering cache again
 		result = get_product_ordering_jsonrpc(test_client, depot_id)
 		for product in products + additional_products:
-			assert product["id"] not in result["sorted"]  # pylint: disable=loop-invariant-statement
-			assert product["id"] not in result["not_sorted"]  # pylint: disable=loop-invariant-statement
+			assert product["id"] not in result["sorted"]
+			assert product["id"] not in result["not_sorted"]
 
 
 def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	depot_id = "test-product-ordering-depot.uib.gmbh"
-	products = [  # pylint: disable=use-tuple-over-list
+	products = [
 		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
 		{"id": "test_product2", "name": "Test Product 2", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product3", "name": "Test Product 3", "productVersion": "1.0", "packageVersion": "1", "priority": 90},
 	]
-	products_sorted = ["test_product1", "test_product3", "test_product2"]  # pylint: disable=use-tuple-over-list
+	products_sorted = ["test_product1", "test_product3", "test_product2"]
 	with depot_jsonrpc(test_client, "", depot_id):  # Create depot
 		with products_jsonrpc(test_client, "", products, [depot_id]):  # Create products
 			assert not rpc_cache_load("product_ordering", depot_id)
@@ -169,8 +169,8 @@ def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # pyli
 			# Execution of method getProductOrdering will fill the product ordering cache
 			result = get_product_ordering_jsonrpc(test_client, depot_id)
 			for product in products:
-				assert product["id"] in result["sorted"]  # pylint: disable=loop-invariant-statement
-				assert product["id"] in result["not_sorted"]  # pylint: disable=loop-invariant-statement
+				assert product["id"] in result["sorted"]
+				assert product["id"] in result["not_sorted"]
 			assert products_sorted == result["sorted"]
 
 			cached_sorted_products = rpc_cache_load("product_ordering", depot_id)["sorted"]
@@ -179,8 +179,8 @@ def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # pyli
 			# Get cached data
 			result = get_product_ordering_jsonrpc(test_client, depot_id)
 			for product in products:
-				assert product["id"] in result["sorted"]  # pylint: disable=loop-invariant-statement
-				assert product["id"] in result["not_sorted"]  # pylint: disable=loop-invariant-statement
+				assert product["id"] in result["sorted"]
+				assert product["id"] in result["not_sorted"]
 
 			# Clear cache
 			rpc_cache_clear("product_ordering")
@@ -188,8 +188,8 @@ def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # pyli
 			# Execution of method getProductOrdering will fill the product ordering cache
 			result = get_product_ordering_jsonrpc(test_client, depot_id)
 			for product in products:
-				assert product["id"] in result["sorted"]  # pylint: disable=loop-invariant-statement
-				assert product["id"] in result["not_sorted"]  # pylint: disable=loop-invariant-statement
+				assert product["id"] in result["sorted"]
+				assert product["id"] in result["not_sorted"]
 
 			cached_sorted_products = rpc_cache_load("product_ordering", depot_id)["sorted"]
 			assert cached_sorted_products == products_sorted

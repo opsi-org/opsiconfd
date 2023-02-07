@@ -34,16 +34,22 @@ if TYPE_CHECKING:
 
 
 class RPCLicenseOnClientMixin(Protocol):
-	def licenseOnClient_bulkInsertObjects(self: BackendProtocol, licenseOnClients: list[dict] | list[LicenseOnClient]) -> None:  # pylint: disable=invalid-name
+	def licenseOnClient_bulkInsertObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, licenseOnClients: list[dict] | list[LicenseOnClient]
+	) -> None:
 		self._mysql.bulk_insert_objects(table="LICENSE_ON_CLIENT", objs=licenseOnClients)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_insertObject(self: BackendProtocol, licenseOnClient: dict | LicenseOnClient) -> None:  # pylint: disable=invalid-name
+	def licenseOnClient_insertObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, licenseOnClient: dict | LicenseOnClient
+	) -> None:
 		ace = self._get_ace("licenseOnClient_insertObject")
 		self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_updateObject(self: BackendProtocol, licenseOnClient: dict | LicenseOnClient) -> None:  # pylint: disable=invalid-name
+	def licenseOnClient_updateObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, licenseOnClient: dict | LicenseOnClient
+	) -> None:
 		ace = self._get_ace("licenseOnClient_updateObject")
 		self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=False, set_null=False)
 
@@ -54,7 +60,9 @@ class RPCLicenseOnClientMixin(Protocol):
 		ace = self._get_ace("licenseOnClient_createObjects")
 		with self._mysql.session() as session:
 			for licenseOnClient in forceList(licenseOnClients):
-				self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=True, session=session)
+				self._mysql.insert_object(
+					table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=True, session=session
+				)
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_updateObjects(  # pylint: disable=invalid-name
@@ -63,17 +71,23 @@ class RPCLicenseOnClientMixin(Protocol):
 		ace = self._get_ace("licenseOnClient_updateObjects")
 		with self._mysql.session() as session:
 			for licenseOnClient in forceList(licenseOnClients):
-				self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=False, session=session)
+				self._mysql.insert_object(
+					table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=False, session=session
+				)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[LicenseOnClient]:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseOnClient_getObjects(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[LicenseOnClient]:
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_ON_CLIENT", ace=ace, object_type=LicenseOnClient, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseOnClient_getHashes(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[dict]:
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -100,21 +114,29 @@ class RPCLicenseOnClientMixin(Protocol):
 		licensePoolId: str,
 		clientId: str,
 		licenseKey: str | None = None,
-		notes: str | None = None
+		notes: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.licenseOnClient_createObjects(LicenseOnClient.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_delete(self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, clientId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseOnClient_delete(  # pylint: disable=invalid-name
+		self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, clientId: str
+	) -> None:
 		self.licenseOnClient_deleteObjects(
-			self.licenseOnClient_getIdents(returnType="dict", softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=clientId)
+			self.licenseOnClient_getIdents(
+				returnType="dict", softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=clientId
+			)
 		)
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_getOrCreateObject(  # pylint: disable=invalid-name,too-many-branches
-		self: BackendProtocol, clientId: str, licensePoolId: str | None = None, productId: str | None = None, windowsSoftwareId: str | None = None
+		self: BackendProtocol,
+		clientId: str,
+		licensePoolId: str | None = None,
+		productId: str | None = None,
+		windowsSoftwareId: str | None = None,
 	) -> LicenseOnClient:
 		clientId = forceHostId(clientId)
 		if licensePoolId:
@@ -187,7 +209,9 @@ class RPCLicenseOnClientMixin(Protocol):
 			self.licenseOnClient_createObjects(license_on_client)
 		return license_on_client
 
-	def _get_usable_software_license(self: BackendProtocol, client_id: str, license_pool_id: str) -> tuple[str, str]:  # pylint: disable=too-many-branches
+	def _get_usable_software_license(  # pylint: disable=too-many-branches
+		self: BackendProtocol, client_id: str, license_pool_id: str
+	) -> tuple[str, str]:
 		software_license_id = ""
 		license_key = ""
 

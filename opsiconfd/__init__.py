@@ -38,7 +38,7 @@ def get_contextvars() -> Dict[str, Any]:
 
 def set_contextvars(values: Dict[str, Any]) -> None:
 	for var, val in values.items():
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			globals()[f"contextvar_{var}"].set(val)
 		except KeyError:
 			pass

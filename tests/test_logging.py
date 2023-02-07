@@ -55,10 +55,10 @@ def test_log_hard_limit(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	log_line = "log_line_" * 100
 	log_data = ""
 	expected_size = 0
-	while len(log_data) < LOG_SIZE_HARD_LIMIT + len(log_line) * 10:  # pylint: disable=loop-invariant-statement
+	while len(log_data) < LOG_SIZE_HARD_LIMIT + len(log_line) * 10:
 		if len(log_data) < LOG_SIZE_HARD_LIMIT:
 			expected_size = len(log_data)
-		log_data += log_line + "\n"  # pylint: disable=loop-invariant-statement
+		log_data += log_line + "\n"
 
 	rpc = {"id": 1, "method": "log_write", "params": ["clientconnect", log_data, client_id, False]}
 	resp = test_client.post("/rpc", json=rpc)
@@ -99,7 +99,7 @@ async def test_async_rotating_file_handler_rotation(tmp_path: Path) -> None:
 	for num in range(5):
 		record = LogRecord("test", 3, "pathname", 1, f"message {num}", None, None)
 		await handler.emit(record)
-		await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop)
+		await asyncio.sleep(1)
 
 	await handler.close()
 	await asyncio.sleep(1)

@@ -54,7 +54,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		compression: str | None = None,
 		print_responses: bool = False,
 		jsonrpc_methods: Optional[list[str]] = None,
-		write_results: str | None = None
+		write_results: str | None = None,
 	) -> None:
 		url = urlparse(server)
 		self.base_url = f"{url.scheme or 'https'}://{url.hostname or url.path}:{url.port or 4447}"
@@ -75,7 +75,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 			for meth in jsonrpc_methods:
 				tmp = meth.split("[", 1)
 				method = tmp[0]
-				params = []  # pylint: disable=use-tuple-over-list
+				params = []
 				if len(tmp) > 1:
 					params = json.decode(("[" + tmp[1]).encode("utf-8"))  # pylint: disable=dotted-import-in-loop
 				requests.append(["jsonrpc", method, params])
@@ -92,7 +92,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 				if var is None or key == "load":
 					continue
 				perftest[key] = var
-			test_cases = []  # pylint: disable=use-tuple-over-list
+			test_cases = []
 			if perftest.get("test_cases"):
 				test_cases = copy.deepcopy(perftest["test_cases"])
 				del perftest["test_cases"]
@@ -157,9 +157,11 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 
 	async def run(self) -> None:
 		client = Client(self)
-		server_ids = (await client.execute_jsonrpc_request(  # type: ignore[index]
-			client.jsonrpc_request("host_getIdents", ["str", {"type": "OpsiConfigserver"}])
-		))[0]["result"]
+		server_ids = (
+			await client.execute_jsonrpc_request(  # type: ignore[index]
+				client.jsonrpc_request("host_getIdents", ["str", {"type": "OpsiConfigserver"}])
+			)
+		)[0]["result"]
 		self.server_id = server_ids[0]  # type: ignore[assignment]
 		await client.cleanup()
 
@@ -181,7 +183,9 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			self.start = time.perf_counter()
 			if self.requests.get("test"):
 				for _i in range(self.iterations):
-					tasks = [client.execute_requests(self.requests["test"]) for client in self.clients]  # pylint: disable=loop-invariant-statement
+					tasks = [
+						client.execute_requests(self.requests["test"]) for client in self.clients
+					]  # pylint: disable=loop-invariant-statement
 					await asyncio.gather(*tasks, return_exceptions=False)  # pylint: disable=dotted-import-in-loop
 					if self._should_stop:
 						break
@@ -243,14 +247,22 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			result["total_request_seconds"] += res["seconds"]  # pylint: disable=loop-invariant-statement
 			result["bytes_sent"] += res["bytes_sent"]  # pylint: disable=loop-invariant-statement
 			result["bytes_received"] += res["bytes_received"]  # pylint: disable=loop-invariant-statement
-			if result["min_seconds_per_request"] == 0 or result["min_seconds_per_request"] > res["seconds"]:  # pylint: disable=loop-invariant-statement
+			if (
+				result["min_seconds_per_request"] == 0 or result["min_seconds_per_request"] > res["seconds"]
+			):  # pylint: disable=loop-invariant-statement
 				result["min_seconds_per_request"] = res["seconds"]  # pylint: disable=loop-invariant-statement
-			if result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]:  # pylint: disable=loop-invariant-statement
+			if (
+				result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]
+			):  # pylint: disable=loop-invariant-statement
 				result["max_seconds_per_request"] = res["seconds"]  # pylint: disable=loop-invariant-statement
 			sum_round_trip_time += res["round_trip_time"]
-			if result["min_round_trip_time"] == 0 or result["min_round_trip_time"] > res["round_trip_time"]:  # pylint: disable=loop-invariant-statement
+			if (
+				result["min_round_trip_time"] == 0 or result["min_round_trip_time"] > res["round_trip_time"]
+			):  # pylint: disable=loop-invariant-statement
 				result["min_round_trip_time"] = res["round_trip_time"]  # pylint: disable=loop-invariant-statement
-			if result["max_round_trip_time"] == 0 or result["max_round_trip_time"] < res["round_trip_time"]:  # pylint: disable=loop-invariant-statement
+			if (
+				result["max_round_trip_time"] == 0 or result["max_round_trip_time"] < res["round_trip_time"]
+			):  # pylint: disable=loop-invariant-statement
 				result["max_round_trip_time"] = res["round_trip_time"]  # pylint: disable=loop-invariant-statement
 
 		result["avg_seconds_per_request"] = result["total_request_seconds"] / result["requests"]
@@ -305,7 +317,8 @@ class Client:
 	async def messagebus_ws(self) -> aiohttp.ClientWebSocketResponse:
 		if not self._messagebus_ws:
 			self._messagebus_ws = await self.session._ws_connect(  # pylint: disable=protected-access
-				url=f"{self.perftest.base_url}/messagebus/v1", params={"compression": self.test_case.compression if self.test_case.compression else ""}
+				url=f"{self.perftest.base_url}/messagebus/v1",
+				params={"compression": self.test_case.compression if self.test_case.compression else ""},
 			)
 			await self._messagebus_ws.receive_bytes()
 		return self._messagebus_ws
@@ -314,12 +327,10 @@ class Client:
 		if isinstance(obj, bytes):
 			return obj
 		if isinstance(obj, str):
-			return obj.replace(
-				"{{http_client_id}}", self.http_client_id
-			).replace(
-				"{{server_id}}", self.test_case.server_id
-			).replace(
-				"{{depot_id}}", self.test_case.depot_id
+			return (
+				obj.replace("{{http_client_id}}", self.http_client_id)
+				.replace("{{server_id}}", self.test_case.server_id)
+				.replace("{{depot_id}}", self.test_case.depot_id)
 			)
 		if isinstance(obj, list):
 			return [self._fill_placeholders(o) for o in obj]
@@ -364,11 +375,7 @@ class Client:
 				self.test_case.add_result(*result)
 
 	async def websocket(  # pylint: disable=too-many-branches,too-many-locals
-		self,
-		path: str,
-		params: dict[str, str] | None = None,
-		data: Any = None,
-		send_data_count: int = 1
+		self, path: str, params: dict[str, str] | None = None, data: Any = None, send_data_count: int = 1
 	) -> tuple[Optional[str], float, int, int, float]:
 		url = f"{self.perftest.base_url}/{path.lstrip('/')}"
 		bytes_sent = 0
@@ -456,7 +463,9 @@ class Client:
 					params[idx] = file.read()
 		return {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 
-	async def execute_jsonrpc_request(self, request: dict[str, Any]) -> tuple[Any | None, Any, int, int]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def execute_jsonrpc_request(
+		self, request: dict[str, Any]
+	) -> tuple[Any | None, Any, int, int]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		headers = {}
 
 		if self.test_case.encoding == "json":
@@ -515,7 +524,9 @@ class Client:
 		end = time.perf_counter()
 		return (error, end - start, request_data_len, response_data_len, end - start)
 
-	async def messagebus_jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def messagebus_jsonrpc(
+		self, method: str, params: list[Any] | None = None
+	) -> tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		params = params or []
 		req = self.jsonrpc_request(method, params)
 		messagebus_ws = await self.messagebus_ws()

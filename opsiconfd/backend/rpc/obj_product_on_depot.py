@@ -21,7 +21,9 @@ if TYPE_CHECKING:
 
 
 class RPCProductOnDepotMixin(Protocol):
-	def productOnDepot_bulkInsertObjects(self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot]) -> None:  # pylint: disable=invalid-name
+	def productOnDepot_bulkInsertObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot]
+	) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_ON_DEPOT", objs=productOnDepots)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -44,7 +46,9 @@ class RPCProductOnDepotMixin(Protocol):
 		with self._mysql.session() as session:
 			for productOnDepot in forceList(productOnDepots):
 				productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
-				self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True, session=session)
+				self._mysql.insert_object(
+					table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True, session=session
+				)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_create(  # pylint: disable=too-many-arguments,invalid-name
@@ -68,17 +72,21 @@ class RPCProductOnDepotMixin(Protocol):
 		with self._mysql.session() as session:
 			for productOnDepot in forceList(productOnDepots):
 				productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
-				self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=False, session=session)
+				self._mysql.insert_object(
+					table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=False, session=session
+				)
 
 	@rpc_method(check_acl=False)
-	def productOnDepot_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ProductOnDepot]:  # pylint: disable=redefined-builtin,invalid-name
+	def productOnDepot_getObjects(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[ProductOnDepot]:
 		ace = self._get_ace("productOnDepot_getObjects")
-		return self._mysql.get_objects(
-			table="PRODUCT_ON_DEPOT", ace=ace, object_type=ProductOnDepot, attributes=attributes, filter=filter
-		)
+		return self._mysql.get_objects(table="PRODUCT_ON_DEPOT", ace=ace, object_type=ProductOnDepot, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def productOnDepot_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def productOnDepot_getHashes(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[dict]:
 		ace = self._get_ace("productOnDepot_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -100,12 +108,7 @@ class RPCProductOnDepotMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnDepot_delete(  # pylint: disable=redefined-builtin,invalid-name, too-many-arguments
-		self: BackendProtocol,
-		productId: str,
-		productType: str,
-		productVersion: str,
-		packageVersion: str,
-		depotId: str
+		self: BackendProtocol, productId: str, productType: str, productVersion: str, packageVersion: str, depotId: str
 	) -> None:
 		self.productOnDepot_deleteObjects(
 			self.productOnDepot_getIdents(
@@ -114,6 +117,6 @@ class RPCProductOnDepotMixin(Protocol):
 				productType=productType,
 				productVersion=productVersion,
 				packageVersion=packageVersion,
-				depotId=depotId
+				depotId=depotId,
 			)
 		)

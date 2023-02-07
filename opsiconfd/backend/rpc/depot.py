@@ -276,11 +276,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self.depot_createZsyncFile(str(package_file), f"{package_file}.zsync")
 		if os.name == "posix":
 			for file in (str(package_file), f"{package_file}.md5", f"{package_file}.zsync"):
-				try:  # pylint: disable=loop-try-except-usage
-					os.chown(  # pylint: disable=dotted-import-in-loop
-						file, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2]  # pylint: disable=dotted-import-in-loop
-					)
-					os.chmod(file, 0o660)  # pylint: disable=dotted-import-in-loop
+				try:
+					os.chown(file, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
+					os.chmod(file, 0o660)
 				except Exception as err:  # pylint: disable=broad-except
 					logger.warning(err)
 		return str(package_file)
@@ -395,17 +393,13 @@ class DepotserverPackageManager:
 			opsi_package: OpsiPackage, unpack_dir: Path, client_data_dir: Path, env: dict[str, Any] | None = None
 		) -> Generator[None, None, None]:
 			logger.info("Running preinst script")
-			for line in run_package_script(
-				opsi_package, unpack_dir / "OPSI" / "preinst", client_data_dir, env=env or {}
-			):  # pylint: disable=loop-invariant-statement
+			for line in run_package_script(opsi_package, unpack_dir / "OPSI" / "preinst", client_data_dir, env=env or {}):
 				logger.info("[preinst] %s", line)
 
 			yield
 
 			logger.info("Running postinst script")
-			for line in run_package_script(
-				opsi_package, unpack_dir / "OPSI" / "postinst", client_data_dir, env=env or {}
-			):  # pylint: disable=loop-invariant-statement
+			for line in run_package_script(opsi_package, unpack_dir / "OPSI" / "postinst", client_data_dir, env=env or {}):
 				logger.info("[postinst] %s", line)
 
 		def clean_up_products(product_id: str) -> None:
@@ -450,9 +444,7 @@ class DepotserverPackageManager:
 						changed = False
 						new_values = []
 						for value in product_property_state.values:
-							product_property = product_properties_to_cleanup[  # pylint: disable=loop-invariant-statement
-								product_property_state.propertyId
-							]  # pylint: disable=loop-invariant-statement
+							product_property = product_properties_to_cleanup[product_property_state.propertyId]
 							if value in (product_property.possibleValues or []):
 								new_values.append(value)
 								continue
@@ -640,7 +632,7 @@ class DepotserverPackageManager:
 
 							for product_property_state in product_property_states:
 								if product_property_state.propertyId in property_default_values:
-									try:  # pylint: disable=loop-try-except-usage
+									try:
 										product_property_state.setValues(property_default_values[product_property_state.propertyId])
 									except Exception as err:  # pylint: disable=broad-except
 										logger.error(
@@ -746,11 +738,9 @@ class DepotserverPackageManager:
 						f"Value '{depot.depotLocalUrl}' not allowed for depot local url (has to start with 'file:///')"
 					)
 
-				for element in os.listdir(depot.depotLocalUrl[7:]):  # pylint: disable=loop-invariant-statement,dotted-import-in-loop
+				for element in os.listdir(depot.depotLocalUrl[7:]):
 					if element.lower() == product_id.lower():
-						client_data_dir = os.path.join(  # pylint: disable=dotted-import-in-loop
-							depot.depotLocalUrl[7:], element  # pylint: disable=loop-invariant-statement
-						)
+						client_data_dir = os.path.join(depot.depotLocalUrl[7:], element)
 						logger.info("Deleting client data dir '%s'", client_data_dir)
 						removeDirectory(client_data_dir)
 

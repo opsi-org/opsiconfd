@@ -65,14 +65,16 @@ class RPCProductMixin(Protocol):
 				self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
-	def product_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Product]:  # pylint: disable=redefined-builtin,invalid-name
+	def product_getObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[Product]:
 		ace = self._get_ace("product_getObjects")
-		return self._mysql.get_objects(
-			table="PRODUCT", ace=ace, object_type=Product, attributes=attributes, filter=filter
-		)
+		return self._mysql.get_objects(table="PRODUCT", ace=ace, object_type=Product, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def product_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def product_getHashes(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[dict]:
 		ace = self._get_ace("product_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT", object_type=Product, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -86,7 +88,9 @@ class RPCProductMixin(Protocol):
 		return self._mysql.get_idents(table="PRODUCT", object_type=Product, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def product_deleteObjects(self: BackendProtocol, products: list[dict] | list[Product] | dict | Product) -> None:  # pylint: disable=invalid-name
+	def product_deleteObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, products: list[dict] | list[Product] | dict | Product
+	) -> None:
 		ace = self._get_ace("product_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT", object_type=Product, obj=products, ace=ace)
 		with self._mysql.session() as session:

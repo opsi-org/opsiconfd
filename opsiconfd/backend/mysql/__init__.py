@@ -79,20 +79,20 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 		with server_timing("database") as timing:
 			while True:
 				attempt += 1
-				try:  # pylint: disable=loop-try-except-usage
-					result = super().execute(statement=statement, params=params)  # pylint: disable=loop-invariant-statement
+				try:
+					result = super().execute(statement=statement, params=params)
 					logger.trace(
 						"Statement %r with params %r took %0.4f ms",
 						statement,
 						params,
-						timing["database"],  # pylint: disable=loop-invariant-statement
+						timing["database"],
 					)
 					return result
 				except DatabaseError as err:
 					logger.trace(
 						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True
 					)
-					if attempt >= self.execute_attempts or "deadlock" not in str(err).lower():  # pylint: disable=loop-invariant-statement
+					if attempt >= self.execute_attempts or "deadlock" not in str(err).lower():
 						raise
 					sleep(retry_wait)
 
@@ -332,12 +332,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		with self.session() as session:
 			self.tables = {trow[0].upper(): {} for trow in session.execute("SHOW TABLES").fetchall()}
 			for table_name in self.tables:
-				for row in session.execute(f"SHOW COLUMNS FROM `{table_name}`"):  # pylint: disable=loop-invariant-statement
+				for row in session.execute(f"SHOW COLUMNS FROM `{table_name}`"):
 					row_dict = {k.lower(): v for k, v in dict(row).items()}
 					row_dict["null"] = row_dict["null"].upper() == "YES"
 					row_dict["key"] = (row_dict["key"] or "").upper()
 					row_dict["type"] = row_dict["type"].lower()
-					self.tables[table_name][row_dict["field"]] = row_dict  # pylint: disable=loop-invariant-statement
+					self.tables[table_name][row_dict["field"]] = row_dict
 				if table_name.startswith("HARDWARE_CONFIG_"):
 					self._client_id_column[table_name] = "hostId"
 				if table_name.startswith("HARDWARE_DEVICE_"):
@@ -385,7 +385,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 				res[attr].select = f"`{table}`.`{col}`" if selected else "NULL"
 				if self_selected and self_ace:
-					if client_id_column is None:  # pylint: disable=loop-invariant-statement
+					if client_id_column is None:
 						raise RuntimeError(f"No client id attribute defined for table {first_table} using ace {self_ace}")
 					if client_id_column:
 						res[attr].select = f"IF(`{first_table}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
@@ -409,7 +409,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					# 	"Invalid filter %r=%r used, possible attributes are: %s",
 					# 	f_attr,
 					# 	f_val,
-					# 	", ".join(columns),  # pylint: disable=loop-invariant-statement
+					# 	", ".join(columns),
 					# )
 					raise ValueError(f"Invalid filter {f_attr!r}={f_val!r} used, possible attributes are: {', '.join(columns)}")
 				continue
@@ -433,7 +433,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if values[0] is None:
 				operator = "IS"
 			elif isinstance(values[0], bool):
-				values = [int(v) for v in values]  # pylint: disable=loop-invariant-statement
+				values = [int(v) for v in values]
 			elif isinstance(values[0], str):
 				new_values = []
 				for val in values:
@@ -450,12 +450,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			col = columns[f_attr]
 			cond = []
 			if operator == "IN":
-				param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
+				param = f"p{len(params) + 1}"
 				cond = [f"`{col.table}`.`{col.column}` {operator} :{param}"]
 				params[param] = values
 			else:
 				for val in values:
-					param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
+					param = f"p{len(params) + 1}"
 					cond.append(f"`{col.table}`.`{col.column}` {operator} :{param}")
 					params[param] = val
 
@@ -464,7 +464,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if allowed_client_ids is not None:
 			for col in columns.values():
 				if col.client_id_column:
-					param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
+					param = f"p{len(params) + 1}"
 					conditions.append(f"`{col.table}`.`{col.column}` IN :{param}")
 					params[param] = allowed_client_ids
 					break
@@ -527,14 +527,14 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 	def _process_aggregates(self, data: dict[str, Any], aggregates: list[str]) -> None:
 		for attr in aggregates:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				data[attr] = data[attr].split(self.record_separator) if data[attr] else []
 			except KeyError:
 				pass
 
 	def _process_conversions(self, data: dict[str, Any], conversions: dict[str, Callable]) -> None:
 		for attr, func in conversions.items():
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				data[attr] = func(data[attr])
 			except KeyError:
 				pass
@@ -592,7 +592,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				allowed_client_ids = []
 				session = contextvar_client_session.get()
 				if session and session.host:
-					allowed_client_ids = [session.host.id]  # pylint: disable=use-tuple-over-list
+					allowed_client_ids = [session.host.id]
 			else:
 				# All client_ids allowed
 				allowed_client_ids = None
@@ -735,7 +735,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if set_null:
 			obj.setDefaults()
 		data = obj.to_hash()
-		ident_attrs = []  # pylint: disable=use-tuple-over-list
+		ident_attrs = []
 		if not create:
 			ident_attrs = list(obj.getIdent("dict"))
 		columns = self.get_columns([table], ace=ace)
@@ -760,7 +760,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if not set_null and data.get(attr) is None:
 				continue
 
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				data[attr] = conversions[attr](data[attr])
 			except KeyError:
 				pass
@@ -880,13 +880,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 				if (
 					col.client_id_column
-					and allowed_client_ids is not None  # pylint: disable=loop-invariant-statement
+					and allowed_client_ids is not None
 					and val not in allowed_client_ids
 				):
 					# No permission
 					break
 
-				param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
+				param = f"p{len(params) + 1}"
 				cond.append(f"`{col.column}` = :{param}")
 				params[param] = val
 				ident[attr] = val

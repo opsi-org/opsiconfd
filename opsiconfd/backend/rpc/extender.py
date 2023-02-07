@@ -30,8 +30,8 @@ class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
 		for file in sorted(Path(config.extension_config_dir).glob("*.conf")):
 			logger.info("Reading rpc extension methods from '%s'", file)
-			try:  # pylint: disable=loop-try-except-usage
-				loc: Dict[str, Any] = {}  # pylint: disable=loop-invariant-statement
+			try:
+				loc: Dict[str, Any] = {}
 				if file.is_file():
 					exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
 				for function_name, function in loc.items():

@@ -72,7 +72,7 @@ async def cleanup_channels(full: bool = False) -> None:
 
 	if full:
 		for obj in ("service_worker", "service_node"):
-			logger.debug("Deleting user channels for %r", obj)  # pylint: disable=loop-global-usage
+			logger.debug("Deleting user channels for %r", obj)
 			await async_delete_recursively(f"{channel_prefix}{obj}")
 		await async_delete_recursively(f"{channel_prefix}session")
 
@@ -192,7 +192,7 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 			attempt = 0
 			while True:
 				attempt += 1
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					await pipe.watch(state_key)
 					val = await pipe.hget(state_key, "websocket_count")
 					val = max(0, int(val or 0)) + increment
@@ -200,13 +200,13 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 					pipe.hset(state_key, "websocket_count", val)
 					await pipe.execute()
 					break
-				except WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+				except WatchError:
 					pass
 				except Exception as err:  # pylint: disable=broad-except
-					logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
+					logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)
 					break
 				if attempt >= 10:
-					logger.error("Failed to update messagebus websocket count")  # pylint: disable=loop-global-usage
+					logger.error("Failed to update messagebus websocket count")
 				await sleep(0.1)
 	except CancelledError:
 		pass
@@ -227,14 +227,14 @@ async def get_websocket_connected_users(
 		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*")]
 
 	for state_key in state_keys:
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			user_id = state_key.rsplit(":", 1)[-1]
 			if user_ids and user_id not in user_ids:
 				continue
 			if int(await redis.hget(state_key, "websocket_count") or 0) > 0:
 				yield user_id
 		except Exception as err:  # pylint: disable=broad-except
-			logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
+			logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
@@ -274,7 +274,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 			redis_msg_id = redis_msg_id or self._streams.get(stream_key) or self._default_stream_id
 			if redis_msg_id == ">":
 				last_delivered_id = await redis.hget(stream_key + self._info_suffix, "last-delivered-id")
-				logger.debug("Last delivered id of channel %r: %r", channel, last_delivered_id)  # pylint: disable=loop-global-usage
+				logger.debug("Last delivered id of channel %r: %r", channel, last_delivered_id)
 				if last_delivered_id:
 					redis_msg_id = last_delivered_id.decode("utf-8")
 				else:
@@ -286,7 +286,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 				redis_msg_id = redis_time_id
 
 			if not redis_msg_id:
-				raise ValueError("No redis message id")  # pylint: disable=loop-invariant-statement
+				raise ValueError("No redis message id")
 
 			if self._count_readers and stream_key not in self._streams:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", 1)
@@ -345,7 +345,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 		end = start + timeout if timeout else 0.0
 		try:  # pylint: disable=too-many-nested-blocks
 			while not self._should_stop:
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					now = time()
 					stream_entries = await self._get_stream_entries(redis)
 					if not stream_entries:
@@ -364,9 +364,9 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 							_logger.debug("Message from redis: %r", msg)
 							if msg.expires and msg.expires <= now:
 								continue
-							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):  # pylint: disable=loop-invariant-statement
+							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):
 								msg.trace = msg.trace or {}
-								msg.trace["broker_redis_receive"] = timestamp()  # pylint: disable=loop-invariant-statement
+								msg.trace["broker_redis_receive"] = timestamp()
 							yield redis_msg_id, msg, context
 							last_redis_msg_id = redis_msg_id
 						self._streams[stream_key] = last_redis_msg_id
@@ -427,9 +427,9 @@ class ConsumerGroupMessageReader(MessageReader):
 		stream_keys: list[bytes] = []
 		for channel, redis_msg_id in self._channels.items():
 			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				await redis.xgroup_create(stream_key, self._consumer_group, id="0", mkstream=True)
-			except ResponseError as err:  # pylint: disable=loop-invariant-statement
+			except ResponseError as err:
 				if str(err).startswith("BUSYGROUP"):
 					# Consumer Group name already exists
 					pass

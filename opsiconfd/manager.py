@@ -65,7 +65,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 						break
 				if restarted:
 					break
-				time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+				time.sleep(0.5)
 
 	def check_modules(self) -> None:  # pylint: disable=too-many-statements,too-many-branches
 		if config.workers == 1:
@@ -108,14 +108,14 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 
 					elif worker.process and worker.process.is_alive():
 						if self.worker_restart_time > 0:
-							alive = time.time() - worker.create_time  # pylint: disable=dotted-import-in-loop
+							alive = time.time() - worker.create_time
 							if alive >= self.worker_restart_time:
 								logger.notice("%s has been running for %s seconds", worker, alive)
 								auto_restart.append(worker)
 
 						if self.worker_restart_mem > 0:
-							now = time.time()  # pylint: disable=dotted-import-in-loop
-							mem = psutil.Process(worker.pid).memory_info().rss  # pylint: disable=dotted-import-in-loop
+							now = time.time()
+							mem = psutil.Process(worker.pid).memory_info().rss
 							if mem >= self.worker_restart_mem:
 								if not hasattr(worker, "max_mem_exceeded_since"):
 									setattr(worker, "max_mem_exceeded_since", now)
@@ -155,12 +155,12 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 			self.should_restart_workers = False
 
 		while self.workers:
-			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+			time.sleep(0.1)
 
 	def reload(self) -> None:
 		self.check_modules()
 		for worker in self.get_workers():
-			os.kill(worker.pid, signal.SIGHUP)  # pylint: disable=dotted-import-in-loop
+			os.kill(worker.pid, signal.SIGHUP)
 
 		self.adjust_worker_count()
 
@@ -193,38 +193,38 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 
 	def stop_worker(self, workers: list[Worker] | Worker, force: bool = False, wait: bool = True, remove_worker: bool = True) -> None:
 		if not isinstance(workers, list):
-			workers = [workers]  # pylint: disable=use-tuple-over-list
+			workers = [workers]
 		for worker in workers:
 			if worker.process and worker.process.is_alive():
 				logger.notice("Stopping %s (force=%s)", worker, force)
 				worker.process.terminate()
 				if force:
 					# Send twice, uvicorn worker will not wait for connectons to close.
-					time.sleep(1)  # pylint: disable=dotted-import-in-loop
+					time.sleep(1)
 					worker.process.terminate()
 
 		if wait:
 			start_time = time.time()
 			while True:
 				any_alive = False
-				diff = time.time() - start_time  # pylint: disable=dotted-import-in-loop
+				diff = time.time() - start_time
 				for worker in workers:
 					if not worker.process or not worker.process.is_alive():
 						worker.pid = 0
 						continue
 					any_alive = True
-					if diff < self.worker_stop_timeout:  # pylint: disable=loop-invariant-statement
+					if diff < self.worker_stop_timeout:
 						continue
 					logger.warning(
 						"Timed out after %d seconds while waiting for worker %s to stop, forcing worker to stop", diff, worker.pid
 					)
-					if diff > self.worker_stop_timeout + 5:  # pylint: disable=loop-invariant-statement
+					if diff > self.worker_stop_timeout + 5:
 						worker.process.kill()
 					else:
 						worker.process.terminate()
 				if not any_alive:
 					break
-				time.sleep(0.2)  # pylint: disable=dotted-import-in-loop
+				time.sleep(0.2)
 
 		if remove_worker:
 			for worker in workers:
@@ -247,7 +247,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 	def update_worker_state(self) -> None:
 		with (self.worker_update_lock, redis_client() as redis):
 			for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					worker_info = WorkerInfo.from_dict(redis.hgetall(redis_key_b))
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to read worker info from %r, deleting key: %s", redis_key_b.decode("utf-8"), err)
@@ -342,12 +342,12 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 	async def check_redis(self) -> None:
 		redis_info = await async_get_redis_info(await async_redis_client())
 		for key_type in redis_info["key_info"]:
-			if redis_info["key_info"][key_type]["memory"] > 100_1000_1000:  # pylint: disable=loop-invariant-statement
+			if redis_info["key_info"][key_type]["memory"] > 100_1000_1000:
 				logger.warning(
 					"High redis memory usage for '%s': %s",
 					key_type,
-					redis_info["key_info"][key_type],  # pylint: disable=loop-invariant-statement
-				)  # pylint: disable=loop-invariant-statement
+					redis_info["key_info"][key_type],
+				)
 		self._redis_check_time = time.time()
 
 	async def async_main(self) -> None:  # pylint: disable=too-many-branches
@@ -370,8 +370,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 				logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
-			try:  # pylint: disable=loop-try-except-usage
-				now = time.time()  # pylint: disable=dotted-import-in-loop
+			try:
+				now = time.time()
 				if now - self._server_cert_check_time > config.ssl_server_cert_check_interval:
 					await self.check_server_cert()
 				if now - self._redis_check_time > self._redis_check_interval:
@@ -387,7 +387,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			for _num in range(60):
 				if self._should_stop:
 					break
-				await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
+				await asyncio.sleep(1)
 
 		await run_in_threadpool(app.set_app_state, ShutdownState())
 

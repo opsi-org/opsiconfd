@@ -57,15 +57,11 @@ def test_load_addon(config: Config, cleanup: FixtureFunction) -> None:  # pylint
 		if addon.id == "test1":
 			assert addon.name == "Test-Addon #1"
 			assert addon.version == "1.0"
-			assert addon.path == os.path.join(  # pylint: disable=loop-invariant-statement,dotted-import-in-loop
-				config.addon_dirs[0], "test1"
-			)
+			assert addon.path == os.path.join(config.addon_dirs[0], "test1")
 		if addon.id == "test2":
 			assert addon.name == "Test-Addon #2"
 			assert addon.version == "1.1"
-			assert addon.path == os.path.join(  # pylint: disable=loop-invariant-statement,dotted-import-in-loop
-				config.addon_dirs[0], "test2"
-			)
+			assert addon.path == os.path.join(config.addon_dirs[0], "test2")
 		assert addon_manager.get_addon_by_path(addon.router_prefix) == addon
 
 

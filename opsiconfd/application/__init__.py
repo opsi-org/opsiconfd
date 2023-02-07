@@ -36,7 +36,7 @@ from opsiconfd.redis import (
 )
 from opsiconfd.rest import RestApiValidationError
 
-AppStateT = TypeVar('AppStateT', bound='AppState')
+AppStateT = TypeVar("AppStateT", bound="AppState")
 
 
 @dataclass(slots=True, kw_only=True, repr=False)
@@ -137,14 +137,14 @@ class OpsiconfdApp(FastAPI):
 	def wait_for_app_state(self, app_state: AppState, timeout: float = 0.0) -> None:
 		start = time.time()
 		while True:
-			if self._app_state.type == app_state.type and self._app_state.accomplished:  # pylint: disable=loop-invariant-statement
+			if self._app_state.type == app_state.type and self._app_state.accomplished:
 				return
-			wait_time = time.time() - start  # pylint: disable=dotted-import-in-loop
+			wait_time = time.time() - start
 			if wait_time >= timeout:
 				raise TimeoutError(
-					f"Timed out after {wait_time:0.2f} seconds while waiting for app state {app_state.type!r} to be accomplished"  # pylint: disable=loop-invariant-statement
+					f"Timed out after {wait_time:0.2f} seconds while waiting for app state {app_state.type!r} to be accomplished"
 				)
-			time.sleep(1)  # pylint: disable=dotted-import-in-loop
+			time.sleep(1)
 
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
 		app_state.accomplished = False
@@ -195,14 +195,12 @@ class OpsiconfdApp(FastAPI):
 		from opsiconfd.messagebus.redis import (  # pylint: disable=import-outside-toplevel
 			send_message,
 		)
+
 		event = EventMessage(
 			sender=get_user_id_for_service_node(config.node_name),
 			channel="event:app_state_changed",
 			event="app_state_changed",
-			data={
-				"prev_state": prev_state.to_dict(),
-				"state": state.to_dict()
-			},
+			data={"prev_state": prev_state.to_dict(), "state": state.to_dict()},
 		)
 		await send_message(event)
 
@@ -213,7 +211,7 @@ class OpsiconfdApp(FastAPI):
 		self,
 		manager_mode: bool = False,
 		init_app_state: AppState | tuple[AppState, ...] | None = None,
-		initalized_event: Event | None = None
+		initalized_event: Event | None = None,
 	) -> None:
 		"""
 		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
@@ -258,7 +256,7 @@ class OpsiconfdApp(FastAPI):
 			if self._app_state == ShutdownState(accomplished=True):
 				self._manager_task_should_stop = True
 
-			await asyncio.sleep(interval)  # pylint: disable=dotted-import-in-loop
+			await asyncio.sleep(interval)
 
 
 app = OpsiconfdApp()

@@ -31,11 +31,15 @@ if TYPE_CHECKING:
 
 
 class RPCProductOnClientMixin(Protocol):
-	def productOnClient_bulkInsertObjects(self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient]) -> None:  # pylint: disable=invalid-name
+	def productOnClient_bulkInsertObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient]
+	) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_ON_CLIENT", objs=productOnClients)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def productOnClient_insertObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:  # pylint: disable=invalid-name
+	def productOnClient_insertObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnClient: dict | ProductOnClient
+	) -> None:
 		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
@@ -43,7 +47,9 @@ class RPCProductOnClientMixin(Protocol):
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_updateObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:  # pylint: disable=invalid-name
+	def productOnClient_updateObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnClient: dict | ProductOnClient
+	) -> None:
 		ace = self._get_ace("productOnClient_updateObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
@@ -58,7 +64,9 @@ class RPCProductOnClientMixin(Protocol):
 		with self._mysql.session() as session:
 			for productOnClient in forceList(productOnClients):
 				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
-				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session)
+				self._mysql.insert_object(
+					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session
+				)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
@@ -69,18 +77,24 @@ class RPCProductOnClientMixin(Protocol):
 		with self._mysql.session() as session:
 			for productOnClient in forceList(productOnClients):
 				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
-				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session)
+				self._mysql.insert_object(
+					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session
+				)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ProductOnClient]:  # pylint: disable=redefined-builtin,invalid-name
+	def productOnClient_getObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[ProductOnClient]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def productOnClient_getHashes(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[dict]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -121,7 +135,9 @@ class RPCProductOnClientMixin(Protocol):
 		self.productOnClient_createObjects(ProductOnClient.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productOnClient_delete(self: BackendProtocol, productId: str, productType: str, clientId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def productOnClient_delete(  # pylint: disable=invalid-name
+		self: BackendProtocol, productId: str, productType: str, clientId: str
+	) -> None:
 		self.productOnClient_deleteObjects(
 			self.productOnClient_getIdents(returnType="dict", productId=productId, productType=productType, clientId=clientId)
 		)
@@ -133,7 +149,7 @@ class RPCProductOnClientMixin(Protocol):
 		product_ids = set()
 		for poc in product_on_clients:
 			poc = forceObjectClass(poc, ProductOnClient)
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				product_on_clients_by_client[poc.getClientId()].append(poc)
 			except KeyError:
 				product_on_clients_by_client[poc.getClientId()] = [poc]
@@ -142,7 +158,7 @@ class RPCProductOnClientMixin(Protocol):
 
 		depot_to_clients: dict[str, list[str]] = {}
 		for client_to_depot in self.configState_getClientToDepotserver(clientIds=(clientId for clientId in product_on_clients_by_client)):
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				depot_to_clients[client_to_depot["depotId"]].append(client_to_depot["clientId"])
 			except KeyError:
 				depot_to_clients[client_to_depot["depotId"]] = [client_to_depot["clientId"]]
@@ -159,15 +175,16 @@ class RPCProductOnClientMixin(Protocol):
 		def collect_dependencies(
 			additional_product_ids: list[str],
 			product_dependency: ProductDependency,
-			p_deps_by_product_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]]
+			p_deps_by_product_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]],
 		) -> None:
 			p_deps_by_product_id_and_version[product_dependency.productId][product_dependency.productVersion][
 				product_dependency.packageVersion
-			].append(
-				product_dependency
-			)
+			].append(product_dependency)
 
-			if product_dependency.requiredProductId not in product_ids and product_dependency.requiredProductId not in additional_product_ids:
+			if (
+				product_dependency.requiredProductId not in product_ids
+				and product_dependency.requiredProductId not in additional_product_ids
+			):
 				additional_product_ids.append(product_dependency.requiredProductId)
 				for product_dependency_2 in self.productDependency_getObjects(productId=product_dependency.requiredProductId):
 					collect_dependencies(additional_product_ids, product_dependency_2, p_deps_by_product_id_and_version)
@@ -186,7 +203,7 @@ class RPCProductOnClientMixin(Protocol):
 			products: set[Product],
 			product_dependencies: set[ProductDependency],
 			product_by_product_id_and_version: dict[str, dict[str, dict[str, Product]]],
-			p_deps_by_product_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]]
+			p_deps_by_product_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]],
 		) -> None:
 			dependencies = p_deps_by_product_id_and_version[product.id][product.productVersion][product.packageVersion]
 			for dep in dependencies:
@@ -195,12 +212,14 @@ class RPCProductOnClientMixin(Protocol):
 					products.add(product)
 					if dep not in product_dependencies:
 						product_dependencies.add(dep)
-						add_dependencies(product, products, product_dependencies, product_by_product_id_and_version, p_deps_by_product_id_and_version)
+						add_dependencies(
+							product, products, product_dependencies, product_by_product_id_and_version, p_deps_by_product_id_and_version
+						)
 
 		product_on_clients = []
 		for (depot_id, client_ids) in depot_to_clients.items():
-			products: set[Product] = set()  # pylint: disable=loop-invariant-statement
-			product_dependencies: set[ProductDependency] = set()  # pylint: disable=loop-invariant-statement
+			products: set[Product] = set()
+			product_dependencies: set[ProductDependency] = set()
 
 			for product_on_depot in self.productOnDepot_getObjects(depotId=depot_id, productId=product_ids):
 				product = product_by_product_id_and_version[product_on_depot.productId][product_on_depot.productVersion][
@@ -213,10 +232,12 @@ class RPCProductOnClientMixin(Protocol):
 						f"packageVersion '{product_on_depot.packageVersion}' not found"
 					)
 				products.add(product)
-				add_dependencies(product, products, product_dependencies, product_by_product_id_and_version, p_deps_by_product_id_and_version)
+				add_dependencies(
+					product, products, product_dependencies, product_by_product_id_and_version, p_deps_by_product_id_and_version
+				)
 
 			for client_id in client_ids:
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					product_on_clients_by_client[client_id]
 				except KeyError:
 					continue
@@ -232,10 +253,14 @@ class RPCProductOnClientMixin(Protocol):
 		return product_on_clients
 
 	@rpc_method(check_acl=False)
-	def productOnClient_generateSequence(self: BackendProtocol, productOnClients: list[ProductOnClient]) -> list[ProductOnClient]:  # pylint: disable=invalid-name
+	def productOnClient_generateSequence(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnClients: list[ProductOnClient]
+	) -> list[ProductOnClient]:
 		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_addDependencies(self: BackendProtocol, productOnClients: list[ProductOnClient]) -> list[ProductOnClient]:  # pylint: disable=invalid-name
+	def productOnClient_addDependencies(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnClients: list[ProductOnClient]
+	) -> list[ProductOnClient]:
 		productOnClients = self._product_on_client_process_with_function(productOnClients, add_dependent_product_on_clients)
 		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)

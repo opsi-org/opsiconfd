@@ -150,9 +150,9 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 	raise ValueError(f"Unhandled serialization {serialization!r}")
 
 
-async def store_rpc_info(
+async def store_rpc_info(  # pylint: disable=too-many-locals
 	rpc: Any, result: dict[str, Any], duration: float, date: datetime, client_info: str
-) -> None:  # pylint: disable=too-many-locals
+) -> None:
 	is_error = bool(result.get("error"))
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
@@ -352,7 +352,7 @@ async def process_rpcs(
 	for rpc in rpcs:
 		date = datetime.utcnow()
 		with server_timing("rpc_processing") as svt:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				logger.debug("Processing request from %s for %s", client_info, rpc["method"])
 				result = await process_rpc(client_info, rpc, backend)
 			except Exception as err:  # pylint: disable=broad-except
@@ -361,13 +361,13 @@ async def process_rpcs(
 
 		logger.trace(result)
 
-		duration = svt["rpc_processing"] / 1000  # pylint: disable=loop-invariant-statement
+		duration = svt["rpc_processing"] / 1000
 		coro = store_rpc_info(rpc, result, duration, date, client_info)
-		if AWAIT_STORE_RPC_INFO:  # pylint: disable=loop-global-usage
+		if AWAIT_STORE_RPC_INFO:
 			# Required for pytest
 			await coro
 		else:
-			asyncio.create_task(coro)  # pylint: disable=dotted-import-in-loop
+			asyncio.create_task(coro)
 
 		yield result
 
@@ -382,9 +382,9 @@ async def jsonrpc_head() -> Response:
 @jsonrpc_router.post("")
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
-async def process_request(
+async def process_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	request: Request, response: Response
-) -> Response:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+) -> Response:
 	request_compression = None
 	request_serialization = None
 	response_compression = None
@@ -437,7 +437,7 @@ async def process_request(
 		raise
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
-		results = [await process_rpc_error(client_info, err)]  # pylint: disable=use-tuple-over-list
+		results = [await process_rpc_error(client_info, err)]
 		response.status_code = 400
 
 	response_serialization = response_serialization or "json"

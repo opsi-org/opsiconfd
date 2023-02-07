@@ -62,12 +62,12 @@ def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 		"prev": {"size": 0, "stats": []},
 	}
 	for num, stat in enumerate(current.statistics("filename"), 1):
-		data["start"]["size"] += stat.size  # pylint: disable=loop-invariant-statement
+		data["start"]["size"] += stat.size
 		if num <= limit:
 			data["start"]["stats"].append(str(stat))
 
-	for num, stat_diff in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):  # pylint: disable=loop-global-usage
-		data["prev"]["size"] += stat_diff.size_diff  # pylint: disable=loop-invariant-statement
+	for num, stat_diff in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):
+		data["prev"]["size"] += stat_diff.size_diff
 		if num <= limit:
 			data["prev"]["stats"].append(str(stat_diff))
 
@@ -96,21 +96,21 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 		obj_types = sorted(new_ids.items(), key=lambda item: len(item[1]), reverse=True)
 
 		for obj_type, ids in obj_types:
-			if len(data["new_ids"]) >= max_obj_types:  # pylint: disable=loop-invariant-statement
+			if len(data["new_ids"]) >= max_obj_types:
 				break
 			if len(ids) == 0:
 				continue
 			logger.debug("obj_type: %s", obj_type)
-			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}  # pylint: disable=loop-invariant-statement
+			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}
 			for num, addr in enumerate(ids):
 				if num >= max_obj:
 					break
-				obj = objgraph.at(addr)  # pylint: disable=dotted-import-in-loop
+				obj = objgraph.at(addr)
 				repr_obj = repr(obj)
 				if len(repr_obj) > 250:
 					repr_obj = repr_obj[:249] + "…"
-				data["new_ids"][obj_type]["objects"][addr] = {  # pylint: disable=loop-invariant-statement
-					"size": sys.getsizeof(obj),  # pylint: disable=dotted-import-in-loop
+				data["new_ids"][obj_type]["objects"][addr] = {
+					"size": sys.getsizeof(obj),
 					"repr": repr_obj,
 				}
 
@@ -129,10 +129,10 @@ def memory_objgraph_snapshot_update() -> JSONResponse:
 
 	for obj_type in data["new_ids"]:
 		for addr in list(data["new_ids"][obj_type]["objects"]):
-			if objgraph.at(addr) is None:  # pylint: disable=dotted-import-in-loop
+			if objgraph.at(addr) is None:
 				logger.info("Removing id: %s", addr)
-				del data["new_ids"][obj_type]["objects"][addr]  # pylint: disable=loop-invariant-statement
-				data["new_ids"][obj_type]["count"] -= 1  # pylint: disable=loop-invariant-statement
+				del data["new_ids"][obj_type]["objects"][addr]
+				data["new_ids"][obj_type]["count"] -= 1
 
 	return JSONResponse({"status": 200, "error": None, "data": data})
 
@@ -297,7 +297,7 @@ async def classtracker_summary() -> JSONResponse:
 
 	annotate_snapshots(CLASS_TRACKER.stats)
 
-	for snapshot in CLASS_TRACKER.snapshots:  # pylint: disable=loop-global-usage
+	for snapshot in CLASS_TRACKER.snapshots:
 		classes = []
 		for cls in snapshot.classes:
 			cls_values = snapshot.classes.get(cls)

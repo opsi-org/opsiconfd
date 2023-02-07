@@ -11,11 +11,12 @@ application main
 import asyncio
 import os
 import warnings
-from time import time
 from ctypes import c_long
+from datetime import datetime, timezone
+from time import time
 from typing import Any, AsyncGenerator
 from urllib.parse import urlparse
-from datetime import datetime, timezone
+
 import msgspec
 from fastapi import FastAPI, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -77,6 +78,8 @@ header_logger = get_logger("opsiconfd.headers")
 
 
 server_date = (0, b"")  # pylint: disable=invalid-name
+
+
 def get_server_date() -> bytes:
 	global server_date  # pylint: disable=global-statement,invalid-name
 	now = int(time())
@@ -218,7 +221,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		pass
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-		if not scope["type"] in ("http", "websocket"):
+		if scope["type"] not in ("http", "websocket"):
 			return await self.app(scope, receive, send)
 
 		# Generate request id and store in contextvar
@@ -288,12 +291,10 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				if header_logger.isEnabledFor(TRACE):
 					header_logger.trace("<<< HTTP/%s %s %s", scope.get("http_version"), scope.get("method"), scope.get("path"))
 					for header, value in req_headers.items():
-						header_logger.trace(  # pylint: disable=loop-global-usage
-							"<<< %s: %s", header.decode("utf-8", "replace"), value.decode("utf-8", "replace")
-						)
+						header_logger.trace("<<< %s: %s", header.decode("utf-8", "replace"), value.decode("utf-8", "replace"))
 					header_logger.trace(">>> HTTP/%s %s", scope.get("http_version"), message.get("status"))
 					for header, value in dict(headers).items():
-						header_logger.trace(">>> %s: %s", header, value)  # pylint: disable=loop-global-usage
+						header_logger.trace(">>> %s: %s", header, value)
 
 			self.before_send(scope, receive, send)
 
@@ -386,7 +387,7 @@ def application_setup() -> None:
 
 	logger.debug("Routing:")
 	routes = {}
-	for route in app.routes:  # pylint: disable=use-dict-comprehension
+	for route in app.routes:
 		if isinstance(route, Mount):
 			routes[route.path] = str(route.app.__module__)
 		elif isinstance(route, APIRoute):

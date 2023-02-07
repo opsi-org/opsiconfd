@@ -69,6 +69,7 @@ types-psutil = "^5.8"
 types-pyopenssl = "^23.0"
 types-redis = "^4.1"
 types-requests = "^2.27"
+ruff = "^0.0.243"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"
@@ -81,6 +82,14 @@ use-tabs = true
 [tool.isort]
 profile = "black"
 indent = "\t"
+
+[tool.ruff]
+line-length = 140
+# As long as pylint is in use:
+# Ignore F401 (imported but unused)
+# Ignore E402 (Module level import not at top of file)
+# Ignore F811 (Redefinition of unused)
+ignore = ["F401", "E402", "F811"]
 
 [tool.mypy]
 disallow_untyped_calls = true

@@ -19,8 +19,9 @@ from opsiconfd.config import config, opsi_config
 @dataclass(frozen=True, kw_only=True)
 class RPCACE:
 	"""RPC Access Control Entry"""
+
 	method_re: re.Pattern
-	type: Literal['all', 'self', 'opsi_depotserver', 'opsi_client', 'sys_group', 'sys_user']
+	type: Literal["all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"]
 	id: Optional[str] = None  # pylint: disable=invalid-name
 	allowed_attributes: set[str] = field(default_factory=set)
 	denied_attributes: set[str] = field(default_factory=set)
@@ -35,7 +36,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 	#    <method>: <aclType>[(aclTypeParam[(aclTypeParamValue,...)];...)]
 	#    xyz_.*:   opsi_depotserver(attributes(id,name))
 	#    abc:      self(attributes(!opsiHostKey));sys_group(admin, group 2, attributes(!opsiHostKey))
-	acl_entry_regex = re.compile(r'^([^:]+)+\s*:\s*(\S.*)$')
+	acl_entry_regex = re.compile(r"^([^:]+)+\s*:\s*(\S.*)$")
 	if not isinstance(acl_file, Path):
 		acl_file = Path(acl_file)
 
@@ -46,73 +47,73 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 		match = acl_entry_regex.search(line)
 		if not match:
 			raise ValueError(f"Bad formatted line '{line}' in acl file '{config.acl_file}'")
-		method_re = re.compile(match.group(1).strip())  # pylint: disable=dotted-import-in-loop
-		for entry in match.group(2).split(';'):
+		method_re = re.compile(match.group(1).strip())
+		for entry in match.group(2).split(";"):
 			entry = str(entry).strip()
 			ace_type = entry
-			ace_type_params = ''
-			if entry.find('(') != -1:
-				(ace_type, ace_type_params) = entry.split('(', 1)
-				if ace_type_params[-1] != ')':
+			ace_type_params = ""
+			if entry.find("(") != -1:
+				(ace_type, ace_type_params) = entry.split("(", 1)
+				if ace_type_params[-1] != ")":
 					raise ValueError(f"Bad formatted acl entry '{entry}': trailing ')' missing")
 				ace_type = ace_type.strip()
 				ace_type_params = ace_type_params[:-1]
 
-			if ace_type not in ('all', 'self', 'opsi_depotserver', 'opsi_client', 'sys_group', 'sys_user'):
+			if ace_type not in ("all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"):
 				raise ValueError(f"Unhandled acl type: '{ace_type}'")
 
 			ace = RPCACE(method_re=method_re, type=ace_type)  # type: ignore[arg-type]
 			if not ace_type_params:
-				if ace_type in ('sys_group', 'sys_user'):
+				if ace_type in ("sys_group", "sys_user"):
 					raise ValueError(f"Bad formatted acl type '{ace_type}': no params given")
 				acl.append(ace)
 				continue
 
-			ace_type_param = ''
-			ace_type_param_values = ['']
+			ace_type_param = ""
+			ace_type_param_values = [""]
 			in_ace_type_param_values = False
 			ids = []
 			for idx, char in enumerate(ace_type_params):
-				if char == '(':
+				if char == "(":
 					if in_ace_type_param_values:
-						raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")  # pylint: disable=loop-invariant-statement
+						raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")
 					in_ace_type_param_values = True
-				elif char == ')':
+				elif char == ")":
 					if not in_ace_type_param_values or not ace_type_param:
-						raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")  # pylint: disable=loop-invariant-statement
+						raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")
 					in_ace_type_param_values = False
-				elif char != ',' or idx == len(ace_type_params) - 1:  # pylint: disable=loop-invariant-statement
+				elif char != "," or idx == len(ace_type_params) - 1:
 					if in_ace_type_param_values:
 						ace_type_param_values[-1] += char
 					else:
 						ace_type_param += char
 
-				if char == ',' or idx == len(ace_type_params) - 1:  # pylint: disable=loop-invariant-statement
+				if char == "," or idx == len(ace_type_params) - 1:
 					if in_ace_type_param_values:
-						if idx == len(ace_type_params) - 1:  # pylint: disable=loop-invariant-statement
-							raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")  # pylint: disable=loop-invariant-statement
-						ace_type_param_values.append('')
+						if idx == len(ace_type_params) - 1:
+							raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")
+						ace_type_param_values.append("")
 					else:
 						ace_type_param = ace_type_param.strip()
 						ace_type_param_values = [t.strip() for t in ace_type_param_values if t.strip()]
-						if ace_type_param == 'attributes':
+						if ace_type_param == "attributes":
 							for val in ace_type_param_values:
 								if not val:
 									continue
-								if val.startswith('!'):
+								if val.startswith("!"):
 									ace.denied_attributes.add(val[1:].strip())
 								else:
 									ace.allowed_attributes.add(val.strip())
-						elif ace_type in ('sys_group', 'sys_user', 'opsi_depotserver', 'opsi_client'):  # pylint: disable=loop-invariant-statement
+						elif ace_type in ("sys_group", "sys_user", "opsi_depotserver", "opsi_client"):
 							val = ace_type_param.strip()
-							if ace_type == 'sys_group':  # pylint: disable=loop-invariant-statement
+							if ace_type == "sys_group":
 								val = val.replace("{admingroup}", opsi_config.get("groups", "admingroup"))
 								val = val.replace("{fileadmingroup}", opsi_config.get("groups", "fileadmingroup"))
 							ids.append(val)
 						else:
 							raise ValueError(f"Unhandled acl type param '{ace_type_param}' for acl type '{ace_type}'")
-						ace_type_param = ''
-						ace_type_param_values = ['']  # pylint: disable=use-tuple-over-list
+						ace_type_param = ""
+						ace_type_param_values = [""]
 			if ids:
 				for _id in ids:
 					kwargs = ace.__dict__

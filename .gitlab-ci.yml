@@ -111,6 +111,7 @@ stages:
   echo "Run linters"
   echo "---------------------------------------"
   poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
+  poetry run ruff opsiconfd tests
   poetry run mypy opsiconfd tests
 
 test:perftest:

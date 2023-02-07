@@ -76,7 +76,7 @@ class PAMAuthentication(AuthenticationModule):
 		logger.debug("Primary group id of user %s is %s", username, primary_gid)
 		groups = set()
 		for gid in getgrouplist(username, primary_gid):
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				groups.add(getgrgid(gid).gr_name)
 			except KeyError as err:
 				logger.warning(err)

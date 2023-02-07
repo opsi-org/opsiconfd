@@ -279,15 +279,15 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 			"jsonrpc": "2.0",
 			"id": 1,
 			"method": method,
-			"params": [None, {"id": [client1["id"], client2["id"]]}],  # pylint: disable=loop-invariant-statement
+			"params": [None, {"id": [client1["id"], client2["id"]]}],
 		}
 		res = test_client.post("/rpc", json=rpc).json()
 		assert "error" not in res
 		clients = res["result"]
 		assert len(clients) == 2
 		for client in clients:
-			if client["id"] == client1["id"]:  # pylint: disable=loop-invariant-statement
-				assert client["opsiHostKey"] == client1["opsiHostKey"]  # pylint: disable=loop-invariant-statement
+			if client["id"] == client1["id"]:
+				assert client["opsiHostKey"] == client1["opsiHostKey"]
 			else:
 				assert client["opsiHostKey"] is None
 
@@ -361,7 +361,7 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	for client in clients:
 		assert client["description"] == "new desc"
-		if client["id"] == client1["id"]:  # pylint: disable=loop-invariant-statement
+		if client["id"] == client1["id"]:
 			# Updated
 			assert client["oneTimePassword"] == "secret"
 		else:

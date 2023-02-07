@@ -132,7 +132,7 @@ def test_cleanup_file_storage(tmp_path: Path) -> None:
 		_prepare_file("expired", validity=1)  # Valid for 1 second
 		sleep(2)
 
-		valid_files = [_prepare_file("ok")[1], _prepare_file("ok")[1], _prepare_file("ok")[1]]  # pylint: disable=use-tuple-over-list
+		valid_files = [_prepare_file("ok")[1], _prepare_file("ok")[1], _prepare_file("ok")[1]]
 		valid_meta = [f.with_suffix(".meta") for f in valid_files]
 		valid_filenames = [f.name for f in valid_files + valid_meta]
 

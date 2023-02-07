@@ -53,9 +53,9 @@ def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-loc
 		for depot_id in depot_ids:
 			product_on_depot = product_on_depot_info[depot_id].get(product_id)
 			if not product_on_depot:
-				if not strict:  # pylint: disable=loop-invariant-statement
+				if not strict:
 					continue
-				difference_products[product_id][depot_id] = "not installed"  # pylint: disable=loop-invariant-statement
+				difference_products[product_id][depot_id] = "not installed"
 				continue
 
 			if not product_version:
@@ -69,7 +69,7 @@ def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-loc
 				differs = True
 
 			if differs:
-				difference_products[product_id][depot_id] = "different"  # pylint: disable=loop-invariant-statement
+				difference_products[product_id][depot_id] = "different"
 
 	state = State.OK
 	message = ""
@@ -84,7 +84,7 @@ def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-loc
 				for depot_id in depot_ids:
 					depot_product_version = None
 					depot_package_version = None
-					try:  # pylint: disable=loop-try-except-usage
+					try:
 						if difference_products.get(product_id, {}).get(depot_id) == "not installed":
 							message += f"{depot_id} (not installed) \n"
 						else:

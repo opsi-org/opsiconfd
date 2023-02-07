@@ -100,8 +100,8 @@ class RPCExtSSHCommandsMixin(Protocol):
 				line = line.strip()
 				if not line:
 					continue
-				try:  # pylint: disable=loop-try-except-usage
-					entry = json.loads(line)  # pylint: disable=dotted-import-in-loop
+				try:
+					entry = json.loads(line)
 					ssh_command = SSHCommand.parse_obj(entry)
 					ssh_command.buildIn = build_in  # pylint: disable=invalid-name
 					logger.trace("Read ssh command from '%s': %s", file_path, entry)
@@ -199,7 +199,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 		modified = False
 		for cmd_dict in forceList(commandList):
 			if "menuText" not in cmd_dict:
-				raise ValueError("Key 'menuText' missing")  # pylint: disable=loop-invariant-statement
+				raise ValueError("Key 'menuText' missing")
 			menu_text = cmd_dict["menuText"]
 			if menu_text in ssh_commands:
 				ssh_commands[menu_text].update(

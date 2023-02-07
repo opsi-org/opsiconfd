@@ -73,7 +73,7 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 			product_on_clients = {poc.productId: poc for poc in self.productOnClient_getObjects(clientId=clientId, productId=product_ids)}
 			products = self.product_getObjects(id=product_ids)
 			if addConfigs:
-				config_state_values = []  # pylint: disable=use-tuple-over-list
+				config_state_values = []
 				cst = self.configState_getValues(config_ids=["software-on-demand.*"], object_ids=[clientId])
 				if cst:
 					config_state_values = list(cst.get(clientId, {}).values())
@@ -133,18 +133,18 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 			for prod in products:
 				if (
 					prod.id != product_id
-					or prod.productVersion != product_data_record["productVersion"]  # pylint: disable=loop-invariant-statement
-					or prod.packageVersion != product_data_record["packageVersion"]  # pylint: disable=loop-invariant-statement
+					or prod.productVersion != product_data_record["productVersion"]
+					or prod.packageVersion != product_data_record["packageVersion"]
 				):
 					continue
 
-				product_data_record["hasSetup"] = forceBool(prod.setupScript)  # pylint: disable=loop-invariant-statement
-				product_data_record["hasUninstall"] = forceBool(prod.uninstallScript)  # pylint: disable=loop-invariant-statement
-				product_data_record["productName"] = prod.name  # pylint: disable=loop-invariant-statement
-				product_data_record["description"] = prod.description  # pylint: disable=loop-invariant-statement
-				product_data_record["advice"] = prod.advice  # pylint: disable=loop-invariant-statement
-				product_data_record["priority"] = prod.priority  # pylint: disable=loop-invariant-statement
-				product_data_record["productType"] = prod.getType()  # pylint: disable=loop-invariant-statement
+				product_data_record["hasSetup"] = forceBool(prod.setupScript)
+				product_data_record["hasUninstall"] = forceBool(prod.uninstallScript)
+				product_data_record["productName"] = prod.name
+				product_data_record["description"] = prod.description
+				product_data_record["advice"] = prod.advice
+				product_data_record["priority"] = prod.priority
+				product_data_record["productType"] = prod.getType()
 
 				break
 

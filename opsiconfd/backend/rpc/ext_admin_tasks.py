@@ -146,7 +146,7 @@ class RPCExtAdminTasksMixin(Protocol):
 					and product.productVersion == pod.productVersion
 					and product.getSetupScript()
 				):
-					try:  # pylint: disable=loop-try-except-usage
+					try:
 						for client_id in depot_to_clients[pod.depotId]:
 							clients_to_setup.add(client_id)
 					except KeyError as notfound:

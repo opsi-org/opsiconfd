@@ -48,11 +48,11 @@ class AppStateReaderThread(Thread):
 			while not self.stop:
 				data = redis.get(self.redis_key)
 				if data:
-					app_state = AppState.from_dict(msgpack.decode(data))  # pylint: disable=dotted-import-in-loop
-					if not self.app_states or app_state != self.app_states[-1]:  # pylint: disable=loop-invariant-statement
+					app_state = AppState.from_dict(msgpack.decode(data))
+					if not self.app_states or app_state != self.app_states[-1]:
 						self.app_states.append(app_state)
 						print("App state changed:", app_state)
-				time.sleep(0.01)  # pylint: disable=dotted-import-in-loop
+				time.sleep(0.01)
 
 
 @pytest.fixture

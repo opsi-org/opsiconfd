@@ -87,9 +87,9 @@ def cleanup_file_storage() -> None:
 		if path.suffix != ".meta":
 			continue
 
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			UUID(path.name)  # Test if filename is valid UUID
-			meta = msgspec.json.decode(path.read_bytes())  # pylint: disable=dotted-import-in-loop
+			meta = msgspec.json.decode(path.read_bytes())
 			if meta["expires"] <= now:
 				# Expired
 				continue
@@ -101,7 +101,7 @@ def cleanup_file_storage() -> None:
 		keep_files.add(path.with_suffix(""))
 
 	for path in all_files.difference(keep_files):
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			path.unlink()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err)

@@ -94,7 +94,7 @@ class OpsiPXEConfdConnectionThread(Thread):
 		delay_reduction = 0.2
 		while self._delay > 0:
 			sleep(delay_reduction)
-			self._delay -= delay_reduction  # pylint: disable=loop-invariant-statement
+			self._delay -= delay_reduction
 
 		with _opsipxeconfd_connection_threads_lock:  # pylint: disable=protected-access
 			try:
@@ -142,7 +142,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 	@backend_event("shutdown")
 	def _opsipxeconfd_shutdown(self) -> None:
 		with _opsipxeconfd_connection_threads_lock:
-			for update_thread in _opsipxeconfd_connection_threads.values():  # pylint: disable=loop-global-usage
+			for update_thread in _opsipxeconfd_connection_threads.values():
 				update_thread.join(3)
 
 	def _opsipxeconfd_send_command(self: BackendProtocol, client_id: str, command: str) -> None:
@@ -188,7 +188,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 				depot_ids = [did for did in self.host_getIdents(returnType="str", type="OpsiDepotserver") if did != self._depot_id]
 			elif responsible_depot_id != self._depot_id:
 				logger.info("Not responsible for client '%s', forwarding request to depot %s", client_id, responsible_depot_id)
-				depot_ids = [responsible_depot_id]  # pylint: disable=use-tuple-over-list
+				depot_ids = [responsible_depot_id]
 
 			logger.info("Forwarding request to depots: %s", depot_ids)
 			for depot_id in depot_ids:

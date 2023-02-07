@@ -33,12 +33,12 @@ def test_websocket_keep_session_valid(test_client: OpsiconfdTestClient) -> None:
 		headers["Cookie"] = f"{cookie.name}={cookie.value}"
 
 		with test_client.websocket_connect("/ws/echo?set_cookie_interval=1", headers=headers) as websocket:
-			received = []  # pylint: disable=use-tuple-over-list
+			received = []
 			with WebSocketMessageReader(websocket) as reader:
 				data = msgpack.dumps({"type": "data"})
 				for _ in range(10):
 					websocket.send_bytes(data)
-					time.sleep(1)  # pylint: disable=dotted-import-in-loop
+					time.sleep(1)
 				received = list(reader.get_messages())
 
 			assert len([msg for msg in received if msg["type"] == "data"]) >= 7  # type: ignore[call-overload]

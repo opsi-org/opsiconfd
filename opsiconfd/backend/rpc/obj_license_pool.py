@@ -21,7 +21,9 @@ if TYPE_CHECKING:
 
 
 class RPCLicensePoolMixin(Protocol):
-	def licensePool_bulkInsertObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool]) -> None:  # pylint: disable=invalid-name
+	def licensePool_bulkInsertObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, licensePools: list[dict] | list[LicensePool]
+	) -> None:
 		self._mysql.bulk_insert_objects(table="LICENSE_POOL", objs=licensePools)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
@@ -55,14 +57,16 @@ class RPCLicensePoolMixin(Protocol):
 				self._mysql.insert_object(table="LICENSE_POOL", obj=licensePool, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
-	def licensePool_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[LicensePool]:  # pylint: disable=redefined-builtin,invalid-name
+	def licensePool_getObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[LicensePool]:
 		ace = self._get_ace("licensePool_getObjects")
-		return self._mysql.get_objects(
-			table="LICENSE_POOL", ace=ace, object_type=LicensePool, attributes=attributes, filter=filter
-		)
+		return self._mysql.get_objects(table="LICENSE_POOL", ace=ace, object_type=LicensePool, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def licensePool_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def licensePool_getHashes(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[dict]:
 		ace = self._get_ace("licensePool_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_POOL", object_type=LicensePool, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -76,18 +80,23 @@ class RPCLicensePoolMixin(Protocol):
 		return self._mysql.get_idents(table="LICENSE_POOL", object_type=LicensePool, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def licensePool_deleteObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool) -> None:  # pylint: disable=invalid-name
+	def licensePool_deleteObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool  # pylint: disable=invalid-name
+	) -> None:
 		ace = self._get_ace("licensePool_deleteObjects")
 		self._mysql.delete_objects(table="LICENSE_POOL", object_type=LicensePool, obj=licensePools, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def licensePool_create(self: BackendProtocol, id: str, description: str | None = None, productIds: list[str] | None = None) -> None:  # pylint: disable=redefined-builtin,unused-argument,invalid-name
+	def licensePool_create(  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin
+		description: str | None = None,
+		productIds: list[str] | None = None,
+	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.licensePool_createObjects(LicensePool.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
 	def licensePool_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.licensePool_deleteObjects(
-			self.licensePool_getIdents(returnType="dict", id=id)
-		)
+		self.licensePool_deleteObjects(self.licensePool_getIdents(returnType="dict", id=id))

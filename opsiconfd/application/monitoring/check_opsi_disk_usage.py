@@ -80,40 +80,28 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 		for result, info in results.items():
 			available = float(info["available"]) / 1073741824  # Byte to GB
 			usage = info["usage"] * 100
-			if unit == "GB":  # pylint: disable=loop-invariant-statement
+			if unit == "GB":
 				if available <= critical_flt:
 					state = State.CRITICAL
-					message.append(
-						f"DiskUsage from ressource: '{result}' is critical (available: {available:.2f}GB)."  # pylint: disable=loop-invariant-statement
-					)
+					message.append(f"DiskUsage from ressource: '{result}' is critical (available: {available:.2f}GB).")
 				elif available <= warning_flt:
 					if state != State.CRITICAL:
 						state = State.WARNING
-					message.append(
-						f"DiskUsage warning from ressource: '{result}' (available: {available:.2f}GB)."  # pylint: disable=loop-invariant-statement
-					)
+					message.append(f"DiskUsage warning from ressource: '{result}' (available: {available:.2f}GB).")
 				else:
-					message.append(
-						f"DiskUsage from ressource '{result}' is ok. (available:  {available:.2f}GB)."  # pylint: disable=loop-invariant-statement
-					)
-			elif unit == "%":  # pylint: disable=loop-invariant-statement
+					message.append(f"DiskUsage from ressource '{result}' is ok. (available:  {available:.2f}GB).")
+			elif unit == "%":
 				free_space = 100 - usage
 				if free_space <= critical_flt:
 					state = State.CRITICAL
-					message.append(
-						f"DiskUsage from ressource: '{result}' is critical (available: {free_space:.2f}%)."  # pylint: disable=loop-invariant-statement
-					)
+					message.append(f"DiskUsage from ressource: '{result}' is critical (available: {free_space:.2f}%).")
 
 				elif free_space <= warning_flt:
 					if state != State.CRITICAL:
 						state = State.WARNING
-					message.append(
-						f"DiskUsage warning from ressource: '{result}' (available: {free_space:.2f}%)."  # pylint: disable=loop-invariant-statement
-					)
+					message.append(f"DiskUsage warning from ressource: '{result}' (available: {free_space:.2f}%).")
 				else:
-					message.append(
-						f"DiskUsage from ressource: '{result}' is ok. (available: {free_space:.2f}%)."  # pylint: disable=loop-invariant-statement
-					)
+					message.append(f"DiskUsage from ressource: '{result}' is ok. (available: {free_space:.2f}%).")
 	else:
 		state = State.UNKNOWN
 		message.append("No results get. Nothing to check.")

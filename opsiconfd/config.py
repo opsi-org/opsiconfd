@@ -157,7 +157,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		# Delay its import for speeding up the common usage of argparse.
 		text = text.replace("[env var: ", "\n[env var: ")
 		text = text.replace("(default: ", "\n(default: ")
-		lines = []  # pylint: disable=use-tuple-over-list
+		lines = []
 		from textwrap import wrap  # pylint: disable=import-outside-toplevel
 
 		for line in text.split("\n"):
@@ -359,7 +359,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					self._args[idx + 1] = self._config.config_file
 					return
 			elif arg.startswith("--config-file="):
-				self._args[idx] = f"--config-file={self._config.config_file}"  # pylint: disable=loop-invariant-statement
+				self._args[idx] = f"--config-file={self._config.config_file}"
 				return
 		self._args = ["--config-file", self._config.config_file] + self._args
 
@@ -444,7 +444,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 
 		with open(str(path), "w", encoding="utf-8") as file:
-			file.write(CONFIG_FILE_HEADER.lstrip())  # pylint: disable=loop-global-usage
+			file.write(CONFIG_FILE_HEADER.lstrip())
 			for line in data.split("\n"):
 				match = re_opt.match(line)
 				if match:
@@ -466,7 +466,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 
 	def _update_config_file(self) -> None:
 		conf = self._parse_config_file()
-		for deprecated in DEPRECATED:  # pylint: disable=loop-global-usage
+		for deprecated in DEPRECATED:
 			conf.pop(deprecated, None)
 		self._generate_config_file(conf)
 

@@ -49,23 +49,19 @@ class RPCExtEasyMixin(Protocol):
 
 			return timestamp
 
-		client_to_depotservers = {
-			mapping['clientId']: mapping['depotId']
-			for mapping in
-			self.configState_getClientToDepotserver()
-		}
+		client_to_depotservers = {mapping["clientId"]: mapping["depotId"] for mapping in self.configState_getClientToDepotserver()}
 
 		results = []
-		for client in self.host_getHashes(type='OpsiClient'):
-			client['hostId'] = client['id']
-			client['created'] = convert_timestamp(client.get('created'))
-			client['lastSeen'] = convert_timestamp(client.get('lastSeen'))
-			client['depotId'] = client_to_depotservers.get(client['id'], "")
+		for client in self.host_getHashes(type="OpsiClient"):
+			client["hostId"] = client["id"]
+			client["created"] = convert_timestamp(client.get("created"))
+			client["lastSeen"] = convert_timestamp(client.get("lastSeen"))
+			client["depotId"] = client_to_depotservers.get(client["id"], "")
 
-			del client['type']
-			del client['id']
+			del client["type"]
+			del client["id"]
 
-			results.append({k: "" if v is None else v for k, v in client.items()})  # pylint: disable=loop-invariant-statement
+			results.append({k: "" if v is None else v for k, v in client.items()})
 
 		return results
 
@@ -91,14 +87,12 @@ class RPCExtEasyMixin(Protocol):
 		if not depotIds:
 			raise ValueError("No depotIds given")
 
-		return [
-			clientToDepotserver['clientId']
-			for clientToDepotserver
-			in self.configState_getClientToDepotserver(depotIds=depotIds)
-		]
+		return [clientToDepotserver["clientId"] for clientToDepotserver in self.configState_getClientToDepotserver(depotIds=depotIds)]
 
 	@rpc_method(deprecated=True)
-	def getClientsWithProducts(self: BackendProtocol, productIds: list[str], installationStatus: str | None = None) -> list[str]:  # pylint: disable=invalid-name
+	def getClientsWithProducts(  # pylint: disable=invalid-name
+		self: BackendProtocol, productIds: list[str], installationStatus: str | None = None
+	) -> list[str]:
 		"""
 		Returns a list of client IDs with the given productIds independent from
 		their status.
@@ -122,7 +116,7 @@ class RPCExtEasyMixin(Protocol):
 			"productId": productIds,
 		}
 		if installationStatus is not None:
-			poc_filter['installationStatus'] = forceInstallationStatus(installationStatus)
+			poc_filter["installationStatus"] = forceInstallationStatus(installationStatus)
 
 		return list({poc.clientId for poc in self.productOnClient_getObjects(**poc_filter)})
 
@@ -136,11 +130,7 @@ class RPCExtEasyMixin(Protocol):
 		:type actionRequests: str or [str, ]
 		:rtype: [str, ]
 		"""
-		actionRequests = [
-			request for request
-			in forceActionRequestList(actionRequests)
-			if request
-		]
+		actionRequests = [request for request in forceActionRequestList(actionRequests) if request]
 		if not actionRequests:
 			raise ValueError("Missing action requests")
 

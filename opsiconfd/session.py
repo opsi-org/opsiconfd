@@ -125,12 +125,7 @@ def get_basic_auth(headers: Headers) -> BasicAuth:
 
 
 async def get_session(client_addr: str, client_port: int, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
-	session = OPSISession(
-		client_addr=client_addr,
-		client_port=client_port,
-		headers=headers,
-		session_id=session_id
-	)
+	session = OPSISession(client_addr=client_addr, client_port=client_port, headers=headers, session_id=session_id)
 	await session.init()
 	assert session.client_addr == client_addr
 
@@ -170,14 +165,14 @@ class SessionMiddleware:
 		if isinstance(opsiconfd_app.app_state, MaintenanceState):
 			client_in_exceptions = False
 			for network in opsiconfd_app.app_state.address_exceptions or []:
-				if ip_address_in_network(connection.scope["client"][0], network):  # pylint: disable=loop-invariant-statement
+				if ip_address_in_network(connection.scope["client"][0], network):
 					client_in_exceptions = True
 					break
 			if not client_in_exceptions:
 				raise HTTPException(
 					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
 					detail=opsiconfd_app.app_state.message,
-					headers={"Retry-After": str(opsiconfd_app.app_state.retry_after)}
+					headers={"Retry-After": str(opsiconfd_app.app_state.retry_after)},
 				)
 
 		with server_timing("session_handling") as timing:
@@ -212,7 +207,9 @@ class SessionMiddleware:
 			session_id = self.get_session_id_from_headers(connection.headers)
 			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 				addr = scope["client"]
-				scope["session"] = await get_session(client_addr=addr[0], client_port=addr[1], headers=connection.headers, session_id=session_id)
+				scope["session"] = await get_session(
+					client_addr=addr[0], client_port=addr[1], headers=connection.headers, session_id=session_id
+				)
 
 			started_authenticated = scope["session"] and scope["session"].authenticated
 
@@ -244,7 +241,7 @@ class SessionMiddleware:
 					await scope["session"].store()
 					scope["session"].add_cookie_to_headers(headers)
 				if scope.get("response-headers"):
-					for key, value in scope["response-headers"].items():  # pylint: disable=use-list-copy
+					for key, value in scope["response-headers"].items():
 						headers.append(key, value)
 			await send(message)
 
@@ -364,11 +361,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	_store_interval = 30
 
 	def __init__(  # pylint: disable=too-many-arguments
-		self,
-		client_addr: str,
-		client_port: int,
-		headers: Optional[Headers] = None,
-		session_id: Optional[str] = None
+		self, client_addr: str, client_port: int, headers: Optional[Headers] = None, session_id: Optional[str] = None
 	) -> None:
 		self.client_addr = client_addr
 		self.client_port = client_port
@@ -501,8 +494,8 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 					validity = 0
 					data = redis.get(redis_key)
 					if data:
-						sess = session_data_msgpack_decoder.decode(data)  # pylint: disable=loop-global-usage
-						try:  # pylint: disable=loop-try-except-usage
+						sess = session_data_msgpack_decoder.decode(data)
+						try:
 							validity = sess["max_age"] - (now - sess["last_used"])
 						except Exception as err:  # pylint: disable=broad-except
 							logger.debug(err)
@@ -533,7 +526,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 		data = self.deserialize(session_data_msgpack_decoder.decode(msgpack_data))
 		for attr, val in data.items():
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				setattr(self, attr, val)
 			except AttributeError:
 				pass
@@ -731,8 +724,7 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	session.is_read_only = authm.user_is_read_only(session.username)
 
 	logger.info(
-		"Authentication successful for user '%s', groups '%s', "
-		"admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
+		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
 		session.username,
 		",".join(session.user_groups),
 		authm.get_admin_groupname(),

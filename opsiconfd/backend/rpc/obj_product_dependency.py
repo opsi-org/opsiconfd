@@ -75,8 +75,8 @@ def add_action_request(  # pylint: disable=too-many-branches,too-many-statements
 			)
 
 		required_action = dependency.requiredAction
-		installation_status: str | None = "not_installed"  # pylint: disable=loop-invariant-statement
-		action_request: str | None = "none"  # pylint: disable=loop-invariant-statement
+		installation_status: str | None = "not_installed"
+		action_request: str | None = "none"
 		if dependency.requiredProductId in product_on_client_by_product_id:
 			installation_status = product_on_client_by_product_id[dependency.requiredProductId].installationStatus
 			action_request = product_on_client_by_product_id[dependency.requiredProductId].actionRequest
@@ -125,7 +125,7 @@ def add_action_request(  # pylint: disable=too-many-branches,too-many-statements
 
 		if set_action_request_to_none:
 			logger.notice("   => setting action request for product %s to 'none'!", product_id)
-			product_on_client_by_product_id[product_id].actionRequest = "none"  # pylint: disable=loop-invariant-statement
+			product_on_client_by_product_id[product_id].actionRequest = "none"
 			continue
 
 		if action_request == required_action:
@@ -184,7 +184,7 @@ def add_dependent_product_on_clients(
 	available_products_by_product_id = {available_product.id: available_product for available_product in available_products}
 
 	product_dependencies_by_product_id = defaultdict(list)
-	for product_dependency in product_dependencies:  # pylint: disable=use-list-copy
+	for product_dependency in product_dependencies:
 		product_dependencies_by_product_id[product_dependency.productId].append(product_dependency)
 
 	pocs_by_client_id_and_product_id: dict[str, dict[str, ProductOnClient]] = defaultdict(dict)
@@ -195,10 +195,14 @@ def add_dependent_product_on_clients(
 	for (client_id, product_on_client_by_product_id) in pocs_by_client_id_and_product_id.items():
 		logger.debug("Adding dependent productOnClients for client %s", client_id)
 
-		added_info: dict[str, dict[str, str | None]] = {}  # pylint: disable=loop-invariant-statement
+		added_info: dict[str, dict[str, str | None]] = {}
 		for product_id in list(product_on_client_by_product_id):
 			add_action_request(
-				product_on_client_by_product_id, product_id, product_dependencies_by_product_id, available_products_by_product_id, added_info
+				product_on_client_by_product_id,
+				product_id,
+				product_dependencies_by_product_id,
+				available_products_by_product_id,
+				added_info,
 			)
 		dependend_product_on_clients.extend(list(product_on_client_by_product_id.values()))
 
@@ -266,9 +270,11 @@ class Requirements:
 		#  then fix orderByPrior such that it gets this place
 		i = 0
 		located = False
-		while (i < len(self.list) - 1) and not located:  # pylint: disable=loop-invariant-statement
+		while (i < len(self.list) - 1) and not located:
 			logger.trace(
-				"Requirement.prior: %s, self.list[self.orderByPrior[i]].prior: %s", requirement.prior, self.list[self.order_by_prior[i]].prior
+				"Requirement.prior: %s, self.list[self.orderByPrior[i]].prior: %s",
+				requirement.prior,
+				self.list[self.order_by_prior[i]].prior,
 			)
 			if requirement.prior > self.list[self.order_by_prior[i]].prior:
 				i += 1
@@ -276,12 +282,12 @@ class Requirements:
 				located = True
 				# we take the first place that fits to the ordering
 				# shift all items by one place
-				j = len(self.list) - 1  # pylint: disable=loop-invariant-statement
+				j = len(self.list) - 1
 				while j > i:
 					self.order_by_prior[j] = self.order_by_prior[j - 1]
 					j -= 1
 				# finally we map place i to the new element
-				self.order_by_prior[i] = len(self.list) - 1  # pylint: disable=loop-invariant-statement
+				self.order_by_prior[i] = len(self.list) - 1
 
 		if not located:
 			# noInListOrderedByPriors
@@ -297,7 +303,7 @@ class Requirements:
 
 		i = 0
 		located = False
-		while (i < len(self.list) - 1) and not located:  # pylint: disable=loop-invariant-statement
+		while (i < len(self.list) - 1) and not located:
 			logger.trace(
 				"Requirement.posterior %s, self.list[self.orderByPosterior[i]].posterior) %s",
 				requirement.posterior,
@@ -309,12 +315,12 @@ class Requirements:
 				located = True
 				# We take the first place that fits to the ordering
 				# shift all items by one place
-				j = len(self.list) - 1  # pylint: disable=loop-invariant-statement
+				j = len(self.list) - 1
 				while j > i:
 					self.order_by_posterior[j] = self.order_by_posterior[j - 1]
 					j -= 1
 				# Finally we map place i to the new element
-				self.order_by_posterior[i] = len(self.list) - 1  # pylint: disable=loop-invariant-statement
+				self.order_by_posterior[i] = len(self.list) - 1
 
 		if not located:
 			# If i = len(self.list) - 1 nothing is moved
@@ -419,13 +425,13 @@ class OrderBuild:  # pylint: disable=too-many-instance-attributes
 		self.index_is_among_posteriors = []
 		idx = 0
 		while idx < element_count:
-			self.index_is_among_posteriors.append(False)  # pylint: disable=loop-invariant-statement
+			self.index_is_among_posteriors.append(False)
 			idx += 1
 
 		self.index_used = []
 		idx = 0
 		while idx < element_count:
-			self.index_used.append(False)  # pylint: disable=loop-invariant-statement
+			self.index_used.append(False)
 			idx += 1
 
 		self.used_count = 0
@@ -447,7 +453,7 @@ class OrderBuild:  # pylint: disable=too-many-instance-attributes
 				if self.index_is_among_posteriors[idx] and not self.index_used[idx]:
 					self.ordering.append(idx)
 					self.index_used[idx] = True
-					self.used_count += 1  # pylint: disable=loop-invariant-statement
+					self.used_count += 1
 				idx += 1
 			last_sorted_count = self.used_count
 
@@ -458,7 +464,7 @@ class OrderBuild:  # pylint: disable=too-many-instance-attributes
 					if not self.index_used[idx]:
 						self.ordering.append(idx)
 						self.index_used[idx] = True
-						self.used_count += 1  # pylint: disable=loop-invariant-statement
+						self.used_count += 1
 					idx += 1
 
 				# Move the sorted items to the end of the list
@@ -475,7 +481,7 @@ class OrderBuild:  # pylint: disable=too-many-instance-attributes
 
 					# Sorted elements
 					for k in range(last_sorted_count):
-						newordering[self.element_count - last_sorted_count + k] = self.ordering[k]  # pylint: disable=loop-invariant-statement
+						newordering[self.element_count - last_sorted_count + k] = self.ordering[k]
 
 					# Put back
 					self.ordering = newordering
@@ -523,11 +529,11 @@ def get_requirements(product_dependencies: list[ProductDependency], uninstall: b
 	# We treat setup an uninstall requirements only
 	requirements = []
 	for dependency in product_dependencies:
-		if dependency.productAction not in ("setup", "uninstall") if uninstall else ("setup", ):
+		if dependency.productAction not in ("setup", "uninstall") if uninstall else ("setup",):
 			continue
-		if (
-			dependency.requiredInstallationStatus not in ("not_installed", "installed") and
-			dependency.requiredAction not in ("setup", "uninstall")
+		if dependency.requiredInstallationStatus not in ("not_installed", "installed") and dependency.requiredAction not in (
+			"setup",
+			"uninstall",
 		):
 			continue
 
@@ -548,17 +554,15 @@ def generate_product_sequence(available_products: list[Product], product_depende
 	return generate_product_sequence_from_requ_pairs(available_products, requirements)
 
 
-def modify_sorting_classes(products: list[XClassifiedProduct], setup_requirements: list[tuple[str, str]]) -> bool:  # pylint: disable=too-many-branches
-	# idea:
-	# we reconstruct the priority chain
-	# by pushing the products upwards into it when required by a dependency
-
+def modify_sorting_classes(  # pylint: disable=too-many-branches
+	products: list[XClassifiedProduct], setup_requirements: list[tuple[str, str]]
+) -> bool:
 	recursion_necessary = False
 
 	f_id_to_prod = {prod.id: prod for prod in products}
 	# state of priorityClasses
 	f_level_to_prodlist: dict[int, list[XClassifiedProduct]] = {level: [] for level in reversed(range(-100, 101))}
-	for prod in products:  # pylint: disable=use-list-copy
+	for prod in products:
 		f_level_to_prodlist[prod.revised_priority].append(prod)
 
 	requs_by_posterior: dict[str, list[tuple[str, str]]] = {}
@@ -694,7 +698,7 @@ def generate_product_sequence_from_requ_pairs(  # pylint: disable=too-many-local
 					requ_objects.add(OrderRequirement(item[0], item[1], False))
 
 				order_build = OrderBuild(len(prioclass), requ_objects, True)
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					for _ in prioclass:
 						order_build.proceed()
 				except OpsiProductOrderingError as err:
@@ -704,7 +708,7 @@ def generate_product_sequence_from_requ_pairs(  # pylint: disable=too-many-local
 
 					raise OpsiProductOrderingError(
 						"Potentially conflicting requirements for: "
-						f"{', '.join([prioclass[int(index)] for index in err.problematicRequirements])}"  # pylint: disable=loop-invariant-statement
+						f"{', '.join([prioclass[int(index)] for index in err.problematicRequirements])}"
 					) from err
 
 				orderings_by_classes[prioclasskey] = order_build.get_ordering()
@@ -762,50 +766,66 @@ def generate_product_on_client_sequence(
 
 
 class RPCProductDependencyMixin(Protocol):
-	def productDependency_bulkInsertObjects(self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency]) -> None:  # pylint: disable=invalid-name
+	def productDependency_bulkInsertObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency]  # pylint: disable=invalid-name
+	) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_DEPENDENCY", objs=productDependencies)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_insertObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
+	def productDependency_insertObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, productDependency: dict | ProductDependency  # pylint: disable=invalid-name
+	) -> None:
 		ace = self._get_ace("productDependency_insertObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_updateObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
+	def productDependency_updateObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, productDependency: dict | ProductDependency  # pylint: disable=invalid-name
+	) -> None:
 		ace = self._get_ace("productDependency_updateObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency
+		self: BackendProtocol,
+		productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("productDependency_createObjects")
 		with self._mysql.session() as session:
 			for productDependency in forceList(productDependencies):
 				productDependency = forceObjectClass(productDependency, ProductDependency)
-				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True, session=session)
+				self._mysql.insert_object(
+					table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True, session=session
+				)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency
+		self: BackendProtocol,
+		productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("productDependency_updateObjects")
 		with self._mysql.session() as session:
 			for productDependency in forceList(productDependencies):
 				productDependency = forceObjectClass(productDependency, ProductDependency)
-				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False, session=session)
+				self._mysql.insert_object(
+					table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False, session=session
+				)
 
 	@rpc_method(check_acl=False)
-	def productDependency_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ProductDependency]:  # pylint: disable=redefined-builtin,invalid-name
+	def productDependency_getObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[ProductDependency]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_DEPENDENCY", ace=ace, object_type=ProductDependency, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def productDependency_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def productDependency_getHashes(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[dict]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -816,7 +836,9 @@ class RPCProductDependencyMixin(Protocol):
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("productDependency_getObjects")
-		return self._mysql.get_idents(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, ident_type=returnType, filter=filter)
+		return self._mysql.get_idents(
+			table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, ident_type=returnType, filter=filter
+		)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_deleteObjects(  # pylint: disable=invalid-name
@@ -845,12 +867,7 @@ class RPCProductDependencyMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productDependency_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
-		self: BackendProtocol,
-		productId: str,
-		productVersion: str,
-		packageVersion: str,
-		productAction: str,
-		requiredProductId: str
+		self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, productAction: str, requiredProductId: str
 	) -> None:
 		self.productDependency_deleteObjects(
 			self.productDependency_getIdents(
@@ -859,7 +876,8 @@ class RPCProductDependencyMixin(Protocol):
 				productVersion=productVersion,
 				packageVersion=packageVersion,
 				productAction=productAction,
-				requiredProductId=requiredProductId)
+				requiredProductId=requiredProductId,
+			)
 		)
 
 	@rpc_method(use_cache="product_ordering")

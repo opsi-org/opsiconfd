@@ -87,7 +87,7 @@ async def grafana_dashboard_config() -> dict[str, Any]:  # pylint: disable=too-m
 		panel_id += 1
 		panel = metric.grafana_config.get_panel(panel_id=panel_id, pos_x=pos_x, pos_y=pos_y)
 		if metric.subject == "worker":
-			for i, worker in enumerate(workers):  # pylint: disable=use-list-copy
+			for i, worker in enumerate(workers):
 				panel["targets"].append(
 					{
 						"refId": chr(65 + i),
@@ -96,10 +96,10 @@ async def grafana_dashboard_config() -> dict[str, Any]:  # pylint: disable=too-m
 					}
 				)
 		elif metric.subject == "node":
-			for i, node_name in enumerate(nodes):  # pylint: disable=use-list-copy
+			for i, node_name in enumerate(nodes):
 				panel["targets"].append({"refId": chr(65 + i), "target": metric.get_name(node_name=node_name), "type": "timeserie"})
 		elif metric.subject == "client":
-			for i, client in enumerate(clients):  # pylint: disable=use-list-copy
+			for i, client in enumerate(clients):
 				panel["targets"].append(
 					{"refId": chr(65 + i), "target": metric.get_name(client_addr=client["client_addr"]), "type": "timeserie"}
 				)
@@ -141,11 +141,11 @@ async def grafana_search() -> list[str]:
 	names = []
 	for metric in MetricsRegistry().get_metrics():
 		if metric.subject == "worker":
-			names += [metric.get_name(**worker) for worker in workers]  # pylint: disable=loop-invariant-statement
+			names += [metric.get_name(**worker) for worker in workers]
 		elif metric.subject == "node":
-			names += [metric.get_name(node_name=node_name) for node_name in nodes]  # pylint: disable=loop-invariant-statement
+			names += [metric.get_name(node_name=node_name) for node_name in nodes]
 		elif metric.subject == "client":
-			names += [metric.get_name(**client) for client in clients]  # pylint: disable=loop-invariant-statement
+			names += [metric.get_name(**client) for client in clients]
 		else:
 			names.append(metric.get_name())
 	return sorted(names)
@@ -181,7 +181,9 @@ def align_timestamp(timestamp: int | float) -> int:
 
 @grafana_metrics_router.get("/query")
 @grafana_metrics_router.post("/query")
-async def grafana_query(query: GrafanaQuery) -> list[dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def grafana_query(
+	query: GrafanaQuery,
+) -> list[dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await async_redis_client()
@@ -201,11 +203,11 @@ async def grafana_query(query: GrafanaQuery) -> list[dict[str, Any]]:  # pylint:
 
 		bucket_duration_ms = query_bucket_duration_ms
 
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			metric = MetricsRegistry().get_metric_by_name(target.target)
 			metric_vars = metric.get_vars_by_name(target.target)
 		except ValueError:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				metric = MetricsRegistry().get_metric_by_redis_key(target.target)
 				metric_vars = metric.get_vars_by_redis_key(target.target)
 			except ValueError as err:
@@ -249,18 +251,18 @@ async def grafana_query(query: GrafanaQuery) -> list[dict[str, Any]]:  # pylint:
 		# https://redis.io/commands/ts.range/
 		# Aggregate results into time buckets, duration of each bucket in milliseconds is bucket_duration_ms
 		cmd = ("TS.RANGE", redis_key, from_ms, to_ms, "AGGREGATION", "avg", bucket_duration_ms)
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			rows = await redis.execute_command(*cmd)  # type: ignore[no-untyped-call]
-		except RedisResponseError as err:  # pylint: disable=dotted-import-in-loop
+		except RedisResponseError as err:
 			logger.warning("%s %s", cmd, err)
-			rows = []  # pylint: disable=use-tuple-over-list
+			rows = []
 
 		res = {"target": target.target, "datapoints": []}
 		if metric.time_related and metric.aggregation == "sum":
 			# Time series data is stored aggregated in 5 second intervals
-			res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc] # pylint: disable=loop-invariant-statement
+			res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
 		else:
-			res["datapoints"] = [[float(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc] # pylint: disable=loop-invariant-statement
+			res["datapoints"] = [[float(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
 		logger.trace("Grafana query result: %s", res)
 		results.append(res)
 	return results

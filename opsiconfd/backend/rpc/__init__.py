@@ -90,7 +90,7 @@ def get_method_interface(  # pylint: disable=too-many-locals
 	sig = signature(func)
 	args = spec.args
 	defaults = spec.defaults
-	params = [arg for arg in args if arg != "self"]  # pylint: disable=loop-invariant-statement
+	params = [arg for arg in args if arg != "self"]
 	annotations = {}
 	for param in params:
 		str_param = str(sig.parameters[param])
@@ -139,7 +139,7 @@ def rpc_method(
 	drop_version: str | None = None,
 	alternative_method: str | None = None,
 	use_cache: str | None = None,
-	clear_cache: str | None = None
+	clear_cache: str | None = None,
 ) -> Callable:
 	def decorator(func: Callable) -> Callable:
 
@@ -203,7 +203,7 @@ def rpc_method(
 		setattr(
 			wrapper,
 			"rpc_interface",
-			get_method_interface(func, deprecated=deprecated, drop_version=drop_version, alternative_method=alternative_method)
+			get_method_interface(func, deprecated=deprecated, drop_version=drop_version, alternative_method=alternative_method),
 		)
 		return wrapper
 

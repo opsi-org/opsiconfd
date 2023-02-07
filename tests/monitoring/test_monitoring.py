@@ -149,7 +149,7 @@ def create_check_data(
 		)
 		cursor.execute(
 			f"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
-			f'("pytest-prod-{idx}", "1.0", "1", "{get_depotserver_id()}", "LocalbootProduct");'  # pylint: disable=dotted-import-in-loop
+			f'("pytest-prod-{idx}", "1.0", "1", "{get_depotserver_id()}", "LocalbootProduct");'
 		)
 
 	cursor.execute(

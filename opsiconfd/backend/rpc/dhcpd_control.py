@@ -58,8 +58,8 @@ def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
 		attempt = 0
 		while True:
 			attempt += 1
-			try:  # pylint: disable=loop-try-except-usage
-				flock(lock_fh, LOCK_EX | LOCK_NB)  # pylint: disable=loop-invariant-statement
+			try:
+				flock(lock_fh, LOCK_EX | LOCK_NB)
 				break
 			except IOError:
 				if attempt > 200:
@@ -106,9 +106,9 @@ class ReloadThread(threading.Thread):
 		while True:
 			if self._reload_event.wait(self._wait_after_reload):
 				with dhcpd_lock("config_reload"):
-					self._is_reloading = True  # pylint: disable=loop-invariant-statement
+					self._is_reloading = True
 					self._reload_event.clear()
-					try:  # pylint: disable=loop-try-except-usage
+					try:
 						logger.notice("Reloading dhcpd config using command: '%s'", self._reload_config_command)
 						run(
 							self._reload_config_command,
@@ -121,7 +121,7 @@ class ReloadThread(threading.Thread):
 						)
 					except CalledProcessError as err:
 						logger.error("Failed to reload dhcpd config: %s", err.output)
-					self._is_reloading = False  # pylint: disable=loop-invariant-statement
+					self._is_reloading = False
 
 
 class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attributes

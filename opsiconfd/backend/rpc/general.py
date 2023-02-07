@@ -328,7 +328,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		)
 
 		for config_id in ("client_limit_warning_percent", "client_limit_warning_absolute"):
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				setattr(pool, config_id, int(self.config_getObjects(id=f"licensing.{config_id}")[0].getDefaultValues()[0]))
 			except Exception as err:  # pylint: disable=broad-except
 				logger.debug(err)
@@ -339,7 +339,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			]
 		except Exception as err:  # pylint: disable=broad-except
 			logger.debug(err)
-			disable_warning_for_modules = []  # pylint: disable=use-tuple-over-list
+			disable_warning_for_modules = []
 
 		try:
 			client_limit_warning_days = int(self.config_getObjects(id="licensing.client_limit_warning_days")[0].getDefaultValues()[0])
@@ -369,7 +369,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if dates:
 			info["dates"] = {}
 			for at_date in pool.get_relevant_dates():
-				info["dates"][str(at_date)] = {"modules": pool.get_modules(at_date=at_date)}  # pylint: disable=loop-invariant-statement
+				info["dates"][str(at_date)] = {"modules": pool.get_modules(at_date=at_date)}
 		return info
 
 	def get_licensing_info(  # pylint: disable=invalid-name
@@ -421,7 +421,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 							continue
 						state = state.lower()
 						if state not in ("yes", "no"):
-							try:  # pylint: disable=loop-try-except-usage
+							try:
 								helpermodules[module] = state
 								state = int(state)  # type: ignore[assignment]
 							except ValueError:
@@ -534,24 +534,24 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 						src_file_path = log_file
 						if num > 1:
 							src_file_path = f"{log_file}.{num-1}"
-						if not os.path.exists(src_file_path):  # pylint: disable=dotted-import-in-loop
+						if not os.path.exists(src_file_path):
 							continue
 						dst_file_path = f"{log_file}.{num}"
-						os.rename(src_file_path, dst_file_path)  # pylint: disable=dotted-import-in-loop
-						try:  # pylint: disable=loop-try-except-usage
-							shutil.chown(  # pylint: disable=dotted-import-in-loop
+						os.rename(src_file_path, dst_file_path)
+						try:
+							shutil.chown(
 								dst_file_path, -1, opsi_config.get("groups", "admingroup")
 							)
-							os.chmod(dst_file_path, 0o644)  # pylint: disable=dotted-import-in-loop
+							os.chmod(dst_file_path, 0o644)
 						except Exception as err:  # pylint: disable=broad-except
 							logger.error("Failed to set file permissions on '%s': %s", dst_file_path, err)
 
-			for filename in glob.glob(f"{log_file}.*"):  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
-				try:  # pylint: disable=loop-try-except-usage
+			for filename in glob.glob(f"{log_file}.*"):
+				try:
 					if int(filename.split(".")[-1]) > config.keep_rotated_logs:
-						os.remove(filename)  # pylint: disable=dotted-import-in-loop
+						os.remove(filename)
 				except ValueError:
-					os.remove(filename)  # pylint: disable=dotted-import-in-loop
+					os.remove(filename)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to rotate log files: %s", err)
 
@@ -617,13 +617,13 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		result = {"password": "", "rsaPrivateKey": ""}
 
-		for line in ConfigFile(filename=OPSI_PASSWD_FILE).parse():  # pylint: disable=loop-global-usage
-			match = PASSWD_LINE_REGEX.search(line)  # pylint: disable=loop-global-usage
+		for line in ConfigFile(filename=OPSI_PASSWD_FILE).parse():
+			match = PASSWD_LINE_REGEX.search(line)
 			if match is None:
 				continue
 
 			if match.group(1) == username:
-				result["password"] = match.group(2)  # pylint: disable=loop-invariant-statement
+				result["password"] = match.group(2)
 				break
 
 		if not result["password"]:
@@ -684,7 +684,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		lines = []
 		try:
 			for line in conf_file.readlines():
-				match = PASSWD_LINE_REGEX.search(line)  # pylint: disable=loop-global-usage
+				match = PASSWD_LINE_REGEX.search(line)
 				if not match or match.group(1) != username:
 					lines.append(line.rstrip())
 		except FileNotFoundError:

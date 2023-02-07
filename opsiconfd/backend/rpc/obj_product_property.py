@@ -32,17 +32,19 @@ class RPCProductPropertyMixin(Protocol):
 		create: bool = True,
 		set_null: bool = True,
 		session: Session | None = None,
-		lock: bool = True
+		lock: bool = True,
 	) -> None:
 		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
-			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}) if lock else nullcontext():
+			with self._mysql.table_lock(
+				session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}
+			) if lock else nullcontext():
 				session.execute(
 					"""
 					DELETE FROM `PRODUCT_PROPERTY_VALUE`
 					WHERE productId = :productId AND productVersion = :productVersion AND packageVersion = :packageVersion AND propertyId = :propertyId
 					""",
-					params=data
+					params=data,
 				)
 				if session.execute(query, params=data).rowcount > 0:
 					for value in data["possibleValues"] or []:
@@ -54,23 +56,27 @@ class RPCProductPropertyMixin(Protocol):
 								(:productId, :productVersion, :packageVersion, :propertyId, :value, :isDefault)
 							""",
 							params={
-								"productId": data["productId"],  # pylint: disable=loop-invariant-statement
-								"productVersion": data["productVersion"],  # pylint: disable=loop-invariant-statement
-								"packageVersion": data["packageVersion"],  # pylint: disable=loop-invariant-statement
-								"propertyId": data["propertyId"],  # pylint: disable=loop-invariant-statement
+								"productId": data["productId"],
+								"productVersion": data["productVersion"],
+								"packageVersion": data["packageVersion"],
+								"propertyId": data["propertyId"],
 								"value": value,
-								"isDefault": value in (data["defaultValues"] or [])  # pylint: disable=loop-invariant-statement
-							}
+								"isDefault": value in (data["defaultValues"] or []),
+							},
 						)
 
 	@rpc_method(check_acl=False)
-	def productProperty_insertObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:  # pylint: disable=invalid-name
+	def productProperty_insertObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, productProperty: dict | ProductProperty
+	) -> None:
 		ace = self._get_ace("productProperty_insertObject")
 		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def productProperty_updateObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:  # pylint: disable=invalid-name
+	def productProperty_updateObject(  # pylint: disable=invalid-name
+		self: BackendProtocol, productProperty: dict | ProductProperty
+	) -> None:
 		ace = self._get_ace("productProperty_updateObject")
 		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=False, set_null=False)
@@ -128,7 +134,7 @@ class RPCProductPropertyMixin(Protocol):
 	) -> list[dict] | list[ProductProperty]:
 		aggregates = {
 			"possibleValues": f'GROUP_CONCAT(`value` SEPARATOR "{self._mysql.record_separator}")',
-			"defaultValues": f'GROUP_CONCAT(IF(`isDefault`, `value`, NULL) SEPARATOR "{self._mysql.record_separator}")'
+			"defaultValues": f'GROUP_CONCAT(IF(`isDefault`, `value`, NULL) SEPARATOR "{self._mysql.record_separator}")',
 		}
 		return self._mysql.get_objects(
 			table=(
@@ -143,16 +149,20 @@ class RPCProductPropertyMixin(Protocol):
 			ace=ace,
 			return_type=return_type,
 			attributes=attributes,
-			filter=filter
+			filter=filter,
 		)
 
 	@rpc_method(check_acl=False)
-	def productProperty_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ProductProperty]:  # pylint: disable=redefined-builtin,invalid-name
+	def productProperty_getObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[ProductProperty]:
 		ace = self._get_ace("productProperty_getObjects")
 		return self._product_property_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def productProperty_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def productProperty_getHashes(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[dict]:
 		ace = self._get_ace("productProperty_getObjects")
 		return self._product_property_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
@@ -174,7 +184,9 @@ class RPCProductPropertyMixin(Protocol):
 			remove_orphans_product_property_state(session)
 
 	@rpc_method(check_acl=False)
-	def productProperty_delete(self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, propertyId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def productProperty_delete(  # pylint: disable=invalid-name
+		self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, propertyId: str
+	) -> None:
 		self.productProperty_deleteObjects(
 			self.productProperty_getIdents(
 				returnType="dict", productId=productId, productVersion=productVersion, packageVersion=packageVersion, propertyId=propertyId

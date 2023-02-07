@@ -45,6 +45,7 @@ logger: OPSILogger | None = None  # pylint: disable=invalid-name
 config = None  # pylint: disable=invalid-name
 if TYPE_CHECKING:
 	from config import Config  # type: ignore[import]
+
 	config: "Config" | None = None  # type: ignore[no-redef]  # pylint: disable=invalid-name
 
 
@@ -107,7 +108,7 @@ def is_manager(proc: psutil.Process) -> bool:
 
 def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> Optional[int]:
 	manager_pid = None
-	ignore_pids = []  # pylint: disable=use-tuple-over-list
+	ignore_pids = []
 	if ignore_self:
 		our_pid = os.getpid()
 		our_proc = psutil.Process(our_pid)
@@ -116,8 +117,8 @@ def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> 
 	if ignore_parents:
 		ignore_pids += [p.pid for p in our_proc.parents()]
 
-	for proc in psutil.process_iter():  # pylint: disable=dotted-import-in-loop
-		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:  # pylint: disable=dotted-import-in-loop
+	for proc in psutil.process_iter():
+		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
 			continue
 		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
 			# Do not return, prefer higher pids
@@ -136,7 +137,7 @@ def normalize_ip_address(address: str, exploded: bool = False) -> str:
 
 
 def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
-	for interface, snics in psutil.net_if_addrs().items():  # pylint: disable=dotted-import-in-loop
+	for interface, snics in psutil.net_if_addrs().items():
 		for snic in snics:
 			family = None
 			if snic.family == AF_INET:
@@ -147,11 +148,11 @@ def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
 				continue
 
 			ipa = None
-			try:  # pylint: disable=loop-try-except-usage
-				ipa = ip_address(snic.address.split("%")[0])  # pylint: disable=dotted-import-in-loop
+			try:
+				ipa = ip_address(snic.address.split("%")[0])
 			except ValueError:
-				if logger:  # pylint: disable=loop-global-usage
-					logger.warning("Unrecognised ip address: %r", snic.address)  # pylint: disable=loop-global-usage
+				if logger:
+					logger.warning("Unrecognised ip address: %r", snic.address)
 
 			yield {"family": family, "interface": interface, "address": snic.address, "ip_address": ipa}
 

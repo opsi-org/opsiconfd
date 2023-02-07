@@ -120,5 +120,5 @@ def test_acl_file_errors(tmp_path: Path) -> None:  # pylint: disable=too-many-st
 		"backend_deleteBase :\n",
 	):
 		acl_file.write_text(data=data, encoding="utf-8")
-		with pytest.raises(ValueError):  # pylint: disable=dotted-import-in-loop
+		with pytest.raises(ValueError):
 			read_acl_file(acl_file)

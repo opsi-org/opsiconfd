@@ -116,7 +116,7 @@ def test_multi_request(test_client: OpsiconfdTestClient) -> None:  # pylint: dis
 	result = resp.json()
 	assert len(result) == 2
 	for res in result:
-		assert res["id"] in (rpc[0]["id"], rpc[1]["id"])  # pylint: disable=loop-invariant-statement
+		assert res["id"] in (rpc[0]["id"], rpc[1]["id"])
 		assert res["error"] is None
 		assert res["result"] is None
 
@@ -255,7 +255,7 @@ def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  #
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 		res.raise_for_status()
 		for entry in tmp_path.iterdir():
-			data = json.loads(entry.read_text(encoding="utf-8"))  # pylint: disable=dotted-import-in-loop
+			data = json.loads(entry.read_text(encoding="utf-8"))
 			assert data["client"]
 			assert "Processing request from" in data["description"]
 			assert data["request"]["method"] == "invalid"
@@ -271,7 +271,7 @@ def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> Non
 				"id": num,
 				"method": "host_getObjects",
 				"params": [["id"], {"type": "OpsiDepotserver"}],
-			}  # pylint: disable=loop-invariant-statement
+			}
 			res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 			res.raise_for_status()
 			result = res.json()
@@ -280,7 +280,7 @@ def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> Non
 			if num == 2:
 				assert int(redis.get(f"{config.redis_key('stats')}:num_rpcs") or 0) == 2
 				redis_result = redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, -1)
-				infos = [msgpack.loads(value) for value in redis_result]  # pylint: disable=dotted-import-in-loop
+				infos = [msgpack.loads(value) for value in redis_result]
 				assert len(infos) == 2
 				for info in infos:
 					assert info["rpc_num"] in (1, 2)

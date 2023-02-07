@@ -69,18 +69,18 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 			cur_path = root_path
 			name_found = None
 			for part in path_parts:
-				cur_path = os.path.join(cur_path, part)  # pylint: disable=dotted-import-in-loop
-				if not os.path.exists(cur_path):  # pylint: disable=dotted-import-in-loop
+				cur_path = os.path.join(cur_path, part)
+				if not os.path.exists(cur_path):
 					part_lower = part.lower()
 					name_found = None
-					for name in os.listdir(os.path.dirname(cur_path)):  # pylint: disable=dotted-import-in-loop
+					for name in os.listdir(os.path.dirname(cur_path)):
 						if name.lower() == part_lower:
 							name_found = name
 							break
 					if not name_found:
 						# Give up
 						break
-					cur_path = os.path.join(os.path.dirname(cur_path), name_found)  # pylint: disable=dotted-import-in-loop
+					cur_path = os.path.join(os.path.dirname(cur_path), name_found)
 			if name_found and cur_path.lower() == file_path.lower():
 				file_path = cur_path
 
@@ -225,7 +225,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False)  # type: ignore[index]  # pylint: disable=loop-invariant-statement
+		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False)  # type: ignore[index]
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
 	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
 	app_config["mount_path"] = "/dav"

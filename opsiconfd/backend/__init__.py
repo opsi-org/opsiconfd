@@ -96,9 +96,9 @@ def execute_on_secondary_backends(
 		# 	continue
 		# logger.info("Executing '%s' on secondary backend '%s'", method, backend_id)
 		# meth = getattr(backend._backends[backend_id]["instance"], method)  # pylint: disable=protected-access
-		# try:  # pylint: disable=loop-try-except-usage
-		# 	result[backend_id] = {"data": meth(**kwargs), "error": None}  # pylint: disable=loop-invariant-statement
+		# try:
+		# 	result[backend_id] = {"data": meth(**kwargs), "error": None}
 		# except Exception as err:  # pylint: disable=broad-except
-		# 	result[backend_id] = {"data": None, "error": err}  # pylint: disable=loop-invariant-statement
+		# 	result[backend_id] = {"data": None, "error": err}
 		# backend._backends[backend_id]["instance"].backend_exit()  # pylint: disable=protected-access
 	return result

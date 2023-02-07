@@ -91,18 +91,18 @@ class RPCHostMixin(Protocol):
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
-	def host_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Host]:  # pylint: disable=redefined-builtin,invalid-name
+	def host_getObjects(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[Host]:
 		ace = self._get_ace("host_getObjects")
-		return self._mysql.get_objects(
-			table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter
-		)
+		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def host_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def host_getHashes(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[dict]:
 		ace = self._get_ace("host_getObjects")
-		return self._mysql.get_objects(
-			table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter
-		)
+		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
 	def host_getIdents(  # pylint: disable=invalid-name
@@ -126,9 +126,7 @@ class RPCHostMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def host_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.host_deleteObjects(
-			self.host_getIdents(returnType="dict", id=id)
-		)
+		self.host_deleteObjects(self.host_getIdents(returnType="dict", id=id))
 
 	@rpc_method(check_acl=False)
 	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name
@@ -226,7 +224,7 @@ class RPCHostMixin(Protocol):
 				if getattr(host, url_type):
 					address = urlparse(getattr(host, url_type)).hostname
 					if address:
-						try:  # pylint: disable=loop-try-except-usage
+						try:
 							ip_addresses.add(ip_address(address).compressed)
 						except ValueError:
 							# Not an ip address
@@ -346,7 +344,9 @@ class RPCHostMixin(Protocol):
 			self.softwareLicense_createObjects(software_licenses)
 
 	@rpc_method(check_acl=False)
-	def host_renameOpsiDepotserver(self: BackendProtocol, oldId: str, newId: str) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
+	def host_renameOpsiDepotserver(  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
+		self: BackendProtocol, oldId: str, newId: str
+	) -> None:
 		"""
 		Rename OpsiDepotserver with id `oldId` to `newId`.
 

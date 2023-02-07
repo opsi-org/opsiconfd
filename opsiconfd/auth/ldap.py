@@ -101,14 +101,12 @@ class LDAPAuthentication(AuthenticationModule):
 		user_dn = None
 		group_dns = []
 		for user_filter in [f"(&(objectclass=user)(sAMAccountName={username}))", f"(&(objectclass=posixAccount)(uid={username}))"]:
-			try:  # pylint: disable=loop-try-except-usage
-				logger.debug(
-					"Searching user in ldap base=%s, filter=%s", self._uri["base"], user_filter  # pylint: disable=loop-invariant-statement
-				)
+			try:
+				logger.debug("Searching user in ldap base=%s, filter=%s", self._uri["base"], user_filter)
 				self._ldap.search(
-					self._uri["base"],  # pylint: disable=loop-invariant-statement
+					self._uri["base"],
 					user_filter,
-					search_scope=ldap3.SUBTREE,  # pylint: disable=dotted-import-in-loop
+					search_scope=ldap3.SUBTREE,
 					attributes="*",
 				)
 				for entry in sorted(self._ldap.entries):
@@ -118,11 +116,11 @@ class LDAPAuthentication(AuthenticationModule):
 					if "sAMAccountName" in entry.entry_attributes:
 						ldap_type = "ad"
 						groupnames.add("domain users")
-				if user_dn:  # pylint: disable=loop-invariant-statement
+				if user_dn:
 					break
 			except LDAPObjectClassError as err:
 				logger.debug(err)
-			if user_dn and ldap_type == "ad":  # pylint: disable=loop-invariant-statement
+			if user_dn and ldap_type == "ad":
 				break
 
 		if not user_dn:
@@ -139,7 +137,7 @@ class LDAPAuthentication(AuthenticationModule):
 		else:
 			if self._group_filter is None:
 				group_filter = "(objectclass=posixGroup)"
-			attributes = ["cn", "member", "memberUid"]  # pylint: disable=use-tuple-over-list
+			attributes = ["cn", "member", "memberUid"]
 
 		scope = ldap3.BASE if group_dns else ldap3.SUBTREE
 		for base in group_dns or [self._uri["base"]]:

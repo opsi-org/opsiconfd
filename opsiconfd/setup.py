@@ -137,12 +137,12 @@ def setup_users_and_groups() -> None:
 	gids = os.getgrouplist(user.pw_name, user.pw_gid)
 	for groupname in ("shadow", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "fileadmingroup")):
 		logger.debug("Processing group %s", groupname)
-		try:  # pylint: disable=loop-try-except-usage
-			group = grp.getgrnam(groupname)  # pylint: disable=dotted-import-in-loop
+		try:
+			group = grp.getgrnam(groupname)
 			if group.gr_gid not in gids:
 				add_user_to_group(config.run_as_user, groupname)
 			if groupname == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					set_primary_group(user.pw_name, opsi_config.get("groups", "fileadmingroup"))
 				except Exception as err:  # pylint: disable=broad-except
 					# Could be a user in active directory / ldap
@@ -175,8 +175,8 @@ def _get_default_dirs() -> list[str]:
 
 def setup_files() -> None:
 	for _dir in _get_default_dirs():
-		if not os.path.isdir(_dir) and not os.path.islink(_dir):  # pylint: disable=dotted-import-in-loop
-			os.makedirs(_dir)  # pylint: disable=dotted-import-in-loop
+		if not os.path.isdir(_dir) and not os.path.islink(_dir):
+			os.makedirs(_dir)
 			set_rights(_dir)
 
 
@@ -203,7 +203,7 @@ def setup_file_permissions() -> None:
 	setup_ssl_file_permissions()
 
 	for path_str in _get_default_dirs():
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			path = Path(path_str)
 			if path.is_dir() and path.owner() != config.run_as_user:
 				set_rights(str(path))
@@ -213,7 +213,7 @@ def setup_file_permissions() -> None:
 
 def setup_systemd() -> None:
 	systemd_running = False
-	for proc in psutil.process_iter():  # pylint: disable=dotted-import-in-loop
+	for proc in psutil.process_iter():
 		if proc.name() == "systemd":
 			systemd_running = True
 			break
@@ -281,7 +281,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 				raise error  # type: ignore[misc]
 			if error:
 				error_str = str(error).split("\n", 1)[0]
-				match = re.search(r"(\(\d+,\s.*)", error_str)  # pylint: disable=dotted-import-in-loop
+				match = re.search(r"(\(\d+,\s.*)", error_str)
 				if match:
 					error_str = match.group(1).strip("()")
 				rich_print(f"[b][red]Failed to connect to database[/red]: {error_str}[/b]")
@@ -293,10 +293,8 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 			mysql_root.password = Prompt.ask("Enter MySQL admin password", password=True)
 			secret_filter.add_secrets(mysql_root.password)
 			if force:
-				mysql.username = Prompt.ask(  # pylint: disable=loop-invariant-statement
-					"Enter MySQL username for opsiconfd", default=mysql.username, show_default=True
-				)
-		try:  # pylint: disable=loop-try-except-usage
+				mysql.username = Prompt.ask("Enter MySQL username for opsiconfd", default=mysql.username, show_default=True)
+		try:
 			with mysql_root.connection():
 				if not auto_try:
 					rich_print("[b][green]MySQL admin connection established[/green][/b]")
@@ -305,7 +303,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 				if not auto_try:
 					rich_print("[b][green]MySQL user setup successful[/green][/b]")
 				break
-		except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
+		except Exception as err:  # pylint: disable=broad-except
 			if not auto_try:
 				error = err
 
@@ -397,22 +395,22 @@ def cleanup_log_files() -> None:
 	if not os.path.isdir(log_dir):
 		return
 	links = []
-	for filename in os.listdir(log_dir):  # pylint: disable=dotted-import-in-loop
-		try:  # pylint: disable=loop-try-except-usage
-			file = os.path.join(log_dir, filename)  # pylint: disable=dotted-import-in-loop
-			if os.path.islink(file):  # pylint: disable=dotted-import-in-loop
+	for filename in os.listdir(log_dir):
+		try:
+			file = os.path.join(log_dir, filename)
+			if os.path.islink(file):
 				links.append(file)
-			elif os.path.isfile(file) and os.path.getmtime(file) < min_mtime:  # pylint: disable=dotted-import-in-loop
+			elif os.path.isfile(file) and os.path.getmtime(file) < min_mtime:
 				logger.info("Deleting old log file: %s", file)
-				os.remove(file)  # pylint: disable=dotted-import-in-loop
+				os.remove(file)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err)
 
 	for link in links:
-		try:  # pylint: disable=loop-try-except-usage
-			dst = os.path.realpath(link)  # pylint: disable=dotted-import-in-loop
-			if not os.path.exists(dst):  # pylint: disable=dotted-import-in-loop
-				os.unlink(link)  # pylint: disable=dotted-import-in-loop
+		try:
+			dst = os.path.realpath(link)
+			if not os.path.exists(dst):
+				os.unlink(link)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err)
 
@@ -672,7 +670,7 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 	service = ServiceClient(opsi_config.get("service", "url"), verify="accept_all", jsonrpc_create_objects=True)
 	try:  # pylint: disable=too-many-nested-blocks
 		while True:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				if not Confirm.ask("Do you want to register this server as a depotserver?"):
 					return False
 
@@ -694,13 +692,13 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 			except KeyboardInterrupt:
 				print("")
 				return False
-			except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
+			except Exception as err:  # pylint: disable=broad-except
 				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
 
 		depot_id = opsi_config.get("host", "id")
 		depot = OpsiDepotserver(id=depot_id)
 		while True:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
 
@@ -713,25 +711,15 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 						depot = OpsiDepotserver.fromHash({k: v for k, v in depot.to_hash().items() if k != "type"})
 
 				depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
-				depot.depotLocalUrl = f"file://{DEPOT_DIR}"  # pylint: disable=loop-invariant-statement
-				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"  # pylint: disable=loop-invariant-statement
-				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs:///{FQDN}:4447/depot"  # pylint: disable=loop-invariant-statement
-				depot.repositoryLocalUrl = f"file://{REPOSITORY_DIR}"  # pylint: disable=loop-invariant-statement
-				depot.repositoryRemoteUrl = (
-					depot.repositoryRemoteUrl or f"webdavs:///{FQDN}:4447/repository"  # pylint: disable=loop-invariant-statement
-				)
-				depot.workbenchLocalUrl = f"file://{WORKBENCH_DIR}"  # pylint: disable=loop-invariant-statement
-				depot.workbenchRemoteUrl = (
-					depot.workbenchRemoteUrl or f"smb:///{FQDN}/opsi_workbench"  # pylint: disable=loop-invariant-statement
-				)  # pylint: disable=loop-invariant-statement
-				try:  # pylint: disable=loop-try-except-usage
-					depot.systemUUID = str(
-						UUID(
-							Path("/sys/class/dmi/id/product_uuid")  # pylint: disable=loop-invariant-statement
-							.read_text(encoding="ascii")
-							.strip()
-						)
-					)
+				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
+				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"
+				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs:///{FQDN}:4447/depot"
+				depot.repositoryLocalUrl = f"file://{REPOSITORY_DIR}"
+				depot.repositoryRemoteUrl = depot.repositoryRemoteUrl or f"webdavs:///{FQDN}:4447/repository"
+				depot.workbenchLocalUrl = f"file://{WORKBENCH_DIR}"
+				depot.workbenchRemoteUrl = depot.workbenchRemoteUrl or f"smb:///{FQDN}/opsi_workbench"
+				try:
+					depot.systemUUID = str(UUID(Path("/sys/class/dmi/id/product_uuid").read_text(encoding="ascii").strip()))
 				except Exception as err:  # pylint: disable=broad-except
 					logger.debug(err)
 
@@ -756,8 +744,8 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 			except KeyboardInterrupt:
 				print("")
 				return False
-			except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
-				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")  # pylint: disable=loop-invariant-statement
+			except Exception as err:  # pylint: disable=broad-except
+				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
 	finally:
 		service.disconnect()
 

@@ -59,7 +59,10 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 
 		if delta.days >= 30:
 			state = State.WARNING
-			message += f"opsi-client {client_id} has not been seen, since {delta.days} days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "  # pylint: disable=line-too-long
+			message += (
+				f"opsi-client {client_id} has not been seen, since {delta.days} days. "
+				"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
+			)
 		elif delta.days == 0:
 			message += f"opsi-client {client_id} has been seen today. "
 		else:

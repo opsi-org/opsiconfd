@@ -97,7 +97,7 @@ def merge_dicts(dict_a: dict, dict_b: dict, path: list[str] | None = None) -> di
 	if not dict_a or not dict_b:
 		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
 	if path is None:
-		path = []  # pylint: disable=use-tuple-over-list
+		path = []
 	for key in dict_b:
 		if key in dict_a:
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
@@ -149,9 +149,7 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				if websocket.client_state != WebSocketState.CONNECTED:
 					break
 				logger.debug("Send set-cookie")
-				await websocket.send_bytes(
-					msgspec.msgpack.encode({"type": "set-cookie", "payload": session.get_cookie()})
-				)  # pylint: disable=dotted-import-in-loop
+				await websocket.send_bytes(msgspec.msgpack.encode({"type": "set-cookie", "payload": session.get_cookie()}))
 		except (ConnectionClosedOK, WebSocketDisconnect) as err:
 			logger.debug("set_cookie_task: %s", err)
 

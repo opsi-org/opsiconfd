@@ -60,7 +60,7 @@ async def log_viewer() -> None:
 	set_filter_from_string(config.log_filter)
 	AsyncRedisLogAdapter(stderr_file=sys.stdout)
 	while True:
-		await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
+		await asyncio.sleep(1)
 
 
 def setup_main() -> None:
@@ -243,7 +243,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 			if config.action == "force-stop":
 				# Wait 5 seconds for processes to terminate or resend signal to force stop
 				for _num in range(5):
-					time.sleep(1)  # pylint: disable=dotted-import-in-loop
+					time.sleep(1)
 					if not get_manager_pid():
 						return
 				try:
@@ -307,7 +307,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 	finally:
 		if stdin:
 			stdin.close()
-		for thread in threading.enumerate():  # pylint: disable=dotted-import-in-loop
+		for thread in threading.enumerate():
 			stop = getattr(thread, "stop", None)
 			if stop:
 				stop()

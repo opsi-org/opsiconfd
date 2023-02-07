@@ -46,7 +46,7 @@ def rpc_cache_load(cache_name: str, *args: Any, **kwargs: Any) -> Any:
 
 
 def rpc_cache_clear(cache_name: str | None = None) -> Any:
-	redis_key = config.redis_key('rpccache')
+	redis_key = config.redis_key("rpccache")
 	if cache_name:
 		redis_key = f"{redis_key}:{cache_name}"
 	delete_recursively(redis_key)
@@ -56,9 +56,9 @@ def rpc_cache_info() -> dict[str, int]:
 	info: dict[str, int] = defaultdict(int)
 	prefix = f"{config.redis_key('rpccache')}:"
 	with redis_client() as redis:
-		for key in redis.scan_iter(f"{prefix}*"):  # pylint: disable=loop-invariant-statement
+		for key in redis.scan_iter(f"{prefix}*"):
 			rel = key.decode("utf-8").removeprefix(prefix)
 			if ":" in rel:
 				cache_name, _ = rel.split(":", 1)
-				info[cache_name] += 1  # pylint: disable=loop-invariant-statement
+				info[cache_name] += 1
 	return info

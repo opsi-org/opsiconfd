@@ -88,9 +88,9 @@ def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: 
 	"""
 	methods = {}
 	for _, function in getmembers(instance, ismethod):
-		rpc_interface: MethodInterface | None = getattr(function, "rpc_interface", None)  # pylint: disable=loop-invariant-statement
-		if rpc_interface:  # pylint: disable=loop-invariant-statement
-			methods[rpc_interface.name] = rpc_interface  # pylint: disable=loop-invariant-statement
+		rpc_interface: MethodInterface | None = getattr(function, "rpc_interface", None)
+		if rpc_interface:
+			methods[rpc_interface.name] = rpc_interface
 	return methods
 
 
@@ -199,7 +199,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			raise ValueError("No interface specification present for _create_jsonrpc_instance_methods")
 
 		for method in self._interface_list:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				method_name = method["name"]
 				self._interface[method_name] = MethodInterface(**method)
 
@@ -210,7 +210,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				):
 					continue
 
-				logger.debug("Creating instance method: %s", method_name)  # pylint: disable=loop-global-usage
+				logger.debug("Creating instance method: %s", method_name)
 
 				args = method["args"]
 				varargs = method["varargs"]
@@ -223,8 +223,8 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 					if argument == "self":
 						continue
 
-					if isinstance(defaults, (tuple, list)) and len(defaults) + i >= len(args):  # pylint: disable=loop-invariant-statement
-						default = defaults[len(defaults) - len(args) + i]  # pylint: disable=loop-invariant-statement
+					if isinstance(defaults, (tuple, list)) and len(defaults) + i >= len(args):
+						default = defaults[len(defaults) - len(args) + i]
 						if isinstance(default, str):
 							default = "{0!r}".format(default).replace('"', "'")  # pylint: disable=consider-using-f-string
 						arg_list.append(f"{argument}={default}")
@@ -244,8 +244,8 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				arg_string = ", ".join(arg_list)
 				call_string = ", ".join(call_list)
 
-				logger.trace("%s: arg string is: %s", method_name, arg_string)  # pylint: disable=loop-global-usage
-				logger.trace("%s: call string is: %s", method_name, call_string)  # pylint: disable=loop-global-usage
+				logger.trace("%s: arg string is: %s", method_name, arg_string)
+				logger.trace("%s: call string is: %s", method_name, call_string)
 				exec(  # pylint: disable=exec-used
 					f"def {method_name}(self, {arg_string}):\n"
 					'	with server_timing("jsonrpc_forward"):\n'
@@ -253,12 +253,10 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				)
 				func = eval(method_name)  # pylint: disable=eval-used
 				setattr(func, "rpc_interface", self._interface[method_name])
-				setattr(self, method_name, MethodType(func, self))  # pylint: disable=eval-used,dotted-import-in-loop
+				setattr(self, method_name, MethodType(func, self))  # pylint: disable=eval-used
 
 			except Exception as err:  # pylint: disable=broad-except
-				logger.critical(
-					"Failed to create instance method '%s': %s", method, err, exc_info=True
-				)  # pylint: disable=loop-global-usage
+				logger.critical("Failed to create instance method '%s': %s", method, err, exc_info=True)
 
 	def _depot_server_init(self) -> None:
 		self._service_client = get_service_client("backend")
@@ -373,21 +371,21 @@ class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
 		for ace in self._acl.get(method, []):
 			if ace.type == "all":
 				ace_list.append(ace)
-			elif user_type == "user":  # pylint: disable=loop-invariant-statement
+			elif user_type == "user":
 				if ace.type == "sys_user":
 					if not ace.id or ace.id == session.username:
 						ace_list.append(ace)
 				elif ace.type == "sys_group":
 					if not ace.id or ace.id in session.user_groups:
 						ace_list.append(ace)
-			elif ace.type == "self" and user_type in ("client", "depot"):  # pylint: disable=loop-invariant-statement
+			elif ace.type == "self" and user_type in ("client", "depot"):
 				kwargs = ace.__dict__
 				kwargs["id"] = session.username
 				ace_list.append(RPCACE(**kwargs))
-			elif user_type == "client" and ace.type == "opsi_client":  # pylint: disable=loop-invariant-statement
+			elif user_type == "client" and ace.type == "opsi_client":
 				if not ace.id or ace.id == session.username:
 					ace_list.append(ace)
-			elif user_type == "depot" and ace.type == "opsi_depotserver":  # pylint: disable=loop-invariant-statement
+			elif user_type == "depot" and ace.type == "opsi_depotserver":
 				if not ace.id or ace.id == session.username:
 					ace_list.append(ace)
 

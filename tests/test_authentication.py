@@ -244,7 +244,7 @@ def test_max_auth_failures(
 	max_auth_failures = 5
 	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
 		for num in range(max_auth_failures + over_limit):
-			now = round(time.time()) * 1000  # pylint: disable=dotted-import-in-loop
+			now = round(time.time()) * 1000
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
 				# print("=== key ==>>>", key)
 				cmd = (
@@ -263,7 +263,7 @@ def test_max_auth_failures(
 			else:
 				assert res.status_code == 401
 				assert res.text == "Authentication error"
-			time.sleep(2)  # pylint: disable=dotted-import-in-loop
+			time.sleep(2)
 
 
 def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
@@ -296,7 +296,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	test_client.auth = None
 	# Keep session alive
 	for _ in range(lifetime + 3):
-		time.sleep(1)  # pylint: disable=dotted-import-in-loop
+		time.sleep(1)
 		res = test_client.get("/session/authenticated")
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]

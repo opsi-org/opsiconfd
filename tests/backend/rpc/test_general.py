@@ -56,7 +56,7 @@ def test_get_client_info(  # pylint: disable=too-many-locals
 	olca = LocalbootProduct(id="opsi-linux-client-agent", productVersion="4.3.0.0", packageVersion="1")
 	omca = LocalbootProduct(id="opsi-mac-client-agent", productVersion="4.3.0.0", packageVersion="1")
 
-	pocs = [  # pylint: disable=use-tuple-over-list
+	pocs = [
 		ProductOnClient(
 			productId=oca.id,
 			productType=oca.getType(),

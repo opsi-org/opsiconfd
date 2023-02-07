@@ -57,13 +57,13 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 		wim_search_path = os.path.join(product_path, "installfiles", "sources")
 
 		for filename in ("install.wim", "install.esd"):
-			wim_path = os.path.join(wim_search_path, filename)  # pylint: disable=dotted-import-in-loop
+			wim_path = os.path.join(wim_search_path, filename)
 
-			if os.path.exists(wim_path):  # pylint: disable=dotted-import-in-loop
+			if os.path.exists(wim_path):
 				logger.debug("Found image file %s", filename)
 				break
 		else:
-			raise IOError(f"Unable to find install.wim / install.esd in {wim_search_path!r}")  # pylint: disable=loop-invariant-statement
+			raise IOError(f"Unable to find install.wim / install.esd in {wim_search_path!r}")
 
 		self.updateWIMConfigFromPath(wim_path, product_id)
 

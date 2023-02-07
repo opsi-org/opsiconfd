@@ -187,7 +187,7 @@ async def test_get_rpc_list_request(
 			await run_in_threadpool(
 				call_rpc,
 				test_client,
-				[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+				[{"id": 1, "method": "host_getIdents", "params": [None]}],
 				[False],
 			)
 	response = await run_in_threadpool(test_client.get, "/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
@@ -233,7 +233,7 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 			await run_in_threadpool(
 				call_rpc,
 				test_client,
-				[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+				[{"id": 1, "method": "host_getIdents", "params": [None]}],
 				[False],
 			)
 
@@ -265,10 +265,10 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 		session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
 		sessions = []
 		local_ip = None
-		for key in redis.scan_iter(f"{config.redis_key('session')}:*"):  # pylint: disable=loop-invariant-statement
+		for key in redis.scan_iter(f"{config.redis_key('session')}:*"):
 			addr, sess = key.decode("utf8").split(":")[-2:]
 			sessions.append(sess)
-			if sess == session:  # pylint: disable=loop-invariant-statement
+			if sess == session:
 				local_ip = addr
 
 	rpc_request_data = json.loads(json.dumps(rpc_request_data).replace("<local_ip>", local_ip or ""))
@@ -355,7 +355,7 @@ async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylin
 			await run_in_threadpool(
 				call_rpc,
 				test_client,
-				[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+				[{"id": 1, "method": "host_getIdents", "params": [None]}],
 				[False],
 			)
 		res = await run_in_threadpool(test_client.get, "/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
@@ -367,9 +367,7 @@ def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 	addr = test_client.get_client_address()
 	for idx in range(10):
 		test_client.set_client_address("192.168.36." + str(idx), idx * 1000)
-		call_rpc(
-			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
-		)
+		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
 
 	test_client.set_client_address(addr[0], addr[1])
 	res = test_client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
@@ -384,13 +382,13 @@ def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 
 def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 
-	test_products = [  # pylint: disable=use-tuple-over-list
+	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
 	]
-	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]  # pylint: disable=use-tuple-over-list
-	products = ["test_product01", "test_product02"]  # pylint: disable=use-tuple-over-list
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
+	products = ["test_product01", "test_product02"]
 
 	with (
 		depot_jsonrpc(test_client, "", test_depots[0]),
@@ -414,12 +412,12 @@ def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBa
 
 def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 
-	test_products = [  # pylint: disable=use-tuple-over-list
+	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
 	]
-	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]  # pylint: disable=use-tuple-over-list
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
 	product = "test_product03"
 
 	with (
@@ -444,13 +442,13 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Unprotec
 def test_get_locked_products_list(
 	test_client: OpsiconfdTestClient, backend: UnprotectedBackend  # pylint: disable=redefined-outer-name
 ) -> None:
-	test_products = [  # pylint: disable=use-tuple-over-list
+	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
 	]
-	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]  # pylint: disable=use-tuple-over-list
-	products = ["test_product01", "test_product02"]  # pylint: disable=use-tuple-over-list
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
+	products = ["test_product01", "test_product02"]
 
 	with (
 		depot_jsonrpc(test_client, "", test_depots[0]),

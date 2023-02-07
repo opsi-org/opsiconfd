@@ -37,7 +37,9 @@ AUDIT_HARDWARE_CONFIG_LOCALES_DIR: str = "/etc/opsi/hwaudit/locales"
 OPSI_HARDWARE_CLASSES: list[dict[str, Any]] = []
 
 
-def inherit_from_super_classes(classes: list[dict[str, Any]], _class: dict[str, Any], scname: str | None = None) -> None:  # pylint: disable=unused-private-member
+def inherit_from_super_classes(
+	classes: list[dict[str, Any]], _class: dict[str, Any], scname: str | None = None
+) -> None:  # pylint: disable=unused-private-member
 	if not scname:  # pylint: disable=too-many-nested-blocks
 		for _scname in _class["Class"].get("Super", []):
 			inherit_from_super_classes(classes, _class, _scname)
@@ -54,20 +56,24 @@ def inherit_from_super_classes(classes: list[dict[str, Any]], _class: dict[str, 
 					for idx, current_value in enumerate(_class["Values"]):
 						if current_value["Opsi"] == new_value["Opsi"]:
 							if not current_value.get("UI"):
-								_class["Values"][idx]["UI"] = new_value.get("UI", "")  # pylint: disable=loop-invariant-statement
+								_class["Values"][idx]["UI"] = new_value.get("UI", "")
 							found_at = idx
 							break
 					if found_at > -1:
-						new_value = _class["Values"][found_at]  # pylint: disable=loop-invariant-statement
-						del _class["Values"][found_at]  # pylint: disable=loop-invariant-statement
+						new_value = _class["Values"][found_at]
+						del _class["Values"][found_at]
 					new_values.append(new_value)
-				new_values.extend(_class["Values"])  # pylint: disable=loop-invariant-statement
-				_class["Values"] = new_values  # pylint: disable=loop-invariant-statement
+				new_values.extend(_class["Values"])
+				_class["Values"] = new_values
 				break
 
 
 @lru_cache(maxsize=10)
-def get_audit_hardware_config(language: str | None = None) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+def get_audit_hardware_config(
+	language: str | None = None,
+) -> list[
+	dict[str, dict[str, str] | list[dict[str, str]]]
+]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 
 	if not language:
 		language = "en_US"
@@ -82,7 +88,7 @@ def get_audit_hardware_config(language: str | None = None) -> list[dict[str, dic
 	locale = {}
 	try:
 		for line in ConfigFile(locale_file).parse():
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				identifier, translation = line.split("=", 1)
 				locale[identifier.strip()] = translation.strip()
 			except ValueError as verr:
@@ -95,29 +101,29 @@ def get_audit_hardware_config(language: str | None = None) -> list[dict[str, dic
 		with open(AUDIT_HARDWARE_CONFIG_FILE, encoding="utf-8") as hwc_file:
 			exec(hwc_file.read())  # pylint: disable=exec-used
 
-		for cls_idx, current_class_config in enumerate(OPSI_HARDWARE_CLASSES):  # pylint: disable=loop-global-usage
+		for cls_idx, current_class_config in enumerate(OPSI_HARDWARE_CLASSES):
 			opsi_class = current_class_config["Class"]["Opsi"]
 			if current_class_config["Class"]["Type"] == "STRUCTURAL":
 				if locale.get(opsi_class):
-					OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = locale[opsi_class]  # pylint: disable=loop-global-usage
+					OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = locale[opsi_class]
 				else:
 					logger.error("No translation for class '%s' found", opsi_class)
-					OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = opsi_class  # pylint: disable=loop-global-usage
+					OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = opsi_class
 
 			for val_idx, current_value in enumerate(current_class_config["Values"]):
 				opsi_property = current_value["Opsi"]
-				try:  # pylint: disable=loop-try-except-usage
-					OPSI_HARDWARE_CLASSES[cls_idx]["Values"][val_idx]["UI"] = locale[f"{opsi_class}.{opsi_property}"]  # pylint: disable=loop-global-usage,loop-invariant-statement
+				try:
+					OPSI_HARDWARE_CLASSES[cls_idx]["Values"][val_idx]["UI"] = locale[f"{opsi_class}.{opsi_property}"]
 				except KeyError:
 					pass
 
-		for owc in OPSI_HARDWARE_CLASSES:  # pylint: disable=loop-global-usage
-			try:  # pylint: disable=loop-try-except-usage
+		for owc in OPSI_HARDWARE_CLASSES:
+			try:
 				if owc["Class"].get("Type") == "STRUCTURAL":
 					logger.debug("Found STRUCTURAL hardware class '%s'", owc["Class"].get("Opsi"))
 					ccopy = deepcopy(owc)
 					if "Super" in ccopy["Class"]:
-						inherit_from_super_classes(OPSI_HARDWARE_CLASSES, ccopy)  # pylint: disable=loop-global-usage
+						inherit_from_super_classes(OPSI_HARDWARE_CLASSES, ccopy)
 						del ccopy["Class"]["Super"]
 					del ccopy["Class"]["Type"]
 
@@ -134,7 +140,7 @@ def get_audit_hardware_config(language: str | None = None) -> list[dict[str, dic
 
 					classes.append(ccopy)
 			except Exception as err:  # pylint: disable=broad-except
-				logger.error("Error in config file '%s': %s", AUDIT_HARDWARE_CONFIG_FILE, err)  # pylint: disable=loop-global-usage
+				logger.error("Error in config file '%s': %s", AUDIT_HARDWARE_CONFIG_FILE, err)
 
 		AuditHardware.setHardwareConfig(classes)
 		AuditHardwareOnHost.setHardwareConfig(classes)
@@ -150,7 +156,7 @@ def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]
 		hw_class = conf["Class"]["Opsi"]  # type: ignore
 		audit_hardware_config[hw_class] = {}
 		for value in conf["Values"]:
-			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore  # pylint: disable=loop-invariant-statement
+			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore
 	return audit_hardware_config
 
 
@@ -161,11 +167,10 @@ class RPCAuditHardwareMixin(Protocol):
 		self._audit_hardware_database_config = get_audit_hardware_database_config()
 
 	def _audit_hardware_by_hardware_class(
-		self: BackendProtocol,
-		audit_hardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
+		self: BackendProtocol, audit_hardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
 	) -> dict[str, list[AuditHardware]]:
 		by_hardware_class = defaultdict(list)
-		for ahoh in forceList(audit_hardwares):  # pylint: disable=use-list-copy
+		for ahoh in forceList(audit_hardwares):
 			if not isinstance(ahoh, AuditHardware):
 				ahoh = AuditHardware.fromHash(ahoh)
 			by_hardware_class[ahoh.hardwareClass].append(ahoh)
@@ -178,12 +183,16 @@ class RPCAuditHardwareMixin(Protocol):
 				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class}`")
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getConfig(self: BackendProtocol, language: str | None = None) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+	def auditHardware_getConfig(  # pylint: disable=invalid-name
+		self: BackendProtocol, language: str | None = None
+	) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:
 		self._get_ace("auditHardware_getConfig")
 
 		return get_audit_hardware_config(language)
 
-	def auditHardware_bulkInsertObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware]) -> None:  # pylint: disable=invalid-name
+	def auditHardware_bulkInsertObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware]
+	) -> None:
 		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
 			self._mysql.bulk_insert_objects(table=f"HARDWARE_DEVICE_{hardware_class}", objs=auh)  # type: ignore[arg-type]
 
@@ -209,7 +218,9 @@ class RPCAuditHardwareMixin(Protocol):
 		with self._mysql.session() as session:
 			for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
 				for obj in auh:
-					self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True, session=session)
+					self._mysql.insert_object(
+						table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True, session=session
+					)
 
 	@rpc_method(check_acl=False)
 	def auditHardware_updateObjects(  # pylint: disable=invalid-name
@@ -219,7 +230,9 @@ class RPCAuditHardwareMixin(Protocol):
 		with self._mysql.session() as session:
 			for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
 				for obj in auh:
-					self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=False, session=session)
+					self._mysql.insert_object(
+						table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=False, session=session
+					)
 
 	def _audit_hardware_get(  # pylint: disable=redefined-builtin,too-many-branches,too-many-locals,too-many-statements,too-many-arguments
 		self: BackendProtocol,
@@ -228,7 +241,7 @@ class RPCAuditHardwareMixin(Protocol):
 		return_type: Literal["object", "dict", "ident"] = "object",
 		ident_type: IdentType = "str",
 		attributes: list[str] | None = None,
-		filter: dict[str, Any] | None = None
+		filter: dict[str, Any] | None = None,
 	) -> list[dict[str, Any]]:
 		attributes = attributes or []
 		filter = filter or {}
@@ -236,7 +249,7 @@ class RPCAuditHardwareMixin(Protocol):
 		hardware_class = filter.get("hardwareClass")
 		if hardware_class not in ([], None):
 			for hwc in forceList(hardware_class):
-				regex = re.compile(f"^{hwc.replace('*', '.*')}$")  # pylint: disable=dotted-import-in-loop
+				regex = re.compile(f"^{hwc.replace('*', '.*')}$")
 				for key in self._audit_hardware_database_config:
 					if regex.search(key):
 						hardware_classes.add(key)
@@ -248,7 +261,7 @@ class RPCAuditHardwareMixin(Protocol):
 			hardware_classes = set(self._audit_hardware_database_config)
 
 		for unwanted_key in ("hardwareClass", "type"):
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				del filter[unwanted_key]
 			except KeyError:
 				pass  # not there - everything okay.
@@ -266,13 +279,13 @@ class RPCAuditHardwareMixin(Protocol):
 						ident_attributes.append(attr)
 						if attr in filter:
 							class_filter[attr] = filter[attr]
-						if attributes and return_type != "dict" and attr not in attributes:  # pylint: disable=loop-invariant-statement
+						if attributes and return_type != "dict" and attr not in attributes:
 							attributes.append(attr)
 
 				if attributes and return_hardware_ids and "hardware_id" not in attributes:
 					attributes.append("hardware_id")
 
-				if return_type == "ident":  # pylint: disable=loop-invariant-statement
+				if return_type == "ident":
 					attributes = ident_attributes
 
 				if not class_filter and filter:
@@ -283,26 +296,30 @@ class RPCAuditHardwareMixin(Protocol):
 				if not return_hardware_ids and "hardware_id" in columns:
 					del columns["hardware_id"]
 				where, params = self._mysql.get_where(columns=columns, ace=ace, filter=class_filter)
-				query = f"""SELECT {', '.join([f"{c.select} AS `{a}`" for a, c in columns.items() if c.select])} FROM `{table}` {where}"""  # pylint: disable=loop-invariant-statement
+				query = f"""SELECT {', '.join([f"{c.select} AS `{a}`" for a, c in columns.items() if c.select])} FROM `{table}` {where}"""
 				for row in session.execute(query, params=params).fetchall():
 					data = dict(row)
-					if return_type == "object":  # pylint: disable=loop-invariant-statement
+					if return_type == "object":
 						results.append(AuditHardware(hardwareClass=hardware_class, **data))
-					elif return_type == "ident":  # pylint: disable=loop-invariant-statement
+					elif return_type == "ident":
 						results.append(self._mysql.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type))  # type: ignore[arg-type]
 					else:
 						results.append(data)  # type: ignore[arg-type]
 		return results  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditHardware]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardware_getObjects(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[AuditHardware]:
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(
 			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
 		)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardware_getHashes(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
+	) -> list[dict]:
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
 
@@ -314,7 +331,9 @@ class RPCAuditHardwareMixin(Protocol):
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def auditHardware_deleteObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware) -> None:  # pylint: disable=invalid-name
+	def auditHardware_deleteObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
+	) -> None:
 		ace = self._get_ace("auditHardware_deleteObjects")
 		self._mysql.delete_objects(table="AUDIT_HARDWARE", object_type=AuditHardware, obj=auditHardwares, ace=ace)
 
@@ -327,7 +346,7 @@ class RPCAuditHardwareMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def auditHardware_delete(self, hardwareClass: str, **kwargs: Any) -> None:  # pylint: disable=invalid-name
 		if hardwareClass is None:
-			hardwareClass = []  # pylint: disable=use-tuple-over-list
+			hardwareClass = []
 
 		kwargs = {key: [] if val is None else val for key, val in kwargs.items()}
 

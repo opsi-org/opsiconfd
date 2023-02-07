@@ -99,7 +99,7 @@ async def admin_interface_index(request: Request) -> Response:
 	interface = get_protected_backend().get_interface()
 	for method in interface:
 		if method["doc"]:
-			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])  # pylint: disable=dotted-import-in-loop
+			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])
 			method["doc"] = method["doc"].replace("\n", "<br />").replace("\t", "&nbsp;&nbsp;&nbsp;").replace('"', "\\u0022")
 	context = {
 		"request": request,
@@ -290,13 +290,13 @@ async def get_rpc_list() -> RESTResponse:
 
 	rpc_list = []
 	for value in redis_result:
-		value = msgspec.msgpack.decode(value)  # pylint: disable=dotted-import-in-loop
+		value = msgspec.msgpack.decode(value)
 		rpc = {
 			"rpc_num": value.get("rpc_num"),
 			"method": value.get("method"),
 			"params": value.get("num_params"),
 			"results": value.get("num_results"),
-			"date": value.get("date", datetime.date(2020, 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ")),  # pylint: disable=dotted-import-in-loop
+			"date": value.get("date", datetime.date(2020, 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ")),
 			"client": value.get("client", "0.0.0.0"),
 			"error": value.get("error"),
 			"duration": value.get("duration"),
@@ -504,8 +504,8 @@ def get_licensing_info() -> RESTResponse:
 	modules: dict[str, dict] = {}
 	previous: dict[str, dict] = {}
 	for at_date, date_info in info.get("dates", {}).items():
-		at_date = datetime.date.fromisoformat(at_date)  # pylint: disable=dotted-import-in-loop
-		if (at_date <= datetime.date.today()) and (  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+		at_date = datetime.date.fromisoformat(at_date)
+		if (at_date <= datetime.date.today()) and (
 			not active_date or at_date > active_date
 		):
 			active_date = at_date
@@ -548,16 +548,16 @@ def get_licensing_info() -> RESTResponse:
 async def license_upload(files: list[UploadFile]) -> RESTResponse:
 	try:
 		for file in files:
-			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):  # pylint: disable=dotted-import-in-loop
+			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):
 				raise ValueError(f"Invalid filename {file.filename!r}")
-			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))  # pylint: disable=dotted-import-in-loop
+			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))
 			assert olf.filename
 			olf.read_string((await file.read()).decode("utf-8"))  # type: ignore[union-attr]
 			if not olf.licenses:
 				raise ValueError(f"No license found in {file.filename!r}")
 			logger.notice("Writing opsi license file %r", olf.filename)
 			olf.write()
-			os.chmod(olf.filename, 0o660)  # pylint: disable=dotted-import-in-loop
+			os.chmod(olf.filename, 0o660)
 		return RESTResponse(data=f"{len(files)} opsi license files imported", http_status=status.HTTP_201_CREATED)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning(err, exc_info=True)

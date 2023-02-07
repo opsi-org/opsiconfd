@@ -46,7 +46,7 @@ class OpsiApiException(Exception):
 		message: str = "An unknown error occurred.",
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
 		code: int | None = None,
-		error: Exception | str | None = None
+		error: Exception | str | None = None,
 	):
 		self.message = message
 		self.http_status = http_status
@@ -66,7 +66,7 @@ class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-man
 		data: None | int | str | list | dict = None,
 		total: None | int = None,
 		http_status: int = status.HTTP_200_OK,
-		headers: dict[str, str] | None = None
+		headers: dict[str, str] | None = None,
 	):
 		super().__init__()
 		self.status = http_status
@@ -123,7 +123,6 @@ class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-man
 
 
 class RESTErrorResponse(RESTResponse):
-
 	def __init__(
 		self,
 		message: str = "An unknown error occurred.",
@@ -131,7 +130,7 @@ class RESTErrorResponse(RESTResponse):
 		error_class: str | None = None,
 		code: str | None = None,
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-		headers: dict | None = None
+		headers: dict | None = None,
 	):  # pylint: disable=too-many-arguments
 
 		if isinstance(details, Exception):
@@ -150,7 +149,7 @@ class RESTErrorResponse(RESTResponse):
 				"details": details,
 			},
 			http_status=http_status,
-			headers=headers or {}
+			headers=headers or {},
 		)
 
 
@@ -209,9 +208,7 @@ def create_link_header(total: int, commons: dict[str, Any], url: URL) -> dict:
 				if param.startswith("pageNumber"):
 					continue
 				link += param + "&"
-			headers[
-				"Link"
-			] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+			headers["Link"] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
 	return headers
 
 
@@ -231,7 +228,9 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 			return func(*args, **kwargs)
 
 		@wraps(func)
-		async def create_response(*args: Any, **kwargs: Any) -> JSONResponse:  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+		async def create_response(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+			*args: Any, **kwargs: Any
+		) -> JSONResponse:
 			logger.debug("rest_api method name: %s", name)
 			content = None
 			http_status = status.HTTP_200_OK
@@ -245,7 +244,9 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 					return result.to_jsonresponse()
 				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data") is not None:
-					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
+					warnings.warn(
+						"opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning
+					)
 					if result.get("data"):
 						content = result.get("data")
 					if result.get("total") and kwargs.get("request"):
@@ -280,6 +281,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 				if not session or not session.is_admin:
 					del content["details"]
 				return JSONResponse(content=content, status_code=content["status"])
+
 		return create_response
 
 	if _func:

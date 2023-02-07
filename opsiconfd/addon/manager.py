@@ -64,7 +64,7 @@ class AddonManager(metaclass=Singleton):
 			reload = [sys_module for sys_module in list(sys.modules) if sys_module.startswith(module_name)]
 			reload.sort(reverse=True)
 			for sys_module in reload:
-				importlib.reload(sys.modules[sys_module])  # pylint:disable=dotted-import-in-loop
+				importlib.reload(sys.modules[sys_module])
 			module = sys.modules[module_name]
 		else:
 			module = importlib.import_module(module_name)
@@ -87,7 +87,7 @@ class AddonManager(metaclass=Singleton):
 				continue
 			logger.info("Loading addons from dir '%s'", addon_dir)
 			for entry in listdir(addon_dir):
-				addon_path = abspath(join(addon_dir, entry))  # pylint:disable=dotted-import-in-loop
+				addon_path = abspath(join(addon_dir, entry))
 				if not exists(join(addon_path, "python", "__init__.py")):
 					continue
 				try:  # pylint:disable=loop-try-except-usage

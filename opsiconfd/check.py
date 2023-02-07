@@ -111,7 +111,7 @@ def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
 	except (OperationalError, MySQLdbOperationalError) as err:  # pylint: disable=broad-except
 		result.check_status = CheckStatus.ERROR
 		error_str = str(err).split("\n", 1)[0]
-		match = re.search(r"\((\d+),\s+(\S.*)\)", error_str)  # pylint: disable=dotted-import-in-loop
+		match = re.search(r"\((\d+),\s+(\S.*)\)", error_str)
 		if match:
 			error_str = match.group(1) + " - " + match.group(2).strip("'").replace("\\'", "'")
 		result.message = error_str
@@ -141,7 +141,7 @@ def get_repo_versions() -> dict[str, str | None]:
 		return {}
 	for package in packages:
 		repo_versions[package] = None
-		match = re.search(f"{package}_(.+?).tar.gz", repo_data.text)  # pylint: disable=dotted-import-in-loop
+		match = re.search(f"{package}_(.+?).tar.gz", repo_data.text)
 		if match:
 			version = match.group(1)
 			repo_versions[package] = version
@@ -168,8 +168,8 @@ def check_disk_usage() -> CheckResult:
 				var_added = True
 
 		count = 0
-		for mountpoint in check_mountpoints:  # pylint: disable=dotted-import-in-loop
-			usage = psutil.disk_usage(mountpoint)  # pylint: disable=dotted-import-in-loop
+		for mountpoint in check_mountpoints:
+			usage = psutil.disk_usage(mountpoint)
 			percent_free = usage.free * 100 / usage.total
 			free_gb = usage.free / 1_000_000_000
 			check_status = CheckStatus.OK
@@ -185,7 +185,7 @@ def check_disk_usage() -> CheckResult:
 				check_status=check_status,
 				message=(
 					f"{'Sufficient' if check_status == CheckStatus.OK else 'Insufficient'}"
-					f" free space of {free_gb:0.2f} GB ({percent_free:0.2f} %) on {mountpoint!r}"  # pylint: disable=loop-invariant-statement
+					f" free space of {free_gb:0.2f} GB ({percent_free:0.2f} %) on {mountpoint!r}"
 				),
 				details={"mountpoint": mountpoint, "total": usage.total, "used": usage.used, "free": usage.free},
 			)
@@ -366,7 +366,7 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 						logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
 						installed_versions[p_name] = match.group(3)
 			else:
-				cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
+				cmd = ["dpkg", "-l"]
 				regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
 				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
 				for line in res.split("\n"):
@@ -485,7 +485,7 @@ def check_deprecated_calls() -> CheckResult:
 				if interface and interface.drop_version:
 					message += f"The method will be dropped with opsiconfd version {interface.drop_version}.\n"
 				message += f"Last call was {last_call}\nThe method was called from the following applications:\n"
-				message += "\n".join([f"- {app}" for app in applications])  # pylint: disable=loop-invariant-statement
+				message += "\n".join([f"- {app}" for app in applications])
 				result.add_partial_result(
 					PartialCheckResult(
 						check_id=f"deprecated_calls:{method_name}",
@@ -527,8 +527,8 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 		outdated = 0
 		for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', res.text):
 			product_id, available_version = split_name_and_version(filename)
-			if product_id in available_packages:  # pylint: disable=loop-invariant-statement
-				available_packages[product_id] = available_version  # pylint: disable=loop-invariant-statement
+			if product_id in available_packages:
+				available_packages[product_id] = available_version
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
 		for depot_id in depots:
@@ -538,7 +538,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 					check_name=f"Product {product_id!r} on {depot_id!r}",
 					details={"depot_id": depot_id, "product_id": product_id},
 				)
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[0]
 				except IndexError as error:
 					not_installed = not_installed + 1
@@ -566,7 +566,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 						f"Installed version of product {product_id!r} on depot {depot_id!r} is {product_version_on_depot!r}."
 					)
 
-				min_version = OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.get(product_id)  # pylint: disable=loop-global-usage
+				min_version = OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.get(product_id)
 				if min_version and compareVersions(min_version, ">", product_version_on_depot):
 					partial_result.upgrade_issue = "4.3"
 
@@ -603,7 +603,7 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 			return result
 
 		outdated_client_ids = set()
-		for product_id, min_version in OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.items():  # pylint: disable=loop-global-usage
+		for product_id, min_version in OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.items():
 			for product_on_client in backend.productOnClient_getObjects(
 				attributes=["productVersion", "packageVersion"],
 				clientId=client_ids,
@@ -643,7 +643,7 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 		licensing_info = backend.backend_getLicensingInfo()  # pylint: disable=no-member
 		result.message = f"{licensing_info['client_numbers']['all']} active clients"
 		result.details = {"client_numbers": licensing_info["client_numbers"]}
-		for module_id, module_data in licensing_info.get("modules", {}).items():  # pylint: disable=use-dict-comprehension
+		for module_id, module_data in licensing_info.get("modules", {}).items():
 			if module_data["state"] == "free":
 				continue
 
@@ -681,7 +681,7 @@ def console_print_message(check_result: CheckResult | PartialCheckResult, consol
 	style = STYLES[check_result.check_status]
 	status = check_result.check_status.upper()
 	msg_ident = " " * (len(status) + 3)
-	message = "\n".join([f"{msg_ident if i > 0 else ''}{l}" for i, l in enumerate(check_result.message.split("\n"))])
+	message = "\n".join([f"{msg_ident if idx > 0 else ''}{line}" for idx, line in enumerate(check_result.message.split("\n"))])
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
@@ -704,19 +704,19 @@ def process_check_result(
 
 	if check_version:
 		if partial_results:
-			status = CheckStatus.ERROR  # pylint: disable=loop-invariant-statement
+			status = CheckStatus.ERROR
 			message = f"{len(partial_results)} upgrade issues"
 		else:
-			status = CheckStatus.OK  # pylint: disable=loop-invariant-statement
+			status = CheckStatus.OK
 			message = "No upgrade issues"
-			if not detailed:  # pylint: disable=loop-invariant-statement
+			if not detailed:
 				return
 
 	style = STYLES[status]
 	console.print(f"[{style}]●[/{style}] [b]{result.check_name}[/b]: [{style}]{status.upper()}[/{style}]")
 	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
 
-	if not detailed:  # pylint: disable=loop-invariant-statement
+	if not detailed:
 		return
 
 	if partial_results:

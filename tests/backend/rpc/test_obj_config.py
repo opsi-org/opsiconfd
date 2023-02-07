@@ -180,7 +180,7 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 
 def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name
 	configs = []
-	for idx in range(10):  # pylint: disable=use-list-copy
+	for idx in range(10):
 		configs.extend(
 			[
 				UnicodeConfig(
@@ -228,7 +228,7 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 	# Do not retry on "Deadlock found when trying to get lock; try restarting transaction"
 	with patch("opsiconfd.backend.mysql.MySQLSession.execute_attempts", 1):
 		for _ in range(3):
-			threads = [BThread() for _ in range(25)]  # pylint: disable=loop-invariant-statement
+			threads = [BThread() for _ in range(25)]
 			for thread in threads:
 				thread.start()
 			for thread in threads:

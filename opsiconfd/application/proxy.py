@@ -111,7 +111,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		if proxy_logger.isEnabledFor(TRACE):
 			proxy_logger.trace(">>> %s %s", request.method, path)
 			for header, value in request_headers.items():
-				proxy_logger.trace(">>> %s: %s", header, value)  # pylint: disable=loop-global-usage
+				proxy_logger.trace(">>> %s: %s", header, value)
 
 		try:
 			resp = await client._request(  # pylint: disable=protected-access
@@ -129,7 +129,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		if proxy_logger.isEnabledFor(TRACE):
 			proxy_logger.trace("<<< %s", resp.status)
 			for header, value in response_headers.items():
-				proxy_logger.trace("<<< %s: %s", header, value)  # pylint: disable=loop-global-usage
+				proxy_logger.trace("<<< %s: %s", header, value)
 
 		request.scope["reverse_proxy"] = True
 		return StreamingResponse(
@@ -144,7 +144,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		while state == WebSocketState.CONNECTED:
 			data = await reader()
 			if trace_log:
-				proxy_logger.trace("%s: %s", name, data)  # pylint: disable=loop-global-usage
+				proxy_logger.trace("%s: %s", name, data)
 			await writer(data)
 
 	async def handle_websocket_request(self, client_websocket: WebSocket) -> None:  # pylint: disable=too-many-branches

@@ -48,7 +48,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		asyncio.get_running_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
 
 	def _init_vars(self) -> None:
-		for metric in MetricsRegistry().get_metrics(*self._metric_subjects):  # pylint: disable=loop-global-usage
+		for metric in MetricsRegistry().get_metrics(*self._metric_subjects):
 			if metric.zero_if_missing != "continuous":
 				continue
 
@@ -79,12 +79,12 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		while True:
 			cmd = None
 
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				await self._fetch_values()
 				timestamp = self._get_timestamp()
 				cmds = []
 				async with self._values_lock:
-					for metric in MetricsRegistry().get_metrics(*self._metric_subjects):  # pylint: disable=loop-global-usage
+					for metric in MetricsRegistry().get_metrics(*self._metric_subjects):
 						if metric.id not in self._values:
 							continue
 
@@ -93,7 +93,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 							count = 0
 							insert_zero_timestamp = 0
 							for tsp in list(self._values[metric.id].get(key_string, {})):
-								if self._values[metric.id][key_string][tsp] is None:  # pylint: disable=loop-invariant-statement
+								if self._values[metric.id][key_string][tsp] is None:
 									# Marker, insert a zero before adding new values
 									insert_zero_timestamp = tsp
 									self._values[metric.id][key_string].pop(tsp)
@@ -103,16 +103,16 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 									value += self._values[metric.id][key_string].pop(tsp)
 
 							if count == 0:
-								if not metric.zero_if_missing:  # pylint: disable=loop-invariant-statement
+								if not metric.zero_if_missing:
 									continue
-								if not insert_zero_timestamp and metric.zero_if_missing == "one":  # pylint: disable=loop-invariant-statement
+								if not insert_zero_timestamp and metric.zero_if_missing == "one":
 									del self._values[metric.id][key_string]
 
-							if metric.aggregation == "avg" and count > 0:  # pylint: disable=loop-invariant-statement
+							if metric.aggregation == "avg" and count > 0:
 								value /= count
 
 							label_values = key_string.split(":")
-							labels = {var: label_values[idx] for idx, var in enumerate(metric.vars)}  # pylint: disable=loop-invariant-statement
+							labels = {var: label_values[idx] for idx, var in enumerate(metric.vars)}
 
 							if insert_zero_timestamp:
 								cmds.append(self._redis_ts_cmd(metric, "ADD", 0, insert_zero_timestamp, **labels))
@@ -121,10 +121,10 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 							logger.debug("Redis ts cmd %s", cmd)
 							cmds.append(cmd)
 
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					await self._execute_redis_command(*cmds)
 				except ResponseError as err:  # pylint: disable=broad-except
-					if str(err).lower().startswith("unknown command"):  # pylint: disable=loop-invariant-statement
+					if str(err).lower().startswith("unknown command"):
 						logger.error("RedisTimeSeries module missing, metrics collector ending")
 						return
 					logger.error("%s while executing redis commands: %s", err, cmds, exc_info=True)
@@ -134,14 +134,14 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			for _ in range(self._interval):
 				if self._should_stop:
 					return
-				await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
+				await asyncio.sleep(1)
 
 	@staticmethod
 	def _redis_ts_cmd(metric: Metric, cmd: str, value: float, timestamp: int | None = None, **labels: str) -> str:
 		timestamp_str: str = str(timestamp or "*")
 		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
 		if cmd == "ADD":
-			ts_cmd = [  # pylint: disable=use-tuple-over-list
+			ts_cmd = [
 				"TS.ADD",
 				metric.get_redis_key(**labels),
 				timestamp_str,
@@ -153,7 +153,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				"LABELS",
 			]
 		elif cmd == "INCRBY":
-			ts_cmd = [  # pylint: disable=use-tuple-over-list
+			ts_cmd = [
 				"TS.INCRBY",
 				metric.get_redis_key(**labels),
 				value,
@@ -248,6 +248,6 @@ class WorkerMetricsCollector(MetricsCollector):
 		):
 			# Do not add 0-values
 			if value:
-				asyncio.get_running_loop().create_task(  # pylint: disable=dotted-import-in-loop
+				asyncio.get_running_loop().create_task(
 					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self.worker_num})
 				)

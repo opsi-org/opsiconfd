@@ -183,15 +183,13 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 			if progress:
 				progress.console.print("Backing up database objects")
 				backup_task = progress.add_task("Backing up database objects", total=len(OBJECT_CLASSES))
-			for obj_class in OBJECT_CLASSES:  # pylint: disable=loop-global-usage
+			for obj_class in OBJECT_CLASSES:
 				logger.notice("Fetching objects of type %s", obj_class)
 				if progress:
 					progress.console.print(f"Backing up objects of type [bold]{obj_class}[/bold]")
 				method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_getObjects")
-				data["objects"][obj_class] = [o.to_hash() for o in method()]  # pylint: disable=loop-invariant-statement
-				logger.info(
-					"Read %d objects of type %s", len(data["objects"][obj_class]), obj_class  # pylint: disable=loop-invariant-statement
-				)
+				data["objects"][obj_class] = [o.to_hash() for o in method()]
+				logger.info("Read %d objects of type %s", len(data["objects"][obj_class]), obj_class)
 				if progress:
 					progress.advance(backup_task)
 
@@ -209,7 +207,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 						content = file.read_text(encoding="utf-8")
 					else:
 						logger.warning("Config file '%s' not found, skipping in backup", file)
-					data["config_files"][name] = {  # pylint: disable=loop-invariant-statement
+					data["config_files"][name] = {
 						"path": str(file.absolute()),
 						"content": content,
 					}
@@ -380,7 +378,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 			if progress:
 				restore_task = progress.add_task("Restoring database objects", total=total_objects, refresh_per_second=2)
 
-			for obj_class in OBJECT_CLASSES:  # pylint: disable=loop-global-usage
+			for obj_class in OBJECT_CLASSES:
 				objects = data["objects"].get(obj_class)
 				if not objects:
 					continue
@@ -392,7 +390,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 				host_attr = None
 				check_config = False
 				check_config_state = False
-				if server_id != backup_server_id:  # pylint: disable=loop-invariant-statement
+				if server_id != backup_server_id:
 					if obj_class == "Host":
 						host_attr = "id"
 					if obj_class == "ProductOnDepot":
@@ -416,18 +414,10 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 							if obj[host_attr] == backup_server_id:
 								obj[host_attr] = server_id
 						if check_config and obj["id"] == "clientconfig.depot.id":
-							obj["possibleValues"] = [
-								server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
-								for v in obj["possibleValues"]  # pylint: disable=loop-invariant-statement
-							]
-							obj["defaultValues"] = [
-								server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
-								for v in obj["defaultValues"]
-							]
+							obj["possibleValues"] = [server_id if v == backup_server_id else v for v in obj["possibleValues"]]
+							obj["defaultValues"] = [server_id if v == backup_server_id else v for v in obj["defaultValues"]]
 						if check_config_state and obj["configId"] == "clientconfig.depot.id":
-							obj["values"] = [
-								server_id if v == backup_server_id else v for v in obj["values"]  # pylint: disable=loop-invariant-statement
-							]
+							obj["values"] = [server_id if v == backup_server_id else v for v in obj["values"]]
 
 						logger.trace("Insert %s object: %s", obj_class, obj)
 						if not batch:

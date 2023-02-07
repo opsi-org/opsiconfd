@@ -60,7 +60,7 @@ def get_ips() -> set[str]:
 		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
 			if addr["address"].startswith("fe80"):
 				continue
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				ips.add(ip_address(addr["address"]).compressed)
 			except ValueError as err:
 				logger.warning(err)
@@ -75,12 +75,12 @@ def get_hostnames() -> set[str]:
 	names = {"localhost"}
 	names.add(get_server_cn())
 	for addr in get_ips():
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			(hostname, aliases, _addr) = gethostbyaddr(addr)
 			names.add(hostname)
 			for alias in aliases:
 				names.add(alias)
-		except socket.error as err:  # pylint: disable=dotted-import-in-loop
+		except socket.error as err:
 			logger.info("No hostname for %s: %s", addr, err)
 	return names
 
@@ -290,10 +290,10 @@ def setup_ca() -> bool:
 		raise ValueError("CA key and cert cannot be stored in the same file")
 
 	for name in ("opsi-ca-cert.srl", "opsi-ca.srl"):
-		ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), name)  # pylint: disable=dotted-import-in-loop
-		if os.path.exists(ca_srl):  # pylint: disable=dotted-import-in-loop
+		ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), name)
+		if os.path.exists(ca_srl):
 			# Remove obsolete file
-			os.remove(ca_srl)  # pylint: disable=dotted-import-in-loop
+			os.remove(ca_srl)
 
 	if server_role == "configserver":
 		return configserver_setup_ca()
@@ -310,7 +310,7 @@ def validate_cert(cert: X509, ca_cert: X509 | None = None) -> None:
 	if os.path.exists(config.ssl_trusted_certs):
 		with open(config.ssl_trusted_certs, "r", encoding="utf-8") as file:
 			for match in finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", file.read(), DOTALL):
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					store.add_cert(load_certificate(FILETYPE_PEM, match.group(1).encode("ascii")))
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to load certificate from %r: %s", config.ssl_trusted_certs, err, exc_info=True)
@@ -454,14 +454,14 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 			(srv_crt, srv_key) = create_local_server_cert(renew=False)
 		else:
 			for attempt in (1, 2, 3, 4, 5):
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
-					pem = get_unprotected_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member,loop-invariant-statement
+					pem = get_unprotected_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member
 				except RequestsConnectionError as err:
 					if attempt == 5:
 						raise
 					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
-					time.sleep(5)  # pylint: disable=dotted-import-in-loop
+					time.sleep(5)
 			if pem:
 				srv_crt = load_certificate(FILETYPE_PEM, pem)
 				srv_key = load_privatekey(FILETYPE_PEM, pem)

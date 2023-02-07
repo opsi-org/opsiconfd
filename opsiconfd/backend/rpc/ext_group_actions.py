@@ -38,7 +38,7 @@ class RPCExtGroupActionsMixin(Protocol):
 		clients_on_depot: dict[str, list[str]] = {}
 
 		for depot_client_hash in self.configState_getClientToDepotserver(clientIds=client_ids):
-			if not depot_client_hash["depotId"] in clients_on_depot:
+			if depot_client_hash["depotId"] not in clients_on_depot:
 				clients_on_depot[depot_client_hash["depotId"]] = []
 			clients_on_depot[depot_client_hash["depotId"]].append(depot_client_hash["clientId"])
 

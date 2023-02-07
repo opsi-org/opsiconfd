@@ -124,9 +124,9 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 
 		cwd = proc.cwd()
 		for child in proc.children(recursive=True):
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				cwd = child.cwd()
-			except AccessDenied:  # pylint: disable=loop-invariant-statement
+			except AccessDenied:
 				# Child owned by an other user (su)
 				pass
 		return Path(cwd)
@@ -135,18 +135,16 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		pty_reader_block_size = PTY_READER_BLOCK_SIZE
 		try:
 			while self._pty and not self._closing:
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					logger.trace("Read from pty")
-					data = await self._loop.run_in_executor(  # pylint: disable=loop-invariant-statement
-						None, self._pty.read_nonblocking, pty_reader_block_size, 1.0
-					)
+					data = await self._loop.run_in_executor(None, self._pty.read_nonblocking, pty_reader_block_size, 1.0)
 					logger.trace(data)
 					self._last_usage = time()
 					message = TerminalDataReadMessage(
 						sender=self._sender, channel=self.back_channel(), terminal_id=self.terminal_id, data=data
 					)
 					await self._send_message(message)
-				except TIMEOUT:  # pylint: disable=loop-invariant-statement
+				except TIMEOUT:
 					if time() > self._last_usage + self.idle_timeout:
 						logger.notice("Terminal timed out")
 						await self.close()

@@ -41,7 +41,7 @@ async def test_async_redis_pool() -> None:
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
 	connections = []
-	for _ in range(num_connections):  # pylint: disable=use-list-copy
+	for _ in range(num_connections):
 		connections.append(await pool.get_connection("_"))  # type: ignore[no-untyped-call]
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]  # pylint: disable=protected-access
@@ -70,7 +70,7 @@ def test_sync_redis_pool() -> None:
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
 	connections = []
-	for _ in range(num_connections):  # pylint: disable=use-list-copy
+	for _ in range(num_connections):
 		connections.append(pool.get_connection("_"))
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]  # pylint: disable=protected-access

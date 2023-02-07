@@ -60,7 +60,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 				if subject_is_worker:
 					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-				elif metric.subject == "node":  # pylint: disable=loop-invariant-statement
+				elif metric.subject == "node":
 					orig_key = metric.redis_key.format(node_name=node_name)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
 				else:
@@ -68,15 +68,15 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
 
 				logger.debug("redis command: %s", cmd)
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					client.execute_command(cmd)
-				except RedisResponseError as err:  # pylint: disable=loop-invariant-statement
-					if str(err) != "TSDB: key already exists":  # pylint: disable=loop-invariant-statement
+				except RedisResponseError as err:
+					if str(err) != "TSDB: key already exists":
 						raise
 
 				cmd = f"TS.INFO {orig_key}"
 				info = client.execute_command(cmd)
-				existing_rules: dict[str, dict[str, str]] = {}  # pylint: disable=loop-invariant-statement
+				existing_rules: dict[str, dict[str, str]] = {}
 				for idx, val in enumerate(info):
 					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
 						rules = info[idx + 1]
@@ -87,11 +87,11 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 				for rule in metric.downsampling:
 					retention, retention_time, aggregation = rule
 					time_bucket = get_time_bucket_duration(retention)
-					key = f"{orig_key}:{retention}"  # pylint: disable=loop-invariant-statement
+					key = f"{orig_key}:{retention}"
 					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-					try:  # pylint: disable=loop-try-except-usage
+					try:
 						client.execute_command(cmd)
-					except RedisResponseError as err:  # pylint: disable=loop-invariant-statement
+					except RedisResponseError as err:
 						if str(err) != "TSDB: key already exists":
 							raise
 
@@ -168,9 +168,7 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 			# sort: ncall / ttot / tsub / tavg
 			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="asc")):
 				module = regex.sub("", stat.module)
-				logger.essential(
-					f"{module:<55} | {stat.name:<45} | {stat.ncall:>5} |   {stat.ttot:0.6f} |   {stat.tsub:0.6f}"  # pylint: disable=loop-invariant-statement
-				)
+				logger.essential(f"{module:<55} | {stat.name:<45} | {stat.ncall:>5} |   {stat.ttot:0.6f} |   {stat.tsub:0.6f}")
 				if stat_num >= 500:
 					break
 			logger.essential(

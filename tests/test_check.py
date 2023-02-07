@@ -101,7 +101,7 @@ def test_check_opsiconfd_config() -> None:
 			elif partial_result.check_id == "opsiconfd_config:debug-options":
 				assert partial_result.check_status == CheckStatus.ERROR
 				assert partial_result.message == "The following debug options are set: rpc-log, asyncio."
-				assert partial_result.details == {  # pylint: disable=loop-invariant-statement
+				assert partial_result.details == {
 					"config": "debug-options",
 					"value": ["rpc-log", "asyncio"],
 				}

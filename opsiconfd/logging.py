@@ -127,14 +127,14 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 
 	async def _periodically_test_rollover(self) -> None:
 		while True:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				if await get_running_loop().run_in_executor(None, self.should_rollover):
 					async with self._rollover_lock:
 						await self.do_rollover()
 						self._rollover_error = None
 			except Exception as err:  # pylint: disable=broad-except
 				self._rollover_error = err
-				logger.error(err, exc_info=True)  # pylint: disable=loop-global-usage
+				logger.error(err, exc_info=True)
 			check_interval = 300 if self._rollover_error else self.rollover_check_interval
 			if await event_wait(self._should_stop, check_interval):
 				break
@@ -154,33 +154,31 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 				src_file_path = self.absolute_file_path
 				if num > 1:
 					src_file_path = f"{self.absolute_file_path}.{num-1}"
-				if not await loop.run_in_executor(None, os.path.exists, src_file_path):  # pylint: disable=dotted-import-in-loop
+				if not await loop.run_in_executor(None, os.path.exists, src_file_path):
 					continue
 				dst_file_path = f"{self.absolute_file_path}.{num}"
-				await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)  # pylint: disable=dotted-import-in-loop
-				try:  # pylint: disable=loop-try-except-usage
+				await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
+				try:
 					await loop.run_in_executor(
 						None,
-						shutil.chown,  # pylint: disable=dotted-import-in-loop
+						shutil.chown,
 						dst_file_path,
 						config.run_as_user,
 						opsi_config.get("groups", "admingroup"),
 					)
 				except Exception:  # pylint: disable=broad-except
 					pass
-				try:  # pylint: disable=loop-try-except-usage
-					await loop.run_in_executor(None, os.chmod, dst_file_path, 0o644)  # pylint: disable=dotted-import-in-loop
+				try:
+					await loop.run_in_executor(None, os.chmod, dst_file_path, 0o644)
 				except Exception:  # pylint: disable=broad-except
 					pass
-		for filename in await loop.run_in_executor(
-			None, glob.glob, f"{self.absolute_file_path}.*"  # pylint: disable=dotted-import-in-loop, loop-invariant-statement
-		):
+		for filename in await loop.run_in_executor(None, glob.glob, f"{self.absolute_file_path}.*"):
 			if isinstance(filename, str):
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					if int(filename.split(".")[-1]) > self._keep_rotated:
-						await loop.run_in_executor(None, os.remove, filename)  # pylint: disable=dotted-import-in-loop
+						await loop.run_in_executor(None, os.remove, filename)
 				except ValueError:
-					await loop.run_in_executor(None, os.remove, filename)  # pylint: disable=dotted-import-in-loop
+					await loop.run_in_executor(None, os.remove, filename)
 
 		self.stream = None
 		await self._init_writer()
@@ -333,24 +331,24 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		if not self._log_file_template:
 			return
 		while True:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				for filename in list(self._file_logs):
 					if not self._file_logs[filename] or self._file_logs[filename].active_lifetime == 0:
 						continue
-					time_diff = time.time() - self._file_logs[filename].last_used  # pylint: disable=dotted-import-in-loop
+					time_diff = time.time() - self._file_logs[filename].last_used
 					if time_diff > self._file_logs[filename].active_lifetime:
 						with self._file_log_lock:
-							logger.info(  # pylint: disable=loop-global-usage
+							logger.info(
 								"Closing inactive file log '%s', file logs remaining active: %d",
 								filename,
-								len(self._file_logs) - 1,  # pylint: disable=loop-invariant-statement
+								len(self._file_logs) - 1,
 							)
 							await self._file_logs[filename].close()
 							del self._file_logs[filename]
 			except Exception as err:  # pylint: disable=broad-except
-				logger.error(err, exc_info=True)  # pylint: disable=loop-global-usage
+				logger.error(err, exc_info=True)
 
-			if await event_wait(self._should_stop, 60.0):  # pylint: disable=loop-invariant-statement
+			if await event_wait(self._should_stop, 60.0):
 				return
 
 	async def _start(self) -> None:
@@ -372,13 +370,11 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		msgpack_decoder = msgspec.msgpack.Decoder()
 		last_id = "$"
 		while True:  # pylint: disable=too-many-nested-blocks
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				if not self._redis:
 					self._redis = await get_async_redis_connection(config.redis_internal_url)
 				# It is also possible to specify multiple streams
-				data = await self._redis.xread(  # pylint: disable=loop-invariant-statement
-					streams={self._redis_log_stream: last_id}, block=1000
-				)
+				data = await self._redis.xread(streams={self._redis_log_stream: last_id}, block=1000)
 				if self._should_stop.is_set():
 					break
 				if not data:
@@ -387,9 +383,9 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 					for entry in stream[1]:
 						last_id = entry[0]
 						client = entry[1].get(b"client_address", b"").decode("utf-8")
-						record_dict = msgpack_decoder.decode(entry[1][b"record"])  # pylint: disable=dotted-import-in-loop
+						record_dict = msgpack_decoder.decode(entry[1][b"record"])
 						record_dict.update({"scope": None, "exc_info": None, "args": None})
-						record = pylogging.makeLogRecord(record_dict)  # pylint: disable=dotted-import-in-loop
+						record = pylogging.makeLogRecord(record_dict)
 						# workaround for problem in aiologger.formatters.base.Formatter.format
 						setattr(record, "get_message", record.getMessage)
 						if self._stderr_handler and record.levelno >= self._log_level_stderr:
@@ -404,7 +400,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				raise
 			except EOFError:
 				break
-			except (RedisConnectionError, RedisBusyLoadingError):  # pylint: disable=dotted-import-in-loop, loop-invariant-statement
+			except (RedisConnectionError, RedisBusyLoadingError):
 				self._redis = None
 			except Exception as err:  # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)
@@ -448,18 +444,18 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 	def _process_queue(self) -> None:
 		while True:
 			self._should_stop.wait(self._max_delay)
-			if self._queue.qsize() > 0:  # pylint: disable=loop-invariant-statement
+			if self._queue.qsize() > 0:
 				pipeline = self._redis.pipeline()
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					while True:
 						pipeline.xadd(
 							self._redis_log_stream,
 							self._queue.get_nowait(),
-							maxlen=LOG_STREAM_MAX_RECORDS,  # pylint: disable=loop-global-usage
+							maxlen=LOG_STREAM_MAX_RECORDS,
 							approximate=True,
 						)
-				except Empty:  # pylint: disable=loop-invariant-statement
-					pass  # pylint: disable=loop-invariant-statement
+				except Empty:
+					pass
 				pipeline.execute()
 			if self._should_stop.is_set():
 				break
@@ -565,8 +561,8 @@ def init_logging(  # pylint: disable=too-many-branches,too-many-statements,too-m
 			set_filter_from_string(config.log_filter)
 
 		for logger_name in ("asyncio", "uvicorn.error", "uvicorn.access", "wsgidav"):
-			logger_ = pylogging.getLogger(logger_name)  # pylint: disable=dotted-import-in-loop
-			logger_.handlers = [log_handler]  # pylint: disable=loop-invariant-statement
+			logger_ = pylogging.getLogger(logger_name)
+			logger_.handlers = [log_handler]
 			logger_.propagate = False
 
 		if config.log_levels:
@@ -576,16 +572,14 @@ def init_logging(  # pylint: disable=too-many-branches,too-many-statements,too-m
 				if hasattr(logger_, "name")
 			}
 			logger_level_configs = {}
-			for entry in [
-				entry.strip() for entry in config.log_levels.split(",") if entry.strip()  # pylint: disable=loop-invariant-statement
-			]:
+			for entry in [entry.strip() for entry in config.log_levels.split(",") if entry.strip()]:
 				logger_re, level = entry.rsplit(":", 1)
 				logger_level_configs[logger_re.strip()] = int(level.strip())
 
 			# Sort by regex length so the closest match will be applied at last
 			for logger_re in sorted(logger_level_configs, key=len):
 				level = logger_level_configs[logger_re]
-				logger_re = re.compile(logger_re)  # pylint: disable=dotted-import-in-loop
+				logger_re = re.compile(logger_re)
 				for logger_name, logger_obj in loggers.items():
 					if isinstance(logger_obj, PlaceHolder):
 						continue

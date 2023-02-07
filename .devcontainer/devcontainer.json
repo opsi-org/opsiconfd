@@ -42,10 +42,6 @@
 		"python.linting.flake8Enabled": false,
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintCategorySeverity.refactor": "Information",
-		"python.linting.pylintArgs": [
-			"--load-plugins",
-			"perflint"
-		],
 		"python.linting.mypyPath": ".venv/bin/mypy",
 		"python.linting.mypyEnabled": true,
 		"python.linting.mypyArgs": [

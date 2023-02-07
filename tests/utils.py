@@ -237,7 +237,7 @@ def client_jsonrpc(  # pylint: disable=too-many-arguments
 	host_id: str,
 	host_key: str | None = None,
 	hardware_address: str | None = None,
-	ip_address: str | None = None
+	ip_address: str | None = None,
 ) -> Generator[dict[str, Any], None, None]:
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [host_id, host_key, "", "", hardware_address, ip_address]}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
@@ -265,10 +265,7 @@ def delete_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products
 
 @contextmanager
 def products_jsonrpc(
-	client: OpsiconfdTestClient,
-	base_url: str,
-	products: list[dict[str, Any]],
-	depots: list[str] | None = None
+	client: OpsiconfdTestClient, base_url: str, products: list[dict[str, Any]], depots: list[str] | None = None
 ) -> Generator[None, None, None]:
 	create_products_jsonrpc(client, base_url, products)
 	if depots:
@@ -283,7 +280,7 @@ def products_jsonrpc(
 						packageVersion=product["packageVersion"],
 						depotId=depot_id,
 					).to_hash()
-					for product in products  # pylint: disable=loop-invariant-statement
+					for product in products
 				]
 			)
 		rpc = {"id": 1, "method": "productOnDepot_createObjects", "params": [product_on_depots]}
@@ -302,21 +299,16 @@ def create_poc_jsonrpc(  # pylint: disable=too-many-arguments
 	product_id: str,
 	install_state: str | None = None,
 	action_request: str | None = None,
-	action_result: str | None = None
+	action_result: str | None = None,
 ) -> None:
-	product = [product_id, "LocalbootProduct", opsi_client, install_state, action_request, None, None, action_result]  # pylint: disable=use-tuple-over-list
+	product = [product_id, "LocalbootProduct", opsi_client, install_state, action_request, None, None, action_result]
 	rpc = {"id": 1, "method": "productOnClient_create", "params": product}
 	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 
 
-def delete_poc_jsonrpc(
-	http_client: OpsiconfdTestClient,
-	base_url: str,
-	opsi_client: str,
-	product_id: str
-) -> None:
-	product = [product_id, opsi_client]  # pylint: disable=use-tuple-over-list
+def delete_poc_jsonrpc(http_client: OpsiconfdTestClient, base_url: str, opsi_client: str, product_id: str) -> None:
+	product = [product_id, opsi_client]
 	rpc = {"id": 1, "method": "productOnClient_delete", "params": product}
 	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
@@ -330,7 +322,7 @@ def poc_jsonrpc(  # pylint: disable=too-many-arguments
 	product_id: str,
 	install_state: str | None = None,
 	action_request: str | None = None,
-	action_result: str | None = None
+	action_result: str | None = None,
 ) -> Generator[None, None, None]:
 	create_poc_jsonrpc(http_client, base_url, opsi_client, product_id, install_state, action_request, action_result)
 	try:
@@ -397,10 +389,7 @@ class WebSocketMessageReader(Thread):
 		return self
 
 	def __exit__(
-		self,
-		exc_type: Type[BaseException] | None,
-		exc_value: BaseException | None,
-		traceback: types.TracebackType | None
+		self, exc_type: Type[BaseException] | None, exc_value: BaseException | None, traceback: types.TracebackType | None
 	) -> None:
 		self.stop()  # type: ignore[no-untyped-call]
 
@@ -416,7 +405,7 @@ class WebSocketMessageReader(Thread):
 			if data["type"] == "websocket.send":
 				msg = data["bytes"]
 				if self.decode:
-					msg = msgpack.loads(msg)  # pylint: disable=dotted-import-in-loop
+					msg = msgpack.loads(msg)
 				# print(f"received: >>>{msg}<<<")
 				self.messages.put(msg)
 
@@ -428,20 +417,20 @@ class WebSocketMessageReader(Thread):
 	def wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
 		start = time.time()
 		while True:
-			if self.messages.qsize() >= count:  # pylint: disable=loop-invariant-statement
+			if self.messages.qsize() >= count:
 				return
-			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
-				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
-			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+			if time.time() - start >= timeout:
+				raise RuntimeError("timed out")
+			time.sleep(0.1)
 
 	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
 		start = time.time()
 		while True:
-			if self.messages.qsize() >= count:  # pylint: disable=loop-invariant-statement
+			if self.messages.qsize() >= count:
 				return
-			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
-				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
-			await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+			if time.time() - start >= timeout:
+				raise RuntimeError("timed out")
+			await asyncio.sleep(0.1)
 
 	def get_messages(self) -> Generator[dict[str, Any], None, None]:
 		try:

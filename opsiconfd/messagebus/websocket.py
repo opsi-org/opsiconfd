@@ -118,7 +118,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			now = time()
 			if update_session_time + update_session_interval <= now:
 				update_session_time = now
-				await self.scope["session"].update_last_used()  # pylint: disable=loop-invariant-statement
+				await self.scope["session"].update_last_used()
 
 	async def message_reader_task(self, websocket: WebSocket, reader: MessageReader) -> None:
 		ack_all_messages = isinstance(reader, ConsumerGroupMessageReader)
@@ -209,7 +209,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		for channel in remove_channels:
 			reader = subscribed_channels.get(channel)
 			if reader:
-				if not reader in remove_by_reader:
+				if reader not in remove_by_reader:
 					remove_by_reader[reader] = []
 				remove_by_reader[reader].append(channel)
 
@@ -224,7 +224,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			message_reader_channels: dict[str, str] = {}
 			for channel in channels:
 				if not self._check_channel_access(channel, "read"):
-					subsciption_event.error = Error(  # pylint: disable=loop-invariant-statement
+					subsciption_event.error = Error(
 						code=0,
 						message=f"Write access to channel {channel!r} denied",
 						details=None,

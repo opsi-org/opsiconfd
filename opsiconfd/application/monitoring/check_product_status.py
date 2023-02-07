@@ -67,12 +67,12 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 		if object_to_groups:
 			client_ids = [object_to_group.objectId for object_to_group in object_to_groups]
 		else:
-			client_ids = []  # pylint: disable=use-tuple-over-list
+			client_ids = []
 	else:
 		client_ids = backend.host_getIdents(type="OpsiClient")
 
 	clients_on_depot = defaultdict(list)
-	for entry in backend.configState_getClientToDepotserver(clientIds=client_ids, masterOnly=True):  # pylint: disable=use-list-copy
+	for entry in backend.configState_getClientToDepotserver(clientIds=client_ids, masterOnly=True):
 		clients_on_depot[entry["depotId"]].append(entry["clientId"])
 
 	print(clients_on_depot)
@@ -105,26 +105,24 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 				if state != State.CRITICAL:
 					state = State.WARNING
 
-				action_request_on_client[depot_id][poc.productId].append(  # pylint: disable=loop-invariant-statement
-					f"{poc.clientId} ({ poc.actionRequest})"
-				)
+				action_request_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({ poc.actionRequest})")
 
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
 				if state != State.CRITICAL:
 					state = State.CRITICAL
 
-				product_problems_on_client[depot_id][poc.productId].append(  # pylint: disable=loop-invariant-statement
+				product_problems_on_client[depot_id][poc.productId].append(
 					f"{poc.clientId} ({poc.actionResult} lastAction: [{poc.lastAction}])"
 				)
 
 			if not poc.productVersion or not poc.packageVersion:
 				continue
 
-			if depot_id not in product_on_depot_info:  # pylint: disable=loop-invariant-statement
+			if depot_id not in product_on_depot_info:
 				continue
 
-			try:  # pylint: disable=loop-try-except-usage
-				product_on_depot = product_on_depot_info[depot_id][poc.productId]  # pylint: disable=loop-invariant-statement
+			try:
+				product_on_depot = product_on_depot_info[depot_id][poc.productId]
 			except KeyError:
 				logger.debug("Product %s not found on depot %s", poc.productId, depot_id)
 				continue
@@ -133,7 +131,7 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 				if state != State.CRITICAL:
 					state = State.WARNING
 
-				product_version_problems_on_client[depot_id][poc.productId].append(  # pylint: disable=loop-invariant-statement
+				product_version_problems_on_client[depot_id][poc.productId].append(
 					f"{poc.clientId} ({poc.productVersion}-{poc.packageVersion})"
 				)
 

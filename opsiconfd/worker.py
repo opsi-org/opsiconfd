@@ -285,13 +285,13 @@ class Worker(WorkerInfo, UvicornServer):
 					if wait_done:
 						break
 
-				if time.time() - start >= self.connection_close_wait_timeout:  # pylint: disable=dotted-import-in-loop
+				if time.time() - start >= self.connection_close_wait_timeout:
 					logger.notice("Timed out while waiting for connections to close")
 					for connection in self.server_state.connections:
 						logger.notice("Connection was not closed in time: %s", self.get_connection_info(connection))
 					break
 
-				await asyncio.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+				await asyncio.sleep(0.5)
 
 		if keep_connections:
 			logger.info("All except %d connections closed", len(keep_connections))
@@ -338,7 +338,7 @@ class Worker(WorkerInfo, UvicornServer):
 		if self.server_state.tasks and not self.force_exit:
 			logger.info("Waiting for background tasks to complete")
 			while self.server_state.tasks and not self.force_exit:
-				await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+				await asyncio.sleep(0.1)
 
 		# Send the lifespan shutdown event, and wait for application shutdown.
 		if not self.force_exit:

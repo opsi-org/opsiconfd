@@ -411,8 +411,8 @@ def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 		assert val == poc[attr]
 
 
-def _prepare_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-statements,too-many-locals,too-many-arguments
-	test_client: OpsiconfdTestClient,
+def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-many-statements,too-many-locals,too-many-arguments
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 	poc_status: list[tuple[str, str, str]],
 	# productAction, requiredAction, requiredInstallationStatus, requirementType
 	requirement: tuple[str | None, str | None, str | None, str | None],
@@ -616,7 +616,7 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 	expected_actions: list[tuple[str, str]],
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	product_on_clients = _prepare_productOnClient_sequence_dependencies(
+	product_on_clients = _prepare_product_on_client_sequence_dependencies(
 		test_client=test_client, poc_status=poc_status, requirement=requirement
 	)
 	rpc = {

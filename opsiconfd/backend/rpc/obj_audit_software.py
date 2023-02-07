@@ -55,14 +55,16 @@ class RPCAuditSoftwareMixin(Protocol):
 				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditSoftware]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditSoftware_getObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[AuditSoftware]:
 		ace = self._get_ace("auditSoftware_getObjects")
-		return self._mysql.get_objects(
-			table="SOFTWARE", ace=ace, object_type=AuditSoftware, attributes=attributes, filter=filter
-		)
+		return self._mysql.get_objects(table="SOFTWARE", ace=ace, object_type=AuditSoftware, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditSoftware_getHashes(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[dict]:
 		ace = self._get_ace("auditSoftware_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE", object_type=AuditSoftware, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -76,7 +78,9 @@ class RPCAuditSoftwareMixin(Protocol):
 		return self._mysql.get_idents(table="SOFTWARE", object_type=AuditSoftware, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_deleteObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware) -> None:  # pylint: disable=invalid-name
+	def auditSoftware_deleteObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware
+	) -> None:
 		ace = self._get_ace("auditSoftware_deleteObjects")
 		self._mysql.delete_objects(table="SOFTWARE", object_type=AuditSoftware, obj=auditSoftwares, ace=ace)
 
@@ -91,7 +95,7 @@ class RPCAuditSoftwareMixin(Protocol):
 		windowsSoftwareId: str | None = None,
 		windowsDisplayName: str | None = None,
 		windowsDisplayVersion: str | None = None,
-		installSize: int | None = None
+		installSize: int | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -99,12 +103,7 @@ class RPCAuditSoftwareMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftware_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
-		self: BackendProtocol,
-		name: str,
-		version: str,
-		subVersion: str,
-		language: str,
-		architecture: str
+		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str
 	) -> None:
 		self.auditSoftware_deleteObjects(
 			self.auditSoftware_getIdents(

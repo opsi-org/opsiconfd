@@ -9,7 +9,6 @@ monitoring
 """
 
 from datetime import datetime
-from typing import Dict
 
 import msgspec
 from fastapi.responses import JSONResponse
@@ -31,7 +30,7 @@ from .utils import (
 
 
 async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
-	cpu_thresholds: Dict[str, int] | None = None, error_thresholds: Dict[str, int] | None = None, perfdata: bool = True
+	cpu_thresholds: dict[str, int] | None = None, error_thresholds: dict[str, int] | None = None, perfdata: bool = True
 ) -> JSONResponse:
 	state = State.OK
 	message = []
@@ -55,7 +54,7 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 		rpc_list = await redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, 9999)
 		error_count = 0
 		for rpc in rpc_list:
-			rpc = msgspec.msgpack.decode(rpc)  # pylint: disable=dotted-import-in-loop
+			rpc = msgspec.msgpack.decode(rpc)
 			if rpc["error"]:
 				error_count += 1
 		if error_count == 0:

@@ -202,9 +202,7 @@ class RPCHostControlMixin(Protocol):
 			self._host_control_broadcast_addresses[net] = {}
 			for broadcast_address, ports in broadcast_addresses.items():
 				brd = ip_address(broadcast_address)
-				self._host_control_broadcast_addresses[net][brd] = tuple(  # pylint: disable=loop-invariant-statement
-					forceInt(port) for port in ports
-				)
+				self._host_control_broadcast_addresses[net][brd] = tuple(forceInt(port) for port in ports)
 
 		if old_format:
 			logger.warning(
@@ -265,7 +263,7 @@ class RPCHostControlMixin(Protocol):
 					method=method,
 					params=tuple(params or []),
 				)
-				rpc_id_to_client_id[jsonrpc_request.rpc_id] = client_id  # pylint: disable=loop-invariant-statement
+				rpc_id_to_client_id[jsonrpc_request.rpc_id] = client_id
 				coros.append(send_message(jsonrpc_request))
 			await asyncio.gather(*coros)
 
@@ -298,9 +296,9 @@ class RPCHostControlMixin(Protocol):
 		result = {}
 		rpcts = []
 		for host in self.host_getObjects(id=host_ids):
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				port = self._host_control_opsiclientd_port
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					config_states = self.configState_getObjects(configId="opsiclientd.control_server.port", objectId=host.id)
 					port = int(config_states[0].values[0])
 					logger.info("Using port %s for opsiclientd at %s", port, host.id)
@@ -327,7 +325,7 @@ class RPCHostControlMixin(Protocol):
 					)
 				)
 			except Exception as err:  # pylint: disable=broad-except
-				result[host.id] = {"result": None, "error": str(err)}  # pylint: disable=loop-invariant-statement
+				result[host.id] = {"result": None, "error": str(err)}
 
 		running_threads = 0
 		while rpcts:  # pylint: disable=too-many-nested-blocks
@@ -349,8 +347,8 @@ class RPCHostControlMixin(Protocol):
 						rpct.start()
 						running_threads += 1
 				else:
-					time_running = round(time.time() - rpct.started)  # pylint: disable=dotted-import-in-loop
-					if time_running >= timeout + 5:  # type: ignore[operator]  # pylint: disable=loop-invariant-statement
+					time_running = round(time.time() - rpct.started)
+					if time_running >= timeout + 5:  # type: ignore[operator]
 						# thread still alive 5 seconds after timeout => kill
 						logger.info(
 							"Rpc to host %s (address: %s) timed out after %0.2f seconds, terminating",
@@ -360,10 +358,10 @@ class RPCHostControlMixin(Protocol):
 						)
 						result[rpct.host_id] = {
 							"result": None,
-							"error": f"timed out after {time_running:0.2f} seconds",  # pylint: disable=loop-invariant-statement
+							"error": f"timed out after {time_running:0.2f} seconds",
 						}
 						if not rpct.ended:
-							try:  # pylint: disable=loop-try-except-usage
+							try:
 								rpct.terminate()
 							except Exception as err:  # pylint: disable=broad-except
 								logger.error("Failed to terminate rpc thread: %s", err)
@@ -371,7 +369,7 @@ class RPCHostControlMixin(Protocol):
 						continue
 				new_rpcts.append(rpct)
 			rpcts = new_rpcts
-			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+			time.sleep(0.1)
 
 		return result
 
@@ -385,7 +383,7 @@ class RPCHostControlMixin(Protocol):
 			networks = [ipn for ipn in self._host_control_broadcast_addresses if ipa and ipa in ipn]
 			if len(networks) > 1:
 				# Take bets matching network by prefix length
-				networks = [sorted(networks, key=lambda x: x.prefixlen, reverse=True)[0]]  # pylint: disable=use-tuple-over-list
+				networks = [sorted(networks, key=lambda x: x.prefixlen, reverse=True)[0]]
 			elif not networks:
 				logger.debug("No matching ip network found for host address '%s', using all broadcasts", ipa.compressed)
 				networks = list(self._host_control_broadcast_addresses)
@@ -402,7 +400,7 @@ class RPCHostControlMixin(Protocol):
 		hosts = self.host_getObjects(attributes=["hardwareAddress", "ipAddress"], id=hostIds or [])
 		result = {}
 		for host in hosts:
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				if not host.hardwareAddress:
 					raise BackendMissingDataError(f"Failed to get hardware address for host '{host.id}'")
 
@@ -412,12 +410,7 @@ class RPCHostControlMixin(Protocol):
 				# Split up the hex values and pack.
 				payload = b""
 				for i in range(0, len(data), 2):
-					payload = b"".join(
-						[
-							payload,
-							struct.pack("B", int(data[i : i + 2], 16)),  # pylint: disable=dotted-import-in-loop,memoryview-over-bytes
-						]
-					)
+					payload = b"".join([payload, struct.pack("B", int(data[i : i + 2], 16))])
 
 				for broadcast_address, target_ports in self._get_broadcast_addresses_for_host(host):
 					logger.debug("Sending data to network broadcast %s %s [%s]", broadcast_address, target_ports, data)
@@ -431,7 +424,7 @@ class RPCHostControlMixin(Protocol):
 				result[host.id] = {"result": "sent", "error": None}
 			except Exception as err:  # pylint: disable=broad-except
 				logger.debug(err, exc_info=True)
-				result[host.id] = {"result": None, "error": str(err)}  # pylint: disable=loop-invariant-statement
+				result[host.id] = {"result": None, "error": str(err)}
 		return result
 
 	@rpc_method
@@ -573,7 +566,7 @@ class RPCHostControlMixin(Protocol):
 		for host in self.host_getObjects(id=client_ids):
 			if self._shutting_down:
 				return {}
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				address = self._get_host_address(host)
 				threads.append(
 					ConnectionThread(
@@ -603,7 +596,7 @@ class RPCHostControlMixin(Protocol):
 					running_threads += 1
 				new_threads.append(thread)
 			threads = new_threads
-			time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+			time.sleep(0.5)
 		return result
 
 	@rpc_method

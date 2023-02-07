@@ -303,11 +303,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			return False
 
 		while list(childs):
-			left = len(childs)  # pylint: disable=loop-invariant-statement
+			left = len(childs)
 			for group_id in list(childs):
 				if insert_group(group_id, childs[group_id], groups):
 					del childs[group_id]
-			if left == len(childs):  # pylint: disable=loop-invariant-statement
+			if left == len(childs):
 				raise BackendUnaccomplishableError("Error in host groups")
 		return groups
 
@@ -386,9 +386,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		scantime = time.strptime("2000-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 
 		for audit_software_on_client in self.auditSoftwareOnClient_getObjects(clientId=hostId):
-			lastseen = time.strptime(audit_software_on_client.getLastseen(), "%Y-%m-%d %H:%M:%S")  # pylint: disable=dotted-import-in-loop
+			lastseen = time.strptime(audit_software_on_client.getLastseen(), "%Y-%m-%d %H:%M:%S")
 			scantime = max(lastseen, scantime)
-			try:  # pylint: disable=loop-try-except-usage
+			try:
 				aus = audit_softwares[audit_software_on_client.name][audit_software_on_client.version][audit_software_on_client.subVersion][
 					audit_software_on_client.language
 				][audit_software_on_client.architecture]
@@ -441,9 +441,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				architecture=audit_software.getArchitecture(),
 			):
 				if audit_software_on_client.getUninstallString():
-					_hash["uninstallString"] = audit_software_on_client.getUninstallString()  # pylint: disable=loop-invariant-statement
+					_hash["uninstallString"] = audit_software_on_client.getUninstallString()
 				if audit_software_on_client.getBinaryName():
-					_hash["binaryName"] = audit_software_on_client.getBinaryName()  # pylint: disable=loop-invariant-statement
+					_hash["binaryName"] = audit_software_on_client.getBinaryName()
 				_hash["installedOn"].append(audit_software_on_client.getClientId())
 			_hash["installationCount"] = len(_hash["installedOn"])
 			result.append(_hash)
@@ -469,7 +469,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				"windowsDisplayVersion": "",
 				"installSize": -1,
 			}
-			audit_software_on_client = {  # pylint: disable=loop-invariant-statement
+			audit_software_on_client = {
 				"clientId": hostId,
 				"uninstallString": "",
 				"binaryName": "",
@@ -478,13 +478,13 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			}
 			for (key, val) in value.items():
 				if key.lower() == "displayname":
-					audit_software["name"] = audit_software["windowsDisplayName"] = val  # pylint: disable=loop-invariant-statement
+					audit_software["name"] = audit_software["windowsDisplayName"] = val
 				elif key.lower() == "displayversion":
-					audit_software["version"] = audit_software["windowsDisplayVersion"] = val  # pylint: disable=loop-invariant-statement
+					audit_software["version"] = audit_software["windowsDisplayVersion"] = val
 				elif key.lower() == "installsize":
-					audit_software["installSize"] = val  # pylint: disable=loop-invariant-statement
+					audit_software["installSize"] = val
 				else:
-					for akey in list(audit_software_on_client):  # pylint: disable=use-dict-comprehension
+					for akey in list(audit_software_on_client):
 						if key.lower() == akey.lower():
 							audit_software_on_client[key] = val
 							break
@@ -518,7 +518,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			if hardware_class not in info:
 				info[hardware_class] = []
 			data = audit_hardware_on_host.toHash()
-			lastseen = time.strptime(str(data["lastseen"]), "%Y-%m-%d %H:%M:%S")  # pylint: disable=dotted-import-in-loop
+			lastseen = time.strptime(str(data["lastseen"]), "%Y-%m-%d %H:%M:%S")
 			scantime = max(scantime, lastseen)
 			for key in ("hardwareClass", "hostId", "firstseen", "state", "lastseen"):
 				del data[key]
@@ -537,7 +537,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				continue
 
 			for device in devices:
-				data = {str(attribute): value for attribute, value in device.items()}  # pylint: disable=loop-invariant-statement
+				data = {str(attribute): value for attribute, value in device.items()}
 				data["hardwareClass"] = hardware_class
 				data["hostId"] = hostId
 				audit_hardware_on_hosts.append(AuditHardwareOnHost.fromHash(data))
@@ -903,7 +903,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		result = []
 		for products in self.getProducts_hash(depotIds=[depotId]).values():
-			for product_hash in products.values():  # pylint: disable=use-list-copy
+			for product_hash in products.values():
 				result.append(product_hash)
 		return result
 
@@ -1248,9 +1248,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		for product_on_depot in self.productOnDepot_getIdents(depotId=depotId, returnType="dict"):
 			for product_property in (
-				product_properties.get(product_on_depot["productId"], {})  # pylint: disable=loop-invariant-statement
-				.get(product_on_depot["productVersion"], {})  # pylint: disable=loop-invariant-statement
-				.get(product_on_depot["packageVersion"], [])  # pylint: disable=loop-invariant-statement
+				product_properties.get(product_on_depot["productId"], {})
+				.get(product_on_depot["productVersion"], {})
+				.get(product_on_depot["packageVersion"], [])
 			):
 				product_id = product_property.getProductId()
 				if product_id not in result:
@@ -1265,7 +1265,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				if depotId:
 					defaults = depot_properties.get(product_id, {}).get(product_property.getPropertyId(), defaults)
 
-				values = []  # pylint: disable=use-tuple-over-list
+				values = []
 				if not product_property.getEditable() or (
 					product_property.getPossibleValues() and len(product_property.getPossibleValues()) > 1
 				):
@@ -1307,7 +1307,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 					if productPropertyState:
 						defaults = productPropertyState[0].values
 
-				values = []  # pylint: disable=use-tuple-over-list
+				values = []
 				if not productProperty.getEditable() or (
 					productProperty.getPossibleValues() and len(productProperty.getPossibleValues()) > 1
 				):
@@ -1380,9 +1380,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		for product_on_depot in self.productOnDepot_getObjects(productId=productId, depotId=depotIds):
 			if product_on_depot.packageVersion in created.get(product_on_depot.productVersion, []):
 				continue
-			defaultValues = []
+			defaultValues: list[str] = []
 			if defaultValue:
-				defaultValues = [defaultValue]  # pylint: disable=use-tuple-over-list,loop-invariant-statement
+				defaultValues = [defaultValue]
 			editable = True
 			if possibleValues:
 				editable = False
@@ -1399,7 +1399,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 					multiValue=False,
 				)
 			)
-			for depot_id in depotIds:  # pylint: disable=use-list-copy
+			for depot_id in depotIds:
 				product_property_states.append(
 					ProductPropertyState(productId=product_on_depot.productId, propertyId=name, objectId=depot_id, values=defaultValues)
 				)
@@ -1494,7 +1494,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			# Apply the changes to depots with an existing ProductPropertyState
 			depot_ids = self.host_getIdents(type="OpsiDepotserver", returnType="unicode")
 			for product_property_state in self.productPropertyState_getObjects(productId=productId, objectId=depot_ids):
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					product_property_state.setValues(new_properties[product_property_state.propertyId])
 					product_property_states.append(product_property_state)
 				except KeyError:
@@ -1536,10 +1536,10 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				].append(product_dependency)
 
 			for product_on_depot in self.productOnDepot_getIdents(depotId=depotId, returnType="dict"):
-				for product_dependency in (  # pylint: disable=use-list-copy
-					product_dependencies.get(product_on_depot["productId"], {})  # pylint: disable=loop-invariant-statement
-					.get(product_on_depot["productVersion"], {})  # pylint: disable=loop-invariant-statement
-					.get(product_on_depot["packageVersion"], [])  # pylint: disable=loop-invariant-statement
+				for product_dependency in (
+					product_dependencies.get(product_on_depot["productId"], {})
+					.get(product_on_depot["productVersion"], {})
+					.get(product_on_depot["packageVersion"], [])
 				):
 					result.append(
 						{
@@ -1553,7 +1553,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 						}
 					)
 		else:
-			for product_dependency in self.productDependency_getObjects(productId=productId):  # pylint: disable=use-list-copy
+			for product_dependency in self.productDependency_getObjects(productId=productId):
 				result.append(
 					{
 						"productId": product_dependency.getProductId(),
@@ -1771,9 +1771,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		for software_license_to_icense_pool in self.softwareLicenseToLicensePool_getObjects(softwareLicenseId=softwareLicenseId):
 			sl_hash["licensePoolIds"].append(software_license_to_icense_pool.getLicensePoolId())
 			if software_license_to_icense_pool.getLicenseKey():
-				sl_hash["licenseKeys"][  # pylint: disable=loop-invariant-statement
-					software_license_to_icense_pool.getLicensePoolId()
-				] = software_license_to_icense_pool.getLicenseKey()
+				sl_hash["licenseKeys"][software_license_to_icense_pool.getLicensePoolId()] = software_license_to_icense_pool.getLicenseKey()
 		return sl_hash
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicense_getObjects")
@@ -1808,7 +1806,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			):
 				sl_hash["licensePoolIds"].append(software_license_to_license_pool.getLicensePoolId())
 				if software_license_to_license_pool.getLicenseKey():
-					sl_hash["licenseKeys"][  # pylint: disable=loop-invariant-statement
+					sl_hash["licenseKeys"][
 						software_license_to_license_pool.getLicensePoolId()
 					] = software_license_to_license_pool.getLicenseKey()
 
@@ -1828,7 +1826,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self: BackendProtocol,
 		licensePoolId: str = "",
 		description: str = "",
-		productIds: list[ſtr] | None = None,
+		productIds: list[str] | None = None,
 		windowsSoftwareIds: list[str] | None = None,
 	) -> str:
 		if not licensePoolId:
@@ -2125,7 +2123,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		for license_pool in self.licensePool_getObjects():
 			pool_od = license_pool.getId()
 			licenses = 0
-			max_installations: int | str = 0  # pylint: disable=loop-invariant-statement
+			max_installations: int | str = 0
 			remaining_installations: int | str = 0
 			additional_license_pool_ids = set()
 
@@ -2151,10 +2149,10 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				for licenseOnClient in self.licenseOnClient_getObjects(attributes=["clientId"], licensePoolId=pool_od)
 			]
 
-			if max_installations == "infinite":  # pylint: disable=loop-invariant-statement
+			if max_installations == "infinite":
 				remaining_installations = "infinite"
 			else:
-				remaining_installations = int(max_installations) - len(used_by)  # pylint: disable=loop-invariant-statement
+				remaining_installations = int(max_installations) - len(used_by)
 				if additional_license_pool_ids:
 					licenses_used_by_clients_in_additional_pools = self.licenseOnClient_getIdents(licensePoolId=additional_license_pool_ids)
 					remaining_installations = remaining_installations - len(licenses_used_by_clients_in_additional_pools)

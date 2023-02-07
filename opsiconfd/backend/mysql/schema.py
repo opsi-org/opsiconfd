@@ -248,7 +248,9 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_VALUE` (
 	PRIMARY KEY (`product_property_id`),
 	KEY `productId` (`productId`,`productVersion`,`packageVersion`,`propertyId`),
 	KEY `index_product_property_value` (`productId`,`propertyId`,`productVersion`,`packageVersion`),
-	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`) REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
+	REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
+	ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=11237 DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE` (
@@ -286,7 +288,9 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
 	KEY `index_software_config_clientId` (`clientId`),
 	KEY `index_software_config_nvsla` (`name`,`version`,`subVersion`,`language`,`architecture`),
 	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE,
-	FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`) REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`)
+	REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`)
+	ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE` (
@@ -388,7 +392,7 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 			logger.debug("  Processing value '%s'", value)
 			if value_info["Scope"] == "g":
 				if hardware_device_table_exists:
-					if value in tables[hardware_device_table_name]:  # pylint: disable=loop-invariant-statement
+					if value in tables[hardware_device_table_name]:
 						# Column exists => change
 						hardware_device_table += f"CHANGE `{value}` `{value}` {value_info['Type']} NULL,\n"
 					else:
@@ -399,7 +403,7 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 				hardware_device_values_processed += 1
 			elif value_info["Scope"] == "i":
 				if hardware_config_table_exists:
-					if value in tables[hardware_config_table_name]:  # pylint: disable=loop-invariant-statement
+					if value in tables[hardware_config_table_name]:
 						# Column exists => change
 						hardware_config_table += f'CHANGE `{value}` `{value}` {value_info["Type"]} NULL,\n'
 					else:
@@ -884,7 +888,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			""",
 			params={"database": mysql.database},
 		).fetchall()
-		fk_names = []  # pylint: disable=use-tuple-over-list
+		fk_names = []
 		if res:
 			fk_names = [r[0] for r in res]
 

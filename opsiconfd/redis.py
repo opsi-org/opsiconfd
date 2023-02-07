@@ -68,35 +68,37 @@ def retry_redis_call(func: Callable) -> Callable:
 	@functools.wraps(func)
 	def wrapper_retry(*args: Any, **kwargs: Any) -> Callable:  # pylint: disable=inconsistent-return-statements
 		while True:
-			try:  # pylint: disable=loop-try-except-usage
-				return func(*args, **kwargs)  # pylint: disable=loop-invariant-statement
-			except (  # pylint: disable=loop-invariant-statement
+			try:
+				return func(*args, **kwargs)
+			except (
 				BusyLoadingError,
 				RedisConnectionError,
 			):
-				time.sleep(2)  # pylint: disable=dotted-import-in-loop
+				time.sleep(2)
 
 	return wrapper_retry
 
 
-def get_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> redis.StrictRedis:  # pylint: disable=invalid-name
+def get_redis_connection(
+	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False  # pylint: disable=invalid-name
+) -> redis.StrictRedis:
 	start = time.time()
 	con_id = f"{url}/{db}"
 	while True:
-		try:  # pylint: disable=loop-try-except-usage
+		try:
 			new_pool = False
-			with redis_pool_lock:  # pylint: disable=loop-global-usage
-				if con_id not in redis_connection_pool:  # pylint: disable=loop-global-usage,loop-invariant-statement
+			with redis_pool_lock:
+				if con_id not in redis_connection_pool:
 					new_pool = True
-					redis_connection_pool[con_id] = redis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage,loop-invariant-statement
-			client = redis.StrictRedis(connection_pool=redis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-invariant-statement,loop-global-usage
+					redis_connection_pool[con_id] = redis.ConnectionPool.from_url(url, db=db)
+			client = redis.StrictRedis(connection_pool=redis_connection_pool[con_id])
 			if new_pool or test_connection:
 				client.ping()
 			return client
-		except (RedisConnectionError, BusyLoadingError):  # pylint: disable=loop-invariant-statement
-			if timeout and time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
+		except (RedisConnectionError, BusyLoadingError):
+			if timeout and time.time() - start >= timeout:
 				raise
-			time.sleep(2)  # pylint: disable=dotted-import-in-loop
+			time.sleep(2)
 
 
 @contextmanager
@@ -108,25 +110,27 @@ def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[r
 		con.close()
 
 
-async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> async_redis.StrictRedis:  # pylint: disable=invalid-name
+async def get_async_redis_connection(
+	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False  # pylint: disable=invalid-name
+) -> async_redis.StrictRedis:
 	start = time.time()
 	while True:
-		try:  # pylint: disable=loop-try-except-usage
-			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"  # pylint: disable=dotted-import-in-loop
+		try:
+			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"
 			new_pool = False
-			async with async_redis_pool_lock:  # pylint: disable=loop-global-usage
-				if con_id not in async_redis_connection_pool:  # pylint: disable=loop-global-usage
+			async with async_redis_pool_lock:
+				if con_id not in async_redis_connection_pool:
 					new_pool = True
-					async_redis_connection_pool[con_id] = async_redis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage
+					async_redis_connection_pool[con_id] = async_redis.ConnectionPool.from_url(url, db=db)
 			# This will return a client (no Exception) even if connection is currently lost
-			client: async_redis.StrictRedis = async_redis.StrictRedis(connection_pool=async_redis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-global-usage
+			client: async_redis.StrictRedis = async_redis.StrictRedis(connection_pool=async_redis_connection_pool[con_id])
 			if new_pool or test_connection:
 				await client.ping()
 			return client
-		except (RedisConnectionError, BusyLoadingError):  # pylint: disable=loop-invariant-statement
-			if timeout and time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
+		except (RedisConnectionError, BusyLoadingError):
+			if timeout and time.time() - start >= timeout:
 				raise
-			await asyncio.sleep(2)  # pylint: disable=dotted-import-in-loop
+			await asyncio.sleep(2)
 
 
 async def async_redis_client(timeout: int = 0, test_connection: bool = False) -> async_redis.StrictRedis:
@@ -136,7 +140,7 @@ async def async_redis_client(timeout: int = 0, test_connection: bool = False) ->
 def delete_recursively(redis_key: str, piped: bool = True) -> None:
 	with redis_client() as client:
 		delete_keys = []
-		for key in client.scan_iter(f"{redis_key}:*"):  # pylint: disable=loop-invariant-statement
+		for key in client.scan_iter(f"{redis_key}:*"):
 			if piped:
 				delete_keys.append(key)
 			else:
@@ -179,20 +183,20 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 	redis_key = f"{conf.redis_key('locks')}:{lock_name}"
 	end = time.time() + acquire_timeout
 	with redis_client() as client:
-		while True:  # pylint: disable=dotted-import-in-loop
+		while True:
 			if client.setnx(redis_key, identifier):
 				if lock_timeout:
-					client.pexpire(redis_key, round(lock_timeout * 1000))  # milliseconds  # pylint: disable=loop-invariant-statement
+					client.pexpire(redis_key, round(lock_timeout * 1000))  # milliseconds
 				break
-			if time.time() >= end:  # pylint: disable=dotted-import-in-loop
-				raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")  # pylint: disable=loop-invariant-statement
-			time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+			if time.time() >= end:
+				raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")
+			time.sleep(0.5)
 		try:
 			yield identifier
 		finally:
 			with client.pipeline(transaction=True) as pipe:
 				while True:
-					try:  # pylint: disable=loop-try-except-usage
+					try:
 						# Redis will only perform the transaction if the watched keys were not modified.
 						pipe.watch(redis_key)
 						if pipe.get(redis_key) == indentifier_b:
@@ -204,7 +208,7 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 							# Different identifier, not our lock
 							pipe.unwatch()
 						break
-					except redis.exceptions.WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+					except redis.exceptions.WatchError:
 						pass
 
 
@@ -217,21 +221,21 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 	end = time.time() + acquire_timeout
 	client = await async_redis_client()
 
-	while True:  # pylint: disable=dotted-import-in-loop
+	while True:
 		if await client.setnx(redis_key, identifier):
 			if lock_timeout:
-				await client.pexpire(redis_key, round(lock_timeout * 1000))  # milliseconds  # pylint: disable=loop-invariant-statement
+				await client.pexpire(redis_key, round(lock_timeout * 1000))  # milliseconds
 			break
-		if time.time() >= end:  # pylint: disable=dotted-import-in-loop,
-			raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")  # pylint: disable=loop-invariant-statement
-		await asyncio.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+		if time.time() >= end:
+			raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")
+		await asyncio.sleep(0.5)
 
 	try:
 		yield identifier
 	finally:
 		async with client.pipeline(transaction=True) as pipe:
 			while True:
-				try:  # pylint: disable=loop-try-except-usage
+				try:
 					# Redis will only perform the transaction if the watched keys were not modified.
 					await pipe.watch(redis_key)
 					if await pipe.get(redis_key) == identifier_b:
@@ -243,7 +247,7 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 						# Different identifier, not our lock
 						await pipe.unwatch()
 					break
-				except redis.exceptions.WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+				except redis.exceptions.WatchError:
 					pass
 
 
@@ -251,12 +255,17 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 	conf = config
 
 	key_info: dict[str, dict[str, list | int]] = {
-		"rpc": {"keys": [], "memory": 0, "entries": 0, "prefixes": [f"{conf.redis_key('stats')}:rpc", f"{conf.redis_key('stats')}:num_rpc"]},
-		"stats": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('stats')]},
-		"session": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('session')]},
-		"log": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('log')]},
-		"state": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('state')]},
-		"messagebus": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('messagebus')]},
+		"rpc": {
+			"keys": [],
+			"memory": 0,
+			"entries": 0,
+			"prefixes": [f"{conf.redis_key('stats')}:rpc", f"{conf.redis_key('stats')}:num_rpc"],
+		},
+		"stats": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key("stats")]},
+		"session": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key("session")]},
+		"log": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key("log")]},
+		"state": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key("state")]},
+		"messagebus": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key("messagebus")]},
 		"misc": {"keys": [], "memory": 0, "entries": 0, "prefixes": []},
 	}
 
@@ -277,6 +286,7 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 			) or 0
 		except ResponseError as err:
 			from opsiconfd.logging import logger  # pylint: disable=import-outside-toplevel
+
 			logger.error("Redis command %r failed: %s", command, err, exc_info=True)
 		try:
 			key_info[matched_key_type]["entries"] += (  # type: ignore[union-attr,operator]
@@ -288,11 +298,7 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 
 	redis_info = decode_redis_result(await client.execute_command("INFO"))  # type: ignore[no-untyped-call]
 	redis_info["key_info"] = {
-		key_type: {
-			"keys": len(info["keys"]),  # type: ignore[arg-type]
-			"memory": info["memory"],
-			"entries": info["entries"]
-		}
+		key_type: {"keys": len(info["keys"]), "memory": info["memory"], "entries": info["entries"]}  # type: ignore[arg-type]
 		for key_type, info in key_info.items()
 	}
 	return redis_info

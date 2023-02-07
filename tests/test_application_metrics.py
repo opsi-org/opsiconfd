@@ -64,10 +64,7 @@ async def test_get_workers(config: Config) -> None:  # pylint: disable=redefined
 	for worker in workers:
 		found = False
 		for _worker in _workers:
-			if (
-				_worker["node_name"] == worker["node_name"]  # pylint: disable=loop-invariant-statement
-				and _worker["worker_num"] == worker["worker_num"]  # pylint: disable=loop-invariant-statement
-			):
+			if _worker["node_name"] == worker["node_name"] and _worker["worker_num"] == worker["worker_num"]:
 				found = True
 				break
 		if not found:

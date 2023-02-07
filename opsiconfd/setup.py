@@ -672,7 +672,7 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 	service = ServiceClient(opsi_config.get("service", "url"), verify="accept_all", jsonrpc_create_objects=True)
 	try:  # pylint: disable=too-many-nested-blocks
 		while True:
-			try:
+			try:  # pylint: disable=loop-try-except-usage
 				if not Confirm.ask("Do you want to register this server as a depotserver?"):
 					return False
 
@@ -700,7 +700,7 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 		depot_id = opsi_config.get("host", "id")
 		depot = OpsiDepotserver(id=depot_id)
 		while True:
-			try:
+			try:  # pylint: disable=loop-try-except-usage
 				inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
 
@@ -713,15 +713,25 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 						depot = OpsiDepotserver.fromHash({k: v for k, v in depot.to_hash().items() if k != "type"})
 
 				depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
-				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
-				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"
-				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs:///{FQDN}:4447/depot"
-				depot.repositoryLocalUrl = f"file://{REPOSITORY_DIR}"
-				depot.repositoryRemoteUrl = depot.repositoryRemoteUrl or f"webdavs:///{FQDN}:4447/repository"
-				depot.workbenchLocalUrl = f"file://{WORKBENCH_DIR}"
-				depot.workbenchRemoteUrl = depot.workbenchRemoteUrl or f"smb:///{FQDN}/opsi_workbench"
-				try:
-					depot.systemUUID = str(UUID(Path("/sys/class/dmi/id/product_uuid").read_text(encoding="ascii").strip()))
+				depot.depotLocalUrl = f"file://{DEPOT_DIR}"  # pylint: disable=loop-invariant-statement
+				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"  # pylint: disable=loop-invariant-statement
+				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs:///{FQDN}:4447/depot"  # pylint: disable=loop-invariant-statement
+				depot.repositoryLocalUrl = f"file://{REPOSITORY_DIR}"  # pylint: disable=loop-invariant-statement
+				depot.repositoryRemoteUrl = (
+					depot.repositoryRemoteUrl or f"webdavs:///{FQDN}:4447/repository"  # pylint: disable=loop-invariant-statement
+				)
+				depot.workbenchLocalUrl = f"file://{WORKBENCH_DIR}"  # pylint: disable=loop-invariant-statement
+				depot.workbenchRemoteUrl = (
+					depot.workbenchRemoteUrl or f"smb:///{FQDN}/opsi_workbench"  # pylint: disable=loop-invariant-statement
+				)  # pylint: disable=loop-invariant-statement
+				try:  # pylint: disable=loop-try-except-usage
+					depot.systemUUID = str(
+						UUID(
+							Path("/sys/class/dmi/id/product_uuid")  # pylint: disable=loop-invariant-statement
+							.read_text(encoding="ascii")
+							.strip()
+						)
+					)
 				except Exception as err:  # pylint: disable=broad-except
 					logger.debug(err)
 
@@ -737,12 +747,17 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 				opsi_config.set("service", "url", service.base_url)
 				opsi_config.write_config_file()
 
+				configs = service.jsonrpc("config_getObjects", params={"filter": {"id": "clientconfig.depot.id"}})
+				if configs and depot.id not in configs[0].defaultValues:
+					configs[0].defaultValues.append(depot.id)
+					service.jsonrpc("config_updateObjects", params=configs)
+
 				return True
 			except KeyboardInterrupt:
 				print("")
 				return False
 			except Exception as err:  # pylint: disable=broad-except,loop-invariant-statement
-				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
+				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")  # pylint: disable=loop-invariant-statement
 	finally:
 		service.disconnect()
 

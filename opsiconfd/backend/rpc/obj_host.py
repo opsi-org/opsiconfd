@@ -59,16 +59,22 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_insertObject")
 		host = forceObjectClass(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(host)
+		self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
 	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObject")
 		host = forceObjectClass(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(host)
+		self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
 	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
@@ -77,6 +83,10 @@ class RPCHostMixin(Protocol):
 			for host in forceList(hosts):
 				host = forceObjectClass(host, Host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
+				if self._events_enabled:
+					self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(hosts)
 
@@ -87,6 +97,10 @@ class RPCHostMixin(Protocol):
 			for host in forceList(hosts):
 				host = forceObjectClass(host, Host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
+				if self._events_enabled:
+					self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_hosts_updated(host)
 		self.dhcpd_control_hosts_updated(hosts)
 
@@ -121,8 +135,12 @@ class RPCHostMixin(Protocol):
 			for table in self._mysql.tables:
 				if table.startswith("HARDWARE_CONFIG_"):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_hosts_deleted(hosts)
 		self.dhcpd_control_hosts_deleted(hosts)
+		for host_id in host_ids:
+			self._send_messagebus_event("host_deleted", data={"id": host_id})
 
 	@rpc_method(check_acl=False)
 	def host_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

@@ -18,7 +18,11 @@ from opsicommon.objects import (  # type: ignore[import]
 	ProductDependency,
 	ProductOnClient,
 )
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.types import (  # type: ignore[import]
+	forceList,
+	forceObjectClass,
+	forceObjectClassList,
+)
 
 from . import rpc_method
 from .obj_product_dependency import (
@@ -44,7 +48,10 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
+		self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObject(  # pylint: disable=invalid-name
@@ -53,7 +60,10 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_updateObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
+		self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def productOnClient_createObjects(  # pylint: disable=invalid-name
@@ -67,6 +77,10 @@ class RPCProductOnClientMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session
 				)
+				if self._events_enabled:
+					self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
@@ -80,6 +94,10 @@ class RPCProductOnClientMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session
 				)
+				if self._events_enabled:
+					self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		if not self._events_enabled:
+			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
@@ -113,6 +131,11 @@ class RPCProductOnClientMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productOnClient_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, obj=productOnClients, ace=ace)
+		if not self._events_enabled:
+			return
+		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
+		for productOnClient in productOnClients:
+			self._send_messagebus_event("productOnClient_deleted", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_product_on_clients_deleted(productOnClients)
 
 	@rpc_method(check_acl=False)

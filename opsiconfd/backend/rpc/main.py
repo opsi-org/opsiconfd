@@ -20,6 +20,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
+from opsicommon.messagebus import EventMessage  # type: ignore[import]
 from opsicommon.messagebus import JSONRPCRequestMessage, timestamp
 from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
@@ -157,6 +158,11 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._interface: dict[str, MethodInterface] = {}
 		self._interface_list: list[dict[str, Any]] = []
 		self.available_modules: list[str] = []
+		self._messagebus_user_id = None
+		try:
+			self._messagebus_user_id = get_user_id_for_service_worker(Worker.get_instance().id)
+		except RuntimeError:
+			pass
 
 		if opsi_config.get("host", "server-role") == "configserver":
 			self._config_server_init()
@@ -304,6 +310,20 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			return self.configState_getClientToDepotserver(clientIds=[client_id])[0]["depotId"]
 		except (IndexError, KeyError):
 			return None
+
+	def _send_messagebus_event(self, event: str, data: dict[str, Any]) -> None:
+		if not self._events_enabled:
+			return
+		if not self._messagebus_user_id:
+			raise ValueError("messagebus_user_id undefined")
+		sync_send_message(
+			EventMessage(
+				sender=self._messagebus_user_id,
+				channel=f"event:{event}",
+				event=event,
+				data=data,
+			)
+		)
 
 	def _execute_rpc_on_depot(self, depot_id: str, method: str, params: list[Any] | None = None) -> None:
 		logger.info("Executing RPC method %r on depot %r", method, depot_id)

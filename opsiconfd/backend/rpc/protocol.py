@@ -144,3 +144,6 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 
 	def get_interface(self) -> list[dict[str, Any]]:
 		...
+
+	def _send_messagebus_event(self, event: str, data: dict[str, Any]) -> None:
+		...

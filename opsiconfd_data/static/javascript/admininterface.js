@@ -957,7 +957,19 @@ function messagebusConnect() {
 			created: Date.now(),
 			expires: Date.now() + 10000,
 			operation: "add",
-			channels: ["event:host_connected", "event:host_disconnected", "event:user_connected", "event:user_disconnected", "event:app_state_changed"]
+			channels: [
+				"event:app_state_changed",
+				"event:user_connected",
+				"event:user_disconnected",
+				"event:host_created",
+				"event:host_updated",
+				"event:host_deleted",
+				"event:host_connected",
+				"event:host_disconnected",
+				"event:productOnClient_created",
+				"event:productOnClient_updated",
+				"event:productOnClient_deleted",
+			]
 		}
 		messagebusSend(dataMessage);
 	};

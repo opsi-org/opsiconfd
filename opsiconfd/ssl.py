@@ -335,7 +335,7 @@ def validate_cert(cert: X509, ca_cert: X509 | None = None) -> None:
 				)
 
 
-def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
 	server_role = opsi_config.get("host", "server-role")
 	if server_role not in ("configserver", "depotserver"):
@@ -357,7 +357,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 				"or specify a certificate database containing the issuer certificate via --ssl-trusted-certs."
 			) from err
 
-	create = False
+	create = force_new
 
 	if (
 		os.path.exists(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem"))
@@ -481,10 +481,12 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 def setup_ssl() -> None:
 	logger.info("Setup ssl")
 	server_role = opsi_config.get("host", "server-role")
+	force_new_server_cert = False
 	if "opsi_ca" not in config.skip_setup:
-		setup_ca()
+		# Create new server cert if CA was created / renewed
+		force_new_server_cert = setup_ca()
 	if "server_cert" not in config.skip_setup:
-		setup_server_cert()
+		setup_server_cert(force_new_server_cert)
 	if server_role == "configserver":
 		# Read CA key as root to fill key cache
 		# so run_as_user can use key from cache

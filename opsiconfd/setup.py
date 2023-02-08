@@ -49,6 +49,7 @@ from opsicommon.server.setup import (  # type: ignore[import]
 from opsicommon.server.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
+from opsicommon.types import forceHostId
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
@@ -315,52 +316,57 @@ def setup_mysql(interactive: bool = False, full: bool = False, force: bool = Fal
 	setup_mysql_connection(interactive=interactive, force=force)
 
 	mysql = MySQLConnection()
-	if interactive:
+	if interactive and force:
 		rich_print(f"[b]Creating database {mysql.database!r} on {mysql.address!r}[/b]")
 	try:
 		mysql.connect()
 		create_database(mysql)
 	except Exception as err:
-		if interactive:
+		if interactive and force:
 			rich_print(f"[b][red]Failed to create database: {err}[/red][/b]")
 		raise
-	if interactive:
+	if interactive and force:
 		rich_print("[b][green]Database created successfully[/green][/b]")
 
-	if interactive:
+	if interactive and force:
 		rich_print("[b]Updating database[/b]")
 	try:
 		update_database(mysql, force=full)
 	except Exception as err:
-		if interactive:
+		if interactive and force:
 			rich_print(f"[b][red]Failed to update database: {err}[/red][/b]")
 		raise
-	if interactive:
+	if interactive and force:
 		rich_print("[b][green]Database updated successfully[/green][/b]")
 
-	if interactive:
+	if interactive and force:
 		rich_print("[b]Cleaning up database[/b]")
 	try:
 		cleanup_database(mysql)
 	except Exception as err:
-		if interactive:
+		if interactive and force:
 			rich_print(f"[b][red]Failed to cleanup database: {err}[/red][/b]")
 		raise
-	if interactive:
+	if interactive and force:
 		rich_print("[b][green]Database cleaned up successfully[/green][/b]")
 
 
-def setup_backend() -> None:
+def setup_backend(force_server_id: str | None = None) -> None:
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
-	mysql = MySQLConnection()
-	with mysql.connection():
-		if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
-			config_server_id = get_configserver_id()
-			logger.notice("Creating config server %r", config_server_id)
-			network_config = getNetworkConfiguration()
-			config_server = OpsiConfigserver(
+	from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+
+	config_server_id = force_server_id or get_configserver_id()
+
+	backend = get_unprotected_backend()
+	backend.events_enabled = False
+	conf_servers = backend.host_getObjects(type="OpsiConfigserver")
+	if not conf_servers:
+		logger.notice("Creating config server %r", config_server_id)
+		network_config = getNetworkConfiguration()
+		conf_servers = [
+			OpsiConfigserver(
 				id=config_server_id,
 				opsiHostKey=None,
 				depotLocalUrl=f"file://{DEPOT_DIR}",
@@ -380,11 +386,22 @@ def setup_backend() -> None:
 				isMasterDepot=True,
 				masterDepotId=None,
 			)
-			mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
+		]
+		backend.host_createObjects(conf_servers)
+	elif conf_servers[0].id != config_server_id:
+		if force_server_id:
+			logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, config_server_id)
+			backend.host_renameOpsiDepotserver(conf_servers[0].id, config_server_id)
+			opsi_config.set("host", "id", config_server_id, persistent=True)
+		else:
+			raise ValueError(
+				f"Config server ID {conf_servers[0].id!r} in database differs from host.id {config_server_id!r} in /etc/opsi/opsi.conf. "
+				f"Please change host.id in /etc/opsi/opsi.conf to {conf_servers[0].id!r} "
+				"or use `opsiconfd setup --rename-configserver` to fix this issue."
+			)
+	backend.exit()
 
-		conf_servers = list(mysql.get_objects(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}))
-		if conf_servers and isinstance(conf_servers[0], OpsiConfigserver) and conf_servers[0].opsiHostKey:
-			opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
+	opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
 
 
 def cleanup_log_files() -> None:
@@ -754,6 +771,13 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	logger.notice("Running opsiconfd setup")
 	register_depot = getattr(config, "register_depot", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
+	force_server_id = None
+	rename_server = getattr(config, "rename_server", False)
+	if rename_server:
+		if isinstance(rename_server, str):
+			force_server_id = forceHostId(rename_server)
+		else:
+			force_server_id = opsi_config.get("host", "id")
 
 	if register_depot:
 		if not setup_depotserver():
@@ -787,7 +811,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 
 	if "backend" not in config.skip_setup and backend_available:
 		try:
-			setup_backend()
+			setup_backend(force_server_id)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing

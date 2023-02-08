@@ -158,7 +158,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 				connection_thread.start()
 
 	def _update_pxe_boot_configuration(self: BackendProtocol, client_id: str) -> None:
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 
 		responsible_depot_id = self._get_responsible_depot_id(client_id)
@@ -173,7 +173,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			self.opsipxeconfd_updatePXEBootConfiguration(client_id)
 
 	def _delete_pxe_boot_configuration(self: BackendProtocol, client_id: str, all_depots: bool = False) -> None:
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 
 		responsible_depot_id = self._get_responsible_depot_id(client_id)
@@ -198,7 +198,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			self.opsipxeconfd_deletePXEBootConfiguration(client_id)
 
 	def opsipxeconfd_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
-		if not self._opsipxeconfd_control_enabled or not self._events_enabled:
+		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
 		for host in forceObjectClassList(hosts, Host):
@@ -208,7 +208,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			self._update_pxe_boot_configuration(host.id)
 
 	def opsipxeconfd_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
-		if not self._opsipxeconfd_control_enabled or not self._events_enabled:
+		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
 		for host in forceObjectClassList(hosts, Host):
@@ -220,7 +220,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 	def opsipxeconfd_product_on_clients_updated(
 		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
-		if not self._opsipxeconfd_control_enabled or not self._events_enabled:
+		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
 		client_ids = set()
@@ -234,7 +234,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 	def opsipxeconfd_product_on_clients_deleted(
 		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
-		if not self._opsipxeconfd_control_enabled or not self._events_enabled:
+		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
 		client_ids = set()
@@ -248,7 +248,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 	def opsipxeconfd_config_states_updated(
 		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
-		if not self._opsipxeconfd_control_enabled or not self._events_enabled:
+		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
 		object_ids = set()

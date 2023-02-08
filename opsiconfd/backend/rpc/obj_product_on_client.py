@@ -48,7 +48,7 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 		self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
@@ -60,7 +60,7 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_updateObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 		self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
@@ -77,9 +77,9 @@ class RPCProductOnClientMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session
 				)
-				if self._events_enabled:
+				if self.events_enabled:
 					self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
@@ -94,9 +94,9 @@ class RPCProductOnClientMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session
 				)
-				if self._events_enabled:
+				if self.events_enabled:
 					self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
@@ -131,7 +131,7 @@ class RPCProductOnClientMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productOnClient_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, obj=productOnClients, ace=ace)
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
 		for productOnClient in productOnClients:

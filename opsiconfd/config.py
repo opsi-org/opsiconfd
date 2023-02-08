@@ -1121,6 +1121,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		if self._sub_command == "setup":
 			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
+			self._parser.add(
+				"--rename-server",
+				nargs="?",
+				const=True,
+				default=False,
+				help=self._help("setup", "Rename configserver if needed. Takes provided ID or host.id from opsi.conf."),
+			)
 
 		if self._sub_command == "health-check":
 			self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))

@@ -197,7 +197,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self._dhcpd_control_reload_thread.trigger_reload()
 
 	def dhcpd_control_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
-		if not self._dhcpd_control_enabled or not self._events_enabled:
+		if not self._dhcpd_control_enabled or not self.events_enabled:
 			return
 		hosts = forceObjectClassList(hosts, Host)
 		delete_hosts: list[Host] = []
@@ -222,7 +222,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self.dhcpd_control_hosts_deleted(delete_hosts)
 
 	def dhcpd_control_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
-		if not self._dhcpd_control_enabled or not self._events_enabled:
+		if not self._dhcpd_control_enabled or not self.events_enabled:
 			return
 		for client in [h for h in forceObjectClassList(hosts, Host) if isinstance(h, OpsiClient)]:
 			if self._dhcpd_control_dhcpd_on_depot:
@@ -237,7 +237,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def dhcpd_control_config_states_updated(
 		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
-		if not self._dhcpd_control_enabled or not self._events_enabled:
+		if not self._dhcpd_control_enabled or not self.events_enabled:
 			return
 		object_ids = set()
 		for config_state in forceList(config_states):

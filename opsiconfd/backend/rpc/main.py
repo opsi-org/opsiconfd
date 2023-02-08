@@ -148,7 +148,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			return
 		self.__initialized = True
 
-		self._events_enabled = True
+		self.events_enabled = True
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
 		self._depot_id: str = get_depotserver_id()
@@ -271,16 +271,16 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 
 	@contextmanager
 	def events_disabled(self) -> Generator[None, None, None]:
-		events_enabled = self._events_enabled
-		self._events_enabled = False
+		events_enabled = self.events_enabled
+		self.events_enabled = False
 		try:
 			yield
 		finally:
-			self._events_enabled = events_enabled
+			self.events_enabled = events_enabled
 
 	def shutdown(self) -> None:
 		self._shutting_down = True
-		self._events_enabled = False
+		self.events_enabled = False
 		for base in self.__class__.__bases__:
 			for method in base.__dict__.values():
 				if callable(method) and hasattr(method, "backend_event_shutdown"):
@@ -312,7 +312,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			return None
 
 	def _send_messagebus_event(self, event: str, data: dict[str, Any]) -> None:
-		if not self._events_enabled:
+		if not self.events_enabled:
 			return
 		if not self._messagebus_user_id:
 			raise ValueError("messagebus_user_id undefined")

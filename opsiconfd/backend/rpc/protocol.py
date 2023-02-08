@@ -124,7 +124,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 		...
 
 	@property
-	def _events_enabled(self) -> bool:
+	def events_enabled(self) -> bool:
 		...
 
 	def _get_ace(self, method: str) -> list[RPCACE]:

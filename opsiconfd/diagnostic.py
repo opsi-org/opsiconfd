@@ -11,7 +11,6 @@ diagnostic
 from __future__ import annotations
 
 import os
-import platform
 import re
 from datetime import datetime
 from pathlib import Path

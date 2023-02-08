@@ -397,7 +397,7 @@ def setup_backend(force_server_id: str | None = None) -> None:
 			raise ValueError(
 				f"Config server ID {conf_servers[0].id!r} in database differs from host.id {config_server_id!r} in /etc/opsi/opsi.conf. "
 				f"Please change host.id in /etc/opsi/opsi.conf to {conf_servers[0].id!r} "
-				"or use `opsiconfd setup --rename-configserver` to fix this issue."
+				"or use `opsiconfd setup --rename-server` to fix this issue."
 			)
 	backend.exit()
 

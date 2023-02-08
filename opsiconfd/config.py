@@ -1123,6 +1123,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
 			self._parser.add(
 				"--rename-server",
+				metavar="NEW_SERVER_ID",
 				nargs="?",
 				const=True,
 				default=False,

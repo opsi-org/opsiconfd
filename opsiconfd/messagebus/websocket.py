@@ -37,6 +37,7 @@ from starlette.status import (
 )
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketState
+from websockets.exceptions import ConnectionClosedOK
 
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import compress_data, decompress_data
@@ -108,7 +109,10 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			return
 
 		logger.debug("Message to websocket: %r", message)
-		await websocket.send_bytes(data)
+		try:
+			await websocket.send_bytes(data)
+		except ConnectionClosedOK:
+			pass
 
 	async def manager_task(self, websocket: WebSocket) -> None:
 		update_session_interval = 5.0
@@ -129,7 +133,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					# ACK message (set last-delivered-id)
 					# create_task(reader.ack_message(redis_id))
 					await reader.ack_message(message.channel, redis_id)
-		except StopAsyncIteration:
+		except (StopAsyncIteration, ConnectionClosedOK):
 			pass
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)

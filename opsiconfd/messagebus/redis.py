@@ -206,7 +206,8 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 					logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)
 					break
 				if attempt >= 10:
-					logger.error("Failed to update messagebus websocket count")
+					logger.error("Failed to update messagebus websocket count after %d attempts", attempt)
+					break
 				await sleep(0.1)
 	except CancelledError:
 		pass

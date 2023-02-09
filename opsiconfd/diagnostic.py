@@ -96,11 +96,13 @@ def get_opsi_product_versions() -> dict:
 
 
 def get_processor_info() -> dict[str, Any]:
-	cmd = "lscpu"
+	cmd = ["cat", "/proc/cpuinfo"]
 	all_info = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+	model = ""
 	for line in all_info.split("\n"):
-		if "Model name" in line:
-			model = re.sub(".*Model name.*:", "", line, 1).strip()
+		if "model name" in line:
+			model = re.sub(".*model name.*:", "", line, 1).strip()
+			break
 
 	# https://psutil.readthedocs.io/en/latest/#psutil.getloadavg
 	return {"model": model, "cpu_count": psutil.cpu_count(), "load_avg": psutil.getloadavg()}
@@ -147,7 +149,7 @@ def get_config() -> dict[str, Any]:
 	conf = config.items().copy()
 	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase"]:
 		conf[key] = "********"
-	conf["grafana_internal_url"] = re.sub(r"//.*:.*@", "//user:*****@", conf["grafana_internal_url"], flags=re.IGNORECASE)
+	conf["grafana_internal_url"] = re.sub(r"//.*:.*@", "//user:*****@", conf["grafana_internal_url"])
 	return conf
 
 

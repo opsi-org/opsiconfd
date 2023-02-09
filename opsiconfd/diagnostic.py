@@ -146,8 +146,9 @@ def get_backendmanager_extension_files() -> list:
 def get_diagnostic_data() -> dict[str, Any]:
 
 	conf = config.items().copy()
-	for key in ["grafana_internal_url", "ssl_server_key_passphrase", "ssl_ca_key_passphrase"]:
-		del conf[key]
+	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase"]:
+		conf[key] = "********"
+	conf["grafana_internal_url"] = re.sub(r"//.*:.*@", "//user:*****@", conf["grafana_internal_url"], flags=re.IGNORECASE)
 
 	data = {
 		"processor": get_processor_info(),

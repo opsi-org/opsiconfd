@@ -143,12 +143,15 @@ def get_backendmanager_extension_files() -> list:
 	return []
 
 
-def get_diagnostic_data() -> dict[str, Any]:
-
+def get_config() -> dict[str, Any]:
 	conf = config.items().copy()
 	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase"]:
 		conf[key] = "********"
 	conf["grafana_internal_url"] = re.sub(r"//.*:.*@", "//user:*****@", conf["grafana_internal_url"], flags=re.IGNORECASE)
+	return conf
+
+
+def get_diagnostic_data() -> dict[str, Any]:
 
 	data = {
 		"processor": get_processor_info(),
@@ -157,7 +160,7 @@ def get_diagnostic_data() -> dict[str, Any]:
 		"docker": running_in_docker(),
 		"os_release": get_os_release(),
 		"lsb_release": get_lsb_release(),
-		"config": conf,
+		"config": get_config(),
 		"depots": get_depot_info(),
 		"clients": get_client_info(),
 		"products": get_opsi_product_versions(),

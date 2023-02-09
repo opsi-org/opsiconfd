@@ -684,7 +684,9 @@ def setup_redis() -> None:
 
 
 def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-statements
-	service = ServiceClient(opsi_config.get("service", "url"), verify="accept_all", jsonrpc_create_objects=True)
+	service = ServiceClient(
+		opsi_config.get("service", "url"), verify="accept_all", ca_cert_file=config.ssl_ca_cert, jsonrpc_create_objects=True
+	)
 	try:  # pylint: disable=too-many-nested-blocks
 		while True:
 			try:
@@ -742,6 +744,7 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 
 				rich_print("[b]Registering depot[/b]")
 				service.jsonrpc("host_createObjects", params=[depot])
+				service.fetch_opsi_ca()
 				rich_print("[b][green]Depot succesfully registered[/green][/b]")
 
 				depot = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})[0]

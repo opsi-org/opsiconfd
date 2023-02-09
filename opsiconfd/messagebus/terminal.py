@@ -22,6 +22,7 @@ from typing import Callable
 
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.messagebus import (  # type: ignore[import]
+	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
 	FileUploadRequestMessage,
@@ -37,7 +38,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 )
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
-from psutil import AccessDenied, NoSuchProcess, Process  # type: ignore[import]
+from psutil import AccessDenied, NoSuchProcess, Process
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_service_client
@@ -247,12 +248,12 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 	terminal_instance_reader = MessageReader(channels={channel: "$"})
 	async for _redis_id, message, _context in terminal_instance_reader.get_messages():
 		try:
-			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
-				await process_file_message(message, redis_send_message)
-			elif isinstance(
+			if isinstance(
 				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
 			):
 				await _process_message(message, redis_send_message)
+			elif isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
+				await process_file_message(message, redis_send_message)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:  # pylint: disable=broad-except
@@ -290,6 +291,8 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 					),
 				):
 					message_queue.put(message, block=True)
+				elif isinstance(message, ChannelSubscriptionEventMessage):
+					pass
 				else:
 					raise ValueError(f"Received invalid message type {message.type}")
 			except Exception as err:  # pylint: disable=broad-except

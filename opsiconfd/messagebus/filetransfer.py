@@ -13,6 +13,7 @@ from __future__ import annotations
 from asyncio import get_event_loop, sleep
 from pathlib import Path
 from time import time
+from typing import Callable
 
 from opsicommon.messagebus import (  # type: ignore[import]
 	Error,
@@ -25,16 +26,18 @@ from opsicommon.messagebus import (  # type: ignore[import]
 from opsiconfd.logging import logger
 
 from . import file_uploads, get_messagebus_worker_id, terminals
-from .redis import send_message
+
+# from .redis import send_message
 
 
 class FileUpload:  # pylint: disable=too-many-instance-attributes
 	chunk_timeout = 300
 
-	def __init__(self, file_upload_request: FileUploadRequestMessage, sender: str) -> None:
+	def __init__(self, file_upload_request: FileUploadRequestMessage, sender: str, send_message: Callable) -> None:
 		super().__init__()
 		self._file_upload_request = file_upload_request
 		self._sender = sender
+		self._send_message = send_message
 		self._loop = get_event_loop()
 		self._should_stop = False
 		self._chunk_number = 0
@@ -91,7 +94,7 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 				details=None,
 			),
 		)
-		await send_message(upload_result)
+		await self._send_message(upload_result)
 		self._should_stop = True
 
 	async def _manager(self) -> None:
@@ -125,7 +128,7 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 				file_id=self.file_id,
 				path=str(self._file_path),
 			)
-			await send_message(upload_result)
+			await self._send_message(upload_result)
 			self._should_stop = True
 
 	def _append_to_file(self, data: bytes) -> None:
@@ -133,14 +136,19 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 			file.write(data)
 
 
-async def process_message(message: FileUploadRequestMessage | FileChunkMessage) -> None:
+async def process_message(
+	message: FileUploadRequestMessage | FileChunkMessage,
+	send_message: Callable,
+) -> None:
 	file_upload = file_uploads.get(message.file_id)
 
 	try:
 		if isinstance(message, FileUploadRequestMessage):
 			if file_upload:
 				raise RuntimeError("File id already taken")
-			file_uploads[message.file_id] = FileUpload(file_upload_request=message, sender=get_messagebus_worker_id())
+			file_uploads[message.file_id] = FileUpload(
+				file_upload_request=message, sender=get_messagebus_worker_id(), send_message=send_message
+			)
 			return
 
 		if not file_upload:

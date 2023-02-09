@@ -18,7 +18,7 @@ from pathlib import Path
 from pwd import getpwuid
 from queue import Empty, Queue
 from time import time
-from typing import Callable, Optional
+from typing import Callable
 
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.messagebus import (  # type: ignore[import]
@@ -116,7 +116,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		if pty_set_size:
 			self._pty.setwinsize(self.rows, self.cols)
 
-	def get_cwd(self) -> Optional[Path]:
+	def get_cwd(self) -> Path | None:
 		try:
 			proc = Process(self._pty.pid)
 		except (NoSuchProcess, ValueError):
@@ -248,7 +248,7 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 	async for _redis_id, message, _context in terminal_instance_reader.get_messages():
 		try:
 			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
-				await process_file_message(message)
+				await process_file_message(message, redis_send_message)
 			elif isinstance(
 				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
 			):
@@ -263,29 +263,53 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 	channel = f"{get_messagebus_worker_id()}:terminal"
 
 	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
-	message = ChannelSubscriptionRequestMessage(sender="@", channel="service:messagebus", channels=[channel], operation="add")
-	await service_client.messagebus.async_send_message(message)
+	subscription_message = ChannelSubscriptionRequestMessage(sender="@", channel="service:messagebus", channels=[channel], operation="add")
+	await service_client.messagebus.async_send_message(subscription_message)
 
 	message_queue: Queue[
-		TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalOpenRequestMessage | TerminalCloseRequestMessage
+		TerminalDataWriteMessage
+		| TerminalResizeRequestMessage
+		| TerminalOpenRequestMessage
+		| TerminalCloseRequestMessage
+		| FileChunkMessage
+		| FileUploadRequestMessage
 	] = Queue()
 
 	class TerminalMessageListener(MessagebusListener):
 		def message_received(self, message: Message) -> None:
-			if isinstance(
-				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
-			):
-				message_queue.put(message, block=True)
+			try:
+				if isinstance(
+					message,
+					(
+						TerminalDataWriteMessage,
+						TerminalResizeRequestMessage,
+						TerminalOpenRequestMessage,
+						TerminalCloseRequestMessage,
+						FileChunkMessage,
+						FileUploadRequestMessage,
+					),
+				):
+					message_queue.put(message, block=True)
+				else:
+					raise ValueError(f"Received invalid message type {message.type}")
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
 
 	listener = TerminalMessageListener()
 
 	service_client.messagebus.register_message_listener(listener)
 	while True:
 		try:
-			term_message = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
-		except Empty:
-			continue
-		await _process_message(term_message, service_client.messagebus.async_send_message)
+			try:
+				message = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
+			except Empty:
+				continue
+			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
+				await process_file_message(message, service_client.messagebus.async_send_message)
+			else:
+				await _process_message(message, service_client.messagebus.async_send_message)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
 
 
 async def messagebus_terminal_instance_worker() -> None:

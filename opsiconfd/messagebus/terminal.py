@@ -183,8 +183,6 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		logger.info("Close terminal")
 		self._closing = True
 		try:
-			if self._pty_reader_task:
-				self._pty_reader_task.cancel()
 			res_message = TerminalCloseEventMessage(
 				sender=self._sender,
 				channel=self.back_channel(message),
@@ -192,11 +190,12 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 				terminal_id=self.terminal_id,
 			)
 			await self._send_message(res_message)
-			if self._pty:
-				self._pty.close(True)
 			if self.terminal_id in terminals:
 				del terminals[self.terminal_id]
-
+			if self._pty:
+				self._pty.close(True)
+			if self._pty_reader_task:
+				self._pty_reader_task.cancel()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 

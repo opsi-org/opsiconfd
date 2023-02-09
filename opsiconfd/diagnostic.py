@@ -10,7 +10,6 @@ diagnostic
 
 from __future__ import annotations
 
-import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -116,8 +115,8 @@ def get_memory_info() -> dict[str, Any]:
 	return {
 		"total": total,
 		"available": available,
-		"total_human": f"{round(total / 1024 / 1024 / 1024, 2)}GB",
-		"available_human": f"{round(available / 1024 / 1024 / 1024, 2)}GB",
+		"total_human": f"{round(total / (2 ** 30), 2)}GB",
+		"available_human": f"{round(available / (2 ** 30), 2)}GB",
 		"used_percent": memory.percent,
 	}
 
@@ -138,11 +137,15 @@ def get_disk_info() -> dict[str, int | str]:
 	return result
 
 
-def get_backendmanager_extension_files() -> list:
-	path = "/etc/opsi/backendManager/extend.d"
-	if os.path.exists(path):
-		return os.listdir(path)
-	return []
+def get_backendmanager_extension_methods() -> dict[str, Any]:
+	backend = get_unprotected_backend()
+	result: dict = {}
+	for method in backend._extender_method_info:  # pylint: disable=protected-access
+		signature = []
+		for param in method.signature.parameters.values():
+			signature.append({param.name: str(param.annotation)})
+		result[method.name] = {"signature": signature, "file": str(method.file), "overwrite": method.overwrite}
+	return result
 
 
 def get_config() -> dict[str, Any]:
@@ -167,7 +170,7 @@ def get_diagnostic_data() -> dict[str, Any]:
 		"clients": get_client_info(),
 		"products": get_opsi_product_versions(),
 		"packages": get_installed_packages(),
-		"backendmanager_extension_files": get_backendmanager_extension_files(),
+		"backendmanager_extensions": get_backendmanager_extension_methods(),
 		"licenses": get_licenses(),
 		"health_check": list(health_check()),
 	}

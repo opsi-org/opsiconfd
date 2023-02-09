@@ -21,7 +21,7 @@ import psutil
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check import get_installed_packages, health_check
+from opsiconfd.check import get_disk_mountpoints, get_installed_packages, health_check
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import running_in_docker
@@ -103,17 +103,37 @@ def get_processor_info() -> dict[str, Any]:
 			model = re.sub(".*Model name.*:", "", line, 1).strip()
 
 	# https://psutil.readthedocs.io/en/latest/#psutil.getloadavg
-	return {"model": model, "cpu_count": psutil.cpu_count(), "cpu_percent": psutil.cpu_percent(), "load_avg": psutil.getloadavg()}
+	return {"model": model, "cpu_count": psutil.cpu_count(), "load_avg": psutil.getloadavg()}
 
 
 def get_memory_info() -> dict[str, Any]:
 	# https://psutil.readthedocs.io/en/latest/#psutil.virtual_memory
 	memory = psutil.virtual_memory()
+	total = memory.total
+	available = memory.available
 	return {
-		"total": round(memory.total / 1024 / 1024 / 1024, 2),
-		"available": round(memory.available / 1024 / 1024 / 1024, 2),
+		"total": total,
+		"available": available,
+		"total_human": f"{round(total / 1024 / 1024 / 1024, 2)}GB",
+		"available_human": f"{round(available / 1024 / 1024 / 1024, 2)}GB",
 		"used_percent": memory.percent,
 	}
+
+
+def get_disk_info() -> dict[str, int | str]:
+	mountpoints = get_disk_mountpoints()
+	result: dict = {}
+	for mountpoint in mountpoints:
+		disk = psutil.disk_usage(mountpoint)
+		result[mountpoint] = {
+			"total": disk.total,
+			"used": disk.used,
+			"free": disk.free,
+			"total_human": f"{disk.total / (2**30)}GB",
+			"used_human": f"{disk.used / (2**30)}GB",
+			"free_human": f"{disk.free / (2**30)}GB",
+		}
+	return result
 
 
 def get_backendmanager_extension_files() -> list:
@@ -132,6 +152,7 @@ def get_diagnostic_data() -> dict[str, Any]:
 	data = {
 		"processor": get_processor_info(),
 		"memory": get_memory_info(),
+		"disks": get_disk_info(),
 		"docker": running_in_docker(),
 		"os_release": get_os_release(),
 		"lsb_release": get_lsb_release(),

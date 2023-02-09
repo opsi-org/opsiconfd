@@ -149,6 +149,19 @@ def get_repo_versions() -> dict[str, str | None]:
 	return repo_versions
 
 
+def get_disk_mountpoints() -> set:
+	partitions = psutil.disk_partitions()
+	check_mountpoints = set()
+	var_added = False
+	for mountpoint in sorted([p.mountpoint for p in partitions if p.fstype], reverse=True):
+		if mountpoint in ("/", "/tmp") or mountpoint.startswith("/var/lib/opsi/"):
+			check_mountpoints.add(mountpoint)
+		elif mountpoint in ("/var", "/var/lib", "/var/lib/opsi") and not var_added:
+			check_mountpoints.add(mountpoint)
+			var_added = True
+	return check_mountpoints
+
+
 def check_disk_usage() -> CheckResult:
 	result = CheckResult(
 		check_id="disk_usage",
@@ -157,15 +170,7 @@ def check_disk_usage() -> CheckResult:
 		message="Sufficient free space on all file systems.",
 	)
 	with exc_to_result(result):
-		partitions = psutil.disk_partitions()
-		check_mountpoints = set()
-		var_added = False
-		for mountpoint in sorted([p.mountpoint for p in partitions if p.fstype], reverse=True):
-			if mountpoint in ("/", "/tmp") or mountpoint.startswith("/var/lib/opsi/"):
-				check_mountpoints.add(mountpoint)
-			elif mountpoint in ("/var", "/var/lib", "/var/lib/opsi") and not var_added:
-				check_mountpoints.add(mountpoint)
-				var_added = True
+		check_mountpoints = get_disk_mountpoints()
 
 		count = 0
 		for mountpoint in check_mountpoints:

@@ -26,6 +26,7 @@ from OPSI.System.Posix import (  # type: ignore[import]
 	locateDHCPDConfig,
 )
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
+from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.objects import (  # type: ignore[import]
 	BoolConfig,
 	ConfigState,
@@ -53,6 +54,8 @@ from opsicommon.types import forceHostId
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
+from opsiconfd import __version__
+from opsiconfd.backend import new_service_client
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
 from opsiconfd.backend.mysql.schema import create_database, update_database
@@ -613,7 +616,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			BoolConfig(
 				id="opsiclientd.global.install_opsi_ca_into_os_store",
 				description="Automatically install opsi CA into operating systems certificate store",
-				defaultValues=[False],
+				defaultValues=[True],
 			)
 		)
 
@@ -785,6 +788,19 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	if register_depot:
 		if not setup_depotserver():
 			return
+
+	if opsi_config.get("host", "server-role") == "depotserver":
+		for attempt in range(1, 6):
+			service_client = new_service_client(f"opsiconfd depotserver {__version__} connection test")
+			try:
+				service_client.connect()
+				service_client.disconnect()
+				break
+			except OpsiServiceConnectionError as err:
+				if attempt >= 5:
+					raise
+				logger.warning("%s (attempt %d, retry in 5 seconds)", err, attempt)
+				time.sleep(5)
 
 	backend_available = True
 	if opsi_config.get("host", "server-role") == "configserver" or configure_mysql:

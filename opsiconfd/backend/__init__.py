@@ -54,6 +54,18 @@ def get_mysql() -> MySQLConnection:
 	return get_unprotected_backend()._mysql  # pylint: disable=protected-access
 
 
+def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
+	return ServiceClient(
+		address=opsi_config.get("service", "url"),
+		username=get_depotserver_id(),
+		password=opsi_config.get("host", "key"),
+		user_agent=user_agent,
+		verify="strict_check",
+		ca_cert_file=config.ssl_ca_cert,
+		jsonrpc_create_objects=True,
+	)
+
+
 def get_service_client(name: str = "") -> ServiceClient:
 	with service_clients_lock:
 		if name not in service_clients:
@@ -68,15 +80,7 @@ def get_service_client(name: str = "") -> ServiceClient:
 			if name:
 				user_agent = f"{user_agent} {name}"
 
-			service_client = ServiceClient(
-				address=opsi_config.get("service", "url"),
-				username=get_depotserver_id(),
-				password=opsi_config.get("host", "key"),
-				user_agent=user_agent,
-				verify="strict_check",
-				ca_cert_file=config.ssl_ca_cert,
-				jsonrpc_create_objects=True,
-			)
+			service_client = new_service_client(user_agent)
 			service_client.messagebus.threaded_callbacks = False
 			service_client.connect()
 			service_client.connect_messagebus()

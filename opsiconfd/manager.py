@@ -26,7 +26,7 @@ from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, 
 from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
-from opsiconfd.config import config
+from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import ManagerMetricsCollector
@@ -277,6 +277,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._cleanup_file_storage_interval = 3600
 		self._metrics_collector = ManagerMetricsCollector()
 		self._worker_manager = WorkerManager()
+		self._is_config_server = opsi_config.get("host", "server-role") == "configserver"
 
 	def stop(self, force: bool = False) -> None:
 		self._should_stop = True
@@ -354,34 +355,37 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		# Start MetricsCollector
 		self._loop.create_task(self._metrics_collector.main_loop())
 
-		# TODO: Multiple managers on different nodes
-		await run_in_threadpool(rpc_cache_clear)
-		await messagebus_cleanup(full=True)
+		if self._is_config_server:
+			# TODO: Multiple managers on different nodes
+			await run_in_threadpool(rpc_cache_clear)
+			await messagebus_cleanup(full=True)
 
-		app_state: NormalState | MaintenanceState = NormalState()
-		if config.maintenance is not False:
-			app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
-		self._loop.create_task(app.app_state_manager_task(manager_mode=True, init_app_state=app_state))
+			app_state: NormalState | MaintenanceState = NormalState()
+			if config.maintenance is not False:
+				app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
+			self._loop.create_task(app.app_state_manager_task(manager_mode=True, init_app_state=app_state))
 
-		if config.zeroconf:
-			try:
-				await register_opsi_services()
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
+			if config.zeroconf:
+				try:
+					await register_opsi_services()
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
 			try:
 				now = time.time()
 				if now - self._server_cert_check_time > config.ssl_server_cert_check_interval:
 					await self.check_server_cert()
-				if now - self._redis_check_time > self._redis_check_interval:
-					await self.check_redis()
-				if now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:
-					await messagebus_cleanup(full=False)
-					self._messagebus_cleanup_time = now
 				if now - self._cleanup_file_storage_time > self._cleanup_file_storage_interval:
 					await run_in_threadpool(cleanup_file_storage)
 					self._cleanup_file_storage_time = now
+				if now - self._redis_check_time > self._redis_check_interval:
+					await self.check_redis()
+				if self._is_config_server:
+					if now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:
+						await messagebus_cleanup(full=False)
+						self._messagebus_cleanup_time = now
+
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 			for _num in range(60):
@@ -389,12 +393,13 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 					break
 				await asyncio.sleep(1)
 
-		await run_in_threadpool(app.set_app_state, ShutdownState())
+		if self._is_config_server:
+			await run_in_threadpool(app.set_app_state, ShutdownState())
 
-		if config.zeroconf:
-			try:
-				await unregister_opsi_services()
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
+			if config.zeroconf:
+				try:
+					await unregister_opsi_services()
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
 
 		self._async_main_stopped.set()

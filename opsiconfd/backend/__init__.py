@@ -73,7 +73,7 @@ def get_service_client(name: str = "") -> ServiceClient:
 				username=get_depotserver_id(),
 				password=opsi_config.get("host", "key"),
 				user_agent=user_agent,
-				verify="uib_opsi_ca",
+				verify="strict_check",
 				ca_cert_file=config.ssl_ca_cert,
 				jsonrpc_create_objects=True,
 			)

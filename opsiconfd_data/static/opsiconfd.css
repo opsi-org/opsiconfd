@@ -645,7 +645,7 @@ div#notifications p {
 }
 
 div#notifications div {
-	padding: 20px;
+	padding: 5px 20px 5px 20px;
 	margin-bottom: 15px;
 	background-color: white;
 	border: 1px solid #cccccc;

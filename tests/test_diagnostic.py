@@ -11,7 +11,13 @@ diagnostic tests
 from pathlib import Path
 from unittest.mock import PropertyMock, patch
 
-from opsiconfd.diagnostic import get_lsb_release, get_os_release
+from opsiconfd.diagnostic import (
+	get_disk_info,
+	get_lsb_release,
+	get_memory_info,
+	get_os_release,
+	get_processor_info,
+)
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -69,3 +75,55 @@ def test_lsb_release() -> None:
 		assert data["DISTRIBUTOR_ID"] == "Debian"
 		assert data["DESCRIPTION"] == "Debian GNU/Linux 10 (buster)"
 		assert data["RELEASE"] == "10"
+
+
+def test_get_processor_info() -> None:
+	class CPUInfo:  # pylint: disable=too-few-public-methods
+		stdout = """
+			processor       : 0
+			vendor_id       : GenuineIntel
+			cpu family      : 6
+			model           : 142
+			model name      : Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz
+			stepping        : 12
+			microcode       : 0xf0
+			cpu MHz         : 2000.000
+		"""
+
+	with patch("opsiconfd.diagnostic.run", PropertyMock(return_value=CPUInfo())):
+		data = get_processor_info()
+		assert data["model"] == "Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz"
+		assert isinstance(data["cpu_count"], int)
+		assert isinstance(data["load_avg"], tuple)
+		assert len(data["load_avg"]) == 3
+
+
+def test_get_memory_info() -> None:
+	class MemoryInfo:  # pylint: disable=too-few-public-methods
+		total: int = 8589934592
+		available: int = 4294967296
+		used_percent: float = 50
+
+	with patch("opsiconfd.diagnostic.run", PropertyMock(return_value=MemoryInfo())):
+		data = get_memory_info()
+		assert data["total"] == 8589934592
+		assert data["available"] == 4294967296
+		assert data["used_percent"] == 50
+		assert data["total_human"] == "8GB"
+		assert data["available_human"] == "4GB"
+
+
+def test_get_disk_info() -> None:
+	class DiskInfo:  # pylint: disable=too-few-public-methods
+		total: int = 8589934592
+		used: int = 4294967296
+		free: int = 4294967296
+
+	with patch("opsiconfd.diagnostic.run", PropertyMock(return_value=DiskInfo())):
+		data = get_disk_info()
+		assert data["total"] == 8589934592
+		assert data["used"] == 4294967296
+		assert data["free"] == 4294967296
+		assert data["total_human"] == "8GB"
+		assert data["used_human"] == "4GB"
+		assert data["free_human"] == "4GB"

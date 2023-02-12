@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from subprocess import run
+from subprocess import CalledProcessError, run
 from typing import Any
 
 import psutil
@@ -156,9 +156,32 @@ def get_config() -> dict[str, Any]:
 	return conf
 
 
+def get_system_info() -> dict:
+	result: dict = {}
+	cmd = ["cat", "/sys/devices/virtual/dmi/id/product_name"]
+	product_name = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
+
+	docker = running_in_docker()
+	result["product_name"] = product_name
+	result["docker"] = docker
+
+	try:
+		cmd = ["hostnamectl", "status"]
+		hostnamectl = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
+
+		for line in hostnamectl.split("\n"):
+			data = line.strip().split(":")
+			result[data[0]] = data[1]
+	except (FileNotFoundError, CalledProcessError):
+		pass  # hostnamectl command not found
+
+	return result
+
+
 def get_diagnostic_data() -> dict[str, Any]:
 
 	data = {
+		"system": get_system_info(),
 		"processor": get_processor_info(),
 		"memory": get_memory_info(),
 		"disks": get_disk_info(),

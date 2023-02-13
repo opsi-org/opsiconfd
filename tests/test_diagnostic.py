@@ -11,12 +11,15 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import PropertyMock, patch
 
+from opsiconfd.diagnostic import get_backendmanager_extension_methods
+from opsiconfd.diagnostic import get_config as config_info
 from opsiconfd.diagnostic import (
 	get_disk_info,
 	get_lsb_release,
 	get_memory_info,
 	get_os_release,
 	get_processor_info,
+	get_system_info,
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -133,3 +136,52 @@ def test_get_disk_info() -> None:
 			assert data["total_human"] == "8.0GB"
 			assert data["used_human"] == "4.0GB"
 			assert data["free_human"] == "4.0GB"
+
+
+def test_get_system_info() -> None:
+	class Hostnamectl:  # pylint: disable=too-few-public-methods
+		stdout = """
+			Static hostname: test-t590
+			Icon name: computer-laptop
+			Chassis: laptop
+			Machine ID: fooblabla
+			Boot ID: blablafoo
+			Operating System: Zorin OS 16.2
+			Kernel: Linux 5.15.0-58-generic
+			Architecture: x86-64
+		"""
+
+	def running_in_docker() -> bool:
+		return False
+
+	with (
+		patch("opsiconfd.diagnostic.run", PropertyMock(return_value=Hostnamectl())),
+		patch("opsiconfd.diagnostic.running_in_docker", running_in_docker),
+	):
+		data = get_system_info()
+		assert data["Static hostname"] == "test-t590"
+		assert data["Icon name"] == "computer-laptop"
+		assert data["Chassis"] == "laptop"
+		assert data["Machine ID"] == "fooblabla"
+		assert data["Boot ID"] == "blablafoo"
+		assert data["Operating System"] == "Zorin OS 16.2"
+		assert data["Kernel"] == "Linux 5.15.0-58-generic"
+		assert data["Architecture"] == "x86-64"
+		assert not data["docker"]
+		assert isinstance(data["product_name"], str)
+
+
+def test_get_config() -> None:
+	conf = config_info()
+	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase"]:
+		assert conf[key] == "********"
+
+
+def test_get_backendmanager_extension_methods() -> None:
+	method_info = get_backendmanager_extension_methods()
+
+	assert isinstance(method_info["deleteServer"], dict)
+	delete_server = method_info["deleteServer"]
+	assert delete_server["signature"] == [{"self": "<class 'inspect._empty'>"}, {"serverId": "<class 'str'>"}]
+	assert delete_server["file"] == "tests/data/opsi-config/backendManager/extend.d/45_deprecated.conf"
+	assert delete_server["overwrite"]

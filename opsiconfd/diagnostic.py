@@ -177,8 +177,8 @@ def get_system_info() -> dict:
 		hostnamectl = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
 
 		for line in hostnamectl.split("\n"):
-			data = line.strip().split(":")
-			result[data[0]] = data[1]
+			data = line.split(":")
+			result[data[0].strip()] = data[1].strip()
 	except (FileNotFoundError, CalledProcessError):
 		logger.warning("hostnamectl command not found.")
 

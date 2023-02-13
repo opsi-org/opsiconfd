@@ -95,16 +95,19 @@ def get_opsi_product_versions() -> dict:
 
 
 def get_processor_info() -> dict[str, Any]:
-	cmd = ["cat", "/proc/cpuinfo"]
-	all_info = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-	model = ""
-	for line in all_info.split("\n"):
-		if "model name" in line:
-			model = re.sub(".*model name.*:", "", line, 1).strip()
-			break
-
-	# https://psutil.readthedocs.io/en/latest/#psutil.getloadavg
-	return {"model": model, "cpu_count": psutil.cpu_count(), "load_avg": psutil.getloadavg()}
+	try:
+		cmd = ["cat", "/proc/cpuinfo"]
+		all_info = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+		model = ""
+		for line in all_info.split("\n"):
+			if "model name" in line:
+				model = re.sub(".*model name.*:", "", line, 1).strip()
+				break
+		# https://psutil.readthedocs.io/en/latest/#psutil.getloadavg
+		return {"model": model, "cpu_count": psutil.cpu_count(), "load_avg": psutil.getloadavg()}
+	except (FileNotFoundError, CalledProcessError):
+		logger.warning("Could not read '/proc/cpuinfo' with cat.")
+		return {}
 
 
 def get_memory_info() -> dict[str, Any]:
@@ -158,11 +161,15 @@ def get_config() -> dict[str, Any]:
 
 def get_system_info() -> dict:
 	result: dict = {}
-	cmd = ["cat", "/sys/devices/virtual/dmi/id/product_name"]
-	product_name = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
+	try:
+		cmd = ["cat", "/sys/devices/virtual/dmi/id/product_name"]
+		product_name = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
+		result["product_name"] = product_name
+	except (FileNotFoundError, CalledProcessError):
+		logger.warning("Could not read '/sys/devices/virtual/dmi/id/product_name' with cat.")
+		result["product_name"] = None
 
 	docker = running_in_docker()
-	result["product_name"] = product_name
 	result["docker"] = docker
 
 	try:
@@ -173,7 +180,7 @@ def get_system_info() -> dict:
 			data = line.strip().split(":")
 			result[data[0]] = data[1]
 	except (FileNotFoundError, CalledProcessError):
-		pass  # hostnamectl command not found
+		logger.warning("hostnamectl command not found.")
 
 	return result
 

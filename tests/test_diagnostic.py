@@ -9,12 +9,8 @@ diagnostic tests
 """
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import PropertyMock, patch
 
-import psutil
-import pytest
-
-# from opsiconfd.check import get_disk_mountpoints
 from opsiconfd.diagnostic import (
 	get_disk_info,
 	get_lsb_release,

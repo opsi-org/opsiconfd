@@ -8,9 +8,15 @@
 diagnostic tests
 """
 from pathlib import Path
-from unittest.mock import PropertyMock, patch
+from typing import Any
+from unittest.mock import Mock, PropertyMock, patch
 
+import psutil
+import pytest
+
+# from opsiconfd.check import get_disk_mountpoints
 from opsiconfd.diagnostic import (
+	get_disk_info,
 	get_lsb_release,
 	get_memory_info,
 	get_os_release,
@@ -112,21 +118,22 @@ def test_get_memory_info() -> None:
 
 
 # @pytest.mark.skip(reason="check mockup")
-# def test_get_disk_info() -> None:
-# 	class DiskInfo:  # pylint: disable=too-few-public-methods
-# 		total: int = 8589934592
-# 		used: int = 4294967296
-# 		free: int = 4294967296
-#
-# 	with patch("psutil.disk_usage", PropertyMock(return_value=DiskInfo())), patch(
-# 		"opsiconfd.check.get_disk_mountpoints", PropertyMock(return_value={"/var/lib/opsi"})
-# 	):
-# 		mountpoint = get_disk_info()
-# 		print(mountpoint)
-# 		data = mountpoint["/var/lib/opsi"]
-# 		assert data["total"] == 8589934592
-# 		assert data["used"] == 4294967296
-# 		assert data["free"] == 4294967296
-# 		assert data["total_human"] == "8.0GB"
-# 		assert data["used_human"] == "4.0GB"
-# 		assert data["free_human"] == "4.0GB"
+def test_get_disk_info() -> None:
+	class DiskInfo:  # pylint: disable=too-few-public-methods
+		total: int = 8589934592
+		used: int = 4294967296
+		free: int = 4294967296
+
+	def get_disk_mountpoints() -> set:
+		return {"/var/lib/opsi"}
+
+	with patch("opsiconfd.diagnostic.get_disk_mountpoints", get_disk_mountpoints):
+		with patch("psutil.disk_usage", PropertyMock(return_value=DiskInfo())):
+			info = get_disk_info()
+			data: dict[str, Any] = info.get("/var/lib/opsi")  # type: ignore
+			assert data.get("total") == 8589934592
+			assert data["used"] == 4294967296
+			assert data["free"] == 4294967296
+			assert data["total_human"] == "8.0GB"
+			assert data["used_human"] == "4.0GB"
+			assert data["free_human"] == "4.0GB"

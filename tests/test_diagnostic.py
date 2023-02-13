@@ -84,19 +84,18 @@ def test_lsb_release() -> None:
 
 
 def test_get_processor_info() -> None:
-	class CPUInfo:  # pylint: disable=too-few-public-methods
-		stdout = """
-			processor       : 0
-			vendor_id       : GenuineIntel
-			cpu family      : 6
-			model           : 142
-			model name      : Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz
-			stepping        : 12
-			microcode       : 0xf0
-			cpu MHz         : 2000.000
-		"""
+	read_text = """
+		processor       : 0
+		vendor_id       : GenuineIntel
+		cpu family      : 6
+		model           : 142
+		model name      : Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz
+		stepping        : 12
+		microcode       : 0xf0
+		cpu MHz         : 2000.000
+	"""
 
-	with patch("opsiconfd.diagnostic.run", PropertyMock(return_value=CPUInfo())):
+	with patch("opsiconfd.diagnostic.Path.read_text", return_value=read_text):
 		data = get_processor_info()
 		assert data["model"] == "Intel(R) Core(TM) i7-8565U CPU @ 1.80GHz"
 		assert isinstance(data["cpu_count"], int)

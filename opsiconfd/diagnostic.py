@@ -96,8 +96,7 @@ def get_opsi_product_versions() -> dict:
 
 def get_processor_info() -> dict[str, Any]:
 	try:
-		cmd = ["cat", "/proc/cpuinfo"]
-		all_info = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+		all_info = Path("/proc/cpuinfo").read_text(encoding="utf-8")
 		model = ""
 		for line in all_info.split("\n"):
 			if "model name" in line:
@@ -105,8 +104,8 @@ def get_processor_info() -> dict[str, Any]:
 				break
 		# https://psutil.readthedocs.io/en/latest/#psutil.getloadavg
 		return {"model": model, "cpu_count": psutil.cpu_count(), "load_avg": psutil.getloadavg()}
-	except (FileNotFoundError, CalledProcessError):
-		logger.warning("Could not read '/proc/cpuinfo' with cat.")
+	except FileNotFoundError:
+		logger.warning("Could not read '/proc/cpuinfo'.")
 		return {}
 
 
@@ -118,8 +117,8 @@ def get_memory_info() -> dict[str, Any]:
 	return {
 		"total": total,
 		"available": available,
-		"total_human": f"{round(total / (2 ** 30), 2)}GB",
-		"available_human": f"{round(available / (2 ** 30), 2)}GB",
+		"total_human": f"{round(total / (2 ** 30), 2)}GiB",
+		"available_human": f"{round(available / (2 ** 30), 2)}GiB",
 		"used_percent": memory.percent,
 	}
 
@@ -133,9 +132,9 @@ def get_disk_info() -> dict[str, int | str]:
 			"total": disk.total,
 			"used": disk.used,
 			"free": disk.free,
-			"total_human": f"{disk.total / (2**30)}GB",
-			"used_human": f"{disk.used / (2**30)}GB",
-			"free_human": f"{disk.free / (2**30)}GB",
+			"total_human": f"{disk.total / (2**30)}GiB",
+			"used_human": f"{disk.used / (2**30)}GiB",
+			"free_human": f"{disk.free / (2**30)}GiB",
 		}
 	return result
 
@@ -161,12 +160,12 @@ def get_config() -> dict[str, Any]:
 
 def get_system_info() -> dict:
 	result: dict = {}
+
 	try:
-		cmd = ["cat", "/sys/devices/virtual/dmi/id/product_name"]
-		product_name = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
+		product_name = Path("/sys/devices/virtual/dmi/id/product_name").read_text(encoding="utf-8")
 		result["product_name"] = product_name
-	except (FileNotFoundError, CalledProcessError):
-		logger.warning("Could not read '/sys/devices/virtual/dmi/id/product_name' with cat.")
+	except FileNotFoundError:
+		logger.warning("Could not read '/sys/devices/virtual/dmi/id/product_name'.")
 		result["product_name"] = None
 
 	docker = running_in_docker()
@@ -175,10 +174,7 @@ def get_system_info() -> dict:
 	try:
 		cmd = ["hostnamectl", "status"]
 		hostnamectl = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
-
-		for line in hostnamectl.split("\n"):
-			data = line.split(":")
-			result[data[0].strip()] = data[1].strip()
+		result.update({line.split(":")[0].strip(): line.split(":")[1].strip() for line in hostnamectl.split("\n")})
 	except (FileNotFoundError, CalledProcessError):
 		logger.warning("hostnamectl command not found.")
 

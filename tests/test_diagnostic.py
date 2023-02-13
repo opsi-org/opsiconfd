@@ -115,8 +115,8 @@ def test_get_memory_info() -> None:
 		assert data["total"] == 8589934592
 		assert data["available"] == 4294967296
 		assert data["used_percent"] == 50
-		assert data["total_human"] == "8.0GB"
-		assert data["available_human"] == "4.0GB"
+		assert data["total_human"] == "8.0GiB"
+		assert data["available_human"] == "4.0GiB"
 
 
 # @pytest.mark.skip(reason="check mockup")
@@ -136,9 +136,9 @@ def test_get_disk_info() -> None:
 			assert data.get("total") == 8589934592
 			assert data["used"] == 4294967296
 			assert data["free"] == 4294967296
-			assert data["total_human"] == "8.0GB"
-			assert data["used_human"] == "4.0GB"
-			assert data["free_human"] == "4.0GB"
+			assert data["total_human"] == "8.0GiB"
+			assert data["used_human"] == "4.0GiB"
+			assert data["free_human"] == "4.0GiB"
 
 
 def test_get_system_info() -> None:

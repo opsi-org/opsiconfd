@@ -11,17 +11,20 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import PropertyMock, patch
 
+from opsiconfd.config import FQDN
 from opsiconfd.diagnostic import get_backendmanager_extension_methods
 from opsiconfd.diagnostic import get_config as config_info
 from opsiconfd.diagnostic import (
 	get_disk_info,
 	get_lsb_release,
 	get_memory_info,
+	get_opsi_product_versions,
 	get_os_release,
 	get_processor_info,
 	get_system_info,
 )
 
+from .backend.rpc.test_obj_product_on_depot import create_test_pods
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -185,3 +188,13 @@ def test_get_backendmanager_extension_methods() -> None:
 	assert delete_server["signature"] == [{"self": "<class 'inspect._empty'>"}, {"serverId": "<class 'str'>"}]
 	assert delete_server["file"] == "tests/data/opsi-config/backendManager/extend.d/45_deprecated.conf"
 	assert delete_server["overwrite"]
+
+
+def test_get_opsi_product_versions(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	create_test_pods(test_client)
+
+	product_versions = get_opsi_product_versions()
+	assert isinstance(product_versions[FQDN], dict)
+	assert product_versions[FQDN]["test-backend-rpc-product-1"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}
+	assert product_versions[FQDN]["test-backend-rpc-product-2"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}

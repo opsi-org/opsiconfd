@@ -443,5 +443,5 @@ def set_grafana_root_url() -> None:
 	logger.notice("Restart grafana server")
 	try:
 		subprocess.check_output(["systemctl", "restart", "grafana-server.service"])
-	except subprocess.CalledProcessError as err:
+	except (FileNotFoundError, subprocess.CalledProcessError) as err:
 		logger.warning(err)

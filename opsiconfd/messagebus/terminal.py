@@ -299,7 +299,7 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 
 	listener = TerminalMessageListener()
 
-	service_client.messagebus.register_message_listener(listener)
+	service_client.messagebus.register_messagebus_listener(listener)
 	while True:
 		try:
 			try:
@@ -360,7 +360,7 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 
 	listener = TerminalOpenRequestMessageListener()
 
-	service_client.messagebus.register_message_listener(listener)
+	service_client.messagebus.register_messagebus_listener(listener)
 	while True:
 		try:
 			term_message: TerminalOpenRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)

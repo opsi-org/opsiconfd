@@ -533,7 +533,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 
 	listener = JSONRPCRequestMessageListener()
 
-	service_client.messagebus.register_message_listener(listener)
+	service_client.messagebus.register_messagebus_listener(listener)
 	client_info = "none"
 	while True:
 		try:

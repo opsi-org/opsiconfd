@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import StrEnum
 from re import findall
 from subprocess import run
@@ -29,7 +29,11 @@ from opsicommon.logging.constants import (
 	LOG_TRACE,
 	OPSI_LEVEL_TO_LEVEL,
 )
-from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
+from opsicommon.system.info import (  # type: ignore[import]
+	linux_distro_id,
+	linux_distro_id_like_contains,
+	linux_distro_version_id,
+)
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
@@ -51,6 +55,34 @@ OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 CHECK_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent")
 OPSI_PACKAGES_MIN_VERSIONS_UPGRADE = {"opsi-script": "4.12.7.5-3", "opsi-client-agent": "4.2.0.43-3"}
+LINUX_DISTRO_EOL = {
+	"ubuntu": {
+		"18.04": date(2023, 4, 1),
+		"20.04": date(2025, 4, 1),
+		"22.04": date(2027, 4, 1),
+	},
+	"debian": {
+		"9": date(2021, 5, 1),
+		"10": date(2022, 8, 1),
+		"11": date(2024, 7, 1),
+	},
+	"rhel": {
+		"7": date(2029, 5, 1),
+		"8": date(2030, 6, 1),
+	},
+	"opensuse-leap": {
+		"15.3": date(2022, 12, 31),
+		"15.4": date(2023, 11, 1),
+	},
+	"almalinux": {
+		"8": date(2024, 5, 1),
+		"9": date(2027, 5, 31),
+	},
+	"centos": {
+		"7": date(2024, 5, 1),
+		"8": date(2021, 12, 31),
+	},
+}
 
 
 class CheckStatus(StrEnum):
@@ -100,6 +132,7 @@ def health_check() -> Iterator[CheckResult]:
 		check_mysql,
 		check_opsi_licenses,
 		check_deprecated_calls,
+		check_distro_eol,
 	):
 		yield check()
 
@@ -693,6 +726,36 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 			result.message += ", no licensing issues."
 		else:
 			result.message += ", licensing issues detected."
+	return result
+
+
+def check_distro_eol() -> CheckResult:
+	result = CheckResult(check_id="linux_distro_eol", check_name="Operating System EOL", check_description="Check OS EOL Date.")
+	with exc_to_result(result):
+
+		distro = linux_distro_id()
+		version = linux_distro_version_id()
+		if version_info := LINUX_DISTRO_EOL.get(distro):
+			if eol := version_info.get(version):
+				today = date.today()
+				diff = (today - eol).days
+				if diff < -90:
+					result.check_status = CheckStatus.OK
+					result.message = f"Version {version} of distribution {distro} is supported until {eol}."
+				elif 0 >= diff >= -90:
+					result.check_status = CheckStatus.WARNING
+					result.message = f"Version {version} of distribution {distro} is supported until {eol}."
+				else:
+					result.check_status = CheckStatus.ERROR
+					result.message = f"Support of version {version} of distribution {distro} ended on {eol}"
+			else:
+				result.check_status = CheckStatus.ERROR
+				result.message = f"Version {version} of distribution {distro} is not supported."
+
+		else:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Linux distribution {distro} is not supported."
+
 	return result
 
 

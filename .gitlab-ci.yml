@@ -166,7 +166,7 @@ build:linux-pyinstaller:
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64
     # Check if binary is working
-    - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
+    - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --version
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:
@@ -185,7 +185,7 @@ build:arm64-pyinstaller:
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-arm64
     # Check if binary is working
-    - OPSI_HOSTNAME=test.uib.local ./opsiconfd-arm64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
+    - OPSI_HOSTNAME=test.uib.local ./opsiconfd-arm64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --version
   artifacts:
     name: 'opsiconfd-arm64-pyinstaller'
     paths:

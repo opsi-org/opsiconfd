@@ -32,18 +32,10 @@ stages:
   # Start grafana (will report failure but works)
   /etc/init.d/grafana-server start || true
 
-  # Get config files from opsi-server package
   [ -e /etc/opsi ] && rm -r /etc/opsi
-  [ -e ../opsi-server ] && rm -r ../opsi-server
-  url=$(git remote -v | grep fetch | cut -f2 | sed s'#/opsiconfd.git.*#/opsi-server.git#')
-  #branch=$(git rev-parse --abbrev-ref HEAD)
-  branch=devel
-  GIT_TERMINAL_PROMPT=0 git clone --branch $branch $url ../opsi-server
-  cp -a ../opsi-server/opsi-server_data/etc /etc/opsi
+  cp -a opsiconfd_data/etc /etc/opsi
 
   # Configure opsiconfd
-  mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot /var/lib/opsi/workbench
-
   echo "redis-internal-url = redis://redis" >> tests/data/default-opsiconfd.conf
   echo "log-level-stderr = 0" >> tests/data/default-opsiconfd.conf
   echo "log-level-file = 6" >> tests/data/default-opsiconfd.conf
@@ -58,6 +50,9 @@ stages:
   wget --header="Authorization: Bearer ${OPSILICSRV_TOKEN}" "https://opsi-license-server.uib.gmbh/api/v1/licenses/test?usage=opsiconfd-gitlab-ci" -O /etc/opsi/licenses/test.opsilic
 
   # Create dirs
+  mkdir -p /var/lib/opsi/repository
+  mkdir -p /var/lib/opsi/depot
+  mkdir -p /var/lib/opsi/workbench
   mkdir -p /var/log/opsi/clientconnect
   mkdir -p /var/lib/opsi/public
   mkdir -p /tftpboot

@@ -439,3 +439,9 @@ def set_grafana_root_url() -> None:
 	data = str(grafana_config)
 	with open(GRAFANA_INI, "w", encoding="utf-8") as config_file:
 		config_file.write(data.split("\n", 1)[1])
+
+	logger.notice("Restart grafana server")
+	try:
+		subprocess.check_output(["systemctl", "restart", "grafana-server.service"])
+	except subprocess.CalledProcessError as err:
+		logger.warning(err)

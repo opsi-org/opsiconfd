@@ -23,6 +23,7 @@ from ipaddress import (
 	IPv6Address,
 	IPv6Network,
 	ip_address,
+	ip_interface,
 	ip_network,
 )
 from logging import INFO  # type: ignore[import]
@@ -147,14 +148,22 @@ def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
 			else:
 				continue
 
-			ipa = None
 			try:
-				ipa = ip_address(snic.address.split("%")[0])
+				ipi = f"{snic.address.split('%')[0]}/{snic.netmask}"
+				iface = ip_interface(ipi)
 			except ValueError:
 				if logger:
-					logger.warning("Unrecognised ip address: %r", snic.address)
-
-			yield {"family": family, "interface": interface, "address": snic.address, "ip_address": ipa}
+					logger.warning("Unrecognised ip interface: %r", ipi)
+			yield {
+				"family": family,
+				"interface": interface,
+				"ip_address": iface.ip,
+				"ip_network": iface.network,
+				"ip_netmask": iface.netmask,
+				"address": iface.ip.exploded,
+				"network": iface.network.exploded,
+				"netmask": iface.netmask.exploded,
+			}
 
 
 def ip_address_in_network(address: str | IPv4Address | IPv6Address, network: str | IPv4Network | IPv6Network) -> bool:

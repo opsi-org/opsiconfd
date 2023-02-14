@@ -21,10 +21,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import psutil
-from OPSI.System.Posix import (  # type: ignore[import]
-	getNetworkConfiguration,
-	locateDHCPDConfig,
-)
+from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.objects import (  # type: ignore[import]
@@ -81,7 +78,7 @@ from opsiconfd.logging import logger, secret_filter
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import delete_recursively
 from opsiconfd.ssl import setup_ssl, setup_ssl_file_permissions
-from opsiconfd.utils import get_random_string
+from opsiconfd.utils import get_ip_addresses, get_random_string
 
 
 def setup_limits() -> None:
@@ -367,7 +364,17 @@ def setup_backend(force_server_id: str | None = None) -> None:
 	conf_servers = backend.host_getObjects(type="OpsiConfigserver")
 	if not conf_servers:
 		logger.notice("Creating config server %r", config_server_id)
-		network_config = getNetworkConfiguration()
+
+		ip_address = None
+		network_address = None
+		for addr in get_ip_addresses():
+			if addr["interface"] == "lo":
+				continue
+			if not ip_address or addr["family"] == "ipv4":
+				# Prefer IPv4
+				ip_address = addr["address"]
+				network_address = addr["network"]
+
 		conf_servers = [
 			OpsiConfigserver(
 				id=config_server_id,
@@ -381,10 +388,10 @@ def setup_backend(force_server_id: str | None = None) -> None:
 				workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
 				description=None,
 				notes=None,
-				hardwareAddress=network_config["hardwareAddress"],
-				ipAddress=network_config["ipAddress"],
+				hardwareAddress=None,
+				ipAddress=ip_address,
 				inventoryNumber=None,
-				networkAddress=f"{network_config['subnet']}/{network_config['netmask']}",
+				networkAddress=network_address,
 				maxBandwidth=0,
 				isMasterDepot=True,
 				masterDepotId=None,

@@ -149,6 +149,19 @@ def get_repo_versions() -> dict[str, str | None]:
 	return repo_versions
 
 
+def get_disk_mountpoints() -> set:
+	partitions = psutil.disk_partitions()
+	check_mountpoints = set()
+	var_added = False
+	for mountpoint in sorted([p.mountpoint for p in partitions if p.fstype], reverse=True):
+		if mountpoint in ("/", "/tmp") or mountpoint.startswith("/var/lib/opsi/"):
+			check_mountpoints.add(mountpoint)
+		elif mountpoint in ("/var", "/var/lib", "/var/lib/opsi") and not var_added:
+			check_mountpoints.add(mountpoint)
+			var_added = True
+	return check_mountpoints
+
+
 def check_disk_usage() -> CheckResult:
 	result = CheckResult(
 		check_id="disk_usage",
@@ -157,15 +170,7 @@ def check_disk_usage() -> CheckResult:
 		message="Sufficient free space on all file systems.",
 	)
 	with exc_to_result(result):
-		partitions = psutil.disk_partitions()
-		check_mountpoints = set()
-		var_added = False
-		for mountpoint in sorted([p.mountpoint for p in partitions if p.fstype], reverse=True):
-			if mountpoint in ("/", "/tmp") or mountpoint.startswith("/var/lib/opsi/"):
-				check_mountpoints.add(mountpoint)
-			elif mountpoint in ("/var", "/var/lib", "/var/lib/opsi") and not var_added:
-				check_mountpoints.add(mountpoint)
-				var_added = True
+		check_mountpoints = get_disk_mountpoints()
 
 		count = 0
 		for mountpoint in check_mountpoints:
@@ -330,6 +335,62 @@ def check_opsiconfd_config() -> CheckResult:
 	return result
 
 
+def get_installed_packages(packages: dict | None = None) -> dict:
+	installed_versions: dict[str, str] = {}
+	if linux_distro_id_like_contains(("sles", "rhel")):
+		cmd = ["yum", "list", "installed"]
+		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
+		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+		for line in res.split("\n"):
+			match = regex.search(line)
+			if not match:
+				continue
+			p_name = match.group(1).split(".")[0]
+			if not packages:
+				if p_name.startswith("opsi"):
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
+					installed_versions[p_name] = match.group(2)
+			else:
+				if p_name in packages:
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
+					installed_versions[p_name] = match.group(2)
+	elif linux_distro_id_like_contains("opensuse"):
+		cmd = ["zypper", "search", "-is", "opsi*"]
+		regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
+		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+		for line in res.split("\n"):
+			match = regex.search(line)
+			if not match:
+				continue
+			p_name = match.group(1)
+			if not packages:
+				if p_name.startswith("opsi"):
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
+					installed_versions[p_name] = match.group(3)
+			else:
+				if p_name in packages:
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
+					installed_versions[p_name] = match.group(3)
+	else:
+		cmd = ["dpkg", "-l"]
+		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
+		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+		for line in res.split("\n"):
+			match = regex.search(line)
+			if not match or match.group(1) != "ii":
+				continue
+			p_name = match.group(2)
+			if not packages:
+				if p_name.startswith("opsi"):
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
+					installed_versions[p_name] = match.group(3)
+			else:
+				if p_name in packages:
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
+					installed_versions[p_name] = match.group(3)
+	return installed_versions
+
+
 def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches, too-many-statements, too-many-locals
 	result = CheckResult(
 		check_id="system_packages",
@@ -341,42 +402,7 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 		repo_versions = get_repo_versions()
 		installed_versions: dict[str, str] = {}
 		try:
-			if linux_distro_id_like_contains(("sles", "rhel")):
-				cmd = ["yum", "list", "installed"]
-				regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
-				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-				for line in res.split("\n"):
-					match = regex.search(line)
-					if not match:
-						continue
-					p_name = match.group(1).split(".")[0]
-					if p_name in repo_versions:
-						logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
-						installed_versions[p_name] = match.group(2)
-			elif linux_distro_id_like_contains("opensuse"):
-				cmd = ["zypper", "search", "-is", "opsi*"]
-				regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
-				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-				for line in res.split("\n"):
-					match = regex.search(line)
-					if not match:
-						continue
-					p_name = match.group(1)
-					if p_name in repo_versions:
-						logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
-						installed_versions[p_name] = match.group(3)
-			else:
-				cmd = ["dpkg", "-l"]
-				regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
-				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-				for line in res.split("\n"):
-					match = regex.search(line)
-					if not match or match.group(1) != "ii":
-						continue
-					p_name = match.group(2)
-					if p_name in repo_versions:
-						logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
-						installed_versions[p_name] = match.group(3)
+			installed_versions = get_installed_packages(repo_versions)
 		except RuntimeError as err:
 			error = f"Could not get package versions from system: {err}"
 			logger.error(error)
@@ -384,7 +410,7 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 			result.message = error
 			return result
 
-		logger.info("Installed packages: %s", repo_versions)
+		logger.info("Installed packages: %s", installed_versions)
 
 		not_installed = 0
 		outdated = 0

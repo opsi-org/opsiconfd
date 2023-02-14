@@ -148,12 +148,21 @@ def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
 			else:
 				continue
 
+			if not snic.netmask:
+				continue
+
 			try:
-				ipi = f"{snic.address.split('%')[0]}/{snic.netmask}"
+				prefixlen = 0
+				if family == "ipv6":
+					prefixlen = ip_address(snic.netmask).exploded.count("f")
+				else:
+					prefixlen = IPv4Network(f"0.0.0.0/{snic.netmask}").prefixlen
+				ipi = f"{snic.address.split('%')[0]}/{prefixlen}"
 				iface = ip_interface(ipi)
 			except ValueError:
 				if logger:
-					logger.warning("Unrecognised ip interface: %r", ipi)
+					logger.warning("Unrecognised ip interface: %s/%s", snic.address, snic.netmask)
+				continue
 			yield {
 				"family": family,
 				"interface": interface,
@@ -163,6 +172,7 @@ def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
 				"address": iface.ip.exploded,
 				"network": iface.network.exploded,
 				"netmask": iface.netmask.exploded,
+				"prefixlen": prefixlen,
 			}
 
 

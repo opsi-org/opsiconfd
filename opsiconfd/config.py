@@ -39,6 +39,7 @@ from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from opsicommon.config import OpsiConfig  # type: ignore[import]
 from opsicommon.logging import secret_filter  # type: ignore[import]
+from opsicommon.utils import get_fqdn
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 
@@ -74,7 +75,7 @@ SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 WORKBENCH_DIR = "/var/lib/opsi/workbench"
 
-FQDN = socket.getfqdn().lower()
+FQDN = get_fqdn()
 DEFAULT_NODE_NAME = FQDN.split(".", 1)[0]
 
 opsi_config = OpsiConfig()

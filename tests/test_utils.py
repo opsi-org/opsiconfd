@@ -30,6 +30,7 @@ def test_get_ip_addresses() -> None:
 	assert lo4["address"] == "127.0.0.1"
 	assert lo4["network"] == "127.0.0.0/8"
 	assert lo4["netmask"] == "255.0.0.0"
+	assert lo4["prefixlen"] == 8
 	assert lo4["ip_address"] == IPv4Address("127.0.0.1")
 	assert lo4["ip_network"] == IPv4Network("127.0.0.0/8")
 	assert lo4["ip_netmask"] == IPv4Address("255.0.0.0")

@@ -160,12 +160,11 @@ def get_config() -> dict[str, Any]:
 
 def get_system_info() -> dict:
 	result: dict = {}
-
+	product_name = Path("/sys/devices/virtual/dmi/id/product_name")
 	try:
-		product_name = Path("/sys/devices/virtual/dmi/id/product_name").read_text(encoding="utf-8")
-		result["product_name"] = product_name
-	except FileNotFoundError:
-		logger.warning("Could not read '/sys/devices/virtual/dmi/id/product_name'.")
+		result["product_name"] = product_name.read_text(encoding="utf-8").strip()
+	except (FileNotFoundError, PermissionError):
+		logger.warning("Could not read '%s'", product_name)
 		result["product_name"] = None
 
 	docker = running_in_docker()

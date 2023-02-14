@@ -130,6 +130,27 @@ package:
     [ -e /etc/systemd/system/opsiconfd.service ] && rm /etc/systemd/system/opsiconfd.service
     systemctl daemon-reload || true
 
+    [ -e /etc/dhcpd.conf ] && sed -i s'#"dhcpdConfigFile".*#"dhcpdConfigFile":         "/etc/dhcpd.conf",#' /etc/opsi/backends/dhcpd.conf
+    [ -e /etc/dhcpd.conf ] && sed -i s'#linux/pxelinux.0#opsi/pxelinux.0#' /etc/opsi/backends/dhcpd.conf
+    [ -e /var/lib/tftpboot/opsi ] && sed -i s'#/tftpboot/linux#/var/lib/tftpboot/opsi#' /etc/opsi/opsipxeconfd.conf
+    [ -e /var/lib/opsi/server_commands_custom.conf ] || touch /var/lib/opsi/server_commands_custom.conf
+    opsi-setup --set-rights /var/lib/opsi/server_commands_custom.conf || true
+    # Removing files dating before opsi 4.1
+    [ -e /etc/opsi/version ] && rm /etc/opsi/version
+    # Removing extension files from opsi < 4.3
+    for ext in 10_opsi.conf 10_wim.conf 20_easy.conf 20_legacy.conf 30_kiosk.conf 30_sshcommands.conf 40_admin_tasks.conf 40_groupActions.conf 45_deprecated.conf 70_dynamic_depot.conf 70_wan.conf; do
+      extf="/etc/opsi/backendManager/extend.d/${ext}"
+      if [ -e "${extf}" ]; then
+        echo "Moving extension file ${extf} to /etc/opsi/backendManager/extend.d.old"
+        if [ ! -e /etc/opsi/backendManager/extend.d.old ]; then
+          mkdir -p /etc/opsi/backendManager/extend.d.old
+          chown :opsiadmin /etc/opsi/backendManager/extend.d.old || true
+          chmod 770 /etc/opsi/backendManager/extend.d.old
+        fi
+        mv "${extf}" /etc/opsi/backendManager/extend.d.old
+      fi
+    done
+
     # Setup opsiconfd
     /usr/bin/opsiconfd setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

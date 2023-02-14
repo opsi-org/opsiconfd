@@ -112,7 +112,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 
 	def __init__(self: BackendProtocol) -> None:
 		if not self.host_getIdents(id=self._depot_id):  # pylint: disable=maybe-no-member
-			logger.error("Depot %r not found in backend", self._depot_id)
+			logger.info("Depot %r not found in backend", self._depot_id)
 			# Mark methods as not available
 			for val in RPCDepotserverMixin.__dict__.values():
 				if callable(val) and hasattr(val, "rpc_method"):

@@ -12,7 +12,7 @@ from fastapi import APIRouter, FastAPI, Request, status
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from opsiconfd.rest import RESTResponse, rest_api
-from opsiconfd.session import authenticate
+from opsiconfd.session import OPSISession, authenticate
 
 session_router = APIRouter()
 
@@ -30,7 +30,8 @@ class LoginData(BaseModel):  # pylint: disable=too-few-public-methods
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
 async def login(request: Request, login_data: LoginData) -> RESTResponse:
 	await authenticate(request.scope, username=login_data.username, password=login_data.password)
-	return RESTResponse({"session_id": request.scope["session"].session_id})
+	session: OPSISession = request.scope["session"]
+	return RESTResponse({"session_id": session.session_id, "is_admin": session.is_admin})
 
 
 @session_router.get("/logout")

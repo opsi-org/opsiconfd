@@ -41,12 +41,16 @@ function login(username, password, redirect = "/admin") {
 			localStorage.setItem('serverRole', ajax.getResponseHeader("X-opsi-server-role"));
 
 			let response = JSON.parse(ajax.responseText);
-			if (ajax.status == 200) {
+			if (ajax.status == 200 && response.is_admin) {
 				location.href = redirect;
 			}
 			else {
 				console.error(response);
-				document.getElementById("login_error").innerHTML = response.message;
+				let login_error = response.message;
+				if (ajax.status == 200) {
+					login_error = "Not an admin user";
+				}
+				document.getElementById("login_error").innerHTML = login_error;
 			}
 		}
 	};

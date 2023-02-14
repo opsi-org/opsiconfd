@@ -100,6 +100,9 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 				config.backup_file = f"opsiconfd-backup-{now}.msgpack.lz4{'.aes' if config.password else ''}"
 
 			backup_file = Path(config.backup_file)
+			if not backup_file.is_absolute():
+				backup_file = Path.cwd() / backup_file
+
 			if not config.overwrite and backup_file.exists():
 				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists, use --overwrite to replace.")
 

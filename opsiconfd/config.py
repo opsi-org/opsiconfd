@@ -75,7 +75,11 @@ SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 WORKBENCH_DIR = "/var/lib/opsi/workbench"
 
-FQDN = get_fqdn()
+try:
+	FQDN = get_fqdn()
+except RuntimeError:
+	FQDN = socket.gethostname()
+
 DEFAULT_NODE_NAME = FQDN.split(".", 1)[0]
 
 opsi_config = OpsiConfig()

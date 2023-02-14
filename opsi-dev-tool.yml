@@ -44,16 +44,6 @@ pyinstaller-poetry:
       # Without the service_identity module, Twisted can perform only rudimentary TLS client hostname verification.
       # Many valid certificate/hostname mappings may be rejected.
       - service_identity
-      - OPSI.Backend.Depotserver
-      - OPSI.Backend.DHCPD
-      - OPSI.Backend.File
-      - OPSI.Backend.HostControl
-      - OPSI.Backend.HostControlSafe
-      - OPSI.Backend.JSONRPC
-      - OPSI.Backend.MySQL
-      - OPSI.Backend.OpsiPXEConfd
-      - OPSI.Backend.Replicator
-      - OPSI.Backend.SQLite
       - OPSI.Util.WIM
       - opsiconfd.application.utils
       - opsiconfd.rest
@@ -105,7 +95,7 @@ package:
     echo "exec ./opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd
     chmod 755 ${DST}/rootfs/usr/bin/opsiconfd
     cp -a ${SRC}/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
-    cp -a ${SRC}/opsiconfd_data/opsiconfd.conf ${DST}/rootfs/etc/opsi/
+    cp -a ${SRC}/opsiconfd_data/etc/* ${DST}/rootfs/etc/opsi/*
     cp -a ${SRC}/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
 
 

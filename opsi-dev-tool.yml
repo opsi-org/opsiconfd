@@ -130,11 +130,11 @@ package:
     [ -e /etc/systemd/system/opsiconfd.service ] && rm /etc/systemd/system/opsiconfd.service
     systemctl daemon-reload || true
 
+    [ -e /var/lib/opsi ] || mkdir -p /var/lib/opsi
     [ -e /etc/dhcpd.conf ] && sed -i s'#"dhcpdConfigFile".*#"dhcpdConfigFile":         "/etc/dhcpd.conf",#' /etc/opsi/backends/dhcpd.conf
     [ -e /etc/dhcpd.conf ] && sed -i s'#linux/pxelinux.0#opsi/pxelinux.0#' /etc/opsi/backends/dhcpd.conf
-    [ -e /var/lib/tftpboot/opsi ] && sed -i s'#/tftpboot/linux#/var/lib/tftpboot/opsi#' /etc/opsi/opsipxeconfd.conf
     [ -e /var/lib/opsi/server_commands_custom.conf ] || touch /var/lib/opsi/server_commands_custom.conf
-    opsi-setup --set-rights /var/lib/opsi/server_commands_custom.conf || true
+
     # Removing files dating before opsi 4.1
     [ -e /etc/opsi/version ] && rm /etc/opsi/version
     # Removing extension files from opsi < 4.3

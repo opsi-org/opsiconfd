@@ -77,7 +77,17 @@ package:
     mkdir -p ${DST}/rootfs/usr/bin
     mkdir -p ${DST}/rootfs/usr/lib
     mkdir -p ${DST}/rootfs/usr/share/opsiconfd
+    mkdir -p ${DST}/rootfs/var/lib/opsi/depot
+    mkdir -p ${DST}/rootfs/var/lib/opsi/ntfs-images
+    mkdir -p ${DST}/rootfs/var/lib/opsi/public
+    mkdir -p ${DST}/rootfs/var/lib/opsi/repository
+    mkdir -p ${DST}/rootfs/var/lib/opsi/workbench
+    mkdir -p ${DST}/rootfs/var/log/opsi/bootimage
+    mkdir -p ${DST}/rootfs/var/log/opsi/clientconnect
+    mkdir -p ${DST}/rootfs/var/log/opsi/instlog
     mkdir -p ${DST}/rootfs/var/log/opsi/opsiconfd
+    mkdir -p ${DST}/rootfs/var/log/opsi/userlogin
+
     mkdir -p ${DST}/systemd_units
     if [ -d ${pyi_src}/opsiconfd ]; then
       cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/

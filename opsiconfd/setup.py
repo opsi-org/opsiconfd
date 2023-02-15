@@ -784,6 +784,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	logger.notice("Running opsiconfd setup")
 	register_depot = getattr(config, "register_depot", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
+	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and full
 	force_server_id = None
 	rename_server = getattr(config, "rename_server", False)
 	if rename_server:
@@ -811,7 +812,6 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 
 	backend_available = True
 	if opsi_config.get("host", "server-role") == "configserver" or configure_mysql:
-		interactive = configure_mysql or (sys.stdout.isatty() and full)
 		try:
 			setup_mysql(interactive=interactive, full=full, force=configure_mysql)
 			opsi_config.set("host", "server-role", "configserver", persistent=True)

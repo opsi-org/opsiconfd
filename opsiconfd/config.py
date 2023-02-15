@@ -1124,6 +1124,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			return
 
 		if self._sub_command == "setup":
+			self._parser.add(
+				"--non-interactive", action="store_true", help=self._help("setup", "Run non interactive, do not ask questions.")
+			)
 			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
 			self._parser.add(

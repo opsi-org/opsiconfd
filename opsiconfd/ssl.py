@@ -239,26 +239,32 @@ def configserver_setup_ca() -> bool:
 	elif not os.path.exists(config.ssl_ca_cert):
 		renew = True
 	else:
+		ca_key = load_ca_key()
 		ca_crt = load_ca_cert()
-		not_after = ca_crt.get_notAfter()
-		if not_after:
-			enddate = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
-			diff = (enddate - datetime.datetime.now()).days
 
-			logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, diff)
-			if diff <= config.ssl_ca_cert_renew_days:
-				logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, diff)
-				renew = True
+		if dump_publickey(FILETYPE_PEM, ca_key) != dump_publickey(FILETYPE_PEM, ca_crt.get_pubkey()):
+			logger.warning("CA cert does not match CA key, creating new CA cert")
+			renew = True
+		else:
+			not_after = ca_crt.get_notAfter()
+			if not_after:
+				enddate = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
+				diff = (enddate - datetime.datetime.now()).days
 
-		if config.ssl_ca_subject_cn != ca_crt.get_subject().CN:
-			logger.warning(
-				"The common name of the CA has changed from '%s' to '%s'."
-				" If this change is intended, please delete"
-				" the current CA '%s' and restart opsiconfd.",
-				ca_crt.get_subject().CN,
-				config.ssl_ca_subject_cn,
-				config.ssl_ca_cert,
-			)
+				logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, diff)
+				if diff <= config.ssl_ca_cert_renew_days:
+					logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, diff)
+					renew = True
+
+			if config.ssl_ca_subject_cn != ca_crt.get_subject().CN:
+				logger.warning(
+					"The common name of the CA has changed from '%s' to '%s'."
+					" If this change is intended, please delete"
+					" the current CA '%s' and restart opsiconfd.",
+					ca_crt.get_subject().CN,
+					config.ssl_ca_subject_cn,
+					config.ssl_ca_cert,
+				)
 
 	if create or renew:
 		domain = get_domain()

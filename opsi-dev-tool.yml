@@ -162,10 +162,5 @@ package:
     done
 
     # Setup opsiconfd
-    is_upgrade=0
-    # Need a better marker
-    grep -Ev "^#|^$" /etc/opsi/opsiconfd.conf >/dev/null && is_upgrade=1
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
-    if [ "${is_upgrade}" == "1" ]; then
-      /usr/bin/opsiconfd setup --non-interactive --log-level-stderr=5 --log-level-file=0 || true
-    fi
+    /usr/bin/opsiconfd setup --non-interactive --log-level-stderr=5 --log-level-file=0 || true

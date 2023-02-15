@@ -748,16 +748,16 @@ def check_distro_eol() -> CheckResult:
 				else:
 					result.check_status = CheckStatus.ERROR
 					result.message = f"Support of version {version} of distribution {distro} ended on {eol}"
-					result.upgrade_issue = "4.3"
+					result.upgrade_issue = __version__
 			else:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Version {version} of distribution {distro} is not supported."
-				result.upgrade_issue = "4.3"
+				result.upgrade_issue = __version__
 
 		else:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Linux distribution {distro} is not supported."
-			result.upgrade_issue = "4.3"
+			result.upgrade_issue = __version__
 
 	return result
 

@@ -233,7 +233,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.password = get_random_string(16)
 	secret_filter.add_secrets(mysql.password)
 
-	logger.info("Creating user %r and granting all rights on %r", mysql.username, mysql.database)
+	logger.info("Creating MySQL user %r and granting all rights on %r", mysql.username, mysql.database)
 	with root_mysql.session() as session:
 		session.execute(f"CREATE USER IF NOT EXISTS '{mysql.username}'@'{mysql.address}'")
 		try:
@@ -247,7 +247,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 				session.execute(f"SET PASSWORD FOR '{mysql.username}'@'{mysql.address}' = PASSWORD('{mysql.password}')")
 		session.execute(f"GRANT ALL ON {mysql.database}.* TO '{mysql.username}'@'{mysql.address}'")
 		session.execute("FLUSH PRIVILEGES")
-		logger.notice("User %r created and privileges set", mysql.username)
+		logger.notice("MySQL user %r created and privileges set", mysql.username)
 
 	mysql.update_config_file()
 
@@ -262,7 +262,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 				# OK
 				return
 		except Exception as err:  # pylint: disable=broad-except
-			logger.info("Failed to connect to database: %s", err)
+			logger.info("Failed to connect to MySQL database: %s", err)
 			error = err
 
 	mysql_root = MySQLConnection()
@@ -274,7 +274,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 		mysql_root.database = "opsi"
 		mysql_root.username = "root"
 		mysql_root.password = ""
-		logger.info("Trying to connect to local database as %s", mysql_root.username)
+		logger.info("Trying to connect to local MySQL database as %s", mysql_root.username)
 
 	while True:
 		if not auto_try:
@@ -285,7 +285,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 				match = re.search(r"(\(\d+,\s.*)", error_str)
 				if match:
 					error_str = match.group(1).strip("()")
-				rich_print(f"[b][red]Failed to connect to database[/red]: {error_str}[/b]")
+				rich_print(f"[b][red]Failed to connect to MySQL database[/red]: {error_str}[/b]")
 			if not Confirm.ask("Do you want to configure the MySQL database connection?"):
 				raise error  # type: ignore[misc]
 			mysql_root.address = Prompt.ask("Enter MySQL server address", default=mysql_root.address, show_default=True)
@@ -317,38 +317,38 @@ def setup_mysql(interactive: bool = False, full: bool = False, force: bool = Fal
 
 	mysql = MySQLConnection()
 	if interactive and force:
-		rich_print(f"[b]Creating database {mysql.database!r} on {mysql.address!r}[/b]")
+		rich_print(f"[b]Creating MySQL database {mysql.database!r} on {mysql.address!r}[/b]")
 	try:
 		mysql.connect()
 		create_database(mysql)
 	except Exception as err:
 		if interactive and force:
-			rich_print(f"[b][red]Failed to create database: {err}[/red][/b]")
+			rich_print(f"[b][red]Failed to create MySQL database: {err}[/red][/b]")
 		raise
 	if interactive and force:
-		rich_print("[b][green]Database created successfully[/green][/b]")
+		rich_print("[b][green]MySQL database created successfully[/green][/b]")
 
 	if interactive and force:
-		rich_print("[b]Updating database[/b]")
+		rich_print("[b]Updating MySQL database[/b]")
 	try:
 		update_database(mysql, force=full)
 	except Exception as err:
 		if interactive and force:
-			rich_print(f"[b][red]Failed to update database: {err}[/red][/b]")
+			rich_print(f"[b][red]Failed to update MySQL database: {err}[/red][/b]")
 		raise
 	if interactive and force:
-		rich_print("[b][green]Database updated successfully[/green][/b]")
+		rich_print("[b][green]MySQL database updated successfully[/green][/b]")
 
 	if interactive and force:
-		rich_print("[b]Cleaning up database[/b]")
+		rich_print("[b]Cleaning up MySQL database[/b]")
 	try:
 		cleanup_database(mysql)
 	except Exception as err:
 		if interactive and force:
-			rich_print(f"[b][red]Failed to cleanup database: {err}[/red][/b]")
+			rich_print(f"[b][red]Failed to cleanup MySQL database: {err}[/red][/b]")
 		raise
 	if interactive and force:
-		rich_print("[b][green]Database cleaned up successfully[/green][/b]")
+		rich_print("[b][green]MySQL database cleaned up successfully[/green][/b]")
 
 
 def setup_backend(force_server_id: str | None = None) -> None:

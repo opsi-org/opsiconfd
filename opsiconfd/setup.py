@@ -878,7 +878,10 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to setup grafana: %s", err, exc_info=True)
 
-	setup_redis()
+	try:
+		setup_redis()
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning("Failed to setup redis: %s", err, exc_info=True)
 
 	if "metric_downsampling" not in config.skip_setup:
 		try:
@@ -890,7 +893,4 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 		setup_ssl()
 	except Exception as err:  # pylint: disable=broad-except
 		# This can fail if fqdn is not valid
-		logger.error("Failed to setup ssl: %s", err, exc_info=True)
-		logger.error("Failed to setup ssl: %s", err, exc_info=True)
-		logger.error("Failed to setup ssl: %s", err, exc_info=True)
 		logger.error("Failed to setup ssl: %s", err, exc_info=True)

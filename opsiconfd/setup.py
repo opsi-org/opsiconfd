@@ -20,7 +20,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 from uuid import UUID
 
+import OPSI.Backend.File  # type: ignore[import]
 import psutil
+from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import]
 from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 from opsicommon.exceptions import OpsiServiceConnectionError
@@ -55,7 +57,11 @@ from opsiconfd import __version__
 from opsiconfd.backend import new_service_client
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
-from opsiconfd.backend.mysql.schema import create_database, update_database
+from opsiconfd.backend.mysql.schema import (
+	create_database,
+	drop_database,
+	update_database,
+)
 from opsiconfd.config import (
 	DEPOT_DIR,
 	FILE_TRANSFER_STORAGE_DIR,
@@ -351,9 +357,69 @@ def setup_mysql(interactive: bool = False, full: bool = False, force: bool = Fal
 		rich_print("[b][green]MySQL database cleaned up successfully[/green][/b]")
 
 
+def file_mysql_migration() -> None:
+	dipatch_conf = Path(config.dispatch_config_file)
+	if not dipatch_conf.exists():
+		return
+
+	file_backend_used = False
+	for line in dipatch_conf.read_text(encoding="utf-8").split("\n"):
+		line = line.strip()
+		if not line or line.startswith("#") or ":" not in line:
+			continue
+		if "file" in line.split(":", 1)[1]:
+			file_backend_used = True
+			break
+	if not file_backend_used:
+		return
+
+	logger.notice("Converting File to MySQL backend, please wait...")
+	config_server_id = opsi_config.get("host", "id")
+	OPSI.Backend.File.getfqdn = lambda: config_server_id
+
+	file_backend = OPSI.Backend.File.FileBackend()
+	config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
+
+	if not config_servers:
+		depot_servers = file_backend.host_getObjects(type="OpsiDepotserver")
+		if len(depot_servers) > 1:
+			error = (
+				"Cannot convert File to MySQL backend:\n"
+				f"Configserver {file_backend.__serverId!r} not found in File backend.\n"  # pylint: disable=protected-access
+				f"Depot servers in File backend are: {', '.join(d.id for d in depot_servers)}.\n"
+				f"Set host.id in {opsi_config.config_file!r} to one of these IDs and retry."
+			)
+			logger.error(error)
+			raise ValueError(error)
+
+		config_server_id = depot_servers[0].id
+		config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
+		opsi_config.set("host", "id", config_server_id, persistent=True)
+
+	from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+
+	backend = get_unprotected_backend()
+	backend.events_enabled = False
+
+	mysql = MySQLConnection()
+	mysql.connect()
+	drop_database(mysql)
+	create_database(mysql)
+	mysql.disconnect()
+	mysql.connect()
+	update_database(mysql, force=True)
+
+	backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)
+	backend_replicator.replicate(audit=False)
+
+	dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
+
+
 def setup_backend(force_server_id: str | None = None) -> None:
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
+
+	file_mysql_migration()
 
 	from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
 

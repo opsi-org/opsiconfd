@@ -52,8 +52,16 @@ from opsiconfd.redis import decode_redis_result, redis_client
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 OPSI_REPO = "https://download.uib.de"
 OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
+OPSI_PACKAGES_PATHS = [
+	"4.2/stable/packages/windows/localboot/",
+	"4.2/stable/packages/windows/netboot/",
+	"4.2/stable/packages/linux/localboot/",
+	"4.2/stable/packages/linux/netboot/",
+]
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 CHECK_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent")
+MANDATORY_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent", "super-product")
+UPGRADE_CHECK_PACKAGES = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
 OPSI_PACKAGES_MIN_VERSIONS_UPGRADE = {"opsi-script": "4.12.7.5-3", "opsi-client-agent": "4.2.0.43-3"}
 LINUX_DISTRO_EOL = {
 	"ubuntu": {
@@ -571,20 +579,28 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 		check_id="product_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
 	)
 	with exc_to_result(result):
-		try:
-			res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
-		except requests.RequestException as err:
-			result.check_status = CheckStatus.ERROR
-			result.message = f"Failed to get package info from repository '{OPSI_REPO}/{OPSI_PACKAGES_PATH}': {err}"
-			return result
+		repo_text = ""
+		for path in OPSI_PACKAGES_PATHS:
+			try:
+				res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
+				repo_text = repo_text + res.text
+			except requests.RequestException as err:
+				result.check_status = CheckStatus.ERROR
+				result.message = f"Failed to get package info from repository '{OPSI_REPO}/{OPSI_PACKAGES_PATH}': {err}"
+				return result
 
 		result.message = "All important products are up to date on all depots."
-		available_packages = {p: "0.0" for p in CHECK_OPSI_PACKAGES}
+
 		backend = get_unprotected_backend()
+		installed_products = [p.id for p in backend.product_getObjects()]
+		available_packages = {p: "0.0" for p in installed_products}
+		for prod in MANDATORY_OPSI_PACKAGES:
+			if prod not in available_packages.keys():
+				available_packages[prod] = "0.0"
 
 		not_installed = 0
 		outdated = 0
-		for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', res.text):
+		for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
 			product_id, available_version = split_name_and_version(filename)
 			if product_id in available_packages:
 				available_packages[product_id] = available_version
@@ -600,10 +616,12 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 				try:
 					product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[0]
 				except IndexError as error:
+					if product_id not in MANDATORY_OPSI_PACKAGES:
+						continue
 					not_installed = not_installed + 1
 					logger.debug(error)
 					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = f"Product {product_id!r} is not installed on depot {depot_id!r}."
+					partial_result.message = f"Mandatory product {product_id!r} is not installed on depot {depot_id!r}."
 					partial_result.upgrade_issue = "4.3"
 					result.add_partial_result(partial_result)
 					continue
@@ -614,11 +632,18 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 
 				if compareVersions(available_version, ">", product_version_on_depot):
 					outdated = outdated + 1
-					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = (
-						f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
-						f" < available version {available_version!r}."
-					)
+					if product_id in MANDATORY_OPSI_PACKAGES:
+						partial_result.check_status = CheckStatus.ERROR
+						partial_result.message = (
+							f"Mandatory product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
+							f" < available version {available_version!r}."
+						)
+					else:
+						partial_result.check_status = CheckStatus.WARNING
+						partial_result.message = (
+							f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
+							f" < available version {available_version!r}."
+						)
 				else:
 					partial_result.check_status = CheckStatus.OK
 					partial_result.message = (
@@ -639,8 +664,8 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 		}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
-				f"Out of {len(CHECK_OPSI_PACKAGES)} products on {len(depots)} depots checked, "
-				f"{not_installed} are not installed and {outdated} are out of date."
+				f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
+				f"{not_installed} mandatory products are not installed and {outdated} are out of date."
 			)
 	return result
 
@@ -737,7 +762,6 @@ def check_distro_eol() -> CheckResult:
 			Check Operating System end-of-life date.
 			'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
 			limiting it’s support on the product and/or version to shift focus on their newer products and/or version.
-			(https://endoflife.software/operating-systems)
 		""",
 	)
 	with exc_to_result(result):

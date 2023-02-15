@@ -748,13 +748,16 @@ def check_distro_eol() -> CheckResult:
 				else:
 					result.check_status = CheckStatus.ERROR
 					result.message = f"Support of version {version} of distribution {distro} ended on {eol}"
+					result.upgrade_issue = "4.3"
 			else:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Version {version} of distribution {distro} is not supported."
+				result.upgrade_issue = "4.3"
 
 		else:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Linux distribution {distro} is not supported."
+			result.upgrade_issue = "4.3"
 
 	return result
 
@@ -795,6 +798,11 @@ def process_check_result(
 		if partial_results:
 			status = CheckStatus.ERROR
 			message = f"{len(partial_results)} upgrade issues"
+		elif result.upgrade_issue and compareVersions(result.upgrade_issue, "<=", check_version):
+			status = CheckStatus.ERROR
+			message = "1 upgrade issue"
+			if summary:
+				summary[result.check_status] += 1
 		else:
 			status = CheckStatus.OK
 			message = "No upgrade issues"
@@ -807,7 +815,9 @@ def process_check_result(
 
 	if not detailed:
 		return
-
+	if result.upgrade_issue:
+		console.print("")
+		console_print_message(result, console, 3)
 	if partial_results:
 		console.print("")
 	for partial_result in partial_results:

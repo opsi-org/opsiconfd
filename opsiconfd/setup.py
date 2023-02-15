@@ -262,7 +262,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 				# OK
 				return
 		except Exception as err:  # pylint: disable=broad-except
-			logger.error("Failed to connect to database: %s", err)
+			logger.info("Failed to connect to database: %s", err)
 			error = err
 
 	mysql_root = MySQLConnection()

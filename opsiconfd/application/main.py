@@ -307,7 +307,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					# Grub 2.06 needs titled headers (Content-Length instead of content-length)
 					message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
 
-				message["headers"].append((b"Date", get_server_date()))
+				message["headers"].append((b"date", get_server_date()))
 			await send(message)
 
 		return await self.app(scope, receive, send_wrapper)

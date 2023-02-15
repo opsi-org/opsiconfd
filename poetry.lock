@@ -1341,12 +1341,12 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
-name = "pydicti"
-version = "1.2.0"
-description = "Case insensitive derivable dictionary"
-category = "main"
+name = "pydevd"
+version = "2.9.5"
+description = "PyDev.Debugger (used in PyDev, PyCharm and VSCode Python)"
+category = "dev"
 optional = false
-python-versions = ">=2.7"
+python-versions = "*"
 
 [package.source]
 type = "legacy"
@@ -2491,7 +2491,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "c9adef69339e47d96d9386a4b080d580313115209cf24d3bacfe15ec0f5b59da"
+content-hash = "94b5bc5355c5330c4db0f7002771f944864c8655113c82ab3964b6269dc3a24c"
 
 [metadata.files]
 aiofiles = [
@@ -3653,9 +3653,18 @@ pydantic = [
     {file = "pydantic-1.10.4-py3-none-any.whl", hash = "sha256:4948f264678c703f3877d1c8877c4e3b2e12e549c57795107f08cf70c6ec7774"},
     {file = "pydantic-1.10.4.tar.gz", hash = "sha256:b9a3859f24eb4e097502a3be1fb4b2abb79b6103dd9e2e0edb70613a4459a648"},
 ]
-pydicti = [
-    {file = "pydicti-1.2.0-py2.py3-none-any.whl", hash = "sha256:afbf33c5dfa6699974e1f6c8035a592020f6942ad5b613e12a6fc1ce2707606d"},
-    {file = "pydicti-1.2.0.tar.gz", hash = "sha256:32d59407b3229b22702910bd10f53d46c330481b5aea7cce076630d661be9d1e"},
+pydevd = [
+    {file = "pydevd-2.9.5-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:21e6e3b097c3f3034e2e6bc2007ba6baf6533bce2bbc2b7e153f6ccfc3567276"},
+    {file = "pydevd-2.9.5-cp310-cp310-win_amd64.whl", hash = "sha256:2587ed97c68a8cb03fd7e58888bb2b6923499e6d690f566a36ff43c2b6a76cd2"},
+    {file = "pydevd-2.9.5-cp311-cp311-macosx_10_15_universal2.whl", hash = "sha256:d6fee6a8919c7ce1a150db09b8e114f377f448bb50a6a004ff5acde4cf4a8252"},
+    {file = "pydevd-2.9.5-cp311-cp311-win_amd64.whl", hash = "sha256:81a6a3d28fdea4f054b954a21e444375a628b2e085b606398c855c58bfb13588"},
+    {file = "pydevd-2.9.5-cp37-cp37m-macosx_10_15_x86_64.whl", hash = "sha256:f059d7bf724bd6c3172565df4ded068afe126430ea8e1a0a5d9ffb3bf88354ce"},
+    {file = "pydevd-2.9.5-cp37-cp37m-win_amd64.whl", hash = "sha256:a4f8ded5f155b0d5951a324b654ee75e8dbef3caf06769cf592e49bed283ec2a"},
+    {file = "pydevd-2.9.5-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:8ac8e750418f05300d038330312155a0592add67269e0c9224fa7cec30f185e1"},
+    {file = "pydevd-2.9.5-cp38-cp38-win_amd64.whl", hash = "sha256:3212dc38f61761233fd71ac740959a58c7cb647726c29c6c49828bade7650d81"},
+    {file = "pydevd-2.9.5-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:2b36ae5353e3c1a0cb526583d6217951b526a08ecbf3cd9c7f323dd2c1df8f20"},
+    {file = "pydevd-2.9.5-cp39-cp39-win_amd64.whl", hash = "sha256:482fe4e5cdee0fff1b59acbb8b1c98b285cc2c636989cb66daf97ec5e749a029"},
+    {file = "pydevd-2.9.5.tar.gz", hash = "sha256:e6714a53205866e2f455e5f68a88679656d76aa800b5b775b8a5449d1fa254f5"},
 ]
 pygments = [
     {file = "Pygments-2.14.0-py3-none-any.whl", hash = "sha256:fa7bd7bd2771287c0de303af8bfdfc731f51bd2c6a47ab69d117138893b82717"},
@@ -3751,8 +3760,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python_opsi-4.3.0.8-py3-none-any.whl", hash = "sha256:ecf3213a52f085c6b101a2d32a680ec52ab1a2dcdee8001d24d5183d46143d80"},
-    {file = "python_opsi-4.3.0.8.tar.gz", hash = "sha256:4cdf4b1834d561e942569a93f779d8bcc12d61cda468f748b86973948c55eeb3"},
+    {file = "python_opsi-4.3.0.7-py3-none-any.whl", hash = "sha256:5257086a7f85b13eb92392f9ed131d7ba4df5ea4bc78780587c12a1ae16ecbf9"},
+    {file = "python_opsi-4.3.0.7.tar.gz", hash = "sha256:d7f672c614692ac08e936d944f316ef38ca2b2d02bb057953211c3f7eea85266"},
 ]
 python-opsi-common = [
     {file = "python_opsi_common-4.3.0.13-py3-none-any.whl", hash = "sha256:426d21ca47df9bd246aec7d4762009fa0cbc698c9eab81aa987b3941a15d420f"},

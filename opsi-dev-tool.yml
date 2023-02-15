@@ -163,4 +163,4 @@ package:
 
     # Setup opsiconfd
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
-    /usr/bin/opsiconfd setup --non-interactive --log-level-stderr=0 --log-level-file=0 || true
+    /usr/bin/opsiconfd setup --non-interactive --log-level=0 --log-level-stderr=0 --log-level-file=0 || true

@@ -99,7 +99,7 @@ class PartialCheckResult:
 	check_status: CheckStatus = CheckStatus.OK
 	message: str = ""
 	details: dict[str, Any] = field(default_factory=dict)
-	upgrade_issue: str | None = None
+	upgrade_issue: str | None = None  # version str
 
 
 @dataclass(slots=True, kw_only=True)
@@ -730,7 +730,16 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 
 
 def check_distro_eol() -> CheckResult:
-	result = CheckResult(check_id="linux_distro_eol", check_name="Operating System EOL", check_description="Check OS EOL Date.")
+	result = CheckResult(
+		check_id="linux_distro_eol",
+		check_name="Operating System End Of Life",
+		check_description="""
+			Check Operating System end-of-life date.
+			'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
+			limiting it’s support on the product and/or version to shift focus on their newer products and/or version.
+			(https://endoflife.software/operating-systems)
+		""",
+	)
 	with exc_to_result(result):
 
 		distro = linux_distro_id()

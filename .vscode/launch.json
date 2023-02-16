@@ -77,6 +77,20 @@
 			"justMyCode": true
 		},
 		{
+			"name": "opsiconfd health-check",
+			"type": "python",
+			"request": "launch",
+			"module": "opsiconfd",
+			"args": [
+				"health-check",
+				"--detailed",
+				"--workers=1",
+				"--log-mode=redis",
+				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
+			],
+			"sudo": true,
+		},
+		{
 			"name": "Python: Attach",
 			"type": "python",
 			"request": "attach",

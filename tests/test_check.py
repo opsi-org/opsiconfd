@@ -405,7 +405,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 10
+	assert len(results) == 11
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status

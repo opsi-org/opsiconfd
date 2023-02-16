@@ -1062,7 +1062,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			}
 		return list(products.values())
 
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects")
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="productOnClient_updateObjects")
 	def setProductState(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		productId: str,
@@ -1191,7 +1191,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			for productOnClient in self.productOnClient_getObjects(clientId=clientId)
 		]
 
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects")
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="productOnClient_updateObjects")
 	def setProductActionRequest(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
 	) -> None:

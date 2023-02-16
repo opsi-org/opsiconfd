@@ -122,12 +122,13 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 				if compression not in ("lz4", "gz"):
 					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
 
+			maintenance = not config.no_maintenance
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={not config.no_config_files} maintenance={not config.no_maintenance}, "
+				f"Using arguments: config_files={not config.no_config_files} maintenance={maintenance}, "
 				f"encoding={encoding}, compression={compression or 'none'}, encrypt={bool(config.password)}"
 			)
-			if not config.no_maintenance:
+			if maintenance:
 				initalized_event = threading.Event()
 				threading.Thread(
 					target=asyncio.run,
@@ -146,6 +147,7 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 				file_encoding=encoding,  # type: ignore[arg-type]
 				file_compression=compression,  # type: ignore[arg-type]
 				password=config.password,
+				maintenance=maintenance,
 				progress=progress,
 			)
 

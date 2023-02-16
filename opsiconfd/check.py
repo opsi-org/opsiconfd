@@ -639,6 +639,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 							f"Mandatory product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
 							f" < available version {available_version!r}."
 						)
+						partial_result.upgrade_issue = "4.3"
 					else:
 						partial_result.check_status = CheckStatus.WARNING
 						partial_result.message = (
@@ -655,14 +656,13 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 						f"Installed version of product {product_id!r} on depot {depot_id!r} is {product_version_on_depot!r}."
 					)
 
-				min_version = OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.get(product_id)
-				if min_version and compareVersions(min_version, ">", product_version_on_depot):
+				if product_on_depot.productType == "NetbootProduct" and compareVersions(available_version, ">", product_version_on_depot):
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
 
 		result.details = {
-			"products": len(CHECK_OPSI_PACKAGES),
+			"products": len(available_packages),
 			"depots": len(depots),
 			"not_installed": not_installed,
 			"outdated": outdated,
@@ -768,7 +768,7 @@ def check_distro_eol() -> CheckResult:
 		check_description="""
 			Check Operating System end-of-life date.
 			'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
-			limiting it’s support on the product and/or version to shift focus on their newer products and/or version.
+			limiting it's support on the product and/or version to shift focus on their newer products and/or version.
 		""",
 	)
 	with exc_to_result(result):

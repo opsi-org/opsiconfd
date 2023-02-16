@@ -189,7 +189,6 @@ def get_diagnostic_data() -> dict[str, Any]:
 		"processor": get_processor_info(),
 		"memory": get_memory_info(),
 		"disks": get_disk_info(),
-		"docker": running_in_docker(),
 		"os_release": get_os_release(),
 		"lsb_release": get_lsb_release(),
 		"config": get_config(),

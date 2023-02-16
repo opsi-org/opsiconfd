@@ -571,7 +571,23 @@ def check_deprecated_calls() -> CheckResult:
 	return result
 
 
-def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
+def get_avaliable_product_versions(product_list: list) -> dict:
+	repo_text = ""
+	available_packages = {p: "0.0" for p in product_list}
+
+	for path in OPSI_PRODUCTS_PATHS:
+		res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
+		repo_text = repo_text + res.text
+
+	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
+		product_id, available_version = split_name_and_version(filename)
+		if product_id in available_packages:
+			available_packages[product_id] = available_version
+
+	return available_packages
+
+
+def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches, too-many-statements
 	result = CheckResult(
 		check_id="product_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
 	)
@@ -590,9 +606,6 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
 			return result
-		# for prod in MANDATORY_OPSI_PRODUCTS:
-		# 	if prod not in available_packages.keys():
-		# 		available_packages[prod] = "0.0"
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
 		for depot_id in depots:
@@ -663,23 +676,6 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 				f"and {missing} could not be found on repository {OPSI_REPO}."
 			)
 	return result
-
-
-def get_avaliable_product_versions(product_list: list) -> dict:
-	repo_text = ""
-
-	for path in OPSI_PRODUCTS_PATHS:
-		res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
-		repo_text = repo_text + res.text
-
-	available_packages = {p: "0.0" for p in product_list}
-
-	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
-		product_id, available_version = split_name_and_version(filename)
-		if product_id in available_packages:
-			available_packages[product_id] = available_version
-
-	return available_packages
 
 
 def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches

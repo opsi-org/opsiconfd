@@ -56,10 +56,13 @@ OPSI_PRODUCTS_PATHS = [
 	"4.2/stable/packages/windows/netboot/",
 	"4.2/stable/packages/linux/localboot/",
 	"4.2/stable/packages/linux/netboot/",
+	"4.2/stable/packages/macos/localboot/",
+	"4.2/stable/packages/opsi-local-image/localboot/",
+	"4.2/stable/packages/opsi-local-image/netboot/",
 ]
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
-UPGRADE_CHECK_PRODUCTS = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
+MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
 LINUX_DISTRO_EOL = {
 	"ubuntu": {
 		"18.04": date(2023, 4, 1),
@@ -634,7 +637,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 
 				if compareVersions(available_version, ">", product_version_on_depot):
 					outdated = outdated + 1
-					if product_id in MANDATORY_OPSI_PRODUCTS:
+					if product_id in MANDATORY_OPSI_PRODUCTS or (product_id in installed_products and product_id in MANDATORY_IF_INSTALLED):
 						partial_result.check_status = CheckStatus.ERROR
 						partial_result.message = (
 							f"Mandatory product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
@@ -698,7 +701,7 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 		outdated_client_ids = set()
 
 		try:
-			available_packages = get_avaliable_product_versions(list(MANDATORY_OPSI_PRODUCTS))
+			available_packages = get_avaliable_product_versions(list(MANDATORY_IF_INSTALLED))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"

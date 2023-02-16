@@ -702,7 +702,7 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 		outdated_client_ids = set()
 
 		try:
-			available_packages = get_avaliable_product_versions(MANDATORY_OPSI_PRODUCTS)
+			available_packages = get_avaliable_product_versions(list(MANDATORY_OPSI_PRODUCTS))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"

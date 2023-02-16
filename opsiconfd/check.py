@@ -51,7 +51,6 @@ from opsiconfd.redis import decode_redis_result, redis_client
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 OPSI_REPO = "https://download.uib.de"
-OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
 OPSI_PRODUCTS_PATHS = [
 	"4.2/stable/packages/windows/localboot/",
 	"4.2/stable/packages/windows/netboot/",
@@ -59,10 +58,8 @@ OPSI_PRODUCTS_PATHS = [
 	"4.2/stable/packages/linux/netboot/",
 ]
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
-CHECK_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent")
 MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
 UPGRADE_CHECK_PRODUCTS = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
-OPSI_PACKAGES_MIN_VERSIONS_UPGRADE = {"opsi-script": "4.12.7.5-3", "opsi-client-agent": "4.2.0.43-3"}
 LINUX_DISTRO_EOL = {
 	"ubuntu": {
 		"18.04": date(2023, 4, 1),
@@ -579,32 +576,23 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 		check_id="product_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
 	)
 	with exc_to_result(result):
-		repo_text = ""
-		for path in OPSI_PRODUCTS_PATHS:
-			try:
-				res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
-				repo_text = repo_text + res.text
-			except requests.RequestException as err:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"Failed to get package info from repository '{OPSI_REPO}/{OPSI_PACKAGES_PATH}': {err}"
-				return result
-
 		result.message = "All important products are up to date on all depots."
 
 		backend = get_unprotected_backend()
 		installed_products = [p.id for p in backend.product_getObjects()]
-		available_packages = {p: "0.0" for p in installed_products}
-		for prod in MANDATORY_OPSI_PRODUCTS:
-			if prod not in available_packages.keys():
-				available_packages[prod] = "0.0"
 
 		not_installed = 0
 		outdated = 0
 		missing = 0
-		for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
-			product_id, available_version = split_name_and_version(filename)
-			if product_id in available_packages:
-				available_packages[product_id] = available_version
+		try:
+			available_packages = get_avaliable_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
+		except requests.RequestException as err:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			return result
+		# for prod in MANDATORY_OPSI_PRODUCTS:
+		# 	if prod not in available_packages.keys():
+		# 		available_packages[prod] = "0.0"
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
 		for depot_id in depots:
@@ -677,6 +665,23 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 	return result
 
 
+def get_avaliable_product_versions(product_list: list) -> dict:
+	repo_text = ""
+
+	for path in OPSI_PRODUCTS_PATHS:
+		res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
+		repo_text = repo_text + res.text
+
+	available_packages = {p: "0.0" for p in product_list}
+
+	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
+		product_id, available_version = split_name_and_version(filename)
+		if product_id in available_packages:
+			available_packages[product_id] = available_version
+
+	return available_packages
+
+
 def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
 	result = CheckResult(
 		check_id="product_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
@@ -690,28 +695,39 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
 			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 90
 		]
+
 		if not client_ids:
 			return result
 
 		outdated_client_ids = set()
-		for product_id, min_version in OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.items():
+
+		try:
+			available_packages = get_avaliable_product_versions(MANDATORY_OPSI_PRODUCTS)
+		except requests.RequestException as err:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			return result
+
+		for product_id, available_version in available_packages.items():
 			for product_on_client in backend.productOnClient_getObjects(
 				attributes=["productVersion", "packageVersion"],
 				clientId=client_ids,
 				productId=product_id,
 				installationStatus="installed",
 			):
+
 				version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
-				if compareVersions(version, ">=", min_version):
+				if compareVersions(version, ">=", available_version):
 					continue
 				client_id = product_on_client.clientId
+
 				partial_result = PartialCheckResult(
 					check_status=CheckStatus.ERROR,
 					check_id=f"product_on_clients:{client_id}:{product_id}",
 					check_name=f"Product {product_id!r} on {client_id!r}",
 					message=(
 						f"Product {product_id!r} is outdated on client {client_id!r}. "
-						f"Installed version {version!r} < recommended version {min_version!r}"
+						f"Installed version {version!r} < recommended version {available_version!r}"
 					),
 					details={"client_id": client_id, "product_id": product_id, "version": version},
 					upgrade_issue="4.3",

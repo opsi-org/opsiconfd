@@ -122,6 +122,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		"CONFIG_STATE": "objectId",
 		"PRODUCT_PROPERTY_STATE": "objectId",
 		"SOFTWARE_CONFIG": "clientId",
+		"LICENSE_ON_CLIENT": "clientId",
 	}
 	record_separator = "␞"
 
@@ -878,11 +879,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 						# Empty string allowed
 						raise ValueError(f"No value for ident attribute {attr!r}")
 
-				if (
-					col.client_id_column
-					and allowed_client_ids is not None
-					and val not in allowed_client_ids
-				):
+				if col.client_id_column and allowed_client_ids is not None and val not in allowed_client_ids:
 					# No permission
 					break
 

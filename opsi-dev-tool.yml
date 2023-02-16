@@ -70,6 +70,10 @@ package:
   depends:
     - librsync | librsync2 | librsync1
     - pigz
+  conflicts:
+    - opsi-server (<< 4.3)
+    - opsi-server-full (<< 4.3)
+    - opsi-server-expert (<< 4.3)
   source_script: |
     pyi_src="${SRC}"
     if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi

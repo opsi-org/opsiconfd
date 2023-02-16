@@ -383,7 +383,7 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 				"`hardware_id` INTEGER NOT NULL,\n"
 				"`firstseen` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
 				"`lastseen` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
-				"`state` TINYINT NOT NULL,\n"
+				"`state` TINYINT NOT NULL DEFAULT 1,\n"
 			)
 
 		hardware_device_values_processed = 0
@@ -1017,6 +1017,8 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 
 		for table in mysql.tables:
 			if table.startswith("HARDWARE_CONFIG_"):
+				# Set DEFAULT 1
+				session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `state` TINYINT NOT NULL DEFAULT 1")
 				session.execute(f"DELETE FROM `{table}` WHERE state != 1")
 
 		logger.info("All updates completed")

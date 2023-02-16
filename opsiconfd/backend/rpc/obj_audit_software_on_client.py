@@ -154,4 +154,6 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: list[str] | str) -> None:  # pylint: disable=invalid-name
-		self.auditSoftwareOnClient_deleteObjects(self.auditSoftwareOnClient_getIdents(returnType="dict", clientId=clientId))
+		idents = self.auditSoftwareOnClient_getIdents(returnType="dict", clientId=clientId)
+		if idents:
+			self.auditSoftwareOnClient_deleteObjects(idents)

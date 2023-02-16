@@ -52,7 +52,7 @@ from opsiconfd.redis import decode_redis_result, redis_client
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 OPSI_REPO = "https://download.uib.de"
 OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
-OPSI_PACKAGES_PATHS = [
+OPSI_PRODUCTS_PATHS = [
 	"4.2/stable/packages/windows/localboot/",
 	"4.2/stable/packages/windows/netboot/",
 	"4.2/stable/packages/linux/localboot/",
@@ -60,8 +60,8 @@ OPSI_PACKAGES_PATHS = [
 ]
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 CHECK_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent")
-MANDATORY_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent", "super-product")
-UPGRADE_CHECK_PACKAGES = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
+MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
+UPGRADE_CHECK_PRODUCTS = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
 OPSI_PACKAGES_MIN_VERSIONS_UPGRADE = {"opsi-script": "4.12.7.5-3", "opsi-client-agent": "4.2.0.43-3"}
 LINUX_DISTRO_EOL = {
 	"ubuntu": {
@@ -580,7 +580,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 	)
 	with exc_to_result(result):
 		repo_text = ""
-		for path in OPSI_PACKAGES_PATHS:
+		for path in OPSI_PRODUCTS_PATHS:
 			try:
 				res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
 				repo_text = repo_text + res.text
@@ -594,12 +594,13 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 		backend = get_unprotected_backend()
 		installed_products = [p.id for p in backend.product_getObjects()]
 		available_packages = {p: "0.0" for p in installed_products}
-		for prod in MANDATORY_OPSI_PACKAGES:
+		for prod in MANDATORY_OPSI_PRODUCTS:
 			if prod not in available_packages.keys():
 				available_packages[prod] = "0.0"
 
 		not_installed = 0
 		outdated = 0
+		missing = 0
 		for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
 			product_id, available_version = split_name_and_version(filename)
 			if product_id in available_packages:
@@ -616,7 +617,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 				try:
 					product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[0]
 				except IndexError as error:
-					if product_id not in MANDATORY_OPSI_PACKAGES:
+					if product_id not in MANDATORY_OPSI_PRODUCTS:
 						continue
 					not_installed = not_installed + 1
 					logger.debug(error)
@@ -632,7 +633,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 
 				if compareVersions(available_version, ">", product_version_on_depot):
 					outdated = outdated + 1
-					if product_id in MANDATORY_OPSI_PACKAGES:
+					if product_id in MANDATORY_OPSI_PRODUCTS:
 						partial_result.check_status = CheckStatus.ERROR
 						partial_result.message = (
 							f"Mandatory product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
@@ -644,6 +645,10 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 							f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
 							f" < available version {available_version!r}."
 						)
+				elif available_version == "0.0":
+					missing = missing + 1
+					partial_result.check_status = CheckStatus.WARNING
+					partial_result.message = f"Could not find product {product_id!r} on repository {OPSI_REPO}."
 				else:
 					partial_result.check_status = CheckStatus.OK
 					partial_result.message = (
@@ -661,11 +666,13 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			"depots": len(depots),
 			"not_installed": not_installed,
 			"outdated": outdated,
+			"missing": missing,
 		}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
 				f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
-				f"{not_installed} mandatory products are not installed and {outdated} are out of date."
+				f"{not_installed} mandatory products are not installed, {outdated} are out of date "
+				f"and {missing} could not be found on repository {OPSI_REPO}."
 			)
 	return result
 

@@ -540,10 +540,13 @@ def check_deprecated_calls() -> CheckResult:
 		with redis_client(timeout=5) as redis:
 			methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
 			for method_name in methods:
-				deprecated_methods += 1
 				method_name = method_name.decode("utf-8")
-				interface = backend.get_method_interface(method_name)
 				calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count"))
+				if not calls:
+					redis.srem(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
+					continue
+				deprecated_methods += 1
+				interface = backend.get_method_interface(method_name)
 				applications = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients"))
 				last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call"))
 				last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)

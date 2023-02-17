@@ -11,7 +11,7 @@ opsiconfd.setup.samba
 import os
 import re
 from functools import lru_cache
-from subprocess import STDOUT, CalledProcessError, run
+from subprocess import CalledProcessError, run
 
 from configupdater import ConfigUpdater
 

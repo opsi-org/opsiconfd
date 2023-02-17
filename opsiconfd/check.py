@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import StrEnum
 from re import findall
 from subprocess import run
@@ -29,7 +29,11 @@ from opsicommon.logging.constants import (
 	LOG_TRACE,
 	OPSI_LEVEL_TO_LEVEL,
 )
-from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
+from opsicommon.system.info import (  # type: ignore[import]
+	linux_distro_id,
+	linux_distro_id_like_contains,
+	linux_distro_version_id,
+)
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
@@ -47,10 +51,46 @@ from opsiconfd.redis import decode_redis_result, redis_client
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 OPSI_REPO = "https://download.uib.de"
-OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
+OPSI_PRODUCTS_PATHS = [
+	"4.2/stable/packages/windows/localboot/",
+	"4.2/stable/packages/windows/netboot/",
+	"4.2/stable/packages/linux/localboot/",
+	"4.2/stable/packages/linux/netboot/",
+	"4.2/stable/packages/macos/localboot/",
+	"4.2/stable/packages/opsi-local-image/localboot/",
+	"4.2/stable/packages/opsi-local-image/netboot/",
+]
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
-CHECK_OPSI_PACKAGES = ("opsi-script", "opsi-client-agent")
-OPSI_PACKAGES_MIN_VERSIONS_UPGRADE = {"opsi-script": "4.12.7.5-3", "opsi-client-agent": "4.2.0.43-3"}
+MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
+MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
+LINUX_DISTRO_EOL = {
+	"ubuntu": {
+		"18.04": date(2023, 4, 1),
+		"20.04": date(2025, 4, 1),
+		"22.04": date(2027, 4, 1),
+	},
+	"debian": {
+		"9": date(2021, 5, 1),
+		"10": date(2022, 8, 1),
+		"11": date(2024, 7, 1),
+	},
+	"rhel": {
+		"7": date(2029, 5, 1),
+		"8": date(2030, 6, 1),
+	},
+	"opensuse-leap": {
+		"15.3": date(2022, 12, 31),
+		"15.4": date(2023, 11, 1),
+	},
+	"almalinux": {
+		"8": date(2024, 5, 1),
+		"9": date(2027, 5, 31),
+	},
+	"centos": {
+		"7": date(2024, 5, 1),
+		"8": date(2021, 12, 31),
+	},
+}
 
 
 class CheckStatus(StrEnum):
@@ -67,7 +107,7 @@ class PartialCheckResult:
 	check_status: CheckStatus = CheckStatus.OK
 	message: str = ""
 	details: dict[str, Any] = field(default_factory=dict)
-	upgrade_issue: str | None = None
+	upgrade_issue: str | None = None  # version str
 
 
 @dataclass(slots=True, kw_only=True)
@@ -101,6 +141,7 @@ def health_check() -> Iterator[CheckResult]:
 		check_mysql,
 		check_opsi_licenses,
 		check_deprecated_calls,
+		check_distro_eol,
 	):
 		yield check()
 
@@ -534,28 +575,41 @@ def check_deprecated_calls() -> CheckResult:
 	return result
 
 
-def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
+def get_avaliable_product_versions(product_list: list) -> dict:
+	repo_text = ""
+	available_packages = {p: "0.0" for p in product_list}
+
+	for path in OPSI_PRODUCTS_PATHS:
+		res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
+		repo_text = repo_text + res.text
+
+	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
+		product_id, available_version = split_name_and_version(filename)
+		if product_id in available_packages:
+			available_packages[product_id] = available_version
+
+	return available_packages
+
+
+def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches, too-many-statements
 	result = CheckResult(
 		check_id="product_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
 	)
 	with exc_to_result(result):
-		try:
-			res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
-		except requests.RequestException as err:
-			result.check_status = CheckStatus.ERROR
-			result.message = f"Failed to get package info from repository '{OPSI_REPO}/{OPSI_PACKAGES_PATH}': {err}"
-			return result
-
 		result.message = "All important products are up to date on all depots."
-		available_packages = {p: "0.0" for p in CHECK_OPSI_PACKAGES}
+
 		backend = get_unprotected_backend()
+		installed_products = [p.id for p in backend.product_getObjects()]
 
 		not_installed = 0
 		outdated = 0
-		for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', res.text):
-			product_id, available_version = split_name_and_version(filename)
-			if product_id in available_packages:
-				available_packages[product_id] = available_version
+		missing = 0
+		try:
+			available_packages = get_avaliable_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
+		except requests.RequestException as err:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			return result
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
 		for depot_id in depots:
@@ -568,10 +622,12 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 				try:
 					product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[0]
 				except IndexError as error:
+					if product_id not in MANDATORY_OPSI_PRODUCTS:
+						continue
 					not_installed = not_installed + 1
 					logger.debug(error)
 					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = f"Product {product_id!r} is not installed on depot {depot_id!r}."
+					partial_result.message = f"Mandatory product {product_id!r} is not installed on depot {depot_id!r}."
 					partial_result.upgrade_issue = "4.3"
 					result.add_partial_result(partial_result)
 					continue
@@ -582,33 +638,46 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 
 				if compareVersions(available_version, ">", product_version_on_depot):
 					outdated = outdated + 1
-					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = (
-						f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
-						f" < available version {available_version!r}."
-					)
+					if product_id in MANDATORY_OPSI_PRODUCTS or (product_id in installed_products and product_id in MANDATORY_IF_INSTALLED):
+						partial_result.check_status = CheckStatus.ERROR
+						partial_result.message = (
+							f"Mandatory product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
+							f" < available version {available_version!r}."
+						)
+						partial_result.upgrade_issue = "4.3"
+					else:
+						partial_result.check_status = CheckStatus.WARNING
+						partial_result.message = (
+							f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
+							f" < available version {available_version!r}."
+						)
+				elif available_version == "0.0":
+					missing = missing + 1
+					partial_result.check_status = CheckStatus.WARNING
+					partial_result.message = f"Could not find product {product_id!r} on repository {OPSI_REPO}."
 				else:
 					partial_result.check_status = CheckStatus.OK
 					partial_result.message = (
 						f"Installed version of product {product_id!r} on depot {depot_id!r} is {product_version_on_depot!r}."
 					)
 
-				min_version = OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.get(product_id)
-				if min_version and compareVersions(min_version, ">", product_version_on_depot):
+				if product_on_depot.productType == "NetbootProduct" and compareVersions(available_version, ">", product_version_on_depot):
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
 
 		result.details = {
-			"products": len(CHECK_OPSI_PACKAGES),
+			"products": len(available_packages),
 			"depots": len(depots),
 			"not_installed": not_installed,
 			"outdated": outdated,
+			"missing": missing,
 		}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
-				f"Out of {len(CHECK_OPSI_PACKAGES)} products on {len(depots)} depots checked, "
-				f"{not_installed} are not installed and {outdated} are out of date."
+				f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
+				f"{not_installed} mandatory products are not installed, {outdated} are out of date "
+				f"and {missing} could not be found on repository {OPSI_REPO}."
 			)
 	return result
 
@@ -626,28 +695,39 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
 			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 90
 		]
+
 		if not client_ids:
 			return result
 
 		outdated_client_ids = set()
-		for product_id, min_version in OPSI_PACKAGES_MIN_VERSIONS_UPGRADE.items():
+
+		try:
+			available_packages = get_avaliable_product_versions(list(MANDATORY_IF_INSTALLED))
+		except requests.RequestException as err:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			return result
+
+		for product_id, available_version in available_packages.items():
 			for product_on_client in backend.productOnClient_getObjects(
 				attributes=["productVersion", "packageVersion"],
 				clientId=client_ids,
 				productId=product_id,
 				installationStatus="installed",
 			):
+
 				version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
-				if compareVersions(version, ">=", min_version):
+				if compareVersions(version, ">=", available_version):
 					continue
 				client_id = product_on_client.clientId
+
 				partial_result = PartialCheckResult(
 					check_status=CheckStatus.ERROR,
 					check_id=f"product_on_clients:{client_id}:{product_id}",
 					check_name=f"Product {product_id!r} on {client_id!r}",
 					message=(
 						f"Product {product_id!r} is outdated on client {client_id!r}. "
-						f"Installed version {version!r} < recommended version {min_version!r}"
+						f"Installed version {version!r} < recommended version {available_version!r}"
 					),
 					details={"client_id": client_id, "product_id": product_id, "version": version},
 					upgrade_issue="4.3",
@@ -694,6 +774,47 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 			result.message += ", no licensing issues."
 		else:
 			result.message += ", licensing issues detected."
+	return result
+
+
+def check_distro_eol() -> CheckResult:
+	result = CheckResult(
+		check_id="linux_distro_eol",
+		check_name="Operating System End Of Life",
+		check_description="""
+			Check Operating System end-of-life date.
+			'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
+			limiting it's support on the product and/or version to shift focus on their newer products and/or version.
+		""",
+	)
+	with exc_to_result(result):
+
+		distro = linux_distro_id()
+		version = linux_distro_version_id()
+		if version_info := LINUX_DISTRO_EOL.get(distro):
+			if eol := version_info.get(version):
+				today = date.today()
+				diff = (today - eol).days
+				if diff < -90:
+					result.check_status = CheckStatus.OK
+					result.message = f"Version {version} of distribution {distro} is supported until {eol}."
+				elif 0 >= diff >= -90:
+					result.check_status = CheckStatus.WARNING
+					result.message = f"Version {version} of distribution {distro} is supported until {eol}."
+				else:
+					result.check_status = CheckStatus.ERROR
+					result.message = f"Support of version {version} of distribution {distro} ended on {eol}"
+					result.upgrade_issue = __version__
+			else:
+				result.check_status = CheckStatus.ERROR
+				result.message = f"Version {version} of distribution {distro} is not supported."
+				result.upgrade_issue = __version__
+
+		else:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Linux distribution {distro} is not supported."
+			result.upgrade_issue = __version__
+
 	return result
 
 
@@ -775,6 +896,11 @@ def process_check_result(
 		if partial_results:
 			status = CheckStatus.ERROR
 			message = f"{len(partial_results)} upgrade issues"
+		elif result.upgrade_issue and compareVersions(result.upgrade_issue, "<=", check_version):
+			status = CheckStatus.ERROR
+			message = "1 upgrade issue"
+			if summary:
+				summary[result.check_status] += 1
 		else:
 			status = CheckStatus.OK
 			message = "No upgrade issues"
@@ -787,7 +913,9 @@ def process_check_result(
 
 	if not detailed:
 		return
-
+	if result.upgrade_issue:
+		console.print("")
+		console_print_message(result, console, 3)
 	if partial_results:
 		console.print("")
 	for partial_result in partial_results:

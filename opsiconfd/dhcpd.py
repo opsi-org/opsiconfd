@@ -837,4 +837,5 @@ def get_dhcpd_control_config() -> DHCPDControlConfig:
 		)
 		db_config.enabled = False
 
+	logger.info("DHCPD control config: %s", db_config)
 	return db_config

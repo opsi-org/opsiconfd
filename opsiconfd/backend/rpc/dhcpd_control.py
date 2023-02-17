@@ -88,6 +88,10 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def __init__(self) -> None:
 		self._dhcpd_control_config = get_dhcpd_control_config()
 
+	def _dhcpd_control_reload_config(self) -> None:
+		get_dhcpd_control_config.cache_clear()
+		self._dhcpd_control_config = get_dhcpd_control_config()
+
 	@backend_event("shutdown")
 	def _dhcpd_control_shutdown(self) -> None:
 		if self._dhcpd_control_reload_thread and self._dhcpd_control_reload_thread.is_busy:

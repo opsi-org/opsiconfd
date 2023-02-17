@@ -287,7 +287,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 					method(self)
 
 	def reload_config(self) -> None:
-		self._read_dhcpd_control_config_file()  # pylint: disable=no-member
+		self._dhcpd_control_reload_config()  # pylint: disable=no-member
 		self._read_host_control_config_file()  # pylint: disable=no-member
 		self._read_opsipxeconfd_control_config_file()  # pylint: disable=no-member
 

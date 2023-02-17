@@ -91,6 +91,7 @@ STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", Chec
 def health_check() -> Iterator[CheckResult]:
 	for check in (
 		check_opsiconfd_config,
+		check_opsi_opsi_config,
 		check_disk_usage,
 		check_depotservers,
 		check_system_packages,
@@ -693,6 +694,47 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 			result.message += ", no licensing issues."
 		else:
 			result.message += ", licensing issues detected."
+	return result
+
+
+def check_opsi_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
+	result = CheckResult(
+		check_id="opsi_config",
+		check_name="OPSI Configuration",
+		check_description="Check opsi configuration state",
+		message="No issues found in the opsi configuration.",
+	)
+	with exc_to_result(result):
+		backend = get_unprotected_backend()
+		check_configs: dict[str, Any] = {"opsiclientd.global.verify_server_cert": [True]}
+		count = 0
+		for key, default_value in check_configs.items():
+			partial_result = PartialCheckResult(
+				check_id=f"opsi_config:{key}",
+				check_name=f"OPSI Configuration {key}",
+				details={"config_id": key, "deafult_value": default_value},
+			)
+			conf = backend.config_getObjects(id=key)
+			try:
+				if conf[0].defaultValues == default_value:
+					partial_result.check_status = CheckStatus.OK
+					partial_result.message = f"Configuration {key} is set to default."
+				else:
+					partial_result.check_status = CheckStatus.WARNING
+					partial_result.message = f"Configuration {key} is set to {conf[0].defaultValues} - default is {default_value}."
+					partial_result.upgrade_issue = "4.3"
+					count = count + 1
+				partial_result.details["value"] = conf[0]
+				result.add_partial_result(partial_result)
+			except IndexError:
+				partial_result.check_status = CheckStatus.ERROR
+				partial_result.message = f"Configuration {key} does not exist."
+				partial_result.details["value"] = None
+				result.add_partial_result(partial_result)
+				partial_result.upgrade_issue = "4.3"
+				count = count + 1
+				continue
+		result.message = f"{count} issues found in the opsi configuration."
 	return result
 
 

@@ -91,7 +91,7 @@ STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", Chec
 def health_check() -> Iterator[CheckResult]:
 	for check in (
 		check_opsiconfd_config,
-		check_opsi_opsi_config,
+		check_opsi_config,
 		check_disk_usage,
 		check_depotservers,
 		check_system_packages,
@@ -697,7 +697,7 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 	return result
 
 
-def check_opsi_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
+def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 	result = CheckResult(
 		check_id="opsi_config",
 		check_name="OPSI Configuration",
@@ -724,7 +724,7 @@ def check_opsi_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 					partial_result.message = f"Configuration {key} is set to {conf[0].defaultValues} - default is {default_value}."
 					partial_result.upgrade_issue = "4.3"
 					count = count + 1
-				partial_result.details["value"] = conf[0]
+				partial_result.details["value"] = conf[0].defaultValues
 				result.add_partial_result(partial_result)
 			except IndexError:
 				partial_result.check_status = CheckStatus.ERROR
@@ -734,7 +734,8 @@ def check_opsi_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 				partial_result.upgrade_issue = "4.3"
 				count = count + 1
 				continue
-		result.message = f"{count} issues found in the opsi configuration."
+		if count > 0:
+			result.message = f"{count} issues found in the opsi configuration."
 	return result
 
 

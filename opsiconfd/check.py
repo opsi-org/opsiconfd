@@ -827,7 +827,7 @@ def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 	)
 	with exc_to_result(result):
 		backend = get_unprotected_backend()
-		check_configs: dict[str, Any] = {"opsiclientd.global.verify_server_cert": {"default_value": [True], "upgrade_issue": True}}
+		check_configs: dict[str, Any] = {"opsiclientd.global.verify_server_cert": {"default_value": [True], "upgrade_issue": "4.3"}}
 		count = 0
 		for key, check_data in check_configs.items():
 			default_value = check_data["default_value"]
@@ -844,8 +844,7 @@ def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 				else:
 					partial_result.check_status = CheckStatus.WARNING
 					partial_result.message = f"Configuration {key} is set to {conf[0].defaultValues} - default is {default_value}."
-					if check_data["upgrade_issue"]:
-						partial_result.upgrade_issue = "4.3"
+					partial_result.upgrade_issue = check_data["upgrade_issue"]
 					count = count + 1
 				partial_result.details["value"] = conf[0].defaultValues
 				result.add_partial_result(partial_result)
@@ -854,8 +853,7 @@ def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 				partial_result.message = f"Configuration {key} does not exist."
 				partial_result.details["value"] = None
 				result.add_partial_result(partial_result)
-				if check_data["upgrade_issue"]:
-					partial_result.upgrade_issue = "4.3"
+				partial_result.upgrade_issue = check_data["upgrade_issue"]
 				count = count + 1
 				continue
 		if count > 0:

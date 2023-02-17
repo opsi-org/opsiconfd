@@ -48,6 +48,7 @@ from opsiconfd.check import (
 	health_check,
 	process_check_result,
 )
+from opsiconfd.config import config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -55,6 +56,7 @@ from .utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	get_config,
 	sync_clean_redis,
+	sync_redis_client,
 	test_client,
 )
 
@@ -447,6 +449,21 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 
 	captured_output = captured_function_output(process_check_result, result=result, console=console, check_version="4.4", detailed=True)
 	assert "The method will be dropped with opsiconfd version 4.4" in captured_output
+
+	# test key expires and method is removed from set
+	redis_prefix_stats = config.redis_key("stats")
+	with sync_redis_client() as redis_client:
+		methods = redis_client.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
+		assert len(methods) == 1
+		redis_client.expire(f"{redis_prefix_stats}:rpcs:deprecated:{DEPRECATED_METHOD}:count", 1)
+	time.sleep(5)
+	result = check_deprecated_calls()
+	assert result.check_status == CheckStatus.OK
+	assert len(result.partial_results) == 0
+
+	with sync_redis_client() as redis_client:
+		methods = redis_client.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
+		assert len(methods) == 0
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument

@@ -34,6 +34,7 @@ from opsiconfd.config import (
 	config,
 	opsi_config,
 )
+from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
@@ -259,3 +260,9 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 			setup_samba()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to setup samba: %s", err, exc_info=True)
+
+	if "dhcpd" not in config.skip_setup:
+		try:
+			setup_dhcpd()
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error("Failed to setup dhcpd: %s", err, exc_info=True)

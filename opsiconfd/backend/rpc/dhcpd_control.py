@@ -21,11 +21,6 @@ from subprocess import CalledProcessError, run
 from time import sleep, time
 from typing import TYPE_CHECKING, Generator, Protocol
 
-from OPSI.System.Posix import (  # type: ignore[import]
-	getDHCPDRestartCommand,
-	locateDHCPDConfig,
-)
-from OPSI.Util.File import DHCPDConfFile  # type: ignore[import]
 from opsicommon.exceptions import BackendIOError  # type: ignore[import]
 from opsicommon.objects import ConfigState, Host, OpsiClient  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
@@ -37,6 +32,11 @@ from opsicommon.types import (  # type: ignore[import]
 )
 
 from opsiconfd.config import FQDN, config
+from opsiconfd.dhcpd import (  # type: ignore[import]
+	DHCPDConfFile,
+	get_dhcpd_conf_location,
+	get_dhcpd_restart_command,
+)
 from opsiconfd.logging import logger
 
 from . import backend_event, read_backend_config_file, rpc_method
@@ -126,7 +126,7 @@ class ReloadThread(threading.Thread):
 
 class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attributes
 	_dhcpd_control_enabled: bool = False
-	_dhcpd_control_dhcpd_config_file: str = "/etc/dhcp/dhcpd.conf"
+	_dhcpd_control_dhcpd_config_file: str = ""
 	_dhcpd_control_reload_config_command: str | None = None
 	_dhcpd_control_fixed_address_format: str = "IP"
 	_dhcpd_control_default_client_parameters: dict[str, str] = {"next-server": FQDN, "filename": "linux/pxelinux.0"}
@@ -137,8 +137,8 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def __init__(self) -> None:
 		self._dhcpd_control_enabled = False
 		self._dhcpd_control_default_client_parameters = {"next-server": FQDN, "filename": "linux/pxelinux.0"}
-		self._dhcpd_control_dhcpd_config_file = locateDHCPDConfig(self._dhcpd_control_dhcpd_config_file)
-		self._dhcpd_control_reload_config_command = f"/usr/bin/sudo {getDHCPDRestartCommand(default='/etc/init.d/dhcp3-server restart')}"
+		self._dhcpd_control_dhcpd_config_file = str(get_dhcpd_conf_location())
+		self._dhcpd_control_reload_config_command = f"/usr/bin/sudo {' '.join(get_dhcpd_restart_command())}"
 		self._dhcpd_control_reload_thread: ReloadThread | None = None
 		self._read_dhcpd_control_config_file()
 
@@ -278,13 +278,13 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				logger.debug("Failed to get IP by hostname: %s", err)
 				with dhcpd_lock("config_read"):
 					self._dhcpd_control_dhcpd_conf_file.parse()
-					current_host_params = self._dhcpd_control_dhcpd_conf_file.getHost(hostname)
+					current_host_params = self._dhcpd_control_dhcpd_conf_file.get_host(hostname)
 
 				if current_host_params:
 					logger.debug("Trying to use address for %s from existing DHCP configuration.", hostname)
 
 					if current_host_params.get("fixed-address"):
-						ip_address = current_host_params["fixed-address"]
+						ip_address = str(current_host_params["fixed-address"])
 					else:
 						raise BackendIOError(
 							f"Cannot update dhcpd configuration for client {host.id}: "
@@ -313,10 +313,10 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		with dhcpd_lock("config_update"):
 			try:
 				self._dhcpd_control_dhcpd_conf_file.parse()
-				current_host_params = self._dhcpd_control_dhcpd_conf_file.getHost(hostname)
+				current_host_params = self._dhcpd_control_dhcpd_conf_file.get_host(hostname)
 				if (
 					current_host_params
-					and (current_host_params.get("hardware", " ").split(" ")[1] == host.hardwareAddress)
+					and (str(current_host_params.get("hardware", " ")).split(" ")[1] == host.hardwareAddress)
 					and (current_host_params.get("fixed-address") == fixed_address)
 					and (current_host_params.get("next-server") == parameters.get("next-server"))
 				):
@@ -324,11 +324,11 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 					logger.debug("DHCPD config of host '%s' unchanged, no need to update config file", host)
 					return
 
-				self._dhcpd_control_dhcpd_conf_file.addHost(
+				self._dhcpd_control_dhcpd_conf_file.add_host(
 					hostname=hostname,
-					hardwareAddress=host.hardwareAddress,
-					ipAddress=ip_address,
-					fixedAddress=fixed_address,
+					hardware_address=host.hardwareAddress,
+					ip_address=ip_address,
+					fixed_address=fixed_address,
 					parameters=parameters,
 				)
 				self._dhcpd_control_dhcpd_conf_file.generate()
@@ -345,9 +345,9 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			try:
 				self._dhcpd_control_dhcpd_conf_file.parse()
 				hostname = host.id.split(".", 1)[0]
-				if not self._dhcpd_control_dhcpd_conf_file.getHost(hostname):
+				if not self._dhcpd_control_dhcpd_conf_file.get_host(hostname):
 					return
-				self._dhcpd_control_dhcpd_conf_file.deleteHost(hostname)
+				self._dhcpd_control_dhcpd_conf_file.delete_host(hostname)
 				self._dhcpd_control_dhcpd_conf_file.generate()
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)

@@ -287,7 +287,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 					)
 					websocket.send_bytes(jsonrpc_request_message4.to_msgpack())
 
-					reader.wait_for_message(count=4)
+					reader.wait_for_message(count=4, timeout=10.0)
 
 					responses = sorted(
 						[Message.from_dict(msg) for msg in reader.get_messages()],

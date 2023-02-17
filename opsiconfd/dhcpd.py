@@ -12,16 +12,19 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 from contextlib import contextmanager
+from dataclasses import dataclass
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from functools import lru_cache
 from pathlib import Path
 from subprocess import CalledProcessError, run
 from time import sleep, time
-from typing import BinaryIO, Generator, TextIO
+from typing import BinaryIO, Generator, Literal, TextIO
 
 from opsicommon.types import (
+	forceBool,
 	forceDict,
 	forceHardwareAddress,
 	forceHostname,
@@ -29,7 +32,8 @@ from opsicommon.types import (
 	forceStringLower,
 )
 
-from opsiconfd.config import opsi_config
+from opsiconfd.backend.rpc import read_backend_config_file
+from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses, ip_address_in_network
 
@@ -49,6 +53,30 @@ def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, time
 		yield
 	finally:
 		flock(file, LOCK_UN)
+
+
+@contextmanager
+def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
+	dhcpd_lock_file = "/var/lock/opsi-dhcpd-lock"
+	with open(dhcpd_lock_file, "r+", encoding="utf8") as lock_fh:
+		try:
+			os.chmod(dhcpd_lock_file, 0o666)
+		except PermissionError:
+			pass
+		with lock_file(lock_fh, timeout=10.0):
+			lock_fh.seek(0)
+			lines = lock_fh.readlines()
+			if len(lines) >= 100:
+				lines = lines[-100:]
+			lines.append(f"{time()};{os.getpid()};{lock_type}\n")
+			lock_fh.seek(0)
+			lock_fh.truncate()
+			lock_fh.writelines(lines)
+			lock_fh.flush()
+			yield None
+			if lock_type == "config_reload":
+				sleep(4.0)
+	# os.remove(dhcpd_lock_file)
 
 
 class DHCPDConfComponent:
@@ -300,7 +328,7 @@ class DHCPDConfGlobalBlock(DHCPDConfBlock):
 
 class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 	def __init__(self, file_path: str | Path, lock_timeout: float = 2.0) -> None:
-		self._file_path = Path(file_path)
+		self.file_path = Path(file_path)
 		self._lock_timeout = lock_timeout
 		self._lines: list[str] = []
 		self._current_line = 0
@@ -311,7 +339,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		self._current_block: DHCPDConfBlock = self._global_block
 		self._parsed = False
 
-		logger.debug("Parsing dhcpd conf file '%s'", self._file_path)
+		logger.debug("Parsing dhcpd conf file '%s'", self.file_path)
 
 	def get_global_block(self) -> DHCPDConfBlock:
 		return self._global_block
@@ -323,7 +351,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		self._data = ""
 		self._parsed = False
 
-		with open(self._file_path, "r", encoding="utf-8") as file:
+		with open(self.file_path, "r", encoding="utf-8") as file:
 			with lock_file(file, timeout=self._lock_timeout):
 				self._lines = file.readlines()
 
@@ -374,7 +402,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		self.parse()
 
 	def generate(self) -> None:
-		with open(self._file_path, "r+", encoding="utf-8") as file:
+		with open(self.file_path, "r+", encoding="utf-8") as file:
 			with lock_file(file, timeout=self._lock_timeout):
 				file.seek(0)
 				file.truncate()
@@ -402,7 +430,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 						raise ValueError(f"Host '{block.settings[1]}' uses the same hardware ethernet address")
 
 		if existing_host:
-			logger.info("Host '%s' already exists in config file '%s', deleting first", hostname, self._file_path)
+			logger.info("Host '%s' already exists in config file '%s', deleting first", hostname, self.file_path)
 			self.delete_host(hostname)
 
 		logger.notice(
@@ -412,7 +440,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 			ip_address,
 			fixed_address,
 			parameters,
-			self._file_path,
+			self.file_path,
 		)
 
 		for (key, value) in parameters.items():
@@ -481,7 +509,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		self._assert_parsed()
 		hostname = forceHostname(hostname)
 
-		logger.notice("Deleting host '%s' from dhcpd config file '%s'", hostname, self._file_path)
+		logger.notice("Deleting host '%s' from dhcpd config file '%s'", hostname, self.file_path)
 		host_blocks = []
 		for block in self._global_block.get_blocks("host", recursive=True):
 			if block.settings[1] == hostname:
@@ -504,7 +532,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		hostname = forceHostname(hostname)
 		parameters = forceDict(parameters)
 
-		logger.notice("Modifying host '%s' in dhcpd config file '%s'", hostname, self._file_path)
+		logger.notice("Modifying host '%s' in dhcpd config file '%s'", hostname, self.file_path)
 
 		host_blocks: list[DHCPDConfBlock] = []
 		for block in self._global_block.get_blocks("host", recursive=True):
@@ -637,7 +665,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		self._current_block = self._current_block.parent_block
 
 
-def get_dhcpd_conf_location() -> Path | None:
+def get_dhcpd_conf_location() -> Path:
 	for filename in (
 		"/etc/dhcpd.conf",  # suse / redhat / centos
 		"/etc/dhcp/dhcpd.conf",  # newer debian / ubuntu
@@ -646,7 +674,7 @@ def get_dhcpd_conf_location() -> Path | None:
 		file_path = Path(filename)
 		if file_path.exists():
 			return file_path
-	return None
+	return Path("/etc/dhcp/dhcpd.conf")
 
 
 @lru_cache
@@ -667,13 +695,13 @@ def get_dhcpd_service_name() -> str:
 
 
 def get_dhcpd_restart_command() -> list[str]:
-	return ["systemctl", "restart", get_dhcpd_service_name()]
+	return ["sudo", "systemctl", "restart", get_dhcpd_service_name()]
 
 
 def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-	dhcpd_path = get_dhcpd_conf_location()
-	if not dhcpd_path:
-		raise RuntimeError("Failed to locate dhcpd.conf")
+	dhcpd_control_config = get_dhcpd_control_config()
+	if not dhcpd_control_config.enabled:
+		return
 
 	local_addr = None
 	for addr in get_ip_addresses():
@@ -683,9 +711,8 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 	if not local_addr:
 		raise RuntimeError("Failed to get local ip address")
 
-	dhcpd_conf = DHCPDConfFile(dhcpd_path)
-	dhcpd_conf.parse()
-	global_block = dhcpd_conf.get_global_block()
+	dhcpd_control_config.dhcpd_config_file.parse()
+	global_block = dhcpd_control_config.dhcpd_config_file.get_global_block()
 
 	conf_changed = False
 	if not global_block.get_parameters_hash().get("use-host-decl-names", False):
@@ -730,21 +757,84 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 				logger.info("filename set to %s", filename)
 				conf_changed = True
 
-	restart_command = get_dhcpd_restart_command()
 	if conf_changed:
-		logger.notice("Writing new %s", dhcpd_conf)
-		dhcpd_conf.generate()
+		logger.notice("Writing new %s", dhcpd_control_config.dhcpd_config_file)
+		dhcpd_control_config.dhcpd_config_file.generate()
 
-	shutil.chown(dhcpd_path, group=opsi_config.get("groups", "admingroup"))
-	os.chmod(dhcpd_path, 0o664)
+	shutil.chown(dhcpd_control_config.dhcpd_config_file.file_path, group=opsi_config.get("groups", "admingroup"))
+	os.chmod(dhcpd_control_config.dhcpd_config_file.file_path, 0o664)
 
 	if conf_changed:
 		logger.notice("Restarting dhcpd")
 		try:
-			run(restart_command, shell=False, check=True)
+			run(dhcpd_control_config.reload_config_command, shell=False, check=True)
 		except (FileNotFoundError, CalledProcessError) as err:
 			logger.warning(err)
 
 	# TODO: sudo
 	# logger.notice("Configuring sudoers")
 	# patchSudoersFileToAllowRestartingDHCPD(restartCommand)
+
+
+@dataclass(slots=True, kw_only=True)
+class DHCPDControlConfig:
+	enabled: bool
+	dhcpd_on_depot: bool
+	dhcpd_config_file: DHCPDConfFile
+	reload_config_command: list[str]
+	fixed_address_format: Literal["IP", "FQDN"]
+	default_client_parameters: dict[str, str]
+
+
+@lru_cache
+def get_dhcpd_control_config() -> DHCPDControlConfig:
+	local_addr = None
+	for addr in get_ip_addresses():
+		if addr["family"] == "ipv4" and addr["interface"] != "lo":
+			local_addr = addr
+	next_server = local_addr["address"] if local_addr else "127.0.0.1"
+
+	db_config = DHCPDControlConfig(
+		enabled=False,
+		dhcpd_on_depot=False,
+		dhcpd_config_file=DHCPDConfFile(get_dhcpd_conf_location()),
+		reload_config_command=get_dhcpd_restart_command(),
+		fixed_address_format="IP",
+		default_client_parameters={"next-server": next_server, "filename": "linux/pxelinux.0"},
+	)
+
+	dhcpd_control_conf = Path(config.backend_config_dir) / "dhcpd.conf"
+	if not dhcpd_control_conf.exists():
+		logger.error("Config file '%s' not found, DHCPD control disabled", dhcpd_control_conf)
+		return db_config
+
+	for key, val in read_backend_config_file(dhcpd_control_conf).items():
+		attr = "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
+		if not hasattr(db_config, attr):
+			logger.error("Invalid config key %s in %s", attr, dhcpd_control_conf)
+			continue
+
+		if attr == "fixed_address_format":
+			if val not in ("IP", "FQDN"):
+				logger.error("Bad value %r for fixedAddressFormat, possible values are IP and FQDN", val)
+				continue
+		elif attr in ("dhcpd_on_depot", "enabled"):
+			val = forceBool(val)
+		elif attr == "dhcpd_config_file":
+			val = DHCPDConfFile(val)
+		elif attr == "reload_config_command":
+			if not isinstance(val, list):
+				val = shlex.split(val)
+
+		setattr(db_config, attr, val)
+
+	if not db_config.dhcpd_config_file.file_path.exists():
+		logger.error(
+			"DHCPD config file '%s' not found, DHCPD control disabled. "
+			"DHCPD control can be disabled permanently by setting 'enabled' to False in '%s'",
+			db_config.dhcpd_config_file.file_path,
+			dhcpd_control_conf,
+		)
+		db_config.enabled = False
+
+	return db_config

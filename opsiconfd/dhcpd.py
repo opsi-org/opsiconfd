@@ -683,13 +683,13 @@ def get_dhcpd_service_name() -> str:
 		possible_names = ("dhcpd", "isc-dhcp-server", "dhcp3-server", "univention-dhcp")
 		pattern = re.compile(r"^\s*([a-z]+)\@?\.service")
 		for line in run(
-			["systemctl", "list-unit-files"], shell=False, text=True, encoding="utf-8", check=False, capture_output=True
+			["systemctl", "list-unit-files"], shell=False, text=True, encoding="utf-8", check=True, capture_output=True
 		).stdout.split("\n"):
 			match = pattern.match(line)
 			if match and match.group(1) in possible_names:
 				return match.group(1)
-	except FileNotFoundError:
-		pass
+	except (FileNotFoundError, PermissionError, CalledProcessError) as err:
+		logger.info("Failed to get dhcpd service name: %s", err)
 
 	return "dhcpd"
 

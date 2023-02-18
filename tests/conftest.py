@@ -82,6 +82,8 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
 		GRAFANA_AVAILABLE = True
 
+	# return
+
 	print("Drop database")
 	try:
 		mysql = MySQLConnection()

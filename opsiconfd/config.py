@@ -909,7 +909,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				("opsiconfd", "setup"),
 				"A list of setup tasks to skip "
 				"(tasks: all, limits, users, groups, grafana, backend, ssl, server_cert, opsi_ca, "
-				"systemd, files, file_permissions, log_files, metric_downsampling).",
+				"systemd, files, file_permissions, log_files, metric_downsampling, samba).",
 			),
 			choices=[
 				"all",
@@ -926,6 +926,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				"file_permissions",
 				"log_files",
 				"metric_downsampling",
+				"samba",
 			],
 		)
 		self._parser.add(

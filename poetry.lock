@@ -120,23 +120,6 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
-name = "apachelogs"
-version = "0.6.0"
-description = "Parse Apache access logs"
-category = "main"
-optional = false
-python-versions = "~=3.5"
-
-[package.dependencies]
-attrs = ">=17.1"
-pydicti = ">=1.1,<2.0"
-
-[package.source]
-type = "legacy"
-url = "https://pypi.uib.gmbh/simple"
-reference = "uibpypi"
-
-[[package]]
 name = "astroid"
 version = "2.14.2"
 description = "An abstract syntax tree for Python with inference support."
@@ -2605,10 +2588,6 @@ anyio = [
     {file = "anyio-3.6.2-py3-none-any.whl", hash = "sha256:fbbe32bd270d2a2ef3ed1c5d45041250284e31fc0a4df4a5a6071842051a51e3"},
     {file = "anyio-3.6.2.tar.gz", hash = "sha256:25ea0d673ae30af41a0c442f81cf3b38c7e79fdc7b60335a4c14e05eb0947421"},
 ]
-apachelogs = [
-    {file = "apachelogs-0.6.0-py3-none-any.whl", hash = "sha256:dd8b6e4ee722f899bc558044663821dd47651fed436204a2e23bb5e8b28820a1"},
-    {file = "apachelogs-0.6.0.tar.gz", hash = "sha256:1708c243bb555e28a5f46109736c191c1778a6a787b2e3bcd302fd9093bc783f"},
-]
 astroid = [
     {file = "astroid-2.14.2-py3-none-any.whl", hash = "sha256:0e0e3709d64fbffd3037e4ff403580550f14471fd3eaae9fa11cc9a5c7901153"},
     {file = "astroid-2.14.2.tar.gz", hash = "sha256:a3cf9f02c53dd259144a7e8f3ccd75d67c9a8c716ef183e0c1f291bc5d7bb3cf"},
@@ -3760,8 +3739,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python_opsi-4.3.0.7-py3-none-any.whl", hash = "sha256:5257086a7f85b13eb92392f9ed131d7ba4df5ea4bc78780587c12a1ae16ecbf9"},
-    {file = "python_opsi-4.3.0.7.tar.gz", hash = "sha256:d7f672c614692ac08e936d944f316ef38ca2b2d02bb057953211c3f7eea85266"},
+    {file = "python_opsi-4.3.0.8-py3-none-any.whl", hash = "sha256:ecf3213a52f085c6b101a2d32a680ec52ab1a2dcdee8001d24d5183d46143d80"},
+    {file = "python_opsi-4.3.0.8.tar.gz", hash = "sha256:4cdf4b1834d561e942569a93f779d8bcc12d61cda468f748b86973948c55eeb3"},
 ]
 python-opsi-common = [
     {file = "python_opsi_common-4.3.0.13-py3-none-any.whl", hash = "sha256:426d21ca47df9bd246aec7d4762009fa0cbc698c9eab81aa987b3941a15d420f"},

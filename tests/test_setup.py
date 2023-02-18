@@ -77,6 +77,8 @@ def mock_all() -> Generator[dict, None, None]:
 		patch("opsiconfd.setup.setup_grafana") as mock_setup_grafana,
 		patch("opsiconfd.setup.setup_metric_downsampling") as mock_setup_metric_downsampling,
 		patch("opsiconfd.setup.setup_ssl") as mock_setup_ssl,
+		patch("opsiconfd.setup.setup_samba") as mock_setup_samba,
+		patch("opsiconfd.setup.setup_dhcpd") as mock_setup_dhcpd,
 	):
 		yield {
 			"setup_limits": mock_setup_limits,
@@ -90,6 +92,8 @@ def mock_all() -> Generator[dict, None, None]:
 			"setup_grafana": mock_setup_grafana,
 			"setup_metric_downsampling": mock_setup_metric_downsampling,
 			"setup_ssl": mock_setup_ssl,
+			"setup_samba": mock_setup_samba,
+			"setup_dhcpd": mock_setup_dhcpd,
 		}
 
 
@@ -112,6 +116,7 @@ def test_setup_skip_all() -> None:
 				"file_permissions",
 				"log_files",
 				"metric_downsampling",
+				"samba",
 			]
 			for mock in funcs.values():
 				mock.assert_not_called()

@@ -699,6 +699,7 @@ def get_dhcpd_restart_command() -> list[str]:
 
 
 def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	logger.info("Setup dhcpd")
 	dhcpd_control_config = get_dhcpd_control_config()
 	if not dhcpd_control_config.enabled:
 		return
@@ -758,14 +759,14 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 				conf_changed = True
 
 	if conf_changed:
-		logger.notice("Writing new %s", dhcpd_control_config.dhcpd_config_file)
+		logger.info("Writing new %s", dhcpd_control_config.dhcpd_config_file)
 		dhcpd_control_config.dhcpd_config_file.generate()
 
 	shutil.chown(dhcpd_control_config.dhcpd_config_file.file_path, group=opsi_config.get("groups", "admingroup"))
 	os.chmod(dhcpd_control_config.dhcpd_config_file.file_path, 0o664)
 
 	if conf_changed:
-		logger.notice("Restarting dhcpd")
+		logger.info("Restarting dhcpd")
 		try:
 			run(dhcpd_control_config.reload_config_command, shell=False, check=True)
 		except (FileNotFoundError, CalledProcessError) as err:

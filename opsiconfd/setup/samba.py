@@ -116,6 +116,7 @@ def reload_samba() -> None:
 
 
 def setup_samba() -> None:
+	logger.info("Setup samba")
 	if not os.path.exists(SMB_CONF):
 		return
 
@@ -138,5 +139,6 @@ def setup_samba() -> None:
 				samba_config.set(share_name, f"{indent}{option}", value)
 
 	if changed:
+		logger.info("Samba config changed, reloading")
 		samba_config.update_file()
 		reload_samba()

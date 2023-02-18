@@ -131,6 +131,7 @@ STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", Chec
 def health_check() -> Iterator[CheckResult]:
 	for check in (
 		check_opsiconfd_config,
+		check_opsi_config,
 		check_disk_usage,
 		check_depotservers,
 		check_system_packages,
@@ -540,10 +541,13 @@ def check_deprecated_calls() -> CheckResult:
 		with redis_client(timeout=5) as redis:
 			methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
 			for method_name in methods:
-				deprecated_methods += 1
 				method_name = method_name.decode("utf-8")
-				interface = backend.get_method_interface(method_name)
 				calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count"))
+				if not calls:
+					redis.srem(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
+					continue
+				deprecated_methods += 1
+				interface = backend.get_method_interface(method_name)
 				applications = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients"))
 				last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call"))
 				last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
@@ -814,6 +818,49 @@ def check_distro_eol() -> CheckResult:
 			result.message = f"Linux distribution {distro} is not supported."
 			result.upgrade_issue = __version__
 
+	return result
+
+
+def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
+	result = CheckResult(
+		check_id="opsi_config",
+		check_name="OPSI Configuration",
+		check_description="Check opsi configuration state",
+		message="No issues found in the opsi configuration.",
+	)
+	with exc_to_result(result):
+		backend = get_unprotected_backend()
+		check_configs: dict[str, Any] = {"opsiclientd.global.verify_server_cert": {"default_value": [True], "upgrade_issue": "4.3"}}
+		count = 0
+		for key, check_data in check_configs.items():
+			default_value = check_data["default_value"]
+			partial_result = PartialCheckResult(
+				check_id=f"opsi_config:{key}",
+				check_name=f"OPSI Configuration {key}",
+				details={"config_id": key, "deafult_value": default_value},
+			)
+			conf = backend.config_getObjects(id=key)
+			try:
+				if conf[0].defaultValues == default_value:
+					partial_result.check_status = CheckStatus.OK
+					partial_result.message = f"Configuration {key} is set to default."
+				else:
+					partial_result.check_status = CheckStatus.WARNING
+					partial_result.message = f"Configuration {key} is set to {conf[0].defaultValues} - default is {default_value}."
+					partial_result.upgrade_issue = check_data["upgrade_issue"]
+					count = count + 1
+				partial_result.details["value"] = conf[0].defaultValues
+				result.add_partial_result(partial_result)
+			except IndexError:
+				partial_result.check_status = CheckStatus.ERROR
+				partial_result.message = f"Configuration {key} does not exist."
+				partial_result.details["value"] = None
+				result.add_partial_result(partial_result)
+				partial_result.upgrade_issue = check_data["upgrade_issue"]
+				count = count + 1
+				continue
+		if count > 0:
+			result.message = f"{count} issues found in the opsi configuration."
 	return result
 
 

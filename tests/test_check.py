@@ -38,6 +38,7 @@ from opsiconfd.check import (
 	check_deprecated_calls,
 	check_disk_usage,
 	check_mysql,
+	check_opsi_config,
 	check_opsi_licenses,
 	check_opsiconfd_config,
 	check_product_on_clients,
@@ -48,6 +49,7 @@ from opsiconfd.check import (
 	health_check,
 	process_check_result,
 )
+from opsiconfd.config import config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -55,6 +57,7 @@ from .utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	get_config,
 	sync_clean_redis,
+	sync_redis_client,
 	test_client,
 )
 
@@ -405,7 +408,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 11
+	assert len(results) == 12
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status
@@ -448,8 +451,59 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 	captured_output = captured_function_output(process_check_result, result=result, console=console, check_version="4.4", detailed=True)
 	assert "The method will be dropped with opsiconfd version 4.4" in captured_output
 
+	# test key expires and method is removed from set
+	redis_prefix_stats = config.redis_key("stats")
+	with sync_redis_client() as redis_client:
+		methods = redis_client.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
+		assert len(methods) == 1
+		redis_client.expire(f"{redis_prefix_stats}:rpcs:deprecated:{DEPRECATED_METHOD}:count", 1)
+	time.sleep(5)
+	result = check_deprecated_calls()
+	assert result.check_status == CheckStatus.OK
+	assert len(result.partial_results) == 0
+
+	with sync_redis_client() as redis_client:
+		methods = redis_client.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
+		assert len(methods) == 0
+
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	result = check_opsi_licenses()
 	assert result.check_status == "ok"
 	assert result.partial_results is not None
+
+
+def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [True]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	print(result)
+	assert result.check_status == CheckStatus.OK
+	assert result.message == "No issues found in the opsi configuration."
+	assert len(result.partial_results) == 1
+	partial_result = result.partial_results[0]
+	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert is set to default."
+
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [False]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	assert result.check_status == CheckStatus.WARNING
+	assert result.message == "1 issues found in the opsi configuration."
+	assert len(result.partial_results) == 1
+	partial_result = result.partial_results[0]
+	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert is set to [False] - default is [True]."
+
+	rpc = {"id": 1, "method": "config_delete", "params": ["opsiclientd.global.verify_server_cert"]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	assert result.check_status == CheckStatus.ERROR
+	assert result.message == "1 issues found in the opsi configuration."
+	assert len(result.partial_results) == 1
+	partial_result = result.partial_results[0]
+	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert does not exist."

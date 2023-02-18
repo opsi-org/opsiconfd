@@ -828,7 +828,7 @@ def get_dhcpd_control_config() -> DHCPDControlConfig:
 
 		setattr(db_config, attr, val)
 
-	if not db_config.dhcpd_config_file.file_path.exists():
+	if db_config.enabled and not db_config.dhcpd_config_file.file_path.exists():
 		logger.error(
 			"DHCPD config file '%s' not found, DHCPD control disabled. "
 			"DHCPD control can be disabled permanently by setting 'enabled' to False in '%s'",

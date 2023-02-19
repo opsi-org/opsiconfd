@@ -41,6 +41,7 @@ from opsicommon.license import (  # type: ignore[import]
 	get_default_opsi_license_pool,
 )
 from opsicommon.logging import secret_filter  # type: ignore[import]
+from opsicommon.server.rights import set_rights
 from opsicommon.types import (  # type: ignore[import]
 	forceBool,
 	forceHostId,
@@ -636,6 +637,8 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 				file.seek(0)
 				file.truncate()
 				file.write("\n".join(lines) + "\n")
+
+		set_rights(OPSI_PASSWD_FILE)
 
 		if username != opsi_config.get("depot_user", "username"):
 			return

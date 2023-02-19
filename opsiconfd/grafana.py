@@ -20,7 +20,7 @@ import string
 import subprocess
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any, AsyncGenerator, Generator, Union
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 import aiohttp
 import requests
@@ -256,7 +256,7 @@ def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, Non
 			auth = HTTPBearerAuth(url.username)
 		else:
 			logger.debug("Using username %s and password grafana authorization", url.username)
-			auth = HTTPBasicAuth(url.username, url.password)
+			auth = HTTPBasicAuth(url.username, unquote(url.password))
 
 	try:
 		session = requests.Session()
@@ -295,7 +295,7 @@ async def async_grafana_session(
 @asynccontextmanager
 async def async_grafana_admin_session() -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
 	url = urlparse(config.grafana_internal_url)
-	async with async_grafana_session(url.username, url.password) as (base_url, session):
+	async with async_grafana_session(url.username, unquote(url.password)) as (base_url, session):
 		yield (base_url, session)
 
 

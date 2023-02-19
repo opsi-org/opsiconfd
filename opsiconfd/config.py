@@ -28,7 +28,7 @@ from argparse import (
 )
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import certifi
 import configargparse  # type: ignore[import]
@@ -331,6 +331,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			url = urlparse(self._config.grafana_internal_url)
 			if url.password:
 				secret_filter.add_secrets(url.password)
+				secret_filter.add_secrets(unquote(url.password))
 		if not self._config.skip_setup:
 			self._config.skip_setup = []
 		if self._parser and "all" in self._config.skip_setup:

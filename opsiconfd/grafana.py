@@ -16,6 +16,7 @@ import hashlib
 import os
 import re
 import sqlite3
+import string
 import subprocess
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any, AsyncGenerator, Generator, Union
@@ -402,7 +403,7 @@ async def create_dashboard_user() -> tuple[str, str]:
 		except aiohttp.ClientError as err:
 			raise RuntimeError(f"Failed to connect to grafana api {base_url!r}: {err}") from err
 
-		password = get_random_string(16)
+		password = get_random_string(16, alphabet=string.ascii_letters + string.digits)
 		if response.status == 404:
 			logger.debug("Create new user %s", username)
 			data = {"name": username, "email": f"{username}@admin", "login": username, "password": password}

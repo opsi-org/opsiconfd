@@ -554,6 +554,8 @@ class RPCHostControlMixin(Protocol):
 			if self._host_control_use_messagebus != "hybrid":
 				return result
 			client_ids = list(set(client_ids).difference(set(connected_client_ids)))
+			if not client_ids:
+				return result
 
 		result.update(await run_in_threadpool(self._host_control_reachable, client_ids=client_ids, timeout=_timeout))
 		return result
@@ -563,7 +565,7 @@ class RPCHostControlMixin(Protocol):
 	) -> dict[str, Any]:
 		result = {}
 		threads: list[ConnectionThread] = []
-		for host in self.host_getObjects(id=client_ids):
+		for host in self.host_getObjects(type="OpsiClient", id=client_ids):
 			if self._shutting_down:
 				return {}
 			try:

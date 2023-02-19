@@ -420,7 +420,7 @@ class WebSocketMessageReader(Thread):
 			if self.messages.qsize() >= count:
 				return
 			if time.time() - start >= timeout:
-				messages = self.get_messages()
+				messages = list(self.get_messages())
 				raise RuntimeError(f"Timed out while waiting for messages (got {len(messages)}, expected {count})\nMessages: {messages}")
 			time.sleep(0.1)
 

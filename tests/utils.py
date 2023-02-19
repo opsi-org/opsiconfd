@@ -16,7 +16,7 @@ import time
 import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
-from threading import Thread
+from threading import Event, Thread
 from typing import Any, AsyncGenerator, Generator, Type, Union
 from unittest.mock import patch
 
@@ -383,6 +383,7 @@ class WebSocketMessageReader(Thread):
 		self.websocket = websocket
 		self.messages: Queue[dict[str, Any] | bytes] = Queue()
 		self.should_stop = False
+		self.running = Event()
 
 	def __enter__(self) -> WebSocketMessageReader:
 		self.start()
@@ -395,6 +396,7 @@ class WebSocketMessageReader(Thread):
 
 	def run(self) -> None:
 		while not self.should_stop:
+			self.running.set()
 			data = self.websocket.receive()
 			if self.should_stop:
 				break

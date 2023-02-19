@@ -98,6 +98,13 @@ def truncate_log_data(data: str, max_size: int) -> str:
 	return data
 
 
+def is_local_user(username: str) -> bool:
+	for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
+		if line.startswith(f"{username}:"):
+			return True
+	return False
+
+
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	opsi_modules_file: str = OPSI_MODULES_FILE
 	opsi_license_path: str = OPSI_LICENSE_DIR
@@ -713,12 +720,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		if not password_set:
 			# unix
-			is_local_user = False
-			for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
-				if line.startswith(f"{username}:"):
-					is_local_user = True
-					break
-			if not is_local_user:
+			if not is_local_user(username):
 				logger.warning("The user '%s' is not a local user, please change password also in Active Directory", username)
 				return
 

@@ -10,7 +10,6 @@ opsiconfd.backend.rpc.extender
 
 from __future__ import annotations
 
-import base64
 import glob
 import os
 import pwd
@@ -20,21 +19,11 @@ import socket
 import time
 from datetime import datetime
 from functools import lru_cache
-from hashlib import md5
 from pathlib import Path
+from subprocess import run
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 from uuid import UUID
 
-from Crypto.Hash import MD5
-from Crypto.Signature import pkcs1_15
-from OPSI import __version__ as PYTHON_OPSI_VERSION  # type: ignore[import]
-from OPSI.Util import (  # type: ignore[import]
-	blowfishDecrypt,
-	blowfishEncrypt,
-	getPublicKey,
-)
-from OPSI.Util.File import ConfigFile  # type: ignore[import]
-from OPSI.Util.Log import truncateLogData  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
 	BackendBadValueError,
@@ -43,8 +32,12 @@ from opsicommon.exceptions import (  # type: ignore[import]
 )
 from opsicommon.license import (  # type: ignore[import]
 	OPSI_CLIENT_INACTIVE_AFTER,
+	OPSI_LICENSE_CLIENT_NUMBER_UNLIMITED,
+	OPSI_LICENSE_DATE_UNLIMITED,
+	OPSI_LICENSE_STATE_VALID,
 	OPSI_MODULE_IDS,
 	OPSI_OBSOLETE_MODULE_IDS,
+	OpsiModulesFile,
 	get_default_opsi_license_pool,
 )
 from opsicommon.logging import secret_filter  # type: ignore[import]
@@ -54,7 +47,7 @@ from opsicommon.types import (  # type: ignore[import]
 	forceObjectId,
 )
 
-from opsiconfd import contextvar_client_address, contextvar_client_session
+from opsiconfd import __version__, contextvar_client_address, contextvar_client_session
 from opsiconfd.application import AppState
 from opsiconfd.application.filetransfer import delete_file, prepare_file
 from opsiconfd.backup import create_backup, restore_backup
@@ -73,6 +66,7 @@ from opsiconfd.config import (
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import logger
 from opsiconfd.ssl import get_ca_cert_as_pem
+from opsiconfd.utils import blowfish_decrypt, blowfish_encrypt, lock_file
 
 from . import rpc_method
 
@@ -88,6 +82,19 @@ LOG_TYPES = {  # key = logtype, value = requires objectId for read
 	"winpe": True,
 }
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
+
+
+def truncate_log_data(data: str, max_size: int) -> str:
+	"""
+	Truncating `data` to not be longer than `max_size` chars.
+	"""
+	data_length = len(data)
+	if data_length > max_size:
+		start = data.find("\n", data_length - max_size)
+		if start == -1:
+			start = data_length - max_size
+		return data[start:].lstrip()
+	return data
 
 
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
@@ -403,90 +410,20 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		:rtype: dict
 		"""
 		modules: dict[str, str | bool] = {"valid": False}
-		helpermodules = {}
+		realmodules: dict[str, str] = {}
 
 		if os.path.exists(self.opsi_modules_file):
-			try:
-				with open(self.opsi_modules_file, encoding="utf-8") as modules_file:
-					for line in modules_file:
-						line = line.strip()
-						if "=" not in line:
-							logger.error("Found bad line '%s' in modules file '%s'", line, self.opsi_modules_file)
-							continue
-						(module, state) = line.split("=", 1)
-						module = module.strip().lower()
-						state = state.strip()
-						if module in ("signature", "customer", "expires"):
-							modules[module] = state
-							continue
-						state = state.lower()
-						if state not in ("yes", "no"):
-							try:
-								helpermodules[module] = state
-								state = int(state)  # type: ignore[assignment]
-							except ValueError:
-								logger.error("Found bad line '%s' in modules file '%s'", line, self.opsi_modules_file)
-								continue
-						if isinstance(state, int):
-							modules[module] = state > 0
-						else:
-							modules[module] = state == "yes"
+			omf = OpsiModulesFile(self.opsi_modules_file)
+			omf.read()
+			for lic in omf.licenses:
+				modules["valid"] = modules[lic.module_id] = lic.get_state() == OPSI_LICENSE_STATE_VALID
+				modules["customer"] = lic.customer_name
+				modules["expires"] = "never" if lic.valid_until == OPSI_LICENSE_DATE_UNLIMITED else str(lic.valid_until)
+				modules["signature"] = lic.signature.hex()
+				if lic.client_number > 0 and lic.client_number < OPSI_LICENSE_CLIENT_NUMBER_UNLIMITED:
+					realmodules[lic.module_id] = str(lic.client_number if lic.is_signature_valid() else 0)
 
-				if not modules.get("signature"):
-					modules = {"valid": False}
-					raise ValueError("Signature not found")
-				if not modules.get("customer"):
-					modules = {"valid": False}
-					raise ValueError("Customer not found")
-				if (
-					modules.get("expires", "") != "never"
-					and time.mktime(time.strptime(str(modules.get("expires", "2000-01-01")), "%Y-%m-%d")) - time.time() <= 0
-				):
-					modules = {"valid": False}
-					raise ValueError("Signature expired")
-
-				public_key = getPublicKey(
-					data=base64.decodebytes(
-						b"AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDo"
-						b"jY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8"
-						b"S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDU"
-						b"lk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP"
-					)
-				)
-				data = ""
-				mks = list(modules.keys())
-				mks.sort()
-				for module in mks:
-					if module in ("valid", "signature"):
-						continue
-					if module in helpermodules:
-						val = helpermodules[module]
-					else:
-						val = modules[module]  # type: ignore[assignment]
-						if isinstance(val, bool):
-							val = "yes" if val else "no"
-					data += f"{module.lower().strip()} = {val}\r\n"
-
-				modules["valid"] = False
-				if modules["signature"].startswith("{"):  # type: ignore[union-attr]
-					s_bytes = int(modules["signature"].split("}", 1)[-1]).to_bytes(256, "big")  # type: ignore[union-attr]
-					try:
-						pkcs1_15.new(public_key).verify(MD5.new(data.encode()), s_bytes)
-						modules["valid"] = True
-					except ValueError:
-						# Invalid signature
-						pass
-				else:
-					h_int = int.from_bytes(md5(data.encode()).digest(), "big")
-					s_int = public_key._encrypt(int(modules["signature"]))  # pylint: disable=protected-access
-					modules["valid"] = h_int == s_int
-
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error("Failed to read opsi modules file '%s': %s", self.opsi_modules_file, err)
-		else:
-			logger.info("Opsi modules file '%s' not found", self.opsi_modules_file)
-
-		return {"opsiVersion": PYTHON_OPSI_VERSION, "modules": modules, "realmodules": helpermodules}
+		return {"opsiVersion": __version__, "modules": modules, "realmodules": realmodules}
 
 	@rpc_method
 	def log_write(  # pylint: disable=invalid-name,too-many-branches
@@ -539,9 +476,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 						dst_file_path = f"{log_file}.{num}"
 						os.rename(src_file_path, dst_file_path)
 						try:
-							shutil.chown(
-								dst_file_path, -1, opsi_config.get("groups", "admingroup")
-							)
+							shutil.chown(dst_file_path, -1, opsi_config.get("groups", "admingroup"))
 							os.chmod(dst_file_path, 0o644)
 						except Exception as err:  # pylint: disable=broad-except
 							logger.error("Failed to set file permissions on '%s': %s", dst_file_path, err)
@@ -594,13 +529,13 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			data = log.read()
 
 		if len(data) > max_size > 0:
-			return truncateLogData(data, max_size)
+			return truncate_log_data(data, max_size)
 
 		return data
 
 	@rpc_method
 	def user_getCredentials(  # pylint: disable=invalid-name
-		self: BackendProtocol, username: str = "pcpatch", hostId: str | None = None
+		self: BackendProtocol, username: str | None = None, hostId: str | None = None
 	) -> dict[str, str]:
 		"""
 		Get the credentials of an opsi user.
@@ -611,20 +546,19 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		If this is called with an valid hostId the data will be encrypted with the opsi host key.
 		:rtype: dict
 		"""
-		username = str(username)
+		username = username or opsi_config.get("depot_user", "username")
 		if hostId:
 			hostId = forceHostId(hostId)
 
 		result = {"password": "", "rsaPrivateKey": ""}
 
-		for line in ConfigFile(filename=OPSI_PASSWD_FILE).parse():
-			match = PASSWD_LINE_REGEX.search(line)
-			if match is None:
-				continue
-
-			if match.group(1) == username:
-				result["password"] = match.group(2)
-				break
+		with open(OPSI_PASSWD_FILE, "r", encoding="utf-8") as file:
+			with lock_file(file):
+				for line in file.readlines():
+					match = PASSWD_LINE_REGEX.search(line)
+					if match and match.group(1) == username:
+						result["password"] = match.group(2)
+						break
 
 		if not result["password"]:
 			raise BackendMissingDataError(f"Username '{username}' not found in '{OPSI_PASSWD_FILE}'")
@@ -636,7 +570,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if not depot.opsiHostKey:
 			raise BackendMissingDataError(f"Host key for depot '{self._depot_id}' not found")
 
-		result["password"] = blowfishDecrypt(depot.opsiHostKey, result["password"])
+		result["password"] = blowfish_decrypt(depot.opsiHostKey, result["password"])
 
 		if username == "pcpatch":
 			try:
@@ -653,14 +587,16 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			except IndexError as err:
 				raise BackendMissingDataError(f"Host '{hostId}' not found in backend") from err
 
-			result["password"] = blowfishEncrypt(host.opsiHostKey, result["password"])
+			result["password"] = blowfish_encrypt(host.opsiHostKey, result["password"])
 			if result["rsaPrivateKey"]:
-				result["rsaPrivateKey"] = blowfishEncrypt(host.opsiHostKey, result["rsaPrivateKey"])
+				result["rsaPrivateKey"] = blowfish_encrypt(host.opsiHostKey, result["rsaPrivateKey"])
 
 		return result
 
 	@rpc_method
-	def user_setCredentials(self: BackendProtocol, username: str, password: str) -> None:  # pylint: disable=invalid-name
+	def user_setCredentials(  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+		self: BackendProtocol, username: str, password: str
+	) -> None:
 		"""
 		Set the password of an opsi user.
 		The information is stored in ``/etc/opsi/passwd``.
@@ -678,19 +614,123 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		except IndexError as err:
 			raise BackendMissingDataError(f"Depot {self._depot_id} not found in backend") from err
 
-		encoded_password = blowfishEncrypt(depot.opsiHostKey, password)
+		encoded_password = blowfish_encrypt(depot.opsiHostKey, password)
 
-		conf_file = ConfigFile(filename=OPSI_PASSWD_FILE)
-		lines = []
+		with open(OPSI_PASSWD_FILE, "a+", encoding="utf-8") as file:
+			with lock_file(file):
+				file.seek(0)
+				lines = []
+				add_line = f"{username}:{encoded_password}"
+				for line in file.readlines():
+					line = line.strip()
+					match = PASSWD_LINE_REGEX.search(line)
+					if not match:
+						continue
+					if match.group(1) == username:
+						line = add_line
+						add_line = ""
+					lines.append(line)
+				if add_line:
+					lines.append(add_line)
+				file.seek(0)
+				file.truncate()
+				file.write("\n".join(lines) + "\n")
+
+		if username != opsi_config.get("depot_user", "username"):
+			return
+
+		univention_server_role = ""
 		try:
-			for line in conf_file.readlines():
-				match = PASSWD_LINE_REGEX.search(line)
-				if not match or match.group(1) != username:
-					lines.append(line.rstrip())
+			cmd = ["ucr", "get", "server/role"]
+			logger.debug("Executing: %s", cmd)
+			univention_server_role = run(
+				cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5
+			).stdout.strip()
 		except FileNotFoundError:
-			pass
+			logger.debug("Not running on univention")
+		else:
+			try:
+				logger.debug("Running on univention %s", univention_server_role)
+				if univention_server_role not in ("domaincontroller_master", "domaincontroller_backup"):
+					logger.warning("Did not change the password for 'pcpatch', please change it on the master server.")
+					return
 
-		lines.append(f"{username}:{encoded_password}")
-		conf_file.open("w")
-		conf_file.writelines(lines)
-		conf_file.close()
+				logger.debug("Executing: %s", cmd)
+				user_dn = ""
+				cmd = ["univention-admin", "users/user", "list", "--filter", f"(uid={username})"]
+				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5).stdout
+				logger.debug(out)
+				for line in out.strip().splitlines():
+					line = line.strip()
+					if line.startswith("DN"):
+						user_dn = line.split(" ")[1]
+						break
+
+				if not user_dn:
+					raise RuntimeError(f"Failed to get DN for user {username}")
+
+				escaped_password = password.replace("'", "\\'")
+				cmd = [
+					"univention-admin",
+					"users/user",
+					"modify",
+					"--dn",
+					user_dn,
+					"--set",
+					f"password='{escaped_password}'",
+					"--set",
+					"overridePWLength=1",
+					"--set",
+					"overridePWHistory=1",
+				]
+				logger.debug("Executing: %s", cmd)
+				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+				logger.debug(out)
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err)
+			return
+
+		try:
+			pwd.getpwnam(username)
+		except KeyError as err:
+			raise RuntimeError(f"System user '{username}' not found") from err
+
+		password_set = False
+		try:
+			# smbldap
+			cmd = ["smbldap-passwd", username]
+			logger.debug("Executing: %s", cmd)
+			inp = f"{password}\n{password}\n".encode("utf8")
+			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
+			logger.debug(out)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.debug("Setting password using smbldap failed: %s", err)
+
+		if not password_set:
+			# unix
+			is_local_user = False
+			for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
+				if line.startswith(f"{username}:"):
+					is_local_user = True
+					break
+			if not is_local_user:
+				logger.warning("The user '%s' is not a local user, please change password also in Active Directory", username)
+				return
+
+			try:
+				cmd = ["chpasswd"]
+				logger.debug("Executing: %s", cmd)
+				inp = f"{username}:{password}\n".encode("utf8")
+				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
+				logger.debug(out)
+			except Exception as err:  # pylint: disable=broad-except
+				logger.debug("Setting password using chpasswd failed: %s", err)
+
+			try:
+				cmd = ["smbpasswd", "-a", "-s", username]
+				logger.debug("Executing: %s", cmd)
+				inp = f"{password}\n{password}\n".encode("utf8")
+				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
+				logger.debug(out)
+			except Exception as err:  # pylint: disable=broad-except
+				logger.debug("Setting password using smbpasswd failed: %s", err)

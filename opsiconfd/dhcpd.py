@@ -16,12 +16,11 @@ import shlex
 import shutil
 from contextlib import contextmanager
 from dataclasses import dataclass
-from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from functools import lru_cache
 from pathlib import Path
 from subprocess import CalledProcessError, run
 from time import sleep, time
-from typing import BinaryIO, Generator, Literal, TextIO
+from typing import Generator, Literal
 
 from opsicommon.types import (
 	forceBool,
@@ -35,24 +34,7 @@ from opsicommon.types import (
 from opsiconfd.backend.rpc import read_backend_config_file
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_ip_addresses, ip_address_in_network
-
-
-@contextmanager
-def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, timeout: float = 5.0) -> Generator[None, None, None]:
-	start = time()
-	while True:
-		try:
-			flock(file, lock_flags)
-			break
-		except IOError:
-			if time() >= start + timeout:
-				raise
-			sleep(0.1)
-	try:
-		yield
-	finally:
-		flock(file, LOCK_UN)
+from opsiconfd.utils import get_ip_addresses, ip_address_in_network, lock_file
 
 
 @contextmanager

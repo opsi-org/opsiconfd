@@ -17,6 +17,8 @@ import random
 import string
 import time
 import zlib
+from contextlib import contextmanager
+from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from ipaddress import (
 	IPv4Address,
 	IPv4Network,
@@ -29,17 +31,18 @@ from ipaddress import (
 from logging import INFO  # type: ignore[import]
 from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, Generator, Optional
+from typing import TYPE_CHECKING, Any, BinaryIO, Generator, Optional, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
-from Crypto.Cipher import AES
+from Crypto.Cipher import AES, Blowfish
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
+from opsicommon.types import forceString
 from starlette.routing import Route
 
 logger: OPSILogger | None = None  # pylint: disable=invalid-name
@@ -303,3 +306,56 @@ def aes_decrypt_with_password(ciphertext: bytes, key_salt: bytes, mac_tag: bytes
 	except ValueError as err:
 		raise ValueError(f"Failed to decrypt, password incorrect or file corrupted ({err})") from err
 	return plaintext
+
+
+BLOWFISH_IV = b"OPSI1234"
+
+
+def blowfish_encrypt(key: str, cleartext: str) -> str:
+	"""
+	Takes `cleartext` string, returns hex-encoded,
+	blowfish-encrypted string.
+	`key` must a string of hexadecimal numbers.
+	"""
+	if not key:
+		raise ValueError("Missing key")
+
+	bkey = bytes.fromhex(key)
+	btext = forceString(cleartext).encode("utf-8")
+	while len(btext) % 8 != 0:
+		# Fill up with \0 until length is a mutiple of 8
+		btext += b"\x00"
+
+	blowfish = Blowfish.new(bkey, Blowfish.MODE_CBC, BLOWFISH_IV)
+	return blowfish.encrypt(btext).hex()
+
+
+def blowfish_decrypt(key: str, crypt: str) -> str:
+	"""
+	Takes hex-encoded, blowfish-encrypted string, returns cleartext string.
+	"""
+	if not key:
+		raise ValueError("Missing key")
+
+	bkey = bytes.fromhex(key)
+	bcrypt = bytes.fromhex(crypt)
+	blowfish = Blowfish.new(bkey, Blowfish.MODE_CBC, BLOWFISH_IV)
+	# Remove possible \0-chars
+	return blowfish.decrypt(bcrypt).rstrip(b"\0").decode("utf-8")
+
+
+@contextmanager
+def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, timeout: float = 5.0) -> Generator[None, None, None]:
+	start = time.time()
+	while True:
+		try:
+			flock(file, lock_flags)
+			break
+		except IOError:
+			if time.time() >= start + timeout:
+				raise
+			time.sleep(0.1)
+	try:
+		yield
+	finally:
+		flock(file, LOCK_UN)

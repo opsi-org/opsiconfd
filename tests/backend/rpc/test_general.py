@@ -9,11 +9,15 @@ test opsiconfd.backend.rpc.general
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+from unittest.mock import PropertyMock, patch
 
 import pytest
 from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
+from opsiconfd.utils import blowfish_encrypt
 from tests.utils import (  # pylint: disable=unused-import
 	UnprotectedBackend,
 	backend,
@@ -124,3 +128,63 @@ def test_get_client_info(  # pylint: disable=too-many-locals
 	assert info["macos"] == macos
 	assert info["linux"] == linux
 	assert info["windows"] == windows
+
+
+def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> None:  # pylint: disable=invalid-name,redefined-outer-name
+	class Proc:  # pylint: disable=too-few-public-methods
+		test_input: dict[str, dict[str, Any]] = {}
+		test_output: dict[str, str | Exception] = {}
+		stdout: str = ""
+
+	proc = Proc()
+
+	def run(cmd: list[str], **kwargs: Any) -> Proc:
+		cmd_str = " ".join(cmd)
+		proc.test_input[cmd_str] = kwargs
+		out = proc.test_output.get(cmd_str, "")
+		proc.stdout = str(out)
+		if isinstance(out, Exception):
+			raise out
+		return proc
+
+	opsi_passwd_file = tmp_path / "passwd"
+	with (
+		patch("opsiconfd.backend.rpc.general.OPSI_PASSWD_FILE", opsi_passwd_file),
+		patch("opsiconfd.backend.rpc.general.run", run),
+	):
+		proc.test_output["ucr get server/role"] = FileNotFoundError()
+		backend.user_setCredentials("pcpatch", "password")
+		enc_password = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password")
+		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\n"
+		cmds = list(proc.test_input)
+		assert cmds == ["ucr get server/role", "smbldap-passwd pcpatch", "chpasswd", "smbpasswd -a -s pcpatch"]
+
+		proc.test_input = {}
+		proc.test_output["ucr get server/role"] = "some_ucs_role"
+		backend.user_setCredentials("pcpatch", "password")
+		cmds = list(proc.test_input)
+		assert cmds == ["ucr get server/role"]
+
+		proc.test_input = {}
+		proc.test_output["ucr get server/role"] = "domaincontroller_master"
+		proc.test_output["univention-admin users/user list --filter (uid=pcpatch)"] = "DN: cn=pcpatch,dc=x,dc=y"
+		backend.user_setCredentials("pcpatch", "password")
+		cmds = list(proc.test_input)
+		assert cmds == [
+			"ucr get server/role",
+			"univention-admin users/user list --filter (uid=pcpatch)",
+			"univention-admin users/user modify --dn cn=pcpatch,dc=x,dc=y"
+			" --set password='password' --set overridePWLength=1 --set overridePWHistory=1",
+		]
+
+		proc.test_input = {}
+		backend.user_setCredentials("pcpatch2", "password2")
+		enc_password2 = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password2")
+		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\npcpatch2:{enc_password2}\n"
+		assert not proc.test_input
+
+		backend.user_setCredentials("pcpatch", "password3")
+		enc_password3 = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password3")
+		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password3}\npcpatch2:{enc_password2}\n"
+
+		assert backend.user_getCredentials("pcpatch") == {"password": "password3", "rsaPrivateKey": ""}

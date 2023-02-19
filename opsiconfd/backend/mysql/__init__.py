@@ -477,7 +477,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def _get_read_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
-		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
+		for name, param in sig.parameters.items():  # pylint: disable=unused-variable
 			if name == "values":
 				conversions[name] = loads
 		return conversions
@@ -486,7 +486,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def _get_write_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
-		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
+		for name, param in sig.parameters.items():  # pylint: disable=unused-variable
 			if name == "values":
 				conversions[name] = dumps
 		return conversions

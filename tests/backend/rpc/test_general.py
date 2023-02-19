@@ -11,7 +11,7 @@ test opsiconfd.backend.rpc.general
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 import pytest
 from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER

@@ -707,6 +707,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			inp = f"{password}\n{password}\n".encode("utf8")
 			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
 			logger.debug(out)
+			password_set = True
 		except Exception as err:  # pylint: disable=broad-except
 			logger.debug("Setting password using smbldap failed: %s", err)
 

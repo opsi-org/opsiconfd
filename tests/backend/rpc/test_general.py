@@ -160,6 +160,15 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 		enc_password = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password")
 		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\n"
 		cmds = list(proc.test_input)
+		assert cmds == ["ucr get server/role", "smbldap-passwd pcpatch"]
+
+		proc.test_input = {}
+		proc.test_output["ucr get server/role"] = FileNotFoundError()
+		proc.test_output["smbldap-passwd pcpatch"] = FileNotFoundError()
+		backend.user_setCredentials("pcpatch", "password")
+		enc_password = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password")
+		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\n"
+		cmds = list(proc.test_input)
 		assert cmds == ["ucr get server/role", "smbldap-passwd pcpatch", "chpasswd", "smbpasswd -a -s pcpatch"]
 
 		proc.test_input = {}

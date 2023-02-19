@@ -552,13 +552,14 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		result = {"password": "", "rsaPrivateKey": ""}
 
-		with open(OPSI_PASSWD_FILE, "r", encoding="utf-8") as file:
-			with lock_file(file):
-				for line in file.readlines():
-					match = PASSWD_LINE_REGEX.search(line)
-					if match and match.group(1) == username:
-						result["password"] = match.group(2)
-						break
+		if os.path.exists(OPSI_PASSWD_FILE):
+			with open(OPSI_PASSWD_FILE, "r", encoding="utf-8") as file:
+				with lock_file(file):
+					for line in file.readlines():
+						match = PASSWD_LINE_REGEX.search(line)
+						if match and match.group(1) == username:
+							result["password"] = match.group(2)
+							break
 
 		if not result["password"]:
 			raise BackendMissingDataError(f"Username '{username}' not found in '{OPSI_PASSWD_FILE}'")

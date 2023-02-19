@@ -10,12 +10,15 @@ opsiconfd.setup.samba
 
 import os
 import re
+import string
 from functools import lru_cache
 from subprocess import CalledProcessError, run
 
 from configupdater import ConfigUpdater
 
+from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_random_string
 
 SMB_CONF = "/etc/samba/smb.conf"
 
@@ -142,3 +145,15 @@ def setup_samba() -> None:
 		logger.info("Samba config changed, reloading")
 		samba_config.update_file()
 		reload_samba()
+
+	# pylint: disable=import-outside-toplevel
+	from opsiconfd.backend import get_unprotected_backend
+
+	backend = get_unprotected_backend()
+	username = opsi_config.get("depot_user", "username")
+	try:
+		backend.user_getCredentials(username)
+	except Exception:  # pylint: disable=broad-except
+		backend.user_setCredentials(
+			username, get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
+		)

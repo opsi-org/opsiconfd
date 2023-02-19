@@ -14,6 +14,7 @@ import datetime
 import gzip
 import os
 import random
+import secrets
 import string
 import time
 import zlib
@@ -201,9 +202,14 @@ def ip_address_in_network(address: str | IPv4Address | IPv6Address, network: str
 	return address in network
 
 
-def get_random_string(length: int) -> str:
-	letters = string.ascii_letters
-	result_str = "".join(random.choice(letters) for i in range(length))
+def get_random_string(length: int, *, alphabet: str | None = None, mandatory_alphabet: str | None = None) -> str:
+	if not alphabet:
+		alphabet = string.ascii_letters + string.digits + string.punctuation
+	result_str = "".join(secrets.choice(alphabet) for i in range(length))
+	if mandatory_alphabet:
+		chars = list(mandatory_alphabet + result_str[len(mandatory_alphabet) :])
+		random.shuffle(chars)
+		result_str = "".join(chars[:length])
 	return result_str
 
 

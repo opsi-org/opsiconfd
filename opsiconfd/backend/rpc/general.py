@@ -727,7 +727,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			try:
 				cmd = ["chpasswd"]
 				logger.debug("Executing: %s", cmd)
-				inp = f"{username}:{password}\n".encode("utf8")
+				inp = f"{username}:{password}\n"
 				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
 				logger.debug(out)
 			except Exception as err:  # pylint: disable=broad-except
@@ -736,7 +736,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			try:
 				cmd = ["smbpasswd", "-a", "-s", username]
 				logger.debug("Executing: %s", cmd)
-				inp = f"{password}\n{password}\n".encode("utf8")
+				inp = f"{password}\n{password}\n"
 				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
 				logger.debug(out)
 			except Exception as err:  # pylint: disable=broad-except

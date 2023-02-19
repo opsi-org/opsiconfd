@@ -8,6 +8,8 @@
 setup tests
 """
 
+import os
+import pwd
 import shutil
 from pathlib import Path
 from unittest.mock import PropertyMock, patch
@@ -86,7 +88,11 @@ def test_setup_samba_add(tmp_path: Path, version_string: str, samba3: bool) -> N
 	class Proc:  # pylint: disable=too-few-public-methods
 		stdout = version_string
 
-	with (patch("opsiconfd.setup.samba.run", PropertyMock(return_value=Proc())), patch("opsiconfd.setup.samba.SMB_CONF", str(smb_conf))):
+	with (
+		patch("opsiconfd.setup.samba.run", PropertyMock(return_value=Proc())),
+		patch("opsiconfd.setup.samba.SMB_CONF", str(smb_conf)),
+		patch("opsiconfd.backend.rpc.general.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
+	):
 		assert is_samba3() == samba3
 		setup_samba()
 

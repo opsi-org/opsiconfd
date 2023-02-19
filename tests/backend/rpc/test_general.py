@@ -8,6 +8,8 @@
 test opsiconfd.backend.rpc.general
 """
 
+import os
+import pwd
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -151,6 +153,7 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 	with (
 		patch("opsiconfd.backend.rpc.general.OPSI_PASSWD_FILE", opsi_passwd_file),
 		patch("opsiconfd.backend.rpc.general.run", run),
+		patch("opsiconfd.backend.rpc.general.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
 		proc.test_output["ucr get server/role"] = FileNotFoundError()
 		backend.user_setCredentials("pcpatch", "password")

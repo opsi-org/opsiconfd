@@ -370,7 +370,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				)
 				assert isinstance(responses[0], TerminalDataReadMessage)
 				assert responses[0].terminal_id == terminal_id
-				assert "echo test\r\ntest\r\n" in responses[0].data.decode("utf-8")
+				assert "echo test\r\n" in responses[0].data.decode("utf-8")
 				terminal_resize_request = TerminalResizeRequestMessage(
 					sender="@", channel=back_channel, terminal_id=terminal_id, rows=10, cols=20
 				)

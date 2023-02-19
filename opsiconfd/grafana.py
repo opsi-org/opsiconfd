@@ -20,7 +20,7 @@ import string
 import subprocess
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any, AsyncGenerator, Generator, Union
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import aiohttp
 import requests
@@ -368,10 +368,10 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 			cur.execute("DELETE FROM org_user WHERE user_id = ?", [user_id[0]])
 			cur.execute("DELETE FROM user WHERE id = ?", [user_id[0]])
 
-		password = get_random_string(8)
+		password = get_random_string(16)
 		secret_filter.add_secrets(password)
 
-		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
+		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(
 			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -385,6 +385,8 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		con.commit()
 
 		url = urlparse(config.grafana_internal_url)
+		password = quote(password)
+		secret_filter.add_secrets(password)
 		grafana_internal_url = f"{url.scheme}://opsiconfd:{password}@{url.hostname}:{url.port}{url.path}"
 		config.grafana_internal_url = grafana_internal_url
 		config.set_config_in_config_file("grafana-internal-url", grafana_internal_url)

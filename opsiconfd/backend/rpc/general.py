@@ -711,7 +711,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			# smbldap
 			cmd = ["smbldap-passwd", username]
 			logger.debug("Executing: %s", cmd)
-			inp = f"{password}\n{password}\n".encode("utf8")
+			inp = f"{password}\n{password}\n"
 			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
 			logger.debug(out)
 			password_set = True

@@ -11,7 +11,6 @@ opsiconfd.backend.mysql
 from __future__ import annotations
 
 import re
-import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache

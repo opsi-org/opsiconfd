@@ -73,6 +73,7 @@ ruff = "^0.0.243"
 pydevd = "^2.9.5"
 wrapt = "^1.14.1"
 dill = "^0.3.6"
+bandit = "^1.7.4"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"

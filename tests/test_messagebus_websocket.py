@@ -265,6 +265,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 			with test_client.websocket_connect("/messagebus/v1") as websocket:
 				with WebSocketMessageReader(websocket) as reader:
 					reader.running.wait(3.0)
+					sleep(2)
 					reader.wait_for_message(count=1)
 					assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
 					jsonrpc_request_message1 = JSONRPCRequestMessage(

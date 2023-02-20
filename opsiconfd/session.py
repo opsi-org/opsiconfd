@@ -309,13 +309,19 @@ class SessionMiddleware:
 			logger.error(err, exc_info=True)
 			error = str(err)
 
+		headers = headers or {}
+
 		if scope["type"] == "websocket":
 			websocket_close_code = status.WS_1008_POLICY_VIOLATION
+			reason = error
 			if status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
 				websocket_close_code = status.WS_1011_INTERNAL_ERROR
-			return await send({"type": "websocket.close", "code": websocket_close_code})
+			elif status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+				websocket_close_code = status.WS_1013_TRY_AGAIN_LATER
+				reason = f"{reason[:100]}\nRetry-After: {headers.get('Retry-After')}"
+			# reason max length 123 bytes
+			return await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
 
-		headers = headers or {}
 		if scope.get("session"):
 			scope["session"].add_cookie_to_headers(headers)
 

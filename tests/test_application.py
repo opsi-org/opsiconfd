@@ -15,6 +15,7 @@ from typing import Generator
 
 import pytest
 from msgspec import msgpack
+from starlette.websockets import WebSocketDisconnect
 
 from opsiconfd.application import (
 	AppState,
@@ -115,6 +116,8 @@ def test_maintenance(
 
 		response = test_client.get("/session/authenticated")
 		assert response.status_code == 200
+		with test_client.websocket_connect("/messagebus/v1") as websocket:
+			assert websocket
 
 		app.set_app_state(MaintenanceState(address_exceptions=[], retry_after=11, message="pytest"))
 		time.sleep(1)
@@ -122,6 +125,11 @@ def test_maintenance(
 		assert response.status_code == 503
 		assert response.headers["Retry-After"] == "11"
 		assert response.text == "pytest"
+		with pytest.raises(WebSocketDisconnect) as excinfo:
+			with test_client.websocket_connect("/messagebus/v1") as websocket:
+				pass
+		assert excinfo.value.code == 1013
+		assert excinfo.value.reason == "pytest\nRetry-After: 11"
 
 		app.set_app_state(NormalState())
 		time.sleep(1)

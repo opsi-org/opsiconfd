@@ -132,6 +132,19 @@ def remove_orphans_license_on_client_to_host(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from WINDOWS_SOFTWARE_ID_TO_PRODUCT", result.rowcount)
 
 
+def remove_orphans_product_id_to_license_pool(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE pid.* FROM PRODUCT_ID_TO_LICENSE_POOL AS pid
+		LEFT JOIN LICENSE_POOL AS pool
+		ON pid.licensePoolId = pool.licensePoolId
+		WHERE pool.licensePoolId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from PRODUCT_ID_TO_LICENSE_POOL", result.rowcount)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		remove_orphans_config_value(session)
@@ -143,3 +156,4 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_product_on_client(session)
 		remove_orphans_windows_software_id_to_product(session)
 		remove_orphans_license_on_client_to_host(session)
+		remove_orphans_product_id_to_license_pool(session)

@@ -31,7 +31,9 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 		self: BackendProtocol, softwareLicenseToLicensePool: dict | SoftwareLicenseToLicensePool  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_insertObject")
-		self._mysql.insert_object(table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=True)
+		self._mysql.insert_object(
+			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=True
+		)
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_updateObject(  # pylint: disable=invalid-name
@@ -45,25 +47,41 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol,
-		softwareLicenseToLicensePools: list[dict[str, Any]] | list[SoftwareLicenseToLicensePool] | dict[str, Any] | SoftwareLicenseToLicensePool
+		softwareLicenseToLicensePools: list[dict[str, Any]]
+		| list[SoftwareLicenseToLicensePool]
+		| dict[str, Any]
+		| SoftwareLicenseToLicensePool,
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_createObjects")
 		with self._mysql.session() as session:
 			for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
 				self._mysql.insert_object(
-					table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=True, session=session
+					table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
+					obj=softwareLicenseToLicensePool,
+					ace=ace,
+					create=True,
+					set_null=True,
+					session=session,
 				)
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol,
-		softwareLicenseToLicensePools: list[dict[str, Any]] | list[SoftwareLicenseToLicensePool] | dict[str, Any] | SoftwareLicenseToLicensePool
+		softwareLicenseToLicensePools: list[dict[str, Any]]
+		| list[SoftwareLicenseToLicensePool]
+		| dict[str, Any]
+		| SoftwareLicenseToLicensePool,
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_updateObjects")
 		with self._mysql.session() as session:
 			for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
 				self._mysql.insert_object(
-					table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=False, session=session
+					table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
+					obj=softwareLicenseToLicensePool,
+					ace=ace,
+					create=True,
+					set_null=False,
+					session=session,
 				)
 
 	@rpc_method(check_acl=False)
@@ -72,7 +90,11 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	) -> list[SoftwareLicenseToLicensePool]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_objects(
-			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", ace=ace, object_type=SoftwareLicenseToLicensePool, attributes=attributes, filter=filter
+			table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
+			ace=ace,
+			object_type=SoftwareLicenseToLicensePool,
+			attributes=attributes,
+			filter=filter,
 		)
 
 	@rpc_method(check_acl=False)
@@ -86,7 +108,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 			ace=ace,
 			return_type="dict",
 			attributes=attributes,
-			filter=filter
+			filter=filter,
 		)
 
 	@rpc_method(check_acl=False)
@@ -95,13 +117,20 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	) -> list[str] | list[dict[str, Any]] | list[list] | list[tuple]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_idents(
-			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", object_type=SoftwareLicenseToLicensePool, ace=ace, ident_type=returnType, filter=filter
+			table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
+			object_type=SoftwareLicenseToLicensePool,
+			ace=ace,
+			ident_type=returnType,
+			filter=filter,
 		)
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol,
-		softwareLicenseToLicensePools: list[dict[str, Any]] | list[SoftwareLicenseToLicensePool] | dict[str, Any] | SoftwareLicenseToLicensePool
+		softwareLicenseToLicensePools: list[dict[str, Any]]
+		| list[SoftwareLicenseToLicensePool]
+		| dict[str, Any]
+		| SoftwareLicenseToLicensePool,
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_deleteObjects")
 		self._mysql.delete_objects(
@@ -118,4 +147,6 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.softwareLicenseToLicensePool_deleteObjects(self.softwareLicenseToLicensePool_getIdents(returnType="dict", id=id))
+		idents = self.softwareLicenseToLicensePool_getIdents(returnType="dict", id=id)
+		if idents:
+			self.softwareLicenseToLicensePool_deleteObjects(idents)

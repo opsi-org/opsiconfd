@@ -102,7 +102,9 @@ class RPCSoftwareLicenseMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.softwareLicense_deleteObjects(self.softwareLicense_getIdents(returnType="dict", id=id))
+		idents = self.softwareLicense_getIdents(returnType="dict", id=id)
+		if idents:
+			self.softwareLicense_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_createRetail(  # pylint: disable=too-many-arguments,invalid-name

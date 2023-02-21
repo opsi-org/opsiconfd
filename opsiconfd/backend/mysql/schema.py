@@ -19,6 +19,7 @@ from opsiconfd.logging import logger
 from .cleanup import (
 	remove_orphans_config_value,
 	remove_orphans_license_on_client_to_host,
+	remove_orphans_product_id_to_license_pool,
 	remove_orphans_product_property_value,
 )
 
@@ -175,7 +176,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ID_TO_LICENSE_POOL` (
 	`licensePoolId` varchar(100) NOT NULL,
 	`productId` varchar(255) NOT NULL,
 	PRIMARY KEY (`licensePoolId`,`productId`),
-	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`)
+	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
@@ -510,15 +511,13 @@ class OpsiForeignKey:
 	f_keys: list[str] = field(default_factory=list)
 	ref_keys: list[str] = field(default_factory=list)
 	update_rule: UpdateRules = "CASCADE"
-	delete_rule: UpdateRules | None = None
-	posible_rules: tuple[UpdateRules, ...] = ("RESTRICT", "CASCADE", "NO ACTION", "SET NULL")
+	delete_rule: UpdateRules = "CASCADE"
 
 	def __post_init__(self) -> None:
-		if self.update_rule not in self.posible_rules:
+		possible_rules: tuple[UpdateRules, ...] = ("RESTRICT", "CASCADE", "NO ACTION", "SET NULL")
+		if self.update_rule not in possible_rules:
 			raise ValueError("update_rule is not a valid update rule.")
-		if not self.delete_rule:
-			self.delete_rule = self.update_rule
-		elif self.delete_rule not in self.posible_rules:
+		if self.delete_rule not in possible_rules:
 			raise ValueError("delete_rule is not a valid delete rule.")
 
 
@@ -556,7 +555,7 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 			ALTER TABLE `{foreign_key.table}` ADD
 			FOREIGN KEY ({keys})
 			REFERENCES `{foreign_key.ref_table}` ({refs})
-			ON UPDATE {foreign_key.update_rule} ON DELETE {foreign_key.update_rule}
+			ON UPDATE {foreign_key.update_rule} ON DELETE {foreign_key.delete_rule}
 			"""
 		)
 
@@ -978,6 +977,15 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			database=mysql.database,
 			foreign_key=OpsiForeignKey(table="LICENSE_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]),
 			cleanup_function=remove_orphans_license_on_client_to_host,
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
+				table="PRODUCT_ID_TO_LICENSE_POOL", ref_table="LICENSE_POOL", f_keys=["licensePoolId"], ref_keys=["licensePoolId"]
+			),
+			cleanup_function=remove_orphans_product_id_to_license_pool,
 		)
 
 		def software_license_set_missing_hosts_to_null(session: Session) -> None:

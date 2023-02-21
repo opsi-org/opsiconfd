@@ -869,16 +869,16 @@ class RPCProductDependencyMixin(Protocol):
 	def productDependency_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
 		self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, productAction: str, requiredProductId: str
 	) -> None:
-		self.productDependency_deleteObjects(
-			self.productDependency_getIdents(
-				returnType="dict",
-				productId=productId,
-				productVersion=productVersion,
-				packageVersion=packageVersion,
-				productAction=productAction,
-				requiredProductId=requiredProductId,
-			)
+		idents = self.productDependency_getIdents(
+			returnType="dict",
+			productId=productId,
+			productVersion=productVersion,
+			packageVersion=packageVersion,
+			productAction=productAction,
+			requiredProductId=requiredProductId,
 		)
+		if idents:
+			self.productDependency_deleteObjects(idents)
 
 	@rpc_method(check_acl=False, use_cache="product_ordering")
 	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches

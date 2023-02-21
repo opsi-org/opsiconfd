@@ -140,17 +140,17 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		if clientId is None:
 			clientId = []
 
-		self.auditSoftwareOnClient_deleteObjects(
-			self.auditSoftwareOnClient_getIdents(
-				returnType="dict",
-				name=name,
-				version=version,
-				subVersion=subVersion,
-				language=language,
-				architecture=architecture,
-				clientId=clientId,
-			)
+		idents = self.auditSoftwareOnClient_getIdents(
+			returnType="dict",
+			name=name,
+			version=version,
+			subVersion=subVersion,
+			language=language,
+			architecture=architecture,
+			clientId=clientId,
 		)
+		if idents:
+			self.auditSoftwareOnClient_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: list[str] | str) -> None:  # pylint: disable=invalid-name

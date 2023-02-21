@@ -132,14 +132,14 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 	def auditSoftwareToLicensePool_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
 		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str, licensePoolId: str
 	) -> None:
-		self.auditSoftwareToLicensePool_deleteObjects(
-			self.auditSoftwareToLicensePool_getIdents(
-				returnType="dict",
-				name=name,
-				version=version,
-				subVersion=subVersion,
-				language=language,
-				architecture=architecture,
-				licensePoolId=licensePoolId,
-			)
+		idents = self.auditSoftwareToLicensePool_getIdents(
+			returnType="dict",
+			name=name,
+			version=version,
+			subVersion=subVersion,
+			language=language,
+			architecture=architecture,
+			licensePoolId=licensePoolId,
 		)
+		if idents:
+			self.auditSoftwareToLicensePool_deleteObjects(idents)

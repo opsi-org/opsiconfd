@@ -50,7 +50,7 @@ class RPCConfigStateMixin(Protocol):
 			res[config_state.objectId][config_state.configId] = config_state.values
 		return res
 
-	def configState_bulkInsertObjects(# pylint: disable=invalid-name
+	def configState_bulkInsertObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState]
 	) -> None:
 		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # type: ignore[arg-type]
@@ -136,7 +136,9 @@ class RPCConfigStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def configState_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.configState_deleteObjects(self.configState_getIdents(returnType="dict", id=id))
+		idents = self.configState_getIdents(returnType="dict", id=id)
+		if idents:
+			self.configState_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
 	def configState_getClientToDepotserver(  # pylint: disable=invalid-name,too-many-locals,too-many-branches

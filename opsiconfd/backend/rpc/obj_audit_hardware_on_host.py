@@ -287,11 +287,11 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 
 		kwargs = {key: [] if val is None else val for key, val in kwargs.items()}
 
-		self.auditHardwareOnHost_deleteObjects(
-			self.auditHardwareOnHost_getObjects(
-				hostId=hostId, hardwareClass=hardwareClass, firstseen=firstseen, lastseen=lastseen, state=state, **kwargs
-			)
+		objs = self.auditHardwareOnHost_getObjects(
+			hostId=hostId, hardwareClass=hardwareClass, firstseen=firstseen, lastseen=lastseen, state=state, **kwargs
 		)
+		if objs:
+			self.auditHardwareOnHost_deleteObjects(objs)
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_setObsolete(self, hostId: str) -> None:  # pylint: disable=invalid-name

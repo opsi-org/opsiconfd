@@ -110,13 +110,13 @@ class RPCProductOnDepotMixin(Protocol):
 	def productOnDepot_delete(  # pylint: disable=redefined-builtin,invalid-name, too-many-arguments
 		self: BackendProtocol, productId: str, productType: str, productVersion: str, packageVersion: str, depotId: str
 	) -> None:
-		self.productOnDepot_deleteObjects(
-			self.productOnDepot_getIdents(
-				returnType="dict",
-				productId=productId,
-				productType=productType,
-				productVersion=productVersion,
-				packageVersion=packageVersion,
-				depotId=depotId,
-			)
+		idents = self.productOnDepot_getIdents(
+			returnType="dict",
+			productId=productId,
+			productType=productType,
+			productVersion=productVersion,
+			packageVersion=packageVersion,
+			depotId=depotId,
 		)
+		if idents:
+			self.productOnDepot_deleteObjects(idents)

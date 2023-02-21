@@ -169,4 +169,6 @@ class RPCConfigMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def config_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.config_deleteObjects(self.config_getIdents(returnType="dict", id=id))
+		idents = self.config_getIdents(returnType="dict", id=id)
+		if idents:
+			self.config_deleteObjects(idents)

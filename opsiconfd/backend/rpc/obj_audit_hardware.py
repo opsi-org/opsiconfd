@@ -349,5 +349,6 @@ class RPCAuditHardwareMixin(Protocol):
 			hardwareClass = []
 
 		kwargs = {key: [] if val is None else val for key, val in kwargs.items()}
-
-		return self.auditHardware_deleteObjects(self.auditHardware_getObjects(hardwareClass=hardwareClass, **kwargs))
+		objs = self.auditHardware_getObjects(hardwareClass=hardwareClass, **kwargs)
+		if objs:
+			return self.auditHardware_deleteObjects(objs)

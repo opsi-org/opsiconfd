@@ -124,11 +124,11 @@ class RPCLicenseOnClientMixin(Protocol):
 	def licenseOnClient_delete(  # pylint: disable=invalid-name
 		self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, clientId: str
 	) -> None:
-		self.licenseOnClient_deleteObjects(
-			self.licenseOnClient_getIdents(
-				returnType="dict", softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=clientId
-			)
+		idents = self.licenseOnClient_getIdents(
+			returnType="dict", softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=clientId
 		)
+		if idents:
+			self.licenseOnClient_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_getOrCreateObject(  # pylint: disable=invalid-name,too-many-branches

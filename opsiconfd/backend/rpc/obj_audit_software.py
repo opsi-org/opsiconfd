@@ -105,8 +105,8 @@ class RPCAuditSoftwareMixin(Protocol):
 	def auditSoftware_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
 		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str
 	) -> None:
-		self.auditSoftware_deleteObjects(
-			self.auditSoftware_getIdents(
-				returnType="dict", name=name, version=version, subVersion=subVersion, language=language, architecture=architecture
-			)
+		idents = self.auditSoftware_getIdents(
+			returnType="dict", name=name, version=version, subVersion=subVersion, language=language, architecture=architecture
 		)
+		if idents:
+			self.auditSoftware_deleteObjects(idents)

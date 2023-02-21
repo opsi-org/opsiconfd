@@ -101,4 +101,6 @@ class RPCProductMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def product_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.product_deleteObjects(self.product_getIdents(returnType="dict", id=id))
+		idents = self.product_getIdents(returnType="dict", id=id)
+		if idents:
+			self.product_deleteObjects(idents)

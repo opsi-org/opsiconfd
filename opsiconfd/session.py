@@ -324,10 +324,12 @@ class SessionMiddleware:
 			# reason max length 123 bytes
 			logger.debug("Closing websocket with code=%r and reason=%r", websocket_close_code, reason)
 			try:
-				return await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
-			except RuntimeError:
+				# Need to open (accept) websocket before close
 				await send({"type": "websocket.accept"})
-				return await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
+			except RuntimeError:
+				# Alread accepted
+				pass
+			return await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
 
 		if scope.get("session"):
 			scope["session"].add_cookie_to_headers(headers)

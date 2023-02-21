@@ -39,7 +39,7 @@ from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from opsicommon.config import OpsiConfig  # type: ignore[import]
 from opsicommon.logging import secret_filter  # type: ignore[import]
-from opsicommon.utils import get_fqdn
+from opsicommon.system.network import get_fqdn
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 

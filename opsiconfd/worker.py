@@ -233,9 +233,9 @@ class Worker(WorkerInfo, UvicornServer):
 	def get_connection_count(self) -> int:
 		return len(self.server_state.connections)
 
-	async def close_connections(
+	async def close_connections(  # pylint: disable=too-many-branches
 		self, address_exceptions: list[str] | None = None, wait: bool = True
-	) -> None:  # pylint: disable=too-many-branches
+	) -> None:
 		address_exceptions = address_exceptions or []
 		logger.info("Closing connections, address exceptions: %s", address_exceptions)
 		keep_connections = set()

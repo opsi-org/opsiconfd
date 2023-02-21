@@ -200,7 +200,9 @@ async def store_rpc_info(  # pylint: disable=too-many-locals
 	max_rpcs = 9999
 	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
-		pipe.lpush(f"{redis_prefix_stats}:rpcs", msgspec.msgpack.encode(data))  # type: ignore[attr-defined]  # pylint: disable=c-extension-no-member
+		pipe.lpush(  # type: ignore[attr-defined]
+			f"{redis_prefix_stats}:rpcs", msgspec.msgpack.encode(data)  # pylint: disable=c-extension-no-member
+		)
 		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)  # type: ignore[attr-defined]
 		await pipe.execute()  # type: ignore[attr-defined]
 

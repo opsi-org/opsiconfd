@@ -364,7 +364,7 @@ def annotate_snapshot(stats: ConsoleStats, snapshot: Snapshot) -> None:
 			if tobj.birth < snapshot.timestamp and (tobj.death is None or tobj.death > snapshot.timestamp):
 				active += 1
 		avg = 0 if active == 0 else total / active
-		snapshot.classes[classname] = dict(sum=total, avg=avg, active=active)
+		snapshot.classes[classname] = {"sum": total, "avg": avg, "active": active}
 
 
 def convert_bytes(bytes: float) -> str:  # pylint: disable=redefined-builtin

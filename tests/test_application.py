@@ -15,7 +15,6 @@ from typing import Generator
 
 import pytest
 from msgspec import msgpack
-from starlette.websockets import WebSocketDisconnect
 
 from opsiconfd.application import (
 	AppState,

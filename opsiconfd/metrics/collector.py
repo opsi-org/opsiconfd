@@ -183,9 +183,9 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			for a_cmd in cmd:
 				a_cmd = str_cmd(a_cmd)
 				logger.debug("Adding redis command to pipe: %s", a_cmd)
-				await pipe.execute_command(a_cmd)
+				await pipe.execute_command(a_cmd)  # type: ignore[attr-defined]
 			logger.debug("Executing redis pipe (%d commands)", len(cmd))
-			return await pipe.execute()
+			return await pipe.execute()  # type: ignore[attr-defined]
 
 	async def add_value(self, metric_id: str, value: float, labels: dict | None = None, timestamp: int | None = None) -> None:
 		if labels is None:

@@ -168,9 +168,9 @@ async def async_delete_recursively(redis_key: str, piped: bool = True) -> None:
 	if piped:
 		async with client.pipeline() as pipe:
 			for key in delete_keys:
-				pipe.unlink(key)
-			pipe.unlink(redis_key)
-			await pipe.execute()
+				pipe.unlink(key)  # type: ignore[attr-defined]
+			pipe.unlink(redis_key)  # type: ignore[attr-defined]
+			await pipe.execute()  # type: ignore[attr-defined]
 	else:
 		await client.unlink(redis_key)
 
@@ -237,15 +237,15 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 			while True:
 				try:
 					# Redis will only perform the transaction if the watched keys were not modified.
-					await pipe.watch(redis_key)
-					if await pipe.get(redis_key) == identifier_b:
+					await pipe.watch(redis_key)  # type: ignore[attr-defined]
+					if await pipe.get(redis_key) == identifier_b:  # type: ignore[attr-defined]
 						# Release lock
-						pipe.multi()
-						pipe.delete(redis_key)
-						await pipe.execute()
+						pipe.multi()  # type: ignore[attr-defined]
+						pipe.delete(redis_key)  # type: ignore[attr-defined]
+						await pipe.execute()  # type: ignore[attr-defined]
 					else:
 						# Different identifier, not our lock
-						await pipe.unwatch()
+						await pipe.unwatch()  # type: ignore[attr-defined]
 					break
 				except redis.exceptions.WatchError:
 					pass

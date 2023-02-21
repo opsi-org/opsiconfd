@@ -175,8 +175,8 @@ async def unblock_all_clients() -> RESTResponse:
 					client = ip_address_from_redis_key(key_str.split(":")[-1])
 					clients.add(client)
 					logger.debug("redis key to delete: %s", key_str)
-					await pipe.delete(key)
-			await pipe.execute()
+					await pipe.delete(key)  # type: ignore[attr-defined]
+			await pipe.execute()  # type: ignore[attr-defined]
 		return RESTResponse({"clients": list(clients), "redis-keys": list(deleted_keys)})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
@@ -225,8 +225,8 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 			async for key in keys:
 				sessions.append(key.decode("utf8").split(":")[-1])
 				deleted_keys.append(key.decode("utf8"))
-				await pipe.delete(key)
-			await pipe.execute()
+				await pipe.delete(key)  # type: ignore[attr-defined]
+			await pipe.execute()  # type: ignore[attr-defined]
 	return RESTResponse({"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys})
 
 
@@ -505,9 +505,7 @@ def get_licensing_info() -> RESTResponse:
 	previous: dict[str, dict] = {}
 	for at_date, date_info in info.get("dates", {}).items():
 		at_date = datetime.date.fromisoformat(at_date)
-		if (at_date <= datetime.date.today()) and (
-			not active_date or at_date > active_date
-		):
+		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):
 			active_date = at_date
 
 		for module_id, module in date_info["modules"].items():

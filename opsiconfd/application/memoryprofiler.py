@@ -171,9 +171,9 @@ async def memory_info() -> JSONResponse:
 	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
 		value = msgspec.msgpack.encode({"memory_summary": memory_summary, "timestamp": timestamp})  # pylint: disable=c-extension-no-member
-		await pipe.lpush(f"{redis_prefix_stats}:memory:summary:{node}", value)
-		await pipe.ltrim(f"{redis_prefix_stats}:memory:summary:{node}", 0, 9)
-		redis_result = await pipe.execute()
+		await pipe.lpush(f"{redis_prefix_stats}:memory:summary:{node}", value)  # type: ignore[attr-defined]
+		await pipe.ltrim(f"{redis_prefix_stats}:memory:summary:{node}", 0, 9)  # type: ignore[attr-defined]
+		redis_result = await pipe.execute()  # type: ignore[attr-defined]
 	logger.debug("redis lpush memory summary: %s", redis_result)
 
 	total_size = 0

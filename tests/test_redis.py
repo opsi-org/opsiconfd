@@ -54,8 +54,8 @@ async def test_async_redis_pool() -> None:
 async def test_async_redis_pipeline(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	redis = await async_redis_client()
 	async with redis.pipeline() as pipe:
-		pipe.scan_iter(f"{config.redis_key()}:*")
-		await pipe.execute()
+		pipe.scan_iter(f"{config.redis_key()}:*")  # type: ignore[attr-defined]
+		await pipe.execute()  # type: ignore[attr-defined]
 
 
 def test_sync_redis_pool() -> None:

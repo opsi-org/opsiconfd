@@ -193,12 +193,12 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 			while True:
 				attempt += 1
 				try:
-					await pipe.watch(state_key)
-					val = await pipe.hget(state_key, "websocket_count")
+					await pipe.watch(state_key)  # type: ignore[attr-defined]
+					val = await pipe.hget(state_key, "websocket_count")  # type: ignore[attr-defined]
 					val = max(0, int(val or 0)) + increment
-					pipe.multi()
-					pipe.hset(state_key, "websocket_count", val)
-					await pipe.execute()
+					pipe.multi()  # type: ignore[attr-defined]
+					pipe.hset(state_key, "websocket_count", val)  # type: ignore[attr-defined]
+					await pipe.execute()  # type: ignore[attr-defined]
 					break
 				except WatchError:
 					pass

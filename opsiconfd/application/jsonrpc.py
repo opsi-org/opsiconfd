@@ -200,9 +200,9 @@ async def store_rpc_info(  # pylint: disable=too-many-locals
 	max_rpcs = 9999
 	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
-		pipe.lpush(f"{redis_prefix_stats}:rpcs", msgspec.msgpack.encode(data))  # pylint: disable=c-extension-no-member
-		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)
-		await pipe.execute()
+		pipe.lpush(f"{redis_prefix_stats}:rpcs", msgspec.msgpack.encode(data))  # type: ignore[attr-defined]  # pylint: disable=c-extension-no-member
+		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)  # type: ignore[attr-defined]
+		await pipe.execute()  # type: ignore[attr-defined]
 
 
 async def store_deprecated_call(method_name: str, client: str) -> None:
@@ -210,17 +210,17 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 	redis = await async_redis_client()
 	expire_time = 90 * 24 * 3600  # 90 days
 	async with redis.pipeline() as pipe:
-		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
-		pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")
-		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count", expire_time)
-		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
-		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)
-		pipe.set(
+		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)  # type: ignore[attr-defined]
+		pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")  # type: ignore[attr-defined]
+		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count", expire_time)  # type: ignore[attr-defined]
+		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])  # type: ignore[attr-defined]
+		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)  # type: ignore[attr-defined]
+		pipe.set(  # type: ignore[attr-defined]
 			f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call",
 			datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
 			ex=expire_time,
 		)
-		await pipe.execute()
+		await pipe.execute()  # type: ignore[attr-defined]
 
 
 async def execute_rpc(client_info: str, rpc: dict[str, Any], backend: UnprotectedBackend | ProtectedBackend) -> Any:

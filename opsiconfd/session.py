@@ -312,6 +312,8 @@ class SessionMiddleware:
 		headers = headers or {}
 
 		if scope["type"] == "websocket":
+			# Uvicorn (0.20.0) always closes websockets with code 403
+			# There is currently no way to send a custom status code or headers
 			websocket_close_code = status.WS_1008_POLICY_VIOLATION
 			reason = error
 			if status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:

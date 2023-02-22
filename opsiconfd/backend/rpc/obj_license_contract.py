@@ -95,7 +95,7 @@ class RPCLicenseContractMixin(Protocol):
 		self._mysql.delete_objects(table="LICENSE_CONTRACT", object_type=LicenseContract, obj=licenseContracts, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def licenseContract_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseContract_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		idents = self.licenseContract_getIdents(returnType="dict", id=id)
 		if idents:
 			self.licenseContract_deleteObjects(idents)

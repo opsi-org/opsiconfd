@@ -177,7 +177,7 @@ class RPCProductPropertyStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_delete(  # pylint: disable=invalid-name
-		self: BackendProtocol, productId: str, propertyId: str, objectId: str
+		self: BackendProtocol, productId: list[str] | str, propertyId: list[str] | str, objectId: list[str] | str
 	) -> None:
 		idents = self.productPropertyState_getIdents(returnType="dict", productId=productId, propertyId=propertyId, objectId=objectId)
 		if idents:

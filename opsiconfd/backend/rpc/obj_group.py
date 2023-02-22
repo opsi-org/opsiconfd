@@ -94,7 +94,7 @@ class RPCGroupMixin(Protocol):
 		self.group_createObjects(HostGroup.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def group_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def group_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		idents = self.group_getIdents(returnType="dict", id=id)
 		if idents:
 			self.group_deleteObjects(idents)

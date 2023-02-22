@@ -159,7 +159,7 @@ class RPCLicensePoolMixin(Protocol):
 		self.licensePool_createObjects(LicensePool.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def licensePool_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def licensePool_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		idents = self.licensePool_getIdents(returnType="dict", id=id)
 		if idents:
 			self.licensePool_deleteObjects(idents)

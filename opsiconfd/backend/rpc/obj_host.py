@@ -143,7 +143,7 @@ class RPCHostMixin(Protocol):
 			self._send_messagebus_event("host_deleted", data={"id": host_id})
 
 	@rpc_method(check_acl=False)
-	def host_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def host_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		idents = self.host_getIdents(returnType="dict", id=id)
 		if idents:
 			self.host_deleteObjects(idents)

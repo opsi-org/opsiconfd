@@ -135,7 +135,9 @@ class RPCConfigStateMixin(Protocol):
 		self.configState_createObjects(ConfigState.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def configState_delete(self: BackendProtocol, configId: str, objectId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def configState_delete(  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, configId: list[str] | str, objectId: list[str] | str
+	) -> None:
 		idents = self.configState_getIdents(returnType="dict", configId=configId, objectId=objectId)
 		if idents:
 			self.configState_deleteObjects(idents)

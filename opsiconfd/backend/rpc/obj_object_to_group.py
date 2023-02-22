@@ -96,7 +96,7 @@ class RPCObjectToGroupMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_delete(  # pylint: disable=invalid-name
-		self: BackendProtocol, groupType: str, groupId: str, objectId: str  # pylint: disable=invalid-name
+		self: BackendProtocol, groupType: list[str] | str, groupId: list[str] | str, objectId: list[str] | str  # pylint: disable=invalid-name
 	) -> None:
 		idents = self.objectToGroup_getIdents(returnType="dict", groupType=groupType, groupId=groupId, objectId=objectId)
 		if idents:

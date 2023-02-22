@@ -867,7 +867,12 @@ class RPCProductDependencyMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productDependency_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
-		self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, productAction: str, requiredProductId: str
+		self: BackendProtocol,
+		productId: list[str] | str,
+		productVersion: list[str] | str,
+		packageVersion: list[str] | str,
+		productAction: list[str] | str,
+		requiredProductId: list[str] | str,
 	) -> None:
 		idents = self.productDependency_getIdents(
 			returnType="dict",

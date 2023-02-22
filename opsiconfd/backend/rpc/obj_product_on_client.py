@@ -159,8 +159,10 @@ class RPCProductOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnClient_delete(  # pylint: disable=invalid-name
-		self: BackendProtocol, productId: str, productType: str, clientId: str
+		self: BackendProtocol, productId: list[str] | str, clientId: list[str] | str, productType: list[str] | str | None = None
 	) -> None:
+		if productType is None:
+			productType = []
 		idents = self.productOnClient_getIdents(returnType="dict", productId=productId, productType=productType, clientId=clientId)
 		if idents:
 			self.productOnClient_deleteObjects(idents)

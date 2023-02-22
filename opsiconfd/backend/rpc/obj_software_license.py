@@ -101,7 +101,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self._mysql.delete_objects(table="SOFTWARE_LICENSE", object_type=SoftwareLicense, obj=softwareLicenses, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def softwareLicense_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		idents = self.softwareLicense_getIdents(returnType="dict", id=id)
 		if idents:
 			self.softwareLicense_deleteObjects(idents)

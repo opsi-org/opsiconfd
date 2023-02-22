@@ -100,7 +100,7 @@ class RPCProductMixin(Protocol):
 			remove_orphans_windows_software_id_to_product(session)
 
 	@rpc_method(check_acl=False)
-	def product_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def product_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		idents = self.product_getIdents(returnType="dict", id=id)
 		if idents:
 			self.product_deleteObjects(idents)

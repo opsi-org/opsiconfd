@@ -108,8 +108,19 @@ class RPCProductOnDepotMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnDepot_delete(  # pylint: disable=redefined-builtin,invalid-name, too-many-arguments
-		self: BackendProtocol, productId: str, productType: str, productVersion: str, packageVersion: str, depotId: str
+		self: BackendProtocol,
+		productId: list[str] | str,
+		depotId: list[str] | str,
+		productType: list[str] | str | None = None,
+		productVersion: list[str] | str | None = None,
+		packageVersion: list[str] | str | None = None,
 	) -> None:
+		if productType is None:
+			productType = []
+		if productVersion is None:
+			productVersion = []
+		if packageVersion is None:
+			packageVersion = []
 		idents = self.productOnDepot_getIdents(
 			returnType="dict",
 			productId=productId,

@@ -174,6 +174,10 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			logger.debug("Init %s", base)
 			base.__init__(self)  # type: ignore[misc]
 
+		if opsi_config.get("host", "server-role") == "configserver":
+			self._interface = describe_interface(self)
+			self._interface_list = [self._interface[name].as_dict() for name in sorted(list(self._interface.keys()))]
+
 	def __str__(self) -> str:
 		return f"{self.__class__.__name__}({id(self)})"
 
@@ -196,9 +200,6 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				secret_filter.add_secrets(self._opsi_host_key)
 		else:
 			logger.info("Configserver %r not found in backend", self._depot_id)
-
-		self._interface = describe_interface(self)
-		self._interface_list = [self._interface[name].as_dict() for name in sorted(list(self._interface.keys()))]
 
 	def _create_jsonrpc_instance_methods(self) -> None:  # pylint: disable=too-many-locals
 		if self._interface_list is None:

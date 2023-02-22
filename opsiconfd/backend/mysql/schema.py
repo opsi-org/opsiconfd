@@ -644,7 +644,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			if row_dict["ENGINE"] != "InnoDB":
 				logger.info("Changing table %s to InnoDB engine", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` ENGINE = InnoDB")
-			if row_dict["TABLE_COLLATION"] != "utf8_general_ci":
+			if row_dict["TABLE_COLLATION"] not in ("utf8_general_ci", "utf8mb3_general_ci", "utf8mb4_general_ci"):
 				logger.info("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
 

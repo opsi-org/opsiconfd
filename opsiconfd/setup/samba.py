@@ -16,11 +16,9 @@ from subprocess import CalledProcessError, run
 
 from configupdater import ConfigUpdater
 
-from opsiconfd.config import opsi_config
+from opsiconfd.config import SMB_CONF, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_random_string
-
-SMB_CONF = "/etc/samba/smb.conf"
 
 SHARES = {
 	"opsi_depot": {

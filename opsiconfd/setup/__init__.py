@@ -43,6 +43,7 @@ from opsiconfd.setup.backend import setup_backend, setup_mysql
 from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
 from opsiconfd.setup.samba import setup_samba
+from opsiconfd.setup.sudo import setup_sudoers
 from opsiconfd.setup.system import setup_limits, setup_systemd, setup_users_and_groups
 from opsiconfd.ssl import setup_ssl
 
@@ -266,3 +267,9 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 			setup_dhcpd()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to setup dhcpd: %s", err, exc_info=True)
+
+	if "sudoers" not in config.skip_setup:
+		try:
+			setup_sudoers()
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error("Failed to setup sudoers: %s", err, exc_info=True)

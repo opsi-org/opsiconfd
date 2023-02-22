@@ -74,6 +74,8 @@ SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
 SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 WORKBENCH_DIR = "/var/lib/opsi/workbench"
+SMB_CONF = "/etc/samba/smb.conf"
+SUDOERS_CONF = "/etc/sudoers"
 
 try:
 	FQDN = get_fqdn()
@@ -910,7 +912,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				("opsiconfd", "setup"),
 				"A list of setup tasks to skip "
 				"(tasks: all, limits, users, groups, grafana, backend, ssl, server_cert, opsi_ca, "
-				"systemd, files, file_permissions, log_files, metric_downsampling, samba).",
+				"systemd, files, file_permissions, log_files, metric_downsampling, samba, dhcpd, sudoers).",
 			),
 			choices=[
 				"all",
@@ -928,6 +930,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				"log_files",
 				"metric_downsampling",
 				"samba",
+				"dhcpd",
+				"sudoers",
 			],
 		)
 		self._parser.add(

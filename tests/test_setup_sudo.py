@@ -8,12 +8,10 @@
 setup tests
 """
 
-import os
-import pwd
 import shutil
 from pathlib import Path
 from time import sleep
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 import pytest
 

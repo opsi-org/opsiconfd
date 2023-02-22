@@ -274,7 +274,7 @@ def test_product_on_depot_delete(  # pylint: disable=invalid-name
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "productOnDepot_delete",
-		"params": [pod1["productId"], pod1["productType"], pod1["productVersion"], pod1["packageVersion"], pod1["depotId"]],
+		"params": [pod1["productId"], pod1["depotId"], pod1["productType"], pod1["productVersion"], pod1["packageVersion"]],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
@@ -287,7 +287,7 @@ def test_product_on_depot_delete(  # pylint: disable=invalid-name
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "productOnDepot_delete",
-		"params": [pod2["productId"], pod2["productType"], pod2["productVersion"], pod2["packageVersion"], pod2["depotId"]],
+		"params": [pod2["productId"], pod2["depotId"], pod2["productType"], pod2["productVersion"], pod2["packageVersion"]],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res

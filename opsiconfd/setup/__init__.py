@@ -100,6 +100,7 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 							return False
 						depot = OpsiDepotserver.fromHash({k: v for k, v in depot.to_hash().items() if k != "type"})
 
+				depot.isMasterDepot = True
 				depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
 				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
 				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"

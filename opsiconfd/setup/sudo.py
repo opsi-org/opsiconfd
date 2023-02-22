@@ -51,7 +51,7 @@ def setup_sudoers() -> None:
 	idx = 0
 	for line in lines:
 		sline = line.strip().lower()
-		if line == START_COMMENT or (insert_pos < 0 and sline.startswith(("#includedir", "@includedir"))):
+		if line == START_COMMENT:
 			insert_pos = idx
 		if line == START_COMMENT or sline.startswith((f"{user} ", f"{user}\t", f"defaults:{user}")):
 			continue

@@ -50,11 +50,6 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 		patch("opsiconfd.setup.sudo.SUDOERS_CONF", str(sudoers)),
 		patch("opsiconfd.setup.sudo.get_dhcpd_control_config", lambda: dhcpd_config),
 	):
-		includedir = ""
-		for line in sudoers.read_text(encoding="utf-8").splitlines(keepends=True):
-			if "includedir" in line:
-				includedir = line
-
 		mtime = sudoers.stat().st_mtime
 		sleep(0.1)
 		setup_sudoers()
@@ -66,7 +61,6 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 			"opsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
 			"opsiconfd ALL=NOPASSWD: /sbin/systemctl reload dhcpd\n"
 			"\n"
-			f"{includedir}"
 		)
 		assert sudoers.stat().st_mtime != mtime
 		mtime = sudoers.stat().st_mtime
@@ -83,33 +77,13 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 		setup_sudoers()
 		data = sudoers.read_text(encoding="utf-8")
 		assert data.endswith(
-			"# Auto added by opsiconfd setup\n"
-			"Defaults:opsiconfd !requiretty\n"
-			"opsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
-			"\n"
-			f"{includedir}"
-		)
-		assert sudoers.stat().st_mtime != mtime
-
-		sudoers.write_text(includedir, encoding="utf-8")
-		setup_sudoers()
-		data = sudoers.read_text(encoding="utf-8")
-		assert data == (
-			"# Auto added by opsiconfd setup\n"
-			"Defaults:opsiconfd !requiretty\n"
-			"opsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
-			"\n"
-			f"{includedir}"
-		)
-
-		sudoers.write_text("", encoding="utf-8")
-		setup_sudoers()
-		data = sudoers.read_text(encoding="utf-8")
-		assert data == (
 			"# Auto added by opsiconfd setup\nDefaults:opsiconfd !requiretty\nopsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n\n"
 		)
+		assert sudoers.stat().st_mtime != mtime
 		mtime = sudoers.stat().st_mtime
 
 		sleep(0.1)
 		setup_sudoers()
+		data2 = sudoers.read_text(encoding="utf-8")
+		assert data == data2
 		assert sudoers.stat().st_mtime == mtime

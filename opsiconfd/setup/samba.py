@@ -109,7 +109,7 @@ def reload_samba() -> None:
 	service_name = get_smbd_service_name()
 	logger.notice(f"Reloading Samba service {service_name}")
 	try:
-		run(["service", service_name], shell=False, text=True, encoding="utf-8", check=True, capture_output=True)
+		run(["systemctl", "reload", service_name], shell=False, text=True, encoding="utf-8", check=True, capture_output=True)
 	except CalledProcessError as err:
 		logger.warning("%s %s %s", err, err.stdout, err.stderr)
 	except FileNotFoundError as err:

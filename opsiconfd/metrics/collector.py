@@ -23,7 +23,7 @@ from opsiconfd.metrics.registry import Metric, MetricsRegistry, NodeMetric, Work
 from opsiconfd.redis import async_redis_client
 
 if TYPE_CHECKING:
-	from opsiconfd.messagebus.redis import MessagebusStatistics
+	from opsiconfd.messagebus.websocket import MessagebusWebsocketStatistics
 	from opsiconfd.worker import Worker
 
 
@@ -183,7 +183,7 @@ class ManagerMetricsCollector(MetricsCollector):
 		await self.add_value("node:avg_load", psutil.getloadavg()[0])
 
 
-statistics: MessagebusStatistics | None = None  # pylint: disable=invalid-name
+statistics: MessagebusWebsocketStatistics | None = None  # pylint: disable=invalid-name
 
 
 class WorkerMetricsCollector(MetricsCollector):
@@ -199,7 +199,7 @@ class WorkerMetricsCollector(MetricsCollector):
 
 		global statistics  # pylint: disable=global-statement,invalid-name
 		# pylint: disable=invalid-name,import-outside-toplevel,redefined-outer-name
-		from opsiconfd.messagebus.redis import statistics
+		from opsiconfd.messagebus.websocket import statistics
 
 	@property
 	def worker_num(self) -> int:

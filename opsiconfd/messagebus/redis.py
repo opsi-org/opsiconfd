@@ -13,7 +13,6 @@ from __future__ import annotations
 from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from time import time
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
@@ -44,15 +43,6 @@ logger = get_logger("opsiconfd.messagebus")
 
 
 CHANNEL_INFO_SUFFIX = b":info"
-
-
-@dataclass
-class MessagebusStatistics:
-	messages_sent: int = 0
-	messages_received: int = 0
-
-
-statistics = MessagebusStatistics()
 
 
 async def messagebus_cleanup(full: bool = False) -> None:
@@ -126,7 +116,6 @@ async def send_message(message: Message, context: Any = None) -> None:
 	logger.debug("Message to redis: %r", message)
 	redis = await async_redis_client()
 	await redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
-	statistics.messages_sent += 1
 
 
 def sync_send_message(message: Message, context: Any = None) -> None:
@@ -134,7 +123,6 @@ def sync_send_message(message: Message, context: Any = None) -> None:
 	logger.debug("Message to redis: %r", message)
 	with redis_client() as redis:
 		redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
-	statistics.messages_sent += 1
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
@@ -361,7 +349,6 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 								context = self._context_decoder.decode(context_data)
 							msg = Message.from_msgpack(message[1][b"message"])
 							_logger.debug("Message from redis: %r", msg)
-							statistics.messages_received += 1
 							if msg.expires and msg.expires <= now:
 								continue
 							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):

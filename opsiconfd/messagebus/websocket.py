@@ -10,6 +10,7 @@ messagebus.websocket
 
 import traceback
 from asyncio import Task, create_task, sleep
+from dataclasses import dataclass
 from time import time
 from typing import TYPE_CHECKING, Literal, Union
 
@@ -57,6 +58,14 @@ from .redis import (
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
 
+
+@dataclass
+class MessagebusWebsocketStatistics:
+	messages_sent: int = 0
+	messages_received: int = 0
+
+
+statistics = MessagebusWebsocketStatistics()
 messagebus_router = APIRouter()
 logger = get_logger("opsiconfd.messagebus")
 
@@ -111,6 +120,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		logger.debug("Message to websocket: %r", message)
 		try:
 			await websocket.send_bytes(data)
+			statistics.messages_sent += 1
 		except ConnectionClosedOK:
 			pass
 
@@ -334,6 +344,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):
 				raise RuntimeError(f"Read access to channel {message.channel!r} denied")
 			logger.debug("Message from websocket: %r", message)
+			statistics.messages_received += 1
 
 			if isinstance(message, ChannelSubscriptionRequestMessage):
 				await self._process_channel_subscription_message(websocket, message)

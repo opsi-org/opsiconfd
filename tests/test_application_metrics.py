@@ -16,16 +16,13 @@ from typing import Union
 import pytest
 
 from opsiconfd.application.metrics import (
-	get_clients,
 	get_nodes,
 	get_workers,
 	grafana_dashboard_config,
 	grafana_search,
 )
-from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import async_redis_client
-from opsiconfd.worker import Worker
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

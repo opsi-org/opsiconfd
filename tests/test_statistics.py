@@ -13,7 +13,7 @@ from asyncio import sleep
 import pytest
 
 from opsiconfd.metrics.collector import WorkerMetricsCollector
-from opsiconfd.metrics.registry import Metric, MetricsRegistry, WorkerMetric
+from opsiconfd.metrics.registry import MetricsRegistry, WorkerMetric
 from opsiconfd.worker import Worker
 
 from .utils import Config, clean_redis, config  # pylint: disable=unused-import

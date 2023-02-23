@@ -16,7 +16,12 @@ from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.metrics.registry import MetricsRegistry, WorkerMetric
 from opsiconfd.worker import Worker
 
-from .utils import Config, clean_redis, config  # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
+	Config,
+	clean_redis,
+	config,
+	reset_singleton,
+)
 
 
 @pytest.fixture(name="metrics_collector")
@@ -38,7 +43,12 @@ def fixture_metrics_registry() -> MetricsRegistry:
 	return MetricsRegistry()
 
 
-async def test_metrics_collector_add_value() -> None:
+@pytest.fixture(name="reset_metrics_registry", autouse=True)
+def fixture_reset_metrics_registry() -> None:
+	reset_singleton(MetricsRegistry)
+
+
+async def test_metrics_collector_add_value() -> None:  # pylint: disable=too-many-statements
 	metric1 = WorkerMetric(
 		id="metric1",
 		name="metric 1",

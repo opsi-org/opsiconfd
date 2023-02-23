@@ -48,7 +48,7 @@ from opsiconfd.messagebus import get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
 from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession
-from opsiconfd.utils import compress_data, decompress_data
+from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ def jsonrpc_setup(app: FastAPI) -> None:
 
 
 async def async_jsonrpc_startup() -> None:
-	asyncio.create_task(messagebus_jsonrpc_request_worker())
+	asyncio_create_task(messagebus_jsonrpc_request_worker())
 
 
 async def async_jsonrpc_shutdown() -> None:
@@ -157,9 +157,7 @@ async def store_rpc_info(  # pylint: disable=too-many-locals
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector and not is_error:
-		await metrics_collector.add_value(
-			"worker:avg_jsonrpc_duration", duration, {"node_name": config.node_name, "worker_num": worker.worker_num}
-		)
+		await metrics_collector.add_value("worker:avg_jsonrpc_duration", duration)
 
 	redis = await async_redis_client()
 	rpc_num = await redis.incr(f"{config.redis_key('stats')}:num_rpcs")
@@ -352,11 +350,7 @@ async def process_rpcs(
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector:
-		asyncio.get_running_loop().create_task(
-			metrics_collector.add_value(
-				"worker:sum_jsonrpc_number", len(rpcs), {"node_name": config.node_name, "worker_num": worker.worker_num}
-			)
-		)
+		await metrics_collector.add_value("worker:sum_jsonrpc_number", len(rpcs))
 
 	for rpc in rpcs:
 		date = datetime.utcnow()
@@ -376,7 +370,7 @@ async def process_rpcs(
 			# Required for pytest
 			await coro
 		else:
-			asyncio.create_task(coro)
+			asyncio_create_task(coro)
 
 		yield result
 
@@ -502,10 +496,10 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 		error=result.get("error"),
 	)
 
-	# asyncio.create_task(send_message(response_message))
+	# asyncio_create_task(send_message(response_message))
 	await send_message(response_message)
 	# ACK Message
-	# asyncio.create_task(cgmr.ack_message(redis_id))
+	# asyncio_create_task(cgmr.ack_message(redis_id))
 	await cgmr.ack_message(message.channel, redis_id)
 
 

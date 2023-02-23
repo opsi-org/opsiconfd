@@ -13,6 +13,7 @@ from __future__ import annotations
 from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from time import time
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
@@ -43,6 +44,15 @@ logger = get_logger("opsiconfd.messagebus")
 
 
 CHANNEL_INFO_SUFFIX = b":info"
+
+
+@dataclass
+class MessagebusStatistics:
+	messages_sent: int = 0
+	messages_received: int = 0
+
+
+statistics = MessagebusStatistics()
 
 
 async def messagebus_cleanup(full: bool = False) -> None:
@@ -101,42 +111,30 @@ async def cleanup_channels(full: bool = False) -> None:
 _context_encoder = msgspec.msgpack.Encoder()
 
 
-def _prepare_send_message(message: Message, context: Any = None) -> bytes | None:
+def _prepare_send_message(message: Message, context: Any = None) -> dict[str, bytes]:
 	if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 		message.trace = message.trace or {}
 		message.trace["broker_redis_send"] = timestamp()
-	context_data = None
+	fields = {"message": message.to_msgpack()}
 	if context:
-		context_data = _context_encoder.encode(context)
-	return context_data
+		fields["context"] = _context_encoder.encode(context)
+	return fields
 
 
 async def send_message(message: Message, context: Any = None) -> None:
-	context_data = _prepare_send_message(message, context)
+	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
-	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
+	redis = await async_redis_client()
+	await redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
+	statistics.messages_sent += 1
 
 
 def sync_send_message(message: Message, context: Any = None) -> None:
-	context_data = _prepare_send_message(message, context)
+	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
-	sync_send_message_msgpack(message.channel, message.to_msgpack(), context_data)
-
-
-async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes | None = None) -> None:
-	redis = await async_redis_client()
-	fields = {"message": msgpack_data}
-	if context_data:
-		fields["context"] = context_data
-	await redis.xadd(f"{config.redis_key('messagebus')}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
-
-
-def sync_send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes | None = None) -> None:
 	with redis_client() as redis:
-		fields = {"message": msgpack_data}
-		if context_data:
-			fields["context"] = context_data
-		redis.xadd(f"{config.redis_key('messagebus')}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
+		redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
+	statistics.messages_sent += 1
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
@@ -363,6 +361,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 								context = self._context_decoder.decode(context_data)
 							msg = Message.from_msgpack(message[1][b"message"])
 							_logger.debug("Message from redis: %r", msg)
+							statistics.messages_received += 1
 							if msg.expires and msg.expires <= now:
 								continue
 							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):

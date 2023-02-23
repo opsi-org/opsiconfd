@@ -32,7 +32,7 @@ from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import ManagerMetricsCollector
 from opsiconfd.redis import async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_server_cert
-from opsiconfd.utils import Singleton, log_config
+from opsiconfd.utils import Singleton, asyncio_create_task, log_config
 from opsiconfd.worker import Worker, WorkerInfo
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
 
@@ -353,7 +353,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 
 	async def async_main(self) -> None:  # pylint: disable=too-many-branches
 		# Start MetricsCollector
-		self._loop.create_task(self._metrics_collector.main_loop())
+		asyncio_create_task(self._metrics_collector.main_loop(), self._loop)
 
 		if self._is_config_server:
 			# TODO: Multiple managers on different nodes
@@ -363,7 +363,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			app_state: NormalState | MaintenanceState = NormalState()
 			if config.maintenance is not False:
 				app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
-			self._loop.create_task(app.app_state_manager_task(manager_mode=True, init_app_state=app_state))
+			asyncio_create_task(app.app_state_manager_task(manager_mode=True, init_app_state=app_state), self._loop)
 
 			if config.zeroconf:
 				try:

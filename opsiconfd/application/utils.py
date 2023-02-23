@@ -8,7 +8,7 @@
 application utils
 """
 
-from asyncio import Task, get_running_loop, sleep
+from asyncio import Task, create_task, sleep
 from inspect import Parameter
 from typing import Optional
 
@@ -183,12 +183,12 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 
 		await websocket.accept()
 
-		self._check_session_task = get_running_loop().create_task(self.check_session_task(websocket))
+		self._check_session_task = create_task(self.check_session_task(websocket))
 
 		set_cookie_interval = values.pop("set_cookie_interval")
 		if set_cookie_interval > 0:
 			logger.debug("set_cookie_interval is %d", set_cookie_interval)
-			self._set_cookie_task = get_running_loop().create_task(self.set_cookie_task(websocket, set_cookie_interval))
+			self._set_cookie_task = create_task(self.set_cookie_task(websocket, set_cookie_interval))
 		await self.on_connect(**values)
 
 		close_code = WS_1000_NORMAL_CLOSURE

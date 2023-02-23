@@ -8,7 +8,6 @@
 statistics
 """
 
-import asyncio
 import re
 import time
 
@@ -18,15 +17,11 @@ from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
-from opsiconfd import (
-	contextvar_client_address,
-	contextvar_request_id,
-	contextvar_server_timing,
-)
+from opsiconfd import contextvar_request_id, contextvar_server_timing
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.metrics.registry import MetricsRegistry
-from opsiconfd.redis import ip_address_to_redis_key, redis_client
+from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric, WorkerMetric
+from opsiconfd.redis import redis_client
 from opsiconfd.worker import Worker
 
 
@@ -39,28 +34,29 @@ def get_yappi_tag() -> int:
 def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 	with redis_client() as client:
 		for metric in MetricsRegistry().get_metrics():
-			subject_is_worker = metric.subject == "worker"
+			is_worker_metric = isinstance(metric, WorkerMetric)
+			is_node_metric = isinstance(metric, NodeMetric)
 			if not metric.downsampling:
 				continue
 
 			iterations = 1
-			if subject_is_worker:
+			if is_worker_metric:
 				iterations = config.workers
 
 			for iteration in range(iterations):
 				node_name = config.node_name
 				worker_num = None
-				if subject_is_worker:
+				if is_worker_metric:
 					worker_num = iteration + 1
 
 				logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
 
 				orig_key = None
 				cmd = None
-				if subject_is_worker:
+				if is_worker_metric:
 					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-				elif metric.subject == "node":
+				elif is_node_metric:
 					orig_key = metric.redis_key.format(node_name=node_name)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
 				else:
@@ -177,7 +173,6 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace("StatisticsMiddleware scope=%s", scope)
-		loop = asyncio.get_running_loop()
 
 		if scope["type"] not in ("http", "websocket"):
 			await self.app(scope, receive, send)
@@ -192,18 +187,7 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 			if scope["type"] == "http" and message["type"] == "http.response.start":
 				# Start of response (first message / package)
 				if worker.metrics_collector:
-					loop.create_task(
-						worker.metrics_collector.add_value(
-							"worker:sum_http_request_number", 1, {"node_name": config.node_name, "worker_num": worker.worker_num}
-						)
-					)
-					ip_addr = contextvar_client_address.get()
-					if ip_addr:
-						loop.create_task(
-							worker.metrics_collector.add_value(
-								"client:sum_http_request_number", 1, {"client_addr": ip_address_to_redis_key(ip_addr)}
-							)
-						)
+					await worker.metrics_collector.add_value("worker:sum_http_request_number", 1)
 
 				headers = MutableHeaders(scope=message)
 
@@ -212,13 +196,7 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 					if scope["method"] != "OPTIONS" and 200 <= message.get("status", 500) < 300 and not scope.get("reverse_proxy"):
 						logger.warning("Header 'Content-Length' missing: %s", message)
 				elif worker.metrics_collector:
-					loop.create_task(
-						worker.metrics_collector.add_value(
-							"worker:avg_http_response_bytes",
-							int(content_length),
-							{"node_name": config.node_name, "worker_num": worker.worker_num},
-						)
-					)
+					await worker.metrics_collector.add_value("worker:avg_http_response_bytes", int(content_length))
 
 				server_timing = contextvar_server_timing.get()
 				server_timing["request_processing"] = int(1000 * (time.perf_counter() - start))
@@ -233,13 +211,7 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 				# End of response (last message / package)
 				end = time.perf_counter()
 				if worker.metrics_collector:
-					loop.create_task(
-						worker.metrics_collector.add_value(
-							"worker:avg_http_request_duration",
-							end - start,
-							{"node_name": config.node_name, "worker_num": worker.worker_num},
-						)
-					)
+					await worker.metrics_collector.add_value("worker:avg_http_request_duration", end - start)
 				server_timing = contextvar_server_timing.get()
 				server_timing["total"] = int(1000 * (time.perf_counter() - start))
 				logger.info(

@@ -56,6 +56,7 @@ from opsiconfd.redis import (
 	get_redis_connection,
 	retry_redis_call,
 )
+from opsiconfd.utils import asyncio_create_task
 
 from .config import config, opsi_config
 
@@ -103,7 +104,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		self._rollover_error: Exception | None = None
 		self._error_handler = error_handler
 		self._should_stop = Event()
-		self._periodically_test_rollover_task = get_running_loop().create_task(self._periodically_test_rollover())
+		self._periodically_test_rollover_task = asyncio.create_task(self._periodically_test_rollover())
 		self.last_used = time.time()
 
 	async def _close_stream(self) -> None:
@@ -121,8 +122,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		self._should_stop.set()
 		if not self.initialized:
 			return
-		loop = get_running_loop()
-		loop.create_task(self._close_stream())
+		asyncio_create_task(self._close_stream())
 		self._initialization_lock = None
 
 	async def _periodically_test_rollover(self) -> None:
@@ -222,7 +222,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			if self._log_file_template:
 				self.get_file_handler()
 
-		self._loop.create_task(self._start())
+		asyncio_create_task(self._start(), self._loop)
 
 	async def stop(self) -> None:
 		self._should_stop.set()
@@ -318,7 +318,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 						error_handler=self.handle_file_handler_error,
 					)
 					if client and self._symlink_client_log_files:
-						self._loop.create_task(self._create_client_log_file_symlink(client))
+						asyncio_create_task(self._create_client_log_file_symlink(client), self._loop)
 				self._file_logs[filename].add_filter(context_filter.filter)
 				return self._file_logs[filename]
 		except Exception as exc:  # pylint: disable=broad-except
@@ -355,8 +355,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		try:
 			self._redis = await get_async_redis_connection(config.redis_internal_url, timeout=30, test_connection=True)
 			await self._redis.xtrim(name=self._redis_log_stream, maxlen=10000, approximate=True)
-			self._loop.create_task(self._reader())
-			self._loop.create_task(self._watch_log_files())
+			asyncio_create_task(self._reader(), self._loop)
+			asyncio_create_task(self._watch_log_files(), self._loop)
 
 		except Exception as err:  # pylint: disable=broad-except
 			handle_log_exception(err, stderr=True, temp_file=True)
@@ -622,7 +622,7 @@ class RedisLogAdapterThread(threading.Thread):
 
 	def stop(self) -> None:
 		if self._redis_log_adapter and self._loop:
-			self._loop.create_task(self._redis_log_adapter.stop())
+			asyncio_create_task(self._redis_log_adapter.stop(), self._loop)
 
 	def reload(self) -> None:
 		if self._redis_log_adapter:
@@ -643,7 +643,7 @@ class RedisLogAdapterThread(threading.Thread):
 					print(f"Unhandled exception in RedisLogAdapterThread asyncio loop: {msg}", file=sys.stderr)
 
 			self._loop.set_exception_handler(handle_asyncio_exception)
-			self._loop.create_task(self.create_redis_log_adapter())
+			asyncio_create_task(self.create_redis_log_adapter(), self._loop)
 			self._loop.run_forever()
 		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)

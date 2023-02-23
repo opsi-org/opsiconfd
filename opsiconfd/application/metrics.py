@@ -25,7 +25,7 @@ from opsiconfd.grafana import (
 	async_grafana_admin_session,
 )
 from opsiconfd.logging import logger
-from opsiconfd.metrics.registry import MetricsRegistry
+from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric, WorkerMetric
 from opsiconfd.metrics.statistics import get_time_bucket_duration
 from opsiconfd.redis import async_redis_client, ip_address_from_redis_key
 
@@ -75,7 +75,6 @@ async def grafana_index() -> None:
 async def grafana_dashboard_config() -> dict[str, Any]:  # pylint: disable=too-many-locals
 	workers = await get_workers()
 	nodes = await get_nodes()
-	clients = await get_clients("client:sum_http_request_number")
 
 	dashboard = copy.deepcopy(GRAFANA_DASHBOARD_TEMPLATE)
 	panels = []
@@ -86,23 +85,19 @@ async def grafana_dashboard_config() -> dict[str, Any]:  # pylint: disable=too-m
 			continue
 		panel_id += 1
 		panel = metric.grafana_config.get_panel(panel_id=panel_id, pos_x=pos_x, pos_y=pos_y)
-		if metric.subject == "worker":
-			for i, worker in enumerate(workers):
+		if isinstance(metric, WorkerMetric):
+			for idx, worker in enumerate(workers):
 				panel["targets"].append(
 					{
-						"refId": chr(65 + i),
+						"refId": chr(65 + idx),
 						"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
 						"type": "timeserie",
 					}
 				)
-		elif metric.subject == "node":
-			for i, node_name in enumerate(nodes):
-				panel["targets"].append({"refId": chr(65 + i), "target": metric.get_name(node_name=node_name), "type": "timeserie"})
-		elif metric.subject == "client":
-			for i, client in enumerate(clients):
-				panel["targets"].append(
-					{"refId": chr(65 + i), "target": metric.get_name(client_addr=client["client_addr"]), "type": "timeserie"}
-				)
+		elif isinstance(metric, NodeMetric):
+			for idx, node_name in enumerate(nodes):
+				panel["targets"].append({"refId": chr(65 + idx), "target": metric.get_name(node_name=node_name), "type": "timeserie"})
+
 		panels.append(panel)
 		pos_x += panel["gridPos"]["w"]
 		if pos_x >= 24:
@@ -136,16 +131,13 @@ async def create_grafana_datasource() -> None:
 async def grafana_search() -> list[str]:
 	workers = await get_workers()
 	nodes = await get_nodes()
-	clients = await get_clients("client:sum_http_request_number")
 
 	names = []
 	for metric in MetricsRegistry().get_metrics():
-		if metric.subject == "worker":
+		if isinstance(metric, WorkerMetric):
 			names += [metric.get_name(**worker) for worker in workers]
-		elif metric.subject == "node":
+		elif isinstance(metric, NodeMetric):
 			names += [metric.get_name(node_name=node_name) for node_name in nodes]
-		elif metric.subject == "client":
-			names += [metric.get_name(**client) for client in clients]
 		else:
 			names.append(metric.get_name())
 	return sorted(names)
@@ -181,9 +173,9 @@ def align_timestamp(timestamp: int | float) -> int:
 
 @grafana_metrics_router.get("/query")
 @grafana_metrics_router.post("/query")
-async def grafana_query(
+async def grafana_query(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	query: GrafanaQuery,
-) -> list[dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+) -> list[dict[str, Any]]:
 	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await async_redis_client()

@@ -35,6 +35,7 @@ from opsiconfd.redis import (
 	redis_lock,
 )
 from opsiconfd.rest import RestApiValidationError
+from opsiconfd.utils import asyncio_create_task
 
 AppStateT = TypeVar("AppStateT", bound="AppState")
 
@@ -265,7 +266,7 @@ app = OpsiconfdApp()
 @app.on_event("startup")
 async def startup() -> None:
 	"""This will be run in worker processes"""
-	asyncio.create_task(app.app_state_manager_task(manager_mode=False))
+	asyncio_create_task(app.app_state_manager_task(manager_mode=False))
 	from . import main  # pylint: disable=import-outside-toplevel,unused-import
 
 

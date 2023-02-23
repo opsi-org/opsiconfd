@@ -54,7 +54,11 @@ from opsiconfd.backend import (
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
-from opsiconfd.utils import ip_address_in_network, utc_time_timestamp
+from opsiconfd.utils import (
+	asyncio_create_task,
+	ip_address_in_network,
+	utc_time_timestamp,
+)
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -329,7 +333,11 @@ class SessionMiddleware:
 			except RuntimeError:
 				# Alread accepted
 				pass
-			return await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
+			try:
+				return await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
+			except RuntimeError:
+				# Alread closed (can happen on shutdown)
+				pass
 
 		if scope.get("session"):
 			scope["session"].add_cookie_to_headers(headers)
@@ -577,7 +585,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		if wait:
 			await task
 		else:
-			asyncio.get_running_loop().create_task(task)
+			asyncio_create_task(task)
 
 	def sync_delete(self) -> None:
 		with redis_client() as redis:

@@ -40,7 +40,7 @@ from starlette.websockets import WebSocket, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 
 from opsiconfd.logging import get_logger
-from opsiconfd.utils import compress_data, decompress_data
+from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
 
 from . import get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
@@ -240,7 +240,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					consumer_name = f"{self._messagebus_user_id}:{self._session_channel.split(':', 1)[1]}"
 					reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=consumer_name, channels={channel: "0"})
 					self._messagebus_reader.append(reader)
-					create_task(self.message_reader_task(websocket, reader))
+					asyncio_create_task(self.message_reader_task(websocket, reader))
 				else:
 					# ID ">" means that we want to receive all undelivered messages.
 					# ID "$" means that we only want new messages (added after reader was started).
@@ -262,7 +262,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				else:
 					reader = MessageReader(message_reader_channels)  # type: ignore[arg-type]
 					self._messagebus_reader.append(reader)
-					create_task(self.message_reader_task(websocket, reader))
+					asyncio_create_task(self.message_reader_task(websocket, reader))
 
 		subsciption_event.subscribed_channels = list(await self._get_subscribed_channels())
 		await self._send_message_to_websocket(websocket, subsciption_event)

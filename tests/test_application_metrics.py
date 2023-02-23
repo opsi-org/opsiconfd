@@ -78,26 +78,9 @@ async def test_get_nodes(config: Config) -> None:  # pylint: disable=redefined-o
 		assert worker["node_name"] in nodes
 
 
-async def test_get_clients(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	worker = Worker.get_instance()
-	worker._metrics_collector = WorkerMetricsCollector(worker)  # pylint: disable=protected-access
-	worker.metrics_collector._interval = 1  # pylint: disable=protected-access
-	loop = asyncio.get_event_loop()
-	loop.create_task(worker.metrics_collector.main_loop())
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	rpc = {"id": 1, "method": "backend_info", "params": []}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.status_code == 200
-	await asyncio.sleep(1)
-	worker.metrics_collector.stop()
-	await asyncio.sleep(1)
-	clients = await get_clients("client:sum_http_request_number")
-	assert clients == [{"client_addr": "127.0.0.1"}]
-
-
 async def test_grafana_dashboard_config() -> None:
 	conf = await grafana_dashboard_config()
-	assert len(conf["panels"]) == 11
+	assert len(conf["panels"]) == 13
 
 
 async def test_grafana_search(config: Config) -> None:  # pylint: disable=redefined-outer-name

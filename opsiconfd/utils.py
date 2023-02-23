@@ -10,12 +10,14 @@ utils
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import gzip
 import os
 import random
 import secrets
 import string
+import threading
 import time
 import zlib
 from contextlib import contextmanager
@@ -32,7 +34,7 @@ from ipaddress import (
 from logging import INFO  # type: ignore[import]
 from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Generator, Optional, TextIO
+from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Optional, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -365,3 +367,28 @@ def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, time
 		yield
 	finally:
 		flock(file, LOCK_UN)
+
+
+# From https://docs.python.org/3/library/asyncio-task.html:
+# Important: Save a reference to the result of this function,
+# to avoid a task disappearing mid-execution.
+# The event loop only keeps weak references to tasks.
+# A task that isn’t referenced elsewhere may get garbage collected at any time, even before it’s done.
+# For reliable “fire-and-forget” background tasks, gather them in a collection
+background_tasks = set()
+background_tasks_lock = threading.Lock()
+
+
+def _asyncio_remove_task(task: asyncio.Task) -> None:
+	with background_tasks_lock:
+		background_tasks.discard(task)
+
+
+def asyncio_create_task(coro: Coroutine, loop: asyncio.AbstractEventLoop | None = None) -> None:
+	if loop:
+		task = loop.create_task(coro)
+	else:
+		task = asyncio.create_task(coro)
+	with background_tasks_lock:
+		background_tasks.add(task)
+	task.add_done_callback(_asyncio_remove_task)

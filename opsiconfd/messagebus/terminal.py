@@ -10,7 +10,6 @@ application.teminal
 
 from __future__ import annotations
 
-import asyncio
 import os
 from asyncio import get_running_loop
 from os import getuid
@@ -44,6 +43,7 @@ from starlette.concurrency import run_in_threadpool
 from opsiconfd.backend import get_service_client
 from opsiconfd.config import config, get_depotserver_id, opsi_config
 from opsiconfd.logging import logger
+from opsiconfd.utils import asyncio_create_task
 
 from . import get_messagebus_worker_id, terminals
 from .filetransfer import process_message as process_file_message
@@ -58,8 +58,8 @@ terminal_request_reader = None  # pylint: disable=invalid-name
 
 async def async_terminal_startup() -> None:
 	if "terminal" not in config.admin_interface_disabled_features:
-		asyncio.create_task(messagebus_terminal_open_request_worker())
-		asyncio.create_task(messagebus_terminal_instance_worker())
+		asyncio_create_task(messagebus_terminal_open_request_worker())
+		asyncio_create_task(messagebus_terminal_instance_worker())
 
 
 async def async_terminal_shutdown() -> None:

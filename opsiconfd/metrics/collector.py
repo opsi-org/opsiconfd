@@ -38,6 +38,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		self._labels: dict[str, str] = {}
 		self._metrics: dict[str, Metric] = {m.id: m for m in MetricsRegistry().get_metrics(self._metric_type)}
 		self._values: dict[str, dict[int, Any]] = {metric_id: {} for metric_id in self._metrics}
+		self._missing_metric_ids: list[str] = []
 
 	def stop(self) -> None:
 		self._should_stop = True
@@ -59,59 +60,59 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				self._values[metric_id][timestamp] = 0
 			self._values[metric_id][timestamp] += value
 
-	async def main_loop(self) -> None:  # pylint: disable=too-many-branches,too-many-locals
-		missing_metric_ids = []
+	async def _write_values_to_redis(self) -> None:
+		timestamp = self._get_timestamp()
+
+		values: dict[str, list[float]] = {}
+		# lock self._values as short as possible, to not block add_value
+		async with self._values_lock:
+			for metric_id, tspvals in self._values.items():
+				values[metric_id] = [tspvals.pop(tsp) for tsp in list(tspvals) if tsp <= timestamp]
+
+		cmds = []
+		for metric_id, metric in self._metrics.items():
+			vals = values.get(metric_id, [])
+			value = sum(vals)
+			count = len(vals)
+
+			if count == 0:
+				if not metric.zero_if_missing:
+					continue
+				if metric.zero_if_missing == "one":
+					if metric_id in self._missing_metric_ids:
+						# Marked as missing, a zero was inserted before, nothing to do
+						continue
+					# Mark as missing and insert one zero
+					self._missing_metric_ids.append(metric_id)
+				# If zero_if_missing == continuous always insert a zero
+			else:
+				if metric_id in self._missing_metric_ids:
+					# Marked as missing, insert a zero before adding new values
+					# because gaps in diagrams will be conneced with straight lines.
+					last_timestamp = timestamp - self._interval * 1000
+					cmds.append(self._redis_ts_cmd(metric, "ADD", 0, last_timestamp, **self._labels))
+					self._missing_metric_ids.remove(metric_id)
+
+			if metric.aggregation == "avg" and count > 0:
+				value /= count
+
+			cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **self._labels)
+			logger.debug("Redis ts cmd %s", cmd)
+			cmds.append(cmd)
+
+		try:
+			await self._execute_redis_command(*cmds)
+		except ResponseError as err:  # pylint: disable=broad-except
+			if str(err).lower().startswith("unknown command"):
+				logger.error("RedisTimeSeries module missing, metrics collector ending")
+				self.stop()
+			logger.error("%s while executing redis commands: %s", err, cmds, exc_info=True)
+
+	async def main_loop(self) -> None:
 		while True:
-			cmd = None
 			try:
 				await self._fetch_values()
-				timestamp = self._get_timestamp()
-
-				values: dict[str, list[float]] = {}
-				# lock self._values as short as possible, to not block add_value
-				async with self._values_lock:
-					for metric_id, tspvals in self._values.items():
-						values[metric_id] = [tspvals.pop(tsp) for tsp in list(tspvals) if tsp <= timestamp]
-
-				cmds = []
-				for metric_id, metric in self._metrics.items():
-					vals = values.get(metric_id, [])
-					value = sum(vals)
-					count = len(vals)
-
-					if count == 0:
-						if not metric.zero_if_missing:
-							continue
-						if metric.zero_if_missing == "one":
-							if metric_id in missing_metric_ids:
-								# Marked as missing, a zero was inserted before, nothing to do
-								continue
-							# Mark as missing and insert one zero
-							missing_metric_ids.append(metric_id)
-						# If zero_if_missing == continuous always insert a zero
-					else:
-						if metric_id in missing_metric_ids:
-							# Marked as missing, insert a zero before adding new values
-							# because gaps in diagrams will be conneced with straight lines.
-							last_timestamp = timestamp - self._interval * 1000
-							cmds.append(self._redis_ts_cmd(metric, "ADD", 0, last_timestamp, **self._labels))
-							missing_metric_ids.remove(metric_id)
-
-					if metric.aggregation == "avg" and count > 0:
-						value /= count
-
-					cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **self._labels)
-					logger.debug("Redis ts cmd %s", cmd)
-					cmds.append(cmd)
-
-				try:
-					await self._execute_redis_command(*cmds)
-				except ResponseError as err:  # pylint: disable=broad-except
-					if str(err).lower().startswith("unknown command"):
-						logger.error("RedisTimeSeries module missing, metrics collector ending")
-						return
-					logger.error("%s while executing redis commands: %s", err, cmds, exc_info=True)
-
+				await self._write_values_to_redis()
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 			for _ in range(self._interval):

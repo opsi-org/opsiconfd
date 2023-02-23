@@ -8,11 +8,12 @@
 statistic tests
 """
 
+from asyncio import sleep
 
 import pytest
 
 from opsiconfd.metrics.collector import WorkerMetricsCollector
-from opsiconfd.metrics.registry import Metric, MetricsRegistry
+from opsiconfd.metrics.registry import Metric, MetricsRegistry, WorkerMetric
 from opsiconfd.worker import Worker
 
 from .utils import Config, clean_redis, config  # pylint: disable=unused-import
@@ -27,16 +28,136 @@ def fixture_metrics_collector() -> WorkerMetricsCollector:
 def fixture_metrics_registry() -> MetricsRegistry:
 	metrics_registry = MetricsRegistry()
 	metrics_registry.register(
-		Metric(
+		WorkerMetric(
 			id="opsiconfd:pytest:metric",
 			name="opsiconfd pytest metric",
-			vars=["node_name", "worker_num"],
 			retention=24 * 3600 * 1000,
-			subject="worker",
 			grafana_config=None,
 		)
 	)
 	return MetricsRegistry()
+
+
+async def test_metrics_collector_add_value() -> None:
+	metric1 = WorkerMetric(
+		id="metric1",
+		name="metric 1",
+		aggregation="sum",
+		zero_if_missing=None,
+	)
+	metric2 = WorkerMetric(
+		id="metric2",
+		name="metric 2",
+		aggregation="sum",
+		zero_if_missing="one",
+	)
+	metric3 = WorkerMetric(
+		id="metric3",
+		name="metric 3",
+		aggregation="avg",
+		zero_if_missing="continuous",
+	)
+	metrics_registry = MetricsRegistry()
+	metrics_registry._metrics_by_id = {}  # pylint: disable=protected-access
+	metrics_registry.register(metric1, metric2, metric3)
+	metrics_collector = WorkerMetricsCollector(Worker.get_instance())
+
+	cmds: list[str] = []
+
+	async def _execute_redis_command(*cmd: str) -> None:
+		nonlocal cmds
+		cmds.extend(cmd)
+
+	metrics_collector._execute_redis_command = _execute_redis_command  # type: ignore[assignment] # pylint: disable=protected-access
+
+	await metrics_collector.add_value("metric1", 1)
+	await metrics_collector.add_value("metric2", 1)
+	await metrics_collector.add_value("metric3", 1)
+
+	await sleep(1.1)
+
+	await metrics_collector.add_value("metric1", 1)
+	await metrics_collector.add_value("metric2", 1)
+	await metrics_collector.add_value("metric3", 1)
+
+	await metrics_collector._write_values_to_redis()  # pylint: disable=protected-access
+	assert len(cmds) == 3
+	metric_ids = []
+	for cmd in cmds:
+		assert cmd.endswith("LABELS node_name pytest worker_num 1")
+		parts = cmd.split(" ")
+		assert len(parts) == 13
+		metric_id = parts[1].split(":")[2]
+		metric_ids.append(metric_id)
+		if metric_id == "metric3":
+			# avg
+			assert parts[3] == "1.0"
+		else:
+			# sum
+			assert parts[3] == "2"
+	assert sorted(metric_ids) == ["metric1", "metric2", "metric3"]
+
+	# No new values
+	# metric2 with zero_if_missing=None should add no value
+	# metric2 with zero_if_missing="one" should add one value=0
+	# metric3 with zero_if_missing="continuous" should add one value=0
+	cmds = []
+	await sleep(1.1)
+	await metrics_collector._write_values_to_redis()  # pylint: disable=protected-access
+	assert len(cmds) == 2
+	metric_ids = []
+	for cmd in cmds:
+		parts = cmd.split(" ")
+		metric_id = parts[1].split(":")[2]
+		metric_ids.append(metric_id)
+		assert parts[3] == "0"
+	assert sorted(metric_ids) == ["metric2", "metric3"]
+
+	# Again no new values
+	# metric2 with zero_if_missing=None should add no value
+	# metric2 with zero_if_missing="one" should add non value
+	# metric3 with zero_if_missing="continuous" should add one value=0
+	cmds = []
+	await sleep(1.1)
+	await metrics_collector._write_values_to_redis()  # pylint: disable=protected-access
+	assert len(cmds) == 1
+	metric_ids = []
+	for cmd in cmds:
+		parts = cmd.split(" ")
+		metric_id = parts[1].split(":")[2]
+		metric_ids.append(metric_id)
+		assert parts[3] == "0"
+	assert sorted(metric_ids) == ["metric3"]
+
+	# Add new values
+	# metric2 with zero_if_missing="one" should add an additional zero value before the new values
+	cmds = []
+	await sleep(1.1)
+
+	await metrics_collector.add_value("metric1", 10)
+	await metrics_collector.add_value("metric2", 10)
+	await metrics_collector.add_value("metric3", 10)
+
+	await metrics_collector._write_values_to_redis()  # pylint: disable=protected-access
+	assert len(cmds) == 4
+	metric_ids = []
+	metric2_values = {}
+	for cmd in cmds:
+		assert cmd.endswith("LABELS node_name pytest worker_num 1")
+		parts = cmd.split(" ")
+		assert len(parts) == 13
+		metric_id = parts[1].split(":")[2]
+		metric_ids.append(metric_id)
+		if metric_id == "metric2":
+			# timestamp: value
+			metric2_values[int(parts[2])] = int(parts[3])
+
+	assert sorted(metric_ids) == ["metric1", "metric2", "metric2", "metric3"]
+
+	sorted_timestamps = sorted(metric2_values)
+	assert metric2_values[sorted_timestamps[0]] == 0
+	assert metric2_values[sorted_timestamps[1]] == 10
+	assert sorted_timestamps[1] - sorted_timestamps[0] == metrics_collector._interval * 1000  # pylint: disable=protected-access
 
 
 async def test_execute_redis_command(

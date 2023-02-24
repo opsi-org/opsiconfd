@@ -148,10 +148,10 @@ CREATE TABLE IF NOT EXISTS `PRODUCT` (
 	`customScript` varchar(50) DEFAULT NULL,
 	`userLoginScript` varchar(50) DEFAULT NULL,
 	`priority` int(11) DEFAULT 0,
-	`description` text DEFAULT "",
-	`advice` text DEFAULT "",
+	`description` text,
+	`advice` text,
 	`pxeConfigTemplate` varchar(50) DEFAULT NULL,
-	`changelog` text DEFAULT "",
+	`changelog` text,
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`),
 	KEY `index_product_type` (`type`),
 	KEY `index_productId` (`productId`)
@@ -220,7 +220,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY` (
 	`packageVersion` varchar(16) NOT NULL,
 	`propertyId` varchar(200) NOT NULL,
 	`type` varchar(30) NOT NULL,
-	`description` text DEFAULT "",
+	`description` text,
 	`multiValue` tinyint(1) NOT NULL DEFAULT 0,
 	`editable` tinyint(1) NOT NULL DEFAULT 1,
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`,`propertyId`),
@@ -668,16 +668,12 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			"""ALTER TABLE `PRODUCT`
 			MODIFY COLUMN `name` varchar(128) NOT NULL DEFAULT "",
 			MODIFY COLUMN `licenseRequired` tinyint(1) NOT NULL DEFAULT 0,
-			MODIFY COLUMN `priority` int(11) DEFAULT 0,
-			MODIFY COLUMN `description` text DEFAULT "",
-			MODIFY COLUMN `advice` text DEFAULT "",
-			MODIFY COLUMN `changelog` text DEFAULT ""
+			MODIFY COLUMN `priority` int(11) DEFAULT 0
 			"""
 		)
 
 		session.execute(
 			"""ALTER TABLE `PRODUCT_PROPERTY`
-			MODIFY COLUMN `description` text DEFAULT "",
 			MODIFY COLUMN `multiValue` tinyint(1) NOT NULL DEFAULT 0,
 			MODIFY COLUMN `editable` tinyint(1) NOT NULL DEFAULT 1
 			"""

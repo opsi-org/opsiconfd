@@ -127,6 +127,8 @@ class RPCHostMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def host_deleteObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
+		if not hosts:
+			return
 		ace = self._get_ace("host_deleteObjects")
 		query, params, idents = self._mysql.delete_query(table="HOST", object_type=Host, obj=hosts, ace=ace)
 		host_ids = [ident["id"] for ident in idents]

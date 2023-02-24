@@ -164,6 +164,8 @@ class RPCProductPropertyStateMixin(Protocol):
 	def productPropertyState_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
+		if not productPropertyStates:
+			return
 		ace = self._get_ace("productPropertyState_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, obj=productPropertyStates, ace=ace)
 

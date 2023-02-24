@@ -122,6 +122,8 @@ class RPCConfigStateMixin(Protocol):
 	def configState_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
+		if not configStates:
+			return
 		ace = self._get_ace("configState_deleteObjects")
 		self._mysql.delete_objects(table="CONFIG_STATE", object_type=ConfigState, obj=configStates, ace=ace)
 		self.opsipxeconfd_config_states_deleted(configStates)

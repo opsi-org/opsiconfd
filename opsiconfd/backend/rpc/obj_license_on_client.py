@@ -104,6 +104,8 @@ class RPCLicenseOnClientMixin(Protocol):
 	def licenseOnClient_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, licenseOnClients: list[dict] | list[LicenseOnClient] | dict | LicenseOnClient
 	) -> None:
+		if not licenseOnClients:
+			return
 		ace = self._get_ace("licenseOnClient_deleteObjects")
 		self._mysql.delete_objects(table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, obj=licenseOnClients, ace=ace)
 

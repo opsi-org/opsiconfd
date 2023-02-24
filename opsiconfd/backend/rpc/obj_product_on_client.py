@@ -129,6 +129,8 @@ class RPCProductOnClientMixin(Protocol):
 	def productOnClient_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
+		if not productOnClients:
+			return
 		ace = self._get_ace("productOnClient_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, obj=productOnClients, ace=ace)
 		if not self.events_enabled:

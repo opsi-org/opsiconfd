@@ -115,6 +115,8 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		self: BackendProtocol,
 		auditSoftwareToLicensePools: list[dict] | list[AuditSoftwareToLicensePool] | dict | AuditSoftwareToLicensePool,
 	) -> None:
+		if not auditSoftwareToLicensePools:
+			return
 		ace = self._get_ace("auditSoftwareToLicensePool_deleteObjects")
 		self._mysql.delete_objects(
 			table="AUDIT_SOFTWARE_TO_LICENSE_POOL", object_type=AuditSoftwareToLicensePool, obj=auditSoftwareToLicensePools, ace=ace

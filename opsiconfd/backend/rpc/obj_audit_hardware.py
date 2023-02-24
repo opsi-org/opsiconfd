@@ -334,6 +334,8 @@ class RPCAuditHardwareMixin(Protocol):
 	def auditHardware_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
 	) -> None:
+		if not auditHardwares:
+			return
 		ace = self._get_ace("auditHardware_deleteObjects")
 		self._mysql.delete_objects(table="AUDIT_HARDWARE", object_type=AuditHardware, obj=auditHardwares, ace=ace)
 

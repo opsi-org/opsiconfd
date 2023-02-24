@@ -76,6 +76,8 @@ class RPCGroupMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def group_deleteObjects(self: BackendProtocol, groups: list[dict] | list[Group] | dict | Group) -> None:  # pylint: disable=invalid-name
+		if not groups:
+			return
 		ace = self._get_ace("group_deleteObjects")
 		self._mysql.delete_objects(table="GROUP", object_type=Group, obj=groups, ace=ace)
 		with self._mysql.session() as session:

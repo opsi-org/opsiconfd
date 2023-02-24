@@ -85,6 +85,8 @@ class RPCObjectToGroupMixin(Protocol):
 	def objectToGroup_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup  # pylint: disable=invalid-name
 	) -> None:
+		if not objectToGroups:
+			return
 		ace = self._get_ace("objectToGroup_deleteObjects")
 		self._mysql.delete_objects(table="OBJECT_TO_GROUP", object_type=ObjectToGroup, obj=objectToGroups, ace=ace)
 

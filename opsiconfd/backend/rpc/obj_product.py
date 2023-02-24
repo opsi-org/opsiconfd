@@ -91,6 +91,8 @@ class RPCProductMixin(Protocol):
 	def product_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, products: list[dict] | list[Product] | dict | Product
 	) -> None:
+		if not products:
+			return
 		ace = self._get_ace("product_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT", object_type=Product, obj=products, ace=ace)
 		with self._mysql.session() as session:

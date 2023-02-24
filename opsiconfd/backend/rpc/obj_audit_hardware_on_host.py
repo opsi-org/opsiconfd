@@ -246,6 +246,8 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 	def auditHardwareOnHost_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwareOnHosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost
 	) -> None:
+		if not auditHardwareOnHosts:
+			return
 		ace = self._get_ace("auditHardwareOnHost_deleteObjects")
 		for hardware_class, ahoh in self._audit_hardware_on_host_by_hardware_class(auditHardwareOnHosts).items():
 			self._mysql.delete_objects(table=f"HARDWARE_CONFIG_{hardware_class}", object_type=AuditHardwareOnHost, obj=ahoh, ace=ace)

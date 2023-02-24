@@ -97,6 +97,8 @@ class RPCSoftwareLicenseMixin(Protocol):
 	def softwareLicense_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense
 	) -> None:
+		if not softwareLicenses:
+			return
 		ace = self._get_ace("softwareLicense_deleteObjects")
 		self._mysql.delete_objects(table="SOFTWARE_LICENSE", object_type=SoftwareLicense, obj=softwareLicenses, ace=ace)
 

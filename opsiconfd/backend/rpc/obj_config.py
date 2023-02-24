@@ -122,6 +122,8 @@ class RPCConfigMixin(Protocol):
 	def config_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> None:
+		if not configs:
+			return
 		# CONFIG_VALUE will be deleted by CASCADE
 		ace = self._get_ace("config_deleteObjects")
 		self._mysql.delete_objects(table="CONFIG", object_type=Config, obj=configs, ace=ace)

@@ -177,6 +177,8 @@ class RPCProductPropertyMixin(Protocol):
 	def productProperty_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productProperties: list[dict] | list[ProductProperty] | dict | ProductProperty
 	) -> None:
+		if not productProperties:
+			return
 		# PRODUCT_PROPERTY_VALUE will be deleted by CASCADE
 		ace = self._get_ace("productProperty_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_PROPERTY", object_type=ProductProperty, obj=productProperties, ace=ace)

@@ -93,6 +93,8 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 	def auditSoftwareOnClient_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditSoftwareOnClients: list[dict] | list[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
 	) -> None:
+		if not auditSoftwareOnClients:
+			return
 		ace = self._get_ace("auditSoftwareOnClient_deleteObjects")
 		self._mysql.delete_objects(table="SOFTWARE_CONFIG", object_type=AuditSoftwareOnClient, obj=auditSoftwareOnClients, ace=ace)
 

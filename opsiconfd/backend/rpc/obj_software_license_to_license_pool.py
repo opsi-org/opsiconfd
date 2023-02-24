@@ -132,6 +132,8 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 		| dict[str, Any]
 		| SoftwareLicenseToLicensePool,
 	) -> None:
+		if not softwareLicenseToLicensePools:
+			return
 		ace = self._get_ace("softwareLicenseToLicensePool_deleteObjects")
 		self._mysql.delete_objects(
 			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", object_type=SoftwareLicenseToLicensePool, obj=softwareLicenseToLicensePools, ace=ace

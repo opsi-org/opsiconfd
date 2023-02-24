@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS `CONFIG` (
 	`configId` varchar(200) NOT NULL,
 	`type` varchar(30) NOT NULL,
 	`description` varchar(256) DEFAULT NULL,
-	`multiValue` tinyint(1) NOT NULL,
-	`editable` tinyint(1) NOT NULL,
+	`multiValue` tinyint(1) NOT NULL DEFAULT 0,
+	`editable` tinyint(1) NOT NULL DEFAULT 1,
 	PRIMARY KEY (`configId`),
 	KEY `index_config_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -653,6 +653,9 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
+
+		session.execute("ALTER TABLE `CONFIG` MODIFY COLUMN `multiValue` tinyint(1) NOT NULL DEFAULT 0")
+		session.execute("ALTER TABLE `CONFIG` MODIFY COLUMN `editable` tinyint(1) NOT NULL DEFAULT 1")
 
 		create_index(
 			session=session,

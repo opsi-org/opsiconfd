@@ -170,7 +170,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			logger.info("Not responsible for client '%s', forwarding request to depot %s", client_id, responsible_depot_id)
 			self._execute_rpc_on_depot(depot_id=responsible_depot_id, method="opsipxeconfd_updatePXEBootConfiguration", params=[client_id])
 		else:
-			self.opsipxeconfd_updatePXEBootConfiguration(client_id)
+			self._opsipxeconfd_updatePXEBootConfiguration(client_id)
 
 	def _delete_pxe_boot_configuration(self: BackendProtocol, client_id: str, all_depots: bool = False) -> None:
 		if not self.events_enabled:
@@ -195,7 +195,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 				self._execute_rpc_on_depot(depot_id=depot_id, method="opsipxeconfd_deletePXEBootConfiguration", params=[client_id])
 
 		if responsible_depot_id == self._depot_id or all_depots:
-			self.opsipxeconfd_deletePXEBootConfiguration(client_id)
+			self._opsipxeconfd_deletePXEBootConfiguration(client_id)
 
 	def opsipxeconfd_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
@@ -282,6 +282,9 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 		:param client_id: The client whose boot configuration should be updated.
 		:param data: Collected data for opsipxeconfd.
 		"""
+		self._opsipxeconfd_updatePXEBootConfiguration(client_id)
+
+	def _opsipxeconfd_updatePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
 		client_id = forceHostId(client_id)
 		logger.debug("Updating PXE boot config of %s", client_id)
 
@@ -290,6 +293,9 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 
 	@rpc_method
 	def opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
+		self._opsipxeconfd_deletePXEBootConfiguration(client_id)
+
+	def _opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
 		client_id = forceHostId(client_id)
 		logger.debug("Deleting PXE boot config of %s", client_id)
 		command = f"remove {client_id}"

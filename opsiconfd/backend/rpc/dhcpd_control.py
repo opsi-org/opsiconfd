@@ -131,7 +131,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 					self._execute_rpc_on_depot(depot_id=responsible_depot_id, method="dhcpd_updateHost", params=[host])
 					continue
 
-			self.dhcpd_updateHost(host)
+			self._dhcpd_updateHost(host)
 
 		if delete_hosts:
 			self.dhcpd_control_hosts_deleted(delete_hosts)
@@ -147,7 +147,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				for depot_id in depot_ids:
 					self._execute_rpc_on_depot(depot_id=depot_id, method="dhcpd_deleteHost", params=[client])
 
-			self.dhcpd_deleteHost(client)
+			self._dhcpd_deleteHost(client)
 
 	def dhcpd_control_config_states_updated(
 		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
@@ -176,6 +176,9 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 
 	@rpc_method
 	def dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name,too-many-branches
+		self._dhcpd_updateHost(host)
+
+	def _dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name,too-many-branches
 		host = forceObjectClass(host, Host)
 
 		if not host.hardwareAddress:
@@ -254,6 +257,9 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 
 	@rpc_method
 	def dhcpd_deleteHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name
+		self._dhcpd_deleteHost(host)
+
+	def _dhcpd_deleteHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name
 		host = forceObjectClass(host, Host)
 
 		with dhcpd_lock("config_update"):

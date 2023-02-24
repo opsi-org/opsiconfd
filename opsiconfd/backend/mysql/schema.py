@@ -138,8 +138,8 @@ CREATE TABLE IF NOT EXISTS `PRODUCT` (
 	`productVersion` varchar(32) NOT NULL,
 	`packageVersion` varchar(16) NOT NULL,
 	`type` varchar(32) NOT NULL,
-	`name` varchar(128) NOT NULL,
-	`licenseRequired` varchar(50) DEFAULT NULL,
+	`name` varchar(128) NOT NULL DEFAULT "",
+	`licenseRequired` tinyint(1) NOT NULL DEFAULT 0,
 	`setupScript` varchar(50) DEFAULT NULL,
 	`uninstallScript` varchar(50) DEFAULT NULL,
 	`updateScript` varchar(50) DEFAULT NULL,
@@ -147,11 +147,11 @@ CREATE TABLE IF NOT EXISTS `PRODUCT` (
 	`onceScript` varchar(50) DEFAULT NULL,
 	`customScript` varchar(50) DEFAULT NULL,
 	`userLoginScript` varchar(50) DEFAULT NULL,
-	`priority` int(11) DEFAULT NULL,
-	`description` text,
-	`advice` text,
+	`priority` int(11) DEFAULT 0,
+	`description` text DEFAULT "",
+	`advice` text DEFAULT "",
 	`pxeConfigTemplate` varchar(50) DEFAULT NULL,
-	`changelog` text,
+	`changelog` text DEFAULT "",
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`),
 	KEY `index_product_type` (`type`),
 	KEY `index_productId` (`productId`)
@@ -184,8 +184,8 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
 	`clientId` varchar(255) NOT NULL,
 	`productType` varchar(16) NOT NULL,
 	`targetConfiguration` varchar(16) DEFAULT NULL,
-	`installationStatus` varchar(16) DEFAULT NULL,
-	`actionRequest` varchar(16) DEFAULT NULL,
+	`installationStatus` varchar(16) NOT NULL DEFAULT "not_installed",
+	`actionRequest` varchar(16) NOT NULL DEFAULT "none",
 	`actionProgress` varchar(255) DEFAULT NULL,
 	`actionResult` varchar(16) DEFAULT NULL,
 	`lastAction` varchar(16) DEFAULT NULL,
@@ -204,7 +204,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	`packageVersion` varchar(16) NOT NULL,
 	`depotId` varchar(255) NOT NULL,
 	`productType` varchar(16) NOT NULL,
-	`locked` tinyint(1) DEFAULT NULL,
+	`locked` tinyint(1) NOT NULL DEFAULT 0,
 	PRIMARY KEY (`productId`,`productType`,`productVersion`,`packageVersion`,`depotId`),
 	UNIQUE INDEX `productId-depotId` (`productId`, `depotId`),
 	KEY `productId-productVersion-packageVersion` (`productId`,`productVersion`,`packageVersion`),
@@ -214,16 +214,15 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-
 CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY` (
 	`productId` varchar(255) NOT NULL,
 	`productVersion` varchar(32) NOT NULL,
 	`packageVersion` varchar(16) NOT NULL,
 	`propertyId` varchar(200) NOT NULL,
 	`type` varchar(30) NOT NULL,
-	`description` text,
-	`multiValue` tinyint(1) NOT NULL,
-	`editable` tinyint(1) NOT NULL,
+	`description` text DEFAULT "",
+	`multiValue` tinyint(1) NOT NULL DEFAULT 0,
+	`editable` tinyint(1) NOT NULL DEFAULT 1,
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`,`propertyId`),
 	KEY `index_product_property_type` (`type`),
 	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
@@ -299,7 +298,7 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE` (
 	`licenseContractId` varchar(100) NOT NULL,
 	`type` varchar(30) NOT NULL,
 	`boundToHost` varchar(255) DEFAULT NULL,
-	`maxInstallations` int(11) DEFAULT NULL,
+	`maxInstallations` int(11) NOT NULL DEFAULT 1,
 	`expirationDate` timestamp NULL DEFAULT NULL,
 	PRIMARY KEY (`softwareLicenseId`),
 	KEY `licenseContractId` (`licenseContractId`),
@@ -648,14 +647,64 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 				logger.info("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
 
-		session.execute("ALTER TABLE `HOST` MODIFY COLUMN `created` timestamp NULL DEFAULT NULL")
-		session.execute("ALTER TABLE `HOST` MODIFY COLUMN `lastSeen` timestamp NULL DEFAULT NULL")
+		session.execute(
+			"""ALTER TABLE `HOST`
+			MODIFY COLUMN `created` timestamp NULL DEFAULT NULL,
+			MODIFY COLUMN `lastSeen` timestamp NULL DEFAULT NULL
+			"""
+		)
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
 
-		session.execute("ALTER TABLE `CONFIG` MODIFY COLUMN `multiValue` tinyint(1) NOT NULL DEFAULT 0")
-		session.execute("ALTER TABLE `CONFIG` MODIFY COLUMN `editable` tinyint(1) NOT NULL DEFAULT 1")
+		session.execute(
+			"""ALTER TABLE `CONFIG`
+			MODIFY COLUMN `multiValue` tinyint(1) NOT NULL DEFAULT 0,
+			MODIFY COLUMN `editable` tinyint(1) NOT NULL DEFAULT 1
+			"""
+		)
+
+		session.execute(
+			"""ALTER TABLE `PRODUCT`
+			MODIFY COLUMN `name` varchar(128) NOT NULL DEFAULT "",
+			MODIFY COLUMN `licenseRequired` tinyint(1) NOT NULL DEFAULT 0,
+			MODIFY COLUMN `priority` int(11) DEFAULT 0,
+			MODIFY COLUMN `description` text DEFAULT "",
+			MODIFY COLUMN `advice` text DEFAULT "",
+			MODIFY COLUMN `changelog` text DEFAULT ""
+			"""
+		)
+
+		session.execute(
+			"""ALTER TABLE `PRODUCT_PROPERTY`
+			MODIFY COLUMN `description` text DEFAULT "",
+			MODIFY COLUMN `multiValue` tinyint(1) NOT NULL DEFAULT 0,
+			MODIFY COLUMN `editable` tinyint(1) NOT NULL DEFAULT 1
+			"""
+		)
+
+		session.execute("UPDATE `PRODUCT_ON_DEPOT` SET `locked` = 0 WHERE `locked` IS NULL")
+		session.execute(
+			"""ALTER TABLE `PRODUCT_ON_DEPOT`
+			MODIFY COLUMN `locked` tinyint(1) NOT NULL DEFAULT 0
+			"""
+		)
+
+		session.execute("UPDATE `PRODUCT_ON_CLIENT` SET `installationStatus` = 'not_installed' WHERE `installationStatus` IS NULL")
+		session.execute("UPDATE `PRODUCT_ON_CLIENT` SET `actionRequest` = 'none' WHERE `actionRequest` IS NULL")
+		session.execute(
+			"""ALTER TABLE `PRODUCT_ON_CLIENT`
+			MODIFY COLUMN `installationStatus` varchar(16) NOT NULL DEFAULT "not_installed",
+			MODIFY COLUMN `actionRequest` varchar(16) NOT NULL DEFAULT "none"
+			"""
+		)
+
+		session.execute("UPDATE `SOFTWARE_LICENSE` SET `maxInstallations` = 1 WHERE `maxInstallations` IS NULL")
+		session.execute(
+			"""ALTER TABLE `SOFTWARE_LICENSE`
+			MODIFY COLUMN `maxInstallations` int(11) NOT NULL DEFAULT 1
+			"""
+		)
 
 		create_index(
 			session=session,

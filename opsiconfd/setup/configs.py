@@ -45,30 +45,13 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 
 	config_ids = set(backend.config_getIdents(returnType="str"))
 	depot_ids = backend.host_getIdents(returnType="str", type="OpsiDepotserver")
+	configs = {c.id: c for c in backend.config_getObjects(id=["clientconfig.configserver.url"])}
 
 	add_configs: list[BoolConfig | UnicodeConfig] = []
 	add_config_states: list[ConfigState] = []
 
-	if "clientconfig.depot.user" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.user")
-
-		depot_user = "pcpatch"
-		domain = _get_windows_domain()
-		if domain:
-			depot_user = f"{domain}\\{depot_user}"
-		logger.info("Using '%s' as clientconfig.depot.user", depot_user)
-		add_configs.append(
-			UnicodeConfig(
-				id="clientconfig.depot.user",
-				description="User for depot share",
-				possibleValues=[],
-				defaultValues=[depot_user],
-				editable=True,
-				multiValue=False,
-			)
-		)
-
-	if "clientconfig.configserver.url" not in config_ids:
+	conf = configs.get("clientconfig.configserver.url")
+	if not conf or not conf.possibleValues or not conf.possibleValues:
 		logger.info("Creating config: clientconfig.configserver.url")
 		add_configs.append(
 			UnicodeConfig(
@@ -173,6 +156,25 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 				possibleValues=["cifs", "webdav"],
 				defaultValues=["cifs"],
 				editable=False,
+				multiValue=False,
+			)
+		)
+
+	if "clientconfig.depot.user" not in config_ids:
+		logger.info("Creating config: clientconfig.depot.user")
+
+		depot_user = "pcpatch"
+		domain = _get_windows_domain()
+		if domain:
+			depot_user = f"{domain}\\{depot_user}"
+		logger.info("Using '%s' as clientconfig.depot.user", depot_user)
+		add_configs.append(
+			UnicodeConfig(
+				id="clientconfig.depot.user",
+				description="User for depot share",
+				possibleValues=[],
+				defaultValues=[depot_user],
+				editable=True,
 				multiValue=False,
 			)
 		)

@@ -57,7 +57,6 @@ if TYPE_CHECKING:
 
 
 COMPRESS_MIN_SIZE = 10000
-AWAIT_STORE_RPC_INFO = False
 
 jsonrpc_router = APIRouter()
 jsonrpc_message_reader = None  # pylint: disable=invalid-name
@@ -441,12 +440,7 @@ async def process_rpcs(
 		logger.trace(response)
 
 		request.info.duration = svt["rpc_processing"] / 1000
-		coro = store_rpc_info(request, response)
-		if AWAIT_STORE_RPC_INFO:
-			# Required for pytest
-			await coro
-		else:
-			asyncio_create_task(coro)
+		asyncio_create_task(store_rpc_info(request, response))
 
 		yield response
 

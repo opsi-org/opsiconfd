@@ -11,7 +11,7 @@
 				"test": [
 					[
 						"jsonrpc",
-						"authenticated",
+						"accessControl_authenticated",
 						[]
 					]
 				]

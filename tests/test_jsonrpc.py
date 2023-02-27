@@ -265,7 +265,7 @@ def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  #
 
 
 def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	with sync_redis_client() as redis:
+	with (patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True), sync_redis_client() as redis):
 		for num in (1, 2):
 			rpc = {
 				"id": num,

@@ -253,6 +253,45 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 		return data
 
 
+def change_server_id(obj_class: str, objects: list[dict[str, Any]], server_id: str, new_server_id: str) -> list[dict[str, Any]]:
+	host_attr = None
+	check_duplicate_host = False
+	check_config = False
+	check_config_state = False
+
+	if obj_class == "Host":
+		host_attr = "id"
+		check_duplicate_host = True
+	elif obj_class == "ProductOnDepot":
+		host_attr = "depotId"
+	elif obj_class == "AuditHardwareOnHost":
+		host_attr = "hostId"
+	elif obj_class == ("ObjectToGroup", "ConfigState", "ProductPropertyState"):
+		host_attr = "objectId"
+	elif obj_class == "Config":
+		check_config = True
+	elif obj_class == "ConfigState":
+		check_config_state = True
+	else:
+		return objects
+
+	delete_idx = -1
+	for idx, obj in enumerate(objects):
+		if check_duplicate_host and obj["id"] == new_server_id and obj["type"] != "OpsiConfigserver":
+			delete_idx = idx
+		if host_attr:
+			if obj[host_attr] == server_id:
+				obj[host_attr] = new_server_id
+		if check_config and obj["id"] == "clientconfig.depot.id":
+			obj["possibleValues"] = [new_server_id if v == server_id else v for v in obj["possibleValues"]]
+			obj["defaultValues"] = [new_server_id if v == server_id else v for v in obj["defaultValues"]]
+		if check_config_state and obj["configId"] == "clientconfig.depot.id":
+			obj["values"] = [new_server_id if v == server_id else v for v in obj["values"]]
+	if delete_idx != -1:
+		del objects[delete_idx]
+	return objects
+
+
 def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 	data_or_file: dict[str, dict[str, Any]] | Path,
 	*,
@@ -378,61 +417,24 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 			if progress:
 				restore_task = progress.add_task("Restoring database objects", total=total_objects, refresh_per_second=2)
 
-			for obj_class in OBJECT_CLASSES:
-				objects = data["objects"].get(obj_class)
-				if not objects:
-					continue
+			with backend.events_disabled():
+				for obj_class in OBJECT_CLASSES:
+					objects = data["objects"].get(obj_class)
+					if not objects:
+						continue
 
-				num_objects = len(objects)
-				logger.notice("Restoring %d objects of type %s", num_objects, obj_class)
-				if progress:
-					progress.console.print(f"Restoring {num_objects} objects of type [bold]{obj_class}[/bold]")
-				host_attr = None
-				check_config = False
-				check_config_state = False
-				if server_id != backup_server_id:
-					if obj_class == "Host":
-						host_attr = "id"
-					if obj_class == "ProductOnDepot":
-						host_attr = "depotId"
-					elif obj_class == "AuditHardwareOnHost":
-						host_attr = "hostId"
-					elif obj_class == ("ObjectToGroup", "ConfigState", "ProductPropertyState"):
-						host_attr = "objectId"
+					num_objects = len(objects)
+					logger.notice("Restoring %d objects of type %s", num_objects, obj_class)
+					if progress:
+						progress.console.print(f"Restoring {num_objects} objects of type [bold]{obj_class}[/bold]")
 
-					check_config = obj_class == "Config"
-					check_config_state = obj_class == "ConfigState"
+					if server_id != backup_server_id:
+						objects = change_server_id(obj_class, objects, backup_server_id, server_id)
 
-				method_prefix = f"{obj_class[0].lower()}{obj_class[1:]}"
-				method = getattr(backend, f"{method_prefix}_insertObject")
-				if batch:
-					method = getattr(backend, f"{method_prefix}_bulkInsertObjects", getattr(backend, f"{method_prefix}_createObjects"))
-
-				with backend.events_disabled():
-					for obj in objects:
-						if host_attr:
-							if obj[host_attr] == backup_server_id:
-								obj[host_attr] = server_id
-						if check_config and obj["id"] == "clientconfig.depot.id":
-							obj["possibleValues"] = [server_id if v == backup_server_id else v for v in obj["possibleValues"]]
-							obj["defaultValues"] = [server_id if v == backup_server_id else v for v in obj["defaultValues"]]
-						if check_config_state and obj["configId"] == "clientconfig.depot.id":
-							obj["values"] = [server_id if v == backup_server_id else v for v in obj["values"]]
-
-						logger.trace("Insert %s object: %s", obj_class, obj)
-						if not batch:
-							try:
-								method(obj)
-							except Exception as err:  # pylint: disable=broad-except
-								if not ignore_errors:
-									raise
-								logger.error(err)
-								if progress:
-									progress.console.print(f"[red]Ignoring error: {err}[/red]")
-							if progress:
-								progress.advance(restore_task)
-
+					method_prefix = f"{obj_class[0].lower()}{obj_class[1:]}"
+					method = getattr(backend, f"{method_prefix}_insertObject")
 					if batch:
+						method = getattr(backend, f"{method_prefix}_bulkInsertObjects", getattr(backend, f"{method_prefix}_createObjects"))
 						logger.info("Batch inserting %d objects", len(objects))
 						try:
 							method(objects)
@@ -444,6 +446,19 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 								progress.console.print(f"[red]Ignoring error: {err}[/red]")
 						if progress:
 							progress.advance(restore_task, advance=num_objects)
+					else:
+						for obj in objects:
+							logger.trace("Insert %s object: %s", obj_class, obj)
+							try:
+								method(obj)
+							except Exception as err:  # pylint: disable=broad-except
+								if not ignore_errors:
+									raise
+								logger.error(err)
+								if progress:
+									progress.console.print(f"[red]Ignoring error: {err}[/red]")
+							if progress:
+								progress.advance(restore_task)
 
 			rpc_cache_clear()
 

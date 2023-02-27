@@ -253,7 +253,9 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 		return data
 
 
-def change_server_id(obj_class: str, objects: list[dict[str, Any]], server_id: str, new_server_id: str) -> list[dict[str, Any]]:
+def change_server_id(  # pylint: disable=too-many-branches
+	obj_class: str, objects: list[dict[str, Any]], server_id: str, new_server_id: str
+) -> list[dict[str, Any]]:
 	host_attr = None
 	check_duplicate_host = False
 	check_config = False

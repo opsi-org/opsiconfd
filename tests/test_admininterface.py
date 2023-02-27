@@ -193,7 +193,7 @@ async def test_get_rpc_list_request(
 	assert response.status_code == 200
 	result = response.json()
 	for idx in range(3):
-		assert result[idx].get("rpc_num") == idx + 1
+		assert result[idx].get("rpc_num") == 3 - idx
 		assert result[idx].get("error") is False
 		assert result[idx].get("params") == 1
 

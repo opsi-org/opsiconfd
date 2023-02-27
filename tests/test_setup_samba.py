@@ -143,17 +143,18 @@ cloud-final.service                        enabled         enabled
 
 
 @pytest.mark.parametrize(
-	"out, service_name",
+	"out_name, service_name",
 	(
-		(LIST_UNITS_OUT.replace("{{service_name}}", "smbd"), "smbd"),
-		(LIST_UNITS_OUT.replace("{{service_name}}", "samba@"), "samba"),
-		(LIST_UNITS_OUT.replace("{{service_name}}", "samba"), "samba"),
-		(LIST_UNITS_OUT.replace("{{service_name}}", "smb"), "smb"),
-		(LIST_UNITS_OUT.replace("{{service_name}}", "other"), "smbd"),
+		("smbd", "smbd"),
+		("samba@", "samba"),
+		("samba", "samba"),
+		("smb", "smb"),
+		("other", "smbd"),
 	),
 )
-def test_get_smbd_service_name(out: str, service_name: str) -> None:
+def test_get_smbd_service_name(out_name: str, service_name: str) -> None:
 	get_smbd_service_name.cache_clear()
+	out = LIST_UNITS_OUT.replace("{{service_name}}", out_name)
 
 	class Proc:  # pylint: disable=too-few-public-methods
 		stdout = out

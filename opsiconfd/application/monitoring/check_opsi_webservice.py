@@ -13,7 +13,12 @@ from datetime import datetime
 import msgspec
 from fastapi.responses import JSONResponse
 
-from opsiconfd.application.jsonrpc import store_rpc_info
+from opsiconfd.application.jsonrpc import (
+	JSONRPC20Request,
+	JSONRPC20Response,
+	RequestInfo,
+	store_rpc_info,
+)
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, decode_redis_result
@@ -45,11 +50,16 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 	try:
 		for idx in range(100):
 			await store_rpc_info(
-				rpc={"id": idx, "jsonrpc": "2.0", "method": "accessControl_authenticated", "params": []},
-				result={"jsonrpc": "2.0", "id": idx, "result": True},
-				duration=0.00235,
-				date=datetime.utcnow(),
-				client_info="127.0.0.1/test-client",
+				request=JSONRPC20Request(
+					id=idx,
+					method="accessControl_authenticated",
+					info=RequestInfo(
+						duration=0.00235,
+						date=datetime.utcnow(),
+						client="127.0.0.1/test-client",
+					),
+				),
+				response=JSONRPC20Response(id=idx, result=True),
 			)
 		rpc_list = await redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, 9999)
 		error_count = 0

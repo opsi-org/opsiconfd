@@ -781,6 +781,9 @@ function printRPCTable(data, htmlId) {
 		if (element["error"]) {
 			tdClass = "rpc-error-td"
 		}
+		else if (element["deprecated"]) {
+			tdClass = "rpc-deprecated-td"
+		}
 		keys.forEach(key => {
 			if (key == "date") {
 				date = formateDate(new Date(element[key]))

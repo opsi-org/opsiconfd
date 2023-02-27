@@ -298,12 +298,13 @@ async def get_rpc_list() -> RESTResponse:
 			"results": value.get("num_results"),
 			"date": value.get("date", datetime.date(2020, 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ")),
 			"client": value.get("client", "0.0.0.0"),
-			"error": value.get("error"),
+			"deprecated": value.get("deprecated", False),
+			"error": value.get("error", False),
 			"duration": value.get("duration"),
 		}
 		rpc_list.append(rpc)
 
-	rpc_list = sorted(rpc_list, key=itemgetter("rpc_num"))
+	rpc_list = sorted(rpc_list, key=itemgetter("rpc_num"), reverse=True)
 	return RESTResponse(rpc_list)
 
 

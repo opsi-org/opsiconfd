@@ -1087,6 +1087,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			default=False,
 			help=self._help("opsicconfd", "Start opsiconfd in maintenance mode, except for these addresses."),
 		)
+		self._parser.add(
+			"--delete-locks",
+			env_var="OPSICONFD_DELETE_LOCKS",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help("opsicconfd", "Delete all locks on startup."),
+		)
 
 		if self._pytest:
 			self._parser.add("args", nargs="*")

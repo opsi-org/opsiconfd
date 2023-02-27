@@ -47,7 +47,7 @@ from opsiconfd.logging import (
 )
 from opsiconfd.manager import Manager
 from opsiconfd.patch import apply_patches
-from opsiconfd.redis import redis_client
+from opsiconfd.redis import delete_recursively, redis_client
 from opsiconfd.setup import setup
 from opsiconfd.utils import get_manager_pid, log_config
 
@@ -271,6 +271,9 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 		logger.info("Testing redis connection (timeout: %d)", REDIS_CONECTION_TIMEOUT)
 		with redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True):
 			logger.info("Redis connection is working")
+			if config.delete_locks:
+				logger.notice("Deleting all locks")
+				delete_recursively(config.redis_key("locks"))
 
 		init_logging(log_mode=config.log_mode)
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)

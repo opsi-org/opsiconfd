@@ -43,8 +43,10 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.address = root_mysql.address
 	mysql.database = root_mysql.database
 	mysql.password = (
-		"opsi" if config._pytest else get_random_string(16, alphabet=string.ascii_letters + string.digits)
-	)  # pylint: disable=protected-access
+		"opsi"
+		if config._pytest  # pylint: disable=protected-access
+		else get_random_string(16, alphabet=string.ascii_letters + string.digits)
+	)
 	secret_filter.add_secrets(mysql.password)
 
 	logger.info("Creating MySQL user %r and granting all rights on %r", mysql.username, mysql.database)

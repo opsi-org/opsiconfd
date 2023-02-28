@@ -9,6 +9,7 @@ opsiconfd.setup.backend
 """
 
 import re
+import string
 from pathlib import Path
 
 import OPSI.Backend.File  # type: ignore[import]
@@ -41,7 +42,9 @@ from opsiconfd.utils import get_ip_addresses, get_random_string
 def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> None:
 	mysql.address = root_mysql.address
 	mysql.database = root_mysql.database
-	mysql.password = "opsi" if config._pytest else get_random_string(16)  # pylint: disable=protected-access
+	mysql.password = (
+		"opsi" if config._pytest else get_random_string(16, alphabet=string.ascii_letters + string.digits)
+	)  # pylint: disable=protected-access
 	secret_filter.add_secrets(mysql.password)
 
 	logger.info("Creating MySQL user %r and granting all rights on %r", mysql.username, mysql.database)

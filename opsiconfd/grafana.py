@@ -368,7 +368,7 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 			cur.execute("DELETE FROM org_user WHERE user_id = ?", [user_id[0]])
 			cur.execute("DELETE FROM user WHERE id = ?", [user_id[0]])
 
-		password = get_random_string(16)
+		password = get_random_string(16, alphabet=string.ascii_letters + string.digits)
 		secret_filter.add_secrets(password)
 
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()

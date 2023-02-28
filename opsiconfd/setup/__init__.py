@@ -180,6 +180,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing
+			logger.debug(err, exc_info=True)
 			log_func = logger.error if interactive else logger.warning
 			log_func(
 				"Failed to setup MySQL: %s\nPlease use `opsiconfd setup --configure-mysql` to configure the MySQL connection manually.", err

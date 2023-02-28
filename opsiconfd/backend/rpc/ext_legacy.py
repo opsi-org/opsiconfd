@@ -1122,13 +1122,13 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			)
 		)
 
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects")
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="productOnClient_updateObjects")
 	def setProductInstallationStatus(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, objectId: str, installationStatus: str
 	) -> None:
 		self.setProductState(productId=productId, objectId=objectId, installationStatus=installationStatus)
 
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects")
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="productOnClient_updateObjects")
 	def setProductActionProgress(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, hostId: str, productActionProgress: dict
 	) -> None:

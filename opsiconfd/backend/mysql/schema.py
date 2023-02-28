@@ -14,6 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, Literal
 
+from sqlalchemy.exc import OperationalError  # type: ignore[import]
+
 from opsiconfd.logging import logger
 
 from .cleanup import (
@@ -463,39 +465,46 @@ def read_schema_version(session: Session) -> int | None:
 	return None
 
 
-def get_index_columns(session: Session, database: str, table: str, index: str) -> list[str]:
-	res = session.execute(
-		"SELECT GROUP_CONCAT(`COLUMN_NAME` ORDER BY `SEQ_IN_INDEX` ASC) FROM `INFORMATION_SCHEMA`.`STATISTICS`"
-		" WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = :table AND `INDEX_NAME` = :index",
-		params={"database": database, "table": table, "index": index},
-	).fetchone()
-	if not res or not res[0]:
-		return []
-	return res[0].split(",")
+def get_indexes(session: Session, database: str, table: str) -> dict[str, list[str]]:
+	indexes = {}
+	for res in session.execute(
+		"SELECT INDEX_NAME, GROUP_CONCAT(`COLUMN_NAME` ORDER BY `SEQ_IN_INDEX` ASC) FROM `INFORMATION_SCHEMA`.`STATISTICS`"
+		" WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = :table GROUP BY `INDEX_NAME`",
+		params={"database": database, "table": table},
+	).fetchall():
+		indexes[res[0]] = res[1].split(",")
+	return indexes
 
 
 def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:
-	index_columns = get_index_columns(session=session, database=database, table=table, index=index)
-	if index_columns != columns:
-		key = ",".join([f"`{c}`" for c in columns])
-		if index == "PRIMARY":
-			logger.info("Setting new PRIMARY KEY on table %r", table)
-			if index_columns:
-				session.execute(f"ALTER TABLE `{table}` DROP PRIMARY KEY")
-			session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
-		elif index == "UNIQUE":
-			logger.info("Setting new UNIQUE KEY on table %r", table)
-			session.execute(f"ALTER TABLE `{table}` ADD UNIQUE KEY ({key})")
-		else:
-			logger.info("Setting new index %r on table %r", index, table)
-			if index_columns:
-				session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
-			session.execute(f"CREATE INDEX `{index}` on `{table}` ({key})")
+	indexes = get_indexes(session=session, database=database, table=table)
+	existing_indexes = [name for name, cols in indexes.items() if sorted(cols) == sorted(columns)]
+
+	if len(existing_indexes) == 1 and (index != "PRIMARY" or existing_indexes[0] == index):
+		logger.debug("Keeping index %r", existing_indexes[0])
+		return
+
+	for existing_index in existing_indexes:
+		try:
+			session.execute(f"ALTER TABLE `{table}` DROP INDEX `{existing_index}`")
+		except OperationalError as err:
+			logger.warning(err)
+
+	key = ",".join([f"`{c}`" for c in columns])
+	if index == "PRIMARY":
+		logger.info("Setting new PRIMARY KEY on table %r", table)
+		session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
+	elif index == "UNIQUE":
+		logger.info("Setting new UNIQUE KEY on table %r", table)
+		session.execute(f"ALTER TABLE `{table}` ADD UNIQUE KEY ({key})")
+	else:
+		logger.info("Setting new index %r on table %r", index, table)
+		session.execute(f"CREATE INDEX `{index}` on `{table}` ({key})")
 
 
 def remove_index(session: Session, database: str, table: str, index: str) -> None:
-	index_columns = get_index_columns(session=session, database=database, table=table, index=index)
-	if index_columns:
+	indexes = get_indexes(session=session, database=database, table=table)
+	if index in indexes:
 		logger.info("Removing index %r on table %r", index, table)
 		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
 

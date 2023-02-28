@@ -11,6 +11,11 @@ opsiconfd - setup
 import re
 import subprocess
 
+from opsicommon.license import (
+	OPSI_FREE_MODULE_IDS,
+	OPSI_MODULE_IDS,
+	OPSI_OBSOLETE_MODULE_IDS,
+)
 from opsicommon.objects import (  # type: ignore[import]
 	BoolConfig,
 	ConfigState,
@@ -246,11 +251,64 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		add_configs.append(
 			UnicodeConfig(
 				id="software-on-demand.product-group-ids",
-				description=("Product group ids containing products which are " "allowed to be installed on demand"),
+				description="Product group ids containing products which are allowed to be installed on demand",
 				possibleValues=["software-on-demand"],
 				defaultValues=["software-on-demand"],
 				editable=True,
 				multiValue=True,
+			)
+		)
+
+	if "licensing.disable_warning_for_modules" not in config_ids:
+		module_ids = sorted(set(OPSI_MODULE_IDS) - set(OPSI_FREE_MODULE_IDS) - set(OPSI_OBSOLETE_MODULE_IDS))
+		logger.info("Creating config: licensing.disable_warning_for_modules")
+		add_configs.append(
+			UnicodeConfig(
+				id="licensing.disable_warning_for_modules",
+				description="Disable licensing warnings for these modules.",
+				possibleValues=module_ids,
+				defaultValues=[],
+				editable=False,
+				multiValue=True,
+			)
+		)
+
+	if "licensing.client_limit_warning_percent" not in config_ids:
+		logger.info("Creating config: licensing.client_limit_warning_percent")
+		add_configs.append(
+			UnicodeConfig(
+				id="licensing.client_limit_warning_percent",
+				description="Warn when this license utilization is reached.",
+				possibleValues=["95"],
+				defaultValues=["95"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "licensing.client_limit_warning_absolute" not in config_ids:
+		logger.info("Creating config: licensing.client_limit_warning_absolute")
+		add_configs.append(
+			UnicodeConfig(
+				id="licensing.client_limit_warning_absolute",
+				description="Warn when the number of available licenses reaches this value.",
+				possibleValues=["5"],
+				defaultValues=["5"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "licensing.client_limit_warning_days" not in config_ids:
+		logger.info("Creating config: licensing.client_limit_warning_days")
+		add_configs.append(
+			UnicodeConfig(
+				id="licensing.client_limit_warning_days",
+				description="Number of days from which warning is given before the licensing reaches a problematic state.",
+				possibleValues=["30"],
+				defaultValues=["30"],
+				editable=True,
+				multiValue=False,
 			)
 		)
 

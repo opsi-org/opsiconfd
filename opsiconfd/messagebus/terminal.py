@@ -147,7 +147,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 					await self._send_message(message)
 				except TIMEOUT:
 					if time() > self._last_usage + self.idle_timeout:
-						logger.notice("Terminal timed out")
+						logger.notice("Terminal %r timed out", self.terminal_id)
 						await self.close()
 		except EOF:
 			# shell exit

@@ -118,7 +118,7 @@ def get_config_files() -> dict[str, Path]:
 		"acl_conf": Path(config.acl_file),
 	}
 	extension_config_dir = Path(config.extension_config_dir)
-	for extension_config_file in extension_config_dir.glob("*.conf"):  # pylint: disable=use-dict-comprehension
+	for extension_config_file in extension_config_dir.glob("*.conf"):
 		config_files[f"extension_conf_{extension_config_file.with_suffix('').name}"] = extension_config_file
 
 	modules_file = Path(OPSI_MODULES_FILE)
@@ -126,7 +126,7 @@ def get_config_files() -> dict[str, Path]:
 		config_files["modules"] = modules_file
 
 	license_dir = Path(OPSI_LICENSE_DIR)
-	for license_file in license_dir.glob("*.opsilic"):  # pylint: disable=use-dict-comprehension
+	for license_file in license_dir.glob("*.opsilic"):
 		config_files[f"opsilic_{license_file.with_suffix('').name}"] = license_file
 
 	return config_files

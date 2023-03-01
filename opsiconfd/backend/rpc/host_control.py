@@ -242,7 +242,7 @@ class RPCHostControlMixin(Protocol):
 					self._opsiclientd_rpc, host_ids=not_connected_client_ids, method=method, params=params, timeout=int(timeout)
 				)
 			else:
-				for client_id in client_ids:  # pylint: disable=use-dict-comprehension
+				for client_id in client_ids:
 					if client_id not in connected_client_ids:
 						result[client_id] = {"result": None, "error": "Host currently not connected to messagebus"}
 						continue
@@ -276,7 +276,7 @@ class RPCHostControlMixin(Protocol):
 					break
 
 		error = {"result": None, "error": f"Timed out after {timeout:0.2f} seconds  while waiting for response"}
-		for client_id in rpc_id_to_client_id.values():  # pylint: disable=use-dict-comprehension
+		for client_id in rpc_id_to_client_id.values():
 			result[client_id] = error
 
 		return result

@@ -120,7 +120,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 		commands: dict[str, SSHCommand] = {}
 		for filename in (self.ssh_commands_default_file, self.ssh_commands_custom_file):
 			# Custom file overrides commands with the same id
-			for cmd in self._read_ssh_commands_file(filename):  # pylint: disable=use-dict-comprehension
+			for cmd in self._read_ssh_commands_file(filename):
 				commands[cmd.menuText] = cmd
 		return commands
 

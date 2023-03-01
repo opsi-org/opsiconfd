@@ -12,6 +12,7 @@ from typing import Generator
 
 import pytest
 
+from opsiconfd.config import get_configserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -40,7 +41,7 @@ def cleanup_database(database_connection: Connection) -> Generator[None, None, N
 		cursor.execute("DELETE FROM `PRODUCT_PROPERTY_VALUE`")
 		cursor.execute("DELETE FROM `PRODUCT_PROPERTY`")
 		cursor.execute("DELETE FROM `PRODUCT`")
-		cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test%'")
+		cursor.execute(f"DELETE FROM `HOST` WHERE hostId != '{get_configserver_id()}'")
 		database_connection.commit()
 
 	_delete()

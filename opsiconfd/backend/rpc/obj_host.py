@@ -393,7 +393,8 @@ class RPCHostMixin(Protocol):
 			raise BackendMissingDataError(f"Cannot rename: depot '{cur_server_id}' not found") from err
 
 		if self.host_getObjects(id=new_server_id):
-			raise BackendError(f"Cannot rename: host '{new_server_id}' already exists")
+			logger.warning("Deleting host %r", new_server_id)
+			self.host_delete(id=[new_server_id])
 
 		logger.info("Renaming depot %s to %s", cur_server_id, new_server_id)
 
@@ -446,7 +447,6 @@ class RPCHostMixin(Protocol):
 		for conf in self.config_getObjects():
 			changed = replace_server_id(conf.possibleValues)
 			changed = replace_server_id(conf.defaultValues) or changed
-
 			if changed:
 				modified_configs.append(conf)
 
@@ -460,6 +460,9 @@ class RPCHostMixin(Protocol):
 			config_state.setObjectId(new_server_id)
 			replace_server_id(config_state.values)
 			config_states.append(config_state)
+		for config_state in self.configState_getObjects(configId=["clientconfig.depot.id"]):
+			if replace_server_id(config_state.values):
+				config_states.append(config_state)
 
 		def change_address(value: str) -> str:
 			new_value = value.replace(cur_server_id, new_server_id)

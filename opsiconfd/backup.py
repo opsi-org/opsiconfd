@@ -253,47 +253,6 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 		return data
 
 
-def change_server_id(  # pylint: disable=too-many-branches
-	obj_class: str, objects: list[dict[str, Any]], server_id: str, new_server_id: str
-) -> list[dict[str, Any]]:
-	host_attr = None
-	check_duplicate_host = False
-	check_config = False
-	check_config_state = False
-
-	if obj_class == "Host":
-		host_attr = "id"
-		check_duplicate_host = True
-	elif obj_class == "ProductOnDepot":
-		host_attr = "depotId"
-	elif obj_class == "AuditHardwareOnHost":
-		host_attr = "hostId"
-	elif obj_class == ("ObjectToGroup", "ConfigState", "ProductPropertyState"):
-		host_attr = "objectId"
-	elif obj_class == "Config":
-		check_config = True
-	elif obj_class == "ConfigState":
-		check_config_state = True
-	else:
-		return objects
-
-	delete_idx = -1
-	for idx, obj in enumerate(objects):
-		if check_duplicate_host and obj["id"] == new_server_id and obj["type"] != "OpsiConfigserver":
-			delete_idx = idx
-		if host_attr:
-			if obj[host_attr] == server_id:
-				obj[host_attr] = new_server_id
-		if check_config and obj["id"] == "clientconfig.depot.id":
-			obj["possibleValues"] = [new_server_id if v == server_id else v for v in obj["possibleValues"]]
-			obj["defaultValues"] = [new_server_id if v == server_id else v for v in obj["defaultValues"]]
-		if check_config_state and obj["configId"] == "clientconfig.depot.id":
-			obj["values"] = [new_server_id if v == server_id else v for v in obj["values"]]
-	if delete_idx != -1:
-		del objects[delete_idx]
-	return objects
-
-
 def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 	data_or_file: dict[str, dict[str, Any]] | Path,
 	*,
@@ -430,9 +389,6 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 					if progress:
 						progress.console.print(f"Restoring {num_objects} objects of type [bold]{obj_class}[/bold]")
 
-					if server_id != backup_server_id:
-						objects = change_server_id(obj_class, objects, backup_server_id, server_id)
-
 					method_prefix = f"{obj_class[0].lower()}{obj_class[1:]}"
 					method = getattr(backend, f"{method_prefix}_insertObject")
 					if batch:
@@ -461,6 +417,15 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 									progress.console.print(f"[red]Ignoring error: {err}[/red]")
 							if progress:
 								progress.advance(restore_task)
+
+				if server_id != backup_server_id:
+					logger.notice("Renaming server from %r to %r", backup_server_id, server_id)
+					if progress:
+						progress.console.print(f"Renaming server from {backup_server_id!r} to {server_id!r}")
+						rename_task = progress.add_task("Renaming server", total=None)
+					backend.host_renameOpsiDepotserver(backup_server_id, server_id)
+					if progress:
+						progress.update(rename_task, total=1, completed=True)
 
 			rpc_cache_clear()
 

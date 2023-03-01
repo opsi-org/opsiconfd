@@ -1177,10 +1177,10 @@ function stopTerminal() {
 
 function changeTerminalFontSize(val) {
 	if (!terminal) return;
-	let size = terminal.getOption("fontSize");
+	let size = terminal.options.fontSize;
 	size += val;
 	if (size < 1) { size = 1; }
-	terminal.setOption("fontSize", size);
+	terminal.options.fontSize = size;
 	terminal.fitAddon.fit();
 }
 

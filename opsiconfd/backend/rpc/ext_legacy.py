@@ -2186,7 +2186,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	def getHostRSAPublicKey(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
 		return self.depot_getHostRSAPublicKey()
 
-	@rpc_method(deprecated=True, alternative_method="user_getCredentials")
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="user_getCredentials")
 	def getPcpatchPassword(self: BackendProtocol, hostId: str) -> str:  # pylint: disable=invalid-name
 		return self.user_getCredentials(username="pcpatch", hostId=hostId)["password"]
 

@@ -107,10 +107,7 @@ class RPCLicensePoolMixin(Protocol):
 			"productIds": f'GROUP_CONCAT(`productId` SEPARATOR "{self._mysql.record_separator}")',
 		}
 		return self._mysql.get_objects(
-			table=(
-				"`LICENSE_POOL` LEFT JOIN `PRODUCT_ID_TO_LICENSE_POOL` ON "
-				"`LICENSE_POOL`.`licensePoolId` = `LICENSE_POOL`.`licensePoolId`"
-			),
+			table="`LICENSE_POOL` LEFT JOIN `PRODUCT_ID_TO_LICENSE_POOL` ON `LICENSE_POOL`.`licensePoolId` = `LICENSE_POOL`.`licensePoolId`",
 			object_type=LicensePool,
 			aggregates=aggregates,
 			ace=ace,
@@ -138,7 +135,15 @@ class RPCLicensePoolMixin(Protocol):
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("licensePool_getObjects")
-		return self._mysql.get_idents("LICENSE_POOL", LicensePool, ace=ace, ident_type=returnType, filter=filter)
+		if filter and "productIds" in filter:
+			filter["productId"] = filter.pop("productIds")
+		return self._mysql.get_idents(
+			table="`LICENSE_POOL` LEFT JOIN `PRODUCT_ID_TO_LICENSE_POOL` ON `LICENSE_POOL`.`licensePoolId` = `LICENSE_POOL`.`licensePoolId`",
+			object_type=LicensePool,
+			ace=ace,
+			ident_type=returnType,
+			filter=filter,
+		)
 
 	@rpc_method(check_acl=False)
 	def licensePool_deleteObjects(  # pylint: disable=invalid-name

@@ -274,7 +274,7 @@ class RPCAuditHardwareMixin(Protocol):
 			for hardware_class in hardware_classes:  # pylint: disable=too-many-nested-blocks
 				class_filter = {}
 				ident_attributes = []
-				for attr, info in self._audit_hardware_database_config[hardware_class].items():  # pylint: disable=use-list-comprehension
+				for attr, info in self._audit_hardware_database_config[hardware_class].items():
 					if info.get("Scope") == "g":
 						ident_attributes.append(attr)
 						if attr in filter:

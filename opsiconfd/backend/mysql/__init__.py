@@ -429,32 +429,27 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if f_attr == "type" and "OpsiDepotserver" in values and "OpsiConfigserver" not in values:
 				values.append("OpsiConfigserver")
 
-			operator = "IN" if len(values) > 1 else "="
-			if values[0] is None:
-				operator = "IS"
-			elif isinstance(values[0], bool):
-				values = [int(v) for v in values]
-			elif isinstance(values[0], str):
-				new_values = []
-				for val in values:
-					val = str(val)
-					if "*" in val:
-						operator = "LIKE"
-						val = val.replace("*", "%")
-					elif val.startswith(("<", ">")):
-						operator = val[0]
-						val = val[1:]
-					new_values.append(val)
-				values = new_values
-
 			col = columns[f_attr]
 			cond = []
-			if operator == "IN":
+
+			if len(values) > 10:
 				param = f"p{len(params) + 1}"
-				cond = [f"`{col.table}`.`{col.column}` {operator} :{param}"]
+				cond = [f"`{col.table}`.`{col.column}` IN :{param}"]
 				params[param] = values
 			else:
 				for val in values:
+					operator = "="
+					if val is None:
+						operator = "IS"
+					elif isinstance(val, bool):
+						val = int(val)
+					elif isinstance(val, str):
+						if "*" in val:
+							operator = "LIKE"
+							val = val.replace("*", "%")
+						elif val.startswith(("<", ">")):
+							operator = val[0]
+							val = val[1:]
 					param = f"p{len(params) + 1}"
 					cond.append(f"`{col.table}`.`{col.column}` {operator} :{param}")
 					params[param] = val
@@ -656,7 +651,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			attributes = ident_attributes
 		elif attributes:
 			attributes = list(attributes)
-			for attr in ident_attributes:  # pylint: disable=use-list-comprehension
+			for attr in ident_attributes:
 				if attr not in attributes:
 					attributes.append(attr)
 

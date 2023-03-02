@@ -45,6 +45,8 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 		reload_config_command=["/sbin/systemctl", "reload", "dhcpd"],
 		fixed_address_format="FQDN",
 		default_client_parameters={},
+		boot_filename_uefi="",
+		boot_filename_bios="",
 	)
 	with (
 		patch("opsiconfd.setup.sudo.SUDOERS_CONF", str(sudoers)),

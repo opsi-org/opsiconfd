@@ -102,7 +102,7 @@ class DHCPDConfParameter(DHCPDConfComponent):
 		if isinstance(value, bool):
 			value = "on" if value else "off"
 		elif (
-			self.key in ("file_path", "ddns-domainname")
+			self.key in ("filename", "file_path", "ddns-domainname")
 			or re.match(r".*['/\\].*", value)
 			or re.match(r"^\w+\.\w+$", value)
 			or self.key.endswith("-name")
@@ -681,7 +681,7 @@ def get_dhcpd_restart_command() -> list[str]:
 
 
 def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-	logger.info("Setup dhcpd")
+	logger.info("Setup DHCPD")
 	dhcpd_control_config = get_dhcpd_control_config()
 	if not dhcpd_control_config.enabled:
 		return
@@ -716,7 +716,7 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 		)
 		conf_changed = True
 
-	for subnet in global_block.get_blocks("subnet", recursive=True):
+	for subnet in global_block.get_blocks("subnet", recursive=True):  # pylint: disable=too-many-nested-blocks
 		logger.info("Found subnet %s/%s", subnet.settings[1], subnet.settings[3])
 		groups = subnet.get_blocks("group")
 		if not groups:
@@ -733,12 +733,48 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 				logger.info("next-server set to %s", local_addr["address"])
 				conf_changed = True
 
-			# TODO: filename: UEFI / BIOS
-			if not params.get("filename"):
-				filename = "linux/pxelinux.0"
-				group.add_component(DHCPDConfParameter(start_line=-1, parent_block=group, key="filename", value=filename))
-				logger.info("filename set to %s", filename)
+			if_found = False
+			for comp in group.get_components():
+				if isinstance(comp, DHCPDConfBlock):
+					settings_str = ("".join(comp.settings)).lower()
+					if comp.type == "if":
+						if_found = True
+
+					filename = ""
+					if settings_str.endswith('ifsubstring(optionvendor-class-identifier,19,1)="0"'):
+						filename = dhcpd_control_config.boot_filename_bios
+					elif settings_str.endswith('ifsubstring(optionvendor-class-identifier,19,1)="7"'):
+						filename = dhcpd_control_config.boot_filename_uefi
+					if not filename:
+						continue
+					for sub_comp in comp.get_components():
+						if isinstance(sub_comp, DHCPDConfParameter) and sub_comp.key == "filename" and sub_comp.value != filename:
+							sub_comp.value = filename
+							conf_changed = True
+
+			if not if_found:
 				conf_changed = True
+				blk = DHCPDConfBlock(
+					start_line=-1,
+					parent_block=group,
+					type="if",
+					settings=["if", "substring", "(option", "vendor-class-identifier,", "19,", "1)", "=", '"0"'],
+				)
+				blk.add_component(
+					DHCPDConfParameter(start_line=-1, parent_block=blk, key="filename", value=dhcpd_control_config.boot_filename_bios)
+				)
+				group.add_component(blk)
+
+				blk = DHCPDConfBlock(
+					start_line=-1,
+					parent_block=group,
+					type="else",
+					settings=["else", "if", "substring", "(option", "vendor-class-identifier,", "19,", "1)", "=", '"7"'],
+				)
+				blk.add_component(
+					DHCPDConfParameter(start_line=-1, parent_block=blk, key="filename", value=dhcpd_control_config.boot_filename_uefi)
+				)
+				group.add_component(blk)
 
 	if conf_changed:
 		logger.info("Writing new %s", dhcpd_control_config.dhcpd_config_file)
@@ -748,25 +784,26 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 	os.chmod(dhcpd_control_config.dhcpd_config_file.file_path, 0o664)
 
 	if conf_changed:
-		logger.info("Restarting dhcpd")
-		try:
-			run(dhcpd_control_config.reload_config_command, shell=False, check=True)
-		except (FileNotFoundError, CalledProcessError) as err:
-			logger.warning(err)
-
-	# TODO: sudo
-	# logger.notice("Configuring sudoers")
-	# patchSudoersFileToAllowRestartingDHCPD(restartCommand)
+		if dhcpd_control_config.reload_config_command:
+			logger.info("Restarting DHCPD")
+			try:
+				run(dhcpd_control_config.reload_config_command, shell=False, check=True)
+			except (FileNotFoundError, CalledProcessError) as err:
+				logger.warning(err)
+		else:
+			logger.info("DHCPD config changed, but no reload command configured")
 
 
 @dataclass(slots=True, kw_only=True)
-class DHCPDControlConfig:
+class DHCPDControlConfig:  # pylint: disable=too-many-instance-attributes
 	enabled: bool
 	dhcpd_on_depot: bool
 	dhcpd_config_file: DHCPDConfFile
 	reload_config_command: list[str]
 	fixed_address_format: Literal["IP", "FQDN"]
 	default_client_parameters: dict[str, str]
+	boot_filename_uefi: str
+	boot_filename_bios: str
 
 
 @lru_cache
@@ -783,7 +820,9 @@ def get_dhcpd_control_config() -> DHCPDControlConfig:
 		dhcpd_config_file=DHCPDConfFile(get_dhcpd_conf_location()),
 		reload_config_command=get_dhcpd_restart_command(),
 		fixed_address_format="IP",
-		default_client_parameters={"next-server": next_server, "filename": "linux/pxelinux.0"},
+		default_client_parameters={"next-server": next_server},
+		boot_filename_uefi="opsi/opsi-linux-bootimage/loader/opsi-netboot.efi",
+		boot_filename_bios="opsi/opsi-linux-bootimage/loader/opsi-netboot.bios",
 	)
 
 	dhcpd_control_conf = Path(config.backend_config_dir) / "dhcpd.conf"

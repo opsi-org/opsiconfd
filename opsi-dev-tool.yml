@@ -104,9 +104,8 @@ package:
       mkdir -p ${DST}/rootfs-arm64/usr/lib
       cp -a ${pyi_src}/opsiconfd-arm64 ${DST}/rootfs-arm64/usr/lib/opsiconfd
     fi;
-    echo "#!/bin/sh"                 > ${DST}/rootfs/usr/bin/opsiconfd
-    echo "cd /usr/lib/opsiconfd"    >> ${DST}/rootfs/usr/bin/opsiconfd
-    echo "exec ./opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd
+    echo "#!/bin/sh"                                  > ${DST}/rootfs/usr/bin/opsiconfd
+    echo "exec /usr/lib/opsiconfd/opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd
     chmod 755 ${DST}/rootfs/usr/bin/opsiconfd
     cp -a ${SRC}/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
     cp -a ${SRC}/opsiconfd_data/etc/* ${DST}/rootfs/etc/opsi/

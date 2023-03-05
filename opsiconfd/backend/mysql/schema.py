@@ -493,7 +493,7 @@ def create_index(session: Session, database: str, table: str, index: str, column
 	key = ",".join([f"`{c}`" for c in columns])
 	if index == "PRIMARY":
 		if "PRIMARY" in indexes:
-			logger.info("Setting new PRIMARY KEY on table %r", table)
+			logger.info("Droping PRIMARY KEY and setting new PRIMARY KEY on table %r", table)
 			session.execute(f"ALTER TABLE `{table}` DROP PRIMARY KEY, ADD PRIMARY KEY ({key})")
 		else:
 			session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")

@@ -477,7 +477,14 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 
 def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:
 	indexes = get_indexes(session=session, database=database, table=table)
-	existing_indexes = [name for name, cols in indexes.items() if sorted(cols) == sorted(columns)]
+	existing_indexes = []
+	for name, cols in indexes.items():
+		if cols == columns:
+			# Column order is correct
+			existing_indexes.append(name)
+		elif sorted(cols) == sorted(columns):
+			# Column order is wrong, delete at first
+			existing_indexes.insert(0, name)
 
 	if len(existing_indexes) == 1 and (index != "PRIMARY" or existing_indexes[0] == index):
 		logger.debug("Keeping index %r", existing_indexes[0])

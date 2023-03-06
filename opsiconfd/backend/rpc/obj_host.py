@@ -36,6 +36,7 @@ from opsicommon.types import (  # type: ignore[import]
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import config
 from opsiconfd.logging import logger
+from opsiconfd.messagebus.redis import get_websocket_connected_users
 from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
 	as_pem,
 	create_server_cert,
@@ -520,3 +521,15 @@ class RPCHostMixin(Protocol):
 
 		logger.info("Deleting old depot %s", old_depot)
 		self.host_deleteObjects([old_depot])
+
+	@rpc_method(check_acl=False)
+	async def host_getMessagebusConnectedIds(  # pylint: disable=invalid-name
+		self: BackendProtocol, hostIds: list[str] | None = None
+	) -> list[str]:
+		"""
+		Return a list of host IDs connected to the messagebus.
+		The hostId parameter can be used to limit the list to the IDs passed.
+		"""
+		return [h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="depot")] + [
+			h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="client")
+		]

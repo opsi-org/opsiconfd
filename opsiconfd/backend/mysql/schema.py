@@ -248,7 +248,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_VALUE` (
 	`value` text,
 	`isDefault` tinyint(1) DEFAULT NULL,
 	PRIMARY KEY (`product_property_id`),
-	KEY `productId` (`productId`,`productVersion`,`packageVersion`,`propertyId`),
+	KEY `index_product_property_value` (`productId`,`productVersion`,`packageVersion`,`propertyId`),
 	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 	REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 	ON DELETE CASCADE ON UPDATE CASCADE
@@ -476,34 +476,35 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 
 
 def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:
-	indexes = get_indexes(session=session, database=database, table=table)
-	existing_indexes = []
-	for name, cols in indexes.items():
+	correct_indexes = []
+	wrong_indexes = []
+	for name, cols in get_indexes(session=session, database=database, table=table).items():
 		if cols == columns:
-			# Column order is correct
-			existing_indexes.append(name)
+			correct_indexes.append(name)
 		elif sorted(cols) == sorted(columns):
-			# Column order is wrong, delete at first
-			existing_indexes.insert(0, name)
+			wrong_indexes.append(name)
 
-	if len(existing_indexes) == 1 and (index != "PRIMARY" or existing_indexes[0] == index):
-		logger.debug("Keeping index %r", existing_indexes[0])
-		return
+	while len(correct_indexes) > 1:
+		wrong_indexes.append(correct_indexes.pop())
 
-	for existing_index in existing_indexes:
+	if index == "PRIMARY" and correct_indexes and correct_indexes[0] != "PRIMARY":
+		wrong_indexes.append(correct_indexes.pop())
+
+	for wrong_index in wrong_indexes:
 		try:
-			logger.debug("Dropping index %r", existing_index)
-			session.execute(f"ALTER TABLE `{table}` DROP INDEX `{existing_index}`")
+			logger.debug("Dropping index %r", wrong_index)
+			session.execute(f"ALTER TABLE `{table}` DROP INDEX `{wrong_index}`")
 		except OperationalError as err:
 			logger.warning(err)
 
+	if correct_indexes:
+		logger.debug("Keeping index %r", correct_indexes[0])
+		return
+
 	key = ",".join([f"`{c}`" for c in columns])
 	if index == "PRIMARY":
-		if "PRIMARY" in indexes:
-			logger.info("Droping PRIMARY KEY and setting new PRIMARY KEY on table %r", table)
-			session.execute(f"ALTER TABLE `{table}` DROP PRIMARY KEY, ADD PRIMARY KEY ({key})")
-		else:
-			session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
+		logger.info("Setting new PRIMARY KEY on table %r", table)
+		session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
 	elif index == "UNIQUE":
 		logger.info("Setting new UNIQUE KEY on table %r", table)
 		session.execute(f"ALTER TABLE `{table}` ADD UNIQUE KEY ({key})")
@@ -766,7 +767,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			database=mysql.database,
 			table="PRODUCT_PROPERTY_VALUE",
 			index="index_product_property_value",
-			columns=["productId", "propertyId", "productVersion", "packageVersion"],
+			columns=["productId", "productVersion", "packageVersion", "propertyId"],
 		)
 
 		create_foreign_key(

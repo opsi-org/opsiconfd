@@ -24,6 +24,7 @@ from opsicommon.objects import (  # type: ignore[import]
 
 from opsiconfd.config import config, get_configserver_id, opsi_config
 from opsiconfd.logging import logger
+from opsiconfd.utils import running_in_docker
 
 
 def _get_windows_domain() -> str | None:
@@ -146,7 +147,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 				id="clientconfig.depot.protocol",
 				description="Protocol to use when mounting an depot share on the client",
 				possibleValues=["cifs", "webdav"],
-				defaultValues=["cifs"],
+				defaultValues=["webdav" if running_in_docker() else "cifs"],
 				editable=False,
 				multiValue=False,
 			)
@@ -159,7 +160,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 				id="clientconfig.depot.protocol.netboot",
 				description="Protocol to use when mounting an depot share in netboot environment",
 				possibleValues=["cifs", "webdav"],
-				defaultValues=["cifs"],
+				defaultValues=["webdav" if running_in_docker() else "cifs"],
 				editable=False,
 				multiValue=False,
 			)

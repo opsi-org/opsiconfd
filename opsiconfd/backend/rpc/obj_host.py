@@ -59,7 +59,7 @@ class RPCHostMixin(Protocol):
 			res = session.execute(
 				"""
 				SELECT hostId FROM `HOST`
-				WHERE hostId = :hostId AND hardwareAddress = :hardwareAddress
+				WHERE hostId != :hostId AND hardwareAddress = :hardwareAddress
 				LIMIT 1
 				""",
 				params={"hostId": host.id, "hardwareAddress": host.hardwareAddress},

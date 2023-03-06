@@ -605,20 +605,24 @@ def test_host_check_duplicate_hardware_address(  # pylint: disable=invalid-name
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create client
-	rpc = {
+	rpc1 = {
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "host_createOpsiClient",
 		"params": {"id": "test-backend-rpc-client1.opsi.test", "hardwareAddress": "01:02:03:04:05:06"},
 	}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = test_client.post("/rpc", json=rpc1).json()
 	assert "error" not in res
 
-	rpc = {
+	rpc2 = {
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "host_createOpsiClient",
-		"params": {"id": "test-backend-rpc-client1.opsi.test", "hardwareAddress": "01:02:03:04:05:06"},
+		"params": {"id": "test-backend-rpc-client2.opsi.test", "hardwareAddress": "01:02:03:04:05:06"},
 	}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = test_client.post("/rpc", json=rpc2).json()
 	assert "error" in res
+	assert res["error"]["message"] == "Hardware address '01:02:03:04:05:06' is already used by host 'test-backend-rpc-client1.opsi.test'"
+
+	res = test_client.post("/rpc", json=rpc1).json()
+	assert "error" not in res

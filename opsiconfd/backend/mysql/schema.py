@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `CONFIG_VALUE` (
 	PRIMARY KEY (`config_value_id`),
 	KEY `configId` (`configId`),
 	FOREIGN KEY (`configId`) REFERENCES `CONFIG` (`configId`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=526 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `GROUP` (
 	`type` varchar(30) NOT NULL,
@@ -249,11 +249,10 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_VALUE` (
 	`isDefault` tinyint(1) DEFAULT NULL,
 	PRIMARY KEY (`product_property_id`),
 	KEY `productId` (`productId`,`productVersion`,`packageVersion`,`propertyId`),
-	KEY `index_product_property_value` (`productId`,`propertyId`,`productVersion`,`packageVersion`),
 	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 	REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 	ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11237 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE` (
 	`name` varchar(100) NOT NULL,
@@ -486,6 +485,7 @@ def create_index(session: Session, database: str, table: str, index: str, column
 
 	for existing_index in existing_indexes:
 		try:
+			logger.debug("Dropping index %r", existing_index)
 			session.execute(f"ALTER TABLE `{table}` DROP INDEX `{existing_index}`")
 		except OperationalError as err:
 			logger.warning(err)

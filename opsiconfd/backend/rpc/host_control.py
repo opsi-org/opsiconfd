@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import struct
 import time
-from contextlib import closing
 from ipaddress import (
 	IPv4Address,
 	IPv4Network,
@@ -23,15 +22,7 @@ from ipaddress import (
 	ip_network,
 )
 from pathlib import Path
-from socket import (
-	AF_INET,
-	IPPROTO_UDP,
-	SHUT_RDWR,
-	SO_BROADCAST,
-	SOCK_DGRAM,
-	SOCK_STREAM,
-	SOL_SOCKET,
-)
+from socket import AF_INET, SHUT_RDWR, SOCK_STREAM
 from socket import error as socket_error
 from socket import gethostbyname, socket
 from threading import Thread
@@ -59,7 +50,7 @@ from opsicommon.types import (  # type: ignore[import]
 )
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.config import config
+from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_user_id_for_host, get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import (
@@ -404,6 +395,12 @@ class RPCHostControlMixin(Protocol):
 				if not host.hardwareAddress:
 					raise BackendMissingDataError(f"Failed to get hardware address for host '{host.id}'")
 
+				responsible_depot_id = self._depot_id
+				if opsi_config.get("host", "server-role") == "configserver":
+					responsible_depot_id = self._get_responsible_depot_id(host.id) or self._depot_id
+					if responsible_depot_id != self._depot_id:
+						logger.info("Not responsible for client '%s', sending WOL broadcast via depot '%s'", host.id, responsible_depot_id)
+
 				mac = host.hardwareAddress.replace(":", "")
 				data = b"".join([b"FFFFFFFFFFFF", mac.encode("ascii") * 16])  # Pad the synchronization stream.
 
@@ -413,13 +410,12 @@ class RPCHostControlMixin(Protocol):
 					payload = b"".join([payload, struct.pack("B", int(data[i : i + 2], 16))])
 
 				for broadcast_address, target_ports in self._get_broadcast_addresses_for_host(host):
-					logger.debug("Sending data to network broadcast %s %s [%s]", broadcast_address, target_ports, data)
-
-					for port in target_ports:
-						logger.debug("Broadcasting to port %s", port)
-						with closing(socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) as sock:
-							sock.setsockopt(SOL_SOCKET, SO_BROADCAST, True)
-							sock.sendto(payload, (broadcast_address, port))
+					if responsible_depot_id != self._depot_id:
+						self._execute_rpc_on_depot(
+							depot_id=responsible_depot_id, method="network_sendBroadcast", params=[broadcast_address, target_ports, payload]
+						)
+					else:
+						self.network_sendBroadcast(broadcast_address, target_ports, payload)
 
 				result[host.id] = {"result": "sent", "error": None}
 			except Exception as err:  # pylint: disable=broad-except

@@ -214,6 +214,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 					"backend_exit",
 					"backend_getInterface",
 					"jsonrpc_getSessionId",
+					"hostControl_start",
 				):
 					continue
 

@@ -15,8 +15,9 @@ import grp
 import os
 import re
 import shutil
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
+from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 
 from OPSI.System import execute, getDiskSpaceUsage  # type: ignore[import]
@@ -48,7 +49,7 @@ from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.types import forceUnicodeLower
 from opsicommon.utils import make_temp_dir
 
-from opsiconfd.config import opsi_config
+from opsiconfd.config import PACKAGE_SCRIPT_TIMEOUT, opsi_config
 from opsiconfd.logging import logger
 
 # deprecated can be used in extension config files
@@ -56,8 +57,6 @@ from . import rpc_method  # pylint: disable=unused-import
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
-
-PACKAGE_SCRIPT_TIMEOUT = 600  # Seconds  # TODO: better place?
 
 
 def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
@@ -304,6 +303,18 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if package_path.is_dir():
 			package_path = Path(self.workbench_buildPackage(str(package_path)))
 		self.depot_installPackage(str(package_path))
+
+	@rpc_method
+	def network_sendBroadcast(  # pylint: disable=invalid-name
+		self: BackendProtocol, broadcast_address: str, ports: list[int], data: str
+	) -> None:
+		logger.debug("Sending data to network broadcast %s %s [%s]", broadcast_address, ports, data)
+		payload = base64.b64decode(data)
+		for port in ports:
+			logger.debug("Broadcasting to port %s", port)
+			with closing(socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) as sock:
+				sock.setsockopt(SOL_SOCKET, SO_BROADCAST, True)
+				sock.sendto(payload, (broadcast_address, port))
 
 
 class DepotserverPackageManager:

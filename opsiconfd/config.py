@@ -76,6 +76,7 @@ VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 WORKBENCH_DIR = "/var/lib/opsi/workbench"
 SMB_CONF = "/etc/samba/smb.conf"
 SUDOERS_CONF = "/etc/sudoers"
+PACKAGE_SCRIPT_TIMEOUT = 600  # Seconds
 
 try:
 	FQDN = get_fqdn()

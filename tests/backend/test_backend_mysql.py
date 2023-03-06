@@ -45,7 +45,7 @@ def test_config(tmp_path: Path) -> None:
 			"_connection_pool_max_overflow": 11,
 			"_connection_pool_timeout": 12,
 			"_connection_pool_size": 13,
-			"_unique_hardware_addresses": True,
+			"unique_hardware_addresses": True,
 		}
 		config = "\n".join(line.strip() for line in config.split("\n"))
 		config_file.write_text(config, encoding="utf-8")
@@ -61,7 +61,7 @@ def test_config(tmp_path: Path) -> None:
 			}
 			"""
 		expected = {
-			"_unique_hardware_addresses": False,
+			"unique_hardware_addresses": False,
 		}
 		config = "\n".join(line.strip() for line in config.split("\n"))
 		config_file.write_text(config, encoding="utf-8")

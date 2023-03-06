@@ -283,7 +283,7 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
 	`lastseen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`state` tinyint(4) NOT NULL,
 	`usageFrequency` int(11) NOT NULL DEFAULT '-1',
-	`lastUsed` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`lastUsed` timestamp DEFAULT NULL,
 	`licenseKey` varchar(1024) DEFAULT NULL,
 	PRIMARY KEY (`clientId`,`name`,`version`,`subVersion`,`language`,`architecture`),
 	KEY `index_software_config_clientId` (`clientId`),
@@ -712,6 +712,12 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			"""ALTER TABLE `PRODUCT_ON_CLIENT`
 			MODIFY COLUMN `installationStatus` varchar(16) NOT NULL DEFAULT "not_installed",
 			MODIFY COLUMN `actionRequest` varchar(16) NOT NULL DEFAULT "none"
+			"""
+		)
+
+		session.execute(
+			"""ALTER TABLE `SOFTWARE_CONFIG`
+			MODIFY COLUMN `lastUsed` timestamp DEFAULT NULL
 			"""
 		)
 

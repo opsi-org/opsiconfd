@@ -8,6 +8,7 @@
 opsiconfd.setup.backend
 """
 
+import os
 import re
 import string
 from pathlib import Path
@@ -89,7 +90,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 		mysql_root.address = "localhost"
 		mysql_root.database = "opsi"
 		mysql_root.username = "root"
-		mysql_root.password = ""
+		mysql_root.password = os.environ.get("MYSQL_ROOT_PASSWORD", "")
 		logger.info("Trying to connect to local MySQL database as %s", mysql_root.username)
 
 	while True:

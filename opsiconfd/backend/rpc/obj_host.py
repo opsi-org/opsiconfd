@@ -51,6 +51,22 @@ if TYPE_CHECKING:
 
 
 class RPCHostMixin(Protocol):
+	def _host_check_duplicate_hardware_address(self: BackendProtocol, host: Host) -> None:
+		if not self._mysql.unique_hardware_addresses or not host.hardwareAddress or host.hardwareAddress.startswith("00:00:00"):
+			return
+
+		with self._mysql.session() as session:  # pylint: disable=redefined-argument-from-local
+			res = session.execute(
+				"""
+				SELECT hostId FROM `HOST`
+				WHERE hostId :hostId AND hardwareAddress = :hardwareAddress
+				LIMIT 1
+				""",
+				params={"hostId": host.id, "hardwareAddress": host.hardwareAddress},
+			)
+			if res:
+				raise ValueError(f"Hardware address {host.hardwareAddress!r} is already used by host {res[0]!r}")
+
 	def host_bulkInsertObjects(self: BackendProtocol, hosts: list[dict] | list[Host]) -> None:  # pylint: disable=invalid-name
 		self._mysql.bulk_insert_objects(table="HOST", objs=hosts)  # type: ignore[arg-type]
 
@@ -58,6 +74,7 @@ class RPCHostMixin(Protocol):
 	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_insertObject")
 		host = forceObjectClass(host, Host)
+		self._host_check_duplicate_hardware_address(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
@@ -69,6 +86,7 @@ class RPCHostMixin(Protocol):
 	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObject")
 		host = forceObjectClass(host, Host)
+		self._host_check_duplicate_hardware_address(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
@@ -82,6 +100,7 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in forceList(hosts):
 				host = forceObjectClass(host, Host)
+				self._host_check_duplicate_hardware_address(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
 				if self.events_enabled:
 					self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
@@ -96,6 +115,7 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in forceList(hosts):
 				host = forceObjectClass(host, Host)
+				self._host_check_duplicate_hardware_address(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
 				if self.events_enabled:
 					self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})

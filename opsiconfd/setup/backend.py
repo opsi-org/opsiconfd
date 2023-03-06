@@ -220,8 +220,9 @@ def file_mysql_migration() -> None:
 	mysql.connect()
 	update_database(mysql, force=True)
 
-	backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)
-	backend_replicator.replicate(audit=False)
+	with mysql.disable_unique_hardware_addresses():
+		backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)
+		backend_replicator.replicate(audit=False)
 
 	dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
 

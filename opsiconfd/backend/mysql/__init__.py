@@ -96,7 +96,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 					sleep(retry_wait)
 
 
-class MySQLConnection:  # pylint: disable=too-many-instance-attributes
+class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
 	_column_to_attribute = {
 		"CONFIG": {"configId": "id"},
 		"HOST": {"hostId": "id"},
@@ -151,6 +151,18 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__}(address={self.address})>"
+
+	@property
+	def unique_hardware_addresses(self) -> bool:
+		return self._unique_hardware_addresses
+
+	@contextmanager
+	def disable_unique_hardware_addresses(self) -> Generator[None, None, None]:
+		unique_hardware_addresses = self._unique_hardware_addresses
+		try:
+			yield
+		finally:
+			self._unique_hardware_addresses = unique_hardware_addresses
 
 	def read_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"

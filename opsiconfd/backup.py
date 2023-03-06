@@ -378,7 +378,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 			if progress:
 				restore_task = progress.add_task("Restoring database objects", total=total_objects, refresh_per_second=2)
 
-			with backend.events_disabled():
+			with backend.events_disabled(), mysql.disable_unique_hardware_addresses():
 				for obj_class in OBJECT_CLASSES:
 					objects = data["objects"].get(obj_class)
 					if not objects:

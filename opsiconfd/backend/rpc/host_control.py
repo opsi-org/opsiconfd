@@ -11,6 +11,7 @@ opsiconfd.backend.rpc.host_control
 from __future__ import annotations
 
 import asyncio
+import base64
 import struct
 import time
 from ipaddress import (
@@ -409,13 +410,16 @@ class RPCHostControlMixin(Protocol):
 				for i in range(0, len(data), 2):
 					payload = b"".join([payload, struct.pack("B", int(data[i : i + 2], 16))])
 
+				str_payload = base64.b64encode(payload)
 				for broadcast_address, target_ports in self._get_broadcast_addresses_for_host(host):
 					if responsible_depot_id != self._depot_id:
 						self._execute_rpc_on_depot(
-							depot_id=responsible_depot_id, method="network_sendBroadcast", params=[broadcast_address, target_ports, payload]
+							depot_id=responsible_depot_id,
+							method="network_sendBroadcast",
+							params=[broadcast_address, target_ports, str_payload],
 						)
 					else:
-						self.network_sendBroadcast(broadcast_address, target_ports, payload)
+						self.network_sendBroadcast(broadcast_address, target_ports, str_payload)
 
 				result[host.id] = {"result": "sent", "error": None}
 			except Exception as err:  # pylint: disable=broad-except

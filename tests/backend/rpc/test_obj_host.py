@@ -598,3 +598,27 @@ def test_host_createOpsiConfigserver(  # pylint: disable=invalid-name,too-many-s
 	assert depot["opsiHostKey"]
 	assert depot["depotLocalUrl"] == "file:///depot/local/url"
 	assert depot["depotRemoteUrl"] == "webdavs://depot.remote/url"
+
+
+def test_host_check_duplicate_hardware_address(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	# Create client
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_createOpsiClient",
+		"params": {"id": "test-backend-rpc-client1.opsi.test", "hardwareAddress": "01:02:03:04:05:06"},
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_createOpsiClient",
+		"params": {"id": "test-backend-rpc-client1.opsi.test", "hardwareAddress": "01:02:03:04:05:06"},
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" in res

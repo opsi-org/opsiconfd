@@ -59,11 +59,11 @@ class RPCHostMixin(Protocol):
 			res = session.execute(
 				"""
 				SELECT hostId FROM `HOST`
-				WHERE hostId :hostId AND hardwareAddress = :hardwareAddress
+				WHERE hostId = :hostId AND hardwareAddress = :hardwareAddress
 				LIMIT 1
 				""",
 				params={"hostId": host.id, "hardwareAddress": host.hardwareAddress},
-			)
+			).fetchone()
 			if res:
 				raise ValueError(f"Hardware address {host.hardwareAddress!r} is already used by host {res[0]!r}")
 

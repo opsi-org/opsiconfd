@@ -137,7 +137,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		self._connection_pool_max_overflow = 10
 		self._connection_pool_timeout = 30
 		self._connection_pool_recycling_seconds = -1
-		self._unique_hardware_addresses = True
+		self.unique_hardware_addresses = True
 
 		self._Session: scoped_session | None = lambda: None  # pylint: disable=invalid-name
 		self._session_factory = None
@@ -152,17 +152,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__}(address={self.address})>"
 
-	@property
-	def unique_hardware_addresses(self) -> bool:
-		return self._unique_hardware_addresses
-
 	@contextmanager
 	def disable_unique_hardware_addresses(self) -> Generator[None, None, None]:
-		unique_hardware_addresses = self._unique_hardware_addresses
+		unique_hardware_addresses = self.unique_hardware_addresses
 		try:
 			yield
 		finally:
-			self._unique_hardware_addresses = unique_hardware_addresses
+			self.unique_hardware_addresses = unique_hardware_addresses
 
 	def read_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"

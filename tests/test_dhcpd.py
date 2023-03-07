@@ -19,6 +19,7 @@ from opsiconfd.dhcpd import (
 	DHCPDConfFile,
 	DHCPDConfParameter,
 	DHCPDControlConfig,
+	get_dhcpd_restart_command,
 	get_dhcpd_service_name,
 	setup_dhcpd,
 )
@@ -152,3 +153,4 @@ def test_get_dhcpd_service_name(service_name: str, state: str, expected: str) ->
 
 	with patch("opsiconfd.dhcpd.run", PropertyMock(return_value=Proc())):
 		assert get_dhcpd_service_name() == expected
+		assert get_dhcpd_restart_command() == ["sudo", "systemctl", "restart", expected]

@@ -31,20 +31,6 @@ if TYPE_CHECKING:
 
 
 CREATE_TABLES_SQL = """
-CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
-	`licensePoolId` varchar(100) NOT NULL,
-	`name` varchar(100) NOT NULL,
-	`version` varchar(100) NOT NULL,
-	`subVersion` varchar(100) NOT NULL,
-	`language` varchar(10) NOT NULL,
-	`architecture` varchar(3) NOT NULL,
-	PRIMARY KEY (`licensePoolId`,`name`,`version`,`subVersion`,`language`,`architecture`),
-	KEY `licensePoolId` (`licensePoolId`),
-	FOREIGN KEY (`licensePoolId`)
-		REFERENCES `LICENSE_POOL` (`licensePoolId`)
-		ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 CREATE TABLE IF NOT EXISTS `CONFIG` (
 	`configId` varchar(200) NOT NULL,
 	`type` varchar(30) NOT NULL,
@@ -377,6 +363,20 @@ CREATE TABLE IF NOT EXISTS `LICENSE_ON_CLIENT` (
 		REFERENCES `SOFTWARE_LICENSE_TO_LICENSE_POOL` (`softwareLicenseId`, `licensePoolId`),
 	FOREIGN KEY (`clientId`)
 		REFERENCES `HOST` (`hostId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
+	`licensePoolId` varchar(100) NOT NULL,
+	`name` varchar(100) NOT NULL,
+	`version` varchar(100) NOT NULL,
+	`subVersion` varchar(100) NOT NULL,
+	`language` varchar(10) NOT NULL,
+	`architecture` varchar(3) NOT NULL,
+	PRIMARY KEY (`licensePoolId`,`name`,`version`,`subVersion`,`language`,`architecture`),
+	KEY `licensePoolId` (`licensePoolId`),
+	FOREIGN KEY (`licensePoolId`)
+		REFERENCES `LICENSE_POOL` (`licensePoolId`)
 		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 """

@@ -283,7 +283,7 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
 	`lastseen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`state` tinyint(4) NOT NULL,
 	`usageFrequency` int(11) NOT NULL DEFAULT '-1',
-	`lastUsed` timestamp DEFAULT NULL,
+	`lastUsed` timestamp NULL DEFAULT NULL,
 	`licenseKey` varchar(1024) DEFAULT NULL,
 	PRIMARY KEY (`clientId`,`name`,`version`,`subVersion`,`language`,`architecture`),
 	KEY `index_software_config_clientId` (`clientId`),
@@ -717,7 +717,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 
 		session.execute(
 			"""ALTER TABLE `SOFTWARE_CONFIG`
-			MODIFY COLUMN `lastUsed` timestamp DEFAULT NULL
+			MODIFY COLUMN `lastUsed` timestamp NULL DEFAULT NULL
 			"""
 		)
 

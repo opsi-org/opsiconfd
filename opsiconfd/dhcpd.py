@@ -43,7 +43,7 @@ def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
 	if not dhcpd_lock_file.parent.exists():
 		yield None
 		return
-	with open(dhcpd_lock_file, "r+", encoding="utf8") as lock_fh:
+	with open(dhcpd_lock_file, "a+", encoding="utf8") as lock_fh:
 		try:
 			os.chmod(dhcpd_lock_file, 0o666)
 		except PermissionError:

@@ -39,7 +39,10 @@ from opsiconfd.utils import get_ip_addresses, ip_address_in_network, lock_file
 
 @contextmanager
 def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
-	dhcpd_lock_file = "/var/lock/opsi-dhcpd-lock"
+	dhcpd_lock_file = Path("/var/lock/opsi-dhcpd-lock")
+	if not dhcpd_lock_file.parent.exists():
+		yield None
+		return
 	with open(dhcpd_lock_file, "r+", encoding="utf8") as lock_fh:
 		try:
 			os.chmod(dhcpd_lock_file, 0o666)

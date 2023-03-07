@@ -109,7 +109,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			self._package_manager = DepotserverPackageManager(self, self._depot_id)
 		else:
 			logger.info("Depot %r not found in backend", self._depot_id)
-			self._package_manager = None
+			self._package_manager = None  # type: ignore[assignment]
 
 	@rpc_method
 	def depot_getHostRSAPublicKey(self: BackendProtocol) -> str:  # pylint: disable=invalid-name

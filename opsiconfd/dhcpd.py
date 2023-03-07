@@ -663,7 +663,7 @@ def get_dhcpd_conf_location() -> Path:
 def get_dhcpd_service_name() -> str:
 	try:
 		possible_names = ("dhcpd", "isc-dhcp-server", "dhcp3-server", "univention-dhcp")
-		pattern = re.compile(r"^\s*([a-z]+)\@?\.service")
+		pattern = re.compile(r"^\s*([a-z\-]+)\@?\.service")
 		for line in run(
 			["systemctl", "list-unit-files"], shell=False, text=True, encoding="utf-8", check=True, capture_output=True
 		).stdout.split("\n"):
@@ -711,7 +711,7 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 				start_line=-1,
 				parent_block=global_block,
 				type="subnet",
-				settings=["subnet", local_addr["network"], "netmask", local_addr["netmask"]],
+				settings=["subnet", local_addr["network"].split("/")[0], "netmask", local_addr["netmask"]],
 			)
 		)
 		conf_changed = True

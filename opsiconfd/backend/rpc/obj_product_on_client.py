@@ -283,11 +283,23 @@ class RPCProductOnClientMixin(Protocol):
 	def productOnClient_generateSequence(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[ProductOnClient]
 	) -> list[ProductOnClient]:
+		"""
+		Takes a list of ProductOnClient objects.
+		Returns the same list of in the order in which the actions must be processed.
+		Please also check if `productOnClient_addDependencies` is more suitable.
+		"""
 		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_addDependencies(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[ProductOnClient]
 	) -> list[ProductOnClient]:
+		"""
+		Takes a list of ProductOnClient objects.
+		Adds ProductOnClient objects that are needed to fulfill the ProductDependencies.
+		Other ProductOnClient objects are read from the backend to check if dependencies are already fulfilled.
+		Returns the expanded list of ProductOnClient objects in the order in which the actions must be processed
+		(like productOnClient_generateSequence would do).
+		"""
 		productOnClients = self._product_on_client_process_with_function(productOnClients, add_dependent_product_on_clients)
 		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)

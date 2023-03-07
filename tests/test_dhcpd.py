@@ -11,12 +11,15 @@ Test opsiconfd.dhcpd
 
 from pathlib import Path
 from shutil import copy
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
+
+import pytest
 
 from opsiconfd.dhcpd import (
 	DHCPDConfFile,
 	DHCPDConfParameter,
 	DHCPDControlConfig,
+	get_dhcpd_service_name,
 	setup_dhcpd,
 )
 
@@ -114,3 +117,38 @@ def test_setup_dhcpd(tmp_path: Path) -> None:
 		assert isinstance(param, DHCPDConfParameter)
 		assert param.key == "filename"
 		assert param.value == dhcpd_config.boot_filename_uefi
+
+
+UNIT_FILES_OUT = """
+UNIT FILE                                  STATE           VENDOR PRESET
+proc-sys-fs-binfmt_misc.automount          static          -
+-.mount                                    generated       -
+dev-hugepages.mount                        static          -
+apache2.service                            enabled         enabled
+apache2@.service                           disabled        enabled
+{{service_name}}                    {{state}}          enabled
+xfs_scrub_all.timer                        disabled        enabled
+
+385 unit files listed.
+"""
+
+
+@pytest.mark.parametrize(
+	"service_name, state, expected",
+	(
+		("isc-dhcp-server.service", "masked", "dhcpd"),
+		("isc-dhcp-server.service", "disabled", "dhcpd"),
+		("isc-dhcp-server.service", "enabled", "isc-dhcp-server"),
+		("isc-dhcp-server@.service", "enabled", "isc-dhcp-server"),
+		("univention-dhcp@.service", "enabled", "univention-dhcp"),
+		("other.service", "enabled", "dhcpd"),
+	),
+)  # pylint: disable=too-many-locals
+def test_get_dhcpd_service_name(service_name: str, state: str, expected: str) -> None:
+	get_dhcpd_service_name.cache_clear()
+
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = UNIT_FILES_OUT.replace("{{service_name}}", service_name).replace("{{state}}", state)
+
+	with patch("opsiconfd.dhcpd.run", PropertyMock(return_value=Proc())):
+		assert get_dhcpd_service_name() == expected

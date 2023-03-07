@@ -15,7 +15,7 @@ import traceback
 import warnings
 from functools import wraps
 from types import NoneType
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional
 
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response
@@ -126,7 +126,7 @@ class RESTErrorResponse(RESTResponse):
 	def __init__(
 		self,
 		message: str = "An unknown error occurred.",
-		details: Union[str, Exception] | None = None,
+		details: str | Exception | list[dict] | None = None,
 		error_class: str | None = None,
 		code: str | None = None,
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -212,7 +212,7 @@ def create_link_header(total: int, commons: dict[str, Any], url: URL) -> dict:
 	return headers
 
 
-def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Callable:  # pylint: disable=too-many-statements
+def rest_api(default_error_status_code: Callable | int | None = None) -> Callable:  # pylint: disable=too-many-statements
 	_func = None
 	if callable(default_error_status_code):
 		# Decorator used as @rest_api not @rest_api(...)

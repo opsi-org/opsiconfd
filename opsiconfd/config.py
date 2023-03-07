@@ -324,6 +324,12 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 
 		os.putenv("SSL_CERT_FILE", self._config.ssl_trusted_certs)
 
+		if self._config.redis_internal_url:
+			url = urlparse(self._config.redis_internal_url)
+			if url.password:
+				secret_filter.add_secrets(url.password)
+				secret_filter.add_secrets(unquote(url.password))
+
 		if not self._config.internal_url:
 			self._config.internal_url = f"{scheme}://{FQDN}:{self._config.port}"
 		if not self._config.external_url:

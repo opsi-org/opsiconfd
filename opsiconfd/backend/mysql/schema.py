@@ -974,19 +974,8 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			columns=["clientId", "name", "version", "subVersion", "language", "architecture"],
 		)
 
-		res = session.execute(
-			"""
-			SELECT DISTINCT `CONSTRAINT_NAME` FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE`
-			WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'SOFTWARE_CONFIG'
-			""",
-			params={"database": mysql.database},
-		).fetchall()
-		fk_names = []
-		if res:
-			fk_names = [r[0] for r in res]
-
-		if "FK_HOST" not in fk_names or "FK_SOFTWARE" not in fk_names:
-			res = session.execute(
+		def cleanup_software_config(session: Session) -> None:
+			result = session.execute(
 				"""
 				SELECT c.name, c.version, c.subVersion, c.`language`, c.architecture
 				FROM SOFTWARE_CONFIG AS c
@@ -997,9 +986,9 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 				WHERE s.name IS NULL OR h.hostId IS NULL
 				"""
 			).fetchall()
-			if res:
+			if result:
 				logger.info("Removing orphan entries from SOFTWARE_CONFIG")
-				for row in res:
+				for row in result:
 					session.execute(
 						"""
 						DELETE FROM SOFTWARE_CONFIG
@@ -1009,24 +998,28 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 						params=dict(row),
 					)
 
-			if "FK_SOFTWARE" not in fk_names:
-				session.execute(
-					"""
-					ALTER TABLE `SOFTWARE_CONFIG` ADD
-					FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`)
-					REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`)
-					ON UPDATE CASCADE ON DELETE CASCADE
-					"""
-				)
-			if "FK_HOST" not in fk_names:
-				session.execute(
-					"""
-					ALTER TABLE `SOFTWARE_CONFIG` ADD
-					FOREIGN KEY (`clientId`)
-					REFERENCES `HOST` (`hostId`)
-					ON UPDATE CASCADE ON DELETE CASCADE
-					"""
-				)
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
+				table="SOFTWARE_CONFIG",
+				ref_table="SOFTWARE",
+				f_keys=["name", "version", "subVersion", "language", "architecture"],
+			),
+			cleanup_function=cleanup_software_config,
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
+				table="SOFTWARE_CONFIG",
+				f_keys=["clientId"],
+				ref_table="HOST",
+				ref_keys=["hostId"],
+			),
+			cleanup_function=cleanup_software_config,
+		)
 
 		create_foreign_key(
 			session=session,

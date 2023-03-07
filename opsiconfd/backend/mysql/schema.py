@@ -127,22 +127,6 @@ CREATE TABLE IF NOT EXISTS `LICENSE_CONTRACT` (
 	KEY `index_license_contract_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE IF NOT EXISTS `LICENSE_ON_CLIENT` (
-	`softwareLicenseId` varchar(100) NOT NULL,
-	`licensePoolId` varchar(100) NOT NULL,
-	`clientId` varchar(255) NOT NULL,
-	`licenseKey` varchar(1024) DEFAULT NULL,
-	`notes` varchar(1024) DEFAULT NULL,
-	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`,`clientId`),
-	KEY `softwareLicenseId` (`softwareLicenseId`,`licensePoolId`),
-	KEY `index_license_on_client_clientId` (`clientId`),
-	FOREIGN KEY (`softwareLicenseId`, `licensePoolId`)
-		REFERENCES `SOFTWARE_LICENSE_TO_LICENSE_POOL` (`softwareLicenseId`, `licensePoolId`),
-	FOREIGN KEY (`clientId`)
-		REFERENCES `HOST` (`hostId`)
-		ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 CREATE TABLE IF NOT EXISTS `LICENSE_POOL` (
 	`licensePoolId` varchar(100) NOT NULL,
 	`type` varchar(30) NOT NULL,
@@ -379,6 +363,22 @@ CREATE TABLE IF NOT EXISTS `WINDOWS_SOFTWARE_ID_TO_PRODUCT` (
 	PRIMARY KEY (`windowsSoftwareId`,`productId`),
 	KEY `index_productId` (`productId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `LICENSE_ON_CLIENT` (
+	`softwareLicenseId` varchar(100) NOT NULL,
+	`licensePoolId` varchar(100) NOT NULL,
+	`clientId` varchar(255) NOT NULL,
+	`licenseKey` varchar(1024) DEFAULT NULL,
+	`notes` varchar(1024) DEFAULT NULL,
+	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`,`clientId`),
+	KEY `softwareLicenseId` (`softwareLicenseId`,`licensePoolId`),
+	KEY `index_license_on_client_clientId` (`clientId`),
+	FOREIGN KEY (`softwareLicenseId`, `licensePoolId`)
+		REFERENCES `SOFTWARE_LICENSE_TO_LICENSE_POOL` (`softwareLicenseId`, `licensePoolId`),
+	FOREIGN KEY (`clientId`)
+		REFERENCES `HOST` (`hostId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 """
 
 
@@ -612,7 +612,10 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 def read_database_schema(mysql: MySQLConnection, with_audit_hardware: bool = False) -> str:
 	sql = ""
 	with mysql.session() as session:
-		for table in mysql.tables:
+		tables = sorted(mysql.tables)
+		tables.remove("LICENSE_ON_CLIENT")
+		tables.append("LICENSE_ON_CLIENT")
+		for table in tables:
 			if not with_audit_hardware and table.startswith(("HARDWARE_DEVICE_", "HARDWARE_CONFIG_")):
 				continue
 			create = session.execute(f"SHOW CREATE TABLE `{table}`").fetchone()[1]

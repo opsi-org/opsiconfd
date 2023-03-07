@@ -126,7 +126,7 @@ class RESTErrorResponse(RESTResponse):
 	def __init__(
 		self,
 		message: str = "An unknown error occurred.",
-		details: Union[str, Exception] | None = None,
+		details: Union[str, Exception, list[dict]] | None = None,
 		error_class: str | None = None,
 		code: str | None = None,
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,

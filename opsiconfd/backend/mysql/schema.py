@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 	`architecture` varchar(3) NOT NULL,
 	PRIMARY KEY (`licensePoolId`,`name`,`version`,`subVersion`,`language`,`architecture`),
 	KEY `licensePoolId` (`licensePoolId`),
-	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`licensePoolId`)
+		REFERENCES `LICENSE_POOL` (`licensePoolId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `CONFIG` (
@@ -69,7 +71,9 @@ CREATE TABLE IF NOT EXISTS `CONFIG_VALUE` (
 	`isDefault` tinyint(1) DEFAULT NULL,
 	PRIMARY KEY (`config_value_id`),
 	KEY `configId` (`configId`),
-	FOREIGN KEY (`configId`) REFERENCES `CONFIG` (`configId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`configId`)
+		REFERENCES `CONFIG` (`configId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `GROUP` (
@@ -132,8 +136,11 @@ CREATE TABLE IF NOT EXISTS `LICENSE_ON_CLIENT` (
 	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`,`clientId`),
 	KEY `softwareLicenseId` (`softwareLicenseId`,`licensePoolId`),
 	KEY `index_license_on_client_clientId` (`clientId`),
-	FOREIGN KEY (`softwareLicenseId`, `licensePoolId`) REFERENCES `SOFTWARE_LICENSE_TO_LICENSE_POOL` (`softwareLicenseId`, `licensePoolId`),
-	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`softwareLicenseId`, `licensePoolId`)
+		REFERENCES `SOFTWARE_LICENSE_TO_LICENSE_POOL` (`softwareLicenseId`, `licensePoolId`),
+	FOREIGN KEY (`clientId`)
+		REFERENCES `HOST` (`hostId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `LICENSE_POOL` (
@@ -151,7 +158,9 @@ CREATE TABLE IF NOT EXISTS `OBJECT_TO_GROUP` (
 	PRIMARY KEY (`groupType`,`groupId`,`objectId`),
 	KEY `groupType` (`groupType`,`groupId`),
 	KEY `index_object_to_group_objectId` (`objectId`),
-	FOREIGN KEY (`groupType`, `groupId`) REFERENCES `GROUP` (`type`, `groupId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`groupType`, `groupId`)
+		REFERENCES `GROUP` (`type`, `groupId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `OPSI_SCHEMA` (
@@ -197,14 +206,18 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_DEPENDENCY` (
 	`requiredInstallationStatus` varchar(16) DEFAULT NULL,
 	`requirementType` varchar(16) DEFAULT NULL,
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`,`productAction`,`requiredProductId`),
-	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`)
+		REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_ID_TO_LICENSE_POOL` (
 	`licensePoolId` varchar(100) NOT NULL,
 	`productId` varchar(255) NOT NULL,
 	PRIMARY KEY (`licensePoolId`,`productId`),
-	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`licensePoolId`)
+		REFERENCES `LICENSE_POOL` (`licensePoolId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
@@ -223,7 +236,9 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
 	PRIMARY KEY (`productId`,`productType`,`clientId`),
 	UNIQUE KEY `productId-clientId` (`productId`,`clientId`),
 	KEY `FK_PRODUCT_ON_CLIENT_HOST` (`clientId`),
-	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`clientId`)
+		REFERENCES `HOST` (`hostId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
@@ -238,8 +253,12 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	KEY `productId-productVersion-packageVersion` (`productId`,`productVersion`,`packageVersion`),
 	KEY `depotId` (`depotId`),
 	KEY `index_product_on_depot_productType` (`productType`),
-	FOREIGN KEY (`depotId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE,
-	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`depotId`)
+		REFERENCES `HOST` (`hostId`)
+		ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`)
+		REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY` (
@@ -253,7 +272,9 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY` (
 	`editable` tinyint(1) NOT NULL DEFAULT '1',
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`,`propertyId`),
 	KEY `index_product_property_type` (`type`),
-	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`)
+		REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_STATE` (
@@ -275,7 +296,9 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_VALUE` (
 	`isDefault` tinyint(1) DEFAULT NULL,
 	PRIMARY KEY (`product_property_id`),
 	KEY `index_product_property_value` (`productId`,`productVersion`,`packageVersion`,`propertyId`),
-	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`) REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
+		REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE` (
@@ -312,8 +335,12 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
 	PRIMARY KEY (`clientId`,`name`,`version`,`subVersion`,`language`,`architecture`),
 	KEY `index_software_config_clientId` (`clientId`),
 	KEY `index_software_config_nvsla` (`name`,`version`,`subVersion`,`language`,`architecture`),
-	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE,
-	FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`) REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY (`clientId`)
+		REFERENCES `HOST` (`hostId`)
+		ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`)
+		REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`)
+		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE` (
@@ -327,8 +354,11 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE` (
 	KEY `licenseContractId` (`licenseContractId`),
 	KEY `index_software_license_type` (`type`),
 	KEY `index_software_license_boundToHost` (`boundToHost`),
-	FOREIGN KEY (`licenseContractId`) REFERENCES `LICENSE_CONTRACT` (`licenseContractId`),
-	FOREIGN KEY (`boundToHost`) REFERENCES `HOST` (`hostId`) ON DELETE SET NULL ON UPDATE SET NULL
+	FOREIGN KEY (`licenseContractId`)
+		REFERENCES `LICENSE_CONTRACT` (`licenseContractId`),
+	FOREIGN KEY (`boundToHost`)
+		REFERENCES `HOST` (`hostId`)
+		ON DELETE SET NULL ON UPDATE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE_TO_LICENSE_POOL` (
@@ -337,8 +367,10 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE_TO_LICENSE_POOL` (
 	`licenseKey` varchar(1024) DEFAULT NULL,
 	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`),
 	KEY `licensePoolId` (`licensePoolId`),
-	FOREIGN KEY (`softwareLicenseId`) REFERENCES `SOFTWARE_LICENSE` (`softwareLicenseId`),
-	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`)
+	FOREIGN KEY (`softwareLicenseId`)
+		REFERENCES `SOFTWARE_LICENSE` (`softwareLicenseId`),
+	FOREIGN KEY (`licensePoolId`)
+		REFERENCES `LICENSE_POOL` (`licensePoolId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `WINDOWS_SOFTWARE_ID_TO_PRODUCT` (

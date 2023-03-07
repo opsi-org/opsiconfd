@@ -17,7 +17,15 @@ from opsiconfd.backend.mysql.schema import read_database_schema
 mysql = MySQLConnection()
 mysql.connect()
 create_code = read_database_schema(mysql).splitlines(keepends=True)
-
+for idx, line in enumerate(create_code):
+	pos = line.find(" REFERENCES ")
+	if pos != -1:
+		part1 = line[:pos] + "\n\t\t"
+		part2 = line[pos + 1 :]
+		pos = part2.find(" ON ")
+		if pos != -1:
+			part2 = part2[:pos] + "\n\t\t" + part2[pos + 1 :]
+		create_code[idx] = part1 + part2
 
 schema_file = Path(__file__).parent.parent / "opsiconfd/backend/mysql/schema.py"
 lines = []

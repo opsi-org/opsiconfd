@@ -11,6 +11,7 @@ opsiconfd.backend.mysql.schema
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, Literal
 
@@ -579,12 +580,31 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 		)
 
 
-def create_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
+def read_database_schema(mysql: MySQLConnection, with_audit: bool = False) -> str:
+	sql = ""
+	with mysql.session() as session:
+		for table in mysql.tables:
+			if not with_audit and table.startswith(("HARDWARE_", "AUDIT_")):
+				continue
+			create = session.execute(f"SHOW CREATE TABLE `{table}`").fetchone()[1]
+			create = re.sub(r"CREATE TABLE `", "CREATE TABLE IF NOT EXISTS `", create)
+			create = re.sub(r"CONSTRAINT `[^`]+` FOREIGN KEY", "FOREIGN KEY", create)
+			# Remove AUTO_INCREMENT, ENGINE, CHARSET, ...
+			create = re.sub(r"\)\s*ENGINE.*", ") ENGINE=InnoDB DEFAULT CHARSET=utf8;\n", create)
+			lines = create.splitlines(keepends=True)
+			for idx, line in enumerate(lines):
+				if line.startswith("  "):
+					lines[idx] = "\t" + line.lstrip()
+			sql = f"{sql}{''.join(lines)}\n"
+	return sql.rstrip("\n") + "\n"
+
+
+def create_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		session.execute(f"CREATE DATABASE IF NOT EXISTS `{mysql.database}`")
 
 
-def drop_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
+def drop_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 

@@ -102,17 +102,14 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 	ssh_rsa_public_key_file: str = "/etc/ssh/ssh_host_rsa_key.pub"
-	_package_manager: DepotserverPackageManager
+	_package_manager: DepotserverPackageManager | None
 
 	def __init__(self: BackendProtocol) -> None:
-		if not self.host_getIdents(id=self._depot_id):  # pylint: disable=maybe-no-member
-			logger.info("Depot %r not found in backend", self._depot_id)
-			# Mark methods as not available
-			for val in RPCDepotserverMixin.__dict__.values():
-				if callable(val) and hasattr(val, "rpc_method"):
-					delattr(val, "rpc_method")
-		else:
+		if self.host_getIdents(id=self._depot_id):  # pylint: disable=maybe-no-member
 			self._package_manager = DepotserverPackageManager(self, self._depot_id)
+		else:
+			logger.info("Depot %r not found in backend", self._depot_id)
+			self._package_manager = None
 
 	@rpc_method
 	def depot_getHostRSAPublicKey(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
@@ -201,6 +198,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		"""
 		Installing a package on the depot corresponding to this Backend.
 		"""
+		if not self._package_manager:
+			raise RuntimeError("Not a depotserver")
+
 		with log_context({"instance": "package_install"}):
 			self._package_manager.install_package(
 				filename,
@@ -215,6 +215,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 	def depot_uninstallPackage(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, force: bool = False, deleteFiles: bool = True
 	) -> None:
+		if not self._package_manager:
+			raise RuntimeError("Not a depotserver")
+
 		self._package_manager.uninstall_package(productId, force, deleteFiles)
 
 	@rpc_method

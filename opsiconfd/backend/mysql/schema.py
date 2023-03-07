@@ -613,8 +613,11 @@ def read_database_schema(mysql: MySQLConnection, with_audit_hardware: bool = Fal
 	sql = ""
 	with mysql.session() as session:
 		tables = sorted(mysql.tables)
-		tables.remove("LICENSE_ON_CLIENT")
-		tables.append("LICENSE_ON_CLIENT")
+		for table in ("LICENSE_ON_CLIENT", "AUDIT_SOFTWARE_TO_LICENSE_POOL"):
+			# Move to end for foreign keys
+			tables.remove(table)
+			tables.append(table)
+
 		for table in tables:
 			if not with_audit_hardware and table.startswith(("HARDWARE_DEVICE_", "HARDWARE_CONFIG_")):
 				continue

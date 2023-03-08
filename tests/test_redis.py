@@ -121,24 +121,56 @@ def test_delete_recursively(config: Config, piped: bool) -> None:  # pylint: dis
 		assert len(keys) == 0
 
 
-def test_redis_lock() -> None:
-	with redis_lock("test-lock", acquire_timeout=1.0):
-		with pytest.raises(TimeoutError):
-			with redis_lock("test-lock", acquire_timeout=2.0):
-				time.sleep(3.0)
+def test_redis_lock(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	lock_name = "test-lock"
+	redis_key = f"{config.redis_key('locks')}:{lock_name}"
 
-	with redis_lock("test-lock", acquire_timeout=1.0, lock_timeout=2.0):
-		with redis_lock("test-lock", acquire_timeout=3.0):
-			time.sleep(4.0)
+	with redis_client() as client:
+		assert not client.get(redis_key)
+
+		with redis_lock(lock_name, acquire_timeout=1.0):
+			# Lock acquired
+			assert client.get(redis_key)
+			with pytest.raises(TimeoutError):
+				# Lock cannot be acquired twice => TimeoutError
+				with redis_lock(lock_name, acquire_timeout=2.0):
+					time.sleep(3.0)
+
+		assert not client.get(redis_key)
+
+		with redis_lock(lock_name, acquire_timeout=1.0, lock_timeout=2.0):
+			# Lock acquired, lock will be auto removed from redis after 2 seconds
+			time.sleep(3.0)
+			assert not client.get(redis_key)
+			with redis_lock(lock_name, acquire_timeout=1.0):
+				time.sleep(1.0)
+
+		assert not client.get(redis_key)
 
 
 @pytest.mark.asyncio
-async def test_async_redis_lock() -> None:
+async def test_async_redis_lock(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	lock_name = "test-lock"
+	redis_key = f"{config.redis_key('locks')}:{lock_name}"
+	client = await async_redis_client()
+
+	assert not await client.get(redis_key)
+
 	async with async_redis_lock("test-lock", acquire_timeout=1.0):
+		# Lock acquired
+		assert await client.get(redis_key)
 		with pytest.raises(TimeoutError):
+			# Lock cannot be acquired twice => TimeoutError
 			async with async_redis_lock("test-lock", acquire_timeout=2.0):
-				time.sleep(3.0)
+				await asyncio.sleep(3.0)
+
+	assert not await client.get(redis_key)
 
 	async with async_redis_lock("test-lock", acquire_timeout=1.0, lock_timeout=2.0):
+		# Lock acquired, lock will be auto removed from redis after 2 seconds
+		await asyncio.sleep(3.0)
+		assert not await client.get(redis_key)
 		async with async_redis_lock("test-lock", acquire_timeout=3.0):
-			time.sleep(4.0)
+			await asyncio.sleep(1.0)
+
+	assert not await client.get(redis_key)

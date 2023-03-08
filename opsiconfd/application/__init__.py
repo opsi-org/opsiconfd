@@ -149,7 +149,7 @@ class OpsiconfdApp(FastAPI):
 
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
 		app_state.accomplished = False
-		with redis_lock("app-state", acquire_timeout=2.0, lock_timeout=5.0):
+		with redis_lock("app-state", acquire_timeout=2.0, lock_timeout=10.0):
 			self.store_app_state_in_redis(app_state)
 		if wait_accomplished is not None and wait_accomplished > 0:
 			self.wait_for_app_state(app_state, wait_accomplished)

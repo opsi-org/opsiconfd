@@ -25,7 +25,6 @@ from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
 	BackendIOError,
-	BackendMissingDataError,
 	BackendReferentialIntegrityError,
 	BackendTemporaryError,
 	BackendUnaccomplishableError,
@@ -48,7 +47,12 @@ from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.types import forceUnicodeLower
 from opsicommon.utils import compare_versions, make_temp_dir
 
-from opsiconfd.config import PACKAGE_SCRIPT_TIMEOUT, opsi_config
+from opsiconfd.config import (
+	DEPOT_DIR,
+	PACKAGE_SCRIPT_TIMEOUT,
+	WORKBENCH_DIR,
+	opsi_config,
+)
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
@@ -97,7 +101,7 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			timeout=PACKAGE_SCRIPT_TIMEOUT,
 			env=sp_env,
 			encoding="utf-8",
-			capture_output=True,
+			stdout=subprocess.PIPE,
 			stderr=subprocess.STDOUT,
 		).stdout.splitlines()
 	except Exception as err:
@@ -233,10 +237,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		Create a package content file in the products depot directory.
 		An existing file will be overriden.
 		"""
-		client_data_path = Path(
-			self.host_getObjects(id=self._depot_id)[0].getDepotLocalUrl().replace("file://", "")
-		)  # pylint: disable=protected-access
-		product_path = client_data_path / productId
+		product_path = Path(DEPOT_DIR) / productId
 		if not product_path.is_dir():
 			raise BackendIOError(f"Product dir '{product_path}' not found")
 
@@ -274,7 +275,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		The full path to the created opsi package is returned.
 		"""
 		package_path = Path(package_dir)
-		workbench_path = Path(self.host_getObjects(id=self._depot_id)[0].getWorkbenchLocalUrl().replace("file://", ""))
+		workbench_path = Path(WORKBENCH_DIR)
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
 		package_path = package_path.resolve()
@@ -304,7 +305,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		an opsi package is automatically created and then installed.
 		"""
 		package_path = Path(package_file_or_dir)
-		workbench_path = Path(self.host_getObjects(id=self._depot_id)[0].getWorkbenchLocalUrl().replace("file://", ""))
+		workbench_path = Path(WORKBENCH_DIR)
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
 		package_path = package_path.resolve()
@@ -349,19 +350,8 @@ class DepotserverPackageManager:
 
 		@contextmanager
 		def get_opsi_package(
-			filename: str, temp_dir: Path | None, depot_id: str, new_product_id: str | None = None
+			filename: str, temp_dir: Path | None, new_product_id: str | None = None
 		) -> Generator[tuple[OpsiPackage, Path], None, None]:
-			try:
-				depots = self.backend.host_getObjects(id=depot_id)  # pylint: disable=protected-access
-				depot = depots[0]
-				del depots
-			except IndexError as err:
-				raise BackendMissingDataError(f"Depot '{depot_id}' not found in backend") from err
-
-			depot_local_url = depot.getDepotLocalUrl()
-			if not depot_local_url or not depot_local_url.startswith("file:///"):
-				raise BackendBadValueError(f"Value '{depot_local_url}' not allowed for depot local url (has to start with 'file:///')")
-
 			opsi_package = OpsiPackage(Path(filename), temp_dir=temp_dir)
 			with make_temp_dir(temp_dir) as temp_unpack_dir:
 				if new_product_id:
@@ -530,7 +520,7 @@ class DepotserverPackageManager:
 				raise BackendIOError(f"Read access denied for package file '{filename}'")
 
 			try:
-				with get_opsi_package(filename, temp_dir, self._depot_id, force_product_id) as (opsi_package, tmp_unpack_dir):
+				with get_opsi_package(filename, temp_dir, force_product_id) as (opsi_package, tmp_unpack_dir):
 					product = opsi_package.product
 					product_id = product.getId()
 					if not product_id:
@@ -546,9 +536,7 @@ class DepotserverPackageManager:
 
 					logger.info("Creating product in backend")
 					self.backend.product_createObjects(product)
-					product_path = (
-						Path(self.backend.host_getObjects(id=self._depot_id)[0].getDepotLocalUrl().replace("file://", "")) / product_id
-					)
+					product_path = Path(DEPOT_DIR) / product_id
 
 					with lock_product(product, self._depot_id, force) as product_on_depot:
 						logger.info("Checking package dependencies")

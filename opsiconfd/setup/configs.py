@@ -58,7 +58,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 
 	conf = configs.get("clientconfig.configserver.url")
 	if not conf or not conf.possibleValues or not conf.possibleValues:
-		logger.info("Creating config: clientconfig.configserver.url")
+		logger.info("Creating config 'clientconfig.configserver.url'")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.configserver.url",
@@ -70,7 +70,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			)
 		)
 
-	logger.info("Creating config: clientconfig.depot.id")
+	logger.info("Creating config 'clientconfig.depot.id'")
 	add_configs.append(
 		UnicodeConfig(
 			id="clientconfig.depot.id",
@@ -83,11 +83,11 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	)
 
 	if "clientconfig.depot.dynamic" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.dynamic")
+		logger.info("Creating config 'clientconfig.depot.dynamic'")
 		add_configs.append(BoolConfig(id="clientconfig.depot.dynamic", description="Use dynamic depot selection", defaultValues=[False]))
 
 	if "clientconfig.depot.selection_mode" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.selection_mode")
+		logger.info("Creating config 'clientconfig.depot.selection_mode'")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.selection_mode",
@@ -100,7 +100,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.drive" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.drive")
+		logger.info("Creating config 'clientconfig.depot.drive'")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.drive",
@@ -141,7 +141,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.protocol" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.protocol")
+		logger.info("Creating config 'clientconfig.depot.protocol'")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.protocol",
@@ -154,7 +154,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.protocol.netboot" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.protocol.netboot")
+		logger.info("Creating config 'clientconfig.depot.protocol.netboot'")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.depot.protocol.netboot",
@@ -167,7 +167,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.depot.user" not in config_ids:
-		logger.info("Creating config: clientconfig.depot.user")
+		logger.info("Creating config 'clientconfig.depot.user'")
 
 		depot_user = "pcpatch"
 		domain = _get_windows_domain()
@@ -186,7 +186,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "clientconfig.windows.domain" not in config_ids:
-		logger.info("Creating config: clientconfig.windows.domain")
+		logger.info("Creating config 'clientconfig.windows.domain'")
 		domain = _get_windows_domain()
 		add_configs.append(
 			UnicodeConfig(
@@ -200,13 +200,13 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "opsiclientd.global.verify_server_cert" not in config_ids:
-		logger.info("Creating config: opsiclientd.global.verify_server_cert")
+		logger.info("Creating config 'opsiclientd.global.verify_server_cert'")
 		add_configs.append(
 			BoolConfig(id="opsiclientd.global.verify_server_cert", description="Verify opsi server TLS certificates", defaultValues=[True])
 		)
 
 	if "opsiclientd.global.install_opsi_ca_into_os_store" not in config_ids:
-		logger.info("Creating config: opsiclientd.global.install_opsi_ca_into_os_store")
+		logger.info("Creating config 'opsiclientd.global.install_opsi_ca_into_os_store'")
 		add_configs.append(
 			BoolConfig(
 				id="opsiclientd.global.install_opsi_ca_into_os_store",
@@ -216,7 +216,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "opsi-linux-bootimage.append" not in config_ids:
-		logger.info("Creating config: opsi-linux-bootimage.append")
+		logger.info("Creating config 'opsi-linux-bootimage.append'")
 		add_configs.append(
 			UnicodeConfig(
 				id="opsi-linux-bootimage.append",
@@ -240,15 +240,15 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "license-management.use" not in config_ids:
-		logger.info("Creating config: license-management.use")
+		logger.info("Creating config 'license-management.use'")
 		add_configs.append(BoolConfig(id="license-management.use", description="Activate license management", defaultValues=[False]))
 
 	if "software-on-demand.active" not in config_ids:
-		logger.info("Creating config: software-on-demand.active")
+		logger.info("Creating config 'software-on-demand.active'")
 		add_configs.append(BoolConfig(id="software-on-demand.active", description="Activate software-on-demand", defaultValues=[False]))
 
 	if "software-on-demand.product-group-ids" not in config_ids:
-		logger.info("Creating config: software-on-demand.product-group-ids")
+		logger.info("Creating config 'software-on-demand.product-group-ids'")
 		add_configs.append(
 			UnicodeConfig(
 				id="software-on-demand.product-group-ids",
@@ -262,7 +262,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 
 	if "licensing.disable_warning_for_modules" not in config_ids:
 		module_ids = sorted(set(OPSI_MODULE_IDS) - set(OPSI_FREE_MODULE_IDS) - set(OPSI_OBSOLETE_MODULE_IDS))
-		logger.info("Creating config: licensing.disable_warning_for_modules")
+		logger.info("Creating config 'licensing.disable_warning_for_modules'")
 		add_configs.append(
 			UnicodeConfig(
 				id="licensing.disable_warning_for_modules",
@@ -275,7 +275,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "licensing.client_limit_warning_percent" not in config_ids:
-		logger.info("Creating config: licensing.client_limit_warning_percent")
+		logger.info("Creating config 'licensing.client_limit_warning_percent'")
 		add_configs.append(
 			UnicodeConfig(
 				id="licensing.client_limit_warning_percent",
@@ -288,7 +288,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "licensing.client_limit_warning_absolute" not in config_ids:
-		logger.info("Creating config: licensing.client_limit_warning_absolute")
+		logger.info("Creating config 'licensing.client_limit_warning_absolute'")
 		add_configs.append(
 			UnicodeConfig(
 				id="licensing.client_limit_warning_absolute",
@@ -301,7 +301,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		)
 
 	if "licensing.client_limit_warning_days" not in config_ids:
-		logger.info("Creating config: licensing.client_limit_warning_days")
+		logger.info("Creating config 'licensing.client_limit_warning_days'")
 		add_configs.append(
 			UnicodeConfig(
 				id="licensing.client_limit_warning_days",

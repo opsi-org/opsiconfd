@@ -24,6 +24,7 @@ from signal import SIGHUP
 from typing import TYPE_CHECKING, Optional
 
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
+from opsicommon.utils import ip_address_in_network
 from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
@@ -36,7 +37,7 @@ from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_con
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client
-from opsiconfd.utils import asyncio_create_task, ip_address_in_network
+from opsiconfd.utils import asyncio_create_task
 
 if TYPE_CHECKING:
 	from uvicorn.protocols.http.h11_impl import H11Protocol

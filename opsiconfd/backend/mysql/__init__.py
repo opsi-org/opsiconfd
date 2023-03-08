@@ -31,10 +31,9 @@ from typing import (
 )
 from urllib.parse import quote, urlencode
 
-from OPSI.Util import compareVersions  # type: ignore[import]
-from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
-from opsicommon.logging import secret_filter  # type: ignore[import]
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.exceptions import BackendPermissionDeniedError
+from opsicommon.logging import secret_filter
+from opsicommon.objects import (
 	OBJECT_CLASSES,
 	BaseObject,
 	BaseObjectT,
@@ -42,6 +41,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	get_object_type,
 	get_possible_class_attributes,
 )
+from opsicommon.utils import compare_versions
 from sqlalchemy import create_engine  # type: ignore[import]
 from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.result import Result  # type: ignore[import]
@@ -269,7 +269,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 				min_version = "5.6.5"
 				if server_type == "MariaDB":
 					min_version = "10.1"
-				if compareVersions(match.group(1), "<", min_version):
+				if compare_versions(match.group(1), "<", min_version):
 					error = (
 						f"{server_type} server version '{version_string}' to old."
 						" Supported versions are MariaDB >= 10.1 and MySQL >= 5.6.5"

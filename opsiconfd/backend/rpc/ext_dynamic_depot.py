@@ -160,7 +160,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	selectedDepot = masterDepot
 	if alternativeDepots:
 		try:
-			from opsiconfd.utils import ip_address_in_network
+			from opsicommon.utils import ip_address_in_network
 		except ImportError:
 			from OPSI.Util import ipAddressInNetwork as ip_address_in_network
 
@@ -190,7 +190,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	selectedDepot = masterDepot
 	if alternativeDepots:
 		try:
-			from opsiconfd.utils import ip_address_in_network
+			from opsicommon.utils import ip_address_in_network
 		except ImportError:
 			from OPSI.Util import ipAddressInNetwork as ip_address_in_network
 		import ipaddress

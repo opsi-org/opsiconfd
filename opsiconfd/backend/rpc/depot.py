@@ -15,13 +15,14 @@ import grp
 import os
 import re
 import shutil
+import subprocess
 from contextlib import closing, contextmanager
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 
-from OPSI.System import execute, getDiskSpaceUsage  # type: ignore[import]
-from OPSI.Util import compareVersions, md5sum, removeDirectory  # type: ignore[import]
+from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
+from OPSI.Util import md5sum  # type: ignore[import]
 from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
@@ -47,7 +48,7 @@ from opsicommon.package.associated_files import (
 from opsicommon.types import forceBool, forceDict, forceFilename
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.types import forceUnicodeLower
-from opsicommon.utils import make_temp_dir
+from opsicommon.utils import compare_versions, make_temp_dir
 
 from opsiconfd.config import PACKAGE_SCRIPT_TIMEOUT, opsi_config
 from opsiconfd.logging import logger
@@ -90,7 +91,16 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 		}
 		sp_env.update(env)
 		logger.debug("Package script env: %s", sp_env)
-		return execute(str(script_path), timeout=PACKAGE_SCRIPT_TIMEOUT, env=sp_env)
+		return subprocess.run(
+			str(script_path),
+			shell=True,
+			check=True,
+			timeout=PACKAGE_SCRIPT_TIMEOUT,
+			env=sp_env,
+			encoding="utf-8",
+			capture_output=True,
+			stderr=subprocess.STDOUT,
+		).stdout.splitlines()
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		raise RuntimeError(
@@ -760,7 +770,7 @@ class DepotserverPackageManager:
 					if element.lower() == product_id.lower():
 						client_data_dir = os.path.join(depot.depotLocalUrl[7:], element)
 						logger.info("Deleting client data dir '%s'", client_data_dir)
-						removeDirectory(client_data_dir)
+						shutil.rmtree(client_data_dir)
 
 			self.backend.productOnDepot_deleteObjects(product_on_depot)
 		except Exception as err:
@@ -782,7 +792,7 @@ class DepotserverPackageManager:
 			product_on_depot = product_on_depots[0]
 			available_version = product_on_depot.getProductVersion() + "-" + product_on_depot.getPackageVersion()
 
-			if compareVersions(available_version, dependency.condition, dependency.version):
+			if compare_versions(available_version, dependency.condition or "==", dependency.version):  # type: ignore[arg-type]
 				logger.info("Fulfilled package dependency %s (available version: %s)", dependency, available_version)
 			else:
 				raise BackendUnaccomplishableError(f"Unfulfilled package dependency {dependency} (available version: {available_version})")

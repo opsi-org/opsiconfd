@@ -22,7 +22,6 @@ from typing import Any, Generator, Iterator
 import psutil
 import requests
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
-from OPSI.Util import compareVersions  # type: ignore[import]
 from opsicommon.logging.constants import (
 	LEVEL_TO_NAME,
 	LOG_DEBUG,
@@ -34,6 +33,7 @@ from opsicommon.system.info import (  # type: ignore[import]
 	linux_distro_id_like_contains,
 	linux_distro_version_id,
 )
+from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
@@ -121,7 +121,7 @@ class CheckResult(PartialCheckResult):
 		if partial_result.check_status == CheckStatus.WARNING and self.check_status != CheckStatus.ERROR:
 			self.check_status = CheckStatus.WARNING
 		if partial_result.upgrade_issue:
-			if not self.upgrade_issue or compareVersions(partial_result.upgrade_issue, "<", self.upgrade_issue):
+			if not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue):
 				self.upgrade_issue = partial_result.upgrade_issue
 
 
@@ -377,7 +377,7 @@ def check_opsiconfd_config() -> CheckResult:
 	return result
 
 
-def get_installed_packages(packages: dict | None = None) -> dict:
+def get_installed_packages(packages: dict | None = None) -> dict:  # pylint: disable=too-many-branches
 	installed_versions: dict[str, str] = {}
 	if linux_distro_id_like_contains(("sles", "rhel")):
 		cmd = ["yum", "list", "installed"]
@@ -471,7 +471,7 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 				partial_result.message = f"Package {package!r} is not installed."
 				partial_result.upgrade_issue = __version__
 				not_installed = not_installed + 1
-			elif compareVersions(available_version or "0", ">", details["version"]):
+			elif compare_versions(available_version or "0", ">", details["version"]):  # type: ignore[arg-type]
 				outdated = outdated + 1
 				partial_result.check_status = CheckStatus.WARNING
 				partial_result.message = (
@@ -639,7 +639,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 				partial_result.details["version"] = product_version_on_depot
 				partial_result.details["available_version"] = available_version
 
-				if compareVersions(available_version, ">", product_version_on_depot):
+				if compare_versions(available_version, ">", product_version_on_depot):
 					outdated = outdated + 1
 					if product_id in MANDATORY_OPSI_PRODUCTS or (product_id in installed_products and product_id in MANDATORY_IF_INSTALLED):
 						partial_result.check_status = CheckStatus.ERROR
@@ -664,7 +664,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 						f"Installed version of product {product_id!r} on depot {depot_id!r} is {product_version_on_depot!r}."
 					)
 
-				if product_on_depot.productType == "NetbootProduct" and compareVersions(available_version, ">", product_version_on_depot):
+				if product_on_depot.productType == "NetbootProduct" and compare_versions(available_version, ">", product_version_on_depot):
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
@@ -720,7 +720,7 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 			):
 
 				version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
-				if compareVersions(version, ">=", available_version):
+				if compare_versions(version, ">=", available_version):
 					continue
 				client_id = product_on_client.clientId
 
@@ -879,7 +879,7 @@ def console_print_message(check_result: CheckResult | PartialCheckResult, consol
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
-def process_check_result(
+def process_check_result(  # pylint: disable=too-many-branches
 	result: CheckResult,
 	console: Console,
 	check_version: str | None = None,
@@ -890,7 +890,7 @@ def process_check_result(
 	message = result.message
 	partial_results = []
 	for pres in result.partial_results:
-		if check_version and (not pres.upgrade_issue or compareVersions(pres.upgrade_issue, ">", check_version)):
+		if check_version and (not pres.upgrade_issue or compare_versions(pres.upgrade_issue, ">", check_version)):
 			continue
 		partial_results.append(pres)
 		if summary:
@@ -900,7 +900,7 @@ def process_check_result(
 		if partial_results:
 			status = CheckStatus.ERROR
 			message = f"{len(partial_results)} upgrade issues"
-		elif result.upgrade_issue and compareVersions(result.upgrade_issue, "<=", check_version):
+		elif result.upgrade_issue and compare_versions(result.upgrade_issue, "<=", check_version):
 			status = CheckStatus.ERROR
 			message = "1 upgrade issue"
 			if summary:

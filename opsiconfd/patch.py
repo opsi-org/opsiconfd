@@ -8,9 +8,9 @@
 opsiconfd.patch
 """
 
-from typing import Callable
 import inspect
 from hashlib import sha512
+from typing import Callable
 
 
 def assert_function_unchanged(function_to_patch: Callable, function_hash: str) -> None:

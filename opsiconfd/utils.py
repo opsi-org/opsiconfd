@@ -182,28 +182,6 @@ def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
 			}
 
 
-def ip_address_in_network(address: str | IPv4Address | IPv6Address, network: str | IPv4Network | IPv6Network) -> bool:
-	"""
-	Checks if the given IP address is in the given network range.
-	Returns ``True`` if the given address is part of the network.
-	Returns ``False`` if the given address is not part of the network.
-
-	:param address: The IP which we check.
-	:type address: str
-	:param network: The network address written with slash notation.
-	:type network: str
-	"""
-	if not isinstance(address, (IPv4Address, IPv6Address)):
-		address = ip_address(address)
-	if isinstance(address, IPv6Address) and address.ipv4_mapped:
-		address = address.ipv4_mapped
-
-	if not isinstance(network, (IPv4Network, IPv6Network)):
-		network = ip_network(network)
-
-	return address in network
-
-
 def get_random_string(length: int, *, alphabet: str | None = None, mandatory_alphabet: str | None = None) -> str:
 	if not alphabet:
 		alphabet = string.ascii_letters + string.digits + string.punctuation

@@ -36,6 +36,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from opsicommon.objects import Host, OpsiClient  # type: ignore[import]
 from opsicommon.utils import timestamp  # type: ignore[import]
+from opsicommon.utils import ip_address_in_network
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
@@ -54,11 +55,7 @@ from opsiconfd.backend import (
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
-from opsiconfd.utils import (
-	asyncio_create_task,
-	ip_address_in_network,
-	utc_time_timestamp,
-)
+from opsiconfd.utils import asyncio_create_task, utc_time_timestamp
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #

@@ -30,11 +30,12 @@ from opsicommon.types import (
 	forceIPAddress,
 	forceStringLower,
 )
+from opsicommon.utils import ip_address_in_network
 
 from opsiconfd.backend.rpc import read_backend_config_file
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_ip_addresses, ip_address_in_network, lock_file
+from opsiconfd.utils import get_ip_addresses, lock_file
 
 
 @contextmanager

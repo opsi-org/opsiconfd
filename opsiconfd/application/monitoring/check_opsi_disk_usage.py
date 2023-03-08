@@ -13,8 +13,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
-from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
+
+from opsiconfd.utils import get_disk_usage
 
 from .utils import State, generate_response
 
@@ -71,7 +72,7 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 			path = dirs.get(resource)
 			if path and path.startswith("file://"):
 				path = path.replace("file://", "")
-				results[resource] = getDiskSpaceUsage(path)
+				results[resource] = get_disk_usage(path).as_dict()
 	except Exception as err:  # pylint: disable=broad-except
 		return generate_response(State.UNKNOWN, f"Not able to check DiskUsage: {err}")
 

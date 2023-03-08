@@ -21,17 +21,12 @@ import threading
 import time
 import zlib
 from contextlib import contextmanager
+from dataclasses import asdict, dataclass
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
-from ipaddress import (
-	IPv4Address,
-	IPv4Network,
-	IPv6Address,
-	IPv6Network,
-	ip_address,
-	ip_interface,
-	ip_network,
-)
+from hashlib import md5
+from ipaddress import IPv4Network, IPv6Address, ip_address, ip_interface
 from logging import INFO  # type: ignore[import]
+from pathlib import Path
 from pprint import pformat
 from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Optional, TextIO
@@ -370,3 +365,33 @@ def asyncio_create_task(coro: Coroutine, loop: asyncio.AbstractEventLoop | None 
 	with background_tasks_lock:
 		background_tasks.add(task)
 	task.add_done_callback(_asyncio_remove_task)
+
+
+@dataclass(slots=True, kw_only=True)
+class DiskUsage:
+	capacity: float
+	available: float
+	used: float
+	usage: float
+
+	def as_dict(self) -> dict[str, float]:
+		return asdict(self)
+
+
+def get_disk_usage(path: Path | str) -> DiskUsage:
+	disk = os.statvfs(path)
+	return DiskUsage(
+		capacity=disk.f_bsize * disk.f_blocks,
+		available=disk.f_bsize * disk.f_bavail,
+		used=disk.f_bsize * (disk.f_blocks - disk.f_bavail),
+		usage=float(disk.f_blocks - disk.f_bavail) / float(disk.f_blocks),
+	)
+
+
+def get_file_md5sum(file_path: Path | str) -> str:
+	"""Returns the md5sum of the given file as hex digest string."""
+	md5_hash = md5()
+	with open(file_path, "rb") as file:
+		while data := file.read(1_000_000):
+			md5_hash.update(data)
+	return md5_hash.hexdigest()

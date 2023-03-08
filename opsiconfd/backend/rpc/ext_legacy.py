@@ -2179,7 +2179,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self.depot_librsyncSignature(filename)
 
 	@rpc_method(deprecated=True, alternative_method="depot_getDiskSpaceUsage")
-	def getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, Any]:  # pylint: disable=invalid-name
+	def getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, float]:  # pylint: disable=invalid-name
 		return self.depot_getDiskSpaceUsage(path)
 
 	@rpc_method(deprecated=True, alternative_method="depot_getHostRSAPublicKey")

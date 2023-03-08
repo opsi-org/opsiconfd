@@ -10,12 +10,14 @@ test_utiles
 
 from contextlib import nullcontext
 from ipaddress import IPv4Address, IPv4Network
+from pathlib import Path
 
 import pytest
 
 from opsiconfd.utils import (
 	aes_decrypt_with_password,
 	aes_encrypt_with_password,
+	get_file_md5sum,
 	get_ip_addresses,
 )
 
@@ -56,3 +58,9 @@ def test_aes_encrypt_decrypt(password: str, plaintext: bytes, exc: type[Exceptio
 		ciphertext, key_salt, mac_tag, nonce = aes_encrypt_with_password(plaintext=plaintext, password=password)
 		decytped_data = aes_decrypt_with_password(ciphertext=ciphertext, key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password)
 		assert decytped_data == plaintext
+
+
+def test_get_file_md5sum(tmp_path: Path) -> None:
+	test_file = tmp_path / "file"
+	test_file.write_bytes(b"opsi" * 1_000_000)
+	assert get_file_md5sum(test_file) == "ec80d22881b1da0e1869957931545495"

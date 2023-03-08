@@ -21,8 +21,6 @@ from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 
-from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
-from OPSI.Util import md5sum  # type: ignore[import]
 from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
@@ -52,6 +50,7 @@ from opsicommon.utils import compare_versions, make_temp_dir
 
 from opsiconfd.config import PACKAGE_SCRIPT_TIMEOUT, opsi_config
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
 # deprecated can be used in extension config files
 from . import rpc_method  # pylint: disable=unused-import
@@ -144,13 +143,13 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 					pass
 
 			if not md5_sum:
-				md5_sum = md5sum(filename)
+				md5_sum = get_file_md5sum(filename)
 			if not md5_sum:
-				raise ValueError("Failed to get md5sum")
+				raise ValueError("Failed to get get_file_md5sum")
 			logger.info("MD5sum of file '%s' is '%s'", filename, md5_sum)
 			return md5_sum
 		except Exception as err:
-			raise BackendIOError(f"Failed to get md5sum: {err}") from err
+			raise BackendIOError(f"Failed to get get_file_md5sum: {err}") from err
 
 	@rpc_method
 	def depot_librsyncSignature(self: BackendProtocol, filename: str) -> str:  # pylint: disable=invalid-name
@@ -187,11 +186,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise BackendIOError(f"Failed to create librsync delta file: {err}") from err
 
 	@rpc_method
-	def depot_getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, Any]:  # pylint: disable=invalid-name
-		if os.name != "posix":
-			raise NotImplementedError("Not implemented for non-posix os")
+	def depot_getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, float]:  # pylint: disable=invalid-name
 		try:
-			return getDiskSpaceUsage(path)
+			return get_disk_usage(path).as_dict()
 		except Exception as err:
 			raise BackendIOError("Failed to get disk space usage: {err}") from err
 
@@ -250,14 +247,14 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			os.chmod(package_content_path, 0o660)
 
 	@rpc_method
-	def depot_createMd5SumFile(self: BackendProtocol, filename: str, md5sumFilename: str) -> None:  # pylint: disable=invalid-name
+	def depot_createMd5SumFile(self: BackendProtocol, filename: str, get_file_md5sumFilename: str) -> None:  # pylint: disable=invalid-name
 		if not os.path.exists(filename):
 			raise BackendIOError(f"File not found: {filename}")
-		logger.info("Creating md5sum file '%s'", md5sumFilename)
-		create_package_md5_file(Path(filename), Path(md5sumFilename))
+		logger.info("Creating get_file_md5sum file '%s'", get_file_md5sumFilename)
+		create_package_md5_file(Path(filename), Path(get_file_md5sumFilename))
 		if os.name == "posix":
-			os.chown(md5sumFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
-			os.chmod(md5sumFilename, 0o660)
+			os.chown(get_file_md5sumFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
+			os.chmod(get_file_md5sumFilename, 0o660)
 
 	@rpc_method
 	def depot_createZsyncFile(self: BackendProtocol, filename: str, zsyncFilename: str) -> None:  # pylint: disable=invalid-name

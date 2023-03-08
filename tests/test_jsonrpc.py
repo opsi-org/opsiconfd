@@ -400,31 +400,34 @@ def test_jsonrpc_rsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> None
 	assert (tmp_path / "result").read_text() == "test\n"
 
 
-def test_jsonrpc_workbench(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	package_dir = Path("/var/lib/opsi/workbench/testpackage")
-	Path(package_dir / "CLIENT_DATA").mkdir(parents=True, exist_ok=True)
-	Path(package_dir / "OPSI").mkdir(exist_ok=True)
-	shutil.copy(CONTROLFILE, Path(package_dir / "OPSI"))
-	res = test_client.post(
-		"/rpc",
-		auth=(ADMIN_USER, ADMIN_PASS),
-		json={"id": 1, "method": "workbench_buildPackage", "params": [str(package_dir)]},
-	)
-	res.raise_for_status()
-	response = res.json()
-	if response["error"]:
-		assert "Zstd not available" in response["error"]["message"]
-	else:
+def test_jsonrpc_workbench(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	workbench_path = tmp_path / "workbench"
+	depot_path = tmp_path / "depot"
+	with (
+		patch("opsiconfd.backend.rpc.depot.WORKBENCH_DIR", str(workbench_path)),
+		patch("opsiconfd.backend.rpc.depot.DEPOT_DIR", str(depot_path)),
+	):
+		package_dir = workbench_path / "testpackage"
+		Path(package_dir / "CLIENT_DATA").mkdir(parents=True, exist_ok=True)
+		Path(package_dir / "CLIENT_DATA" / "test.file").write_bytes(b"opsi")
+		Path(package_dir / "OPSI").mkdir(exist_ok=True)
+		shutil.copy(CONTROLFILE, Path(package_dir / "OPSI"))
+		res = test_client.post(
+			"/rpc",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			json={"jsonrpc": "2.0", "id": 1, "method": "workbench_buildPackage", "params": [str(package_dir)]},
+		)
+		res.raise_for_status()
+		response = res.json()
+		assert "error" not in response
 		assert (package_dir / "localboot_new_42.0-1337.opsi").exists()
 
-	res = test_client.post(
-		"/rpc",
-		auth=(ADMIN_USER, ADMIN_PASS),
-		json={"id": 1, "method": "workbench_installPackage", "params": [str(package_dir)]},
-	)
-	res.raise_for_status()
-	response = res.json()
-	if response["error"]:
-		assert "Zstd not available" in response["error"]["message"]
-	else:
-		assert Path("/var/lib/opsi/depot/localboot_new").exists()
+		res = test_client.post(
+			"/rpc",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			json={"jsonrpc": "2.0", "id": 1, "method": "workbench_installPackage", "params": [str(package_dir)]},
+		)
+		res.raise_for_status()
+		response = res.json()
+		assert "error" not in response
+		assert (depot_path / "localboot_new").exists()

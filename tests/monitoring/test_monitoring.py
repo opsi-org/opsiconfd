@@ -26,6 +26,7 @@ from opsiconfd.application.monitoring.check_short_product_status import (
 	check_short_product_status,
 )
 from opsiconfd.config import get_depotserver_id
+from opsiconfd.utils import DiskUsage
 from tests.utils import (  # pylint: disable=unused-import
 	Config,
 	Connection,
@@ -246,12 +247,12 @@ def create_check_data(
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
 def test_check_disk_usage(  # pylint: disable=too-many-arguments,redefined-outer-name
-	backend: UnprotectedBackend, info: Any, opsiresource: Any, thresholds: Any, expected_result: Any
+	backend: UnprotectedBackend, info: dict[str, Any], opsiresource: Any, thresholds: Any, expected_result: Any
 ) -> None:
-	def get_info(path: str) -> Any:  # pylint: disable=unused-argument
-		return info
+	def get_disk_usage(path: str) -> DiskUsage:  # pylint: disable=unused-argument
+		return DiskUsage(**info)
 
-	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage", get_info):
+	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
 		result = check_opsi_disk_usage(backend, thresholds=thresholds, opsiresource=opsiresource)
 
 	assert expected_result == json.loads(result.body)
@@ -261,10 +262,10 @@ def test_check_disk_usage(  # pylint: disable=too-many-arguments,redefined-outer
 def test_check_disk_usage_no_result(  # pylint: disable=too-many-arguments,redefined-outer-name
 	backend: UnprotectedBackend, return_value: Any
 ) -> None:
-	def get_info(path: str) -> Any:  # pylint: disable=unused-argument
+	def get_disk_usage(path: str) -> DiskUsage:  # pylint: disable=unused-argument
 		return return_value
 
-	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage", get_info):
+	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
 		result = check_opsi_disk_usage(backend, opsiresource=["not-a-resource"])
 
 	assert json.loads(result.body) == {"message": ("UNKNOWN: No results get. Nothing to check."), "state": 3}

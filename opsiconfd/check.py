@@ -100,7 +100,7 @@ class CheckStatus(StrEnum):
 
 
 @dataclass(slots=True, kw_only=True)
-class PartialCheckResult:
+class PartialCheckResult(dict):
 	check_id: str
 	check_name: str = ""
 	check_description: str = ""
@@ -109,10 +109,52 @@ class PartialCheckResult:
 	details: dict[str, Any] = field(default_factory=dict)
 	upgrade_issue: str | None = None  # version str
 
+	def __init__(
+		self,
+		check_id: str,
+		check_name: str = "",
+		check_description: str = "",
+		check_status: CheckStatus = CheckStatus.OK,
+		message: str = "",
+		details: dict[str, Any] = {},
+		upgrade_issue: str | None = None,
+	):
+		dict.__init__(
+			self,
+			check_id=check_id,
+			check_name=check_name,
+			check_description=check_description,
+			check_status=check_status,
+			message=message,
+			details=details,
+			upgrade_issue=upgrade_issue,
+		)
+
 
 @dataclass(slots=True, kw_only=True)
-class CheckResult(PartialCheckResult):
+class CheckResult(PartialCheckResult, dict):
 	partial_results: list[PartialCheckResult] = field(default_factory=list)
+
+	def __init__(
+		self,
+		check_id: str,
+		check_name: str = "",
+		check_description: str = "",
+		check_status: CheckStatus = CheckStatus.OK,
+		message: str = "",
+		details: dict[str, Any] = {},
+		upgrade_issue: str | None = None,
+	):
+		PartialCheckResult.__init__(
+			self,
+			check_id=check_id,
+			check_name=check_name,
+			check_description=check_description,
+			check_status=check_status,
+			message=message,
+			details=details,
+			upgrade_issue=upgrade_issue,
+		)
 
 	def add_partial_result(self, partial_result: PartialCheckResult) -> None:
 		self.partial_results.append(partial_result)

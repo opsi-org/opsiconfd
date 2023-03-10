@@ -9,7 +9,7 @@ opsiconfd - setup
 """
 
 import re
-import subprocess
+from subprocess import run
 
 from opsicommon.license import (
 	OPSI_FREE_MODULE_IDS,
@@ -29,10 +29,12 @@ from opsiconfd.utils import running_in_docker
 
 def _get_windows_domain() -> str | None:
 	try:
-		out = subprocess.run(["net", "getdomainsid"], capture_output=True, check=True).stdout.decode()
-		match = re.search(r"domain\s(\S+)\s", out)
+		# Could not fetch domain SID => exitcode 1
+		# Do not check exitcode
+		out = run(["net", "getdomainsid"], capture_output=True, check=False, encoding="utf-8").stdout
+		match = re.search(r"SID for domain (\S+) is", out, flags=re.IGNORECASE)
 		if not match:
-			match = re.search(r"machine\s(\S+)\s", out)
+			match = re.search(r"SID for local machine (\S+) is", out, flags=re.IGNORECASE)
 		if match:
 			return match.group(1)
 	except Exception as err:  # pylint: disable=broad-except
@@ -192,7 +194,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			UnicodeConfig(
 				id="clientconfig.windows.domain",
 				description="Windows domain",
-				possibleValues=[],
+				possibleValues=[domain] if domain else [],
 				defaultValues=[domain] if domain else [],
 				editable=True,
 				multiValue=False,

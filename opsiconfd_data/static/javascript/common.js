@@ -1,9 +1,9 @@
-var BASE_CONFIGED_DOWNLOAD_URL = "https://download.uib.de/opsi4.2/misc/helper";
+var BASE_CONFIGED_DOWNLOAD_URL = "http://download.uib.de/4.2/stable/misc";
 var CONFIGED_DOWNLOAD_LINKS = {
-	"Windows": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-setup.exe`,
-	"UNIX": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-linux-setup.tar.gz`,
-	"Linux": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-linux-setup.tar.gz`,
-	"MacOS": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-linux-setup.tar.gz`
+	"Windows": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-windows.exe`,
+	"UNIX": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-linux.run`,
+	"Linux": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-linux.run`,
+	"MacOS": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-macos.sh`
 }
 
 function getOS() {

@@ -189,7 +189,7 @@ class OpsiconfdApp(FastAPI):
 		with redis_client() as redis:
 			redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
-	async def send_app_state_changed_event(self, prev_state: AppState, state: AppState) -> None:
+	async def send_app_state_changed_event(self, old_state: AppState, state: AppState) -> None:
 		from opsiconfd.messagebus import (  # pylint: disable=import-outside-toplevel
 			get_user_id_for_service_node,
 		)
@@ -201,7 +201,7 @@ class OpsiconfdApp(FastAPI):
 			sender=get_user_id_for_service_node(config.node_name),
 			channel="event:app_state_changed",
 			event="app_state_changed",
-			data={"prev_state": prev_state.to_dict(), "state": state.to_dict()},
+			data={"old_state": old_state.to_dict(), "state": state.to_dict()},
 		)
 		await send_message(event)
 
@@ -243,7 +243,7 @@ class OpsiconfdApp(FastAPI):
 				logger.info("App state is now: %r", self._app_state)
 
 				if manager_mode:
-					await self.send_app_state_changed_event(prev_state=cur_state, state=self._app_state)
+					await self.send_app_state_changed_event(old_state=cur_state, state=self._app_state)
 
 				cur_state = self._app_state
 

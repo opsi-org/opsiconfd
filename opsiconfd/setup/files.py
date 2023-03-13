@@ -12,7 +12,6 @@ import os
 import time
 from pathlib import Path
 
-from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
 from opsicommon.server.rights import (  # type: ignore[import]
 	DirPermission,
 	FilePermission,
@@ -35,6 +34,7 @@ from opsiconfd.config import (
 	config,
 	opsi_config,
 )
+from opsiconfd.dhcpd import get_dhcpd_conf_location
 from opsiconfd.logging import logger
 from opsiconfd.ssl import setup_ssl_file_permissions
 
@@ -69,18 +69,23 @@ def setup_files() -> None:
 def setup_file_permissions() -> None:
 	logger.info("Setup file permissions")
 
-	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
-	permissions = (
+	permissions = [
 		FilePermission("/etc/shadow", None, "shadow", 0o640),
 		FilePermission(
 			f"{os.path.dirname(config.log_file)}/opsiconfd.log", config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660
 		),
-		# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
-		# This user needs read permission
-		FilePermission(dhcpd_config_file, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o664),
 		DirPermission(OPSICONFD_HOME, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o600, 0o700, recursive=False),
 		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
-	)
+	]
+
+	# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
+	# This user needs read permission
+	dhcpd_config_file = get_dhcpd_conf_location()
+	permissions.append(FilePermission(str(dhcpd_config_file), config.run_as_user, opsi_config.get("groups", "admingroup"), 0o664))
+	dhcpd_config_dir = dhcpd_config_file.parent
+	if len(dhcpd_config_dir.parts) >= 3:
+		permissions.append(DirPermission(str(dhcpd_config_dir), None, None, 0o664, 0o775, recursive=False))
+
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:
 		set_rights(permission.path)

@@ -19,12 +19,15 @@ from types import FrameType
 from typing import Optional
 
 import psutil
+from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
+from opsicommon.messagebus import Message, TraceRequestMessage, TraceResponseMessage
+from opsicommon.messagebus import timestamp as mb_timestamp
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
 from opsiconfd.application.filetransfer import cleanup_file_storage
-from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.backend import get_service_client, get_unprotected_backend
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import init_logging, logger
@@ -260,6 +263,21 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 					self.workers[worker_info.id] = worker_info
 
 
+class DepotserverManagerMessagebusListener(MessagebusListener):
+	def message_received(self, message: Message) -> None:
+		if isinstance(message, TraceRequestMessage):
+			response = TraceResponseMessage(
+				sender="@",
+				channel=message.back_channel or message.sender,
+				ref_id=message.id,
+				req_trace=message.trace,
+				payload=message.payload,
+				trace={"sender_ws_send": mb_timestamp()},
+			)
+			assert self.messagebus
+			self.messagebus.send_message(response)
+
+
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
 	def __init__(self) -> None:
 		self.pid: int | None = None
@@ -278,6 +296,9 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._metrics_collector = ManagerMetricsCollector()
 		self._worker_manager = WorkerManager()
 		self._is_config_server = opsi_config.get("host", "server-role") == "configserver"
+		self._service_client: ServiceClient | None = None
+		if not self._is_config_server:
+			self._service_client = get_service_client("manager")
 
 	def stop(self, force: bool = False) -> None:
 		self._should_stop = True
@@ -285,6 +306,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		logger.notice("Manager stopping force=%s", self._force_stop)
 		self._metrics_collector.stop()
 		self._worker_manager.stop(self._force_stop)
+		if self._service_client:
+			self._service_client.disconnect()
 		self._async_main_stopped.wait(5.0)
 
 	def reload(self) -> None:
@@ -319,6 +342,10 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 
+		if self._service_client:
+			self._service_client.connect()
+			listener = DepotserverManagerMessagebusListener(self._service_client.messagebus)
+			self._service_client.messagebus.register_messagebus_listener(listener)
 		try:
 			Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
 			self._worker_manager.run()

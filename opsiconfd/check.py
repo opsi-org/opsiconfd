@@ -109,7 +109,7 @@ class PartialCheckResult(dict):
 	details: dict[str, Any] = field(default_factory=dict)
 	upgrade_issue: str | None = None  # version str
 
-	def __init__(
+	def __init__(  # pylint: disable=dangerous-default-value
 		self,
 		check_id: str,
 		check_name: str = "",
@@ -135,7 +135,7 @@ class PartialCheckResult(dict):
 class CheckResult(PartialCheckResult, dict):
 	partial_results: list[PartialCheckResult] = field(default_factory=list)
 
-	def __init__(
+	def __init__(  # pylint: disable=dangerous-default-value
 		self,
 		check_id: str,
 		check_name: str = "",

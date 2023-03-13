@@ -13,10 +13,11 @@ import asyncio
 import math
 import traceback
 import warnings
-import msgspec
 from functools import wraps
 from types import NoneType
 from typing import Any, Callable, Optional
+import msgspec
+
 
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response

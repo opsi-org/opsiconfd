@@ -908,14 +908,14 @@ def process_check_result(  # pylint: disable=too-many-branches
 		else:
 			status = CheckStatus.OK
 			message = "No upgrade issues"
-			if not detailed:
+			if status == CheckStatus.OK and not detailed:
 				return
 
 	style = STYLES[status]
 	console.print(f"[{style}]●[/{style}] [b]{result.check_name}[/b]: [{style}]{status.upper()}[/{style}]")
 	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
 
-	if not detailed:
+	if status == CheckStatus.OK and not detailed:
 		return
 	if result.upgrade_issue:
 		console.print("")

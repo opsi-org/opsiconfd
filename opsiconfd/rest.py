@@ -16,6 +16,8 @@ import warnings
 from functools import wraps
 from types import NoneType
 from typing import Any, Callable, Optional
+import msgspec
+
 
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response
@@ -119,7 +121,13 @@ class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-man
 		return self._content_type
 
 	def to_jsonresponse(self) -> JSONResponse:
-		return JSONResponse(content=self.content, status_code=self.status, headers=dict(self._headers))
+		try:
+			return JSONResponse(content=self.content, status_code=self.status, headers=dict(self._headers))
+		except TypeError as error:
+			logger.error(error)
+			return JSONResponse(
+				content=msgspec.json.decode(msgspec.json.encode(self.content)), status_code=self.status, headers=dict(self._headers)
+			)
 
 
 class RESTErrorResponse(RESTResponse):

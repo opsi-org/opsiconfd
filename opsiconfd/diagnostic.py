@@ -56,6 +56,11 @@ def get_lsb_release() -> dict[str, str]:
 			continue
 		key, val = line.split(":", 1)
 		data[key.strip().upper().replace(" ", "_")] = val.strip()
+
+	if data["DISTRIBUTOR_ID"] == "Univention":
+		data["UCS_ROLE"] = run(
+			["ucr", "get", "server/role"], shell=False, check=False, text=True, encoding="utf-8", capture_output=True, timeout=5
+		).stdout.strip()
 	return data
 
 

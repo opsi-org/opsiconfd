@@ -33,17 +33,14 @@ from opsicommon.types import (
 from opsicommon.utils import ip_address_in_network
 
 from opsiconfd.backend.rpc import read_backend_config_file
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import OPSICONFD_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses, lock_file
 
 
 @contextmanager
 def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
-	dhcpd_lock_file = Path("/var/lock/opsi-dhcpd-lock")
-	if not dhcpd_lock_file.parent.exists():
-		yield None
-		return
+	dhcpd_lock_file = Path(OPSICONFD_DIR) / ".opsi-dhcpd-lock"
 	with open(dhcpd_lock_file, "a+", encoding="utf8") as lock_fh:
 		try:
 			os.chmod(dhcpd_lock_file, 0o666)

@@ -25,6 +25,7 @@ from opsiconfd.config import (
 	LOG_DIR,
 	NTFS_IMAGES_DIR,
 	OPSI_LICENSE_DIR,
+	OPSICONFD_DIR,
 	OPSICONFD_HOME,
 	PUBLIC_DIR,
 	REPOSITORY_DIR,
@@ -74,6 +75,7 @@ def setup_file_permissions() -> None:
 		FilePermission(
 			f"{os.path.dirname(config.log_file)}/opsiconfd.log", config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660
 		),
+		DirPermission(OPSICONFD_DIR, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770, recursive=False),
 		DirPermission(OPSICONFD_HOME, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o600, 0o700, recursive=False),
 		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
 	]

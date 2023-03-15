@@ -141,7 +141,10 @@ class RPCLicensePoolMixin(Protocol):
 		if filter and "productIds" in filter:
 			filter["productId"] = filter.pop("productIds")
 		return self._mysql.get_idents(
-			table="`LICENSE_POOL` LEFT JOIN `PRODUCT_ID_TO_LICENSE_POOL` ON `LICENSE_POOL`.`licensePoolId` = `LICENSE_POOL`.`licensePoolId`",
+			table=(
+				"`LICENSE_POOL` LEFT JOIN `PRODUCT_ID_TO_LICENSE_POOL` "
+				"ON `LICENSE_POOL`.`licensePoolId` = `PRODUCT_ID_TO_LICENSE_POOL`.`licensePoolId`"
+			),
 			object_type=LicensePool,
 			ace=ace,
 			ident_type=returnType,

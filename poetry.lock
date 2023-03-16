@@ -704,7 +704,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "hypothesis"
-version = "6.69.0"
+version = "6.70.0"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -1695,7 +1695,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.301"
+version = "4.2.0.302"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -3120,8 +3120,8 @@ hyperlink = [
     {file = "hyperlink-21.0.0.tar.gz", hash = "sha256:427af957daa58bc909471c6c40f74c5450fa123dd093fc53efd2e91d2705a56b"},
 ]
 hypothesis = [
-    {file = "hypothesis-6.69.0-py3-none-any.whl", hash = "sha256:48ff458d2acc3f32be6cc450d06b39020bd1570d44bd0d166f003353a7dfb026"},
-    {file = "hypothesis-6.69.0.tar.gz", hash = "sha256:c651d2ce09ff6b7ffeac86368d993a5ac018d6f5307d3f8a89a6b94082aa8f0f"},
+    {file = "hypothesis-6.70.0-py3-none-any.whl", hash = "sha256:be395f71d6337a5e8ed2f695c568360a686056c3b00c98bd818874c674b24586"},
+    {file = "hypothesis-6.70.0.tar.gz", hash = "sha256:f5cae09417d0ffc7711f602cdcfa3b7baf344597a672a84658186605b04f4a4f"},
 ]
 hypothesis-graphql = [
     {file = "hypothesis_graphql-0.9.2-py3-none-any.whl", hash = "sha256:3e85e49b072ff8ec02bbdb8ace62eddc57f141e2638938f9be205530c0ca2e49"},
@@ -3818,8 +3818,8 @@ python-opsi = [
     {file = "python_opsi-4.2.0.309-py3-none-any.whl", hash = "sha256:3202493e85ebbc877349a90fd79af721b8f3fde8289724cf4ef28b1c93adafca"},
 ]
 python-opsi-common = [
-    {file = "python_opsi_common-4.2.0.301-py3-none-any.whl", hash = "sha256:993230e1b8eac9f5b52063bb53a645d5558f910a928b1f88e34ca554ac17bcf9"},
-    {file = "python_opsi_common-4.2.0.301.tar.gz", hash = "sha256:40838e936ea033062fc088f7bd2620759734e91013c0f985be49cbbea7c236c7"},
+    {file = "python_opsi_common-4.2.0.302-py3-none-any.whl", hash = "sha256:060da97f97caae044fc8da8fdf9563ec26c90febc5b69fa5552f3a5d6a3039d5"},
+    {file = "python_opsi_common-4.2.0.302.tar.gz", hash = "sha256:81d9ccb6f5278126e00b3873c984819ddccfe1e420bdb7564bf938aed6d87ae4"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

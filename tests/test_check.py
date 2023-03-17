@@ -207,9 +207,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
-		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
 
 		result = check_system_packages()
@@ -238,9 +236,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
-		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
 		result = check_system_packages()
 
@@ -277,9 +273,7 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
-		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=True)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"opensuse"})),
 	):
 		result = check_system_packages()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
@@ -309,7 +303,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True)),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"rhel"})),
 	):
 		result = check_system_packages()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
@@ -410,7 +404,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 10
+	assert len(results) == 12
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status

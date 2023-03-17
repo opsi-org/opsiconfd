@@ -22,7 +22,6 @@ from typing import Any, Generator, Iterator
 import psutil
 import requests
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
-from OPSI.Util import compareVersions  # type: ignore[import]
 from opsicommon.logging.constants import (  # type: ignore[import]
 	LEVEL_TO_NAME,
 	LOG_DEBUG,

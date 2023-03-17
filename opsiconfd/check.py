@@ -155,7 +155,7 @@ class CheckResult(PartialCheckResult):
 		if partial_result.check_status == CheckStatus.WARNING and self.check_status != CheckStatus.ERROR:
 			self.check_status = CheckStatus.WARNING
 		if partial_result.upgrade_issue:
-			if not self.upgrade_issue or compareVersions(partial_result.upgrade_issue, "<", self.upgrade_issue):
+			if not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue):
 				self.upgrade_issue = partial_result.upgrade_issue
 
 
@@ -926,7 +926,7 @@ def process_check_result(
 	message = result.message
 	partial_results = []
 	for pres in result.partial_results:
-		if check_version and (not pres.upgrade_issue or compareVersions(pres.upgrade_issue, ">", check_version)):
+		if check_version and (not pres.upgrade_issue or compare_versions(pres.upgrade_issue, ">", check_version)):
 			continue
 		partial_results.append(pres)
 		if summary:

@@ -382,12 +382,20 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 
 
 def store_deprecated_call(method_name: str, client: str) -> None:
+	redis_prefix_stats = config.redis_key("stats")
 	with redis_client() as redis:
+		expire_time = 90 * 24 * 3600  # 90 day
 		with redis.pipeline() as pipe:
-			pipe.sadd("opsiconfd:stats:rpcs:deprecated:methods", method_name)
-			pipe.incr(f"opsiconfd:stats:rpcs:deprecated:{method_name}:count")
-			pipe.sadd(f"opsiconfd:stats:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
-			pipe.set(f"opsiconfd:stats:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+			pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)  # type: ignore[attr-defined]
+			pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")  # type: ignore[attr-defined]
+			pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count", expire_time)  # type: ignore[attr-defined]
+			pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])  # type: ignore[attr-defined]
+			pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)  # type: ignore[attr-defined]
+			pipe.set(  # type: ignore[attr-defined]
+				f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call",
+				datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+				ex=expire_time,
+			)
 			pipe.execute()
 
 

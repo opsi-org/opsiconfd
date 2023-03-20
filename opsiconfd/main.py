@@ -84,6 +84,11 @@ def health_check_main() -> None:
 def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-statements
 	console = Console(quiet=config.quiet)
 	backup_file = None
+
+	def backup_filename() -> str:
+		now = datetime.now().strftime("%Y%m%d-%H%M%S")
+		return f"opsiconfd-backup-{now}.msgpack.lz4{'.aes' if config.password else ''}"
+
 	try:
 		if config.password is None:
 			# Argument --pasword given without value
@@ -95,13 +100,13 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)
-			if not config.backup_file:
-				now = datetime.now().strftime("%Y%m%d-%H%M%S")
-				config.backup_file = f"opsiconfd-backup-{now}.msgpack.lz4{'.aes' if config.password else ''}"
 
-			backup_file = Path(config.backup_file)
+			backup_file = Path(config.backup_file if config.backup_file else backup_filename())
 			if not backup_file.is_absolute():
 				backup_file = Path.cwd() / backup_file
+
+			if backup_file.exists() and backup_file.is_dir():
+				backup_file = backup_file / backup_filename()
 
 			if not config.overwrite and backup_file.exists():
 				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists, use --overwrite to replace.")

@@ -75,7 +75,6 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 	for entry in backend.configState_getClientToDepotserver(clientIds=client_ids, masterOnly=True):
 		clients_on_depot[entry["depotId"]].append(entry["clientId"])
 
-	print(clients_on_depot)
 	if not clients_on_depot:
 		return generate_response(
 			State.UNKNOWN, f"Depots and clients dont match. Selected depots: {depot_ids}, selected clients: {client_ids}"

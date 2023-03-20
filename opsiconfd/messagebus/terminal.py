@@ -57,7 +57,7 @@ terminal_request_reader = None  # pylint: disable=invalid-name
 
 
 async def async_terminal_startup() -> None:
-	if "terminal" not in config.admin_interface_disabled_features:
+	if "terminal" not in config.disabled_features:
 		asyncio_create_task(messagebus_terminal_open_request_worker())
 		asyncio_create_task(messagebus_terminal_instance_worker())
 

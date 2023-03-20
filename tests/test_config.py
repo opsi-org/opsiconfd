@@ -19,7 +19,7 @@ import pytest
 
 from opsiconfd.config import ip_address, network_address, str2bool
 
-from .utils import get_config
+from .utils import OpsiconfdTestClient, get_config, test_client
 
 
 @pytest.mark.parametrize(
@@ -256,3 +256,11 @@ def test_set_config_in_config_file(tmp_path: Path) -> None:
 		assert data == ("# comment\n" "log-level = 1\n" "\n" f"grafana-internal-url = {grafana_internal_url}\n")
 		conf.reload()
 		assert conf.grafana_internal_url == grafana_internal_url
+
+
+def test_disabled_features(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	res = test_client.get("/status")
+	assert res.status_code == 200
+	with get_config({"disabled_features": ["status-page"]}):
+		res = test_client.get("/status")
+		assert res.status_code == 404

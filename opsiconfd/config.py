@@ -354,8 +354,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				self._config.skip_setup.append("opsi_ca")
 			if "server_cert" not in self._config.skip_setup:
 				self._config.skip_setup.append("server_cert")
-		if not self._config.admin_interface_disabled_features:
-			self._config.admin_interface_disabled_features = []
+		if not self._config.disabled_features:
+			self._config.disabled_features = []
 		if not self._config.debug_options:
 			self._config.debug_options = []
 
@@ -1063,15 +1063,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help("expert", "Minimum time in seconds that a jsonrpc must take before the data is cached."),
 		)
 		self._parser.add(
-			"--admin-interface-disabled-features",
+			"--disabled-features",
 			nargs="+",
-			env_var="OPSICONFD_ADMIN_INTERFACE_DISABLED_FEATURES",
+			env_var="OPSICONFD_DISABLED_FEATURES",
 			default=None,
 			help=self._help(
 				"opsiconfd",
-				"A list of admin interface features to disable (features: terminal, rpc-interface).",
+				"A list of features to disable (features: status-page, public-folder, terminal, rpc-interface).",
 			),
-			choices=("terminal", "rpc-interface"),
+			choices=("status-page", "public-folder", "terminal", "rpc-interface"),
 		)
 		self._parser.add(
 			"--admin-interface-terminal-shell",

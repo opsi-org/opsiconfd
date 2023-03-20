@@ -13,6 +13,7 @@ import datetime
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import PlainTextResponse
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
+from starlette.status import HTTP_404_NOT_FOUND
 
 from opsiconfd import __version__
 from opsiconfd.config import FQDN, config
@@ -23,11 +24,15 @@ status_router = APIRouter()
 
 
 def status_setup(app: FastAPI) -> None:
-	app.include_router(status_router, prefix="/status")
+	if "status-page" not in config.disabled_features:
+		app.include_router(status_router, prefix="/status")
 
 
 @status_router.get("/")
 async def status_overview() -> PlainTextResponse:
+	if "status-page" in config.disabled_features:
+		return PlainTextResponse(status_code=HTTP_404_NOT_FOUND)
+
 	status = "ok"
 	redis_status = "ok"
 	redis_error = ""

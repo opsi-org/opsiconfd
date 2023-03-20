@@ -192,17 +192,18 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
-	try:
-		path = PUBLIC_DIR
-		logger.info("Running on depot server %r, exporting public directory %r", depot_id, path)
-		if not os.path.isdir(path):
-			raise RuntimeError(f"Cannot add webdav content 'public': directory '{path}' does not exist.")
-		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise RuntimeError(f"Cannot add webdav content 'public': permissions on directory '{path}' not sufficient.")
+	if "public-folder" not in config.disabled_features:
+		try:
+			path = PUBLIC_DIR
+			logger.info("Running on depot server %r, exporting public directory %r", depot_id, path)
+			if not os.path.isdir(path):
+				raise RuntimeError(f"Cannot add webdav content 'public': directory '{path}' does not exist.")
+			if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+				raise RuntimeError(f"Cannot add webdav content 'public': permissions on directory '{path}' not sufficient.")
 
-		filesystems["public"] = {"path": path, "ignore_case": False, "read_only": True}
-	except Exception as exc:  # pylint: disable=broad-except
-		logger.error(exc, exc_info=True)
+			filesystems["public"] = {"path": path, "ignore_case": False, "read_only": True}
+		except Exception as exc:  # pylint: disable=broad-except
+			logger.error(exc, exc_info=True)
 
 	if os.path.isdir(BOOT_DIR):
 		try:

@@ -345,22 +345,23 @@ def application_setup() -> None:
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(
-		SessionMiddleware,
-		public_path=[
-			"/dav/public",
-			"/favicon.ico",
-			"/login",
-			"/metrics/grafana",
-			"/public",
-			"/session/login",
-			"/session/logout",
-			"/ssl/opsi-ca-cert.pem",
-			"/status",
-			"/static",
-			"/welcome",
-		],
-	)
+
+	public_path = [
+		"/favicon.ico",
+		"/login",
+		"/metrics/grafana",
+		"/session/login",
+		"/session/logout",
+		"/ssl/opsi-ca-cert.pem",
+		"/static",
+		"/welcome",
+	]
+	if "status-page" not in config.disabled_features:
+		public_path.append("/status")
+	if "public-folder" not in config.disabled_features:
+		public_path.extend(["/public", "/dav/public"])
+
+	app.add_middleware(SessionMiddleware, public_path=public_path)
 	# app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	app.add_middleware(BaseMiddleware)

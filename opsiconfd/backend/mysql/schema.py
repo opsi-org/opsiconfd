@@ -506,21 +506,22 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 
 
 def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:  # pylint: disable=too-many-branches
+	logger.debug("Create index: table=%r, index=%r, columns=%r", table, index, columns)
 	correct_indexes = []
 	wrong_indexes = []
 	cur_indexes = get_indexes(session=session, database=database, table=table)
 	logger.debug("Current indexes: %s", cur_indexes)
 	for name, cols in cur_indexes.items():
-		if index == "PRIMARY":
-			if cols == columns and name == "PRIMARY":
+		if cols == columns:
+			# Same colums in correct order
+			if index != "PRIMARY" or name == index:
+				# Same index name or name irrelevant
 				correct_indexes.append(name)
 			else:
 				wrong_indexes.append(name)
-		else:
-			if cols == columns:
-				correct_indexes.append(name)
-			elif sorted(cols) == sorted(columns):
-				wrong_indexes.append(name)
+		elif sorted(cols) == sorted(columns):
+			# Same colums in wrong order
+			wrong_indexes.append(name)
 
 	while len(correct_indexes) > 1:
 		wrong_indexes.append(correct_indexes.pop())
@@ -530,7 +531,7 @@ def create_index(session: Session, database: str, table: str, index: str, column
 			logger.debug("Dropping index %r", wrong_index)
 			session.execute(f"ALTER TABLE `{table}` DROP INDEX `{wrong_index}`")
 		except OperationalError as err:
-			logger.warning(err)
+			logger.warning("Failed to drop index %r on %r: %s", wrong_index, table, err)
 
 	if correct_indexes:
 		logger.debug("Keeping index %r", correct_indexes[0])
@@ -538,13 +539,13 @@ def create_index(session: Session, database: str, table: str, index: str, column
 
 	key = ",".join([f"`{c}`" for c in columns])
 	if index == "PRIMARY":
-		logger.info("Setting new PRIMARY KEY on table %r", table)
+		logger.info("Setting new PRIMARY KEY on table %r %r", table, key)
 		session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
 	elif index == "UNIQUE":
-		logger.info("Setting new UNIQUE KEY on table %r", table)
+		logger.info("Setting new UNIQUE KEY on table %r %r", table, key)
 		session.execute(f"ALTER TABLE `{table}` ADD UNIQUE KEY ({key})")
 	else:
-		logger.info("Setting new index %r on table %r", index, table)
+		logger.info("Setting new index %r on table %r %r", index, table, key)
 		session.execute(f"CREATE INDEX `{index}` on `{table}` ({key})")
 
 

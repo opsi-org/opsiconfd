@@ -505,19 +505,24 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 	return indexes
 
 
-def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:
+def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:  # pylint: disable=too-many-branches
 	correct_indexes = []
 	wrong_indexes = []
-	for name, cols in get_indexes(session=session, database=database, table=table).items():
-		if cols == columns:
-			correct_indexes.append(name)
-		elif sorted(cols) == sorted(columns):
-			wrong_indexes.append(name)
+	cur_indexes = get_indexes(session=session, database=database, table=table)
+	logger.debug("Current indexes: %s", cur_indexes)
+	for name, cols in cur_indexes.items():
+		if index == "PRIMARY":
+			if cols == columns and name == "PRIMARY":
+				correct_indexes.append(name)
+			else:
+				wrong_indexes.append(name)
+		else:
+			if cols == columns:
+				correct_indexes.append(name)
+			elif sorted(cols) == sorted(columns):
+				wrong_indexes.append(name)
 
 	while len(correct_indexes) > 1:
-		wrong_indexes.append(correct_indexes.pop())
-
-	if index == "PRIMARY" and correct_indexes and correct_indexes[0] != "PRIMARY":
 		wrong_indexes.append(correct_indexes.pop())
 
 	for wrong_index in wrong_indexes:

@@ -44,7 +44,7 @@ class LDAPAuthentication(AuthenticationModule):
 		self._uri = ldap3.utils.uri.parse_uri(self._ldap_url)
 		self._group_filter = group_filter
 		self._ldap: ldap3.Connection | None = None
-		if bind_user is None:
+		if not bind_user:
 			if self._uri["base"]:
 				realm = ".".join([dc.split("=")[1] for dc in self._uri["base"].split(",")])
 			else:

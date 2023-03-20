@@ -121,7 +121,7 @@ def setup_samba() -> None:
 	if not os.path.exists(SMB_CONF):
 		return
 
-	samba_config = ConfigUpdater(delimiters=["="])
+	samba_config = ConfigUpdater(delimiters=("=",))
 	samba_config.read(SMB_CONF)
 
 	indent = "   "

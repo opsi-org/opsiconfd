@@ -19,7 +19,11 @@ import pytest
 
 from opsiconfd.config import ip_address, network_address, str2bool
 
-from .utils import OpsiconfdTestClient, get_config, test_client
+from .utils import (  # pylint: disable=unused-import
+	OpsiconfdTestClient,
+	get_config,
+	test_client,
+)
 
 
 @pytest.mark.parametrize(

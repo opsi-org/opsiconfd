@@ -1502,7 +1502,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		self.productPropertyState_createObjects(product_property_states)
 
-	@rpc_method(deprecated=True, alternative_method="productPropertyState_createObjects")
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="productPropertyState_createObjects")
 	def setProductProperty(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, propertyId: str, value: Any, objectId: str | None = None
 	) -> None:

@@ -12,14 +12,7 @@ from __future__ import annotations
 
 import socket
 import threading
-from ipaddress import (
-	IPv4Address,
-	IPv4Network,
-	IPv6Address,
-	IPv6Network,
-	ip_address,
-	ip_network,
-)
+from ipaddress import IPv6Address, ip_address
 from subprocess import CalledProcessError, run
 from time import sleep
 from typing import TYPE_CHECKING, Protocol

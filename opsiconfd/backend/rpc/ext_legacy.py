@@ -940,7 +940,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				)
 			]
 
-		return list(set(self.product_getIdents(type=product_type, returnType="list")))
+		return list({ident["id"] for ident in self.product_getIdents(type=product_type, returnType="dict")})
 
 	@rpc_method(deprecated=True, alternative_method="product_getIdents")
 	def getLocalBootProductIds_list(  # pylint: disable=invalid-name

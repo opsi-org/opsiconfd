@@ -940,7 +940,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				)
 			]
 
-		return list(set(self.product_getIdents(type=product_type, returnType="list")))
+		return list({ident["id"] for ident in self.product_getIdents(type=product_type, returnType="dict")})
 
 	@rpc_method(deprecated=True, alternative_method="product_getIdents")
 	def getLocalBootProductIds_list(  # pylint: disable=invalid-name
@@ -1502,7 +1502,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		self.productPropertyState_createObjects(product_property_states)
 
-	@rpc_method(check_acl=False, deprecated=True, alternative_method="productPropertyState_createObjects")
+	@rpc_method(deprecated=True, alternative_method="productPropertyState_createObjects")
 	def setProductProperty(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, propertyId: str, value: Any, objectId: str | None = None
 	) -> None:

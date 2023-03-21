@@ -77,15 +77,19 @@ PATH_MAPPINGS = {
 header_logger = get_logger("opsiconfd.headers")
 
 
-server_date = (0, b"")  # pylint: disable=invalid-name
+server_date = (0, b"", b"")  # pylint: disable=invalid-name
 
 
-def get_server_date() -> bytes:
+def get_server_date() -> tuple[bytes, bytes]:
 	global server_date  # pylint: disable=global-statement,invalid-name
 	now = int(time())
 	if server_date[0] != now:
-		server_date = (now, datetime.fromtimestamp(now, timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %Z").encode("utf-8"))
-	return server_date[1]
+		server_date = (
+			now,
+			str(now).encode("ascii"),
+			datetime.fromtimestamp(now, timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %Z").encode("utf-8"),
+		)
+	return server_date[1], server_date[2]
 
 
 @app.get("/")
@@ -307,7 +311,9 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					# Grub 2.06 needs titled headers (Content-Length instead of content-length)
 					message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
 
-				message["headers"].append((b"date", get_server_date()))
+				dat = get_server_date()
+				message["headers"].append((b"date", dat[1]))
+				message["headers"].append((b"x-date-unix-timestamp", dat[0]))
 			await send(message)
 
 		return await self.app(scope, receive, send_wrapper)

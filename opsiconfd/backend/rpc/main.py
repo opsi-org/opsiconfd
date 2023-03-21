@@ -22,7 +22,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 )
 from opsicommon.messagebus import EventMessage  # type: ignore[import]
 from opsicommon.messagebus import JSONRPCRequestMessage, timestamp
-from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
+from opsicommon.objects import OpsiDepotserver, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 # server_timing needed for jsonrpc_forward
@@ -335,7 +335,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			channel=f"service:depot:{depot_id}:jsonrpc",
 			expires=timestamp() + int(30_000),
 			method=method,
-			params=tuple(params or []),
+			params=tuple(serialize(params) or []),
 		)
 		sync_send_message(jsonrpc_request)
 

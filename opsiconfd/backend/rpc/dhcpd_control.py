@@ -12,6 +12,14 @@ from __future__ import annotations
 
 import socket
 import threading
+from ipaddress import (
+	IPv4Address,
+	IPv4Network,
+	IPv6Address,
+	IPv6Network,
+	ip_address,
+	ip_network,
+)
 from subprocess import CalledProcessError, run
 from time import sleep
 from typing import TYPE_CHECKING, Protocol
@@ -187,12 +195,12 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			return
 
 		hostname = host.id.split(".", 1)[0]
-		ip_address = host.ipAddress
-		if not ip_address:
+		host_ip_address = host.ipAddress
+		if not host_ip_address:
 			try:
 				logger.info("IP addess of client %s unknown, trying to get host by name", host)
-				ip_address = socket.gethostbyname(host.id)
-				logger.info("Client fqdn resolved to %s", ip_address)
+				host_ip_address = socket.gethostbyname(host.id)
+				logger.info("Client fqdn resolved to %s", host_ip_address)
 			except Exception as err:  # pylint: disable=broad-except
 				logger.debug("Failed to get IP by hostname: %s", err)
 				with dhcpd_lock("config_read"):
@@ -203,7 +211,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 					logger.debug("Trying to use address for %s from existing DHCP configuration.", hostname)
 
 					if current_host_params.get("fixed-address"):
-						ip_address = str(current_host_params["fixed-address"])
+						host_ip_address = str(current_host_params["fixed-address"])
 					else:
 						raise BackendIOError(
 							f"Cannot update dhcpd configuration for client {host.id}: "
@@ -211,12 +219,18 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 						) from err
 				else:
 					raise BackendIOError(
-						f"Cannot update dhcpd configuration for client {host.id}: " "ip address unknown and failed to get host by name"
+						f"Cannot update dhcpd configuration for client {host.id}: ip address unknown and failed to get host by name"
 					) from err
 
-		fixed_address = ip_address
+		fixed_address = host_ip_address
 		if self._dhcpd_control_config.fixed_address_format == "FQDN":
 			fixed_address = host.id
+		else:
+			ipa = ip_address(fixed_address)
+			if isinstance(ipa, IPv6Address):
+				logger.debug("Not updating dhcpd configuration for client %r, got IPv6 address %s", host.id, fixed_address)
+				return
+			fixed_address = ipa.exploded
 
 		parameters = forceDict(self._dhcpd_control_config.default_client_parameters)
 		if not self._dhcpd_control_config.dhcpd_on_depot:
@@ -246,7 +260,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				self._dhcpd_control_config.dhcpd_config_file.add_host(
 					hostname=hostname,
 					hardware_address=host.hardwareAddress,
-					ip_address=ip_address,
+					ip_address=host_ip_address,
 					fixed_address=fixed_address,
 					parameters=parameters,
 				)

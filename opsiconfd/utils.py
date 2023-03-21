@@ -332,7 +332,7 @@ def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, time
 		try:
 			flock(file, lock_flags)
 			break
-		except IOError:
+		except (IOError, BlockingIOError):
 			if time.time() >= start + timeout:
 				raise
 			time.sleep(0.1)

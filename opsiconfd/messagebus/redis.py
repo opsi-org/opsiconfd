@@ -13,7 +13,6 @@ from __future__ import annotations
 from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
-from time import time
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
@@ -328,34 +327,39 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 		_logger.debug("%s: getting messages", self)
 
 		redis = await async_redis_client()
-		start = time()
-		end = start + timeout if timeout else 0.0
+		start_ts = timestamp()
+		end_ts = 0
+		if timeout:
+			end_ts = start_ts + round(timeout * 1000)
 		try:  # pylint: disable=too-many-nested-blocks
 			while not self._should_stop:
 				try:
-					now = time()
 					stream_entries = await self._get_stream_entries(redis)
+					now_ts = timestamp()
 					if not stream_entries:
-						if end >= now:
+						if end_ts and now_ts > end_ts:
+							_logger.debug("Reader timed out after %0.2f seconds", (now_ts - end_ts) / 1000)
 							return
 						continue
 					for stream_key, messages in stream_entries:
-						last_redis_msg_id = ">"
+						last_redis_msg_id = self._streams[stream_key]
+						if isinstance(self, ConsumerGroupMessageReader):
+							last_redis_msg_id = ">"
 						for message in messages:
-							redis_msg_id = message[0].decode("utf-8")
+							last_redis_msg_id = redis_msg_id = message[0].decode("utf-8")
 							context = None
 							context_data = message[1].get(b"context")
 							if context_data:
 								context = self._context_decoder.decode(context_data)
 							msg = Message.from_msgpack(message[1][b"message"])
 							_logger.debug("Message from redis: %r", msg)
-							if msg.expires and msg.expires <= now:
+							if msg.expires and msg.expires <= now_ts:
+								_logger.debug("Message is expired (%r <= %r)", msg.expires, now_ts)
 								continue
 							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):
 								msg.trace = msg.trace or {}
 								msg.trace["broker_redis_receive"] = timestamp()
 							yield redis_msg_id, msg, context
-							last_redis_msg_id = redis_msg_id
 						self._streams[stream_key] = last_redis_msg_id
 				except Exception as err:  # pylint: disable=broad-except
 					_logger.error(err, exc_info=True)

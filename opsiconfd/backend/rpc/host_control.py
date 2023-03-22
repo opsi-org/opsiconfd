@@ -239,6 +239,9 @@ class RPCHostControlMixin(Protocol):
 						result[client_id] = {"result": None, "error": "Host currently not connected to messagebus"}
 						continue
 
+		if not connected_client_ids:
+			return result
+
 		messagebus_user_id = get_user_id_for_service_worker(Worker.get_instance().id)
 		rpc_id_to_client_id = {}
 		async with session_channel(owner_id=messagebus_user_id) as channel:
@@ -256,13 +259,21 @@ class RPCHostControlMixin(Protocol):
 					params=tuple(params or []),
 				)
 				rpc_id_to_client_id[jsonrpc_request.rpc_id] = client_id
+				logger.debug("Sending request: %s", jsonrpc_request)
 				coros.append(send_message(jsonrpc_request))
 			await asyncio.gather(*coros)
 
+			logger.debug("Waiting for JSONRPCResponseMessages (timeout=%r)")
 			async for _redis_msg_id, message, _context in message_reader.get_messages(timeout=timeout):
 				if not isinstance(message, JSONRPCResponseMessage) or not message.rpc_id:
 					continue
-				client_id = rpc_id_to_client_id.pop(message.rpc_id)
+
+				client_id = rpc_id_to_client_id.pop(message.rpc_id, "")
+				if not client_id:
+					continue
+
+				logger.debug("Got response: %s", message)
+
 				result[client_id] = {"result": message.result, "error": message.error}
 				if not rpc_id_to_client_id:
 					break

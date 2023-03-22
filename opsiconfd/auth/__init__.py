@@ -31,7 +31,10 @@ class AuthenticationModule:
 		return opsi_config.get("groups", "admingroup")
 
 	def get_read_only_groupnames(self) -> set[str]:
-		return set(opsi_config.get("groups", "readonly") or [])
+		readonly_group = opsi_config.get("groups", "readonly")
+		if readonly_group:
+			return {readonly_group}
+		return set()
 
 	def user_is_admin(self, username: str) -> bool:
 		return self.get_admin_groupname() in self.get_groupnames(username)

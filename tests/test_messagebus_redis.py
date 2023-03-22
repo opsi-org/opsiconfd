@@ -18,6 +18,7 @@ from opsiconfd.messagebus.redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
 	send_message,
+	timestamp,
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -94,8 +95,9 @@ async def test_message_reader_processing(config: Config) -> None:  # pylint: dis
 		reader.received = []
 		await reader.remove_channels(["other-channel"])
 		await asyncio.sleep(2)
-		await send_message(Message(id="6", type="test", sender="*", channel="host:test-123"))
-		await send_message(Message(id="7", type="test", sender="*", channel="other-channel"))
+		await send_message(Message(id="6", type="test", sender="*", channel="host:test-123", expires=timestamp() + 5000))
+		await send_message(Message(id="7", type="test", sender="*", channel="host:test-123", expires=timestamp()))
+		await send_message(Message(id="8", type="test", sender="*", channel="other-channel"))
 		await asyncio.sleep(2)
 
 		assert len(reader.received) == 1

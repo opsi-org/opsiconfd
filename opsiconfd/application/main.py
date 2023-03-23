@@ -72,7 +72,6 @@ PATH_MAPPINGS = {
 	"/public": "/public/",
 	"/repository": "/repository/",
 	"/workbench": "/workbench/",
-	"/grafana/api/datasources/proxy/1/query": "/metrics/grafana/query",
 }
 
 header_logger = get_logger("opsiconfd.headers")
@@ -244,9 +243,20 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		# Remove full_path and replace with path when the following issue is fixed:
 		# https://github.com/encode/starlette/issues/1336
 		scope["full_path"] = scope.get("path")
-		if scope["full_path"] and (new_path := PATH_MAPPINGS.get(scope["full_path"])):
-			scope["full_path"] = scope["path"] = new_path
-			scope["raw_path"] = new_path.encode("utf-8")
+		if scope["full_path"]:
+			new_path: str | None = None
+			if scope["full_path"].startswith("/grafana/api/datasources/proxy"):
+				# Redirect grafana proxy calls to simplify and avoid authentication grafana server => opsiconfd
+				# Without redirect:
+				#   browser => opsiconfd (reverse proxy) => grafana server (simple json) => opsiconfd (/metrics)
+				# With redirect:
+				#   browser => opsiconfd (/metrics)
+				new_path = f"/metrics/grafana/{scope['full_path'].rsplit('/')[-1]}"
+			else:
+				new_path = PATH_MAPPINGS.get(scope["full_path"])
+			if new_path:
+				scope["full_path"] = scope["path"] = new_path
+				scope["raw_path"] = new_path.encode("utf-8")
 
 		client_host, client_port = self.get_client_address(scope)
 

@@ -12,17 +12,9 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Callable, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
-from opsicommon.objects import (  # type: ignore[import]
-	Product,
-	ProductDependency,
-	ProductOnClient,
-)
-from opsicommon.types import (  # type: ignore[import]
-	forceList,
-	forceObjectClass,
-	forceObjectClassList,
-)
+from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.objects import Product, ProductDependency, ProductOnClient
+from opsicommon.types import forceObjectClass, forceObjectClassList
 
 from . import rpc_method
 from .obj_product_dependency import (
@@ -71,16 +63,16 @@ class RPCProductOnClientMixin(Protocol):
 	) -> None:
 		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_createObjects")
+		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
 		with self._mysql.session() as session:
-			for productOnClient in forceList(productOnClients):
-				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
+			for productOnClient in productOnClients:
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session
 				)
-				if self.events_enabled:
-					self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
 		if not self.events_enabled:
 			return
+		for productOnClient in productOnClients:
+			self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
@@ -88,16 +80,16 @@ class RPCProductOnClientMixin(Protocol):
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
 		ace = self._get_ace("productOnClient_updateObjects")
+		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
 		with self._mysql.session() as session:
-			for productOnClient in forceList(productOnClients):
-				productOnClient = forceObjectClass(productOnClient, ProductOnClient)
+			for productOnClient in productOnClients:
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session
 				)
-				if self.events_enabled:
-					self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
 		if not self.events_enabled:
 			return
+		for productOnClient in productOnClients:
+			self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)

@@ -16,22 +16,13 @@ from ipaddress import ip_address
 from typing import TYPE_CHECKING, Any, Protocol
 from urllib.parse import urlparse
 
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.exceptions import (
 	BackendError,
 	BackendMissingDataError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.objects import (  # type: ignore[import]
-	Host,
-	OpsiClient,
-	OpsiConfigserver,
-	OpsiDepotserver,
-)
-from opsicommon.types import (  # type: ignore[import]
-	forceHostId,
-	forceList,
-	forceObjectClass,
-)
+from opsicommon.objects import Host, OpsiClient, OpsiConfigserver, OpsiDepotserver
+from opsicommon.types import forceHostId, forceObjectClass, forceObjectClassList
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import config
@@ -98,31 +89,31 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_createObjects")
+		hosts = forceObjectClassList(hosts, Host)
 		with self._mysql.session() as session:
-			for host in forceList(hosts):
-				host = forceObjectClass(host, Host)
+			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
-				if self.events_enabled:
-					self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_updated(host)
+		for host in hosts:
+			self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
+		self.opsipxeconfd_hosts_updated(hosts)
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
 	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObjects")
+		hosts = forceObjectClassList(hosts, Host)
 		with self._mysql.session() as session:
-			for host in forceList(hosts):
-				host = forceObjectClass(host, Host)
+			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
-				if self.events_enabled:
-					self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_updated(host)
+		for host in hosts:
+			self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
+		self.opsipxeconfd_hosts_updated(hosts)
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)

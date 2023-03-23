@@ -44,6 +44,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		forward_authorization: bool = False,
 		forward_cookies: list[str] | None = None,
 		preserve_host: bool = False,
+		forward_response_headers: list[str] | None = None,
 	) -> None:
 		self.mount_path = mount_path
 		url = urlparse(base_url)
@@ -52,6 +53,9 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		self.forward_authorization = forward_authorization
 		self.forward_cookies = forward_cookies
 		self.preserve_host = preserve_host
+		if forward_response_headers is None:
+			forward_response_headers = ["Content-Type", "Content-Length", "Content-Encoding", "Last-Modified"]
+		self.forward_response_headers = [h.lower() for h in forward_response_headers]
 		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, list(methods))  # type: ignore[attr-defined]
 		app.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
 
@@ -124,7 +128,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 
 		proxy_logger.debug("Got response: %s", resp)
 
-		response_headers = dict(resp.headers)
+		response_headers = {k: v for k, v in resp.headers.items() if k.lower() in self.forward_response_headers}
 
 		if proxy_logger.isEnabledFor(TRACE):
 			proxy_logger.trace("<<< %s", resp.status)
@@ -132,6 +136,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 				proxy_logger.trace("<<< %s: %s", header, value)
 
 		request.scope["reverse_proxy"] = True
+
 		return StreamingResponse(
 			status_code=resp.status,
 			headers=response_headers,

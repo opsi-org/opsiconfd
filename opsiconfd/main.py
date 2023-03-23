@@ -73,7 +73,7 @@ def log_viewer_main() -> None:
 	try:
 		asyncio.run(log_viewer())
 	except KeyboardInterrupt:
-		pass
+		sys.exit(0)
 
 
 def health_check_main() -> None:

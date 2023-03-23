@@ -72,6 +72,7 @@ PATH_MAPPINGS = {
 	"/public": "/public/",
 	"/repository": "/repository/",
 	"/workbench": "/workbench/",
+	"/grafana/api/datasources/proxy/1/query": "/metrics/grafana/query",
 }
 
 header_logger = get_logger("opsiconfd.headers")
@@ -355,7 +356,6 @@ def application_setup() -> None:
 	public_path = [
 		"/favicon.ico",
 		"/login",
-		"/metrics/grafana",
 		"/session/login",
 		"/session/logout",
 		"/ssl/opsi-ca-cert.pem",

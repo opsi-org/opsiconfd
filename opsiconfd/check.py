@@ -615,6 +615,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			return result
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
+		packages_not_on_repo = []
 		for depot_id in depots:
 			for product_id, available_version in available_packages.items():
 				partial_result = PartialCheckResult(
@@ -655,9 +656,10 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 							f" < available version {available_version!r}."
 						)
 				elif available_version == "0.0":
-					missing = missing + 1
-					partial_result.check_status = CheckStatus.WARNING
-					partial_result.message = f"Could not find product {product_id!r} on repository {OPSI_REPO}."
+					logger.notice("Could not find product %r on repository %s.", product_id, OPSI_REPO)
+					logger.notice("Removing product %r from checked list.")
+					packages_not_on_repo.append(product_id)
+					continue
 				else:
 					partial_result.check_status = CheckStatus.OK
 					partial_result.message = (
@@ -668,6 +670,8 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
+			for package in packages_not_on_repo:
+				del available_packages[package]
 
 		result.details = {
 			"products": len(available_packages),

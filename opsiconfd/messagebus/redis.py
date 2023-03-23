@@ -224,10 +224,21 @@ async def get_websocket_connected_users(
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+	"""
+	Redis Messagebus reader.
+
+	If multiple readers are reading the same channel,
+	all readers will receive the same messages.
+
+	It is possible to ACK messages.
+	Messages which are ACKed will not be delivered again
+	if a new reader is starting to read the channel.
+	"""
+
 	_info_suffix = CHANNEL_INFO_SUFFIX
 	_count_readers = True
 
-	def __init__(self, channels: dict[str, StreamIdT | None] | None = None, default_stream_id: str = "$") -> None:
+	def __init__(self, channels: dict[str, StreamIdT] | None = None) -> None:
 		"""
 		channels:
 			A dict of channel names to stream IDs, where
@@ -237,7 +248,6 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 			ID "$" means that we only want new messages (added after reader was started).
 		"""
 		self._channels = channels or {}
-		self._default_stream_id = default_stream_id
 		self._streams: dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{config.redis_key('messagebus')}:channels"
 		self._should_stop = False
@@ -257,8 +267,19 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 		redis_time_id = str(int(redis_time[0] * 1000 + redis_time[1] / 1000))
 		for channel, redis_msg_id in self._channels.items():
 			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
-			redis_msg_id = redis_msg_id or self._streams.get(stream_key) or self._default_stream_id
+			stream_keys.append(stream_key)
+			if stream_key in self._streams:
+				# Already in streams
+				continue
+
+			# redis_msg_id = self._streams.get(stream_key, redis_msg_id)
+			if not redis_msg_id:
+				raise ValueError(f"Missing redis message id for channel {channel:!r}")
+
 			if redis_msg_id == ">":
+				# ID ">" means that we want to receive all undelivered messages.
+				# Receive all undelivered messages
+				# Use last-delivered-id if available or "0" which means all messages inside the stream.
 				last_delivered_id = await redis.hget(stream_key + self._info_suffix, "last-delivered-id")
 				logger.debug("Last delivered id of channel %r: %r", channel, last_delivered_id)
 				if last_delivered_id:
@@ -266,36 +287,35 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 				else:
 					redis_msg_id = "0"
 
-			if redis_msg_id == "$":
-				# Reading will start slightly later
-				# Use current timestamp instead of $ to do not miss messages
+			elif redis_msg_id == "$":
+				# ID "$" means that we only want new messages (added after reader was started).
+				# For redis streams "$" means the ID of the item with the greatest ID inside the stream.
+				# Not using "$" because stream reading will start slightly later.
+				# Using the current timestamp instead to do not miss messages.
 				redis_msg_id = redis_time_id
 
-			if not redis_msg_id:
-				raise ValueError("No redis message id")
-
-			if self._count_readers and stream_key not in self._streams:
+			if self._count_readers:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", 1)
 
 			self._streams[stream_key] = redis_msg_id
-			stream_keys.append(stream_key)
 
 		for stream_key in list(self._streams):
 			if self._count_readers and stream_key not in stream_keys:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
 				del self._streams[stream_key]
+
 		logger.debug("%s updated streams: %s", self, self._streams)
 
 	async def get_channel_names(self) -> list[str]:
 		async with self._channels_lock:
 			return list(self._channels)
 
-	async def set_channels(self, channels: dict[str, StreamIdT | None]) -> None:
+	async def set_channels(self, channels: dict[str, StreamIdT]) -> None:
 		async with self._channels_lock:
 			self._channels = channels
 			await self._update_streams()
 
-	async def add_channels(self, channels: dict[str, StreamIdT | None]) -> None:
+	async def add_channels(self, channels: dict[str, StreamIdT]) -> None:
 		async with self._channels_lock:
 			self._channels.update(channels)
 			await self._update_streams()
@@ -310,7 +330,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
 
-	async def get_messages(  # pylint: disable=too-many-branches,too-many-locals
+	async def get_messages(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
 		self, timeout: float = 0.0
 	) -> AsyncGenerator[tuple[str, Message, Any], None]:
 		if not self._channels:
@@ -324,29 +344,30 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 				logger.error(err, exc_info=True)
 				raise
 
-		_logger.debug("%s: getting messages", self)
-
-		redis = await async_redis_client()
-		start_ts = timestamp()
-		end_ts = 0
-		if timeout:
-			end_ts = start_ts + round(timeout * 1000)
 		try:  # pylint: disable=too-many-nested-blocks
+
+			_logger.debug("%s: getting messages", self)
+
+			redis = await async_redis_client()
+			start_ts = timestamp()
+			end_ts = 0
+			if timeout:
+				end_ts = start_ts + round(timeout * 1000)
+
 			while not self._should_stop:
 				try:
 					stream_entries = await self._get_stream_entries(redis)
-					now_ts = timestamp()
+					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
 						if end_ts and now_ts > end_ts:
 							_logger.debug("Reader timed out after %0.2f seconds", (now_ts - end_ts) / 1000)
-							return
+							break
 						continue
+
 					for stream_key, messages in stream_entries:
-						last_redis_msg_id = self._streams[stream_key]
-						if isinstance(self, ConsumerGroupMessageReader):
-							last_redis_msg_id = ">"
+						next_redis_msg_id = ""
 						for message in messages:
-							last_redis_msg_id = redis_msg_id = message[0].decode("utf-8")
+							next_redis_msg_id = redis_msg_id = message[0].decode("utf-8")
 							context = None
 							context_data = message[1].get(b"context")
 							if context_data:
@@ -360,19 +381,33 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 								msg.trace = msg.trace or {}
 								msg.trace["broker_redis_receive"] = timestamp()
 							yield redis_msg_id, msg, context
-						self._streams[stream_key] = last_redis_msg_id
+
+						# Update the ID in self._streams[stream_key] which will be
+						# used in _get_stream_entries for xread / xreadgroup.
+						# This ID is volatile and valid only for the current reader.
+						# A persistent tracking can be done with consumer groups / ACK.
+						if next_redis_msg_id:
+							self._streams[stream_key] = next_redis_msg_id
+						elif isinstance(self, ConsumerGroupMessageReader):
+							# next_redis_msg_id not set, which means that no messages where received.
+							# If the ID was set to a numeric ID initially, this also means that all
+							# pending messages have been read.
+							# In this case the ID must be set to ">" to start reading new messages.
+							self._streams[stream_key] = ">"
+
 				except Exception as err:  # pylint: disable=broad-except
 					_logger.error(err, exc_info=True)
 					await sleep(3)
 		except CancelledError:
 			pass
-		try:
-			if self._count_readers:
-				# Do not run in a pipeline, can result in problems on application shutdown
-				for stream_key in list(self._streams):
-					await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
 		finally:
-			self._stopped_event.set()
+			try:
+				if self._count_readers:
+					# Do not run in a pipeline, can result in problems on application shutdown
+					for stream_key in list(self._streams):
+						await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+			finally:
+				self._stopped_event.set()
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		logger.trace("ACK channel %r, message %r", channel, redis_msg_id)
@@ -385,23 +420,43 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 	async def stop(self, wait: bool = True) -> None:
 		self._should_stop = True
 		if wait:
-			await self._stopped_event.wait()
+			await self.wait_stopped()
+
+	async def wait_stopped(self) -> None:
+		await self._stopped_event.wait()
 
 
 class ConsumerGroupMessageReader(MessageReader):
+	"""
+	Redis Messagebus Consumer group reader.
+
+	If multiple readers of the same consumer group are reading the same channel,
+	each message is delivered to a different consumer.
+
+	All messages must be ACKed.
+	ACKed messages will not be delivered again.
+	"""
+
 	_count_readers = False
 
-	def __init__(
-		self, consumer_group: str, consumer_name: str, channels: dict[str, StreamIdT | None] | None = None, default_stream_id: str = "0"
-	) -> None:
+	def __init__(self, consumer_group: str, consumer_name: str, channels: dict[str, StreamIdT] | None = None) -> None:
 		"""
-		ID ">" means that the consumer want to receive only messages that were never delivered to any other consumer.
-		Any other ID, that is, 0 or any other valid ID will have the effect of returning entries that are pending
-		for the consumer sending the command with IDs greater than the one provided.
-		So basically if the ID is not ">", then the command will just let the client access its pending entries:
-		messages delivered to it, but not yet acknowledged.
+		consumer_group:
+			Name of a consumer group
+		consumer_name:
+			Name of the consumer as member of the consumer group
+		channels:
+			A dict of channel names to stream IDs.
+
+			ID ">" means that we want to receive messages never delivered to other consumers so far.
+			Messages that have already been delivered but not ACKed will not be delivered again!
+
+			If the ID is any valid numerical ID, all pending messages (starting from the specified ID) will be delivered first.
+			Pending messages means messages that are intended for the specified consumer but were never acknowledged.
+			After delivering the pending messages, the reader will act as if ID ">" was passed.
+			This is different from the normal XACK behavior of redis.
 		"""
-		super().__init__(channels, default_stream_id)
+		super().__init__(channels)
 		self._consumer_group = consumer_group.encode("utf-8")
 		self._consumer_name = consumer_name.encode("utf-8")
 

@@ -245,7 +245,8 @@ class RPCHostControlMixin(Protocol):
 		messagebus_user_id = get_user_id_for_service_worker(Worker.get_instance().id)
 		rpc_id_to_client_id = {}
 		async with session_channel(owner_id=messagebus_user_id) as channel:
-			message_reader = MessageReader(channels={channel: ">"})
+			# ID "$" means: Only read new messages added after reader is started.
+			message_reader = MessageReader(channels={channel: "$"})
 
 			expires = timestamp() + int(timeout * 1000)
 			coros = []

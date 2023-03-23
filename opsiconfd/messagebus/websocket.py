@@ -248,6 +248,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 				if channel.startswith("service:"):
 					consumer_name = f"{self._messagebus_user_id}:{self._session_channel.split(':', 1)[1]}"
+					# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 					reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=consumer_name, channels={channel: "0"})
 					self._messagebus_reader.append(reader)
 					asyncio_create_task(self.message_reader_task(websocket, reader))
@@ -458,3 +459,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				event.channel = "event:user_disconnected"
 				event.data["user"] = {"username": session.username}
 				await send_message(event)
+
+		# Wait for task to finish to prevent that task is ended by garbage collector
+		for reader in self._messagebus_reader:
+			await reader.wait_stopped()

@@ -326,6 +326,7 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 
 	channel = "service:config:terminal"
 
+	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 	terminal_request_reader = ConsumerGroupMessageReader(
 		consumer_group=channel,
 		consumer_name=get_messagebus_worker_id(),

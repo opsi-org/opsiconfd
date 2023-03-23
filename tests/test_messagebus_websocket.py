@@ -140,13 +140,14 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			assert sorted([msg.id for msg in messages]) == ["3", "4", "5", "6"]
 
 
-def test_messagebus_multi_client_session_and_user_channel(
+def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals
 	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
 ) -> None:
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
+	channel = f"host:{host_id}"
 	with sync_redis_client() as redis:
-		assert redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") is None
+		assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") is None
 
 		with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
 			test_client.auth = (host_id, host_key)
@@ -160,14 +161,11 @@ def test_messagebus_multi_client_session_and_user_channel(
 						messages = list(reader.get_messages())
 						assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
 						assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
-						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
+						assert channel in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
 					sleep(1)
-					assert (
-						redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
-						== b"2"
-					)
-					message = Message(type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="1")
+					assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"2"
+					message = Message(type="test_multi_client", sender="@", channel=channel, id="1")
 					websocket1.send_bytes(message.to_msgpack())
 					for reader in (reader1, reader2):
 						reader.wait_for_message(count=1)
@@ -184,16 +182,11 @@ def test_messagebus_multi_client_session_and_user_channel(
 							messages = list(reader3.get_messages())
 							assert messages[0]["type"] == "channel_subscription_event"
 							assert len(messages[0]["subscribed_channels"]) == 2
-							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
+							assert channel in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
 							sleep(1)
-							assert (
-								redis.hget(
-									f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count"
-								)
-								== b"3"
-							)
-							message = Message(type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="2")
+							assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"3"
+							message = Message(type="test_multi_client", sender="@", channel=channel, id="2")
 							websocket1.send_bytes(message.to_msgpack())
 							for reader in (reader1, reader2, reader3):
 								reader.wait_for_message(count=1)
@@ -201,13 +194,12 @@ def test_messagebus_multi_client_session_and_user_channel(
 								assert len(messages) == 1
 								assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
 								assert messages[0]["id"] == "2"  # type: ignore[call-overload]
+
 					sleep(1)
-					assert (
-						redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
-						== b"2"
-					)
+					assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"2"
+
 			sleep(1)
-			assert redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"0"
+			assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"0"
 
 
 def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

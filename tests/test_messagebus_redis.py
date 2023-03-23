@@ -18,7 +18,6 @@ from opsiconfd.messagebus.redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
 	send_message,
-	timestamp,
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -30,7 +29,7 @@ from .utils import (  # pylint: disable=unused-import
 
 
 @pytest.mark.asyncio
-async def test_message_reader_processing(config: Config) -> None:  # pylint: disable=redefined-outer-name
+async def test_message_reader_user_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: list[tuple[str, Message, bytes]] = []
@@ -40,70 +39,147 @@ async def test_message_reader_processing(config: Config) -> None:  # pylint: dis
 		async for redis_id, message, context in reader.get_messages():
 			reader.received.append((redis_id, message, context))
 
+	channel = "host:test-user-channel"
 	async with async_redis_client() as redis_client:
-		reader = MyMessageReader(channels={"host:test-123": ">"})
-		_reader_task = asyncio.create_task(reader_task(reader))
-		await send_message(Message(id="1", type="test", sender="*", channel="host:test-123"), context=b"context_data")
+		# Add some messages before reader starts reading
+		await send_message(Message(id="1", type="test", sender="*", channel=channel), context=b"context_data1")
+		await send_message(Message(id="2", type="test", sender="*", channel=channel), context=b"context_data2")
+
+		# ID ">" means that we want to receive all undelivered messages.
+		reader1 = MyMessageReader(channels={channel: ">"})
+		_reader_task1 = asyncio.create_task(reader_task(reader1))
+
+		await send_message(Message(id="3", type="test", sender="*", channel=channel), context=b"context_data3")
+		await send_message(Message(id="4", type="test", sender="*", channel=channel), context=b"context_data4")
+
+		# Start another reader
+		reader2 = MyMessageReader(channels={channel: ">"})
+		_reader_task2 = asyncio.create_task(reader_task(reader2))
+
+		# Wait until readers have read all messages
 		await asyncio.sleep(2)
-		_reader_task.cancel()
+		_reader_task1.cancel()
+		_reader_task2.cancel()
 
-		assert len(reader.received) == 1
-		assert reader.received[0][1].type == "test"
-		assert reader.received[0][1].id == "1"
+		# Both readers should have received all messages
+		for reader in reader1, reader2:
+			assert len(reader.received) == 4
+			for idx, received in enumerate(reader.received):
+				assert received[1].type == "test"
+				assert received[1].id == str(idx + 1)
+				assert received[2] == f"context_data{idx+1}".encode("utf-8")
 
-		last_id = await redis_client.hget(
-			f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id"
-		)  # pylint: disable=protected-access
+		# We did not ACK any message, so last-delivered-id has to be None
+		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "last-delivered-id")
 		assert last_id is None
 
-		await reader.ack_message("host:test-123", reader.received[0][0])
+		# No reader running, add a message
+		await send_message(Message(id="5", type="test", sender="*", channel=channel), context=b"context_data5")
 
-		last_id = await redis_client.hget(
-			f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id"
-		)  # pylint: disable=protected-access
-		assert last_id.decode("utf-8") == reader.received[0][0]  # type: ignore[union-attr]
+		# Start a reader again
+		reader1 = MyMessageReader(channels={channel: ">"})
+		_reader_task1 = asyncio.create_task(reader_task(reader1))
 
-		await send_message(Message(id="2", type="test", sender="*", channel="host:test-123"), context=b"context_data")
-		await send_message(Message(id="3", type="test", sender="*", channel="host:test-123"), context=b"context_data")
+		await asyncio.sleep(1)
+		await send_message(Message(id="6", type="test", sender="*", channel=channel), context=b"context_data6")
+		await asyncio.sleep(2)
 
-		reader = MyMessageReader(channels={"host:test-123": ">"})
-		_reader_task = asyncio.create_task(reader_task(reader))
-		await send_message(Message(id="4", type="test", sender="*", channel="host:test-123"), context=b"context_data")
-		await send_message(Message(id="5", type="test", sender="*", channel="other-channel"))
+		# Since we did not ACK any messages, the reader should receive all messages in the stream
+		assert len(reader1.received) == 6
+		for idx, received in enumerate(reader1.received):
+			assert received[1].type == "test"
+			assert received[1].id == str(idx + 1)
+			assert received[2] == f"context_data{idx+1}".encode("utf-8")
+			# ACK message
+			await reader1.ack_message(channel, received[0])
+		last_acked_redis_id = reader1.received[5][0]
+
+		_reader_task1.cancel()
+
+		# last-delivered-id has to be the redis ID of the last ACKed message
+		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "last-delivered-id")
+		assert last_id
+		assert last_id.decode("utf-8") == last_acked_redis_id
+
+		# No reader running, add a message
+		await send_message(Message(id="7", type="test", sender="*", channel=channel), context=b"context_data7")
+
+		# Start two readers again
+		reader1 = MyMessageReader(channels={channel: ">"})
+		reader2 = MyMessageReader(channels={"other-channel": ">"})
+		_reader_task1 = asyncio.create_task(reader_task(reader1))
+		await asyncio.sleep(1)
+		_reader_task2 = asyncio.create_task(reader_task(reader2))
+		await asyncio.sleep(1)
+		await reader2.add_channels(channels={channel: ">"})
+		await asyncio.sleep(1)
+		await send_message(Message(id="8", type="test", sender="*", channel=channel), context=b"context_data8")
+		await asyncio.sleep(2)
+
+		_reader_task1.cancel()
+		_reader_task2.cancel()
+
+		# Both readers should have received all messages since last ACKed message
+		for reader in reader1, reader2:
+			assert len(reader.received) == 2
+
+
+@pytest.mark.asyncio
+async def test_message_reader_event_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
+		def __init__(self, **kwargs: Any) -> None:
+			self.received: list[tuple[str, Message, bytes]] = []
+			super().__init__(**kwargs)
+
+	async def reader_task(reader: MyMessageReader) -> None:
+		async for redis_id, message, context in reader.get_messages():
+			reader.received.append((redis_id, message, context))
+
+	channel = "event:test_reader"
+	async with async_redis_client() as redis_client:
+		# Add some messages before reader starts reading
+		await send_message(Message(id="1", type="test", sender="*", channel=channel))
+
+		reader1 = MyMessageReader(channels={channel: "$"})
+		_reader_task1 = asyncio.create_task(reader_task(reader1))
+
+		await asyncio.sleep(1)
+		assert await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"1"
+
+		await send_message(Message(id="2", type="test", sender="*", channel=channel))
+
+		reader2 = MyMessageReader(channels={channel: "$"})
+		_reader_task2 = asyncio.create_task(reader_task(reader2))
+
+		await asyncio.sleep(1)
+		assert await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"2"
+
+		await send_message(Message(id="3", type="test", sender="*", channel=channel))
+
+		reader3 = MyMessageReader(channels={channel: "$"})
+		_reader_task3 = asyncio.create_task(reader_task(reader3))
+
+		# Re-set channels, to check if reader-count is handled correctly
+		await reader2.set_channels(channels={channel: "$"})
+
+		await asyncio.sleep(1)
+		assert await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"3"
+
+		await send_message(Message(id="4", type="test", sender="*", channel=channel))
 
 		await asyncio.sleep(2)
 
-		assert len(reader.received) == 3
-		assert reader.received[0][1].id == "2"
-		assert reader.received[1][1].id == "3"
-		assert reader.received[2][1].id == "4"
+		await reader1.stop()
+		await reader2.stop()
+		await reader3.stop()
 
-		await reader.ack_message("host:test-123", reader.received[2][0])
-		last_id = await redis_client.hget(
-			f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id"
-		)  # pylint: disable=protected-access
-		assert last_id.decode("utf-8") == reader.received[2][0]  # type: ignore[union-attr]
-		reader.received = []
+		assert len(reader1.received) == 3
+		assert len(reader2.received) == 2
+		assert len(reader3.received) == 1
 
-		await reader.add_channels({"other-channel": ">"})
-		await asyncio.sleep(2)
+		await asyncio.sleep(1)
 
-		assert len(reader.received) == 1
-		assert reader.received[0][1].id == "5"
-		assert reader.received[0][1].channel == "other-channel"
-
-		reader.received = []
-		await reader.remove_channels(["other-channel"])
-		await asyncio.sleep(2)
-		await send_message(Message(id="6", type="test", sender="*", channel="host:test-123", expires=timestamp() + 5000))
-		await send_message(Message(id="7", type="test", sender="*", channel="host:test-123", expires=timestamp()))
-		await send_message(Message(id="8", type="test", sender="*", channel="other-channel"))
-		await asyncio.sleep(2)
-
-		assert len(reader.received) == 1
-		assert reader.received[0][1].id == "6"
-
-		await reader.stop()
+		assert await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"0"
 
 
 @pytest.mark.asyncio

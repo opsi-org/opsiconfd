@@ -585,6 +585,7 @@ async def messagebus_jsonrpc_request_worker_configserver() -> None:
 	messagebus_worker_id = get_user_id_for_service_worker(worker.id)
 	channel = "service:config:jsonrpc"
 
+	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 	jsonrpc_message_reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})
 	async for redis_id, message, context in jsonrpc_message_reader.get_messages():
 		try:

@@ -29,17 +29,8 @@ from OpenSSL.crypto import (
 	load_certificate,
 	load_privatekey,
 )
-from opsicommon.server.rights import (  # type: ignore[import]
-	FilePermission,
-	PermissionRegistry,
-	set_rights,
-)
-from opsicommon.ssl import (  # type: ignore[import]
-	as_pem,
-	create_ca,
-	create_server_cert,
-	install_ca,
-)
+from opsicommon.server.rights import FilePermission, PermissionRegistry, set_rights
+from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from opsiconfd.backend import get_unprotected_backend
@@ -48,6 +39,7 @@ from opsiconfd.config import (
 	FQDN,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
 	config,
+	get_depotserver_id,
 	opsi_config,
 )
 from opsiconfd.logging import logger
@@ -467,7 +459,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 			for attempt in (1, 2, 3, 4, 5):
 				try:
 					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
-					pem = get_unprotected_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member
+					pem = get_unprotected_backend().host_getTLSCertificate(get_depotserver_id())  # pylint: disable=no-member
 				except RequestsConnectionError as err:
 					if attempt == 5:
 						raise

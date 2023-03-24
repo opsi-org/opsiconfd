@@ -82,6 +82,7 @@ class RpcThread(KillableThread):  # pylint: disable=too-many-instance-attributes
 	) -> None:
 		KillableThread.__init__(self)
 		self.host_id = forceHostId(host_id)
+		self.address = str(address)
 		self.method = str(method)
 		self.params = forceList(params or [])
 		self.error: str | None = None
@@ -90,7 +91,7 @@ class RpcThread(KillableThread):  # pylint: disable=too-many-instance-attributes
 		self.ended = 0.0
 
 		self.jsonrpc = JSONRPCClient(
-			address=f"https://{address}:{opsiclientd_port}/opsiclientd",
+			address=f"https://{self.address}:{opsiclientd_port}/opsiclientd",
 			username=str(username),
 			password=str(password),
 			connect_timeout=max(host_rpc_timeout, 0),

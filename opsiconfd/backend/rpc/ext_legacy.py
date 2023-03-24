@@ -1428,34 +1428,21 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			.items()
 		}
 
-	@rpc_method(check_acl=False, deprecated=True, alternative_method="productPropertyState_createObjects")
+	@rpc_method(check_acl=False)
 	def setProductProperties(  # pylint: disable=invalid-name,too-many-locals
 		self: BackendProtocol, productId: str, properties: dict[str, str], objectId: str | None = None
 	) -> None:
 		"""
-		Set ProductPropertyStates as given.
+		Create or modify ProductPropertyStates.
 
-		This will create product propert states for the given `objectId` if
-		`objectId` is given.
-		If `objectId` is `None` then this will alter all depots that already
-		have existing ProductPropertyStates for the product and the given
-		property IDs.
+		Product property states for the specified `objectId` will be created or modified.
+		If `objectId` is `None`, ProductPropertyStates will be changed for all depots
+		where ProductPropertyStates exist for the specified product.
 
 		:param productId: The ID of the product.
-		:type productId: str
-		:param properties: The properties to set. The key of the dict is \
-	the property ID and the value is the new value.
-		:type properties: dict[key] = str
-		:param objectId: ID of the object to change. If this is `None` \
-	the values of depots with an existing ProductPropertyState will be \
-	changed.
-		:type objectId: str or None
-		:raises ValueError: If a ProductProperty of unhandled type is encountered.
-		:raises ValueError: If an attempt to set multiple values at a \
-	non-multivalue property is made.
-		:raises BackendMissingDataError: If ProductProperty or Product aren't present.
+		:param properties: <property-id> <value> pairs of properties to set.
+		:param objectId: ID of the object to set the values for or `None`.
 		"""
-
 		property_ids = set(forceProductPropertyId(ppi) for ppi in properties)
 		property_classes = {}
 		property_multi_value = {}
@@ -1502,10 +1489,22 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		self.productPropertyState_createObjects(product_property_states)
 
-	@rpc_method(check_acl=False, deprecated=True, alternative_method="productPropertyState_createObjects")
+	@rpc_method(check_acl=False)
 	def setProductProperty(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, propertyId: str, value: Any, objectId: str | None = None
 	) -> None:
+		"""
+		Create or modify ProductPropertyState.
+
+		The product property states for the specified `objectId` will be created or modified.
+		If `objectId` is `None`, the ProductPropertyState will be changed for all depots
+		where this ProductPropertyState exist for the specified product.
+
+		:param productId: The ID of the product.
+		:param propertyId: The ID of the productProperty.
+		:param value: The value to set.
+		:param objectId: ID of the object to set the values for or `None`.
+		"""
 		self.setProductProperties(productId, {propertyId: value}, objectId)
 
 	@rpc_method(deprecated=True, alternative_method="productDependency_getObjects")

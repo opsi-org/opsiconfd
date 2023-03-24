@@ -210,11 +210,10 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				method_name = method["name"]
 				self._interface[method_name] = MethodInterface(**method)
 
-				if method_name.startswith(("depot_", "dhcpd_", "opsipxeconfd_")) or method_name in (
+				if method_name.startswith(("depot_", "dhcpd_", "opsipxeconfd_", "network_", "workbench_")) or method_name in (
 					"backend_exit",
 					"backend_getInterface",
 					"jsonrpc_getSessionId",
-					"hostControl_start",
 				):
 					continue
 

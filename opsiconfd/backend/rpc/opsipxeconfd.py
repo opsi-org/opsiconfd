@@ -17,15 +17,11 @@ from threading import Lock, Thread
 from time import sleep
 from typing import TYPE_CHECKING, Generator, Protocol
 
-from opsicommon.objects import (  # type: ignore[import]
-	ConfigState,
-	Host,
-	OpsiClient,
-	ProductOnClient,
-)
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.objects import ConfigState, ProductOnClient
+from opsicommon.types import (
 	forceBool,
 	forceHostId,
+	forceHostIdList,
 	forceObjectClassList,
 )
 
@@ -197,25 +193,19 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 		if responsible_depot_id == self._depot_id or all_depots:
 			self._opsipxeconfd_deletePXEBootConfiguration(client_id)
 
-	def opsipxeconfd_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
+	def opsipxeconfd_hosts_updated(self: BackendProtocol, host_ids: list[str]) -> None:
 		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
-		for host in forceObjectClassList(hosts, Host):
-			if not isinstance(host, OpsiClient):
-				continue
+		for host_id in forceHostIdList(host_ids):
+			self._update_pxe_boot_configuration(host_id)
 
-			self._update_pxe_boot_configuration(host.id)
-
-	def opsipxeconfd_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
+	def opsipxeconfd_hosts_deleted(self: BackendProtocol, host_ids: list[str]) -> None:
 		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
-		for host in forceObjectClassList(hosts, Host):
-			if not isinstance(host, OpsiClient):
-				continue
-
-			self._delete_pxe_boot_configuration(host.id)
+		for host_id in forceHostIdList(host_ids):
+			self._delete_pxe_boot_configuration(host_id)
 
 	def opsipxeconfd_product_on_clients_updated(
 		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient

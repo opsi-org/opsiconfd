@@ -70,8 +70,8 @@ class RPCHostMixin(Protocol):
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_updated(host)
-		self.dhcpd_control_hosts_updated(host)
+		self.opsipxeconfd_hosts_updated([host.id])
+		self.dhcpd_control_hosts_updated([host.id])
 		self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
@@ -82,8 +82,8 @@ class RPCHostMixin(Protocol):
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_updated(host)
-		self.dhcpd_control_hosts_updated(host)
+		self.opsipxeconfd_hosts_updated([host.id])
+		self.dhcpd_control_hosts_updated([host.id])
 		self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
@@ -98,8 +98,8 @@ class RPCHostMixin(Protocol):
 			return
 		for host in hosts:
 			self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
-		self.opsipxeconfd_hosts_updated(hosts)
-		self.dhcpd_control_hosts_updated(hosts)
+		self.opsipxeconfd_hosts_updated([h.id for h in hosts])
+		self.dhcpd_control_hosts_updated([h.id for h in hosts])
 
 	@rpc_method(check_acl=False)
 	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
@@ -113,8 +113,8 @@ class RPCHostMixin(Protocol):
 			return
 		for host in hosts:
 			self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
-		self.opsipxeconfd_hosts_updated(hosts)
-		self.dhcpd_control_hosts_updated(hosts)
+		self.opsipxeconfd_hosts_updated([h.id for h in hosts])
+		self.dhcpd_control_hosts_updated([h.id for h in hosts])
 
 	@rpc_method(check_acl=False)
 	def host_getObjects(  # pylint: disable=redefined-builtin,invalid-name
@@ -151,8 +151,8 @@ class RPCHostMixin(Protocol):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_deleted(hosts)
-		self.dhcpd_control_hosts_deleted(hosts)
+		self.opsipxeconfd_hosts_deleted(host_ids)
+		self.dhcpd_control_hosts_deleted(host_ids)
 		for host_id in host_ids:
 			self._send_messagebus_event("host_deleted", data={"id": host_id})
 

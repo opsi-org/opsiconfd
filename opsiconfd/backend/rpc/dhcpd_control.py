@@ -18,12 +18,12 @@ from time import sleep
 from typing import TYPE_CHECKING, Protocol
 
 from opsicommon.exceptions import BackendIOError  # type: ignore[import]
-from opsicommon.objects import ConfigState, Host, OpsiClient  # type: ignore[import]
+from opsicommon.objects import ConfigState, Host  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
 	forceDict,
+	forceHostIdList,
 	forceList,
 	forceObjectClass,
-	forceObjectClassList,
 )
 
 from opsiconfd.dhcpd import (  # type: ignore[import]
@@ -113,17 +113,14 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		if self._dhcpd_control_reload_thread:
 			self._dhcpd_control_reload_thread.trigger_reload()
 
-	def dhcpd_control_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
+	def dhcpd_control_hosts_updated(self: BackendProtocol, host_ids: list[str]) -> None:
 		if not self._dhcpd_control_config.enabled or not self.events_enabled:
 			return
-		hosts = forceObjectClassList(hosts, Host)
-		delete_hosts: list[Host] = []
-		for host in hosts:
-			if not isinstance(host, OpsiClient):
-				continue
 
+		deleted_host_ids: list[str] = []
+		for host in self.host_getObjects(type="OpsiClient", id=forceHostIdList(host_ids)):
 			if not host.hardwareAddress:
-				delete_hosts.append(host)
+				deleted_host_ids.append(host.id)
 				continue
 
 			if self._dhcpd_control_config.dhcpd_on_depot:
@@ -135,21 +132,21 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 
 			self._dhcpd_updateHost(host)
 
-		if delete_hosts:
-			self.dhcpd_control_hosts_deleted(delete_hosts)
+		if deleted_host_ids:
+			self.dhcpd_control_hosts_deleted(deleted_host_ids)
 
-	def dhcpd_control_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
+	def dhcpd_control_hosts_deleted(self: BackendProtocol, host_ids: list[str]) -> None:
 		if not self._dhcpd_control_config.enabled or not self.events_enabled:
 			return
-		for client in [h for h in forceObjectClassList(hosts, Host) if isinstance(h, OpsiClient)]:
+		for host_id in forceHostIdList(host_ids):
 			if self._dhcpd_control_config.dhcpd_on_depot:
 				# Call dhcpd_deleteHost on all non local depots
 				depot_ids = [did for did in self.host_getIdents(returnType="str", type="OpsiDepotserver") if did != self._depot_id]
 				logger.info("Forwarding request to depots: %s", depot_ids)
 				for depot_id in depot_ids:
-					self._execute_rpc_on_depot(depot_id=depot_id, method="dhcpd_deleteHost", params=[client])
+					self._execute_rpc_on_depot(depot_id=depot_id, method="dhcpd_deleteHost", params=[host_id])
 
-			self._dhcpd_deleteHost(client)
+			self._dhcpd_deleteHost(host_id)
 
 	def dhcpd_control_config_states_updated(
 		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
@@ -169,18 +166,14 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				object_id = config_state.get("objectId")
 				if object_id:
 					object_ids.add(object_id)
-		if not object_ids:
-			return
-
-		hosts = self.host_getObjects(id=list(object_ids))
-		if hosts:
-			self.dhcpd_control_hosts_updated(hosts)
+		if object_ids:
+			self.dhcpd_control_hosts_updated(list(object_ids))
 
 	@rpc_method
 	def dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name,too-many-branches
 		self._dhcpd_updateHost(host)
 
-	def _dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name,too-many-branches
+	def _dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements
 		host = forceObjectClass(host, Host)
 
 		if not host.hardwareAddress:
@@ -264,16 +257,14 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		self._dhcpd_control_trigger_reload()
 
 	@rpc_method
-	def dhcpd_deleteHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name
-		self._dhcpd_deleteHost(host)
+	def dhcpd_deleteHost(self: BackendProtocol, host_id: str) -> None:  # pylint: disable=invalid-name
+		self._dhcpd_deleteHost(host_id)
 
-	def _dhcpd_deleteHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name
-		host = forceObjectClass(host, Host)
-
+	def _dhcpd_deleteHost(self: BackendProtocol, host_id: str) -> None:  # pylint: disable=invalid-name
 		with dhcpd_lock("config_update"):
 			try:
 				self._dhcpd_control_config.dhcpd_config_file.parse()
-				hostname = host.id.split(".", 1)[0]
+				hostname = host_id.split(".", 1)[0]
 				if not self._dhcpd_control_config.dhcpd_config_file.get_host(hostname):
 					return
 				self._dhcpd_control_config.dhcpd_config_file.delete_host(hostname)

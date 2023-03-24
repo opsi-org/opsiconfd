@@ -461,6 +461,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 				try:
 					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
 					pem = get_unprotected_backend().host_getTLSCertificate(get_depotserver_id())  # pylint: disable=no-member
+					break
 				except RequestsConnectionError as err:
 					if attempt == 5:
 						raise

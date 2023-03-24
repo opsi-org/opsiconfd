@@ -26,7 +26,7 @@ from .backend import get_backend
 from .config import config
 from .logging import init_logging, logger
 from .utils import get_redis_connection, retry_redis_call
-
+from .ssl import opsi_ca_is_self_signed
 
 class WorkerProcess:  # pylint: disable=too-few-public-methods
 	def __init__(self, process: SpawnProcess, worker_num: int) -> None:
@@ -329,7 +329,7 @@ class Server:
 			options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
 			options["ssl_certfile"] = config.ssl_server_cert
 			options["ssl_ciphers"] = config.ssl_ciphers
-			if config.ssl_ca_cert and os.path.exists(config.ssl_ca_cert):
+			if not opsi_ca_is_self_signed():
 				options["ssl_ca_certs"] = config.ssl_ca_cert
 
 		self.uvicorn_config = Config("opsiconfd.application:app", **options)

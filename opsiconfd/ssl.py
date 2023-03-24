@@ -333,6 +333,10 @@ def validate_cert(cert: X509, ca_cert: X509 | None = None) -> None:
 					certificate=ca_cert,
 				)
 
+def opsi_ca_is_self_signed(ca_cert: X509 | None = None) -> bool:
+	ca_cert = ca_cert or load_ca_cert()
+	return ca_cert.get_issuer().CN == ca_cert.get_subject().CN
+
 
 def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
@@ -344,7 +348,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
 
 	ca_cert = load_ca_cert()
-	if ca_cert.get_issuer().CN != ca_cert.get_subject().CN:
+	if not opsi_ca_is_self_signed():
 		# opsi CA is not self-signed. opsi CA is an intermediate CA.
 		try:
 			validate_cert(ca_cert)

@@ -333,6 +333,7 @@ def validate_cert(cert: X509, ca_cert: X509 | None = None) -> None:
 					certificate=ca_cert,
 				)
 
+
 def opsi_ca_is_self_signed(ca_cert: X509 | None = None) -> bool:
 	ca_cert = ca_cert or load_ca_cert()
 	return ca_cert.get_issuer().CN == ca_cert.get_subject().CN

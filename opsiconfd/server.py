@@ -28,6 +28,7 @@ from .logging import init_logging, logger
 from .utils import get_redis_connection, retry_redis_call
 from .ssl import opsi_ca_is_self_signed
 
+
 class WorkerProcess:  # pylint: disable=too-few-public-methods
 	def __init__(self, process: SpawnProcess, worker_num: int) -> None:
 		self.process = process

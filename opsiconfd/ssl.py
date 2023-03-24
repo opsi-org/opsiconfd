@@ -60,12 +60,12 @@ def get_ips() -> set[str]:
 
 
 def get_server_cn() -> str:
-	return FQDN
+	return opsi_config.get("host", "id")
 
 
 def get_hostnames() -> set[str]:
 	names = {"localhost"}
-	names.add(opsi_config.get("host", "id"))
+	names.add(FQDN)
 	names.add(get_server_cn())
 	for addr in get_ips():
 		try:

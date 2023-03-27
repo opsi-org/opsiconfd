@@ -797,12 +797,12 @@ async def authenticate(  # pylint: disable=unused-argument,too-many-branches
 
 		if config.multi_factor_auth in ("totp_optional", "totp_mandatory"):
 			if config.multi_factor_auth == "totp_mandatory" or user.mfaState == "totp_active":
+				if not user.otpSecret:
+					raise BackendAuthenticationError("MFA OTP configuration error")
 				if not mfa_otp:
 					mfa_otp = headers.get("x-opsi-mfa-otp")
 				if not mfa_otp:
 					raise BackendAuthenticationError("MFA one-time password missing")
-				if not user.otpSecret:
-					raise BackendAuthenticationError("MFA OTP configuration error")
 				totp = pyotp.TOTP(user.otpSecret)
 				if not totp.verify(mfa_otp):
 					raise BackendAuthenticationError("Incorrect one-time password")

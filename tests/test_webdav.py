@@ -28,6 +28,7 @@ from .utils import (  # pylint: disable=unused-import
 	UnprotectedBackend,
 	app,
 	backend,
+	clean_mysql,
 	clean_redis,
 	config,
 	test_client,

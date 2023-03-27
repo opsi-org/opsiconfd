@@ -112,9 +112,7 @@ async def index_head() -> Response:
 
 @app.get("/login")
 async def login_index(request: Request) -> Response:
-	context = {
-		"request": request,
-	}
+	context = {"request": request, "multi_factor_auth": config.multi_factor_auth}
 	return config.jinja_templates.TemplateResponse("login.html", context)
 
 

@@ -29,6 +29,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	Config,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
 	config,
 	database_connection,

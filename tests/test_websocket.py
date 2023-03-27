@@ -18,6 +18,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	OpsiconfdTestClient,
 	WebSocketMessageReader,
+	clean_mysql,
 	clean_redis,
 	test_client,
 )

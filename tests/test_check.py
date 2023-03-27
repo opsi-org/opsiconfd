@@ -55,6 +55,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	clean_mysql,
 	get_config,
 	sync_clean_redis,
 	sync_redis_client,

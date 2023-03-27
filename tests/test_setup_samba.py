@@ -91,7 +91,7 @@ def test_setup_samba_add(tmp_path: Path, version_string: str, samba3: bool) -> N
 	with (
 		patch("opsiconfd.setup.samba.run", PropertyMock(return_value=Proc())),
 		patch("opsiconfd.setup.samba.SMB_CONF", str(smb_conf)),
-		patch("opsiconfd.backend.rpc.general.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
+		patch("opsiconfd.backend.rpc.obj_user.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
 		assert is_samba3() == samba3
 		setup_samba()

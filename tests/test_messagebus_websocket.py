@@ -39,6 +39,7 @@ from .utils import (  # pylint: disable=unused-import
 	Config,
 	OpsiconfdTestClient,
 	WebSocketMessageReader,
+	clean_mysql,
 	clean_redis,
 	client_jsonrpc,
 	config,

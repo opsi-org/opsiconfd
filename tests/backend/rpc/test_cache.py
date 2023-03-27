@@ -20,6 +20,7 @@ from opsiconfd.backend.rpc.cache import (
 )
 from tests.utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
 	delete_products_jsonrpc,
 	depot_jsonrpc,

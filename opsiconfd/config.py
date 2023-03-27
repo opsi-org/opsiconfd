@@ -891,6 +891,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help("opsiconfd", "The time window in seconds in which max auth failures are counted."),
 		)
 		self._parser.add(
+			"--multi-factor-auth",
+			env_var="OPSICONFD_MULTI_FACTOR_AUTH",
+			default="inactive",
+			help=self._help("opsiconfd", "The multi factor authentication mode to use."),
+			choices=("inactive", "totp_optional", "totp_mandatory"),
+		)
+		self._parser.add(
 			"--client-block-time",
 			env_var="OPSICONFD_CLIENT_BLOCK_TIME",
 			type=int,

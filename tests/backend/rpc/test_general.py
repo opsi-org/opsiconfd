@@ -151,10 +151,10 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 
 	opsi_passwd_file = tmp_path / "passwd"
 	with (
-		patch("opsiconfd.backend.rpc.general.OPSI_PASSWD_FILE", opsi_passwd_file),
-		patch("opsiconfd.backend.rpc.general.is_local_user", lambda x: True),
-		patch("opsiconfd.backend.rpc.general.run", run),
-		patch("opsiconfd.backend.rpc.general.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
+		patch("opsiconfd.backend.rpc.obj_user.OPSI_PASSWD_FILE", opsi_passwd_file),
+		patch("opsiconfd.backend.rpc.obj_user.is_local_user", lambda x: True),
+		patch("opsiconfd.backend.rpc.obj_user.run", run),
+		patch("opsiconfd.backend.rpc.obj_user.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
 		proc.test_output["ucr get server/role"] = FileNotFoundError()
 		backend.user_setCredentials("pcpatch", "password")

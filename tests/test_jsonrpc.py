@@ -30,6 +30,7 @@ from .utils import (  # pylint: disable=unused-import
 	Config,
 	OpsiconfdTestClient,
 	backend,
+	clean_mysql,
 	clean_redis,
 	config,
 	get_config,

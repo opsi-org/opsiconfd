@@ -140,34 +140,49 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 
 
 def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
-	assert res.status_code == 200
+	with get_config({"multi_factor_auth": "totp_mandatory"}):
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 401
+		# Mandatory but no secret
+		assert "MFA OTP configuration error" in res.json()["message"]
 
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "user_activateMultiFactorAuth",
-		"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
-	}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.status_code == 200
-	resp = res.json()
-	assert "error" not in resp
-	assert resp["result"]
-	totp = pyotp.parse_uri(resp["result"])
+	with get_config({"multi_factor_auth": "totp_optional"}):
+		test_client.reset_cookies()
 
-	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
-	assert res.status_code == 401
-	assert "MFA one-time password missing" in res.json()["message"]
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 200
 
-	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": "123456"})
-	assert res.status_code == 401
-	assert "Incorrect one-time password" in res.json()["message"]
+		rpc = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": "user_activateMultiFactorAuth",
+			"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
+		}
+		res = test_client.post("/rpc", json=rpc)
+		assert res.status_code == 200
+		resp = res.json()
+		assert "error" not in resp
+		assert resp["result"]
+		totp = pyotp.parse_uri(resp["result"])
 
-	res = test_client.post(
-		"/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()}  # type: ignore[attr-defined]
-	)
-	assert res.status_code == 200
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 401
+		assert "MFA one-time password missing" in res.json()["message"]
+
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": "123456"})
+		assert res.status_code == 401
+		assert "Incorrect one-time password" in res.json()["message"]
+
+		res = test_client.post(
+			"/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()}  # type: ignore[attr-defined]
+		)
+		assert res.status_code == 200
+
+	with get_config({"multi_factor_auth": "inactive"}):
+		test_client.reset_cookies()
+
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 200
 
 
 def test_change_session_ip(

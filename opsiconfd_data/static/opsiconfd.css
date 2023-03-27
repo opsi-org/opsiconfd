@@ -663,6 +663,11 @@ div#notifications div.error {
 	color: white;
 }
 
+div#notifications div.warning {
+	background-color: #ce714d;
+	color: white;
+}
+
 div#notifications div.success {
 	background-color: #40853d;
 	color: white;

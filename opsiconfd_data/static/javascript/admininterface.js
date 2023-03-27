@@ -10,7 +10,7 @@ function createUUID() {
 
 
 function showNotifcation(message, group = "", type = "success", seconds = 10) {
-	// type: success / error
+	// type: success / warning / error
 	const notifications = document.getElementById("notifications");
 	const notifcation = document.createElement("div");
 	if (group) {
@@ -1123,7 +1123,7 @@ function messagebusInsertMessageTemplate() {
 		sender: "@",
 		channel: "$",
 		created: Date.now(),
-		expires: Date.now() + 300000
+		expires: Date.now() + 60000
 	}
 	if (val == "channel_subscription_request") {
 		message.type = "channel_subscription_request"
@@ -1163,6 +1163,9 @@ function messagebusSend(message) {
 			el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 		}
 
+	}
+	if (message.expires && message.expires <= Date.now()) {
+		showNotifcation("Sending expired message", "messagebus", "warning", 5);
 	}
 	try {
 		messagebusWS.send(msgpack.serialize(message));

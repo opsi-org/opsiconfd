@@ -348,7 +348,7 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 	depot_id = get_depotserver_id()
 	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
 	message = ChannelSubscriptionRequestMessage(
-		sender="@", channel="service:messagebus", channels=[f"service:depot:{depot_id}:terminal"], operation="add"
+		sender="@", channel="service:messagebus", channels=[f"service:depot:{depot_id}:terminal"], operation="set"
 	)
 	await service_client.messagebus.async_send_message(message)
 

@@ -212,11 +212,13 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		remove_channels = []
 		if operation == ChannelSubscriptionOperation.REMOVE:
 			for channel in channels:
-				if channel in subscribed_channels:
+				# Removing session channel is not allowed
+				if channel != self._session_channel and channel in subscribed_channels:
 					remove_channels.append(channel)
 		elif operation == ChannelSubscriptionOperation.SET:
 			for channel in subscribed_channels:
-				if channel not in channels:
+				# Removing session channel is not allowed
+				if channel != self._session_channel and channel not in channels:
 					remove_channels.append(channel)
 
 		remove_by_reader: dict[MessageReader, list[str]] = {}

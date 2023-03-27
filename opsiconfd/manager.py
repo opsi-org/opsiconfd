@@ -351,9 +351,9 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 
 		if self._service_client:
-			self._service_client.connect()
 			listener = DepotserverManagerMessagebusListener(self._service_client.messagebus)
 			self._service_client.messagebus.register_messagebus_listener(listener)
+			self._service_client.connect_messagebus()
 		try:
 			Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
 			self._worker_manager.run()

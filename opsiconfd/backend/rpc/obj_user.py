@@ -106,27 +106,40 @@ class RPCUserMixin(Protocol):
 			self.user_deleteObjects(idents)
 
 	@rpc_method
-	def user_activateMultiFactorAuth(  # pylint: disable=invalid-name,redefined-builtin
+	def user_configureMultiFactorAuth(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol, userId: str, type: str = "totp", returnType: str = "uri"
 	) -> str:
 		"""
-		Activate multi factor authentication for user `userId`.
+		Configure multi factor authentication for user `userId`.
 		Currently the only supported `type` is `TOTP` (Time-based One-time Password).
 		If TOTP MFA is already active, a new secret will be generated.
+		Set `type` to `inactive` to deactivate multi factor auth.
 		If `returnType` is `uri` the provisioning URI is returned as string.
 		If `returnType` is `qrcode` the provisioning URI is returned as ascii based QR Code.
 		"""
-		self._check_module("vpn")
-
+		type = type.lower()
+		if type not in ("inactive", "totp"):
+			raise ValueError(f"Invalid type {type!r}")
 		returnType = returnType.lower()
+
 		try:
 			user = self.user_getObjects(id=userId)[0]
 		except IndexError:
 			raise BackendMissingDataError(f"User {userId!r} not found") from None
-		user.mfaState = "totp_active"
-		user.otpSecret = pyotp.random_base32()
-		uri = pyotp.TOTP(user.otpSecret).provisioning_uri(name=f"{userId}@{get_configserver_id()}", issuer_name="opsi MFA")
+		if type == "totp":
+			self._check_module("vpn")
+			user.mfaState = "totp_active"
+			user.otpSecret = pyotp.random_base32()
+			uri = pyotp.TOTP(user.otpSecret).provisioning_uri(name=f"{userId}@{get_configserver_id()}", issuer_name="opsi MFA")
+		else:
+			user.mfaState = "inactive"
+			user.otpSecret = ""
+			returnType = ""
+
 		self.user_updateObject(user)
+
+		if not returnType:
+			return ""
 
 		if returnType == "uri":
 			return uri

@@ -10,7 +10,9 @@ login tests
 
 import json
 import time
+from datetime import datetime
 
+import pyotp
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
 
@@ -104,6 +106,17 @@ def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	res = test_client.get("/session/authenticated")
 	assert res.status_code == 200
 
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "user_getObjects", "params": [[], {"id": ADMIN_USER}]}
+	res = test_client.post("/rpc", json=rpc)
+	assert res.status_code == 200
+	resp = res.json()
+	assert "error" not in resp
+	assert resp["result"][0]["id"] == ADMIN_USER
+	diff = datetime.now() - datetime.strptime(resp["result"][0]["created"], "%Y-%m-%d %H:%M:%S")
+	assert abs(diff.total_seconds()) < 3
+	diff = datetime.now() - datetime.strptime(resp["result"][0]["lastLogin"], "%Y-%m-%d %H:%M:%S")
+	assert abs(diff.total_seconds()) < 3
+
 
 def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
@@ -123,6 +136,37 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 		assert "Max-Age=0" in res.headers["set-cookie"]
 		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
 		assert len(keys) == 0
+
+
+def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+	assert res.status_code == 200
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "user_activateMultiFactorAuth",
+		"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert res.status_code == 200
+	resp = res.json()
+	assert "error" not in resp
+	assert resp["result"]
+	totp = pyotp.parse_uri(resp["result"])
+
+	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+	assert res.status_code == 401
+	assert "MFA one-time password missing" in res.json()["message"]
+
+	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": "123456"})
+	assert res.status_code == 401
+	assert "Incorrect one-time password" in res.json()["message"]
+
+	res = test_client.post(
+		"/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()}  # type: ignore[attr-defined]
+	)
+	assert res.status_code == 200
 
 
 def test_change_session_ip(

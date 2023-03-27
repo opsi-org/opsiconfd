@@ -24,7 +24,7 @@ function downloadConfiged() {
 }
 
 
-function login(username, password, redirect = "/admin") {
+function login(username, password, mfa_otp = null, redirect = "/admin") {
 	let button = document.getElementById("login_button");
 	if (button) {
 		button.disabled = true;
@@ -55,7 +55,7 @@ function login(username, password, redirect = "/admin") {
 		}
 	};
 	ajax.send(
-		JSON.stringify({ username: username, password: password })
+		JSON.stringify({ username: username, password: password, mfa_otp: mfa_otp })
 	);
 }
 

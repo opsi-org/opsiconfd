@@ -31,6 +31,15 @@ if TYPE_CHECKING:
 
 
 CREATE_TABLES_SQL = """
+CREATE TABLE IF NOT EXISTS `USER` (
+	`userId` varchar(200) NOT NULL,
+	`created` timestamp NULL DEFAULT NULL,
+	`lastLogin` timestamp NULL DEFAULT NULL,
+	`mfaState` varchar(16) NULL DEFAULT NULL,
+	`otpSecret` varchar(32) NULL DEFAULT NULL,
+	PRIMARY KEY (`userId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE IF NOT EXISTS `CONFIG` (
 	`configId` varchar(200) NOT NULL,
 	`type` varchar(30) NOT NULL,

@@ -49,6 +49,8 @@ greenlet = "^2.0"
 msgspec = "^0.12"
 yappi = "^1.4"
 rich = "^13.0"
+pyotp = "^2.8.0"
+qrcode = "^7.4.2"
 
 [tool.poetry.group.dev.dependencies]
 hypothesis = "^6.32"

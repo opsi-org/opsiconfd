@@ -98,6 +98,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
 	_column_to_attribute = {
+		"USER": {"userId": "id"},
 		"CONFIG": {"configId": "id"},
 		"HOST": {"hostId": "id"},
 		"PRODUCT": {"productId": "id"},
@@ -107,6 +108,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		"LICENSE_POOL": {"licensePoolId": "id"},
 	}
 	_attribute_to_column = {
+		"USER": {"id": "userId"},
 		"CONFIG": {"id": "configId"},
 		"HOST": {"id": "hostId"},
 		"PRODUCT": {"id": "productId"},

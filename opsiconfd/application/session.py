@@ -24,12 +24,13 @@ def session_setup(app: FastAPI) -> None:
 class LoginData(BaseModel):  # pylint: disable=too-few-public-methods
 	username: str
 	password: str
+	mfa_otp: str | None = None
 
 
 @session_router.post("/login")
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
 async def login(request: Request, login_data: LoginData) -> RESTResponse:
-	await authenticate(request.scope, username=login_data.username, password=login_data.password)
+	await authenticate(request.scope, username=login_data.username, password=login_data.password, mfa_otp=login_data.mfa_otp)
 	session: OPSISession = request.scope["session"]
 	return RESTResponse({"session_id": session.session_id, "is_admin": session.is_admin})
 

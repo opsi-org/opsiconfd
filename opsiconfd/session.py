@@ -20,6 +20,7 @@ from time import sleep as time_sleep
 from typing import Any, Optional
 
 import msgspec
+import pyotp
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
@@ -34,9 +35,8 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendPermissionDeniedError,
 )
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
-from opsicommon.objects import Host, OpsiClient  # type: ignore[import]
-from opsicommon.utils import timestamp  # type: ignore[import]
-from opsicommon.utils import ip_address_in_network
+from opsicommon.objects import Host, OpsiClient, User  # type: ignore[import]
+from opsicommon.utils import ip_address_in_network, timestamp
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
@@ -754,30 +754,61 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	)
 
 
-async def authenticate(scope: Scope, username: str, password: str) -> None:  # pylint: disable=unused-argument
+async def authenticate(  # pylint: disable=unused-argument,too-many-branches
+	scope: Scope, username: str, password: str, mfa_otp: str | None = None
+) -> None:
+	headers = Headers(scope=scope)
 	if not scope["session"]:
 		addr = scope["client"]
-		scope["session"] = await get_session(client_addr=addr[0], client_port=addr[1], headers=Headers(scope=scope))
+		scope["session"] = await get_session(client_addr=addr[0], client_port=addr[1], headers=headers)
 	session = scope["session"]
 	session.authenticated = False
 
 	# Check if client address is blocked
 	await check_blocked(session.client_addr)
 
-	session.username = (username or "").lower()
-	session.password = password or ""
+	username = session.username = (username or "").lower()
+	password = session.password = password or ""
 
 	logger.info("Start authentication of client %s", session.client_addr)
 
 	if not session.password:
 		raise BackendAuthenticationError("No password specified")
 
-	if username == config.monitoring_user:
+	if session.username == config.monitoring_user:
 		await authenticate_user_passwd(scope=scope)
-	elif re.search(r"^[^.]+\.[^.]+\.\S+$", username) or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", username) or not username:
+	elif (
+		re.search(r"^[^.]+\.[^.]+\.\S+$", session.username)
+		or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", session.username)
+		or not session.username
+	):
 		await authenticate_host(scope=scope)
 	else:
 		await authenticate_user_auth_module(scope=scope)
+		backend = get_unprotected_backend()
+		now = timestamp()
+
+		users = await backend.async_call("user_getObjects", id=session.username)
+		if users:
+			user = users[0]
+		else:
+			user = User(id=username, created=now)
+			await backend.async_call("user_insertObject", user=user)
+
+		if user.mfaState == "totp_active":
+			if not mfa_otp:
+				mfa_otp = headers.get("x-opsi-mfa-otp")
+			if not mfa_otp:
+				raise BackendAuthenticationError("MFA one-time password missing")
+			if not user.otpSecret:
+				raise BackendAuthenticationError("MFA OTP configuration error")
+			totp = pyotp.TOTP(user.otpSecret)
+			if not totp.verify(mfa_otp):
+				raise BackendAuthenticationError("Incorrect one-time password")
+			logger.info("OTP MFA successful")
+
+		user.lastLogin = now
+		await backend.async_call("user_updateObject", user=user)
 
 	if not session.username or not session.authenticated:
 		raise BackendPermissionDeniedError("Not authenticated")

@@ -12,6 +12,7 @@
 
 				let username = document.getElementById("login_username").value;
 				let password = document.getElementById("login_password").value;
+				let mfa_otp = null; //document.getElementById("login_mfa_otp").value;
 				let redirect = "/admin";
 				const params = new URLSearchParams(window.location.search)
 				if (params.has('redirect')) {
@@ -20,7 +21,7 @@
 				if (window.location.hash) {
 					redirect += window.location.hash;
 				}
-				login(username, password, redirect);
+				login(username, password, mfa_otp, redirect);
 			}
 		}
 	</script>
@@ -33,6 +34,9 @@
 			<input id="login_username" type="text" placeholder="Username" autocomplete="username" autocorrect="off"
 				required>
 			<input id="login_password" type="password" placeholder="Password" autocomplete="current-password" required>
+			<!--
+			<input id="login_mfa_otp" type="text" placeholder="One time password" autocomplete="off">
+			-->
 			<button id="login_button" type="submit">Login</button>
 		</form>
 		<div id="login_error"></div>

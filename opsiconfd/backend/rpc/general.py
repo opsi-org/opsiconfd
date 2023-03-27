@@ -12,22 +12,18 @@ from __future__ import annotations
 
 import glob
 import os
-import pwd
-import re
 import shutil
 import socket
 import time
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from subprocess import run
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 from uuid import UUID
 
 from opsicommon.exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
 	BackendBadValueError,
-	BackendMissingDataError,
 	BackendPermissionDeniedError,
 )
 from opsicommon.license import (  # type: ignore[import]
@@ -40,13 +36,7 @@ from opsicommon.license import (  # type: ignore[import]
 	OpsiModulesFile,
 	get_default_opsi_license_pool,
 )
-from opsicommon.logging import secret_filter  # type: ignore[import]
-from opsicommon.server.rights import set_rights
-from opsicommon.types import (  # type: ignore[import]
-	forceBool,
-	forceHostId,
-	forceObjectId,
-)
+from opsicommon.types import forceBool, forceObjectId  # type: ignore[import]
 
 from opsiconfd import __version__, contextvar_client_address, contextvar_client_session
 from opsiconfd.application import AppState
@@ -60,14 +50,12 @@ from opsiconfd.config import (
 	LOG_SIZE_HARD_LIMIT,
 	OPSI_LICENSE_DIR,
 	OPSI_MODULES_FILE,
-	OPSI_PASSWD_FILE,
 	config,
 	opsi_config,
 )
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import logger
 from opsiconfd.ssl import get_ca_cert_as_pem
-from opsiconfd.utils import blowfish_decrypt, blowfish_encrypt, lock_file
 
 from . import rpc_method
 
@@ -82,7 +70,6 @@ LOG_TYPES = {  # key = logtype, value = requires objectId for read
 	"userlogin": True,
 	"winpe": True,
 }
-PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 
 
 def truncate_log_data(data: str, max_size: int) -> str:
@@ -96,13 +83,6 @@ def truncate_log_data(data: str, max_size: int) -> str:
 			start = data_length - max_size
 		return data[start:].lstrip()
 	return data
-
-
-def is_local_user(username: str) -> bool:
-	for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
-		if line.startswith(f"{username}:"):
-			return True
-	return False
 
 
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
@@ -540,204 +520,3 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			return truncate_log_data(data, max_size)
 
 		return data
-
-	@rpc_method
-	def user_getCredentials(  # pylint: disable=invalid-name
-		self: BackendProtocol, username: str | None = None, hostId: str | None = None
-	) -> dict[str, str]:
-		"""
-		Get the credentials of an opsi user.
-		The information is stored in ``/etc/opsi/passwd``.
-
-		:param hostId: Optional value that should be the calling host.
-		:return: Dict with the keys *password* and *rsaPrivateKey*.
-		If this is called with an valid hostId the data will be encrypted with the opsi host key.
-		:rtype: dict
-		"""
-		username = username or opsi_config.get("depot_user", "username")
-		if hostId:
-			hostId = forceHostId(hostId)
-
-		result = {"password": "", "rsaPrivateKey": ""}
-
-		if os.path.exists(OPSI_PASSWD_FILE):
-			with open(OPSI_PASSWD_FILE, "r", encoding="utf-8") as file:
-				with lock_file(file):
-					for line in file.readlines():
-						match = PASSWD_LINE_REGEX.search(line)
-						if match and match.group(1) == username:
-							result["password"] = match.group(2)
-							break
-
-		if not result["password"]:
-			raise BackendMissingDataError(f"Username '{username}' not found in '{OPSI_PASSWD_FILE}'")
-
-		depot = self.host_getObjects(id=self._depot_id)
-		if not depot:
-			raise BackendMissingDataError(f"Depot '{self._depot_id}'' not found in backend")
-		depot = depot[0]
-		if not depot.opsiHostKey:
-			raise BackendMissingDataError(f"Host key for depot '{self._depot_id}' not found")
-
-		result["password"] = blowfish_decrypt(depot.opsiHostKey, result["password"])
-
-		if username == "pcpatch":
-			try:
-				id_rsa = os.path.join(pwd.getpwnam(username)[5], ".ssh", "id_rsa")
-				with open(id_rsa, encoding="utf-8") as file:
-					result["rsaPrivateKey"] = file.read()
-			except Exception as err:  # pylint: disable=broad-except
-				logger.debug(err)
-
-		if hostId:
-			host = self.host_getObjects(id=hostId)
-			try:
-				host = host[0]
-			except IndexError as err:
-				raise BackendMissingDataError(f"Host '{hostId}' not found in backend") from err
-
-			result["password"] = blowfish_encrypt(host.opsiHostKey, result["password"])
-			if result["rsaPrivateKey"]:
-				result["rsaPrivateKey"] = blowfish_encrypt(host.opsiHostKey, result["rsaPrivateKey"])
-
-		return result
-
-	@rpc_method
-	def user_setCredentials(  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
-		self: BackendProtocol, username: str, password: str
-	) -> None:
-		"""
-		Set the password of an opsi user.
-		The information is stored in ``/etc/opsi/passwd``.
-		The password will be encrypted with the opsi host key of the depot where the method is.
-		"""
-		username = str(username).lower()
-		password = str(password)
-		secret_filter.add_secrets(password)
-
-		if '"' in password:
-			raise ValueError("Character '\"' not allowed in password")
-
-		try:
-			depot = self.host_getObjects(id=self._depot_id)[0]
-		except IndexError as err:
-			raise BackendMissingDataError(f"Depot {self._depot_id} not found in backend") from err
-
-		encoded_password = blowfish_encrypt(depot.opsiHostKey, password)
-
-		with open(OPSI_PASSWD_FILE, "a+", encoding="utf-8") as file:
-			with lock_file(file):
-				file.seek(0)
-				lines = []
-				add_line = f"{username}:{encoded_password}"
-				for line in file.readlines():
-					line = line.strip()
-					match = PASSWD_LINE_REGEX.search(line)
-					if not match:
-						continue
-					if match.group(1) == username:
-						line = add_line
-						add_line = ""
-					lines.append(line)
-				if add_line:
-					lines.append(add_line)
-				file.seek(0)
-				file.truncate()
-				file.write("\n".join(lines) + "\n")
-
-		set_rights(OPSI_PASSWD_FILE)
-
-		if username != opsi_config.get("depot_user", "username"):
-			return
-
-		univention_server_role = ""
-		try:
-			cmd = ["ucr", "get", "server/role"]
-			logger.debug("Executing: %s", cmd)
-			univention_server_role = run(
-				cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5
-			).stdout.strip()
-		except FileNotFoundError:
-			logger.debug("Not running on univention")
-		else:
-			try:
-				logger.debug("Running on univention %s", univention_server_role)
-				if univention_server_role not in ("domaincontroller_master", "domaincontroller_backup"):
-					logger.warning("Did not change the password for 'pcpatch', please change it on the master server.")
-					return
-
-				logger.debug("Executing: %s", cmd)
-				user_dn = ""
-				cmd = ["univention-admin", "users/user", "list", "--filter", f"(uid={username})"]
-				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5).stdout
-				logger.debug(out)
-				for line in out.strip().splitlines():
-					line = line.strip()
-					if line.startswith("DN"):
-						user_dn = line.split(" ")[1]
-						break
-
-				if not user_dn:
-					raise RuntimeError(f"Failed to get DN for user {username}")
-
-				escaped_password = password.replace("'", "\\'")
-				cmd = [
-					"univention-admin",
-					"users/user",
-					"modify",
-					"--dn",
-					user_dn,
-					"--set",
-					f"password='{escaped_password}'",
-					"--set",
-					"overridePWLength=1",
-					"--set",
-					"overridePWHistory=1",
-				]
-				logger.debug("Executing: %s", cmd)
-				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-				logger.debug(out)
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error(err)
-			return
-
-		try:
-			pwd.getpwnam(username)
-		except KeyError as err:
-			raise RuntimeError(f"System user '{username}' not found") from err
-
-		password_set = False
-		try:
-			# smbldap
-			cmd = ["smbldap-passwd", username]
-			logger.debug("Executing: %s", cmd)
-			inp = f"{password}\n{password}\n"
-			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-			logger.debug(out)
-			password_set = True
-		except Exception as err:  # pylint: disable=broad-except
-			logger.debug("Setting password using smbldap failed: %s", err)
-
-		if not password_set:
-			# unix
-			if not is_local_user(username):
-				logger.warning("The user '%s' is not a local user, please change password also in Active Directory", username)
-				return
-
-			try:
-				cmd = ["chpasswd"]
-				logger.debug("Executing: %s", cmd)
-				inp = f"{username}:{password}\n"
-				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-				logger.debug(out)
-			except Exception as err:  # pylint: disable=broad-except
-				logger.debug("Setting password using chpasswd failed: %s", err)
-
-			try:
-				cmd = ["smbpasswd", "-a", "-s", username]
-				logger.debug("Executing: %s", cmd)
-				inp = f"{password}\n{password}\n"
-				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-				logger.debug(out)
-			except Exception as err:  # pylint: disable=broad-except
-				logger.debug("Setting password using smbpasswd failed: %s", err)

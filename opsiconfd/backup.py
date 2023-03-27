@@ -48,6 +48,7 @@ from opsiconfd.utils import (
 )
 
 OBJECT_CLASSES = (
+	"User",
 	"Host",
 	"Config",
 	"ConfigState",

@@ -192,6 +192,7 @@ def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 			session.execute("DELETE FROM `GROUP`")
 			session.execute("DELETE FROM `CONFIG_STATE`")
 			session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
+			session.execute("DELETE FROM `USER`")
 
 
 @pytest_asyncio.fixture(autouse=True)

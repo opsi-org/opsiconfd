@@ -75,6 +75,7 @@ from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
 from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
+from .obj_user import RPCUserMixin
 from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
 
 
@@ -97,6 +98,7 @@ def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: 
 
 class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 	RPCGeneralMixin,
+	RPCUserMixin,
 	RPCHostMixin,
 	RPCConfigMixin,
 	RPCConfigStateMixin,

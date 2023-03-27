@@ -49,6 +49,7 @@ from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
 from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
+from .obj_user import RPCUserMixin
 from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
 
 if TYPE_CHECKING:
@@ -64,6 +65,7 @@ IdentType = Literal["unicode", "str", "dict", "hash", "list", "tuple"]
 
 class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCGeneralMixin,
+	RPCUserMixin,
 	RPCHostMixin,
 	RPCConfigMixin,
 	RPCConfigStateMixin,

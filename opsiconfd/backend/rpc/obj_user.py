@@ -106,7 +106,7 @@ class RPCUserMixin(Protocol):
 			self.user_deleteObjects(idents)
 
 	@rpc_method
-	def user_configureMultiFactorAuth(  # pylint: disable=invalid-name,redefined-builtin
+	def user_updateMultiFactorAuth(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol, userId: str, type: str = "totp", returnType: str = "uri"
 	) -> str:
 		"""

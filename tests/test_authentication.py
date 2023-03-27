@@ -155,7 +155,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 		rpc = {
 			"jsonrpc": "2.0",
 			"id": 1,
-			"method": "user_configureMultiFactorAuth",
+			"method": "user_updateMultiFactorAuth",
 			"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
 		}
 		res = test_client.post("/rpc", json=rpc)
@@ -199,7 +199,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 		rpc = {
 			"jsonrpc": "2.0",
 			"id": 1,
-			"method": "user_configureMultiFactorAuth",
+			"method": "user_updateMultiFactorAuth",
 			"params": {"userId": ADMIN_USER, "type": "inactive"},
 		}
 		res = test_client.post("/rpc", json=rpc)

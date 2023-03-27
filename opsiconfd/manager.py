@@ -20,7 +20,12 @@ from typing import Optional
 
 import psutil
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
-from opsicommon.messagebus import Message, TraceRequestMessage, TraceResponseMessage
+from opsicommon.messagebus import (
+	ChannelSubscriptionEventMessage,
+	Message,
+	TraceRequestMessage,
+	TraceResponseMessage,
+)
 from opsicommon.messagebus import timestamp as mb_timestamp
 from starlette.concurrency import run_in_threadpool
 
@@ -265,6 +270,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 
 class DepotserverManagerMessagebusListener(MessagebusListener):
 	def message_received(self, message: Message) -> None:
+		logger.debug("Message received: %s", message)
 		if isinstance(message, TraceRequestMessage):
 			response = TraceResponseMessage(
 				sender="@",
@@ -276,6 +282,8 @@ class DepotserverManagerMessagebusListener(MessagebusListener):
 			)
 			assert self.messagebus
 			self.messagebus.send_message(response)
+		elif isinstance(message, ChannelSubscriptionEventMessage):
+			logger.debug("Channels subscription event: %s", message.to_dict())
 
 
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes

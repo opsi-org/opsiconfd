@@ -155,7 +155,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 		rpc = {
 			"jsonrpc": "2.0",
 			"id": 1,
-			"method": "user_activateMultiFactorAuth",
+			"method": "user_configureMultiFactorAuth",
 			"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
 		}
 		res = test_client.post("/rpc", json=rpc)
@@ -179,6 +179,35 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 		assert res.status_code == 200
 
 	with get_config({"multi_factor_auth": "inactive"}):
+		test_client.reset_cookies()
+
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 200
+
+	with get_config({"multi_factor_auth": "totp_optional"}):
+		test_client.reset_cookies()
+
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 401
+
+	with get_config({"multi_factor_auth": "inactive"}):
+		test_client.reset_cookies()
+
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 200
+
+		rpc = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": "user_configureMultiFactorAuth",
+			"params": {"userId": ADMIN_USER, "type": "inactive"},
+		}
+		res = test_client.post("/rpc", json=rpc)
+		assert res.status_code == 200
+		resp = res.json()
+		assert "error" not in resp
+
+	with get_config({"multi_factor_auth": "totp_optional"}):
 		test_client.reset_cookies()
 
 		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})

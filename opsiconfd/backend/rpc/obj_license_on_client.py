@@ -133,6 +133,19 @@ class RPCLicenseOnClientMixin(Protocol):
 			self.licenseOnClient_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
+	def deleteSoftwareLicenseUsage(  # pylint: disable=invalid-name,too-many-arguments
+		self: BackendProtocol,
+		hostId: str,
+		softwareLicenseId: str | None = None,
+		licensePoolId: str | None = None,
+		productId: str = "",
+		windowsSoftwareId: str = "",
+	) -> None:
+		softwareLicenseId = softwareLicenseId or None
+		licensePoolId = licensePoolId or self.getLicensePoolId(productId=productId, windowsSoftwareId=windowsSoftwareId)
+		self.licenseOnClient_delete(softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=hostId)
+
+	@rpc_method(check_acl=False)
 	def licenseOnClient_getOrCreateObject(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol,
 		clientId: str,

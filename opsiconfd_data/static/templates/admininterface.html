@@ -21,6 +21,7 @@
 	<script>
 		var reloadTimer;
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
+		var multiFactorAuth = '{{multi_factor_auth}}';
 
 		function onLoad() {
 			if (localStorage.getItem("serverRole") == "configserver") {
@@ -71,14 +72,18 @@
 			else if (tabName == "maintenance") {
 				getAppState();
 			}
+			else if (tabName == "users") {
+				getMessagebusConnectedClients();
+				loadUserTable();
+			}
 			else if (tabName == "clients") {
-				getMessagebusConnectedHosts();
+				getMessagebusConnectedClients();
 				loadSessionTable();
 				loadClientTable();
 				reloadTimer = setInterval(loadSessionTable, 5000);
 			}
 			else if (tabName == "depots") {
-				getMessagebusConnectedHosts();
+				getMessagebusConnectedClients();
 				loadLockedProductsTable();
 			}
 			else if (tabName == "rpc-interface") {
@@ -152,6 +157,7 @@
 			<a href="#info" id="tablink-info" class="tablink" onclick="openTab('info');">Info</a>
 			<a href="#maintenance" id="tablink-maintenance" class="tablink"
 				onclick="openTab('maintenance');">Maintenance</a>
+			<a href="#users" id="tablink-users" class="tablink" onclick="openTab('users');">Users</a>
 			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
 			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
 			<a href="#rpc-infos" id="tablink-rpc-infos" class="tablink" onclick="openTab('rpc-infos');">RPC-Infos</a>
@@ -246,6 +252,23 @@
 				<br />
 
 				<input type="button" id="restore-backup-create-button" onclick="restoreBackup()" value="Restore backup">
+			</div>
+		</div>
+
+		<div id="tab-users" class="tabcontent">
+			<div class="adminpage-box" id="users">
+				<h4>Users:</h4>
+				<div id="user-table-div">
+					loading...
+				</div>
+				<div id="mfa-instructions"></div>
+			</div>
+
+			<div class="adminpage-box">
+				<h4>Users connected to messagebus:</h4>
+				<div id="messagebus-connected-users">
+					loading...
+				</div>
 			</div>
 		</div>
 

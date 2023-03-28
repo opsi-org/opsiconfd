@@ -170,12 +170,14 @@ select {
 }
 
 .session-table,
+.user-table,
 .locked-products-table {
 	table-layout: auto;
 	background-color: #eeeeee;
 }
 
 .session-th,
+.user-th,
 .locked-products-th {
 	font-size: 12px;
 	border: 1px #0068aa solid;
@@ -186,6 +188,7 @@ select {
 }
 
 .session-td,
+.user-td,
 .locked-products-td {
 	font-size: 12px;
 	border: 1px #0068aa solid;

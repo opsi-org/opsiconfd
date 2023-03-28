@@ -25,6 +25,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
+from opsicommon.objects import serialize
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
@@ -112,6 +113,7 @@ async def admin_interface_index(request: Request) -> Response:
 		"num_servers": get_num_servers(),
 		"num_clients": get_num_clients(),
 		"disabled_features": config.disabled_features,
+		"multi_factor_auth": config.multi_factor_auth,
 		"addons": [
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 			for addon in AddonManager().addons
@@ -140,12 +142,13 @@ async def set_app_state(request: Request) -> RESTResponse:
 	return RESTResponse(data=request.app.app_state.to_dict())
 
 
-@admin_interface_router.get("/messagebus-connected-hosts")
+@admin_interface_router.get("/messagebus-connected-clients")
 @rest_api
-async def get_messagebus_connected_hosts() -> RESTResponse:
-	depot_ids = [h async for h in get_websocket_connected_users(user_type="depot")]
-	client_ids = [h async for h in get_websocket_connected_users(user_type="client")]
-	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids})
+async def get_messagebus_connected_clients() -> RESTResponse:
+	depot_ids = [u async for u in get_websocket_connected_users(user_type="depot")]
+	client_ids = [u async for u in get_websocket_connected_users(user_type="client")]
+	user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
+	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids})
 
 
 @admin_interface_router.post("/reload")
@@ -345,6 +348,25 @@ async def get_session_list() -> RESTResponse:
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))
 	return RESTResponse(session_list)
+
+
+@admin_interface_router.get("/user-list")
+@rest_api
+async def get_user_list() -> RESTResponse:
+	backend = get_unprotected_backend()
+	user_list = []
+	for user in await run_in_threadpool(backend.user_getObjects):
+		user_list.append({k: v for k, v in user.to_hash().items() if k != "otpSecret"})
+	return RESTResponse(user_list)
+
+
+@admin_interface_router.post("/update-multi-factor-auth")
+@rest_api
+async def update_multi_factor_auth(request: Request) -> RESTResponse:
+	params = await request.json()
+	backend = get_unprotected_backend()
+	res = await run_in_threadpool(backend.user_updateMultiFactorAuth, params.get("user_id"), params.get("type"), "qrcode")
+	return RESTResponse(res)
 
 
 @admin_interface_router.get("/locked-products-list", response_model=list[str])

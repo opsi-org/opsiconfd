@@ -285,6 +285,72 @@ function loadRPCTable(sortKey, sort) {
 	});
 }
 
+function clearMFAQRCode() {
+	document.getElementById('mfa-instructions').innerHTML = "";
+}
+
+
+function updateMultiFactorAuth(userId, type) {
+	clearMFAQRCode();
+	let req = ajaxRequest("POST", "/admin/update-multi-factor-auth", { "user_id": userId, "type": type });
+	req.then((result) => {
+		if (result) {
+			let html = `<pre id="mfa-instructions" style="line-height: 1.0;">${result}</pre>`;
+			html += "<p>Your multi-factor secret has been changed.<br>";
+			html += "Please use an app like Google Authenticator and scan the QR code displayed.<br>"
+			html += "The app will then generate a new one-time password every 30 seconds.<br>"
+			html += "Without this password you will not be able to log in to the opsi server anymore.</p>"
+			html += '<button onClick="clearMFAQRCode();">All done, hide instructions and QR code.</button>';
+			document.getElementById("mfa-instructions").innerHTML = html;
+		}
+		loadUserTable();
+	});
+}
+
+
+function printUserTable(data, htmlId) {
+	if (data.length == 0) {
+		htmlStr = "<p>No users found.</p>";
+	} else {
+		data.sort((a, b) => (a.id > b.id) ? 1 : -1);
+		htmlStr = "<table class=\"user-table\" id=\"user-table\">" +
+			"<tr>" +
+			"<th class='user-th'>User-ID</th>" +
+			"<th class='user-th'>Last login</th>";
+		if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
+			htmlStr += "<th class='user-th'>MFA state</th>";
+			htmlStr += "<th class='user-th'>Activate Time-based one-time password</th>";
+			if (multiFactorAuth == "totp_optional") {
+				htmlStr += "<th class='user-th'>Deactivate Multi-factor auth</th>";
+			}
+		}
+		htmlStr += "</tr>";
+		data.forEach(element => {
+			htmlStr += "<tr>" +
+				"<td class=\"user-td\">" + element.id + "</td>" +
+				"<td class=\"user-td\">" + formateDate(new Date(element.lastLogin)) + "</td>";
+			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
+				htmlStr += "<td class=\"user-td\">" + element.mfaState + "</td>";
+				htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${element.id}', 'totp')" value="Generate new secret and activate TOTP"</td>`;
+				if (multiFactorAuth == "totp_optional") {
+					htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${element.id}', 'inactive')" value="Deactivate MFA"</td>`;
+				}
+			}
+		});
+		htmlStr += "</table>";
+	}
+	div = document.getElementById(htmlId);
+	div.innerHTML = htmlStr;
+	return htmlStr;
+}
+
+function loadUserTable() {
+	let req = ajaxRequest("GET", "/admin/user-list");
+	req.then((result) => {
+		printUserTable(result, "user-table-div");
+		return result
+	});
+}
 
 function loadAddons() {
 	let req = ajaxRequest("GET", "/admin/addons");
@@ -1184,19 +1250,22 @@ function messagebusSendMessage() {
 
 var messagebusConnectedDepots = [];
 var messagebusConnectedClients = [];
-function getMessagebusConnectedHosts(callback) {
-	let req = ajaxRequest("GET", "/admin/messagebus-connected-hosts");
+var messagebusConnectedUsers = [];
+function getMessagebusConnectedClients(callback) {
+	let req = ajaxRequest("GET", "/admin/messagebus-connected-clients");
 	req.then((result) => {
+		//console.debug(result);
 		messagebusConnectedDepots = result.depot_ids;
 		messagebusConnectedClients = result.client_ids;
-		updateMessagebusConnectedHosts();
+		messagebusConnectedUsers = result.user_ids;
+		updateMessagebusConnectedClients();
 		if (callback) {
 			callback();
 		}
 	});
 }
 
-function updateMessagebusConnectedHosts() {
+function updateMessagebusConnectedClients() {
 	const depots = document.getElementById("messagebus-connected-depots");
 	depots.innerHTML = "";
 	const depotList = document.createElement("ul");
@@ -1218,6 +1287,17 @@ function updateMessagebusConnectedHosts() {
 		clientList.appendChild(client);
 	});
 	clients.appendChild(clientList);
+
+	const users = document.getElementById("messagebus-connected-users");
+	users.innerHTML = "";
+	const userList = document.createElement("ul");
+	messagebusConnectedUsers.sort();
+	messagebusConnectedUsers.forEach(userId => {
+		const user = document.createElement("li");
+		user.innerHTML = userId;
+		userList.appendChild(user);
+	});
+	users.appendChild(userList);
 }
 
 
@@ -1240,7 +1320,7 @@ function fillTerminalSelect() {
 	option.dataset.channel = "service:config:terminal";
 	select.appendChild(option);
 
-	getMessagebusConnectedHosts(function () {
+	getMessagebusConnectedClients(function () {
 		messagebusConnectedDepots.forEach(depotId => {
 			option = document.createElement("option");
 			option.text = `Depot ${depotId}`;

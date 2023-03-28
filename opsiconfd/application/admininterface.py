@@ -353,9 +353,12 @@ async def get_session_list() -> RESTResponse:
 @rest_api
 async def get_user_list() -> RESTResponse:
 	backend = get_unprotected_backend()
+	connected_user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
 	user_list = []
 	for user in await run_in_threadpool(backend.user_getObjects):
-		user_list.append({k: v for k, v in user.to_hash().items() if k != "otpSecret"})
+		user_dict = {k: v for k, v in user.to_hash().items() if k != "otpSecret"}
+		user_dict["connectedToMessagebus"] = user.id in connected_user_ids
+		user_list.append(user_dict)
 	return RESTResponse(user_list)
 
 

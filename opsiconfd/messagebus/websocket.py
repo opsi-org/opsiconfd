@@ -408,7 +408,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			if not connected:
 				event.event = "user_connected"
 				event.channel = "event:user_connected"
-				event.data["user"] = {"username": session.username}
+				event.data["user"] = {"id": session.username, "username": session.username}
 		else:
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session")
 
@@ -459,7 +459,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			if not connected:
 				event.event = "user_disconnected"
 				event.channel = "event:user_disconnected"
-				event.data["user"] = {"username": session.username}
+				event.data["user"] = {"id": session.username, "username": session.username}
 				await send_message(event)
 
 		# Wait for task to finish to prevent that task is ended by garbage collector

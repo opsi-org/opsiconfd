@@ -316,7 +316,8 @@ function printUserTable(data, htmlId) {
 		htmlStr = "<table class=\"user-table\" id=\"user-table\">" +
 			"<tr>" +
 			"<th class='user-th'>User-ID</th>" +
-			"<th class='user-th'>Last login</th>";
+			"<th class='user-th'>Last login</th>" +
+			"<th class='user-th'>Messagebus</th>";
 		if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
 			htmlStr += "<th class='user-th'>MFA state</th>";
 			htmlStr += "<th class='user-th'>Activate Time-based one-time password</th>";
@@ -325,15 +326,16 @@ function printUserTable(data, htmlId) {
 			}
 		}
 		htmlStr += "</tr>";
-		data.forEach(element => {
+		data.forEach(user => {
 			htmlStr += "<tr>" +
-				"<td class=\"user-td\">" + element.id + "</td>" +
-				"<td class=\"user-td\">" + formateDate(new Date(element.lastLogin)) + "</td>";
+				`<td class="user-td">${user.id}</td>` +
+				`<td class="user-td">${formateDate(new Date(user.lastLogin))}</td>` +
+				`<td id="user-messagebus-state-${user.id}" data-user-id="${user.id}" class="user-td">${user.connectedToMessagebus ? 'connected' : 'not connected'}</td>`;
 			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
-				htmlStr += "<td class=\"user-td\">" + element.mfaState + "</td>";
-				htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${element.id}', 'totp')" value="Generate new secret and activate TOTP"</td>`;
+				htmlStr += `<td class="user-td">${user.mfaState}</td>`;
+				htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${user.id}', 'totp')" value="Generate new secret and activate TOTP"</td>`;
 				if (multiFactorAuth == "totp_optional") {
-					htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${element.id}', 'inactive')" value="Deactivate MFA"</td>`;
+					htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${user.id}', 'inactive')" value="Deactivate MFA"</td>`;
 				}
 			}
 		});
@@ -1098,6 +1100,20 @@ function messagebusConnect() {
 				}
 				updateMessagebusConnectedHosts();
 			}
+			else if (message.event == "user_connected") {
+				const userId = message.data.user.id;
+				if (messagebusConnectedUsers.indexOf(userId) === -1) {
+					messagebusConnectedUsers.push(userId);
+				}
+				updateMessagebusConnectedUsers();
+			}
+			else if (message.event == "user_disconnected") {
+				const userId = message.data.user.id;
+				if (messagebusConnectedUsers.indexOf(userId) !== -1) {
+					messagebusConnectedUsers.pop(userId);
+				}
+				updateMessagebusConnectedUsers();
+			}
 		}
 		else if (message.type.startsWith("terminal_")) {
 			if (mbTerminal && mbTerminal.terminalId == message.terminal_id) {
@@ -1258,14 +1274,15 @@ function getMessagebusConnectedClients(callback) {
 		messagebusConnectedDepots = result.depot_ids;
 		messagebusConnectedClients = result.client_ids;
 		messagebusConnectedUsers = result.user_ids;
-		updateMessagebusConnectedClients();
+		updateMessagebusConnectedHosts();
+		updateMessagebusConnectedUsers();
 		if (callback) {
 			callback();
 		}
 	});
 }
 
-function updateMessagebusConnectedClients() {
+function updateMessagebusConnectedHosts() {
 	const depots = document.getElementById("messagebus-connected-depots");
 	depots.innerHTML = "";
 	const depotList = document.createElement("ul");
@@ -1287,19 +1304,15 @@ function updateMessagebusConnectedClients() {
 		clientList.appendChild(client);
 	});
 	clients.appendChild(clientList);
-
-	const users = document.getElementById("messagebus-connected-users");
-	users.innerHTML = "";
-	const userList = document.createElement("ul");
-	messagebusConnectedUsers.sort();
-	messagebusConnectedUsers.forEach(userId => {
-		const user = document.createElement("li");
-		user.innerHTML = userId;
-		userList.appendChild(user);
-	});
-	users.appendChild(userList);
 }
 
+function updateMessagebusConnectedUsers() {
+	let states = document.querySelectorAll('[id^="user-messagebus-state-"]');
+	states.forEach(element => {
+		let connected = messagebusConnectedUsers.includes(element.dataset.userId);
+		element.innerHTML = connected ? 'connected' : 'not connected';
+	});
+}
 
 function messagebusToggleAutoScroll() {
 	if (document.getElementById('messagebus-message-auto-scroll').checked) {
@@ -1323,8 +1336,8 @@ function fillTerminalSelect() {
 	getMessagebusConnectedClients(function () {
 		messagebusConnectedDepots.forEach(depotId => {
 			option = document.createElement("option");
-			option.text = `Depot ${depotId}`;
-			option.dataset.channel = `service:depot:${depotId}:terminal`;
+			option.text = `Depot ${depotId} `;
+			option.dataset.channel = `service: depot:${depotId}: terminal`;
 			select.appendChild(option);
 		});
 	});
@@ -1382,7 +1395,7 @@ function messagebusConnectTerminal() {
 		terminalId = createUUID();
 		document.getElementById("terminal-id").value = terminalId;
 	}
-	let terminalSessionChannel = `session:${terminalId}`;
+	let terminalSessionChannel = `session:${terminalId} `;
 
 	if (mbTerminal) {
 		mbTerminal.dispose();
@@ -1606,7 +1619,7 @@ function changeTerminalFontSize(val) {
 function generateLiceningInfoTable(info, htmlId) {
 	htmlStr = "<table id=\"licensing-info-table\">";
 	for (const [key, val] of Object.entries(info)) {
-		htmlStr += `<tr><td class="licensing-info-key">${key}</td><td>${val}</td></tr>`;
+		htmlStr += `< tr ><td class="licensing-info-key">${key}</td><td>${val}</td></tr > `;
 	}
 	htmlStr += "</table>";
 	div = document.getElementById(htmlId).innerHTML = htmlStr;
@@ -1616,11 +1629,11 @@ function generateLiceningInfoTable(info, htmlId) {
 function generateLiceningDatesTable(dates, activeDate, htmlId) {
 	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
 	for (const date of Object.keys(Object.values(dates)[0])) {
-		htmlStr += `<th>${date}</th>`;
+		htmlStr += `< th > ${date}</th > `;
 	}
 	htmlStr += "</tr>";
 	for (const [moduleId, dateData] of Object.entries(dates)) {
-		htmlStr += `<tr><td>${moduleId}</td>`;
+		htmlStr += `< tr > <td>${moduleId}</td>`;
 		for (const [date, moduleData] of Object.entries(dateData)) {
 			let title = "";
 			for (const [k, v] of Object.entries(moduleData)) {
@@ -1629,7 +1642,7 @@ function generateLiceningDatesTable(dates, activeDate, htmlId) {
 			const changed = moduleData['changed'] ? 'changed' : '';
 			const active = date == activeDate ? 'active' : 'inactive';
 			const text = moduleData['client_number'] == 999999999 ? 'unlimited' : moduleData['client_number'];
-			htmlStr += `<td title="${title}" class="${changed} ${moduleData['state']} ${active}">${text}</td>`;
+			htmlStr += `< td title = "${title}" class="${changed} ${moduleData['state']} ${active}" > ${text}</td > `;
 		}
 		htmlStr += "</tr>";
 	}

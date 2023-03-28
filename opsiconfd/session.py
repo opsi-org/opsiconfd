@@ -784,10 +784,20 @@ async def authenticate(  # pylint: disable=unused-argument,too-many-branches
 	):
 		await authenticate_host(scope=scope)
 	else:
+		if config.multi_factor_auth in ("totp_optional", "totp_mandatory"):
+			if not mfa_otp:
+				mfa_otp = headers.get("x-opsi-mfa-otp")
+			if not mfa_otp:
+				logger.info("Assuming that TOTP is attached to password")
+				match = re.search(r"^(.+)(\d{6})$", session.password)
+				if match:
+					session.password = match.group(1)
+					mfa_otp = match.group(2)
+
 		await authenticate_user_auth_module(scope=scope)
+
 		backend = get_unprotected_backend()
 		now = timestamp()
-
 		users = await backend.async_call("user_getObjects", id=session.username)
 		if users:
 			user = users[0]
@@ -799,8 +809,6 @@ async def authenticate(  # pylint: disable=unused-argument,too-many-branches
 			if config.multi_factor_auth == "totp_mandatory" or user.mfaState == "totp_active":
 				if not user.otpSecret:
 					raise BackendAuthenticationError("MFA OTP configuration error")
-				if not mfa_otp:
-					mfa_otp = headers.get("x-opsi-mfa-otp")
 				if not mfa_otp:
 					raise BackendAuthenticationError("MFA one-time password missing")
 				totp = pyotp.TOTP(user.otpSecret)

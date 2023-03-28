@@ -25,7 +25,6 @@ from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
-from opsicommon.objects import serialize
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 

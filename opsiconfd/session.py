@@ -792,6 +792,7 @@ async def authenticate(  # pylint: disable=unused-argument,too-many-branches
 				match = re.search(r"^(.+)(\d{6})$", session.password)
 				if match:
 					session.password = match.group(1)
+					secret_filter.add_secrets(session.password)
 					mfa_otp = match.group(2)
 
 		await authenticate_user_auth_module(scope=scope)

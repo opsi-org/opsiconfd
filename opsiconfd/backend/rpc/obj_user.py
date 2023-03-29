@@ -130,7 +130,7 @@ class RPCUserMixin(Protocol):
 			self._check_module("vpn")
 			user.mfaState = "totp_active"
 			user.otpSecret = pyotp.random_base32()
-			uri = pyotp.TOTP(user.otpSecret).provisioning_uri(name=f"{userId}@{get_configserver_id()}", issuer_name="opsi MFA")
+			uri = pyotp.TOTP(user.otpSecret).provisioning_uri(name=f"{userId}@{get_configserver_id()}", issuer_name="opsi")
 		else:
 			user.mfaState = "inactive"
 			user.otpSecret = ""

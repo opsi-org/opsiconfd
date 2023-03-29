@@ -199,6 +199,18 @@ select {
 	overflow-wrap: break-word;
 }
 
+.mfa-active {
+	color: #40853d;
+}
+
+.mfa-inactive-warn {
+	color: #ce714d;
+}
+
+.user-connected {
+	color: #40853d;
+}
+
 .addon-table {
 	table-layout: auto;
 	background-color: #eeeeee;

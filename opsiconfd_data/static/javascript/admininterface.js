@@ -131,7 +131,7 @@ function createBackup() {
 function restoreBackup() {
 	const file = document.getElementById("restore-backup-file").files[0];
 	if (!file) {
-		showNotifcation(`Backup file not provided`, "restore", "error", 3);
+		showNotifcation("Backup file not provided", "restore", "error", 3);
 		return;
 	}
 
@@ -141,7 +141,7 @@ function restoreBackup() {
 		serverID = serverIDSelect;
 	}
 	if (!serverID) {
-		showNotifcation(`Server ID not provided`, "restore", "error", 3);
+		showNotifcation("Server ID not provided", "restore", "error", 3);
 		return;
 	}
 	const password = document.getElementById("restore-backup-password").value;
@@ -327,12 +327,18 @@ function printUserTable(data, htmlId) {
 		}
 		htmlStr += "</tr>";
 		data.forEach(user => {
+			let cls = "user-" + (user.connectedToMessagebus ? "connected" : "not-connected");
 			htmlStr += "<tr>" +
 				`<td class="user-td">${user.id}</td>` +
 				`<td class="user-td">${formateDate(new Date(user.lastLogin))}</td>` +
-				`<td id="user-messagebus-state-${user.id}" data-user-id="${user.id}" class="user-td">${user.connectedToMessagebus ? 'connected' : 'not connected'}</td>`;
+				`<td id="user-messagebus-state-${user.id}" data-user-id="${user.id}" class="user-td ${cls}">` +
+				`${user.connectedToMessagebus ? 'connected' : 'not connected'}</td >`;
 			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
-				htmlStr += `<td class="user-td">${user.mfaState}</td>`;
+				cls = "mfa-" + (user.mfaState == "inactive" ? "inactive" : "active");
+				if (multiFactorAuth == "totp_mandatory" && user.mfaState == "inactive") {
+					cls += "-warn";
+				}
+				htmlStr += `<td class="user-td ${cls}">${user.mfaState}</td>`;
 				htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${user.id}', 'totp')" value="Generate new secret and activate TOTP"</td>`;
 				if (multiFactorAuth == "totp_optional") {
 					htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${user.id}', 'inactive')" value="Deactivate MFA"</td>`;
@@ -1336,8 +1342,8 @@ function fillTerminalSelect() {
 	getMessagebusConnectedClients(function () {
 		messagebusConnectedDepots.forEach(depotId => {
 			option = document.createElement("option");
-			option.text = `Depot ${depotId} `;
-			option.dataset.channel = `service: depot:${depotId}: terminal`;
+			option.text = `Depot ${depotId}`;
+			option.dataset.channel = `service:depot:${depotId}:terminal`;
 			select.appendChild(option);
 		});
 	});
@@ -1395,7 +1401,7 @@ function messagebusConnectTerminal() {
 		terminalId = createUUID();
 		document.getElementById("terminal-id").value = terminalId;
 	}
-	let terminalSessionChannel = `session:${terminalId} `;
+	let terminalSessionChannel = `session:${terminalId}`;
 
 	if (mbTerminal) {
 		mbTerminal.dispose();
@@ -1619,7 +1625,7 @@ function changeTerminalFontSize(val) {
 function generateLiceningInfoTable(info, htmlId) {
 	htmlStr = "<table id=\"licensing-info-table\">";
 	for (const [key, val] of Object.entries(info)) {
-		htmlStr += `< tr ><td class="licensing-info-key">${key}</td><td>${val}</td></tr > `;
+		htmlStr += `<tr><td class="licensing-info-key">${key}</td><td>${val}</td></tr>`;
 	}
 	htmlStr += "</table>";
 	div = document.getElementById(htmlId).innerHTML = htmlStr;
@@ -1629,20 +1635,20 @@ function generateLiceningInfoTable(info, htmlId) {
 function generateLiceningDatesTable(dates, activeDate, htmlId) {
 	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
 	for (const date of Object.keys(Object.values(dates)[0])) {
-		htmlStr += `< th > ${date}</th > `;
+		htmlStr += `<th> ${date}</th>`;
 	}
 	htmlStr += "</tr>";
 	for (const [moduleId, dateData] of Object.entries(dates)) {
-		htmlStr += `< tr > <td>${moduleId}</td>`;
+		htmlStr += `<tr> <td>${moduleId}</td>`;
 		for (const [date, moduleData] of Object.entries(dateData)) {
 			let title = "";
 			for (const [k, v] of Object.entries(moduleData)) {
-				title += `${k}: ${v}&#010; `;
+				title += `${k}: ${v}&#010;`;
 			}
 			const changed = moduleData['changed'] ? 'changed' : '';
 			const active = date == activeDate ? 'active' : 'inactive';
 			const text = moduleData['client_number'] == 999999999 ? 'unlimited' : moduleData['client_number'];
-			htmlStr += `< td title = "${title}" class="${changed} ${moduleData['state']} ${active}" > ${text}</td > `;
+			htmlStr += `<td title = "${title}" class="${changed} ${moduleData['state']} ${active}" > ${text}</td>`;
 		}
 		htmlStr += "</tr>";
 	}

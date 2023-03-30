@@ -48,6 +48,7 @@ from opsiconfd.redis import (
 	ip_address_to_redis_key,
 )
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
+from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
 from opsiconfd.utils import get_manager_pid, utc_time_timestamp
 
@@ -327,20 +328,23 @@ async def get_session_list() -> RESTResponse:
 		session = await redis.hgetall(redis_key)
 		if not session:
 			continue
-		tmp = redis_key.decode().split(":")
-		validity = int(session[b"max_age"]) - (utc_time_timestamp() - int(session[b"last_used"]))
-		if validity <= 0:
+
+		tmp = redis_key.decode("utf-8").rsplit(":", 2)
+		client_addr = ip_address_from_redis_key(tmp[-2])
+		sess = OPSISession(client_addr=client_addr, session_id=tmp[-1])
+		await sess.load()
+		if sess.expired:
 			continue
 		session_list.append(
 			{
-				"created": int(session[b"created"]),
-				"last_used": int(session[b"last_used"]),
-				"validity": validity,
-				"max_age": int(session[b"max_age"]),
-				"user_agent": session[b"user_agent"].decode("utf-8"),
-				"authenticated": bool(int(session[b"authenticated"])),
-				"username": session[b"username"].decode("utf-8"),
-				"address": ip_address_from_redis_key(tmp[-2]),
+				"created": sess.created,
+				"last_used": sess.last_used,
+				"validity": sess.validity,
+				"max_age": sess.max_age,
+				"user_agent": sess.user_agent,
+				"authenticated": sess.authenticated,
+				"username": sess.username,
+				"address": client_addr,
 				"session_id": tmp[-1][:6] + "...",
 			}
 		)

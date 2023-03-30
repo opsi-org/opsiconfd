@@ -391,7 +391,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 					else:
 						logger.trace("Session modifications: %s", session.modifications)
 						if session.modifications:
-							if list(session.modifications) == ["last_used"]:
+							if set(session.modifications) - {"last_used", "messagebus_last_used"}:
 								# Only last_used changed
 								if time.time() >= session.last_stored + self._session_store_interval:
 									await session.store()
@@ -452,7 +452,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self._headers = Headers()
 		self._redis_expiration_seconds = 3600
 		self._modifications: dict[str, float] = {}
-		self._messagebus_last_used = 0
 
 		self.password: str | None = None
 		self.deleted = False
@@ -467,6 +466,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self._max_age = int(config.session_lifetime)
 		self._created = 0
 		self._last_used = 0
+		self._messagebus_last_used = 0
 		self._username: str = ""
 		self._user_groups: set[str] = set()
 		self._host: Host | None = None
@@ -578,6 +578,18 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			return
 		self._last_used = value
 		self._set_modified("last_used")
+
+	@property
+	def messagebus_last_used(self) -> int:
+		return self._messagebus_last_used
+
+	@messagebus_last_used.setter
+	def messagebus_last_used(self, value: int) -> None:
+		value = int(value)
+		if self._messagebus_last_used == value:
+			return
+		self._messagebus_last_used = value
+		self._set_modified("messagebus_last_used")
 
 	@property
 	def username(self) -> str:
@@ -750,6 +762,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			"max_age",
 			"created",
 			"last_used",
+			"messagebus_last_used",
 			"username",
 			"user_groups",
 			"host",
@@ -820,11 +833,11 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self.last_used = int(utc_time_timestamp())
 
 	async def update_messagebus_last_used(self) -> None:
-		self.last_used = self._messagebus_last_used = int(utc_time_timestamp())
+		self.last_used = self.messagebus_last_used = int(utc_time_timestamp())
 
 	@property
 	def in_use_by_messagebus(self) -> bool:
-		return int(utc_time_timestamp()) - self._messagebus_last_used < 15
+		return int(utc_time_timestamp()) - self._messagebus_last_used < 40
 
 	def _load_if_needed(self) -> bool:
 		with redis_client() as redis:

@@ -50,7 +50,7 @@ from opsiconfd.redis import (
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
-from opsiconfd.utils import get_manager_pid, utc_time_timestamp
+from opsiconfd.utils import get_manager_pid
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()

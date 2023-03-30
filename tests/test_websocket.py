@@ -9,7 +9,6 @@ test websocket
 """
 
 import time
-from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
 

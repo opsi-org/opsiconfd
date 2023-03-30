@@ -378,9 +378,6 @@ def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 	res = test_client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	body = res.json()
-	from pprint import pprint
-
-	pprint(body)
 	assert len(body) == 12
 	for _idx in range(2, 12):
 		assert body[_idx].get("address") == "192.168.36." + str(_idx - 2)

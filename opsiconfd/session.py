@@ -512,7 +512,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
 				for redis_key in redis.scan_iter(session_key):
 					validity = 0
-					data = redis.get(redis_key)
+					try:
+						data = redis.get(redis_key)
+					except RedisResponseError:
+						data = None
 					if data:
 						sess = session_data_msgpack_decoder.decode(data)
 						try:

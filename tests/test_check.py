@@ -425,12 +425,11 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 
 	rpc = {"id": 1, "method": DEPRECATED_METHOD, "params": []}
 	current_dt = datetime.utcnow().astimezone(timezone.utc)
-	with catch_warnings():
+	with mock.patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True), catch_warnings():
 		simplefilter("ignore")
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
 	assert res.status_code == 200
-	time.sleep(3)
 
 	result = check_deprecated_calls()
 

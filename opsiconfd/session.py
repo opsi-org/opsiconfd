@@ -7,6 +7,7 @@
 """
 session handling
 """
+# pylint: disable=too-many-lines
 
 from __future__ import annotations
 
@@ -719,7 +720,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 				await self.init_new_session()
 		await self.update_last_used()
 
-	def serialize(self) -> dict[str, float | int | str]:
+	def serialize(self) -> dict[str, float | int | str | bytes]:
 		ser = {}
 		for attribute in (
 			"version",

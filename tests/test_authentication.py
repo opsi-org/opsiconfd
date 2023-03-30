@@ -384,6 +384,8 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	session_id = cookie.value
 	test_client.auth = None
 	# Keep session alive
+	print("=============================================")
+	print("=============================================")
 	for _ in range(lifetime + 3):
 		time.sleep(1)
 		res = test_client.get("/session/authenticated")

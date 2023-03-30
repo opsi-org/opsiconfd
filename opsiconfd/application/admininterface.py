@@ -324,25 +324,24 @@ async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
 	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*"):
-		data = await redis.get(redis_key)
-		if not data:
+		session = await redis.hgetall(redis_key)
+		if not session:
 			continue
-		session = msgspec.msgpack.decode(data)
 		tmp = redis_key.decode().split(":")
-		validity = session["max_age"] - (utc_time_timestamp() - session["last_used"])
+		validity = int(session[b"max_age"]) - (utc_time_timestamp() - int(session[b"last_used"]))
 		if validity <= 0:
 			continue
 		session_list.append(
 			{
-				"created": session["created"],
-				"last_used": session["last_used"],
+				"created": int(session[b"created"]),
+				"last_used": int(session[b"last_used"]),
 				"validity": validity,
-				"max_age": session["max_age"],
-				"user_agent": session["user_agent"],
-				"authenticated": session["authenticated"],
-				"username": session["username"],
+				"max_age": int(session[b"max_age"]),
+				"user_agent": session[b"user_agent"].decode("utf-8"),
+				"authenticated": bool(int(session[b"authenticated"])),
+				"username": session[b"username"].decode("utf-8"),
 				"address": ip_address_from_redis_key(tmp[-2]),
-				"session_id": tmp[-1][:6] + "opsiconfd..",
+				"session_id": tmp[-1][:6] + "...",
 			}
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))

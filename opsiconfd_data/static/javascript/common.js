@@ -24,7 +24,7 @@ function downloadConfiged() {
 }
 
 
-function login(username, password, mfa_otp = null, redirect = "/admin") {
+function login(username, password, mfa_otp = null, redirect = "/admin", session_lifetime = 900) {
 	let button = document.getElementById("login_button");
 	if (button) {
 		button.disabled = true;
@@ -32,7 +32,7 @@ function login(username, password, mfa_otp = null, redirect = "/admin") {
 	let ajax = new XMLHttpRequest();
 	ajax.open("POST", "/session/login");
 	ajax.setRequestHeader("Content-Type", "application/json");
-	ajax.setRequestHeader("x-opsi-session-lifetime", "900");
+	ajax.setRequestHeader("x-opsi-session-lifetime", session_lifetime);
 	ajax.onreadystatechange = function () {
 		if (ajax.readyState === 4) {
 			if (button) {

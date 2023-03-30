@@ -7,6 +7,7 @@
 """
 session handling
 """
+# pylint: disable=too-many-lines
 
 from __future__ import annotations
 
@@ -125,20 +126,6 @@ def get_basic_auth(headers: Headers) -> BasicAuth:
 	return BasicAuth(username, password)
 
 
-async def get_session(client_addr: str, client_port: int, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
-	session = OPSISession(client_addr=client_addr, client_port=client_port, headers=headers, session_id=session_id)
-	await session.init()
-	assert session.client_addr == client_addr
-
-	contextvar_client_session.set(session)
-
-	if session.user_agent and session.user_agent.startswith(SESSION_UNAWARE_USER_AGENTS):
-		session.persistent = False
-		logger.debug("Not keeping session for client %s (%s)", client_addr, session.user_agent)
-
-	return session
-
-
 class SessionMiddleware:
 	def __init__(self, app: FastAPI, public_path: list[str] | None = None) -> None:
 		self.app = app
@@ -208,9 +195,7 @@ class SessionMiddleware:
 			session_id = self.get_session_id_from_headers(connection.headers)
 			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 				addr = scope["client"]
-				scope["session"] = await get_session(
-					client_addr=addr[0], client_port=addr[1], headers=connection.headers, session_id=session_id
-				)
+				scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=connection.headers, session_id=session_id)
 
 			started_authenticated = scope["session"] and scope["session"].authenticated
 
@@ -239,7 +224,6 @@ class SessionMiddleware:
 			if message["type"] == "http.response.start":
 				headers = MutableHeaders(scope=message)
 				if scope["session"]:
-					await scope["session"].store()
 					scope["session"].add_cookie_to_headers(headers)
 				if scope.get("response-headers"):
 					for key, value in scope["response-headers"].items():
@@ -377,35 +361,153 @@ class SessionMiddleware:
 			await self.handle_request_exception(err, connection, receive, send)
 
 
-class OPSISession:  # pylint: disable=too-many-instance-attributes
-	_store_interval = 30
+class SessionManager:  # pylint: disable=too-few-public-methods
+	def __init__(self) -> None:
+		self._session_store_interval = 30
+		self._stopped = asyncio.Event()
+		self._should_stop = False
+		self._manager_task: asyncio.Task | None = None
+		self.sessions: dict[str, OPSISession] = {}
 
+	async def stop(self, wait: bool = False) -> None:
+		self._should_stop = True
+		if wait:
+			await self._stopped.wait()
+
+	async def manager_task(self) -> None:
+
+		while not self._should_stop:  # pylint: disable=too-many-nested-blocks
+			try:
+				await asyncio.sleep(1.0)
+				delete_session_ids = []
+				for session in list(self.sessions.values()):
+					if session.expired:
+						logger.debug("Deleting expired session: %s", session.session_id)
+						await session.delete()
+						delete_session_ids.append(session.session_id)
+					elif session.deleted:
+						logger.debug("Removing deleted session: %s", session.session_id)
+						delete_session_ids.append(session.session_id)
+					else:
+						logger.trace("Session modifications: %s", session.modifications)
+						if session.modifications:
+							if list(session.modifications) == ["last_used"]:
+								# Only last_used changed
+								if time.time() >= session.last_stored + self._session_store_interval:
+									await session.store()
+							else:
+								await session.store()
+
+				for delete_session_id in delete_session_ids:
+					if delete_session_id in self.sessions:
+						del self.sessions[delete_session_id]
+
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
+		self._stopped.set()
+
+	async def get_session(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> OPSISession:
+		if self._should_stop:
+			raise RuntimeError("Shutting down")
+
+		if not self._manager_task:
+			self._manager_task = asyncio.create_task(self.manager_task())
+
+		session: OPSISession | None = None
+		if session_id:
+			session = self.sessions.get(session_id)
+
+		if session_id and session:
+			load_ok = await session.load_if_needed()
+			if not load_ok or session.expired or session.client_addr != client_addr:
+				del self.sessions[session_id]
+				session_id = None
+				session = None
+			else:
+				if headers:
+					session.headers = headers
+				await session.update_last_used()
+
+		if not session:
+			session = OPSISession(client_addr=client_addr, headers=headers, session_id=session_id)
+			await session.init()
+			assert session.client_addr == client_addr
+
+			if session.user_agent and session.user_agent.startswith(SESSION_UNAWARE_USER_AGENTS):
+				session.persistent = False
+				logger.debug("Not keeping session for client %s (%s)", client_addr, session.user_agent)
+			else:
+				assert session.session_id
+				self.sessions[session.session_id] = session
+
+		contextvar_client_session.set(session)
+
+		return session
+
+
+class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
 	def __init__(  # pylint: disable=too-many-arguments
-		self, client_addr: str, client_port: int, headers: Optional[Headers] = None, session_id: Optional[str] = None
+		self, client_addr: str, headers: Headers | None = None, session_id: str | None = None
 	) -> None:
-		self.client_addr = client_addr
-		self.client_port = client_port
-		self._headers = headers or Headers()
-		self.session_id: str | None = session_id or None
-		self.user_agent = self._headers.get("user-agent") or ""
-		self.max_age = config.session_lifetime
-		self.client_max_age = 0
-		self.created = 0
+		self._headers = Headers()
+		self._redis_expiration_seconds = 3600
+		self._modifications: dict[str, float] = {}
+		self._messagebus_last_used = 0
+
+		self.password: str | None = None
 		self.deleted = False
 		self.persistent = True
-		self.last_used = 0
 		self.last_stored = 0
-		self.username: str | None = None
-		self.password: str | None = None
-		self.user_groups: set[str] = set()
-		self.host: Host | None = None
-		self.authenticated = False
-		self.is_admin = False
-		self.is_read_only = False
-		self._redis_expiration_seconds = 3600
+		self.session_id: str | None = session_id or None
+
+		# Attributes to be stored in redis
+		self._version: str = ""
+		self._client_addr = client_addr
+		self._user_agent = ""
+		self._max_age = int(config.session_lifetime)
+		self._created = 0
+		self._last_used = 0
+		self._username: str = ""
+		self._user_groups: set[str] = set()
+		self._host: Host | None = None
+		self._authenticated = False
+		self._is_admin = False
+		self._is_read_only = False
+
+		if headers:
+			self.headers = headers
 
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
+
+	def _set_modified(self, attribute: str) -> None:
+		self._modifications[attribute] = utc_time_timestamp()
+
+	@property
+	def modifications(self) -> dict[str, float]:
+		return self._modifications
+
+	@property
+	def headers(self) -> Headers:
+		return self._headers
+
+	@headers.setter
+	def headers(self, value: Headers | None) -> None:
+		if not value:
+			return
+		self._headers = value
+		self._user_agent = self._headers.get("user-agent") or ""
+		x_opsi_session_lifetime = self._headers.get("x-opsi-session-lifetime")
+		if x_opsi_session_lifetime:
+			try:
+				session_lifetime = int(x_opsi_session_lifetime)
+				if 0 < session_lifetime <= 3600 * 24:
+					logger.info("Accepting session lifetime %d from client", session_lifetime)
+					self.max_age = session_lifetime
+				else:
+					logger.warning("Not accepting session lifetime %d from client", session_lifetime)
+			except ValueError:
+				logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
 
 	@property
 	def redis_key(self) -> str:
@@ -420,67 +522,150 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def validity(self) -> int:
 		return int(self.max_age - (utc_time_timestamp() - self.last_used))
 
-	def serialize(self) -> dict[str, Any]:
-		ser = {k: v for k, v in self.__dict__.items() if k[0] != "_" and k != "password"}
-		ser["host"] = ser["host"].to_hash() if ser["host"] else None
-		ser["user_groups"] = list(ser["user_groups"])
-		return ser
+	@property
+	def version(self) -> str | None:
+		return self._version
 
-	@classmethod
-	def deserialize(cls, data: dict[str, Any]) -> dict[str, Any]:
-		des = {}
-		for attr, val in data.items():
-			if attr == "host" and val:
-				val = Host.fromHash(val)
-			if attr == "user_groups":
-				val = set(val)
-			des[attr] = val
-		return des
+	@version.setter
+	def version(self, value: str) -> None:
+		if self._version == value:
+			return
+		self._version = value
+		self._set_modified("version")
 
-	@classmethod
-	def from_serialized(cls, data: dict[str, Any]) -> OPSISession:
-		data = cls.deserialize(data)
-		obj = cls(data["client_addr"], data["client_port"])
-		for attr, val in data.items():
-			setattr(obj, attr, val)
-		return obj
+	@property
+	def client_addr(self) -> str:
+		return self._client_addr
 
-	def get_cookie(self) -> Optional[str]:
-		if not self.session_id or not self.persistent:
-			return None
-		attrs = "; ".join(SESSION_COOKIE_ATTRIBUTES)
-		if attrs:
-			attrs += "; "
+	@client_addr.setter
+	def client_addr(self, value: str) -> None:
+		if self._client_addr == value:
+			return
+		self._client_addr = value
+		self._set_modified("client_addr")
 
-		# A zero or negative number will expire the cookie immediately
-		max_age = 0 if self.deleted else self.max_age
-		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={max_age}"
+	@property
+	def user_agent(self) -> str:
+		return self._user_agent
 
-	def add_cookie_to_headers(self, headers: dict[str, str]) -> None:
-		cookie = self.get_cookie()
-		# Keep current set-cookie header if already set
-		if cookie and "set-cookie" not in headers:
-			headers["set-cookie"] = cookie
+	@user_agent.setter
+	def user_agent(self, value: str) -> None:
+		if self._user_agent == value:
+			return
+		self._user_agent = value
+		self._set_modified("user_agent")
 
-	async def init(self) -> None:
-		if self.session_id is None:
-			logger.debug("Session id missing (%s / %s)", self.client_addr, self.user_agent)
-			await self.init_new_session()
-		else:
-			if await self.load():
-				if self.expired:
-					logger.debug("Session expired: %s (%s / %s)", self, self.client_addr, self.user_agent)
-					await self.init_new_session()
-				else:
-					logger.debug("Reusing session: %s (%s / %s)", self, self.client_addr, self.user_agent)
-			else:
-				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
-				await self.init_new_session()
-		self._update_max_age()
-		await self.update_last_used(False)
+	@property
+	def created(self) -> int:
+		return self._created
+
+	@created.setter
+	def created(self, value: int) -> None:
+		value = int(value)
+		if self._created == value:
+			return
+		self._created = value
+		self._set_modified("created")
+
+	@property
+	def last_used(self) -> int:
+		return self._last_used
+
+	@last_used.setter
+	def last_used(self, value: int) -> None:
+		value = int(value)
+		if self._last_used == value:
+			return
+		self._last_used = value
+		self._set_modified("last_used")
+
+	@property
+	def username(self) -> str:
+		return self._username
+
+	@username.setter
+	def username(self, value: str) -> None:
+		if self._username == value:
+			return
+		self._username = value
+		self._set_modified("username")
+
+	@property
+	def user_groups(self) -> set[str]:
+		return self._user_groups
+
+	@user_groups.setter
+	def user_groups(self, value: set[str]) -> None:
+		if self._user_groups == value:
+			return
+		self._user_groups = value
+		self._set_modified("user_groups")
+
+	@property
+	def host(self) -> Host | None:
+		return self._host
+
+	@host.setter
+	def host(self, value: Host | None) -> None:
+		if self._host == value:
+			return
+		self._host = value
+		self._set_modified("host")
+
+	@property
+	def authenticated(self) -> bool:
+		return self._authenticated
+
+	@authenticated.setter
+	def authenticated(self, value: bool) -> None:
+		value = bool(value)
+		if self._authenticated == value:
+			return
+		self._authenticated = value
+		self._set_modified("authenticated")
+
+	@property
+	def is_admin(self) -> bool:
+		return self._is_admin
+
+	@is_admin.setter
+	def is_admin(self, value: bool) -> None:
+		value = bool(value)
+		if self._is_admin == value:
+			return
+		self._is_admin = value
+		self._set_modified("is_admin")
+
+	@property
+	def is_read_only(self) -> bool:
+		return self._is_read_only
+
+	@is_read_only.setter
+	def is_read_only(self, value: bool) -> None:
+		value = bool(value)
+		if self._is_read_only == value:
+			return
+		self._is_read_only = value
+		self._set_modified("is_read_only")
+
+	@property
+	def max_age(self) -> int:
+		if self.deleted:
+			return 0
+		if self.in_use_by_messagebus:
+			return 2147483648
+		return self._max_age
+
+	@max_age.setter
+	def max_age(self, value: int) -> None:
+		value = int(value)
+		if self._max_age == value:
+			return
+		self._max_age = value
+		self._set_modified("max_age")
 
 	def _reset_auth_data(self) -> None:
-		self.username = None
+		self.username = ""
 		self.password = None
 		self.user_groups = set()
 		self.host = None
@@ -513,15 +698,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				for redis_key in redis.scan_iter(session_key):
 					validity = 0
 					try:
-						data = redis.get(redis_key)
-					except RedisResponseError:
-						data = None
-					if data:
-						sess = session_data_msgpack_decoder.decode(data)
-						try:
-							validity = sess["max_age"] - (now - sess["last_used"])
-						except Exception as err:  # pylint: disable=broad-except
-							logger.debug(err)
+						max_age = redis.hget(redis_key, b"max_age")
+						if max_age:
+							last_used = redis.hget(redis_key, b"last_used")
+							if last_used:
+								validity = int(int(max_age) - (now - int(last_used)))
+					except Exception as err:  # pylint: disable=broad-except
+						logger.debug(err)
 					if validity > 0:
 						session_count += 1
 					else:
@@ -535,19 +718,141 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(err)) from err
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
+		self.version = str(uuid.uuid4())
 		self.created = int(utc_time_timestamp())
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init_new_session(self) -> None:
 		await run_in_threadpool(self._init_new_session)
 
-	def _load(self) -> bool:
+	async def init(self) -> None:
+		if self.session_id is None:
+			logger.debug("Session id missing (%s / %s)", self.client_addr, self.user_agent)
+			await self.init_new_session()
+		else:
+			if await self.load():
+				if self.expired:
+					logger.debug("Session expired: %s (%s / %s)", self, self.client_addr, self.user_agent)
+					await self.init_new_session()
+				else:
+					logger.debug("Reusing session: %s (%s / %s)", self, self.client_addr, self.user_agent)
+			else:
+				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
+				await self.init_new_session()
+		await self.update_last_used()
+
+	def serialize(self) -> dict[str, float | int | str | bytes]:
+		ser = {}
+		for attribute in (
+			"version",
+			"client_addr",
+			"user_agent",
+			"max_age",
+			"created",
+			"last_used",
+			"username",
+			"user_groups",
+			"host",
+			"authenticated",
+			"is_admin",
+			"is_read_only",
+		):
+			val = getattr(self, f"_{attribute}")
+			if isinstance(val, Host):
+				val = msgspec.msgpack.encode(val.to_hash())
+			elif isinstance(val, set):
+				val = msgspec.msgpack.encode(list(val))
+			elif isinstance(val, bool):
+				val = int(val)
+			elif isinstance(val, str):
+				val = val.encode("utf-8")
+			elif val is None:
+				val = b""
+			ser[attribute] = val
+		return ser
+
+	@classmethod
+	def deserialize(cls, data: dict[str | bytes, float | int | bytes | str]) -> dict[str, Any]:
+		des = {}
+		for attr, val in data.items():
+			if isinstance(attr, bytes):
+				attr = attr.decode("utf-8")
+			if attr == "host":
+				if val:
+					assert isinstance(val, bytes)
+					val = Host.fromHash(msgspec.msgpack.decode(val))  # type: ignore
+				else:
+					val = None  # type: ignore
+			elif attr == "user_groups":
+				val = set(msgspec.msgpack.decode(val))  # type: ignore
+			elif isinstance(val, bytes):
+				val = val.decode("utf-8")
+			elif attr in ("authenticated", "is_admin", "is_read_only"):
+				val = bool(val)
+			des[attr] = val
+		return des
+
+	@classmethod
+	def from_serialized(cls, data: dict[str, float | int | bytes | str]) -> OPSISession:
+		data = cls.deserialize(data)  # type: ignore
+		obj = cls(data["client_addr"])  # type: ignore
+		for attr, val in data.items():
+			setattr(obj, attr, val)
+		return obj
+
+	def get_cookie(self) -> Optional[str]:
+		if not self.session_id or not self.persistent:
+			return None
+		attrs = "; ".join(SESSION_COOKIE_ATTRIBUTES)
+		if attrs:
+			attrs += "; "
+
+		# A zero or negative number will expire the cookie immediately
+		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"
+
+	def add_cookie_to_headers(self, headers: dict[str, str]) -> None:
+		cookie = self.get_cookie()
+		# Keep current set-cookie header if already set
+		if cookie and "set-cookie" not in headers:
+			headers["set-cookie"] = cookie
+
+	async def update_last_used(self) -> None:
+		self.last_used = int(utc_time_timestamp())
+
+	async def update_messagebus_last_used(self) -> None:
+		self.last_used = self._messagebus_last_used = int(utc_time_timestamp())
+
+	@property
+	def in_use_by_messagebus(self) -> bool:
+		return int(utc_time_timestamp()) - self._messagebus_last_used < 15
+
+	def _load_if_needed(self) -> bool:
 		with redis_client() as redis:
-			msgpack_data = redis.get(self.redis_key)
-		if not msgpack_data:
+			version = redis.hget(self.redis_key, b"version")
+			if not version:
+				# Deleted
+				return False
+			if version.decode("utf-8") == self.version:
+				# Version matches => cache up to date
+				return True
+		return self._load()
+
+	async def load_if_needed(self) -> bool:
+		# aioredis is sometimes slow ~300ms load, using redis for now
+		return await run_in_threadpool(self._load_if_needed)
+
+	def _load(self) -> bool:
+		logger.debug("Load session")
+		data = {}
+		with redis_client() as redis:
+			try:
+				data = self.deserialize(redis.hgetall(self.redis_key))
+			except Exception as err:  # pylint: disable=broad-except
+				logger.warning("Failed to load session: %s (%s / %s)", err, self.client_addr, self.user_agent)
+
+		if not data:
 			return False
 
-		data = self.deserialize(session_data_msgpack_decoder.decode(msgpack_data))
 		for attr, val in data.items():
 			try:
 				setattr(self, attr, val)
@@ -564,20 +869,19 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		return await run_in_threadpool(self._load)
 
 	def _store(self) -> None:
-		if self.deleted or not self.persistent:
+		if self.deleted or self.expired or not self.persistent:
 			return
+		logger.debug("Store session")
+		if not self.version:
+			self.version = str(uuid.uuid4())
 		self.last_stored = int(utc_time_timestamp())
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
-		# Read session from redis if available and update session data.
 		with redis_client() as redis:
-			session_data = {}
-			data = redis.get(self.redis_key)
-			if data:
-				session_data = session_data_msgpack_decoder.decode(data)
-			new_data = self.serialize()
-			new_data["created"] = session_data.get("created", new_data["created"])
-			redis.set(self.redis_key, session_data_msgpack_encoder.encode(new_data), ex=self._redis_expiration_seconds)
+			data = self.serialize()
+			redis.hset(self.redis_key, mapping=data)  # type: ignore
+			redis.expire(self.redis_key, self._redis_expiration_seconds)
+		self._modifications = {}
 
 	async def store(self, wait: Optional[bool] = True) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
@@ -588,6 +892,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			asyncio_create_task(task)
 
 	def sync_delete(self) -> None:
+		logger.debug("Delete session")
 		with redis_client() as redis:
 			for _ in range(10):
 				redis.delete(self.redis_key)
@@ -599,26 +904,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 	async def delete(self) -> None:
 		return await run_in_threadpool(self.sync_delete)
-
-	async def update_last_used(self, store: Optional[bool] = None) -> None:
-		self.last_used = int(utc_time_timestamp())
-		if store or (store is None and self.last_used - self.last_stored > self._store_interval):
-			await self.store()
-
-	def _update_max_age(self) -> None:
-		x_opsi_session_lifetime = self._headers.get("x-opsi-session-lifetime")
-		if not x_opsi_session_lifetime:
-			return
-
-		try:
-			session_lifetime = int(x_opsi_session_lifetime)
-			if 0 < session_lifetime <= 3600 * 24:
-				logger.info("Accepting session lifetime %d from client", session_lifetime)
-				self.max_age = session_lifetime
-			else:
-				logger.warning("Not accepting session lifetime %d from client", session_lifetime)
-		except ValueError:
-			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
 
 
 auth_module: AuthenticationModule | None = None  # pylint: disable=invalid-name
@@ -757,13 +1042,13 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	)
 
 
-async def authenticate(  # pylint: disable=unused-argument,too-many-branches
+async def authenticate(  # pylint: disable=unused-argument,too-many-branches,too-many-statements
 	scope: Scope, username: str, password: str, mfa_otp: str | None = None
 ) -> None:
 	headers = Headers(scope=scope)
 	if not scope["session"]:
 		addr = scope["client"]
-		scope["session"] = await get_session(client_addr=addr[0], client_port=addr[1], headers=headers)
+		scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=headers)
 	session = scope["session"]
 	session.authenticated = False
 
@@ -823,6 +1108,7 @@ async def authenticate(  # pylint: disable=unused-argument,too-many-branches
 		user.lastLogin = now
 		await backend.async_call("user_updateObject", user=user)
 
+	await session.store()
 	if not session.username or not session.authenticated:
 		raise BackendPermissionDeniedError("Not authenticated")
 
@@ -908,3 +1194,6 @@ async def check_access(connection: HTTPConnection) -> None:
 
 	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.is_admin:
 		raise BackendPermissionDeniedError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")
+
+
+session_manager = SessionManager()

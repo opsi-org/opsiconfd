@@ -134,10 +134,7 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 		if not exists_ok:
 			raise RuntimeError("Already exists")
 	else:
-		pipeline = redis.pipeline()
-		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, "owner-id", owner_id)
-		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, "reader-count", 0)
-		await pipeline.execute()
+		await redis.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping={"owner-id": owner_id, "reader-count": 0})
 	return channel
 
 

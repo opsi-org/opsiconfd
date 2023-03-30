@@ -363,12 +363,20 @@ class SessionMiddleware:
 
 class SessionManager:  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
+		self._session_store_interval = 30
+		self._stopped = asyncio.Event()
+		self._should_stop = False
 		self._manager_task: asyncio.Task | None = None
 		self.sessions: dict[str, OPSISession] = {}
 
+	async def stop(self, wait: bool = False) -> None:
+		self._should_stop = True
+		if wait:
+			await self._stopped.wait()
+
 	async def manager_task(self) -> None:
-		session_store_interval = 30
-		while True:  # pylint: disable=too-many-nested-blocks
+
+		while not self._should_stop:  # pylint: disable=too-many-nested-blocks
 			try:
 				await asyncio.sleep(1.0)
 				delete_session_ids = []
@@ -385,7 +393,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 						if session.modifications:
 							if list(session.modifications) == ["last_used"]:
 								# Only last_used changed
-								if time.time() >= session.last_stored + session_store_interval:
+								if time.time() >= session.last_stored + self._session_store_interval:
 									await session.store()
 							else:
 								await session.store()
@@ -396,18 +404,31 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
+		self._stopped.set()
 
-	async def get_session(self, client_addr: str, headers: Headers, session_id: Optional[str] = None) -> OPSISession:
+	async def get_session(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> OPSISession:
+		if self._should_stop:
+			raise RuntimeError("Shutting down")
+
 		if not self._manager_task:
 			self._manager_task = asyncio.create_task(self.manager_task())
 
 		session: OPSISession | None = None
 		if session_id:
 			session = self.sessions.get(session_id)
-		if session and not session.expired and session.client_addr == client_addr:
-			session.headers = headers
-			await session.update_last_used()
-		else:
+
+		if session_id and session:
+			load_ok = await session.load_if_needed()
+			if not load_ok or session.expired or session.client_addr != client_addr:
+				del self.sessions[session_id]
+				session_id = None
+				session = None
+			else:
+				if headers:
+					session.headers = headers
+				await session.update_last_used()
+
+		if not session:
 			session = OPSISession(client_addr=client_addr, headers=headers, session_id=session_id)
 			await session.init()
 			assert session.client_addr == client_addr
@@ -439,14 +460,14 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self.last_stored = 0
 		self.session_id: str | None = session_id or None
 
-		# Attributes to be stored
-		self._version: str | None = None
+		# Attributes to be stored in redis
+		self._version: str = ""
 		self._client_addr = client_addr
 		self._user_agent = ""
 		self._max_age = int(config.session_lifetime)
 		self._created = 0
 		self._last_used = 0
-		self._username: str | None = None
+		self._username: str = ""
 		self._user_groups: set[str] = set()
 		self._host: Host | None = None
 		self._authenticated = False
@@ -559,11 +580,11 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self._set_modified("last_used")
 
 	@property
-	def username(self) -> str | None:
+	def username(self) -> str:
 		return self._username
 
 	@username.setter
-	def username(self, value: str | None) -> None:
+	def username(self, value: str) -> None:
 		if self._username == value:
 			return
 		self._username = value
@@ -644,7 +665,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self._set_modified("max_age")
 
 	def _reset_auth_data(self) -> None:
-		self.username = None
+		self.username = ""
 		self.password = None
 		self.user_groups = set()
 		self.host = None
@@ -746,7 +767,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			elif isinstance(val, str):
 				val = val.encode("utf-8")
 			elif val is None:
-				val = ""
+				val = b""
 			ser[attribute] = val
 		return ser
 
@@ -757,10 +778,9 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			if isinstance(attr, bytes):
 				attr = attr.decode("utf-8")
 			if attr == "host":
-				assert isinstance(val, bytes)
-				val = msgspec.msgpack.decode(val)
 				if val:
-					val = Host.fromHash(val)  # type: ignore
+					assert isinstance(val, bytes)
+					val = Host.fromHash(msgspec.msgpack.decode(val))  # type: ignore
 				else:
 					val = None  # type: ignore
 			elif attr == "user_groups":
@@ -805,6 +825,21 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 	@property
 	def in_use_by_messagebus(self) -> bool:
 		return int(utc_time_timestamp()) - self._messagebus_last_used < 15
+
+	def _load_if_needed(self) -> bool:
+		with redis_client() as redis:
+			version = redis.hget(self.redis_key, b"version")
+			if not version:
+				# Deleted
+				return False
+			if version.decode("utf-8") == self.version:
+				# Version matches => cache up to date
+				return True
+		return self._load()
+
+	async def load_if_needed(self) -> bool:
+		# aioredis is sometimes slow ~300ms load, using redis for now
+		return await run_in_threadpool(self._load_if_needed)
 
 	def _load(self) -> bool:
 		logger.debug("Load session")

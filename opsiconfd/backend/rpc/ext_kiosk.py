@@ -44,7 +44,7 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 						group_ids.add(group_id)
 		return group_ids
 
-	@rpc_method(deprecated=True)
+	@rpc_method(deprecated=True, check_acl=False)
 	def getKioskProductInfosForClient(  # pylint: disable=invalid-name,too-many-locals,too-many-statements,too-many-branches
 		self: BackendProtocol, clientId: str, addConfigs: bool = False
 	) -> dict | list:

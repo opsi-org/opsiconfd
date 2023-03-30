@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class RPCExtWANMixin(Protocol):  # pylint: disable=too-few-public-methods
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def changeWANConfig(self: BackendProtocol, boolean: bool, clientIds: list[str]) -> None:  # pylint:disable=invalid-name
 		"""
 		Change the WAN configuration.

@@ -375,7 +375,6 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 			await self._stopped.wait()
 
 	async def manager_task(self) -> None:
-
 		while not self._should_stop:  # pylint: disable=too-many-nested-blocks
 			try:
 				await asyncio.sleep(1.0)

@@ -15,7 +15,7 @@ import pytest
 from starlette.datastructures import Headers
 
 from opsiconfd.session import OPSISession, SessionManager
-from opsiconfd.utils import utc_time_timestamp
+from opsiconfd.utils import utc_time_timestamp, asyncio_create_task
 
 from .utils import (  # pylint: disable=unused-import
 	async_redis_client,
@@ -68,6 +68,8 @@ async def test_session_store_and_load() -> None:
 async def test_session_manager_max_age() -> None:
 	with get_config({"session_lifetime": 10}):
 		manager = SessionManager()
+		asyncio_create_task(manager.manager_task())
+
 		headers = Headers()
 		sess = await manager.get_session("172.10.11.12", headers=headers)
 		assert sess.max_age == 10
@@ -84,18 +86,24 @@ async def test_session_manager_max_age() -> None:
 		await sess.load()
 		assert sess.max_age == 5
 
-		# await sess.update_messagebus_last_used()
-		# assert sess.max_age == 5
-		# assert sess.get_cookie().endswith("Max-Age=2147483648")
+		await sess.update_messagebus_last_used()
+		assert sess.max_age == 5
+		cookie = sess.get_cookie()
+		assert cookie
+		assert cookie.endswith("Max-Age=2147483648")
 
-		# await sess.store()
-		# await sess.load()
-		# assert sess.max_age == 5
-		# assert sess.get_cookie().endswith("Max-Age=2147483648")
+		await sess.store()
+		await sess.load()
+		assert sess.max_age == 5
+		cookie = sess.get_cookie()
+		assert cookie
+		assert cookie.endswith("Max-Age=2147483648")
 
-		# sess._messagebus_last_used = int(utc_time_timestamp()) - 60  # pylint: disable=protected-access
-		# assert sess.max_age == 5
-		# assert sess.get_cookie().endswith("Max-Age=5")
+		sess._messagebus_last_used = int(utc_time_timestamp()) - 60  # pylint: disable=protected-access
+		assert sess.max_age == 5
+		cookie = sess.get_cookie()
+		assert cookie
+		assert cookie.endswith("Max-Age=5")
 
 		await manager.stop(wait=True)
 
@@ -104,6 +112,8 @@ async def test_session_manager_max_age() -> None:
 async def test_session_refresh() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager()
+		asyncio_create_task(manager.manager_task())
+
 		sess = await manager.get_session("172.10.11.12")
 		sess.username = "testuser"
 		await sess.store()
@@ -141,6 +151,8 @@ async def test_session_refresh() -> None:
 async def test_session_manager_store_session() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager()
+		asyncio_create_task(manager.manager_task())
+
 		manager._session_store_interval = 60  # pylint: disable=protected-access
 		sess1 = await manager.get_session("172.10.11.11")
 		await sleep(2)
@@ -165,6 +177,8 @@ async def test_session_manager_store_session() -> None:
 async def test_session_manager_remove_expired_session() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager()
+		asyncio_create_task(manager.manager_task())
+
 		headers = Headers({"x-opsi-session-lifetime": "5"})
 		sess = await manager.get_session("172.10.11.12", headers=headers)
 		sess.authenticated = True
@@ -182,6 +196,8 @@ async def test_session_manager_remove_expired_session() -> None:
 @pytest.mark.asyncio
 async def test_session_manager_changed_client_addr() -> None:
 	manager = SessionManager()
+	asyncio_create_task(manager.manager_task())
+
 	sess1 = await manager.get_session("172.10.11.12")
 	assert sess1
 	sess2 = await manager.get_session("172.10.11.13", session_id=sess1.session_id)
@@ -195,6 +211,9 @@ async def test_session_manager_concurrent() -> None:
 	async with async_redis_client() as redis_client:
 		manager1 = SessionManager()
 		manager2 = SessionManager()
+		asyncio_create_task(manager1.manager_task())
+		asyncio_create_task(manager2.manager_task())
+
 		headers = Headers({"x-opsi-session-lifetime": "5"})
 		sess1 = await manager1.get_session("172.10.11.12", headers=headers)
 		await sess1.store()

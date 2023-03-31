@@ -84,21 +84,18 @@ async def test_session_manager_max_age() -> None:
 		await sess.load()
 		assert sess.max_age == 5
 
-		await manager.stop(wait=True)
-		return
+		# await sess.update_messagebus_last_used()
+		# assert sess.max_age == 5
+		# assert sess.get_cookie().endswith("Max-Age=2147483648")
 
-		await sess.update_messagebus_last_used()
-		assert sess.max_age == 5
-		assert sess.get_cookie().endswith("Max-Age=2147483648")
+		# await sess.store()
+		# await sess.load()
+		# assert sess.max_age == 5
+		# assert sess.get_cookie().endswith("Max-Age=2147483648")
 
-		await sess.store()
-		await sess.load()
-		assert sess.max_age == 5
-		assert sess.get_cookie().endswith("Max-Age=2147483648")
-
-		sess._messagebus_last_used = int(utc_time_timestamp()) - 60  # pylint: disable=protected-access
-		assert sess.max_age == 5
-		assert sess.get_cookie().endswith("Max-Age=5")
+		# sess._messagebus_last_used = int(utc_time_timestamp()) - 60  # pylint: disable=protected-access
+		# assert sess.max_age == 5
+		# assert sess.get_cookie().endswith("Max-Age=5")
 
 		await manager.stop(wait=True)
 

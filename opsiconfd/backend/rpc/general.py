@@ -18,7 +18,7 @@ import time
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 from opsicommon.exceptions import (  # type: ignore[import]

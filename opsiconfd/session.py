@@ -474,7 +474,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self._is_admin = False
 		self._is_read_only = False
 
-		if headers:
+		if headers and isinstance(headers, Headers):
 			self.headers = headers
 
 	def __repr__(self) -> str:
@@ -1121,7 +1121,8 @@ async def authenticate(  # pylint: disable=unused-argument,too-many-branches,too
 		user.lastLogin = now
 		await backend.async_call("user_updateObject", user=user)
 
-	await session.store()
+	await session.store(wait=True)
+
 	if not session.username or not session.authenticated:
 		raise BackendPermissionDeniedError("Not authenticated")
 

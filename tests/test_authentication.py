@@ -15,6 +15,7 @@ from datetime import datetime
 import pyotp
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
+from unittest.mock import patch
 
 from opsiconfd import (
 	contextvar_client_session,
@@ -23,6 +24,7 @@ from opsiconfd import (
 	set_contextvars_from_contex,
 )
 from opsiconfd.redis import ip_address_to_redis_key
+from opsiconfd.session import SESSION_MAX_AGE_MAX
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -384,8 +386,6 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	session_id = cookie.value
 	test_client.auth = None
 	# Keep session alive
-	print("=============================================")
-	print("=============================================")
 	for _ in range(lifetime + 3):
 		time.sleep(1)
 		res = test_client.get("/session/authenticated")
@@ -400,30 +400,49 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 
 def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	lifetime = 60
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	res = test_client.get("/admin/")
-	# res = test_client.get("/admin/", headers=lt_headers)
-	assert res.status_code == 200
-	cookie = list(test_client.cookies.jar)[0]
-	session_id = cookie.value
-	remain = cookie.expires - time.time()  # type: ignore[operator]#
-	print(remain)
-	assert remain <= lifetime
+	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 5):
+		lifetime = 60
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	# wait for redis to store session info
-	time.sleep(10)
+		res = test_client.get("/admin/")
+		assert res.status_code == 200
+		cookie = list(test_client.cookies.jar)[0]
+		session_id = cookie.value
+		remain = cookie.expires - time.time()  # type: ignore[operator]
+		print(remain)
+		assert remain <= lifetime
 
-	lifetime = 60 * 15  # 15 min
-	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
-	res = test_client.get("/admin/", headers=lt_headers)
-	assert res.status_code == 200
-	cookie = list(test_client.cookies.jar)[0]
-	remain = cookie.expires - time.time()  # type: ignore[operator]
-	print(remain)
-	assert remain <= lifetime
-	assert remain >= 100
-	assert session_id == cookie.value
+		lifetime = 60 * 15  # 15 min
+		lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
+		res = test_client.get("/admin/", headers=lt_headers)
+		assert res.status_code == 200
+		cookie = list(test_client.cookies.jar)[0]
+		remain = cookie.expires - time.time()  # type: ignore[operator]
+		print(remain)
+		assert remain <= lifetime
+		assert remain >= lifetime - 5
+		assert session_id == cookie.value
+
+		with test_client.websocket_connect("/messagebus/v1", headers={"Cookie": f"{cookie.name}={cookie.value}"}):
+			time.sleep(1)
+			res = test_client.get("/admin/", headers=lt_headers)
+			assert res.status_code == 200
+			cookie = list(test_client.cookies.jar)[0]
+			print(cookie.expires)
+			remain = cookie.expires - time.time()  # type: ignore[operator]
+			print(remain)
+			assert remain <= SESSION_MAX_AGE_MAX
+			assert remain >= SESSION_MAX_AGE_MAX - 5
+
+		time.sleep(6)
+		res = test_client.get("/admin/")
+		assert res.status_code == 200
+		cookie = list(test_client.cookies.jar)[0]
+		remain = cookie.expires - time.time()  # type: ignore[operator]
+		print(remain)
+		assert remain <= lifetime
+		assert remain >= lifetime - 5
+		assert session_id == cookie.value
 
 
 def test_onetime_password_host_id(

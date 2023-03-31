@@ -127,13 +127,13 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 	async def manager_task(self, websocket: WebSocket) -> None:
 		try:
 			update_session_interval = 5.0
-			update_session_time = time()
+			update_session_time = 0.0
 			while websocket.client_state == WebSocketState.CONNECTED:
-				await sleep(1.0)
 				now = time()
 				if now >= update_session_time + update_session_interval:
 					update_session_time = now
 					await self.scope["session"].update_messagebus_last_used()
+				await sleep(1.0)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 

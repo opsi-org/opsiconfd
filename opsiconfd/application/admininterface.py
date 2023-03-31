@@ -339,6 +339,7 @@ async def get_session_list() -> RESTResponse:
 			{
 				"created": sess.created,
 				"last_used": sess.last_used,
+				"messagebus_last_used": sess.messagebus_last_used,
 				"validity": sess.validity,
 				"max_age": sess.max_age,
 				"user_agent": sess.user_agent,

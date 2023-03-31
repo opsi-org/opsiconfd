@@ -77,6 +77,8 @@ ACCESS_ROLE_AUTHENTICATED = "authenticated"
 ACCESS_ROLE_ADMIN = "admin"
 SESSION_COOKIE_NAME = "opsiconfd-session"
 SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
+SESSION_MAX_AGE_MAX = 3600 * 24 * 365  # One year
+MESSAGEBUS_IN_USE_TIMEOUT = 40
 # Zsync2 will send "curl/<curl-version>" as User-Agent.
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
 # Do not keep sessions because they will never send a cookie (session id).
@@ -447,6 +449,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 	) -> None:
 		self._headers = Headers()
 		self._redis_expiration_seconds = 3600
+		self._messagebus_in_use_timeout = MESSAGEBUS_IN_USE_TIMEOUT
 		self._modifications: dict[str, float] = {}
 
 		self.password: str | None = None
@@ -817,7 +820,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		if self.deleted:
 			max_age = 0
 		if self.in_use_by_messagebus:
-			max_age = 2147483648
+			max_age = SESSION_MAX_AGE_MAX
 		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={max_age}"
 
 	def add_cookie_to_headers(self, headers: dict[str, str]) -> None:
@@ -834,7 +837,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 
 	@property
 	def in_use_by_messagebus(self) -> bool:
-		return int(utc_time_timestamp()) - self._messagebus_last_used < 40
+		return int(utc_time_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
 
 	def _refresh(self) -> bool:
 		with redis_client() as redis:

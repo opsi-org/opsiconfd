@@ -11,11 +11,11 @@ login tests
 import json
 import time
 from datetime import datetime
+from unittest.mock import patch
 
 import pyotp
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
-from unittest.mock import patch
 
 from opsiconfd import (
 	contextvar_client_session,

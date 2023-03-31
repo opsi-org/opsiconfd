@@ -395,9 +395,9 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 							if set(session.modifications) - {"last_used", "messagebus_last_used"}:
 								# Only last_used changed
 								if time.time() >= session.last_stored + self._session_store_interval:
-									await session.store()
+									await session.store(modifications_only=True)
 							else:
-								await session.store()
+								await session.store(modifications_only=True)
 
 				for delete_session_id in delete_session_ids:
 					if delete_session_id in self.sessions:
@@ -417,14 +417,12 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 
 		if session_id and session:
 			refresh_ok = await session.refresh()
-			if not refresh_ok or session.expired or session.client_addr != client_addr:
+			if refresh_ok and not session.expired and session.client_addr == client_addr:
+				await session.update_last_used()
+			else:
 				del self.sessions[session_id]
 				session_id = None
 				session = None
-			else:
-				if headers:
-					session.headers = headers
-				await session.update_last_used()
 
 		if not session:
 			session = OPSISession(client_addr=client_addr, headers=headers, session_id=session_id)
@@ -437,6 +435,9 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 			else:
 				assert session.session_id
 				self.sessions[session.session_id] = session
+
+		if headers:
+			session.headers = headers
 
 		contextvar_client_session.set(session)
 
@@ -884,8 +885,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		# aioredis is sometimes slow ~300ms load, using redis for now
 		return await run_in_threadpool(self._load)
 
-	def _store(self) -> None:
+	def _store(self, modifications_only: bool = False) -> None:
 		if self.deleted or self.expired or not self.persistent:
+			return
+		if modifications_only and not self._modifications:
 			return
 		logger.debug("Store session")
 		self.version = str(uuid.uuid4())
@@ -894,13 +897,15 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		# changed by another worker process since the last load.
 		with redis_client() as redis:
 			data = self.serialize()
+			if modifications_only:
+				data = {a: v for a, v in data.items() if a in self._modifications}
 			redis.hset(self.redis_key, mapping=data)  # type: ignore
 			redis.expire(self.redis_key, self._redis_expiration_seconds)
 		self._modifications = {}
 
-	async def store(self, wait: Optional[bool] = True) -> None:
+	async def store(self, wait: bool = True, modifications_only: bool = False) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
-		task = run_in_threadpool(self._store)
+		task = run_in_threadpool(self._store, modifications_only)
 		if wait:
 			await task
 		else:

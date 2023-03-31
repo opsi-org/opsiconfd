@@ -221,10 +221,11 @@ async def test_session_manager_concurrent() -> None:
 		res = await redis_client.hgetall(sess1.redis_key)
 		assert res
 
-		sess2 = await manager2.get_session("172.10.11.12", session_id=sess1.session_id)
-		assert sess1.session_id == sess2.session_id
-		assert sess1.created == sess2.created
-		assert sess1.max_age == sess2.max_age
+		headers = Headers({"x-opsi-session-lifetime": "10"})
+		sess2 = await manager2.get_session("172.10.11.12", headers=headers, session_id=sess1.session_id)
+		assert sess2.session_id == sess1.session_id
+		assert sess2.created == sess1.created
+		assert sess2.max_age == 10
 
 		sess2.max_age = 1
 		await sleep(2)

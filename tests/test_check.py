@@ -100,7 +100,7 @@ def test_check_opsiconfd_config() -> None:
 			if partial_result.check_id == "opsiconfd_config:log-level-stderr":
 				ids_found += 1
 				assert partial_result.check_status == CheckStatus.ERROR
-				assert partial_result.message == "Log level 'log-level-stderr=SECRET' is much to high for productive use."
+				assert partial_result.message == "Log level setting 'log-level-stderr=SECRET' is much to high for productive use."
 				assert partial_result.details == {"config": "log-level-stderr", "value": 9}
 			elif partial_result.check_id == "opsiconfd_config:debug-options":
 				assert partial_result.check_status == CheckStatus.ERROR

@@ -14,7 +14,7 @@ from asyncio import sleep
 import pytest
 from starlette.datastructures import Headers
 
-from opsiconfd.session import OPSISession, SessionManager, SESSION_MAX_AGE_MAX
+from opsiconfd.session import OPSISession, SessionManager
 from opsiconfd.utils import utc_time_timestamp, asyncio_create_task
 
 from .utils import (  # pylint: disable=unused-import
@@ -90,14 +90,16 @@ async def test_session_manager_max_age() -> None:
 		assert sess.max_age == 5
 		cookie = sess.get_cookie()
 		assert cookie
-		assert cookie.endswith(f"Max-Age={SESSION_MAX_AGE_MAX}")
+		# Session cookie
+		assert "Max-Age" not in cookie
 
 		await sess.store()
 		await sess.load()
 		assert sess.max_age == 5
 		cookie = sess.get_cookie()
 		assert cookie
-		assert cookie.endswith(f"Max-Age={SESSION_MAX_AGE_MAX}")
+		# Session cookie
+		assert "Max-Age" not in cookie
 
 		sess._messagebus_last_used = int(utc_time_timestamp()) - 60  # pylint: disable=protected-access
 		assert sess.max_age == 5

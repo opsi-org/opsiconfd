@@ -24,7 +24,6 @@ from opsiconfd import (
 	set_contextvars_from_contex,
 )
 from opsiconfd.redis import ip_address_to_redis_key
-from opsiconfd.session import SESSION_MAX_AGE_MAX
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -430,11 +429,8 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 			res = test_client.get("/admin/", headers=lt_headers)
 			assert res.status_code == 200
 			cookie = list(test_client.cookies.jar)[0]
-			print(cookie.expires)
-			remain = cookie.expires - time.time()  # type: ignore[operator]
-			print(remain)
-			assert remain <= SESSION_MAX_AGE_MAX
-			assert remain >= SESSION_MAX_AGE_MAX - 5
+			# Session cookie
+			assert cookie.expires is None
 
 		time.sleep(6)
 		res = test_client.get("/admin/")

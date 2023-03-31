@@ -77,7 +77,6 @@ ACCESS_ROLE_AUTHENTICATED = "authenticated"
 ACCESS_ROLE_ADMIN = "admin"
 SESSION_COOKIE_NAME = "opsiconfd-session"
 SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
-SESSION_MAX_AGE_MAX = 3600 * 24 * 365  # One year
 MESSAGEBUS_IN_USE_TIMEOUT = 40
 # Zsync2 will send "curl/<curl-version>" as User-Agent.
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
@@ -817,12 +816,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			attrs += "; "
 
 		# A zero or negative number will expire the cookie immediately
-		max_age = self.max_age
+		max_age = f"; Max-Age={self.max_age}"
 		if self.deleted:
-			max_age = 0
+			max_age = "; Max-Age=0"
 		if self.in_use_by_messagebus:
-			max_age = SESSION_MAX_AGE_MAX
-		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={max_age}"
+			# Session cookie
+			max_age = ""
+		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/{max_age}"
 
 	def add_cookie_to_headers(self, headers: dict[str, str]) -> None:
 		cookie = self.get_cookie()

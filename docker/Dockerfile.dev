@@ -7,7 +7,7 @@ ARG UID
 ENV DOCKER_ENV=${DOCKER_ENV} \
 	DEV_USER=${USER} \
 	DEV_UID=${UID} \
-	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_9.0/ \
+	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_10/ \
 	# python:
 	PYTHONFAULTHANDLER=1 \
 	PYTHONUNBUFFERED=1 \
@@ -36,10 +36,11 @@ RUN apt-get update \
 		nano \
 		netcat \
 		supervisor \
-	&& echo "deb https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list \
-	&& wget -q -O - https://packages.grafana.com/gpg.key | apt-key add - \
-	&& echo "deb $OPSI_REPO /" > /etc/apt/sources.list.d/opsi.list \
-	&& wget -q -O - ${OPSI_REPO}Release.key | apt-key add - \
+	&& mkdir -p /usr/local/share/keyrings \
+	&& wget -q -O - https://packages.grafana.com/gpg.key | gpg --dearmor > /usr/local/share/keyrings/grafana.gpg \
+	&& echo "deb [signed-by=/usr/local/share/keyrings/grafana.gpg] https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list \
+	&& wget -q -O - ${OPSI_REPO}Release.key | gpg --dearmor > /usr/local/share/keyrings/opsi.gpg \
+	&& echo "deb [signed-by=/usr/local/share/keyrings/opsi.gpg] ${OPSI_REPO} /" > /etc/apt/sources.list.d/opsi.list \
 	&& apt-get update \
 	&& apt-get --yes install \
 		apt-transport-https \

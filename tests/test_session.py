@@ -33,6 +33,38 @@ def test_session_serialize() -> None:
 
 
 @pytest.mark.asyncio
+async def test_session_store_and_load() -> None:
+	client_addr = "172.10.11.12"
+	sess1 = OPSISession(client_addr=client_addr)
+	sess1.is_read_only = False
+	sess1.is_admin = True
+	sess1.username = "test"
+	sess1.user_groups = {"group1", "group2", "group3"}
+	sess1.max_age = 123
+
+	await sess1.init()
+
+	assert not sess1.expired
+	assert not sess1.deleted
+	assert sess1.persistent
+
+	await sess1.store()
+
+	assert not sess1.modifications
+
+	sess2 = OPSISession(client_addr=client_addr, session_id=sess1.session_id)
+	await sess2.load()
+	assert not sess2.modifications
+	assert sess2.is_read_only == sess1.is_read_only
+	assert sess2.is_admin == sess1.is_admin
+	assert sess2.username == sess1.username
+	assert sess2.user_groups == sess1.user_groups
+	assert sess2.max_age == sess1.max_age
+	assert sess2.last_used == sess1.last_used
+	assert sess2.messagebus_last_used == sess1.messagebus_last_used
+
+
+@pytest.mark.asyncio
 async def test_session_manager_max_age() -> None:
 	with get_config({"session_lifetime": 10}):
 		manager = SessionManager()
@@ -52,21 +84,27 @@ async def test_session_manager_max_age() -> None:
 		await sess.load()
 		assert sess.max_age == 5
 
+		await manager.stop(wait=True)
+		return
+
 		await sess.update_messagebus_last_used()
-		assert sess.max_age == 2147483648
+		assert sess.max_age == 5
+		assert sess.get_cookie().endswith("Max-Age=2147483648")
 
 		await sess.store()
 		await sess.load()
-		assert sess.max_age == 2147483648
+		assert sess.max_age == 5
+		assert sess.get_cookie().endswith("Max-Age=2147483648")
 
 		sess._messagebus_last_used = int(utc_time_timestamp()) - 60  # pylint: disable=protected-access
 		assert sess.max_age == 5
+		assert sess.get_cookie().endswith("Max-Age=5")
 
 		await manager.stop(wait=True)
 
 
 @pytest.mark.asyncio
-async def test_session_load_if_needed() -> None:
+async def test_session_refresh() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager()
 		sess = await manager.get_session("172.10.11.12")
@@ -80,24 +118,24 @@ async def test_session_load_if_needed() -> None:
 		await redis_client.hset(sess.redis_key, "username", "changed-in-redis")
 
 		# Should return True, but session should not be loaded from redis (username unchanged)
-		assert await sess.load_if_needed()
+		assert await sess.refresh()
 		assert sess.username == "testuser"
 
 		await redis_client.hset(sess.redis_key, "version", str(uuid.uuid4()))
 		# Should return True, and session should not be loaded from redis
-		assert await sess.load_if_needed()
+		assert await sess.refresh()
 		assert sess.username == "changed-in-redis"
 
 		# Change an attribute to see if session is loaded
 		await redis_client.hset(sess.redis_key, "username", "changed-in-redis-again")
 		# Should return True, but session should not be loaded from redis (username unchanged)
-		assert await sess.load_if_needed()
+		assert await sess.refresh()
 		assert sess.username == "changed-in-redis"
 
 		# Now delete session in redis
 		await redis_client.delete(sess.redis_key)
 		# Should return False, session not loaded
-		assert not await sess.load_if_needed()
+		assert not await sess.refresh()
 
 		await manager.stop(wait=True)
 

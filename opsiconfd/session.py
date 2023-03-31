@@ -410,16 +410,13 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 		if self._should_stop:
 			raise RuntimeError("Shutting down")
 
-		if not self._manager_task:
-			self._manager_task = asyncio.create_task(self.manager_task())
-
 		session: OPSISession | None = None
 		if session_id:
 			session = self.sessions.get(session_id)
 
 		if session_id and session:
-			load_ok = await session.load_if_needed()
-			if not load_ok or session.expired or session.client_addr != client_addr:
+			refresh_ok = await session.refresh()
+			if not refresh_ok or session.expired or session.client_addr != client_addr:
 				del self.sessions[session_id]
 				session_id = None
 				session = None
@@ -662,10 +659,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 
 	@property
 	def max_age(self) -> int:
-		if self.deleted:
-			return 0
-		if self.in_use_by_messagebus:
-			return 2147483648
 		return self._max_age
 
 	@max_age.setter
@@ -798,10 +791,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 					val = None  # type: ignore
 			elif attr == "user_groups":
 				val = set(msgspec.msgpack.decode(val))  # type: ignore
+			elif attr in ("authenticated", "is_admin", "is_read_only"):
+				val = bool(int(val))
 			elif isinstance(val, bytes):
 				val = val.decode("utf-8")
-			elif attr in ("authenticated", "is_admin", "is_read_only"):
-				val = bool(val)
 			des[attr] = val
 		return des
 
@@ -821,7 +814,12 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			attrs += "; "
 
 		# A zero or negative number will expire the cookie immediately
-		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"
+		max_age = self.max_age
+		if self.deleted:
+			max_age = 0
+		if self.in_use_by_messagebus:
+			max_age = 2147483648
+		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={max_age}"
 
 	def add_cookie_to_headers(self, headers: dict[str, str]) -> None:
 		cookie = self.get_cookie()
@@ -839,20 +837,22 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 	def in_use_by_messagebus(self) -> bool:
 		return int(utc_time_timestamp()) - self._messagebus_last_used < 40
 
-	def _load_if_needed(self) -> bool:
+	def _refresh(self) -> bool:
 		with redis_client() as redis:
 			version = redis.hget(self.redis_key, b"version")
 			if not version:
 				# Deleted
 				return False
-			if version.decode("utf-8") == self.version:
-				# Version matches => cache up to date
-				return True
+		version_str = version.decode("utf-8")
+		if version_str == self.version:
+			logger.debug("Version %s unchanged, cache up-to-date", self.version)
+			return True
+		logger.debug("Version %s changed to %s, reload", self.version, version_str)
 		return self._load()
 
-	async def load_if_needed(self) -> bool:
+	async def refresh(self) -> bool:
 		# aioredis is sometimes slow ~300ms load, using redis for now
-		return await run_in_threadpool(self._load_if_needed)
+		return await run_in_threadpool(self._refresh)
 
 	def _load(self) -> bool:
 		logger.debug("Load session")
@@ -875,6 +875,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		if not self.last_stored:
 			self.last_stored = int(utc_time_timestamp())
 
+		self._modifications = {}
 		return True
 
 	async def load(self) -> bool:
@@ -885,8 +886,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		if self.deleted or self.expired or not self.persistent:
 			return
 		logger.debug("Store session")
-		if not self.version:
-			self.version = str(uuid.uuid4())
+		self.version = str(uuid.uuid4())
 		self.last_stored = int(utc_time_timestamp())
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.

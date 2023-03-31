@@ -222,6 +222,8 @@ class Worker(WorkerInfo, UvicornServer):
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)
 
+		asyncio_create_task(session_manager.manager_task())
+
 		await self.store_state_in_redis()
 
 		app.register_app_state_handler(self.on_app_state_change)

@@ -657,7 +657,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 						)
 				elif available_version == "0.0":
 					logger.notice("Could not find product %r on repository %s.", product_id, OPSI_REPO)
-					logger.notice("Removing product %r from checked list.")
+					logger.notice("Removing product %r from checked list.", product_id)
 					packages_not_on_repo.append(product_id)
 					continue
 				else:

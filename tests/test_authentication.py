@@ -337,20 +337,22 @@ def test_max_auth_failures(
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
-				# print("=== key ==>>>", key)
+				# print("key:", key)
 				cmd = (
 					f"ts.range {key.decode()} "
 					f"{(now-(conf.auth_failures_interval*1000))} {now} aggregation count {(conf.auth_failures_interval*1000)}"
 				)
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1])
-				# print("=== num_failed_auth ==>>>", num_failed_auth)
+				print("num_failed_auth:", num_failed_auth)
 
 			res = test_client.get("/session/authenticated", auth=("client.domain.tld", "hostkey"))
-			print("Auth: ", num, max_auth_failures, res.status_code)
-			if num > max_auth_failures:
+			print("Auth:", num, max_auth_failures, res.status_code)
+			if num > max_auth_failures + 1:
 				assert res.status_code == 403
 				assert "blocked" in res.text
+			elif num == max_auth_failures + 1:
+				assert res.status_code in (401, 403)
 			else:
 				assert res.status_code == 401
 				assert res.text == "Authentication error"

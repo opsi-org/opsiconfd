@@ -531,9 +531,12 @@ def create_index(session: Session, database: str, table: str, index: str, column
 		elif sorted(cols) == sorted(columns):
 			# Same colums in wrong order
 			wrong_indexes.append(name)
+		elif name == index:
+			# Primary INDEX with wrong columns
+			wrong_indexes.append(name)
 
-	while len(correct_indexes) > 1:
-		wrong_indexes.append(correct_indexes.pop())
+	logger.debug("Correct indexes: %s", correct_indexes)
+	logger.debug("Wrong indexes: %s", wrong_indexes)
 
 	for wrong_index in wrong_indexes:
 		try:

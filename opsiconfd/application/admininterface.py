@@ -26,6 +26,7 @@ from fastapi.routing import APIRoute, Mount
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
+from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import __version__, contextvar_client_session
@@ -325,7 +326,12 @@ async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
 	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*"):
-		session = await redis.hgetall(redis_key)
+		try:
+			session = await redis.hgetall(redis_key)
+		except ResponseError as err:
+			logger.warning(err)
+			continue
+
 		if not session:
 			continue
 

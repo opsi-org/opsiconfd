@@ -34,34 +34,52 @@ def test_session_serialize() -> None:
 
 @pytest.mark.asyncio
 async def test_session_store_and_load() -> None:
-	client_addr = "172.10.11.12"
-	sess1 = OPSISession(client_addr=client_addr)
-	sess1.is_read_only = False
-	sess1.is_admin = True
-	sess1.username = "test"
-	sess1.user_groups = {"group1", "group2", "group3"}
-	sess1.max_age = 123
+	async with async_redis_client() as redis_client:
+		client_addr = "172.10.11.12"
+		sess1 = OPSISession(client_addr=client_addr)
+		sess1.is_read_only = False
+		sess1.is_admin = True
+		sess1.username = "test"
+		sess1.user_groups = {"group1", "group2", "group3"}
+		sess1.max_age = 123
 
-	await sess1.init()
+		await sess1.init()
 
-	assert not sess1.expired
-	assert not sess1.deleted
-	assert sess1.persistent
+		assert not sess1.expired
+		assert not sess1.deleted
+		assert sess1.persistent
 
-	await sess1.store()
+		await sess1.store()
 
-	assert not sess1.modifications
+		assert not sess1.modifications
 
-	sess2 = OPSISession(client_addr=client_addr, session_id=sess1.session_id)
-	await sess2.load()
-	assert not sess2.modifications
-	assert sess2.is_read_only == sess1.is_read_only
-	assert sess2.is_admin == sess1.is_admin
-	assert sess2.username == sess1.username
-	assert sess2.user_groups == sess1.user_groups
-	assert sess2.max_age == sess1.max_age
-	assert sess2.last_used == sess1.last_used
-	assert sess2.messagebus_last_used == sess1.messagebus_last_used
+		sess2 = OPSISession(client_addr=client_addr, session_id=sess1.session_id)
+		await sess2.load()
+		assert not sess2.modifications
+		assert sess2.is_read_only == sess1.is_read_only
+		assert sess2.is_admin == sess1.is_admin
+		assert sess2.username == sess1.username
+		assert sess2.user_groups == sess1.user_groups
+		assert sess2.max_age == sess1.max_age
+		assert sess2.last_used == sess1.last_used
+		assert sess2.messagebus_last_used == sess1.messagebus_last_used
+
+		await redis_client.delete(sess2.redis_key)
+		await sleep(1)
+		await sess2.update_last_used()
+		assert list(sess2.modifications) == ["last_used"]
+		await sess2.store(wait=True, modifications_only=True)
+
+		sess3 = OPSISession(client_addr=client_addr, session_id=sess1.session_id)
+		await sess3.load()
+		assert not sess3.modifications
+		assert sess3.is_read_only == sess2.is_read_only
+		assert sess3.is_admin == sess2.is_admin
+		assert sess3.username == sess2.username
+		assert sess3.user_groups == sess2.user_groups
+		assert sess3.max_age == sess2.max_age
+		assert sess3.last_used == sess2.last_used
+		assert sess3.messagebus_last_used == sess2.messagebus_last_used
 
 
 @pytest.mark.asyncio

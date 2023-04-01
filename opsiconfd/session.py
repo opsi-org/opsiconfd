@@ -897,10 +897,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		# changed by another worker process since the last load.
 		with redis_client() as redis:
 			data = self.serialize()
-			if modifications_only:
+			if modifications_only and redis.exists(self.redis_key):
 				data = {a: v for a, v in data.items() if a in self._modifications}
-			redis.hset(self.redis_key, mapping=data)  # type: ignore
-			redis.expire(self.redis_key, self._redis_expiration_seconds)
+			with redis.pipeline() as pipe:
+				pipe.hset(self.redis_key, mapping=data)  # type: ignore
+				pipe.expire(self.redis_key, self._redis_expiration_seconds)
+				pipe.execute()
+
 		self._modifications = {}
 
 	async def store(self, wait: bool = True, modifications_only: bool = False) -> None:

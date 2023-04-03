@@ -395,7 +395,7 @@ async def get_locked_products_list() -> RESTResponse:
 	return RESTResponse(products)
 
 
-async def _unlock_product(product, depots=None) -> RESTResponse:
+async def _unlock_product(product: str, depots: list[str] | None = None) -> RESTResponse:
 	backend = get_unprotected_backend()
 
 	try:

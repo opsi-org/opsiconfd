@@ -395,16 +395,9 @@ async def get_locked_products_list() -> RESTResponse:
 	return RESTResponse(products)
 
 
-@admin_interface_router.post("/products/{product}/unlock")
-@rest_api
-async def unlock_product(request: Request, product: str) -> RESTResponse:
+async def _unlock_product(product, depots=None) -> RESTResponse:
 	backend = get_unprotected_backend()
-	depots = None
-	try:
-		request_body = await request.json()
-		depots = request_body.get("depots", None)
-	except json.decoder.JSONDecodeError:
-		pass
+
 	try:
 		await run_in_threadpool(backend.unlockProduct, product, depots)  # pylint: disable=no-member
 		return RESTResponse({"product": product, "action": "unlock"})
@@ -417,9 +410,19 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 		)
 
 
-@admin_interface_router.post("/products/unlock")
+@admin_interface_router.post("/products/{product}/unlock")
 @rest_api
-async def unlock_all_product() -> RESTResponse:
+async def unlock_product(request: Request, product: str) -> RESTResponse:
+
+	try:
+		request_body = await request.json()
+		depots = request_body.get("depots", None)
+	except json.decoder.JSONDecodeError:
+		pass
+	return await _unlock_product(product, depots)
+
+
+async def _unlock_all_product() -> RESTResponse:
 	backend = get_unprotected_backend()
 	try:
 		for product in set(
@@ -430,6 +433,12 @@ async def unlock_all_product() -> RESTResponse:
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
 		return RESTErrorResponse(message="Error while unlocking products", details=err)
+
+
+@admin_interface_router.post("/products/unlock")
+@rest_api
+async def unlock_all_product() -> RESTResponse:
+	return await _unlock_all_product()
 
 
 @admin_interface_router.get("/blocked-clients", response_model=list[str])

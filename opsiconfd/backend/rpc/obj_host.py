@@ -175,6 +175,7 @@ class RPCHostMixin(Protocol):
 		oneTimePassword: str | None = None,  # pylint: disable=unused-argument
 		created: str | None = None,  # pylint: disable=unused-argument
 		lastSeen: str | None = None,  # pylint: disable=unused-argument
+		systemUUID: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

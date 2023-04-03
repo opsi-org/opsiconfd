@@ -100,7 +100,7 @@ def test_check_opsiconfd_config() -> None:
 			if partial_result.check_id == "opsiconfd_config:log-level-stderr":
 				ids_found += 1
 				assert partial_result.check_status == CheckStatus.ERROR
-				assert partial_result.message == "Log level SECRET is much to high for productive use."
+				assert partial_result.message == "Log level setting 'log-level-stderr=SECRET' is much to high for productive use."
 				assert partial_result.details == {"config": "log-level-stderr", "value": 9}
 			elif partial_result.check_id == "opsiconfd_config:debug-options":
 				assert partial_result.check_status == CheckStatus.ERROR
@@ -425,12 +425,11 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 
 	rpc = {"id": 1, "method": DEPRECATED_METHOD, "params": []}
 	current_dt = datetime.utcnow().astimezone(timezone.utc)
-	with catch_warnings():
+	with mock.patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True), catch_warnings():
 		simplefilter("ignore")
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
 	assert res.status_code == 200
-	time.sleep(3)
 
 	result = check_deprecated_calls()
 

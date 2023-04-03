@@ -323,17 +323,17 @@ def check_opsiconfd_config() -> CheckResult:
 			partial_result = PartialCheckResult(
 				check_id=f"opsiconfd_config:{attribute}",
 				check_name=f"Config {attribute}",
-				message=f"Log level {level_name} is suitable for productive use.",
+				message=f"Log level setting '{attribute}={level_name}' is suitable for productive use.",
 				details={"config": attribute, "value": value},
 			)
 			if value >= LOG_TRACE:
 				issues += 1
 				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = f"Log level {level_name} is much to high for productive use."
+				partial_result.message = f"Log level setting '{attribute}={level_name}' is much to high for productive use."
 			elif value >= LOG_DEBUG:
 				issues += 1
 				partial_result.check_status = CheckStatus.WARNING
-				partial_result.message = f"Log level {level_name} is to high for productive use."
+				partial_result.message = f"Log level setting '{attribute}={level_name}' is to high for productive use."
 			result.add_partial_result(partial_result)
 
 		partial_result = PartialCheckResult(
@@ -657,7 +657,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 						)
 				elif available_version == "0.0":
 					logger.notice("Could not find product %r on repository %s.", product_id, OPSI_REPO)
-					logger.notice("Removing product %r from checked list.")
+					logger.notice("Removing product %r from checked list.", product_id)
 					packages_not_on_repo.append(product_id)
 					continue
 				else:

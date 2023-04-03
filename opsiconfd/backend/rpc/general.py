@@ -18,7 +18,7 @@ import time
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 from opsicommon.exceptions import (  # type: ignore[import]
@@ -89,7 +89,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	opsi_modules_file: str = OPSI_MODULES_FILE
 	opsi_license_path: str = OPSI_LICENSE_DIR
 
-	@rpc_method
+	@rpc_method()
 	def backend_createBase(self) -> None:  # pylint: disable=invalid-name
 		return None
 
@@ -248,7 +248,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self._app.set_app_state(AppState.from_dict(app_state), wait_accomplished=wait_accomplished)
 		return self._app.app_state.to_dict()
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getDomain(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
 		try:
 			client_address = contextvar_client_address.get()
@@ -263,27 +263,9 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		return ".".join(FQDN.split(".")[1:])
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getOpsiCACert(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
 		return get_ca_cert_as_pem()
-
-	# @rpc_method
-	def getData(self: BackendProtocol, query: str) -> Generator[Any, None, None]:  # pylint: disable=invalid-name
-		if not query.lower().strip().startswith(("select", "show", "pragma")):
-			raise ValueError("Only queries to SELECT/SHOW/PRAGMA data are allowed.")
-
-		with self._mysql.session() as session:
-			for row in session.execute(query).fetchall():
-				yield {k: v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v for k, v in dict(row).items()}
-
-	# @rpc_method
-	def getRawData(self: BackendProtocol, query: str) -> Generator[Any, None, None]:  # pylint: disable=invalid-name
-		if not query.lower().strip().startswith(("select", "show", "pragma")):
-			raise ValueError("Only queries to SELECT/SHOW/PRAGMA data are allowed.")
-
-		with self._mysql.session() as session:
-			for row in session.execute(query).fetchall():
-				yield {v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v for v in list(row)}
 
 	def _get_client_info(self: BackendProtocol) -> dict[str, int]:
 		logger.info("%s fetching client info", self)

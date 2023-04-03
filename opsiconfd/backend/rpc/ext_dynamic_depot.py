@@ -218,27 +218,27 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 
 class RPCExtDynamicDepotMixin(Protocol):
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithmByMasterDepotAndLatency(self) -> str:  # pylint: disable=invalid-name
 		return DEPOT_SELECTION_ALGORITHM_BY_MASTER_DEPOT_AND_LATENCY
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithmByLatency(self) -> str:  # pylint: disable=invalid-name
 		return DEPOT_SELECTION_ALGORITHM_BY_LATENCY
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithmByRandom(self) -> str:  # pylint: disable=invalid-name
 		return DEPOT_SELECTION_ALGORITHM_BY_RANDOM
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithmByNetworkAddress(self) -> str:  # pylint: disable=invalid-name
 		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithmByNetworkAddressBestMatch(self) -> str:  # pylint: disable=invalid-name
 		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS_BEST_MATCH
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithm(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
 		"""Returns the selected depot selection algorithm."""
 		mode = "network_address"

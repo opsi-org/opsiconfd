@@ -37,8 +37,9 @@ import sqlalchemy.util.deprecations  # type: ignore[import]
 from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
-from opsicommon.config import OpsiConfig  # type: ignore[import]
-from opsicommon.logging import secret_filter  # type: ignore[import]
+from opsicommon.config import OpsiConfig
+from opsicommon.logging import secret_filter
+from opsicommon.utils import ip_address_in_network
 from opsicommon.system.network import get_fqdn
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
@@ -358,6 +359,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._config.disabled_features = []
 		if not self._config.debug_options:
 			self._config.debug_options = []
+
+		for attr in "networks", "admin_networks":
+			conf = getattr(self._config, attr)
+			add = True
+			for network in conf:
+				if ip_address_in_network("127.0.0.1", network):
+					add = False
+			if add:
+				conf.append("127.0.0.1/32")
 
 	def redis_key(self, prefix_type: str | None = None) -> str:
 		if not prefix_type:

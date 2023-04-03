@@ -37,16 +37,12 @@ async_redis_connection_pool: dict[str, async_redis.ConnectionPool] = {}
 def decode_redis_result(_obj: Any) -> Any:
 	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")
-	elif isinstance(_obj, list):
-		for idx in range(len(_obj)):  # pylint: disable=consider-using-enumerate
-			_obj[idx] = decode_redis_result(_obj[idx])
+	if isinstance(_obj, list):
+		_obj = [decode_redis_result(val) for val in _obj]
 	elif isinstance(_obj, dict):
-		for (key, val) in _obj.items():
-			_obj[decode_redis_result(key)] = decode_redis_result(val)
+		_obj = {decode_redis_result(key): decode_redis_result(val) for key, val in _obj.items()}
 	elif isinstance(_obj, set):
-		for val in _obj:
-			_obj.remove(val)
-			_obj.add(decode_redis_result(val))
+		_obj = {decode_redis_result(val) for val in _obj}
 	return _obj
 
 

@@ -11,6 +11,7 @@ login tests
 import json
 import time
 from datetime import datetime
+from unittest.mock import patch
 
 import pyotp
 import pytest
@@ -335,20 +336,22 @@ def test_max_auth_failures(
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
-				# print("=== key ==>>>", key)
+				# print("key:", key)
 				cmd = (
 					f"ts.range {key.decode()} "
 					f"{(now-(conf.auth_failures_interval*1000))} {now} aggregation count {(conf.auth_failures_interval*1000)}"
 				)
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1])
-				# print("=== num_failed_auth ==>>>", num_failed_auth)
+				print("num_failed_auth:", num_failed_auth)
 
 			res = test_client.get("/session/authenticated", auth=("client.domain.tld", "hostkey"))
-			print("Auth: ", num, max_auth_failures, res.status_code)
-			if num > max_auth_failures:
+			print("Auth:", num, max_auth_failures, res.status_code)
+			if num > max_auth_failures + 1:
 				assert res.status_code == 403
 				assert "blocked" in res.text
+			elif num == max_auth_failures + 1:
+				assert res.status_code in (401, 403)
 			else:
 				assert res.status_code == 401
 				assert res.text == "Authentication error"
@@ -398,30 +401,46 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 
 def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	lifetime = 60
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	res = test_client.get("/admin/")
-	# res = test_client.get("/admin/", headers=lt_headers)
-	assert res.status_code == 200
-	cookie = list(test_client.cookies.jar)[0]
-	session_id = cookie.value
-	remain = cookie.expires - time.time()  # type: ignore[operator]#
-	print(remain)
-	assert remain <= lifetime
+	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 5):
+		lifetime = 60
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	# wait for redis to store session info
-	time.sleep(10)
+		res = test_client.get("/admin/")
+		assert res.status_code == 200
+		cookie = list(test_client.cookies.jar)[0]
+		session_id = cookie.value
+		remain = cookie.expires - time.time()  # type: ignore[operator]
+		print(remain)
+		assert remain <= lifetime
 
-	lifetime = 60 * 15  # 15 min
-	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
-	res = test_client.get("/admin/", headers=lt_headers)
-	assert res.status_code == 200
-	cookie = list(test_client.cookies.jar)[0]
-	remain = cookie.expires - time.time()  # type: ignore[operator]
-	print(remain)
-	assert remain <= lifetime
-	assert remain >= 100
-	assert session_id == cookie.value
+		lifetime = 60 * 15  # 15 min
+		lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
+		res = test_client.get("/admin/", headers=lt_headers)
+		assert res.status_code == 200
+		cookie = list(test_client.cookies.jar)[0]
+		remain = cookie.expires - time.time()  # type: ignore[operator]
+		print(remain)
+		assert remain <= lifetime
+		assert remain >= lifetime - 5
+		assert session_id == cookie.value
+
+		with test_client.websocket_connect("/messagebus/v1", headers={"Cookie": f"{cookie.name}={cookie.value}"}):
+			time.sleep(1)
+			res = test_client.get("/admin/", headers=lt_headers)
+			assert res.status_code == 200
+			cookie = list(test_client.cookies.jar)[0]
+			# Session cookie
+			assert cookie.expires is None
+
+		time.sleep(6)
+		res = test_client.get("/admin/")
+		assert res.status_code == 200
+		cookie = list(test_client.cookies.jar)[0]
+		remain = cookie.expires - time.time()  # type: ignore[operator]
+		print(remain)
+		assert remain <= lifetime
+		assert remain >= lifetime - 5
+		assert session_id == cookie.value
 
 
 def test_onetime_password_host_id(

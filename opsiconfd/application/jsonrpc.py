@@ -312,7 +312,7 @@ async def execute_rpc(request: JSONRPC20Request | JSONRPCRequest, backend: Unpro
 
 	if method_interface.deprecated:
 		warnings.warn(f"Client {request.info.client} is calling deprecated method {method_name!r}", DeprecationWarning)
-		request.info.deprecated = method_interface.deprecated
+		request.info.deprecated = True
 
 	with server_timing("deserialize_objects"):
 		keywords = {}

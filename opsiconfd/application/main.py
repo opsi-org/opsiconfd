@@ -63,6 +63,7 @@ from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware
 from opsiconfd.ssl import get_ca_cert_as_pem
 from opsiconfd.utils import normalize_ip_address
+from opsiconfd.worker import Worker
 
 PATH_MAPPINGS = {
 	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
@@ -209,6 +210,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 class BaseMiddleware:  # pylint: disable=too-few-public-methods
 	def __init__(self, app: FastAPI) -> None:  # pylint: disable=redefined-outer-name
 		self.app = app
+		self.worker_id = Worker.get_instance().id.encode("utf-8")
 
 	@staticmethod
 	def get_client_address(scope: Scope) -> tuple[str | None, int]:
@@ -222,7 +224,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 	def before_send(scope: Scope, receive: Receive, send: Send) -> None:
 		pass
 
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-statements
 		if scope["type"] not in ("http", "websocket"):
 			return await self.app(scope, receive, send)
 
@@ -323,6 +325,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				dat = get_server_date()
 				message["headers"].append((b"date", dat[1]))
 				message["headers"].append((b"x-date-unix-timestamp", dat[0]))
+				message["headers"].append((b"x-opsi-worker-id", self.worker_id))
 			await send(message)
 
 		return await self.app(scope, receive, send_wrapper)

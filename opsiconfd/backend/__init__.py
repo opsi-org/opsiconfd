@@ -82,6 +82,8 @@ def get_service_client(name: str = "") -> ServiceClient:
 
 			service_client = new_service_client(user_agent)
 			service_client.messagebus.threaded_callbacks = False
+			service_client.messagebus.reconnect_wait_min = 15
+			service_client.messagebus.reconnect_wait_max = 30
 			service_client.connect()
 			service_client.connect_messagebus()
 			service_clients[name] = service_client

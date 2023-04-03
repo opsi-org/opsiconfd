@@ -199,6 +199,18 @@ select {
 	overflow-wrap: break-word;
 }
 
+.mfa-active {
+	color: #40853d;
+}
+
+.mfa-inactive-warn {
+	color: #ce714d;
+}
+
+.user-connected {
+	color: #40853d;
+}
+
 .addon-table {
 	table-layout: auto;
 	background-color: #eeeeee;
@@ -226,7 +238,6 @@ select {
 	overflow: hidden;
 	border: 1px solid #cccccc;
 	background-color: #f1f1f1;
-	height: 40px;
 }
 
 /* Style the buttons that are used to open the tab content */

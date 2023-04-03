@@ -26,6 +26,7 @@ from fastapi.routing import APIRoute, Mount
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
+from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import __version__, contextvar_client_session
@@ -48,8 +49,9 @@ from opsiconfd.redis import (
 	ip_address_to_redis_key,
 )
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
+from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
-from opsiconfd.utils import get_manager_pid, utc_time_timestamp
+from opsiconfd.utils import get_manager_pid
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -330,29 +332,59 @@ async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
 	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*"):
-		data = await redis.get(redis_key)
-		if not data:
+		try:
+			session = await redis.hgetall(redis_key)
+		except ResponseError as err:
+			logger.warning(err)
 			continue
-		session = msgspec.msgpack.decode(data)
-		tmp = redis_key.decode().split(":")
-		validity = session["max_age"] - (utc_time_timestamp() - session["last_used"])
-		if validity <= 0:
+
+		if not session:
+			continue
+
+		tmp = redis_key.decode("utf-8").rsplit(":", 2)
+		client_addr = ip_address_from_redis_key(tmp[-2])
+		sess = OPSISession(client_addr=client_addr, session_id=tmp[-1])
+		await sess.load()
+		if sess.expired:
 			continue
 		session_list.append(
 			{
-				"created": session["created"],
-				"last_used": session["last_used"],
-				"validity": validity,
-				"max_age": session["max_age"],
-				"user_agent": session["user_agent"],
-				"authenticated": session["authenticated"],
-				"username": session["username"],
-				"address": ip_address_from_redis_key(tmp[-2]),
-				"session_id": tmp[-1][:6] + "opsiconfd..",
+				"created": sess.created,
+				"last_used": sess.last_used,
+				"messagebus_last_used": sess.messagebus_last_used,
+				"validity": sess.validity,
+				"max_age": sess.max_age,
+				"user_agent": sess.user_agent,
+				"authenticated": sess.authenticated,
+				"username": sess.username,
+				"address": client_addr,
+				"session_id": tmp[-1][:6] + "...",
 			}
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))
 	return RESTResponse(session_list)
+
+
+@admin_interface_router.get("/user-list")
+@rest_api
+async def get_user_list() -> RESTResponse:
+	backend = get_unprotected_backend()
+	connected_user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
+	user_list = []
+	for user in await run_in_threadpool(backend.user_getObjects):
+		user_dict = {k: v for k, v in user.to_hash().items() if k != "otpSecret"}
+		user_dict["connectedToMessagebus"] = user.id in connected_user_ids
+		user_list.append(user_dict)
+	return RESTResponse(user_list)
+
+
+@admin_interface_router.post("/update-multi-factor-auth")
+@rest_api
+async def update_multi_factor_auth(request: Request) -> RESTResponse:
+	params = await request.json()
+	backend = get_unprotected_backend()
+	res = await run_in_threadpool(backend.user_updateMultiFactorAuth, params.get("user_id"), params.get("type"), "qrcode")
+	return RESTResponse(res)
 
 
 @admin_interface_router.get("/locked-products-list", response_model=list[str])

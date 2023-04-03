@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def updateWIMConfig(self: BackendProtocol, productId: str) -> None:  # pylint: disable=invalid-name
 		"""
 		Update the configuration of a Windows netboot product based on the information in it's install.wim.
@@ -67,7 +67,7 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 
 		self.updateWIMConfigFromPath(wim_path, product_id)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def updateWIMConfigFromPath(self: BackendProtocol, path: str, targetProductId: str) -> None:  # pylint: disable=invalid-name
 		"""
 		Update the configuration of `targetProductId` based on the information in the install.wim at the given `path`.

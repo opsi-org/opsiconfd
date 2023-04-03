@@ -376,8 +376,6 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 					sender="@", channel=back_channel, terminal_id=terminal_id, data=b"echo test\r"
 				)
 				websocket.send_bytes(terminal_data_write.to_msgpack())
-				sleep(3)
-
 				reader.wait_for_message(count=1)
 
 				responses = sorted(

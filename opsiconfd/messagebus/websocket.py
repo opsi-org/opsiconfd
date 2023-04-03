@@ -12,7 +12,7 @@ import traceback
 from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from time import time
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -89,9 +89,9 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		self._messagebus_worker_id = get_user_id_for_service_worker(self._worker.id)
 		self._messagebus_user_id = ""
 		self._session_channel = ""
-		self._compression: Union[str, None] = None
+		self._compression: str | None = None
 		self._messagebus_reader: list[MessageReader] = []
-		self._manager_task = Union[Task, None]
+		self._manager_task: Task | None = None
 		self._message_decoder = msgspec.msgpack.Decoder()
 
 	@property
@@ -125,14 +125,17 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			pass
 
 	async def manager_task(self, websocket: WebSocket) -> None:
-		update_session_interval = 5.0
-		update_session_time = time()
-		while websocket.client_state == WebSocketState.CONNECTED:
-			await sleep(1.0)
-			now = time()
-			if update_session_time + update_session_interval <= now:
-				update_session_time = now
-				await self.scope["session"].update_last_used()
+		try:
+			update_session_interval = 5.0
+			update_session_time = 0.0
+			while websocket.client_state == WebSocketState.CONNECTED:
+				now = time()
+				if now >= update_session_time + update_session_interval:
+					update_session_time = now
+					await self.scope["session"].update_messagebus_last_used()
+				await sleep(1.0)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
 
 	async def message_reader_task(self, websocket: WebSocket, reader: MessageReader) -> None:
 		ack_all_messages = isinstance(reader, ConsumerGroupMessageReader)
@@ -384,7 +387,6 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			event="",
 			data={
 				"client_address": session.client_addr,
-				"client_port": session.client_port,
 				"worker": self._worker.id,
 			},
 		)
@@ -408,7 +410,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			if not connected:
 				event.event = "user_connected"
 				event.channel = "event:user_connected"
-				event.data["user"] = {"username": session.username}
+				event.data["user"] = {"id": session.username, "username": session.username}
 		else:
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session")
 
@@ -438,7 +440,6 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			event="",
 			data={
 				"client_address": session.client_addr,
-				"client_port": session.client_port,
 				"worker": self._worker.id,
 			},
 		)
@@ -459,7 +460,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			if not connected:
 				event.event = "user_disconnected"
 				event.channel = "event:user_disconnected"
-				event.data["user"] = {"username": session.username}
+				event.data["user"] = {"id": session.username, "username": session.username}
 				await send_message(event)
 
 		# Wait for task to finish to prevent that task is ended by garbage collector

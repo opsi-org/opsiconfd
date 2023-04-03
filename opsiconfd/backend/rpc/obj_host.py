@@ -175,6 +175,7 @@ class RPCHostMixin(Protocol):
 		oneTimePassword: str | None = None,  # pylint: disable=unused-argument
 		created: str | None = None,  # pylint: disable=unused-argument
 		lastSeen: str | None = None,  # pylint: disable=unused-argument
+		systemUUID: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -201,6 +202,7 @@ class RPCHostMixin(Protocol):
 		masterDepotId: str | None = None,  # pylint: disable=unused-argument
 		workbenchLocalUrl: str | None = None,  # pylint: disable=unused-argument
 		workbenchRemoteUrl: str | None = None,  # pylint: disable=unused-argument
+		systemUUID: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -227,6 +229,7 @@ class RPCHostMixin(Protocol):
 		masterDepotId: str | None = None,  # pylint: disable=unused-argument
 		workbenchLocalUrl: str | None = None,  # pylint: disable=unused-argument
 		workbenchRemoteUrl: str | None = None,  # pylint: disable=unused-argument
+		systemUUID: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

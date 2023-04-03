@@ -77,7 +77,8 @@ def test_str2bool(value: Any, expexted_value: bool) -> None:
 		(["--backend-config-dir", "/test"], "backend_config_dir", "/test"),
 		(["--dispatch-config-file", "/filename"], "dispatch_config_file", "/filename"),
 		(["--extension-config-dir", "/test"], "extension_config_dir", "/test"),
-		(["--admin-networks", "10.10.10.0/24", "10.10.20.0/24"], "admin_networks", ["10.10.10.0/24", "10.10.20.0/24"]),
+		(["--networks", "10.10.10.0/24", "10.10.20.0/24"], "networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
+		(["--admin-networks", "10.10.10.0/24", "10.10.20.0/24"], "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
 		(["--symlink-logs"], "symlink_logs", True),
 	],
 )
@@ -92,7 +93,7 @@ def test_cmdline(arguments: list[str], config_name: str, expexted_value: Any) ->
 		("OPSICONFD_BACKEND_CONFIG_DIR", "/test", "backend_config_dir", "/test"),
 		("OPSICONFD_DISPATCH_CONFIG_FILE", "/filename", "dispatch_config_file", "/filename"),
 		("OPSICONFD_EXTENSION_CONFIG_DIR", "/test", "extension_config_dir", "/test"),
-		("OPSICONFD_ADMIN_NETWORKS", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24"]),
+		("OPSICONFD_ADMIN_NETWORKS", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
 		("OPSICONFD_SYMLINK_LOGS", "yes", "symlink_logs", True),
 		("OPSICONFD_SSL_CA_KEY_PASSPHRASE", "", "ssl_ca_key_passphrase", None),
 		("OPSICONFD_SSL_SERVER_KEY_PASSPHRASE", "", "ssl_server_key_passphrase", None),
@@ -113,7 +114,7 @@ def test_environment_vars(varname: str, value: str, config_name: str, expexted_v
 		("backend-config-dir", "/test", "backend_config_dir", "/test"),
 		("dispatch-config-file", "/filename", "dispatch_config_file", "/filename"),
 		("extension-config-dir", "/test", "extension_config_dir", "/test"),
-		("admin-networks", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24"]),
+		("admin-networks", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
 		("symlink-logs", "1", "symlink_logs", True),
 		("symlink-logs", "false", "symlink_logs", False),
 		("symlink-logs", "no", "symlink_logs", False),
@@ -212,7 +213,7 @@ def test_upgrade_config_files(tmp_path: Path) -> None:
 		assert conf.backend_config_dir == "/backend/config/dir"
 		assert conf.extension_config_dir == "/extension/config/dir"
 		assert conf.acl_file == "/acl/file"
-		assert conf.admin_networks == ["10.10.0.0/16"]
+		assert conf.admin_networks == ["10.10.0.0/16", "127.0.0.1/32"]
 		assert conf.log_file == "/log/file"
 		assert conf.symlink_logs is False
 		assert conf.log_level == 1

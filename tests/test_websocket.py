@@ -9,9 +9,10 @@ test websocket
 """
 
 import time
-from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
+
+from opsiconfd.session import session_manager
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -25,7 +26,9 @@ from .utils import (  # pylint: disable=unused-import
 
 
 def test_websocket_keep_session_valid(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	with patch("opsiconfd.session.OPSISession._store_interval", 1):
+	session_store_interval_orig = session_manager._session_store_interval  # pylint: disable=protected-access
+	session_manager._session_store_interval = 1  # pylint: disable=protected-access
+	try:
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		headers = {"x-opsi-session-lifetime": "5"}
 		response = test_client.get("/session/authenticated", headers=headers)
@@ -56,3 +59,5 @@ def test_websocket_keep_session_valid(test_client: OpsiconfdTestClient) -> None:
 		time.sleep(6)
 		response = test_client.get("/session/authenticated", headers=headers)
 		assert response.status_code == 401
+	finally:
+		session_manager._session_store_interval = session_store_interval_orig  # pylint: disable=protected-access

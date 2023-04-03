@@ -114,7 +114,6 @@ async def admin_interface_index(request: Request) -> Response:
 		"num_servers": get_num_servers(),
 		"num_clients": get_num_clients(),
 		"disabled_features": config.disabled_features,
-		"multi_factor_auth": config.multi_factor_auth,
 		"addons": [
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 			for addon in AddonManager().addons
@@ -143,13 +142,12 @@ async def set_app_state(request: Request) -> RESTResponse:
 	return RESTResponse(data=request.app.app_state.to_dict())
 
 
-@admin_interface_router.get("/messagebus-connected-clients")
+@admin_interface_router.get("/messagebus-connected-hosts")
 @rest_api
-async def get_messagebus_connected_clients() -> RESTResponse:
-	depot_ids = [u async for u in get_websocket_connected_users(user_type="depot")]
-	client_ids = [u async for u in get_websocket_connected_users(user_type="client")]
-	user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
-	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids})
+async def get_messagebus_connected_hosts() -> RESTResponse:
+	depot_ids = [h async for h in get_websocket_connected_users(user_type="depot")]
+	client_ids = [h async for h in get_websocket_connected_users(user_type="client")]
+	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids})
 
 
 @admin_interface_router.post("/reload")
@@ -162,29 +160,48 @@ async def reload() -> RESTResponse:
 	return RESTResponse("reload sent")
 
 
+async def _unblock_all_clients() -> dict:
+	redis = await async_redis_client()
+	clients = set()
+	deleted_keys = set()
+	async with redis.pipeline(transaction=False) as pipe:
+		for base_key in (f"{config.redis_key('stats')}:client:failed_auth", f"{config.redis_key('stats')}:client:blocked"):
+			async for key in redis.scan_iter(f"{base_key}:*"):
+				key_str = key.decode("utf8")
+				deleted_keys.add(key_str)
+				client = ip_address_from_redis_key(key_str.split(":")[-1])
+				clients.add(client)
+				logger.debug("redis key to delete: %s", key_str)
+				await pipe.delete(key)  # type: ignore[attr-defined]
+		await pipe.execute()  # type: ignore[attr-defined]
+	return {"clients": list(clients), "redis-keys": list(deleted_keys)}
+
+
 @admin_interface_router.post("/unblock-all")
 @rest_api
 async def unblock_all_clients() -> RESTResponse:
-	redis = await async_redis_client()
 
 	try:
-		clients = set()
-		deleted_keys = set()
-		async with redis.pipeline(transaction=False) as pipe:
-			for base_key in (f"{config.redis_key('stats')}:client:failed_auth", f"{config.redis_key('stats')}:client:blocked"):
-
-				async for key in redis.scan_iter(f"{base_key}:*"):
-					key_str = key.decode("utf8")
-					deleted_keys.add(key_str)
-					client = ip_address_from_redis_key(key_str.split(":")[-1])
-					clients.add(client)
-					logger.debug("redis key to delete: %s", key_str)
-					await pipe.delete(key)  # type: ignore[attr-defined]
-			await pipe.execute()  # type: ignore[attr-defined]
-		return RESTResponse({"clients": list(clients), "redis-keys": list(deleted_keys)})
+		result = await _unblock_all_clients()
+		return RESTResponse(result)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
 		return RESTErrorResponse(message="Error while removing redis client keys", details=err)
+
+
+async def _unblock_client(client_addr: str) -> dict:
+	logger.debug("unblock client addr: %s ", client_addr)
+	client_addr_redis = ip_address_to_redis_key(client_addr)
+	redis = await async_redis_client()
+	deleted_keys = []
+	redis_code = await redis.delete(f"{config.redis_key('stats')}:client:failed_auth:{client_addr_redis}")
+	if redis_code == 1:
+		deleted_keys.append(f"{config.redis_key('stats')}:client:failed_auth:{client_addr_redis}")
+	redis_code = await redis.delete(f"{config.redis_key('stats')}:client:blocked:{client_addr_redis}")
+	if redis_code == 1:
+		deleted_keys.append(f"{config.redis_key('stats')}:client:blocked:{client_addr_redis}")
+
+	return {"client": client_addr, "redis-keys": deleted_keys}
 
 
 @admin_interface_router.post("/unblock-client")
@@ -193,19 +210,8 @@ async def unblock_client(request: Request) -> RESTResponse:
 	try:
 		request_body = await request.json()
 		client_addr = request_body.get("client_addr")
-
-		logger.debug("unblock client addr: %s ", client_addr)
-		client_addr_redis = ip_address_to_redis_key(client_addr)
-		redis = await async_redis_client()
-		deleted_keys = []
-		redis_code = await redis.delete(f"{config.redis_key('stats')}:client:failed_auth:{client_addr_redis}")
-		if redis_code == 1:
-			deleted_keys.append(f"{config.redis_key('stats')}:client:failed_auth:{client_addr_redis}")
-		redis_code = await redis.delete(f"{config.redis_key('stats')}:client:blocked:{client_addr_redis}")
-		if redis_code == 1:
-			deleted_keys.append(f"{config.redis_key('stats')}:client:blocked:{client_addr_redis}")
-
-		return RESTResponse({"client": client_addr, "redis-keys": deleted_keys})
+		result = await _unblock_client(client_addr)
+		return RESTResponse(result)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
 		return RESTErrorResponse(message="Error while removing redis client keys.", details=err)

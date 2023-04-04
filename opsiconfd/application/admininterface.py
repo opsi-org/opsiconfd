@@ -422,7 +422,7 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 	return await _unlock_product(product, depots)
 
 
-async def _unlock_all_product() -> RESTResponse:
+async def _unlock_all_products() -> RESTResponse:
 	backend = get_unprotected_backend()
 	try:
 		for product in set(
@@ -437,8 +437,8 @@ async def _unlock_all_product() -> RESTResponse:
 
 @admin_interface_router.post("/products/unlock")
 @rest_api
-async def unlock_all_product() -> RESTResponse:
-	return await _unlock_all_product()
+async def unlock_all_products() -> RESTResponse:
+	return await _unlock_all_products()
 
 
 @admin_interface_router.get("/blocked-clients", response_model=list[str])

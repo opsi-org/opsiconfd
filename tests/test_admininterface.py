@@ -495,7 +495,7 @@ def test_get_routes(  # pylint: disable=redefined-outer-name, unused-argument
 		"/admin/delete-client-sessions": "opsiconfd.application.admininterface.delete_client_sessions",
 		"/admin/grafana": "opsiconfd.application.admininterface.open_grafana",
 		"/admin/locked-products-list": "opsiconfd.application.admininterface.get_locked_products_list",
-		"/admin/products/unlock": "opsiconfd.application.admininterface.unlock_all_product",
+		"/admin/products/unlock": "opsiconfd.application.admininterface.unlock_all_products",
 		"/admin/products/{product}/unlock": "opsiconfd.application.admininterface.unlock_product",
 		"/admin/reload": "opsiconfd.application.admininterface.reload",
 		"/admin/routes": "opsiconfd.application.admininterface.get_routes",

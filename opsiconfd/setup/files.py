@@ -9,6 +9,7 @@ opsiconfd - setup
 """
 
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -40,6 +41,21 @@ from opsiconfd.logging import logger
 from opsiconfd.ssl import setup_ssl_file_permissions
 
 
+EXTENDER_FILES = (
+	"0_opsi.conf",
+	"10_wim.conf",
+	"20_easy.conf",
+	"20_legacy.conf",
+	"30_kiosk.conf",
+	"30_sshcommands.conf",
+	"40_admin_tasks.conf",
+	"40_groupActions.conf",
+	"45_deprecated.conf",
+	"70_dynamic_depot.conf",
+	"70_wan.conf",
+)
+
+
 def _get_default_dirs() -> list[str]:
 	return [
 		f"/{LOG_DIR}/bootimage",
@@ -60,11 +76,33 @@ def _get_default_dirs() -> list[str]:
 	]
 
 
+# TODO rm "Removing extension files from opsi < 4.3" from postinst
+def move_exender_files() -> None:
+	exender_folder = Path("/etc/opsi/backendManager/extend.d")
+	if not os.path.exists(exender_folder):
+		return
+	if not os.listdir(exender_folder):
+		return
+	backup_folder = Path("/etc/opsi/backendManager/extend.d.old")
+	logger.devel(backup_folder)
+	if not os.path.exists(backup_folder):
+		os.makedirs(backup_folder)
+	for extender_file in EXTENDER_FILES:
+		file_path = exender_folder.joinpath(extender_file)
+		if os.path.exists(file_path):
+			logger.info("Moving %s to %s", extender_file, backup_folder)
+			shutil.move(file_path, backup_folder.joinpath(extender_file))
+	permission = DirPermission(backup_folder, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770)
+	PermissionRegistry().register_permission(permission)
+	set_rights(permission.path)
+
+
 def setup_files() -> None:
 	for _dir in _get_default_dirs():
 		if not os.path.isdir(_dir) and not os.path.islink(_dir):
 			os.makedirs(_dir)
 			set_rights(_dir)
+	move_exender_files()
 
 
 def setup_file_permissions() -> None:

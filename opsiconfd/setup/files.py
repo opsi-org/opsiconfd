@@ -89,7 +89,7 @@ def move_exender_files() -> None:
 	for extender_file in EXTENDER_FILES:
 		file_path = exender_folder.joinpath(extender_file)
 		if os.path.exists(file_path):
-			logger.info("Moving %s to %s", extender_file, backup_folder)
+			logger.notice("Moving %s to %s", extender_file, backup_folder)
 			shutil.move(file_path, backup_folder.joinpath(extender_file))
 	permission = DirPermission(backup_folder, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770)
 	PermissionRegistry().register_permission(permission)

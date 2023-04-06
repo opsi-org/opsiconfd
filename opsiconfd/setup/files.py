@@ -84,7 +84,6 @@ def move_exender_files() -> None:
 	if not os.listdir(exender_folder):
 		return
 	backup_folder = Path("/etc/opsi/backendManager/extend.d.old")
-	logger.devel(backup_folder)
 	if not os.path.exists(backup_folder):
 		os.makedirs(backup_folder)
 	for extender_file in EXTENDER_FILES:
@@ -92,7 +91,7 @@ def move_exender_files() -> None:
 		if os.path.exists(file_path):
 			logger.info("Moving %s to %s", extender_file, backup_folder)
 			shutil.move(file_path, backup_folder.joinpath(extender_file))
-	permission = DirPermission(backup_folder, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770)
+	permission = DirPermission(backup_folder, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770)
 	PermissionRegistry().register_permission(permission)
 	set_rights(permission.path)
 

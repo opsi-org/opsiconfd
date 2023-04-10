@@ -82,6 +82,8 @@ def move_exender_files() -> None:
 	if not os.path.exists(exender_folder):
 		return
 	if not os.listdir(exender_folder):
+		logger.notice("Removing empty folder %s", exender_folder)
+		os.rmdir(exender_folder)
 		return
 	backup_folder = Path("/etc/opsi/backendManager/extend.d.old")
 	if not os.path.exists(backup_folder):

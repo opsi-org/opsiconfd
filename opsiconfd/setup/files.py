@@ -76,7 +76,6 @@ def _get_default_dirs() -> list[str]:
 	]
 
 
-# TODO rm "Removing extension files from opsi < 4.3" from postinst
 def move_exender_files() -> None:
 	extender_folder = Path("/etc/opsi/backendManager/extend.d")
 	if not extender_folder.exists():

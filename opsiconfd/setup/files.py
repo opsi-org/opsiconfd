@@ -82,11 +82,11 @@ def move_exender_files() -> None:
 		return
 	if not any(extender_folder.iterdir()):
 		logger.notice("Removing empty folder %s", extender_folder)
-		os.rmdir(extender_folder)
+		extender_folder.rmdir()
 		return
 	backup_folder = extender_folder.with_suffix(".old")
 	if not backup_folder.exists():
-		os.makedirs(backup_folder)
+		backup_folder.mkdir()
 	for extender_file in EXTENDER_FILES:
 		file_path = extender_folder.joinpath(extender_file)
 		if file_path.exists():

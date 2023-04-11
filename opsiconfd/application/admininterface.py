@@ -118,6 +118,7 @@ async def admin_interface_index(request: Request) -> Response:
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 			for addon in AddonManager().addons
 		],
+		"multi_factor_auth": config.multi_factor_auth,
 	}
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
 

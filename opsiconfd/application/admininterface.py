@@ -142,12 +142,13 @@ async def set_app_state(request: Request) -> RESTResponse:
 	return RESTResponse(data=request.app.app_state.to_dict())
 
 
-@admin_interface_router.get("/messagebus-connected-hosts")
+@admin_interface_router.get("/messagebus-connected-clients")
 @rest_api
-async def get_messagebus_connected_hosts() -> RESTResponse:
-	depot_ids = [h async for h in get_websocket_connected_users(user_type="depot")]
-	client_ids = [h async for h in get_websocket_connected_users(user_type="client")]
-	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids})
+async def get_messagebus_connected_clients() -> RESTResponse:
+	depot_ids = [u async for u in get_websocket_connected_users(user_type="depot")]
+	client_ids = [u async for u in get_websocket_connected_users(user_type="client")]
+	user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
+	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids})
 
 
 @admin_interface_router.post("/reload")

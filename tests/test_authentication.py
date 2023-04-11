@@ -241,6 +241,56 @@ def test_change_session_ip(
 		assert keys[1].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
 
+def test_update_client_object(  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	database_connection: Connection,
+) -> None:
+	host_id = "test-client-update.uib.gmbh"
+	host_key = "0dc5e29e2994c04de5108508cdd7cf02"
+
+	cursor = database_connection.cursor()
+	cursor.execute(
+		f"""
+		INSERT INTO HOST
+			(hostId, type, opsiHostKey, lastSeen, ipAddress)
+		VALUES
+			("{host_id}", "OpsiClient", "{host_key}", "2023-01-01 01:01:01", "1.2.3.4");
+	"""
+	)
+	database_connection.commit()
+
+	client_addr = "192.168.2.2"
+	with get_config({"update-ip": True}):
+		test_client.set_client_address(client_addr, 12345)
+		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
+		assert res.status_code == 200
+
+		cursor.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'")
+		last_seen, ip_address = cursor.fetchone()
+		delta = last_seen - datetime.now()
+		assert abs(delta.total_seconds()) < 3
+		assert ip_address == client_addr
+
+		test_client.set_client_address("127.0.0.1", 12345)
+		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
+		assert res.status_code == 200
+
+		cursor.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'")
+		last_seen, ip_address = cursor.fetchone()
+		assert ip_address == client_addr
+
+	with get_config({"update-ip": False}):
+		test_client.set_client_address("4.3.2.1", 12345)
+		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
+		assert res.status_code == 200
+
+		cursor.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'")
+		last_seen, ip_address = cursor.fetchone()
+		assert ip_address == client_addr
+
+	cursor.close()
+
+
 def test_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):

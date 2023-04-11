@@ -993,6 +993,7 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 	elif isinstance(host, OpsiClient) and host.oneTimePassword and session.password == host.oneTimePassword:
 		logger.info("Host '%s' authenticated by onetime password", host.id)
 		host.oneTimePassword = ""
+		# Update immediately
 		await backend.async_call("host_updateObject", host=host)
 	else:
 		raise BackendAuthenticationError(f"Authentication of host '{host.id}' failed")
@@ -1010,8 +1011,8 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 	if host.getType() == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
 		host.setLastSeen(timestamp())
-		if config.update_ip and host.ipAddress not in (None, "127.0.0.1", "::1", host.ipAddress):
-			host.setIpAddress(host.ipAddress)
+		if config.update_ip and session.client_addr not in (None, "127.0.0.1", "::1", host.ipAddress):
+			host.setIpAddress(session.client_addr)
 		else:
 			# Value None on update means no change!
 			host.ipAddress = None

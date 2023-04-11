@@ -78,19 +78,19 @@ def _get_default_dirs() -> list[str]:
 
 # TODO rm "Removing extension files from opsi < 4.3" from postinst
 def move_exender_files() -> None:
-	exender_folder = Path("/etc/opsi/backendManager/extend.d")
-	if not os.path.exists(exender_folder):
+	extender_folder = Path("/etc/opsi/backendManager/extend.d")
+	if not extender_folder.exists():
 		return
-	if not os.listdir(exender_folder):
-		logger.notice("Removing empty folder %s", exender_folder)
-		os.rmdir(exender_folder)
+	if not os.listdir(extender_folder):
+		logger.notice("Removing empty folder %s", extender_folder)
+		os.rmdir(extender_folder)
 		return
-	backup_folder = Path("/etc/opsi/backendManager/extend.d.old")
-	if not os.path.exists(backup_folder):
+	backup_folder = extender_folder.with_suffix(".old")
+	if not backup_folder.exists():
 		os.makedirs(backup_folder)
 	for extender_file in EXTENDER_FILES:
-		file_path = exender_folder.joinpath(extender_file)
-		if os.path.exists(file_path):
+		file_path = extender_folder.joinpath(extender_file)
+		if file_path.exists():
 			logger.notice("Moving %s to %s", extender_file, backup_folder)
 			shutil.move(file_path, backup_folder.joinpath(extender_file))
 	permission = DirPermission(backup_folder, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770)

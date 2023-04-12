@@ -1069,6 +1069,7 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 async def authenticate(  # pylint: disable=unused-argument,too-many-branches,too-many-statements
 	scope: Scope, username: str, password: str, mfa_otp: str | None = None
 ) -> None:
+	# await _authenticate(scope, username, password, mfa_otp)
 	try:
 		await _authenticate(scope, username, password, mfa_otp)
 	except (BackendAuthenticationError) as auth_error:
@@ -1080,7 +1081,10 @@ async def authenticate(  # pylint: disable=unused-argument,too-many-branches,too
 		redis = await async_redis_client()
 		await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
 		await asyncio.sleep(0.2)
-		raise BackendAuthenticationError from auth_error
+		logger.devel(auth_error)
+		raise BackendAuthenticationError(
+			message=auth_error.message, status_code=auth_error.status_code, content=auth_error.content
+		) from auth_error
 
 
 async def _authenticate(  # pylint: disable=unused-argument,too-many-branches,too-many-statements

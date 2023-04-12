@@ -1059,22 +1059,16 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
 	try:
 		await _authenticate(scope, username, password, mfa_otp)
-	except (BackendAuthenticationError, BackendPermissionDeniedError) as auth_error:
-		if isinstance(auth_error, BackendAuthenticationError) or not scope["session"] or not scope["session"].authenticated:
-			cmd = (
-				f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
-				f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
-			)
-			logger.debug(cmd)
-			redis = await async_redis_client()
-			await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
-			await asyncio.sleep(0.2)
-			logger.devel(auth_error)
-			raise BackendAuthenticationError(
-				message=auth_error.message, status_code=auth_error.status_code, content=auth_error.content
-			) from auth_error
-
-		raise BackendPermissionDeniedError(
+	except BackendAuthenticationError as auth_error:
+		cmd = (
+			f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
+			f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
+		)
+		logger.debug(cmd)
+		redis = await async_redis_client()
+		await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
+		await asyncio.sleep(0.2)
+		raise BackendAuthenticationError(
 			message=auth_error.message, status_code=auth_error.status_code, content=auth_error.content
 		) from auth_error
 

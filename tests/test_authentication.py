@@ -426,13 +426,14 @@ def test_max_auth_failures(
 				body = res.json()
 				if num > max_auth_failures + 1:
 					assert body["class"] == "ConnectionRefusedError"
+					assert body["status"] == status.HTTP_401_UNAUTHORIZED
 					assert "blocked" in body["message"]
 				elif num == max_auth_failures + 1:
 					assert res.status_code == status.HTTP_401_UNAUTHORIZED
 				else:
 					assert res.status_code == status.HTTP_401_UNAUTHORIZED
 					assert body["class"] == "OpsiServiceAuthenticationError"
-					assert body["status"] == "401"
+					assert body["status"] == status.HTTP_401_UNAUTHORIZED
 
 			print("Auth:", num, max_auth_failures, res.status_code, res.text)
 

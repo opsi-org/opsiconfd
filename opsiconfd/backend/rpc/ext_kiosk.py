@@ -44,7 +44,7 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 						group_ids.add(group_id)
 		return group_ids
 
-	@rpc_method(deprecated=True, check_acl=False)
+	@rpc_method(deprecated=False, check_acl=False)
 	def getKioskProductInfosForClient(  # pylint: disable=invalid-name,too-many-locals,too-many-statements,too-many-branches
 		self: BackendProtocol, clientId: str, addConfigs: bool = False
 	) -> dict | list:
@@ -73,10 +73,10 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 			product_on_clients = {poc.productId: poc for poc in self.productOnClient_getObjects(clientId=clientId, productId=product_ids)}
 			products = self.product_getObjects(id=product_ids)
 			if addConfigs:
-				config_state_values = []
+				config_state_values = {}
 				cst = self.configState_getValues(config_ids=["software-on-demand.*"], object_ids=[clientId])
 				if cst:
-					config_state_values = list(cst.get(clientId, {}).values())
+					config_state_values = cst.get(clientId, {})
 
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)

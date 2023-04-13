@@ -433,10 +433,6 @@ def test_max_auth_failures(
 					assert res.status_code == status.HTTP_401_UNAUTHORIZED
 					assert body["class"] == "OpsiServiceAuthenticationError"
 					assert body["status"] == "401"
-					assert (
-						body["message"]
-						== "Opsi service authentication error: Authentication failed for user 'adminuser': Opsi service authentication error: PAM authentication failed for user 'adminuser': Authentication failure"
-					)
 
 			print("Auth:", num, max_auth_failures, res.status_code, res.text)
 

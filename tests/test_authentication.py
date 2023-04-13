@@ -16,7 +16,7 @@ from unittest.mock import patch
 import pyotp
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
-
+from fastapi import status
 from opsiconfd import (
 	contextvar_client_session,
 	get_contextvars,
@@ -377,8 +377,24 @@ def test_max_sessions_not_for_depot(
 			redis.delete(key)
 
 
+test_urls = (
+	(
+		"/session/authenticated",
+		"get",
+	),
+	(
+		"/session/login",
+		"post",
+	),
+)
+
+
+@pytest.mark.parametrize("url, method", test_urls)
 def test_max_auth_failures(
-	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	url: str,
+	method: str,
 ) -> None:
 	over_limit = 3
 	max_auth_failures = 5
@@ -394,17 +410,33 @@ def test_max_auth_failures(
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1])
 				print("num_failed_auth:", num_failed_auth)
-
-			res = test_client.get("/session/authenticated", auth=("client.domain.tld", "hostkey"))
-			print("Auth:", num, max_auth_failures, res.status_code)
-			if num > max_auth_failures + 1:
-				assert res.status_code == 403
-				assert "blocked" in res.text
-			elif num == max_auth_failures + 1:
-				assert res.status_code in (401, 403)
+			if method == "get":
+				res = test_client.get(url, auth=("client.domain.tld", "hostkey"))
+				if num > max_auth_failures + 1:
+					assert res.status_code == status.HTTP_403_FORBIDDEN
+					assert "blocked" in res.text
+				elif num == max_auth_failures + 1:
+					assert res.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+				else:
+					assert res.status_code == status.HTTP_401_UNAUTHORIZED
+					assert res.text == "Authentication error"
 			else:
-				assert res.status_code == 401
-				assert res.text == "Authentication error"
+				res = test_client.post("/session/login", json={"username": "adminuser", "password": "false"})
+				assert res.status_code == status.HTTP_401_UNAUTHORIZED
+				body = res.json()
+				if num > max_auth_failures + 1:
+					assert body["class"] == "ConnectionRefusedError"
+					assert body["status"] == status.HTTP_401_UNAUTHORIZED
+					assert "blocked" in body["message"]
+				elif num == max_auth_failures + 1:
+					assert res.status_code == status.HTTP_401_UNAUTHORIZED
+				else:
+					assert res.status_code == status.HTTP_401_UNAUTHORIZED
+					assert body["class"] == "OpsiServiceAuthenticationError"
+					assert body["status"] == status.HTTP_401_UNAUTHORIZED
+
+			print("Auth:", num, max_auth_failures, res.status_code, res.text)
+
 			time.sleep(2)
 
 

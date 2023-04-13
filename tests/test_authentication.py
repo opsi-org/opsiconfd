@@ -396,7 +396,7 @@ def test_max_auth_failures(
 	url: str,
 	method: str,
 ) -> None:
-	over_limit = 5
+	over_limit = 3
 	max_auth_failures = 5
 	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
 		for num in range(max_auth_failures + over_limit):

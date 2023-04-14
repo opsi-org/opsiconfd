@@ -786,7 +786,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--ssl-ca-key",
 			env_var="OPSICONFD_SSL_CA_KEY",
 			default="/etc/opsi/ssl/opsi-ca-key.pem",
-			help=self._help("opsiconfd", "The location of the opsi ssl ca key."),
+			help=self._help("expert", "The location of the opsi ssl ca key."),
 		)
 		self._parser.add(
 			"--ssl-ca-key-passphrase",
@@ -798,7 +798,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--ssl-ca-cert",
 			env_var="OPSICONFD_SSL_CA_CERT",
 			default="/etc/opsi/ssl/opsi-ca-cert.pem",
-			help=self._help("opsiconfd", "The location of the opsi ssl ca certificate."),
+			help=self._help("expert", "The location of the opsi ssl ca certificate."),
 		)
 		self._parser.add(
 			"--ssl-ca-cert-valid-days",
@@ -818,7 +818,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--ssl-server-key",
 			env_var="OPSICONFD_SSL_SERVER_KEY",
 			default="/etc/opsi/ssl/opsiconfd-key.pem",
-			help=self._help("opsiconfd", "The location of the ssl server key."),
+			help=self._help("expert", "The location of the ssl server key."),
 		)
 		self._parser.add(
 			"--ssl-server-key-passphrase",
@@ -830,7 +830,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--ssl-server-cert",
 			env_var="OPSICONFD_SSL_SERVER_CERT",
 			default="/etc/opsi/ssl/opsiconfd-cert.pem",
-			help=self._help("opsiconfd", "The location of the ssl server certificate."),
+			help=self._help("expert", "The location of the ssl server certificate."),
 		)
 		self._parser.add(
 			"--ssl-server-cert-valid-days",

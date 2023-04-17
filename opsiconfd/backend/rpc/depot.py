@@ -159,9 +159,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 	def depot_librsyncSignature(self: BackendProtocol, filename: str) -> str:  # pylint: disable=invalid-name
 		try:
 			# pylint: disable=import-outside-toplevel
-			from OPSI.Util.Sync import librsyncSignature  # type: ignore[import]
+			from opsicommon.utils.rsync import librsync_signature
 
-			return librsyncSignature(filename)
+			return librsync_signature(filename)
 		except Exception as err:  # pylint: disable=broad-except
 			raise BackendIOError(f"Failed to get librsync signature: {err}") from err
 
@@ -169,9 +169,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 	def depot_librsyncPatchFile(self: BackendProtocol, oldfile: str, deltafile: str, newfile: str) -> None:  # pylint: disable=invalid-name
 		try:
 			# pylint: disable=import-outside-toplevel
-			from OPSI.Util.Sync import librsyncPatchFile  # type: ignore[import]
+			from opsicommon.utils.rsync import librsync_patch_file
 
-			return librsyncPatchFile(oldfile, deltafile, newfile)
+			return librsync_patch_file(oldfile, deltafile, newfile)
 		except Exception as err:
 			raise BackendIOError(f"Failed to patch file: {err}") from err
 
@@ -181,11 +181,11 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 	) -> None:
 		try:
 			# pylint: disable=import-outside-toplevel
-			from OPSI.Util.Sync import librsyncDeltaFile  # type: ignore[import]
+			from opsicommon.utils.rsync import librsync_delta_file
 
 			# json serialisation cannot handle bytes, expecting base64 encoded string here
 			signature_bytes = base64.b64decode(signature)
-			librsyncDeltaFile(filename, signature_bytes, deltafile)
+			librsync_delta_file(filename, signature_bytes, deltafile)
 		except Exception as err:
 			raise BackendIOError(f"Failed to create librsync delta file: {err}") from err
 

@@ -13,9 +13,10 @@ import itertools
 import os
 from typing import TYPE_CHECKING, Protocol
 
-from OPSI.Util.WIM import parseWIM, writeImageInformation  # type: ignore[import]
-from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
-from opsicommon.types import forceProductId  # type: ignore[import]
+from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.types import forceProductId, forceList
+from opsicommon.package.wim import wim_info
+from opsicommon.objects import ProductProperty
 
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.logging import logger
@@ -27,6 +28,82 @@ if TYPE_CHECKING:
 
 
 class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
+	def _wim_get_product_property(self: BackendProtocol, product_id: str, property_id: str) -> ProductProperty:
+		product_filter = {"productId": product_id, "propertyId": property_id}
+		properties = self.productProperty_getObjects(**product_filter)
+		logger.debug("Properties: %s", properties)
+
+		if not properties:
+			raise RuntimeError(f"Property {property_id!r} not found for product {product_id!r}")
+		if len(properties) > 1:
+			logger.debug("Found more than one property, trying to be more specific")
+			products_on_depot = self.productOnDepot_getObjects(depotId=self._depot_id, productId=product_id)
+			if not products_on_depot:
+				raise RuntimeError(f"Product {product_id!r} on depot {self._depot_id!r}")
+			if len(products_on_depot) > 1:
+				raise RuntimeError(f"Multiple products {product_id!r} on depot {self._depot_id!r}")
+
+			product_on_depot = products_on_depot[0]
+			product_filter["packageVersion"] = product_on_depot.packageVersion
+			product_filter["productVersion"] = product_on_depot.productVersion
+			logger.debug("Filter: %s", product_filter)
+			properties = self.productProperty_getObjects(**product_filter)
+			logger.debug("Properties: %s", properties)
+
+			if not properties:
+				raise RuntimeError(f"Property {property_id!r} not found for product {product_id!r}")
+			if len(properties) > 1:
+				raise RuntimeError("Multiple product properties found")
+
+		return properties[0]
+
+	def _wim_write_image_information(
+		self: BackendProtocol,
+		product_id: str,
+		image_names: list[str],
+		languages: list[str] | None = None,
+		default_language: str | None = None,
+	) -> None:
+		"""
+		Writes information about the `image_names` to the property *imagename* of the product with the given `product_id`.
+
+		If `languages` are given these will be written to the property *system_language*.
+		If an additional `default_language` is given this will be selected as the default.
+		"""
+		product_id = forceProductId(product_id)
+		product_property = self._wim_get_product_property(product_id, "imagename")
+		product_property.possibleValues = image_names
+		if product_property.defaultValues:
+			if product_property.defaultValues[0] not in image_names:
+				logger.info("Mismatching default value, setting first imagename as default")
+				product_property.defaultValues = [image_names[0]]
+		else:
+			logger.info("No default values found, setting first imagename as default")
+			product_property.defaultValues = [image_names[0]]
+
+		self.productProperty_updateObject(product_property)
+		logger.notice("Wrote imagenames to property 'imagename' of product %r.", product_id)
+
+		if not languages:
+			return
+
+		logger.debug("Writing detected languages")
+		for product_property in (
+			self._wim_get_product_property(product_id, "system_language"),
+			self._wim_get_product_property(product_id, "winpe_uilanguage"),
+			self._wim_get_product_property(product_id, "winpe_uilanguage_fallback"),
+		):
+			product_property.possibleValues = forceList(languages)
+			if default_language and default_language in languages:
+				logger.debug("Setting language default to %r", default_language)
+				product_property.defaultValues = [default_language]
+
+			logger.debug(
+				"%r possibleValues=%r, defaultValues=%r", product_property, product_property.possibleValues, product_property.defaultValues
+			)
+			self.productProperty_updateObject(product_property)
+			logger.notice("Wrote languages to property %r of product %r.", product_property.propertyId, product_property.productId)
+
 	@rpc_method(check_acl=False)
 	def updateWIMConfig(self: BackendProtocol, productId: str) -> None:  # pylint: disable=invalid-name
 		"""
@@ -77,21 +154,27 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not targetProductId:
 			return
 
-		images = parseWIM(path)
-		default_languages: set[str] = {image.default_language for image in images if image.default_language}
+		images = wim_info(path).images
+		image_names = [image.name for image in images]
+		languages = list(
+			set(itertools.chain(*[img.windows_info.languages for img in images if img.windows_info and img.windows_info.languages]))
+		)
+		default_languages = list(
+			{img.windows_info.default_language for img in images if img.windows_info and img.windows_info.default_language}
+		)
+
 		default_language = None
 		if len(default_languages) == 1:
-			default_language = list(default_languages)[0]
+			default_language = default_languages[0]
+			logger.info("Default language %s found for wim %s", default_language, path)
 		elif len(default_languages) > 1:
-			logger.info("Multiple default languages: %s", default_language)
-			logger.info("Not setting a default.")
+			logger.info("Multiple default languages %s found for wim %s, not setting a default", default_languages, path)
 		else:
-			logger.info("Unable to find a default language.")
+			logger.info("No default language found for wim %s", path)
 
-		writeImageInformation(
-			self,
+		self._wim_write_image_information(
 			targetProductId,
-			[image.name for image in images],
-			list(set(itertools.chain(*[image.languages for image in images if image.languages]))),
+			image_names,
+			languages,
 			default_language,
 		)

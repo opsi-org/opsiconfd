@@ -301,16 +301,6 @@ class SessionMiddleware:
 					log = logger.debug
 			log(err)
 
-			if isinstance(err, BackendAuthenticationError) or not scope["session"] or not scope["session"].user_store.authenticated:
-				cmd = (
-					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
-					f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
-				)
-				logger.debug(cmd)
-				redis = await async_redis_client()
-				await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
-				await asyncio.sleep(0.2)
-
 			status_code = status.HTTP_401_UNAUTHORIZED
 			if connection.headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
@@ -614,7 +604,7 @@ def update_host_object(host_id: str, ip_address: str) -> None:
 	get_client_backend().host_updateObjects(host)  # pylint: disable=no-member
 
 
-async def authenticate(scope: Scope, username: str, password: str) -> None:  # pylint: disable=unused-argument
+async def _authenticate(scope: Scope, username: str, password: str) -> None:  # pylint: disable=unused-argument
 	from .backend import (  # pylint: disable=import-outside-toplevel
 		get_backend,
 		get_client_backend,
@@ -681,6 +671,21 @@ async def authenticate(scope: Scope, username: str, password: str) -> None:  # p
 			if OPSI_ADMIN_GROUP in session.user_store.userGroups:
 				# Remove admin group from groups because acl.conf currently does not support isAdmin
 				session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
+
+
+async def authenticate(scope: Scope, username: str, password: str) -> None:
+	try:
+		await _authenticate(scope, username, password)
+	except BackendAuthenticationError:
+		cmd = (
+			f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
+			f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
+		)
+		logger.debug(cmd)
+		redis = await async_redis_client()
+		await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
+		await asyncio.sleep(0.2)
+		raise
 
 
 async def check_blocked(ip_address: str) -> None:

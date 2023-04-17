@@ -11,7 +11,7 @@ login tests
 import json
 import time
 from typing import Tuple
-
+from fastapi import status
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
 
@@ -230,38 +230,77 @@ def test_max_sessions_not_for_depot(test_client: OpsiconfdTestClient) -> None:  
 			redis.delete(key)
 
 
-def test_max_auth_failures(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+test_urls = (
+	(
+		"/session/authenticated",
+		"get",
+	),
+	(
+		"/session/login",
+		"post",
+	),
+)
+
+
+@pytest.mark.parametrize("url, method", test_urls)
+def test_max_auth_failures(
+	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	url: str,
+	method: str,
+) -> None:
 	over_limit = 3
-	max_auth_failures = 10
+	max_auth_failures = 5
 	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000  # pylint: disable=dotted-import-in-loop
-			for key in redis.scan_iter("opsiconfd:stats:client:failed_auth:*"):
-				# print("=== key ==>>>", key)
+			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
+				# print("key:", key)
 				cmd = (
 					f"ts.range {key.decode()} "
 					f"{(now-(conf.auth_failures_interval*1000))} {now} aggregation count {(conf.auth_failures_interval*1000)}"
 				)
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1])
-				# print("=== num_failed_auth ==>>>", num_failed_auth)
-
-			res = test_client.get("/session/authenticated", auth=("client.domain.tld", "hostkey"))
-			print("Auth: ", num, max_auth_failures, res.status_code)
-			if num > max_auth_failures:
-				assert res.status_code == 403
-				assert "blocked" in res.text
+				print("num_failed_auth:", num_failed_auth)
+			if method == "get":  # pylint: disable=loop-invariant-statement
+				res = test_client.get(url, auth=("client.domain.tld", "hostkey"))
+				if num > max_auth_failures + 1:  # pylint: disable=loop-invariant-statement
+					assert res.status_code == status.HTTP_403_FORBIDDEN  # pylint: disable=dotted-import-in-loop
+					assert "blocked" in res.text
+				elif num == max_auth_failures + 1:  # pylint: disable=loop-invariant-statement
+					assert res.status_code in (  # pylint: disable=loop-invariant-statement
+						status.HTTP_401_UNAUTHORIZED,  # pylint: disable=dotted-import-in-loop
+						status.HTTP_403_FORBIDDEN,  # pylint: disable=dotted-import-in-loop
+					)
+				else:
+					assert res.status_code == status.HTTP_401_UNAUTHORIZED  # pylint: disable=dotted-import-in-loop
+					assert res.text == "Authentication error"
 			else:
-				assert res.status_code == 401
-				assert res.text == "Authentication error"
-			time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+				res = test_client.post("/session/login", json={"username": "adminuser", "password": "false"})
+				assert res.status_code == status.HTTP_401_UNAUTHORIZED  # pylint: disable=dotted-import-in-loop
+				body = res.json()
+				if num > max_auth_failures + 1:  # pylint: disable=loop-invariant-statement
+					assert body["class"] == "ConnectionRefusedError"
+					assert body["status"] == status.HTTP_401_UNAUTHORIZED  # pylint: disable=dotted-import-in-loop
+					assert "blocked" in body["message"]
+				elif num == max_auth_failures + 1:  # pylint: disable=loop-invariant-statement
+					assert res.status_code == status.HTTP_401_UNAUTHORIZED  # pylint: disable=dotted-import-in-loop
+				else:
+					assert res.status_code == status.HTTP_401_UNAUTHORIZED  # pylint: disable=dotted-import-in-loop
+					assert body["class"] == "BackendAuthenticationError"
+					assert body["status"] == status.HTTP_401_UNAUTHORIZED  # pylint: disable=dotted-import-in-loop
+
+			print("Auth:", num, max_auth_failures, res.status_code, res.text)
+
+			time.sleep(2)  # pylint: disable=dotted-import-in-loop
 
 
 def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	lifetime = 5  # 5 seconds
 	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
 
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)  # type: ignore[assignment]
 	res = test_client.get("/admin/", headers=lt_headers)
 	cookie = list(test_client.cookies.jar)[0]
 	session_id = cookie.value
@@ -301,7 +340,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	lifetime = 60
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)  # type: ignore[assignment]
 	res = test_client.get("/admin/")
 	# res = test_client.get("/admin/", headers=lt_headers)
 	assert res.status_code == 200

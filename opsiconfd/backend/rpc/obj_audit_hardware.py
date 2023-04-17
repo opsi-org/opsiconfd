@@ -9,19 +9,18 @@ opsiconfd.backend.rpc.audit_hardware
 """
 from __future__ import annotations
 
-import os
 import re
+from pathlib import Path
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from OPSI.Util.File import ConfigFile  # type: ignore[import]
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.objects import (
 	AuditHardware,
 	AuditHardwareOnHost,
 )
-from opsicommon.types import forceLanguageCode, forceList  # type: ignore[import]
+from opsicommon.types import forceLanguageCode, forceList
 
 from opsiconfd.logging import logger
 
@@ -69,25 +68,27 @@ def inherit_from_super_classes(
 
 
 @lru_cache(maxsize=10)
+# pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 def get_audit_hardware_config(
 	language: str | None = None,
-) -> list[
-	dict[str, dict[str, str] | list[dict[str, str]]]
-]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:
 
 	if not language:
 		language = "en_US"
 	language = forceLanguageCode(language).replace("-", "_")
 
-	locale_file = os.path.join(AUDIT_HARDWARE_CONFIG_LOCALES_DIR, language or "en_US")
-	if not os.path.exists(locale_file):
+	locale_file = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR) / (language or "en_US")
+	if not locale_file.exists():
 		logger.error("No translation file found for language %s, falling back to en_US", language)
 		language = "en_US"
-		locale_file = os.path.join(AUDIT_HARDWARE_CONFIG_LOCALES_DIR, language)
+		locale_file = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR) / language
 
 	locale = {}
 	try:
-		for line in ConfigFile(locale_file).parse():
+		for line in locale_file.read_text(encoding="utf-8").splitlines():
+			line = line.strip()
+			if not line or line.startswith((";", "#")):
+				continue
 			try:
 				identifier, translation = line.split("=", 1)
 				locale[identifier.strip()] = translation.strip()

@@ -42,6 +42,7 @@ from opsicommon.package.associated_files import (
 	create_package_md5_file,
 	create_package_zsync_file,
 )
+from opsicommon.server.rights import set_rights
 from opsicommon.types import forceBool, forceDict, forceFilename
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.types import forceUnicodeLower
@@ -660,6 +661,7 @@ class DepotserverPackageManager:
 							create_package_content_file(product_path)
 						else:
 							logger.debug("Suppressed generation of package content file")
+						set_rights(product_path)
 
 				clean_up_products(product_on_depot.productId)
 				clean_up_product_property_states(product_properties, self._depot_id, product_on_depot)

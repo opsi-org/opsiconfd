@@ -261,6 +261,13 @@ function loadRedisInfo() {
 	});
 }
 
+function loadRedisDebugKeys() {
+	let req = ajaxRequest("POST", "/redis-interface/redis-debug-keys", { "prefix": document.getElementById("redis-cmd").value });
+	req.then((result) => {
+		outputToHTML(result, "redis-result");
+		return result
+	});
+}
 
 function loadSessionTable() {
 	let req = ajaxRequest("GET", "/admin/session-list");

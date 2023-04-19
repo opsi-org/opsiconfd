@@ -3103,8 +3103,8 @@ category = "main"
 optional = false
 python-versions = ">=3.10,<3.12"
 files = [
-    {file = "python_opsi_common-4.3.0.38-py3-none-any.whl", hash = "sha256:f8174a51c21f321dcec24e914638dab2849cbf2a2ab007bc7c51e3f8c529e5a7"},
-    {file = "python_opsi_common-4.3.0.38.tar.gz", hash = "sha256:bdf117da16cb5ad54af977c41ab0108bd5f77fe005b797d5b13c278d11527346"},
+    {file = "python_opsi_common-4.3.0.38-py3-none-any.whl", hash = "sha256:f9e9cd5035de765690cead284701e6749b48f8140993f8e9fb332dc560522ac7"},
+    {file = "python_opsi_common-4.3.0.38.tar.gz", hash = "sha256:13c9d146c21ff2381303fb6e5a06d0a214892c0f9a825ea3590891243094f48b"},
 ]
 
 [package.dependencies]

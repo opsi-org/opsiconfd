@@ -23,52 +23,73 @@ from tests.utils import (  # pylint: disable=unused-import
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 
-def test_hwaudit(  # pylint: disable=invalid-name
+def test_hwaudit(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-	host_id = "test-backend-rpc-host-1.opsi.test"
-	host_key = "5913c501a2854587dec4e60d57676892"
+	host_id1 = "test-backend-rpc-host-1.opsi.test"
+	host_key1 = "5913c501a2854587dec4e60d57676892"
+	host_id2 = "test-backend-rpc-host-2.opsi.test"
+	host_key2 = "e692485913c587de0d57676501a285c4"
 
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client = {"type": "OpsiClient", "id": host_id, "opsiHostKey": host_key}
-	# Create client
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client]}
+	clients = [
+		{"type": "OpsiClient", "id": host_id1, "opsiHostKey": host_key1},
+		{"type": "OpsiClient", "id": host_id2, "opsiHostKey": host_key2},
+	]
+
+	# Create clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [clients]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
+
+	audit_hardware_on_hosts_by_ident = {}
+	for host_id, host_key in ((host_id1, host_key1), (host_id2, host_key2)):
+		test_client.reset_cookies()
+		test_client.auth = (host_id, host_key)
+
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_setObsolete", "params": [host_id]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		assert res["result"] == []
+
+		hwaudit = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
+		hwaudit = hwaudit.replace("{{host_id}}", host_id)
+		audit_hardware_on_hosts = json.loads(hwaudit)
+		audit_hardware_on_hosts_by_ident[host_id] = {a["ident"]: a for a in audit_hardware_on_hosts}
+
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_createObjects", "params": [audit_hardware_on_hosts]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+
+		by_ident = {a["ident"]: a for a in res["result"]}
+		assert sorted(audit_hardware_on_hosts_by_ident[host_id]) == sorted(by_ident)
 
 	test_client.reset_cookies()
-	test_client.auth = (host_id, host_key)
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_setObsolete", "params": [host_id]}
+	for host_id in (host_id1, host_id2):
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+
+		by_ident = {a["ident"]: a for a in res["result"]}
+		assert sorted(audit_hardware_on_hosts_by_ident[host_id]) == sorted(by_ident)
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_setObsolete", "params": [host_id1]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
-	rpc = {"jsonrpc": "2.0", "id": 2, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id}]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	assert res["result"] == []
-
-	hwaudit = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
-	hwaudit = hwaudit.replace("{{host_id}}", host_id)
-	audit_hardware_on_hosts = json.loads(hwaudit)
-	audit_hardware_on_hosts_by_ident = {a["ident"]: a for a in audit_hardware_on_hosts}
-
-	rpc = {"jsonrpc": "2.0", "id": 3, "method": "auditHardwareOnHost_createObjects", "params": [audit_hardware_on_hosts]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	rpc = {"jsonrpc": "2.0", "id": 4, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id}]}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id2}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
 	by_ident = {a["ident"]: a for a in res["result"]}
-	assert sorted(audit_hardware_on_hosts_by_ident) == sorted(by_ident)
-
-	rpc = {"jsonrpc": "2.0", "id": 5, "method": "auditHardwareOnHost_setObsolete", "params": [host_id]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	rpc = {"jsonrpc": "2.0", "id": 6, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id}]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	assert res["result"] == []
+	assert sorted(audit_hardware_on_hosts_by_ident[host_id2]) == sorted(by_ident)

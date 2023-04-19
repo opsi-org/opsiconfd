@@ -13,14 +13,18 @@ import re
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
+from opsicommon.exceptions import BackendPermissionDeniedError
 from opsicommon.objects import (  # type: ignore[import]
 	AuditHardware,
 	AuditHardwareOnHost,
 )
 from opsicommon.types import forceList  # type: ignore[import]
 
+from opsiconfd.logging import logger
+
 from ..auth import RPCACE, RPCACE_ALLOW_ALL
 from . import rpc_method
+
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
@@ -54,6 +58,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		for hardware_class, ahohs in self._audit_hardware_on_host_by_hardware_class(audit_hardware_on_hosts).items():
 			audit_hardware_indent_attributes = set(AuditHardware.hardware_attributes[hardware_class])
 			ahoh_only_ident_attributes = set(AuditHardwareOnHost.hardware_attributes[hardware_class]) - audit_hardware_indent_attributes
+			ahoh_only_ident_attributes.add("hostId")
 
 			for audit_hardware_on_host in ahohs:
 				audit_hardware = self._audit_hardware_on_host_to_audit_hardware(audit_hardware_on_host)
@@ -82,9 +87,13 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 						f" WHERE {' AND '.join(conditions)}"
 					)
 					res = session.execute(query, params=params).fetchone()
+
 					if res:
 						hardware_id, config_id = res
 
+				logger.debug(
+					"hardware_class: %r, hardware_id: %r, config_id: %r, create: %r", hardware_class, hardware_id, config_id, create
+				)
 				if not hardware_id:
 					if not create:
 						continue
@@ -243,14 +252,35 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def auditHardwareOnHost_deleteObjects(  # pylint: disable=invalid-name
+	def auditHardwareOnHost_deleteObjects(  # pylint: disable=invalid-name,too-many-locals
 		self: BackendProtocol, auditHardwareOnHosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost
 	) -> None:
 		if not auditHardwareOnHosts:
 			return
 		ace = self._get_ace("auditHardwareOnHost_deleteObjects")
-		for hardware_class, ahoh in self._audit_hardware_on_host_by_hardware_class(auditHardwareOnHosts).items():
-			self._mysql.delete_objects(table=f"HARDWARE_CONFIG_{hardware_class}", object_type=AuditHardwareOnHost, obj=ahoh, ace=ace)
+		allowed_client_ids = self._mysql.get_allowed_client_ids(ace)
+		with self._mysql.session() as session:
+			for hardware_class, ahohs in self._audit_hardware_on_host_by_hardware_class(auditHardwareOnHosts).items():
+				audit_hardware_indent_attributes = set(AuditHardware.hardware_attributes[hardware_class])
+				ahoh_only_ident_attributes = set(AuditHardwareOnHost.hardware_attributes[hardware_class]) - audit_hardware_indent_attributes
+				ahoh_only_ident_attributes.add("hostId")
+
+				conditions = []
+				params: dict[str, Any] = {}
+				for ahoh in ahohs:
+					if allowed_client_ids and ahoh.hostId not in allowed_client_ids:
+						raise BackendPermissionDeniedError("Delete permission denied")
+
+					cond = []
+					for attr in ahoh_only_ident_attributes:
+						val = getattr(ahoh, attr)
+						param = f"p{len(params) + 1}"
+						params[param] = val
+						cond.append(f"`{attr}` {'IS' if val is None else '='} :{param}")
+					conditions.append(f"({' AND '.join(cond)})")
+
+				query = f"DELETE FROM HARDWARE_CONFIG_{hardware_class} WHERE {' OR '.join(conditions)}"
+				session.execute(query, params=params)
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_create(  # pylint: disable=invalid-name,too-many-arguments

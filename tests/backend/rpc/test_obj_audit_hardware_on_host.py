@@ -10,6 +10,7 @@ test opsiconfd.backend.rpc.test_obj_audit_hardware_on_host
 
 from pathlib import Path
 import json
+import pytest
 
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -23,7 +24,9 @@ from tests.utils import (  # pylint: disable=unused-import
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 
+@pytest.mark.parametrize("method", ("auditHardwareOnHost_updateObjects", "auditHardwareOnHost_createObjects"))
 def test_hwaudit(
+	method: str,
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	host_id1 = "test-backend-rpc-host-1.opsi.test"
@@ -61,7 +64,7 @@ def test_hwaudit(
 		audit_hardware_on_hosts = json.loads(hwaudit)
 		audit_hardware_on_hosts_by_ident[host_id] = {a["ident"]: a for a in audit_hardware_on_hosts}
 
-		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_createObjects", "params": [audit_hardware_on_hosts]}
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": method, "params": [audit_hardware_on_hosts]}
 		res = test_client.post("/rpc", json=rpc).json()
 		assert "error" not in res
 

@@ -127,7 +127,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	}
 	record_separator = "␞"
 
-	schema_version = 10
+	schema_version = 11
 
 	def __init__(self) -> None:
 		self.address = "localhost"

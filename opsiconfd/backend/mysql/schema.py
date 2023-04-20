@@ -24,6 +24,7 @@ from .cleanup import (
 	remove_orphans_license_on_client_to_host,
 	remove_orphans_product_id_to_license_pool,
 	remove_orphans_product_property_value,
+	remove_orphans_hardware_config,
 )
 
 if TYPE_CHECKING:
@@ -411,7 +412,7 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 		if hardware_device_table_exists:
 			hardware_device_table = f"ALTER TABLE `{hardware_device_table_name}`\n"
 		else:
-			hardware_device_table = f"CREATE TABLE `{hardware_device_table_name}` (\n" f"`hardware_id` INTEGER NOT NULL AUTO_INCREMENT,\n"
+			hardware_device_table = f"CREATE TABLE `{hardware_device_table_name}` (\n`hardware_id` INTEGER NOT NULL AUTO_INCREMENT,\n"
 
 		if hardware_config_table_exists:
 			hardware_config_table = f"ALTER TABLE `{hardware_config_table_name}`\n"
@@ -456,7 +457,9 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 		if not hardware_device_table_exists:
 			hardware_device_table += "PRIMARY KEY (`hardware_id`)\n"
 		if not hardware_config_table_exists:
-			hardware_config_table += "PRIMARY KEY (`config_id`)\n"
+			hardware_config_table += "PRIMARY KEY (`config_id`),\n"
+			hardware_config_table += f"FOREIGN KEY (`hardware_id`) REFERENCES `{hardware_device_table_name}` (`hardware_id`) "
+			hardware_config_table += "ON DELETE CASCADE ON UPDATE CASCADE\n"
 
 		# Remove leading and trailing whitespace
 		hardware_device_table = hardware_device_table.strip()
@@ -1163,11 +1166,18 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			logger.info("Dropping table CONFIG_STATE_LOG")
 			session.execute("DROP TABLE IF EXISTS `CONFIG_STATE_LOG`")
 
+		remove_orphans_hardware_config(mysql, session)
 		for table in mysql.tables:
 			if table.startswith("HARDWARE_CONFIG_"):
 				# Set DEFAULT 1
 				session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `state` TINYINT NOT NULL DEFAULT 1")
 				session.execute(f"DELETE FROM `{table}` WHERE state != 1")
+				ref_table = table.replace("HARDWARE_CONFIG_", "HARDWARE_DEVICE_")
+				create_foreign_key(
+					session=session,
+					database=mysql.database,
+					foreign_key=OpsiForeignKey(table=table, ref_table=ref_table, f_keys=["hardware_id"], ref_keys=["hardware_id"]),
+				)
 
 		logger.info("All updates completed")
 

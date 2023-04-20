@@ -145,6 +145,36 @@ def remove_orphans_product_id_to_license_pool(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from PRODUCT_ID_TO_LICENSE_POOL", result.rowcount)
 
 
+def remove_orphans_hardware_device(mysql: MySQLConnection, session: Session) -> None:
+	for hd_table in [t for t in sorted(mysql.tables) if t.startswith("HARDWARE_DEVICE_")]:
+		hc_table = hd_table.replace("HARDWARE_DEVICE_", "HARDWARE_CONFIG_")
+		result = session.execute(
+			f"""
+			DELETE hd.* FROM {hd_table} AS hd
+			LEFT JOIN {hc_table} AS hc
+			ON hd.hardware_id = hc.hardware_id
+			WHERE hc.hardware_id IS NULL
+			"""
+		)
+		if result.rowcount > 0:
+			logger.notice("Removed %d orphaned entries from %s", result.rowcount, hd_table)
+
+
+def remove_orphans_hardware_config(mysql: MySQLConnection, session: Session) -> None:
+	for hd_table in [t for t in sorted(mysql.tables) if t.startswith("HARDWARE_DEVICE_")]:
+		hc_table = hd_table.replace("HARDWARE_DEVICE_", "HARDWARE_CONFIG_")
+		result = session.execute(
+			f"""
+			DELETE hc.* FROM {hc_table} AS hc
+			LEFT JOIN {hd_table} AS hd
+			ON hc.hardware_id = hd.hardware_id
+			WHERE hd.hardware_id IS NULL
+			"""
+		)
+		if result.rowcount > 0:
+			logger.notice("Removed %d orphaned entries from %s", result.rowcount, hc_table)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		remove_orphans_config_value(session)
@@ -157,3 +187,5 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_windows_software_id_to_product(session)
 		remove_orphans_license_on_client_to_host(session)
 		remove_orphans_product_id_to_license_pool(session)
+		remove_orphans_hardware_device(mysql, session)
+		remove_orphans_hardware_config(mysql, session)

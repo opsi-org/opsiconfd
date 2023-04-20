@@ -9,6 +9,7 @@ messagebus.websocket
 """
 
 import traceback
+import re
 from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from time import time
@@ -29,6 +30,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TraceResponseMessage,
 	timestamp,
 )
+
 from starlette.concurrency import run_in_threadpool
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import (
@@ -44,7 +46,7 @@ from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
 
-from . import get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
+from . import get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user, check_channel_name
 from .redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
@@ -57,6 +59,8 @@ from .redis import (
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
+
+RE_USER_ID = re.compile("^[a-z-0-9_]$")
 
 
 @dataclass
@@ -157,21 +161,18 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		if operation not in ("read", "write"):
 			raise ValueError(f"Invalid channel operation {operation!r}")
 
+		channel = check_channel_name(channel)
+
 		if channel.startswith("session:"):
 			return True
 		if channel == self._user_channel:
 			return True
-		if channel.startswith("service:"):
-			if channel in ("service:messagebus", "service:config:jsonrpc", "service:config:terminal"):
-				if operation == "write":
-					return True
-			elif channel.startswith("service:depot:"):
-				parts = channel.split(":")
-				if len(parts) != 4 or parts[-1] not in ("jsonrpc", "terminal"):
-					raise ValueError(f"Invalid channel {channel!r}")
-			else:
-				raise ValueError(f"Invalid channel {channel!r}")
-
+		if (
+			channel.startswith("service:")
+			and channel in ("service:messagebus", "service:config:jsonrpc", "service:config:terminal")
+			and operation == "write"
+		):
+			return True
 		if self.scope["session"].is_admin:
 			return True
 

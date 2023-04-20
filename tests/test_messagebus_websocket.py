@@ -10,6 +10,7 @@ opsiconfd.messagebus tests
 
 from random import randbytes
 from time import sleep, time
+from typing import Type
 from uuid import uuid4
 
 import pytest

@@ -31,6 +31,7 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_delete_recursively, async_redis_client, redis_client
+from opsiconfd.messagebus import check_channel_name
 
 from . import get_user_id_for_host
 
@@ -54,16 +55,6 @@ async def messagebus_cleanup(full: bool = False) -> None:
 async def cleanup_channels(full: bool = False) -> None:
 	logger.debug("Cleaning up messagebus channels")
 	backend = get_unprotected_backend()
-	depot_ids = []
-	client_ids = []
-	host_channels = []
-	for host in backend.host_getObjects(attributes=["id"]):
-		if host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
-			depot_ids.append(host.id)
-		else:
-			client_ids.append(host.id)
-		host_channels.append(get_user_id_for_host(host.id))
-
 	redis = await async_redis_client()
 
 	channel_prefix = f"{config.redis_key('messagebus')}:channels:"
@@ -82,13 +73,32 @@ async def cleanup_channels(full: bool = False) -> None:
 	# 		for consumer in group["consumers"]:
 	# 			print(consumer)
 
+	depot_ids = []
+	client_ids = []
+	host_channels = []
+	for host in backend.host_getObjects(attributes=["id"]):
+		if host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+			depot_ids.append(host.id)
+		else:
+			client_ids.append(host.id)
+		host_channels.append(get_user_id_for_host(host.id))
+
 	remove_keys = []
-	async for key_b in redis.scan_iter(f"{channel_prefix}host:*"):
-		key = key_b.decode("utf-8")
-		host_channel = ":".join(key[channel_prefix_len:].split(":", 2)[:2])
-		if host_channel not in host_channels:
-			logger.debug("Removing key %s (host not found)", key)
+	async for key_b in redis.scan_iter(f"{channel_prefix}*"):
+		key = str(key_b.decode("utf-8"))
+		channel = key[channel_prefix_len:]
+		try:
+			check_channel_name(channel)
+		except ValueError as err:
+			logger.debug("Removing key %r (%s)", key, err)
 			remove_keys.append(key)
+			continue
+
+		if channel.startswith("host:"):
+			host_channel = ":".join(channel.split(":", 2)[:2])
+			if host_channel not in host_channels:
+				logger.debug("Removing key %r (host not found)", key)
+				remove_keys.append(key)
 
 	if remove_keys:
 		pipeline = redis.pipeline()

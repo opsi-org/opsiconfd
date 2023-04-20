@@ -1225,12 +1225,21 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				help=self._help("backup", "Overwrite existing backup file."),
 			)
 			self._parser.add(
-				"backup_file",
+				"backup_target",
 				nargs="?",
 				default=None,
-				metavar="BACKUP_FILE",
+				metavar="BACKUP_TARGET",
 				help=self._help(
-					"backup", "The BACKUP_FILE to write to. If omitted, the name of the backup file will be selected automatically."
+					"backup",
+					(
+						"The BACKUP_TARGET (file or directory) to write to.\n"
+						"If no file name is specified, the name of the backup file is selected automatically.\n"
+						"The compression and format are determined by the file extension.\n"
+						"Valid encodings are: 'msgpack' and 'json'\n"
+						"Valid compressions are: 'lz4' and 'gz'\n"
+						"Valid encryptions are: 'aes'\n"
+						"Example for a msgpack encoded, lz4 compressed and aes encrypted backup: opsi-backup.msgpack.lz4.aes"
+					),
 				),
 			)
 

@@ -217,6 +217,16 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			)
 		)
 
+	if "opsiclientd.config_service.permanent_connection" not in config_ids:
+		logger.info("Creating config 'opsiclientd.config_service.permanent_connection'")
+		add_configs.append(
+			BoolConfig(
+				id="opsiclientd.config_service.permanent_connection",
+				description="Client should keep a permanent connection to the opsi messagebus",
+				defaultValues=[False],
+			)
+		)
+
 	if "opsi-linux-bootimage.append" not in config_ids:
 		logger.info("Creating config 'opsi-linux-bootimage.append'")
 		add_configs.append(

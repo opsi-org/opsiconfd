@@ -279,7 +279,7 @@ class RPCAuditHardwareMixin(Protocol):
 					if info.get("Scope") == "g":
 						ident_attributes.append(attr)
 						if attr in filter:
-							class_filter[attr] = filter[attr]
+							class_filter[attr] = ["", None] if filter[attr] in ("", None) else filter[attr]
 						if attributes and return_type != "dict" and attr not in attributes:
 							attributes.append(attr)
 
@@ -331,14 +331,31 @@ class RPCAuditHardwareMixin(Protocol):
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=True)
 	def auditHardware_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
 	) -> None:
 		if not auditHardwares:
 			return
-		ace = self._get_ace("auditHardware_deleteObjects")
-		self._mysql.delete_objects(table="AUDIT_HARDWARE", object_type=AuditHardware, obj=auditHardwares, ace=ace)
+
+		# self._mysql.delete_objects(table="AUDIT_HARDWARE", object_type=AuditHardware, obj=auditHardwares, ace=ace)
+		with self._mysql.session() as session:
+			for hardware_class, audit_hardwares in self._audit_hardware_by_hardware_class(auditHardwares).items():
+				audit_hardware_indent_attributes = set(AuditHardware.hardware_attributes[hardware_class])
+
+				conditions = []
+				params: dict[str, Any] = {}
+				for audit_hardware in audit_hardwares:
+					cond = []
+					for attr in audit_hardware_indent_attributes:
+						val = getattr(audit_hardware, attr)
+						param = f"p{len(params) + 1}"
+						params[param] = val
+						cond.append(f"`{attr}` {'IS' if val is None else '='} :{param}")
+					conditions.append(f"({' AND '.join(cond)})")
+
+				query = f"DELETE FROM HARDWARE_DEVICE_{hardware_class} WHERE {' OR '.join(conditions)}"
+				session.execute(query, params=params)
 
 	@rpc_method(check_acl=False)
 	def auditHardware_create(self, hardwareClass: str, **kwargs: Any) -> None:  # pylint: disable=unused-argument,invalid-name
@@ -348,10 +365,8 @@ class RPCAuditHardwareMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditHardware_delete(self, hardwareClass: str, **kwargs: Any) -> None:  # pylint: disable=invalid-name
-		if hardwareClass is None:
-			hardwareClass = []
-
-		kwargs = {key: [] if val is None else val for key, val in kwargs.items()}
-		objs = self.auditHardware_getObjects(hardwareClass=hardwareClass, **kwargs)
+		_filter = {key: [] if val is None else val for key, val in kwargs.items()}
+		_filter["hardwareClass"] = [] if hardwareClass is None else hardwareClass
+		objs = self.auditHardware_getObjects(attributes=[], **_filter)
 		if objs:
-			return self.auditHardware_deleteObjects(objs)
+			self.auditHardware_deleteObjects(objs)

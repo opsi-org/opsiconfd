@@ -184,7 +184,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 					if info.get("Scope") == "g":
 						ident_attributes.append(attr)
 					if attr in filter:
-						class_filter[attr] = filter[attr]
+						class_filter[attr] = ["", None] if filter[attr] in ("", None) else filter[attr]
 					if attributes and attr not in attributes:
 						attributes.append(attr)
 

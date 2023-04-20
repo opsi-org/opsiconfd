@@ -1179,7 +1179,15 @@ function messagebusConnect() {
 			(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
 			(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
 		) {
-			document.getElementById("messagebus-message-in").innerHTML += "\n" + syntaxHighlightMessage(message);
+			const maxLength = 1000000;
+			let messages = document.getElementById("messagebus-message-in").innerHTML + "<div>" + syntaxHighlightMessage(message) + "</div>";
+			if (messages.length > maxLength) {
+				let start = messages.indexOf("<div>", messages.length - maxLength);
+				if (start > 0) {
+					messages = messages.substring(start, messages.length);
+				}
+			}
+			document.getElementById("messagebus-message-in").innerHTML = messages;
 			if (document.getElementById('messagebus-message-auto-scroll').checked) {
 				let el = document.getElementById('messagebus-message-in');
 				el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });

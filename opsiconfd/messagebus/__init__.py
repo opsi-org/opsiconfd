@@ -113,7 +113,7 @@ def check_channel_name(channel: str) -> str:  # pylint: disable=too-many-return-
 	if channel.startswith("service_worker:"):
 		channel = channel.lower()
 		parts = channel.split(":")
-		if len(parts) != 3:
+		if len(parts) < 3:
 			raise ValueError(f"Invalid service_worker channel: {channel!r}")
 		try:
 			parts[1] = forceHostname(parts[1])

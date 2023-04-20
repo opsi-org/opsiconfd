@@ -101,7 +101,7 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)
 
-			backup_file = Path(config.backup_file if config.backup_file else backup_filename())
+			backup_file = Path(config.backup_target if config.backup_target else backup_filename())
 			if not backup_file.is_absolute():
 				backup_file = Path.cwd() / backup_file
 

@@ -42,7 +42,7 @@ from opsiconfd.ssl import setup_ssl_file_permissions
 
 
 EXTENDER_FILES = (
-	"0_opsi.conf",
+	"10_opsi.conf",
 	"10_wim.conf",
 	"20_easy.conf",
 	"20_legacy.conf",

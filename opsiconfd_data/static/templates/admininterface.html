@@ -22,6 +22,7 @@
 		var reloadTimer;
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 		var multiFactorAuth = '{{multi_factor_auth}}';
+		var availableModules = JSON.parse('{{available_modules|tojson}}');
 
 		function onLoad() {
 			if (localStorage.getItem("serverRole") == "configserver") {

@@ -1361,6 +1361,16 @@ function fillTerminalSelect() {
 			option.dataset.channel = `service:depot:${depotId}:terminal`;
 			select.appendChild(option);
 		});
+		console.error("availableModules", availableModules);
+		[].contains
+		if (availableModules.includes("vpn")) {
+			messagebusConnectedClients.forEach(clientId => {
+				option = document.createElement("option");
+				option.text = `Client ${clientId}`;
+				option.dataset.channel = `host:${clientId}`;
+				select.appendChild(option);
+			});
+		}
 	});
 	terminalHostSelected();
 }

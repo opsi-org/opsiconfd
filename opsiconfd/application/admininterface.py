@@ -94,11 +94,12 @@ async def welcome_interface_deactivate() -> None:
 
 @admin_interface_router.get("/")
 async def admin_interface_index(request: Request) -> Response:
+	backend = get_protected_backend()
 	username = ""
 	session = contextvar_client_session.get()
 	if session and session.username:
 		username = session.username
-	interface = get_protected_backend().get_interface()
+	interface = backend.get_interface()
 	for method in interface:
 		if method["doc"]:
 			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])
@@ -109,6 +110,7 @@ async def admin_interface_index(request: Request) -> Response:
 		"node_name": config.node_name,
 		"username": username,
 		"interface": interface,
+		"available_modules": backend.available_modules,
 		"ca_info": get_ca_cert_info(),
 		"cert_info": get_server_cert_info(),
 		"num_servers": get_num_servers(),
@@ -118,8 +120,9 @@ async def admin_interface_index(request: Request) -> Response:
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 			for addon in AddonManager().addons
 		],
-		"multi_factor_auth": config.multi_factor_auth,
+		"multi_factor_auth": config.multi_factor_auth
 	}
+
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
 
 

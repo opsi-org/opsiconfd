@@ -98,7 +98,9 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		self.set_size(terminal_open_request.rows, terminal_open_request.cols, False)
 
 		cwd = getpwuid(getuid()).pw_dir
-		self._pty = start_pty(shell=config.admin_interface_terminal_shell, rows=self.rows, cols=self.cols, cwd=cwd)
+		self._pty = start_pty(
+			shell=self._terminal_open_request.shell or config.admin_interface_terminal_shell, rows=self.rows, cols=self.cols, cwd=cwd
+		)
 		self._pty_reader_task = self._loop.create_task(self._pty_reader())
 		self._closing = False
 

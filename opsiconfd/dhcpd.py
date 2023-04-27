@@ -822,7 +822,7 @@ def get_dhcpd_control_config() -> DHCPDControlConfig:
 		reload_config_command=get_dhcpd_restart_command(),
 		fixed_address_format="IP",
 		default_client_parameters={"next-server": next_server},
-		boot_filename_uefi="opsi/opsi-linux-bootimage/loader/opsi-netboot.efi",
+		boot_filename_uefi="opsi/opsi-linux-bootimage/loader/shimx64.efi.signed",
 		boot_filename_bios="opsi/opsi-linux-bootimage/loader/opsi-netboot.bios",
 	)
 

@@ -297,7 +297,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._config, _unknown = self._parser.parse_known_args(self._args, config_file_contents=self._config_file_contents())
 		self._update_config()
 
-	def _update_config(self) -> None:  # pylint: disable=too-many-branches
+	def _update_config(self) -> None:  # pylint: disable=too-many-branches,too-many-statements
 		if self._sub_command:
 			self._config.action = self._sub_command
 

@@ -16,6 +16,7 @@ from unittest.mock import patch
 from msgspec import json
 from werkzeug.http import parse_options_header
 
+from opsicommon.objects import OpsiClient
 from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage
 
 from .utils import (  # pylint: disable=unused-import
@@ -55,8 +56,17 @@ def test_raw_file_upload_download_delete(tmp_path: Path, test_client: OpsiconfdT
 def test_raw_file_upload_download_with_delete(
 	tmp_path: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
 ) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client = OpsiClient(id="test-file-upload-1.opsi.org")
+	client.setDefaults()
+	assert client.opsiHostKey
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	test_client.reset_cookies()
+	test_client.auth = (client.id, client.opsiHostKey)
+
 	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
-		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		data = b"file-data"
 		resp = test_client.post("/file-transfer/raw", content=data)
 		assert resp.status_code == 201

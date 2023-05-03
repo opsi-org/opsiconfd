@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
 import pytest
-from opsicommon.objects import OpsiClient  # type: ignore[import]
+from opsicommon.objects import OpsiClient
 
 from opsiconfd.application.jsonrpc import (
 	compress_data,

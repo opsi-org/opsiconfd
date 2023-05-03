@@ -147,20 +147,24 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 @pytest.mark.asyncio
 async def test_async_redis_log_adapter(tmp_path: Path) -> None:
 	log_file = tmp_path / "log"
-	with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_ERROR}):
+	# with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_ERROR}):
+	with get_config({"log_file": str(log_file)}):
 		redis_log_handler = RedisLogHandler()
+		await asyncio.sleep(2)
 		logger.addHandler(redis_log_handler)
-		adapter = AsyncRedisLogAdapter()
+		logger.setLevel(OPSI_LEVEL_TO_LEVEL[LOG_ERROR])
+		redis_log_handler.setLevel(OPSI_LEVEL_TO_LEVEL[LOG_ERROR])
 
-		await asyncio.sleep(3)
+		adapter = AsyncRedisLogAdapter()
+		await asyncio.sleep(2)
 
 		for num in range(5):
 			logger.error("message %d", num)
 
-		await asyncio.sleep(3)
+		await asyncio.sleep(2)
 		await adapter.stop()
 		redis_log_handler.stop()
-		await asyncio.sleep(3)
+		await asyncio.sleep(1)
 
 		with open(log_file, "r", encoding="utf-8") as file:
 			lines = file.readlines()

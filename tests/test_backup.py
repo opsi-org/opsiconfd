@@ -113,11 +113,9 @@ def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dic
 	conf.update(cmdline_config)
 	kwargs = {}
 
-	def mock_create_backup(
-		config_files: bool, backup_file: str, file_encoding: str, file_compression: str, password: str, maintenance: bool, progress: bool
-	) -> None:
+	def mock_create_backup(**kws: str | bool) -> None:
 		nonlocal kwargs
-		kwargs = locals()
+		kwargs = kws
 
 	with patch("opsiconfd.main.create_backup", mock_create_backup):
 		with get_config(conf):

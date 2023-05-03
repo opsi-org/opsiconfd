@@ -155,10 +155,10 @@ async def test_async_redis_log_adapter(tmp_path: Path) -> None:
 		for num in range(5):
 			logger.error("message %d", num)
 
-		await asyncio.sleep(1)
+		await asyncio.sleep(3)
 		await adapter.stop()
 		redis_log_handler.stop()
-		await asyncio.sleep(1)
+		await asyncio.sleep(3)
 
 		with open(log_file, "r", encoding="utf-8") as file:
 			lines = file.readlines()

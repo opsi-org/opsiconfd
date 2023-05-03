@@ -152,6 +152,8 @@ async def test_async_redis_log_adapter(tmp_path: Path) -> None:
 		logger.addHandler(redis_log_handler)
 		adapter = AsyncRedisLogAdapter()
 
+		await asyncio.sleep(3)
+
 		for num in range(5):
 			logger.error("message %d", num)
 

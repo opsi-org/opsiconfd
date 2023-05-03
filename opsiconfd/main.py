@@ -114,18 +114,19 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 			suffixes = [s.strip(".") for s in backup_file.suffixes[-3:]]
 
 			if suffixes and suffixes[-1] == "aes":
-				suffixes = suffixes[:-1]
-			encoding = suffixes[0]
-			compression = None
-			if len(suffixes) == 2:
-				compression = suffixes[1]
+				suffixes.pop()
 
+			compression = None
+			if suffixes and suffixes[-1] in ("lz4", "gz"):
+				compression = suffixes.pop()
+			elif suffixes[-1] not in ("msgpack", "json"):
+				raise ValueError(f"Invalid compression {suffixes[-1]!r}, valid compressions are 'lz4' and 'gz'")
+
+			encoding = ""
+			if suffixes and suffixes[-1] in ("msgpack", "json"):
+				encoding = suffixes.pop()
 			if encoding not in ("msgpack", "json"):
 				raise ValueError(f"Invalid encoding {encoding!r}, valid encodings are 'msgpack' and 'json'")
-
-			if compression:
-				if compression not in ("lz4", "gz"):
-					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
 
 			maintenance = not config.no_maintenance
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")

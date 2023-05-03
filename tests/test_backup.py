@@ -10,17 +10,122 @@ test backup
 import asyncio
 from copy import deepcopy
 from os.path import abspath
+from pathlib import Path
 from threading import Event, Thread
-
+from unittest.mock import patch
+import pytest
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backup import create_backup, restore_backup
+from opsiconfd.main import backup_main
 
 from .test_application import (  # pylint: disable=unused-import
 	AppStateReaderThread,
 	app_state_reader,
 )
-from .utils import Config, clean_redis, config  # pylint: disable=unused-import
+from .utils import Config, clean_redis, config, get_config  # pylint: disable=unused-import
+
+
+@pytest.mark.parametrize(
+	"cmdline_config, expexted_kwargs",
+	[
+		(
+			{
+				"backup_target": "/tmp/test.json",
+				"quiet": False,
+				"password": False,
+				"overwrite": True,
+				"no_maintenance": True,
+				"no_config_files": True,
+			},
+			{
+				"config_files": False,
+				"backup_file": Path("/tmp/test.json"),
+				"file_encoding": "json",
+				"file_compression": None,
+				"password": False,
+				"maintenance": False,
+			},
+		),
+		(
+			{
+				"backup_target": "/tmp/test.json.gz",
+				"quiet": True,
+				"password": False,
+				"overwrite": True,
+				"no_maintenance": False,
+				"no_config_files": False,
+			},
+			{
+				"config_files": True,
+				"backup_file": Path("/tmp/test.json.gz"),
+				"file_encoding": "json",
+				"file_compression": "gz",
+				"password": False,
+				"maintenance": True,
+			},
+		),
+		(
+			{
+				"backup_target": "/tmp/test_2023.05.03_01:01:01.msgpack",
+			},
+			{
+				"backup_file": Path("/tmp/test_2023.05.03_01:01:01.msgpack"),
+				"file_encoding": "msgpack",
+				"file_compression": None,
+				"password": False,
+			},
+		),
+		(
+			{
+				"backup_target": "/tmp/test_2023.05.03_01:01:01.msgpack.lz4",
+			},
+			{
+				"backup_file": Path("/tmp/test_2023.05.03_01:01:01.msgpack.lz4"),
+				"file_encoding": "msgpack",
+				"file_compression": "lz4",
+				"password": False,
+			},
+		),
+		(
+			{
+				"backup_target": "/tmp/test_2023.05.03_01:01:01.msgpack.lz4.aes",
+				"password": "secret",
+			},
+			{
+				"backup_file": Path("/tmp/test_2023.05.03_01:01:01.msgpack.lz4.aes"),
+				"file_encoding": "msgpack",
+				"file_compression": "lz4",
+				"password": "secret",
+			},
+		),
+	],
+)
+def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dict[str, str]) -> None:
+	conf = {
+		"backup_target": "",
+		"quiet": False,
+		"password": False,
+		"overwrite": True,
+		"no_maintenance": False,
+		"no_config_files": False,
+	}
+	conf.update(cmdline_config)
+	kwargs = {}
+
+	def mock_create_backup(
+		config_files: bool, backup_file: str, file_encoding: str, file_compression: str, password: str, maintenance: bool, progress: bool
+	) -> None:
+		nonlocal kwargs
+		kwargs = locals()
+
+	with patch("opsiconfd.main.create_backup", mock_create_backup):
+		with get_config(conf):
+			with pytest.raises(SystemExit, match="0"):
+				backup_main()
+
+			for key, val in expexted_kwargs.items():
+				assert kwargs[key] == val
 
 
 def test_create_backup(

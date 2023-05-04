@@ -200,9 +200,10 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 		assert backend.user_getCredentials("pcpatch") == {"password": "password3", "rsaPrivateKey": ""}
 
 
-# @pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
-@pytest.mark.parametrize("log_type", ("instlog",))
-def test_log_write(backend: UnprotectedBackend, tmp_path: Path, log_type: str) -> None:  # pylint: disable=redefined-outer-name
+@pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
+def test_log_write(  # pylint: disable=redefined-outer-name,too-many-statements
+	backend: UnprotectedBackend, tmp_path: Path, log_type: str
+) -> None:
 	data = "line1\nline2\nüöß\n"
 	with (patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)), get_config({"keep_rotated_logs": 2})):
 		client = OpsiClient(id="test-backend-rpc-general.opsi.org")
@@ -245,6 +246,18 @@ def test_log_write(backend: UnprotectedBackend, tmp_path: Path, log_type: str) -
 			backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
 			assert log_file.read_text(encoding="utf-8") == "line1\n"
 
+		with patch("opsiconfd.backend.rpc.general.LOG_SIZE_HARD_LIMIT", 1_000_000):
+			log_line = "log_line_" * 100
+			log_data = ""
+			expected_size = 0
+			while len(log_data) < 1_000_000 + len(log_line) * 10:
+				if len(log_data) < 1_000_000:
+					expected_size = len(log_data)
+				log_data += log_line + "\n"
+
+			backend.log_write(logType=log_type, data=log_data, objectId=client.id, append=False)
+			assert len(log_file.read_text(encoding="utf-8")) == expected_size
+
 		shutil.rmtree(log_file.parent)
 
 		backend.log_write(logType=log_type, data=data, objectId=client.id, append=True)
@@ -257,3 +270,18 @@ def test_log_write(backend: UnprotectedBackend, tmp_path: Path, log_type: str) -
 			assert log_file.read_text(encoding="utf-8") == data
 			assert log_file.with_name(f"{client.id}.log.1").exists()
 			assert len(list(log_file.parent.iterdir())) == 2
+
+
+@pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
+def test_log_read(  # pylint: disable=redefined-outer-name,too-many-statements
+	backend: UnprotectedBackend, tmp_path: Path, log_type: str
+) -> None:
+	data = "line1\nline2\nüöß\n"
+	with patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)):
+		client = OpsiClient(id="test-backend-rpc-general.opsi.org")
+		backend.host_createObjects([client])
+
+		backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
+		assert backend.log_read(logType=log_type, objectId=client.id) == data
+		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=3) == "lin"
+		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=9) == "line1\n"

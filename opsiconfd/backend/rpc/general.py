@@ -75,12 +75,13 @@ def truncate_log_data(data: str, max_size: int) -> str:
 	"""
 	Truncating `data` to not be longer than `max_size` chars.
 	"""
-	data_length = len(data)
-	if data_length > max_size:
-		start = data.find("\n", data_length - max_size)
-		if start == -1:
-			start = data_length - max_size
-		return data[start:].lstrip()
+	if len(data) <= max_size:
+		return data
+
+	data = data[:max_size]
+	idx = data.rfind("\n")
+	if idx > 0:
+		data = data[: idx + 1]
 	return data
 
 
@@ -421,7 +422,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		bdata = data.encode("utf-8", "replace")
 		if len(bdata) > LOG_SIZE_HARD_LIMIT:
 			bdata = bdata[:LOG_SIZE_HARD_LIMIT]
-			idx = bdata.find(b"\n")
+			idx = bdata.rfind(b"\n")
 			if idx > 0:
 				bdata = bdata[: idx + 1]
 

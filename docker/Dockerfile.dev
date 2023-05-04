@@ -20,7 +20,7 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
 # System deps:
 RUN apt-get update \
 	&& apt-get --yes dist-upgrade \
-	&& apt-get --yes install \
+	&& apt-get --yes --allow-downgrades install \
 		cpio \
 		vim \
 		wget \
@@ -29,7 +29,7 @@ RUN apt-get update \
 		libmariadb-dev \
 		psmisc \
 		librsync1 \
-		sqlite3 \
+		libsqlite3-0=3.16.2-5+deb9u1 \
 		sudo \
 		git \
 		bash-completion \

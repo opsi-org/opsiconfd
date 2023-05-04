@@ -10,7 +10,6 @@ opsiconfd.backend.rpc.extender
 
 from __future__ import annotations
 
-import glob
 import os
 import shutil
 import socket
@@ -21,12 +20,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.exceptions import (
 	BackendAuthenticationError,
 	BackendBadValueError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.license import (  # type: ignore[import]
+from opsicommon.license import (
 	OPSI_CLIENT_INACTIVE_AFTER,
 	OPSI_LICENSE_CLIENT_NUMBER_UNLIMITED,
 	OPSI_LICENSE_DATE_UNLIMITED,
@@ -36,7 +35,7 @@ from opsicommon.license import (  # type: ignore[import]
 	OpsiModulesFile,
 	get_default_opsi_license_pool,
 )
-from opsicommon.types import forceBool, forceObjectId  # type: ignore[import]
+from opsicommon.types import forceBool, forceObjectId
 
 from opsiconfd import __version__, contextvar_client_address, contextvar_client_session
 from opsiconfd.application import AppState
@@ -396,7 +395,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return {"opsiVersion": __version__, "modules": modules, "realmodules": realmodules}
 
 	@rpc_method
-	def log_write(  # pylint: disable=invalid-name,too-many-branches
+	def log_write(  # pylint: disable=invalid-name,too-many-branches,too-many-locals
 		self: BackendProtocol, logType: str, data: str, objectId: str | None = None, append: bool = False
 	) -> None:
 		"""
@@ -409,54 +408,52 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		:param append: Changes the behaviour to either append or overwrite the log.
 		:type append: bool
 		"""
-		logType = str(logType)
-		if logType not in LOG_TYPES:
-			raise BackendBadValueError(f"Unknown log type '{logType}'")
+		log_type = str(logType)
+		if log_type not in LOG_TYPES:
+			raise BackendBadValueError(f"Unknown log type '{log_type}'")
 
 		if not objectId:
-			raise BackendBadValueError(f"Writing {logType} log requires an objectId")
-		objectId = forceObjectId(objectId)
+			raise BackendBadValueError(f"Writing {log_type} log requires an objectId")
 
+		object_id = forceObjectId(objectId)
 		append = forceBool(append)
 
 		bdata = data.encode("utf-8", "replace")
 		if len(bdata) > LOG_SIZE_HARD_LIMIT:
-			bdata = bdata[-1 * LOG_SIZE_HARD_LIMIT :]
+			bdata = bdata[:LOG_SIZE_HARD_LIMIT]
 			idx = bdata.find(b"\n")
 			if idx > 0:
-				bdata = bdata[idx + 1 :]
+				bdata = bdata[: idx + 1]
 
-		log_file = os.path.join(LOG_DIR, logType, f"{objectId}.log")
-
-		if not os.path.exists(os.path.dirname(log_file)):
-			os.mkdir(os.path.dirname(log_file), 0o2770)
+		log_file = Path(LOG_DIR) / log_type / f"{object_id}.log"
+		log_file.parent.mkdir(mode=0o2770, parents=True, exist_ok=True)
 
 		try:
-			if not append or (append and os.path.exists(log_file) and os.path.getsize(log_file) + len(bdata) > config.max_log_size):
+			if not append or (append and log_file.exists() and os.path.getsize(log_file) + len(bdata) > config.max_log_size * 1_000_000):
 				logger.info("Rotating file '%s'", log_file)
 				if config.keep_rotated_logs <= 0:
-					os.remove(log_file)
+					log_file.unlink()
 				else:
 					for num in range(config.keep_rotated_logs, 0, -1):
 						src_file_path = log_file
 						if num > 1:
-							src_file_path = f"{log_file}.{num-1}"
-						if not os.path.exists(src_file_path):
+							src_file_path = log_file.with_name(f"{log_file.name}.{num-1}")
+						if not src_file_path.exists():
 							continue
-						dst_file_path = f"{log_file}.{num}"
-						os.rename(src_file_path, dst_file_path)
+						dst_file_path = log_file.with_name(f"{log_file.name}.{num}")
+						src_file_path.rename(dst_file_path)
 						try:
 							shutil.chown(dst_file_path, -1, opsi_config.get("groups", "admingroup"))
-							os.chmod(dst_file_path, 0o644)
+							dst_file_path.chmod(0o644)
 						except Exception as err:  # pylint: disable=broad-except
 							logger.error("Failed to set file permissions on '%s': %s", dst_file_path, err)
 
-			for filename in glob.glob(f"{log_file}.*"):
+			for lfile in log_file.parent.glob(f"{log_file.name}.*"):
 				try:
-					if int(filename.split(".")[-1]) > config.keep_rotated_logs:
-						os.remove(filename)
+					if int(lfile.suffix[1:]) > config.keep_rotated_logs:
+						lfile.unlink()
 				except ValueError:
-					os.remove(filename)
+					lfile.unlink()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to rotate log files: %s", err)
 
@@ -465,7 +462,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		try:
 			shutil.chown(log_file, group=opsi_config.get("groups", "admingroup"))
-			os.chmod(log_file, 0o640)
+			log_file.chmod(0o644)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to set file permissions on '%s': %s", log_file, err)
 

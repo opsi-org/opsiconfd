@@ -10,6 +10,7 @@ test opsiconfd.backend.rpc.general
 
 import os
 import pwd
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -20,11 +21,7 @@ from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
 from opsiconfd.utils import blowfish_encrypt
-from tests.utils import (  # pylint: disable=unused-import
-	UnprotectedBackend,
-	backend,
-	clean_mysql,
-)
+from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # pylint: disable=unused-import
 
 
 @pytest.mark.parametrize(
@@ -201,3 +198,62 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password3}\npcpatch2:{enc_password2}\n"
 
 		assert backend.user_getCredentials("pcpatch") == {"password": "password3", "rsaPrivateKey": ""}
+
+
+# @pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
+@pytest.mark.parametrize("log_type", ("instlog",))
+def test_log_write(backend: UnprotectedBackend, tmp_path: Path, log_type: str) -> None:  # pylint: disable=redefined-outer-name
+	data = "line1\nline2\nüöß\n"
+	with (patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)), get_config({"keep_rotated_logs": 2})):
+		client = OpsiClient(id="test-backend-rpc-general.opsi.org")
+		backend.host_createObjects([client])
+
+		log_file = tmp_path / f"{log_type}/{client.id}.log"
+
+		backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
+		assert log_file.read_text(encoding="utf-8") == data
+		assert len(list(log_file.parent.iterdir())) == 1
+
+		log_file.with_name(f"{client.id}.log.9").write_bytes(b"old, should be removed")
+		backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
+		assert log_file.read_text(encoding="utf-8") == data
+		assert log_file.with_name(f"{client.id}.log.1").exists()
+		assert not log_file.with_name(f"{client.id}.log.9").exists()
+		assert len(list(log_file.parent.iterdir())) == 2
+
+		backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
+		assert log_file.read_text(encoding="utf-8") == data
+		assert log_file.with_name(f"{client.id}.log.1").exists()
+		assert log_file.with_name(f"{client.id}.log.2").exists()
+		assert len(list(log_file.parent.iterdir())) == 3
+
+		# keep_rotated_logs = 2
+		backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
+		assert log_file.read_text(encoding="utf-8") == data
+		assert log_file.with_name(f"{client.id}.log.1").exists()
+		assert log_file.with_name(f"{client.id}.log.2").exists()
+		assert len(list(log_file.parent.iterdir())) == 3
+
+		backend.log_write(logType=log_type, data=data, objectId=client.id, append=True)
+		assert log_file.read_text(encoding="utf-8") == data + data
+
+		with patch("opsiconfd.backend.rpc.general.LOG_SIZE_HARD_LIMIT", 3):
+			backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
+			assert log_file.read_text(encoding="utf-8") == "lin"
+
+		with patch("opsiconfd.backend.rpc.general.LOG_SIZE_HARD_LIMIT", 10):
+			backend.log_write(logType=log_type, data=data, objectId=client.id, append=False)
+			assert log_file.read_text(encoding="utf-8") == "line1\n"
+
+		shutil.rmtree(log_file.parent)
+
+		backend.log_write(logType=log_type, data=data, objectId=client.id, append=True)
+		assert log_file.read_text(encoding="utf-8") == data
+		assert len(list(log_file.parent.iterdir())) == 1
+
+		# Rotate, because max_log_size (in MB) is exceeded
+		with get_config({"max_log_size": 1 / 1_000_000}):
+			backend.log_write(logType=log_type, data=data, objectId=client.id, append=True)
+			assert log_file.read_text(encoding="utf-8") == data
+			assert log_file.with_name(f"{client.id}.log.1").exists()
+			assert len(list(log_file.parent.iterdir())) == 2

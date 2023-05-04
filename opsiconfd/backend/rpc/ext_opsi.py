@@ -118,9 +118,6 @@ class RPCExtOpsiMixin(Protocol):
 		"""
 		Setting rights for a specified path.
 		If no path is given it will try to set the rights for the current depot.
-
-		The current implementation requires "sudo opsi-setup --patch-sudoers-file"
-		to be run before.
 		"""
 		if path is None:
 			old_depot_path = "/opt/pcbin/install/"

@@ -1374,6 +1374,14 @@ function updateMessagebusConnectedHosts() {
 	states.forEach(element => {
 		let connected = messagebusConnectedDepots.includes(element.dataset.depotId);
 		element.innerHTML = connected ? 'connected' : 'not connected';
+		if (connected) {
+			element.classList.remove("host-not-connected");
+			element.classList.add("host-connected");
+		}
+		else {
+			element.classList.remove("host-connected");
+			element.classList.add("host-not-connected");
+		}
 	});
 
 	const clients = document.getElementById("messagebus-connected-clients");
@@ -1393,6 +1401,14 @@ function updateMessagebusConnectedUsers() {
 	states.forEach(element => {
 		let connected = messagebusConnectedUsers.includes(element.dataset.userId);
 		element.innerHTML = connected ? 'connected' : 'not connected';
+		if (connected) {
+			element.classList.remove("user-not-connected");
+			element.classList.add("user-connected");
+		}
+		else {
+			element.classList.remove("user-connected");
+			element.classList.add("user-not-connected");
+		}
 	});
 }
 

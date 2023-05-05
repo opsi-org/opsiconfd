@@ -23,9 +23,9 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
-from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
-from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
-from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version
+from opsicommon.license import OpsiLicenseFile
+from opsicommon.system.info import linux_distro_id_like_contains
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 
@@ -120,7 +120,7 @@ async def admin_interface_index(request: Request) -> Response:
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 			for addon in AddonManager().addons
 		],
-		"multi_factor_auth": config.multi_factor_auth
+		"multi_factor_auth": config.multi_factor_auth,
 	}
 
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
@@ -243,6 +243,35 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 				await pipe.delete(key)  # type: ignore[attr-defined]
 			await pipe.execute()  # type: ignore[attr-defined]
 	return RESTResponse({"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys})
+
+
+@admin_interface_router.get("/depots")
+@rest_api
+async def get_depot_list() -> RESTResponse:
+	return RESTResponse(
+		sorted(
+			[
+				{"id": d.id, "description": d.description, "opsiHostKey": d.opsiHostKey}
+				for d in get_unprotected_backend().host_getObjects(type="OpsiDepotserver")
+				if d.getType() != "OpsiConfigserver"
+			],
+			key=itemgetter("id"),
+		)
+	)
+
+
+@admin_interface_router.post("/depot-create")
+@rest_api
+async def create_depot(request: Request) -> RESTResponse:
+	request_body = await request.json() or {}
+	depot_id = request_body.get("id")
+	if not depot_id:
+		raise ValueError("Depot ID missing")
+	backend = get_unprotected_backend()
+	if backend.host_getIdents(id=depot_id):
+		raise ValueError("Depot already exists")
+	backend.host_createOpsiDepotserver(id=depot_id, description=request_body.get("description"))
+	return RESTResponse("ok")
 
 
 @admin_interface_router.get("/addons")
@@ -374,11 +403,9 @@ async def get_session_list() -> RESTResponse:
 @rest_api
 async def get_user_list() -> RESTResponse:
 	backend = get_unprotected_backend()
-	connected_user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
 	user_list = []
 	for user in await run_in_threadpool(backend.user_getObjects):
 		user_dict = {k: v for k, v in user.to_hash().items() if k != "otpSecret"}
-		user_dict["connectedToMessagebus"] = user.id in connected_user_ids
 		user_list.append(user_dict)
 	return RESTResponse(user_list)
 

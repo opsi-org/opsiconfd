@@ -217,6 +217,28 @@ function clearRPCCache(cacheName = null) {
 }
 
 
+function loadDepotTable() {
+	let req = ajaxRequest("GET", "/admin/depots");
+	req.then((result) => {
+		printDepotTable(result, "depots-table-div");
+		return result
+	});
+}
+
+
+function createDepot() {
+	const depotId = document.getElementById("create-depot-id").value;
+	const depotDescription = document.getElementById("create-depot-description").value;
+	let req = ajaxRequest("POST", "/admin/depot-create", { "id": depotId, "description": depotDescription });
+	req.then((result) => {
+		loadDepotTable();
+	}, (error) => {
+		console.error(error);
+		showNotifcation(`Failed to create depot: ${error.message}`, "create-depot", "error", 10);
+	});
+}
+
+
 function loadClientTable() {
 	let req = ajaxRequest("GET", "/admin/blocked-clients");
 	req.then((result) => {
@@ -334,12 +356,13 @@ function printUserTable(data, htmlId) {
 		}
 		htmlStr += "</tr>";
 		data.forEach(user => {
-			let cls = "user-" + (user.connectedToMessagebus ? "connected" : "not-connected");
+			let connected = messagebusConnectedUsers.includes(user.id);
+			let cls = "user-" + (connected ? "connected" : "not-connected");
 			htmlStr += "<tr>" +
 				`<td class="user-td">${user.id}</td>` +
 				`<td class="user-td">${formateDate(new Date(user.lastLogin))}</td>` +
 				`<td id="user-messagebus-state-${user.id}" data-user-id="${user.id}" class="user-td ${cls}">` +
-				`${user.connectedToMessagebus ? 'connected' : 'not connected'}</td >`;
+				`${connected ? 'connected' : 'not connected'}</td >`;
 			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
 				cls = "mfa-" + (user.mfaState == "inactive" ? "inactive" : "active");
 				if (multiFactorAuth == "totp_mandatory" && user.mfaState == "inactive") {
@@ -820,6 +843,48 @@ function printClientTable(data, htmlId) {
 	div.innerHTML = htmlStr;
 	return htmlStr;
 }
+
+
+function toggleTextSecurityVisibility(element) {
+	element.style.webkitTextSecurity = element.style.textSecurity =
+		((element.style.textSecurity == "disc" || element.style.webkitTextSecurity == "disc") ? "none" : "disc");
+}
+
+
+function printDepotTable(data, htmlId) {
+	if (data == undefined) {
+		data = []
+	}
+	if (data.length == 0) {
+		htmlStr = "<p>No depots.</p>";
+	} else {
+		htmlStr = "<table class=\"host-table\" id=\"depots-table\">" +
+			"<tr>" +
+			"<th class='host-th'>Depot ID</th>" +
+			"<th class='host-th'>Description</th>" +
+			"<th class='host-th'>Opsi host key</th>" +
+			"<th class='host-th'>Messagebus</th>" +
+			"</tr>";
+		data.forEach(depot => {
+			let connected = messagebusConnectedDepots.includes(depot.id);
+			let cls = "host-" + (connected ? "connected" : "not-connected");
+			htmlStr += "<tr>";
+			htmlStr += "<td class=\"host-td\">" + depot.id + "</td>";
+			htmlStr += "<td class=\"host-td\">" + depot.description + "</td>";
+			htmlStr += "<td class=\"host-td\" style=\"cursor: pointer; text-security: disc; -webkit-text-security: disc;\"";
+			htmlStr += " onclick = 'toggleTextSecurityVisibility(this)' > " + depot.opsiHostKey + "</td > ";
+			htmlStr += `<td id="depot-messagebus-state-${depot.id}" data-depot-id="${depot.id}" class="host-td ${cls}">`
+			htmlStr += connected ? 'connected' : 'not connected';
+			htmlStr += "</td >";
+			htmlStr += "</tr>";
+		});
+		htmlStr += "</table>";
+	}
+	div = document.getElementById(htmlId);
+	div.innerHTML = htmlStr;
+	return htmlStr;
+}
+
 
 
 function printRPCCacheInfoTable(data, htmlId) {
@@ -1305,15 +1370,11 @@ function getMessagebusConnectedClients(callback) {
 
 function updateMessagebusConnectedHosts() {
 	const depots = document.getElementById("messagebus-connected-depots");
-	depots.innerHTML = "";
-	const depotList = document.createElement("ul");
-	messagebusConnectedDepots.sort();
-	messagebusConnectedDepots.forEach(depotId => {
-		const depot = document.createElement("li");
-		depot.innerHTML = depotId
-		depotList.appendChild(depot);
+	let states = document.querySelectorAll('[id^="depot-messagebus-state-"]');
+	states.forEach(element => {
+		let connected = messagebusConnectedDepots.includes(element.dataset.depotId);
+		element.innerHTML = connected ? 'connected' : 'not connected';
 	});
-	depots.appendChild(depotList);
 
 	const clients = document.getElementById("messagebus-connected-clients");
 	clients.innerHTML = "";

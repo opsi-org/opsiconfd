@@ -171,6 +171,7 @@ select {
 
 .session-table,
 .user-table,
+.host-table,
 .locked-products-table {
 	table-layout: auto;
 	background-color: #eeeeee;
@@ -178,6 +179,7 @@ select {
 
 .session-th,
 .user-th,
+.host-th,
 .locked-products-th {
 	font-size: 12px;
 	border: 1px #0068aa solid;
@@ -189,6 +191,7 @@ select {
 
 .session-td,
 .user-td,
+.host-td,
 .locked-products-td {
 	font-size: 12px;
 	border: 1px #0068aa solid;
@@ -207,7 +210,8 @@ select {
 	color: #ce714d;
 }
 
-.user-connected {
+.user-connected,
+.host-connected {
 	color: #40853d;
 }
 

@@ -70,8 +70,9 @@ class RPCHostMixin(Protocol):
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_updated([host.id])
-		self.dhcpd_control_hosts_updated([host.id])
+		if host.getType() == "OpsiClient":
+			self.opsipxeconfd_hosts_updated([host.id])
+			self.dhcpd_control_hosts_updated([host.id])
 		self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
@@ -82,8 +83,9 @@ class RPCHostMixin(Protocol):
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_updated([host.id])
-		self.dhcpd_control_hosts_updated([host.id])
+		if host.getType() == "OpsiClient":
+			self.opsipxeconfd_hosts_updated([host.id])
+			self.dhcpd_control_hosts_updated([host.id])
 		self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
@@ -98,8 +100,8 @@ class RPCHostMixin(Protocol):
 			return
 		for host in hosts:
 			self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
-		self.opsipxeconfd_hosts_updated([h.id for h in hosts])
-		self.dhcpd_control_hosts_updated([h.id for h in hosts])
+		self.opsipxeconfd_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
+		self.dhcpd_control_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
 
 	@rpc_method(check_acl=False)
 	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
@@ -113,8 +115,8 @@ class RPCHostMixin(Protocol):
 			return
 		for host in hosts:
 			self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
-		self.opsipxeconfd_hosts_updated([h.id for h in hosts])
-		self.dhcpd_control_hosts_updated([h.id for h in hosts])
+		self.opsipxeconfd_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
+		self.dhcpd_control_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
 
 	@rpc_method(check_acl=False)
 	def host_getObjects(  # pylint: disable=redefined-builtin,invalid-name

@@ -85,6 +85,7 @@
 			}
 			else if (tabName == "depots") {
 				getMessagebusConnectedClients();
+				loadDepotTable();
 				loadLockedProductsTable();
 			}
 			else if (tabName == "rpc-interface") {
@@ -317,10 +318,13 @@
 
 		<div id="tab-depots" class="tabcontent">
 			<div class="adminpage-box">
-				<h4>Depots connected to messagebus:</h4>
-				<div id="messagebus-connected-depots">
+				<h4>Depots:</h4>
+				<div id="depots-table-div">
 					loading...
 				</div>
+				<input type="text" id="create-depot-id" placeholder="New depot ID" value="">
+				<input type="text" id="create-depot-description" placeholder="New depot description" value="">
+				<input type="button" onclick="createDepot()" value="Create depot">
 			</div>
 
 			<div class="adminpage-box">

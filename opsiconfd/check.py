@@ -606,7 +606,6 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 
 		not_installed = 0
 		outdated = 0
-		missing = 0
 		try:
 			available_packages = get_avaliable_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
 		except requests.RequestException as err:
@@ -677,14 +676,12 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			"products": len(available_packages),
 			"depots": len(depots),
 			"not_installed": not_installed,
-			"outdated": outdated,
-			"missing": missing,
+			"outdated": outdated
 		}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
 				f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
-				f"{not_installed} mandatory products are not installed, {outdated} are out of date "
-				f"and {missing} could not be found on repository {OPSI_REPO}."
+				f"{not_installed} mandatory products are not installed, {outdated} are out of date."
 			)
 	return result
 

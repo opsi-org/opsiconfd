@@ -30,6 +30,7 @@ LSB_RELASE_COMMAND = ["lsb_release", "-a"]
 
 
 def get_os_release() -> dict[str, str]:
+	logger.debug("get_os_release")
 	data: dict[str, str] = {}
 	os_release_file = Path(OS_RELEASE_FILE)
 	if os_release_file.exists():
@@ -42,13 +43,14 @@ def get_os_release() -> dict[str, str]:
 
 
 def get_lsb_release() -> dict[str, str]:
+	logger.debug("get_lsb_release")
 	data: dict[str, str] = {}
 	try:
 		lines = run(
 			LSB_RELASE_COMMAND, shell=False, check=False, text=True, encoding="utf-8", capture_output=True, timeout=5
 		).stdout.splitlines()
 	except Exception as err:  # pylint: disable=broad-except
-		logger.info("lsb_release not available: %s", err)
+		logger.debug("lsb_release not available: %s", err)
 		return data
 
 	for line in lines:
@@ -65,6 +67,7 @@ def get_lsb_release() -> dict[str, str]:
 
 
 def get_client_info() -> dict[str, int]:
+	logger.debug("get_client_info")
 	now = datetime.now()
 	backend = get_unprotected_backend()
 	data: dict[str, int] = {"client_count": 0, "active_client_count": 0}
@@ -78,21 +81,23 @@ def get_client_info() -> dict[str, int]:
 
 
 def get_depot_info() -> dict[str, list[str]]:
+	logger.debug("get_depot_info")
 	backend = get_unprotected_backend()
 	return {"ids": backend.host_getIdents(returnType="str", type="OpsiDepotserver")}
 
 
 def get_licenses() -> dict[str, Any]:
+	logger.debug("get_licenses")
 	backend = get_unprotected_backend()
 	return backend.backend_getLicensingInfo()
 
 
 def get_opsi_product_versions() -> dict:
+	logger.debug("get_opsi_product_versions")
 	backend = get_unprotected_backend()
 	pods = backend.productOnDepot_getObjects(attributes=["id", "name", "productVersion", "packageVersion"])
 	result: dict = {}
 	for pod in pods:
-		backend.productOnDepot_getObjects("")
 		if not result.get(pod.depotId):
 			result[pod.depotId] = {}
 		result[pod.depotId][pod.productId] = {"version": pod.version, "type": pod.productType}
@@ -100,6 +105,7 @@ def get_opsi_product_versions() -> dict:
 
 
 def get_processor_info() -> dict[str, Any]:
+	logger.debug("get_processor_info")
 	try:
 		all_info = Path("/proc/cpuinfo").read_text(encoding="utf-8")
 		model = ""
@@ -115,6 +121,7 @@ def get_processor_info() -> dict[str, Any]:
 
 
 def get_memory_info() -> dict[str, Any]:
+	logger.debug("get_memory_info")
 	# https://psutil.readthedocs.io/en/latest/#psutil.virtual_memory
 	memory = psutil.virtual_memory()
 	total = memory.total
@@ -129,6 +136,7 @@ def get_memory_info() -> dict[str, Any]:
 
 
 def get_disk_info() -> dict[str, int | str]:
+	logger.debug("get_disk_info")
 	mountpoints = get_disk_mountpoints()
 	result: dict = {}
 	for mountpoint in mountpoints:
@@ -145,6 +153,7 @@ def get_disk_info() -> dict[str, int | str]:
 
 
 def get_backendmanager_extension_methods() -> dict[str, Any]:
+	logger.debug("get_backendmanager_extension_methods")
 	backend = get_unprotected_backend()
 	result: dict = {}
 	for method in backend._extender_method_info:  # pylint: disable=protected-access
@@ -156,6 +165,7 @@ def get_backendmanager_extension_methods() -> dict[str, Any]:
 
 
 def get_config() -> dict[str, Any]:
+	logger.debug("get_config")
 	conf = config.items().copy()
 	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase"]:
 		conf[key] = "********"
@@ -164,6 +174,7 @@ def get_config() -> dict[str, Any]:
 
 
 def get_system_info() -> dict:
+	logger.debug("get_system_info")
 	result: dict = {}
 	product_name = Path("/sys/devices/virtual/dmi/id/product_name")
 	try:

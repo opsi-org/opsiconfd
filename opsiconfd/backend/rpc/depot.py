@@ -62,6 +62,11 @@ from . import rpc_method  # pylint: disable=unused-import
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
+ALLOWED_SERVER_DATA = (
+	Path("/tmp"),
+	Path("/var/lib/opsi"),
+	Path("/tftpboot"),
+)
 
 
 def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
@@ -500,6 +505,19 @@ class DepotserverPackageManager:
 					if update_product_property_states:
 						self.backend.productPropertyState_updateObjects(update_product_property_states)
 
+		def copy_server_data(server_data: Path) -> None:
+			for source in (server_data).rglob("*"):
+				if source.is_dir():
+					continue
+				# copy .../SERVER_DATA/tmp/foo/bar to /tmp/foo/bar
+				destination = Path("/") / source.relative_to(server_data)
+				for allowed_dir in ALLOWED_SERVER_DATA:
+					if destination.is_relative_to(allowed_dir):
+						destination.parent.mkdir(exist_ok=True, parents=True)
+						print("copy", source, destination)
+						shutil.copy(source, destination)
+						break
+
 		logger.info("=================================================================================================")
 		if force_product_id:
 			force_product_id = typeForceProductId(force_product_id)
@@ -555,6 +573,10 @@ class DepotserverPackageManager:
 
 							logger.info("Unpacking package files")
 							shutil.move(tmp_unpack_dir / "CLIENT_DATA", product_path)
+
+							if (tmp_unpack_dir / "SERVER_DATA").exists():
+								logger.info("Unpacking SERVER_DATA")
+								copy_server_data(tmp_unpack_dir / "SERVER_DATA")
 
 							logger.info("Updating product dependencies of product %s", product)
 							current_product_dependencies = {}

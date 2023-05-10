@@ -323,6 +323,8 @@ def test_jsonrpc_package_install(test_client: OpsiconfdTestClient) -> None:  # p
 	response = res.json()
 	assert not response["error"]
 	assert Path(f"/var/lib/opsi/depot/{TESTPACKAGE_NAME}").exists()
+	assert Path("/tmp/bar").exists()
+	assert Path("/tmp/foo/baz").exists()
 	Path(f"/var/lib/opsi/depot/{TESTPACKAGE_NAME}/{TESTPACKAGE_NAME}.files").unlink()
 	res = test_client.post(
 		"/rpc", auth=(ADMIN_USER, ADMIN_PASS), json={"id": 2, "method": "depot_createPackageContentFile", "params": [TESTPACKAGE_NAME]}

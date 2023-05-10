@@ -514,7 +514,7 @@ class DepotserverPackageManager:
 				for allowed_dir in ALLOWED_SERVER_DATA:
 					if destination.is_relative_to(allowed_dir):
 						destination.parent.mkdir(exist_ok=True, parents=True)
-						print("copy", source, destination)
+						logger.debug("Copying %s to %s", source, destination)
 						shutil.copy(source, destination)
 						break
 

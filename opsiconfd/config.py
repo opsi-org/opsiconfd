@@ -146,7 +146,12 @@ def str2bool(value: str) -> bool:
 	return str(value).lower() in ("yes", "true", "y", "1")
 
 
-configargparse.ArgumentParser.format_help = ArgumentParser.format_help
+def format_help_without_msg(parser: configargparse.ArgumentParser) -> str:
+	return parser.orig_format_help().rsplit("\n\n", 1)[0]
+
+
+setattr(configargparse.ArgumentParser, "orig_format_help", configargparse.ArgumentParser.format_help)
+configargparse.ArgumentParser.format_help = format_help_without_msg
 
 
 class OpsiconfdHelpFormatter(HelpFormatter):
@@ -179,12 +184,16 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 	def format_help(self) -> str:
 		text = HelpFormatter.format_help(self)
+		text = text.split("Args that start")[0].rstrip()
 		if not self._sub_command:
 			text += (
 				"\n"
-				"Arguments can also be set in the configuration file.\n"
-				"Config file syntax allows: option=value, flag=true, list-option=[a,b,c].\n"
-				"For details, see syntax at https://goo.gl/R74nmi.\n"
+				"\n"
+				"Arguments can also be set in the configuration file and environment variables.\n"
+				"Entries in the configuration file overwrite the defaults.\n"
+				"Environment variables overwrite entries in the configuration file.\n"
+				"Command line parameters overwrite environment variables.\n"
+				"Config file and environment var syntax allows: option=value, flag=true, list-option=[a,b,c].\n"
 				"\n"
 			)
 		return text

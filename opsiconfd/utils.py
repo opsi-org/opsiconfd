@@ -395,3 +395,14 @@ def get_file_md5sum(file_path: Path | str) -> str:
 		while data := file.read(1_000_000):
 			md5_hash.update(data)
 	return md5_hash.hexdigest()
+
+
+def ldap3_uri_to_str(ldap_url: dict) -> str:
+	url = ldap_url["host"]
+	if ldap_url["port"]:
+		url = url + ":" + str(ldap_url["port"])
+	if ldap_url["ssl"]:
+		url = "ldaps://" + url
+	else:
+		url = "ldap://" + url
+	return url

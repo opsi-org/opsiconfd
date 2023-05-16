@@ -10,6 +10,7 @@ opsiconfd.setup.backend
 
 import os
 import re
+import time
 import string
 from pathlib import Path
 
@@ -74,13 +75,20 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 
 	mysql = MySQLConnection()
 	if not force:
-		try:
-			with mysql.connection():
-				# OK
-				return
-		except Exception as err:  # pylint: disable=broad-except
-			logger.info("Failed to connect to MySQL database: %s", err)
-			error = err
+		for _ in range(4):
+			try:
+				with mysql.connection():
+					# OK
+					return
+			except Exception as err:  # pylint: disable=broad-except
+				logger.info("Failed to connect to MySQL database: %s", err)
+				error = err
+				if not interactive and "connection refused" in str(err).lower():
+					# MySQL server starting up after upgrade?
+					logger.info("Retry connection in 3 seconds")
+					time.sleep(2.5)
+					continue
+				break
 
 	mysql_root = MySQLConnection()
 	auto_try = False

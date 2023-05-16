@@ -50,7 +50,7 @@ from opsiconfd.check import (
 	health_check,
 	process_check_result,
 )
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -516,7 +516,7 @@ def test_check_ldap_connection() -> None:
 	result = check_ldap_connection()
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "LDAP authentication is not configured."
-	with get_opsi_config([{"category": "ldap_auth", "config": "ldap_url", "value": "ldaps://no-server"}]) as opsi_config:
+	with get_opsi_config([{"category": "ldap_auth", "config": "ldap_url", "value": "ldaps://no-server"}]):
 		result = check_ldap_connection()
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "Could not connect to LDAP Server."

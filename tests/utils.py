@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
-import copy
 import time
 import types
 from contextlib import asynccontextmanager, contextmanager

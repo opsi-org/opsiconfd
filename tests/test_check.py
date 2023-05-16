@@ -45,11 +45,12 @@ from opsiconfd.check import (
 	check_product_on_depots,
 	check_redis,
 	check_system_packages,
+	check_ldap_connection,
 	get_repo_versions,
 	health_check,
 	process_check_result,
 )
-from opsiconfd.config import config
+from opsiconfd.config import config, opsi_config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -57,6 +58,7 @@ from .utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	clean_mysql,
 	get_config,
+	get_opsi_config,
 	sync_clean_redis,
 	sync_redis_client,
 	test_client,
@@ -409,7 +411,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 12
+	assert len(results) == 13
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status
@@ -507,3 +509,18 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	assert len(result.partial_results) == 1
 	partial_result = result.partial_results[0]
 	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert does not exist."
+
+
+def test_check_ldap_connection() -> None:
+
+	result = check_ldap_connection()
+	assert result.check_status == CheckStatus.OK
+	assert result.message == "LDAP authentication is not configured."
+	with get_opsi_config([{"category": "ldap_auth", "config": "ldap_url", "value": "ldaps://no-server"}]) as opsi_config:
+		result = check_ldap_connection()
+		assert result.check_status == CheckStatus.ERROR
+		assert result.message == "Could not connect to LDAP Server."
+
+	result = check_ldap_connection()
+	assert result.check_status == CheckStatus.OK
+	assert result.message == "LDAP authentication is not configured."

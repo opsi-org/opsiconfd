@@ -21,7 +21,6 @@ from argparse import (
 	SUPPRESS,
 	ZERO_OR_MORE,
 	Action,
-	ArgumentParser,
 	ArgumentTypeError,
 	HelpFormatter,
 	_ArgumentGroup,

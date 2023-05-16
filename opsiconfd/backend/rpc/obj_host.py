@@ -70,10 +70,11 @@ class RPCHostMixin(Protocol):
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
+
+		self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
 		if host.getType() == "OpsiClient":
 			self.opsipxeconfd_hosts_updated([host.id])
 			self.dhcpd_control_hosts_updated([host.id])
-		self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
 	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
@@ -83,10 +84,11 @@ class RPCHostMixin(Protocol):
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
+
+		self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
 		if host.getType() == "OpsiClient":
 			self.opsipxeconfd_hosts_updated([host.id])
 			self.dhcpd_control_hosts_updated([host.id])
-		self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
 
 	@rpc_method(check_acl=False)
 	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
@@ -98,10 +100,15 @@ class RPCHostMixin(Protocol):
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
 		if not self.events_enabled:
 			return
+
+		client_ids = []
 		for host in hosts:
 			self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
-		self.opsipxeconfd_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
-		self.dhcpd_control_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
+			if host.getType() == "OpsiClient":
+				client_ids.append(host.id)
+		if client_ids:
+			self.opsipxeconfd_hosts_updated(client_ids)
+			self.dhcpd_control_hosts_updated(client_ids)
 
 	@rpc_method(check_acl=False)
 	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
@@ -113,10 +120,15 @@ class RPCHostMixin(Protocol):
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
 		if not self.events_enabled:
 			return
+
+		client_ids = []
 		for host in hosts:
 			self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
-		self.opsipxeconfd_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
-		self.dhcpd_control_hosts_updated([h.id for h in hosts if host.getType() == "OpsiClient"])
+			if host.getType() == "OpsiClient":
+				client_ids.append(host.id)
+		if client_ids:
+			self.opsipxeconfd_hosts_updated(client_ids)
+			self.dhcpd_control_hosts_updated(client_ids)
 
 	@rpc_method(check_acl=False)
 	def host_getObjects(  # pylint: disable=redefined-builtin,invalid-name
@@ -153,10 +165,11 @@ class RPCHostMixin(Protocol):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_hosts_deleted(host_ids)
-		self.dhcpd_control_hosts_deleted(host_ids)
+
 		for host_id in host_ids:
 			self._send_messagebus_event("host_deleted", data={"id": host_id})
+		self.opsipxeconfd_hosts_deleted(host_ids)
+		self.dhcpd_control_hosts_deleted(host_ids)
 
 	@rpc_method(check_acl=False)
 	def host_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name

@@ -889,10 +889,11 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			data = self.serialize()
 			if modifications_only and redis.exists(self.redis_key):
 				data = {a: v for a, v in data.items() if a in self._modifications}
-			with redis.pipeline() as pipe:
-				pipe.hset(self.redis_key, mapping=data)  # type: ignore
-				pipe.expire(self.redis_key, self._redis_expiration_seconds)
-				pipe.execute()
+			if data:
+				with redis.pipeline() as pipe:
+					pipe.hset(self.redis_key, mapping=data)  # type: ignore
+					pipe.expire(self.redis_key, self._redis_expiration_seconds)
+					pipe.execute()
 
 		self._modifications = {}
 

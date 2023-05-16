@@ -21,6 +21,7 @@ from typing import Any, Generator, Iterator
 
 import psutil
 import requests
+import ldap3  # type: ignore[import]
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.logging.constants import (
 	LEVEL_TO_NAME,
@@ -45,9 +46,10 @@ from sqlalchemy.exc import OperationalError  # type: ignore[import]
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config
+from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
+from opsiconfd.utils import ldap3_uri_to_str
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 OPSI_REPO = "https://download.uib.de"
@@ -132,6 +134,7 @@ def health_check() -> Iterator[CheckResult]:
 	for check in (
 		check_opsiconfd_config,
 		check_opsi_config,
+		check_ldap_connection,
 		check_disk_usage,
 		check_depotservers,
 		check_system_packages,
@@ -672,12 +675,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			for package in packages_not_on_repo:
 				del available_packages[package]
 
-		result.details = {
-			"products": len(available_packages),
-			"depots": len(depots),
-			"not_installed": not_installed,
-			"outdated": outdated
-		}
+		result.details = {"products": len(available_packages), "depots": len(depots), "not_installed": not_installed, "outdated": outdated}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
 				f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
@@ -862,6 +860,38 @@ def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 				continue
 		if count > 0:
 			result.message = f"{count} issues found in the opsi configuration."
+	return result
+
+
+def check_ldap_connection() -> CheckResult:
+	result = CheckResult(
+		check_id="opsi_ldap_connection",
+		check_name="OPSI LDAP Connection",
+		check_description="Checks whether opsi can connect to the configured LDAP server.",
+		message="LDAP authentication is not configured.",
+		details={},
+	)
+	ldap_conf = opsi_config.get("ldap_auth")
+	if ldap_conf["ldap_url"]:
+		logger.debug("Using LDAP auth with config: %s", ldap_conf)
+		if "directory-connector" in get_unprotected_backend().available_modules:
+			ldap_connection = None
+			try:
+				result.message = "The connection to the LDAP server does work."
+				server = ldap3.Server(ldap3_uri_to_str(ldap3.utils.uri.parse_uri(ldap_conf["ldap_url"])))
+				ldap_connection = ldap3.Connection(server)
+				ldap_connection.bind()
+			except ldap3.core.exceptions.LDAPException as error:
+				logger.debug("Could not connect to LDAP Server: %s", error)
+				result.check_status = CheckStatus.ERROR
+				result.message = "Could not connect to LDAP Server."
+				result.details["error"] = str(error)
+			finally:
+				if ldap_connection:
+					ldap_connection.unbind()
+		else:
+			result.check_status = CheckStatus.ERROR
+			result.message = "LDAP authentication is configured, but the Directory Connector module is not licensed."
 	return result
 
 

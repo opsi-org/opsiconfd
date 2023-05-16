@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import ldap3  # type: ignore[import]
 from ldap3.core.exceptions import LDAPObjectClassError  # type: ignore[import]
-from opsicommon.exceptions import BackendAuthenticationError  # type: ignore[import]
+from opsicommon.exceptions import BackendAuthenticationError
+
+from opsiconfd.utils import ldap3_uri_to_str  # type: ignore[import]
 
 from ..logging import logger
 from . import AuthenticationModule
@@ -61,14 +63,7 @@ class LDAPAuthentication(AuthenticationModule):
 
 	@property
 	def server_url(self) -> str:
-		url = self._uri["host"]
-		if self._uri["port"]:
-			url = url + ":" + str(self._uri["port"])
-		if self._uri["ssl"]:
-			url = "ldaps://" + url
-		else:
-			url = "ldap://" + url
-		return url
+		return ldap3_uri_to_str(self._uri)
 
 	def get_instance(self) -> LDAPAuthentication:
 		return LDAPAuthentication(self._ldap_url, self._bind_user, self._group_filter)

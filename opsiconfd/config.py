@@ -1118,7 +1118,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			nargs="*",
 			env_var="OPSICONFD_MAINTENANCE",
 			default=False,
-			help=self._help("opsicconfd", "Start opsiconfd in maintenance mode, except for these addresses."),
+			help=self._help("opsiconfd", "Start opsiconfd in maintenance mode, except for these addresses."),
 		)
 		self._parser.add(
 			"--delete-locks",
@@ -1127,7 +1127,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			nargs="?",
 			const=True,
 			default=False,
-			help=self._help("opsicconfd", "Delete all locks on startup."),
+			help=self._help("opsiconfd", "Delete all locks on startup."),
 		)
 
 		if self._pytest:
@@ -1198,12 +1198,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"Check for upgrade issues only. If a version number is specified, the check is performed for that specific version.",
 				),
 			)
+			self._parser.add(
+				"--manual", action="store_true", help=self._help("health-check", "Outputs a description of each check on the console.")
+			)
 
 		if self._sub_command in ("backup", "restore"):
 			self._parser.add(
 				"--quiet",
 				action="store_true",
-				help=self._help(("backup", "restore"), "Do not show output or progess except errors."),
+				help=self._help(("backup", "restore"), "Do not show output or progress except errors."),
 			)
 			self._parser.add(
 				"--password",

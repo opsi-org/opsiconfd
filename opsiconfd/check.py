@@ -133,22 +133,22 @@ STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", Chec
 
 def print_health_check_manual(console: Console) -> None:
 	text = """
-		# health check manual
+	# health check manual
 
-		The opsiconfd provides a health check that checks various settings and version and can detect possible problems.
-		The health check can be called in different ways.
-		All variants get their data from the API call `service_healthCheck`.
-		The opsi API returns the data of the health check as JSON.
-		Such a JSON file is especially useful for support requests.
+	The opsiconfd provides a health check that checks various settings and version and can detect possible problems.
+	The health check can be called in different ways.
+	All variants get their data from the API call `service_healthCheck`.
+	The opsi API returns the data of the health check as JSON.
+	Such a JSON file is especially useful for support requests.
 
-		* opsiconfd health-check
-		* [opsi-cli](https://docs.opsi.org/opsi-docs-de/4.2/manual/server/configuration-tools.html#opsi-manual-configuration-tools-opsi-cli-commands-support)
-		* JSONRPC method `service_healthCheck`
+	* opsiconfd health-check
+	* [opsi-cli](https://docs.opsi.org/opsi-docs-de/4.2/manual/server/configuration-tools.html#opsi-manual-configuration-tools-opsi-cli-commands-support)
+	* JSONRPC method `service_healthCheck`
 
 
-		> 💡: You can use the RPC interface on the admin page to call the `service_healthCheck` method.
+	> 💡: You can use the RPC interface on the admin page to call the `service_healthCheck` method.
 
-		All the checks are described below:
+	All the checks are described below:
 	"""
 	console.print(Markdown(text.replace("\t", "")))
 	for check in (

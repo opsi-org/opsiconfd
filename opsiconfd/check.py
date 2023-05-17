@@ -7,7 +7,7 @@
 """
 health check
 """
-
+# pylint: disable=too-many-lines
 from __future__ import annotations
 
 import re
@@ -517,7 +517,8 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 	* opsi-utils
 	* opsipxeconfd
 
-	The check is carried out against the stable repository of uib (https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/).
+	The check is carried out against the stable repository of uib
+	(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/).
 	Older versions are considered a warning and if one of the packages is not installed, an error is issued.
 	"""
 	result = CheckResult(

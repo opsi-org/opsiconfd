@@ -429,33 +429,37 @@
 				<div id="general-info-opsi-ca">
 					<table style="margin-left: 20px;margin-bottom: 0px;">
 						<tr>
-							<td>issuer:</td>
+							<td>Issuer:</td>
 							<td>{{ca_info.issuer.C}}, {{ca_info.issuer.ST}}, {{ca_info.issuer.L}},
 								{{ca_info.issuer.OU}}, {{ca_info.issuer.CN}}</td>
 						</tr>
 						<tr>
-							<td>subject:</td>
+							<td>Subject:</td>
 							<td>{{ca_info.subject.C}}, {{ca_info.subject.ST}}, {{ca_info.subject.L}},
 								{{ca_info.subject.OU}}, {{ca_info.subject.CN}}</td>
 						</tr>
 						<tr>
-							<td>serial number:</td>
+							<td>Serial number:</td>
 							<td>{{ca_info.serial_number}}</td>
 						</tr>
 						<tr>
-							<td>not before:</td>
+							<td>Fingerprint SHA-256:</td>
+							<td>{{ca_info.fingerprint_sha256}}</td>
+						</tr>
+						<tr>
+							<td>Not before:</td>
 							<td>{{ca_info.not_before}}</td>
 						</tr>
 						<tr>
-							<td>not after:</td>
+							<td>Not after:</td>
 							<td>{{ca_info.not_after}}</td>
 						</tr>
 						<tr>
-							<td>expires:</td>
+							<td>Expires:</td>
 							<td>in {{ca_info.expires_in_days}} days</td>
 						</tr>
 						<tr>
-							<td>renewal:</td>
+							<td>Renewal:</td>
 							<td>in {{ca_info.renewal_in_days}} days</td>
 						</tr>
 						<tr>
@@ -469,37 +473,41 @@
 				<div id="general-info-server-cert">
 					<table style="margin-left: 20px;">
 						<tr>
-							<td>issuer:</td>
+							<td>Issuer:</td>
 							<td>{{cert_info.issuer.C}}, {{cert_info.issuer.ST}}, {{cert_info.issuer.L}},
 								{{cert_info.issuer.OU}}, {{cert_info.issuer.CN}}</td>
 						</tr>
 						<tr>
-							<td>subject:</td>
+							<td>Subject:</td>
 							<td>{{cert_info.subject.C}}, {{cert_info.subject.ST}}, {{cert_info.subject.L}},
 								{{cert_info.subject.OU}}, {{cert_info.subject.CN}}</td>
 						</tr>
 						<tr>
-							<td>subjectAltName:</td>
+							<td>SubjectAltName:</td>
 							<td>{{cert_info.alt_names}}</td>
 						</tr>
 						<tr>
-							<td>serial number:</td>
+							<td>Serial number:</td>
 							<td>{{cert_info.serial_number}}</td>
 						</tr>
 						<tr>
-							<td>not before:</td>
+							<td>Fingerprint SHA-256:</td>
+							<td>{{cert_info.fingerprint_sha256}}</td>
+						</tr>
+						<tr>
+							<td>Not before:</td>
 							<td>{{cert_info.not_before}}</td>
 						</tr>
 						<tr>
-							<td>not after:</td>
+							<td>Not after:</td>
 							<td>{{cert_info.not_after}}</td>
 						</tr>
 						<tr>
-							<td>expires:</td>
+							<td>Expires:</td>
 							<td>in {{cert_info.expires_in_days}} days</td>
 						</tr>
 						<tr>
-							<td>renewal:</td>
+							<td>Renewal:</td>
 							<td>in {{cert_info.renewal_in_days}} days</td>
 						</tr>
 					</table>

@@ -517,7 +517,9 @@ def get_cert_info(cert: X509, renew_days: int) -> dict[str, Any]:
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)),
+		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)).upper(),
+		"fingerprint_sha1": cert.digest("sha1").decode("ascii"),
+		"fingerprint_sha256": cert.digest("sha256").decode("ascii"),
 		"not_before": dt_not_before,
 		"not_after": dt_not_after,
 		"expires_in_days": expires_in_days,

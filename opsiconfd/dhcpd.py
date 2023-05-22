@@ -435,7 +435,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		# Search the right subnet block
 		for block in self._global_block.get_blocks("subnet", recursive=True):
 			if ip_address_in_network(ip_address, f"{block.settings[1]}/{block.settings[3]}"):
-				logger.debug("Choosing subnet %s/%s for host %s", block.settings[1], block.settings[3], hostname)
+				logger.info("Choosing subnet %s/%s for host %s", block.settings[1], block.settings[3], hostname)
 				parent_block = block
 
 		# Search the right group for the host
@@ -455,7 +455,8 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 					else:
 						match_count -= 1
 
-			if match_count > best_match_count or match_count >= 0 and not best_group:
+			logger.debug("Group %r, match count %r", block, match_count)
+			if match_count > best_match_count:
 				match_count = best_match_count
 				best_group = block
 
@@ -469,6 +470,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 				if key in parameters and parameters[key] == value:
 					del parameters[key]
 
+		logger.info("Adding client to %r to group %r", hostname, parent_block)
 		host_block = DHCPDConfBlock(start_line=-1, parent_block=parent_block, type="host", settings=["host", hostname])
 		host_block.add_component(DHCPDConfParameter(start_line=-1, parent_block=host_block, key="fixed-address", value=fixed_address))
 		host_block.add_component(

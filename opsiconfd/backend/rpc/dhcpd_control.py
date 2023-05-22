@@ -183,6 +183,12 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 
 		hostname = host.id.split(".", 1)[0]
 		host_ip_address = host.ipAddress
+
+		current_host_params = {}
+		with dhcpd_lock("config_read"):
+			self._dhcpd_control_config.dhcpd_config_file.parse()
+			current_host_params = self._dhcpd_control_config.dhcpd_config_file.get_host(hostname)
+
 		if not host_ip_address:
 			try:
 				logger.info("IP addess of client %s unknown, trying to get host by name", host)
@@ -190,10 +196,6 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				logger.info("Client fqdn resolved to %s", host_ip_address)
 			except Exception as err:  # pylint: disable=broad-except
 				logger.debug("Failed to get IP by hostname: %s", err)
-				with dhcpd_lock("config_read"):
-					self._dhcpd_control_config.dhcpd_config_file.parse()
-					current_host_params = self._dhcpd_control_config.dhcpd_config_file.get_host(hostname)
-
 				if current_host_params:
 					logger.debug("Trying to use address for %s from existing DHCP configuration.", hostname)
 
@@ -230,20 +232,19 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error("Failed to get depot info: %s", err, exc_info=True)
 
+		if (
+			current_host_params
+			and (str(current_host_params.get("hardware", " ")).split(" ")[1] == host.hardwareAddress)
+			and (current_host_params.get("fixed-address") == fixed_address)
+			and (current_host_params.get("next-server") == parameters.get("next-server"))
+		):
+
+			logger.debug("DHCPD config of host '%s' unchanged, no need to update config file", host)
+			return
+
 		with dhcpd_lock("config_update"):
 			try:
 				self._dhcpd_control_config.dhcpd_config_file.parse()
-				current_host_params = self._dhcpd_control_config.dhcpd_config_file.get_host(hostname)
-				if (
-					current_host_params
-					and (str(current_host_params.get("hardware", " ")).split(" ")[1] == host.hardwareAddress)
-					and (current_host_params.get("fixed-address") == fixed_address)
-					and (current_host_params.get("next-server") == parameters.get("next-server"))
-				):
-
-					logger.debug("DHCPD config of host '%s' unchanged, no need to update config file", host)
-					return
-
 				self._dhcpd_control_config.dhcpd_config_file.add_host(
 					hostname=hostname,
 					hardware_address=host.hardwareAddress,

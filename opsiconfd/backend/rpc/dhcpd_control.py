@@ -184,7 +184,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		hostname = host.id.split(".", 1)[0]
 		host_ip_address = host.ipAddress
 
-		current_host_params = {}
+		current_host_params: dict[str, str | bool] | None = None
 		with dhcpd_lock("config_read"):
 			self._dhcpd_control_config.dhcpd_config_file.parse()
 			current_host_params = self._dhcpd_control_config.dhcpd_config_file.get_host(hostname)

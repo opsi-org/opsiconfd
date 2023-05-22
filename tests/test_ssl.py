@@ -109,7 +109,7 @@ def test_create_ca(tmpdir: Path) -> None:
 			openssl_serial = match.group(1)
 
 			info = get_ca_cert_info()
-			assert info["serial_number"].replace(":", "").lstrip("0") == openssl_serial.replace(":", "").lstrip("0")
+			assert info["serial_number"].replace(":", "").lstrip("0") == openssl_serial.replace(":", "").lstrip("0").upper()
 
 
 def test_ca_key_fallback(tmpdir: Path) -> None:

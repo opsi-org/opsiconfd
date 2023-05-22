@@ -7,7 +7,7 @@
 """
 health check
 """
-
+# pylint: disable=too-many-lines
 from __future__ import annotations
 
 import re
@@ -21,6 +21,7 @@ from typing import Any, Generator, Iterator
 
 import psutil
 import requests
+import ldap3  # type: ignore[import]
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.logging.constants import (
 	LEVEL_TO_NAME,
@@ -39,15 +40,17 @@ from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.padding import Padding
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config
+from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
+from opsiconfd.utils import ldap3_uri_to_str
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 OPSI_REPO = "https://download.uib.de"
@@ -128,10 +131,48 @@ class CheckResult(PartialCheckResult):
 STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", CheckStatus.ERROR: "bold red"}
 
 
+def print_health_check_manual(console: Console) -> None:
+	text = """
+	# health check manual
+
+	The opsiconfd provides a health check that checks various settings and version and can detect possible problems.
+	The health check can be called in different ways.
+	All variants get their data from the API call `service_healthCheck`.
+	The opsi API returns the data of the health check as JSON.
+	Such a JSON file is especially useful for support requests.
+
+	* opsiconfd health-check
+	* [opsi-cli](https://docs.opsi.org/opsi-docs-de/4.2/manual/server/configuration-tools.html#opsi-manual-configuration-tools-opsi-cli-commands-support)
+	* JSONRPC method `service_healthCheck`
+
+
+	> 💡: You can use the RPC interface on the admin page to call the `service_healthCheck` method.
+
+	All the checks are described below:
+	"""
+	console.print(Markdown(text.replace("\t", "")))
+	for check in (
+		check_opsiconfd_config,
+		check_opsi_config,
+		check_disk_usage,
+		check_depotservers,
+		check_system_packages,
+		check_product_on_depots,
+		check_product_on_clients,
+		check_redis,
+		check_mysql,
+		check_opsi_licenses,
+		check_deprecated_calls,
+		check_distro_eol,
+	):
+		console.print(Markdown(check.__doc__.replace("\t", "")))  # type: ignore[union-attr]
+
+
 def health_check() -> Iterator[CheckResult]:
 	for check in (
 		check_opsiconfd_config,
 		check_opsi_config,
+		check_ldap_connection,
 		check_disk_usage,
 		check_depotservers,
 		check_system_packages,
@@ -205,6 +246,17 @@ def get_disk_mountpoints() -> set:
 
 
 def check_disk_usage() -> CheckResult:
+	"""
+	## Disk usage
+	Checks the free space for the following mount points:
+
+	* /
+	* /temp
+	* /var, /var/lib or var/lib/opsi
+
+	If there is less than 15 GiB free, a warning is given.
+	If there are less than 7.5 GiB, it is considered an error.
+	"""
 	result = CheckResult(
 		check_id="disk_usage",
 		check_name="Disk usage",
@@ -244,10 +296,18 @@ def check_disk_usage() -> CheckResult:
 
 
 def check_depotservers() -> CheckResult:
+	"""
+	## Depotserver check
+	The opsi repository, workbench and depot must be located under /var/lib/opsi/.
+	"f this is not the case, an error will be reported.
+	"""
 	result = CheckResult(
 		check_id="depotservers",
 		check_name="Depotserver check",
-		check_description="Check configuration and state of depotservers",
+		check_description=(
+			"The opsi repository, workbench and depot must be located under /var/lib/opsi/."
+			"If this is not the case, an error will be reported."
+		),
 		message="No problems found with the depot servers.",
 	)
 	with exc_to_result(result):
@@ -309,6 +369,21 @@ def check_depotservers() -> CheckResult:
 
 
 def check_opsiconfd_config() -> CheckResult:
+	"""
+	## Opsiconfd config
+	This check examines the configuration of the opsiconfd service by checking the following values:
+
+	* `log-level-stderr`, `log-level-file`, `log-level`
+	  * If the log level is too high for a productive environment, then performance problems may occur.
+		For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
+	* `debug-options`
+	  * If a debug option is active, this is considered an error, as it can lead to performance problems in productive environments.
+	* `profiler`
+	  * The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
+	* `run-as-user`
+	  * Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
+
+	"""
 	result = CheckResult(
 		check_id="opsiconfd_config",
 		check_name="Opsiconfd config",
@@ -363,7 +438,7 @@ def check_opsiconfd_config() -> CheckResult:
 		partial_result = PartialCheckResult(
 			check_id="opsiconfd_config:run-as-user",
 			check_name="Config run-as-user",
-			message=f"Opsiconfd is runnning as user {config.run_as_user}.",
+			message=f"Opsiconfd is running as user {config.run_as_user}.",
 			details={"config": "profiler", "value": config.run_as_user},
 		)
 		if config.run_as_user == "root":
@@ -434,6 +509,18 @@ def get_installed_packages(packages: dict | None = None) -> dict:  # pylint: dis
 
 
 def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+	"""
+	## System packages
+	Currently the following system packages are checked for actuality:
+
+	* opsiconfd
+	* opsi-utils
+	* opsipxeconfd
+
+	The check is carried out against the stable repository of uib
+	(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/).
+	Older versions are considered a warning and if one of the packages is not installed, an error is issued.
+	"""
 	result = CheckResult(
 		check_id="system_packages",
 		check_name="System packages",
@@ -493,6 +580,12 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 
 
 def check_redis() -> CheckResult:
+	"""
+	## Redis server
+
+	Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
+	If the server is not available or the module is not loaded, this is considered an error.
+	"""
 	result = CheckResult(
 		check_id="redis",
 		check_name="Redis server",
@@ -517,6 +610,13 @@ def check_redis() -> CheckResult:
 
 
 def check_mysql() -> CheckResult:
+	"""
+	## Check MySQL
+
+	Checks whether the database is accessible.
+	The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
+	If no connection can be established, this is an error.
+	"""
 	result = CheckResult(check_id="mysql", check_name="MySQL server", check_description="Check MySQL server state")
 	with exc_to_result(result):
 		mysql = MySQLConnection()
@@ -528,6 +628,13 @@ def check_mysql() -> CheckResult:
 
 
 def check_deprecated_calls() -> CheckResult:
+	"""
+	## Deprecated RPCs
+
+	Among other things, opsi stores calls to methods marked as deprecated in Redis.
+	This check looks whether such calls have been made and then issues a warning.
+	The message also states which client agent called the API method.
+	"""
 	result = CheckResult(
 		check_id="deprecated_calls",
 		check_name="Deprecated RPCs",
@@ -578,7 +685,7 @@ def check_deprecated_calls() -> CheckResult:
 	return result
 
 
-def get_avaliable_product_versions(product_list: list) -> dict:
+def get_available_product_versions(product_list: list) -> dict:
 	repo_text = ""
 	available_packages = {p: "0.0" for p in product_list}
 
@@ -595,8 +702,19 @@ def get_avaliable_product_versions(product_list: list) -> dict:
 
 
 def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches, too-many-statements
+	"""
+	## Products on depots
+
+	It is checked whether the following products are installed and up-to-date on the depots:
+
+	* opsi-script
+	* opsi-client-agent
+
+	If opsi-linux-client-agent and opsi-macos-client-agent are installed, these packages are also checked.
+	Here, an outdated package is considered a warning and an uninstalled package is considered an error.
+	"""
 	result = CheckResult(
-		check_id="product_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
+		check_id="products_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
 	)
 	with exc_to_result(result):
 		result.message = "All important products are up to date on all depots."
@@ -607,7 +725,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 		not_installed = 0
 		outdated = 0
 		try:
-			available_packages = get_avaliable_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
+			available_packages = get_available_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
@@ -672,12 +790,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			for package in packages_not_on_repo:
 				del available_packages[package]
 
-		result.details = {
-			"products": len(available_packages),
-			"depots": len(depots),
-			"not_installed": not_installed,
-			"outdated": outdated
-		}
+		result.details = {"products": len(available_packages), "depots": len(depots), "not_installed": not_installed, "outdated": outdated}
 		if not_installed > 0 or outdated > 0:
 			result.message = (
 				f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
@@ -687,8 +800,14 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 
 
 def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
+	"""
+	## Products on clients
+
+	On the clients, it is checked whether the respective client agent is up to date.
+	If an older version is installed, the Health Check issues a warning.
+	"""
 	result = CheckResult(
-		check_id="product_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
+		check_id="products_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
 	)
 	with exc_to_result(result):
 		result.message = "All important products are up to date on all clients."
@@ -706,7 +825,7 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 		outdated_client_ids = set()
 
 		try:
-			available_packages = get_avaliable_product_versions(list(MANDATORY_IF_INSTALLED))
+			available_packages = get_available_product_versions(list(MANDATORY_IF_INSTALLED))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
@@ -748,6 +867,11 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 
 
 def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
+	"""
+	## OPSI licenses
+
+	Checks whether the imported licenses will soon exceed one of the defined limits (WARNING) or have already exceeded one (ERROR).
+	"""
 	result = CheckResult(check_id="opsi_licenses", check_name="OPSI licenses", check_description="Check opsi licensing state")
 	with exc_to_result(result):
 		backend = get_unprotected_backend()
@@ -782,6 +906,13 @@ def check_opsi_licenses() -> CheckResult:  # pylint: disable=unused-argument
 
 
 def check_distro_eol() -> CheckResult:
+	"""
+	## Operating System End Of Life
+
+	Checks whether the server system still receives updates.
+	The check issues a warning 90 days before the end of life of a distribution.
+	After the end-of-life date, it issues an error.
+	"""
 	result = CheckResult(
 		check_id="linux_distro_eol",
 		check_name="Operating System End Of Life",
@@ -823,6 +954,15 @@ def check_distro_eol() -> CheckResult:
 
 
 def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
+	"""
+	## OPSI Configuration
+
+	Here we check whether certain configurations deviate from the standard.
+	If this is the case, a warning is issued.
+	An error is output if the value does not exist.
+
+	* `opsiclientd.global.verify_server_cert` must be activated.
+	"""
 	result = CheckResult(
 		check_id="opsi_config",
 		check_name="OPSI Configuration",
@@ -862,6 +1002,38 @@ def check_opsi_config() -> CheckResult:  # pylint: disable=unused-argument
 				continue
 		if count > 0:
 			result.message = f"{count} issues found in the opsi configuration."
+	return result
+
+
+def check_ldap_connection() -> CheckResult:
+	result = CheckResult(
+		check_id="opsi_ldap_connection",
+		check_name="OPSI LDAP Connection",
+		check_description="Checks whether opsi can connect to the configured LDAP server.",
+		message="LDAP authentication is not configured.",
+		details={},
+	)
+	ldap_conf = opsi_config.get("ldap_auth")
+	if ldap_conf["ldap_url"]:
+		logger.debug("Using LDAP auth with config: %s", ldap_conf)
+		if "directory-connector" in get_unprotected_backend().available_modules:
+			ldap_connection = None
+			try:
+				result.message = "The connection to the LDAP server does work."
+				server = ldap3.Server(ldap3_uri_to_str(ldap3.utils.uri.parse_uri(ldap_conf["ldap_url"])))
+				ldap_connection = ldap3.Connection(server)
+				ldap_connection.bind()
+			except ldap3.core.exceptions.LDAPException as error:
+				logger.debug("Could not connect to LDAP Server: %s", error)
+				result.check_status = CheckStatus.ERROR
+				result.message = "Could not connect to LDAP Server."
+				result.details["error"] = str(error)
+			finally:
+				if ldap_connection:
+					ldap_connection.unbind()
+		else:
+			result.check_status = CheckStatus.ERROR
+			result.message = "LDAP authentication is configured, but the Directory Connector module is not licensed."
 	return result
 
 
@@ -940,6 +1112,9 @@ def console_health_check() -> int:  # pylint: disable=too-many-branches
 	console = Console(log_time=False)
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
+		if config.manual:
+			print_health_check_manual(console=console)
+			return 0
 		for result in health_check():
 			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary)
 	status = CheckStatus.OK

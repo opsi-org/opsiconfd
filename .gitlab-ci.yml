@@ -213,6 +213,9 @@ publish:obs_ext:
     - build:arm64-pyinstaller
   script:
     - *install_tools
-    - ./opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
+    - opsi-dev-tool --self-install
+    - opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
+    - opsi-dev-tool -l 5 --create-changelog output/
+    - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md
   only:
     - tags

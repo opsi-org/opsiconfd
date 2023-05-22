@@ -39,8 +39,9 @@ from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
-from opsiconfd.config import Config
+from opsiconfd.config import Config, OpsiConfig
 from opsiconfd.config import config as _config
+from opsiconfd.config import opsi_config as _opsi_config
 from opsiconfd.utils import Singleton
 from opsiconfd.worker import Worker
 
@@ -125,6 +126,21 @@ def get_config(values: Union[dict[str, Any], list[str]]) -> Generator[Config, No
 	finally:
 		_config._config.__dict__ = conf  # pylint: disable=protected-access
 		_config._args = args  # pylint: disable=protected-access
+
+
+@pytest.fixture
+def opsi_config() -> OpsiConfig:
+	return _opsi_config
+
+
+@contextmanager
+def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None, None]:
+	try:
+		for value in values:
+			_opsi_config.set(value["category"], value["config"], value=value["value"])  # pylint: disable=protected-access
+		yield _opsi_config
+	finally:
+		_opsi_config.read_config_file()
 
 
 @asynccontextmanager

@@ -440,7 +440,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 
 		# Search the right group for the host
 		best_group = None
-		best_match_count = 0
+		best_match_count = -1
 		for block in parent_block.get_blocks("group"):
 			match_count = 0
 			block_parameters = block.get_parameters_hash(inherit="global")
@@ -479,13 +479,13 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 
 		parent_block.add_component(host_block)
 
-	def get_host(self, hostname: str) -> dict[str, str | bool] | None:
+	def get_host(self, hostname: str, inherit: str | None = None) -> dict[str, str | bool] | None:
 		self._assert_parsed()
 		hostname = forceHostname(hostname)
 
 		for block in self._global_block.get_blocks("host", recursive=True):
 			if block.settings[1] == hostname:
-				return block.get_parameters_hash()
+				return block.get_parameters_hash(inherit)
 		return None
 
 	def delete_host(self, hostname: str) -> None:

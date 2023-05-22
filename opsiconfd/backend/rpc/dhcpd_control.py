@@ -187,7 +187,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		current_host_params: dict[str, str | bool] | None = None
 		with dhcpd_lock("config_read"):
 			self._dhcpd_control_config.dhcpd_config_file.parse()
-			current_host_params = self._dhcpd_control_config.dhcpd_config_file.get_host(hostname)
+			current_host_params = self._dhcpd_control_config.dhcpd_config_file.get_host(hostname, inherit="global")
 
 		if not host_ip_address:
 			try:
@@ -232,15 +232,22 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error("Failed to get depot info: %s", err, exc_info=True)
 
-		if (
-			current_host_params
-			and (str(current_host_params.get("hardware", " ")).split(" ")[1] == host.hardwareAddress)
-			and (current_host_params.get("fixed-address") == fixed_address)
-			and (current_host_params.get("next-server") == parameters.get("next-server"))
-		):
-
-			logger.debug("DHCPD config of host '%s' unchanged, no need to update config file", host)
-			return
+		if current_host_params:
+			if (
+				(str(current_host_params.get("hardware", " ")).split(" ")[1] == host.hardwareAddress)
+				and (current_host_params.get("fixed-address") == fixed_address)
+				and (current_host_params.get("next-server") == parameters.get("next-server"))
+			):
+				logger.debug("DHCPD config of host %r unchanged, no need to update config file", host.id)
+				return
+			logger.info(
+				"DHCPD config of host %r changed, updating config file (%r, %r, %r, %r)",
+				host.id,
+				current_host_params,
+				host.hardwareAddress,
+				fixed_address,
+				parameters.get("next-server"),
+			)
 
 		with dhcpd_lock("config_update"):
 			try:

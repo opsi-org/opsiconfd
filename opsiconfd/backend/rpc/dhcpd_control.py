@@ -117,6 +117,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		if not self._dhcpd_control_config.enabled or not self.events_enabled:
 			return
 
+		logger.debug("dhcpd_control_hosts_updated: %s", host_ids)
 		deleted_host_ids: list[str] = []
 		for host in self.host_getObjects(type="OpsiClient", id=forceHostIdList(host_ids)):
 			if not host.hardwareAddress:

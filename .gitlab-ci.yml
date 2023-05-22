@@ -59,7 +59,6 @@ stages:
 
   # Install poetry
   pip3 install poetry
-  poetry config experimental.new-installer false
   poetry lock --no-update
   poetry install
 

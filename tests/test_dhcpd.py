@@ -52,8 +52,15 @@ def test_add_host_to_dhcpd_conf(tmp_path: Path) -> None:
 	dhcpd_conf = tmp_path / "dhcpd.conf"
 	copy("tests/data/dhcpd/dhcpd.conf", dhcpd_conf)
 	conf_file = DHCPDConfFile(dhcpd_conf)
+	conf_file.parse()
+
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[0].get_blocks("host")) == 1
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[1].get_blocks("host")) == 0
 
 	conf_file.add_host("TestclienT", "0001-21-21:00:00", "192.168.99.112", "192.168.99.112", None)
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[0].get_blocks("host")) == 2
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[1].get_blocks("host")) == 0
+
 	conf_file.add_host(
 		"TestclienT2",
 		"00:01:09:08:99:11",
@@ -61,6 +68,18 @@ def test_add_host_to_dhcpd_conf(tmp_path: Path) -> None:
 		"192.168.99.113",
 		{"next-server": "192.168.99.2", "filename": "linux/pxelinux.0/xxx?{}"},
 	)
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[0].get_blocks("host")) == 3
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[1].get_blocks("host")) == 0
+
+	conf_file.add_host(
+		"TestclienT3",
+		"00:01:09:08:99:15",
+		"192.168.99.115",
+		"192.168.99.115",
+		{"next-server": "192.168.11.2", "filename": "linux/pxelinux.0/xxx?{}"},
+	)
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[0].get_blocks("host")) == 3
+	assert len(conf_file.get_global_block().get_blocks("group", recursive=True)[1].get_blocks("host")) == 1
 
 	assert conf_file.get_host("TestclienT") == {"fixed-address": "192.168.99.112", "hardware": "ethernet 00:01:21:21:00:00"}
 	assert conf_file.get_host("TestclienT2") == {"fixed-address": "192.168.99.113", "hardware": "ethernet 00:01:09:08:99:11"}

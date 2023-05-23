@@ -457,7 +457,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 
 			logger.debug("Group %r, match count %r", block, match_count)
 			if match_count > best_match_count:
-				match_count = best_match_count
+				best_match_count = match_count
 				best_group = block
 
 		if best_group:

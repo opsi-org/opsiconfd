@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Protocol
 from opsicommon.exceptions import BackendIOError  # type: ignore[import]
 from opsicommon.objects import ConfigState, Host  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
-	forceDict,
 	forceHostIdList,
 	forceList,
 	forceObjectClass,
@@ -221,7 +220,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				return
 			fixed_address = ipa.exploded
 
-		parameters = forceDict(self._dhcpd_control_config.default_client_parameters)
+		parameters = self._dhcpd_control_config.default_client_parameters.copy()
 		if not self._dhcpd_control_config.dhcpd_on_depot:
 			try:
 				depot_id = self._get_responsible_depot_id(host.id)

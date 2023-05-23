@@ -391,7 +391,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 				file.truncate()
 				file.write(self._global_block.as_text())
 
-	def add_host(  # pylint: disable=too-many-branches,too-many-locals,too-many-arguments
+	def add_host(  # pylint: disable=too-many-branches,too-many-locals,too-many-arguments,too-many-statements
 		self, hostname: str, hardware_address: str, ip_address: str, fixed_address: str, parameters: dict[str, str | bool] | None = None
 	) -> None:
 		self._assert_parsed()
@@ -804,7 +804,7 @@ class DHCPDControlConfig:  # pylint: disable=too-many-instance-attributes
 	dhcpd_config_file: DHCPDConfFile
 	reload_config_command: list[str]
 	fixed_address_format: Literal["IP", "FQDN"]
-	default_client_parameters: dict[str, str]
+	default_client_parameters: dict[str, str | bool]
 	boot_filename_uefi: str
 	boot_filename_bios: str
 

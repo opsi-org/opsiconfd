@@ -245,7 +245,15 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				current_host_params,
 				host.hardwareAddress,
 				fixed_address,
-				parameters.get("next-server"),
+				parameters,
+			)
+		else:
+			logger.info(
+				"Adding host %r to DHCP config file (%r, %r, %r)",
+				host.id,
+				host.hardwareAddress,
+				fixed_address,
+				parameters,
 			)
 
 		with dhcpd_lock("config_update"):

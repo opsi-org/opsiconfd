@@ -8,6 +8,7 @@
 opsiconfd.backend.rpc.config_state
 """
 from __future__ import annotations
+from collections import defaultdict
 
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -23,6 +24,8 @@ from opsicommon.types import (  # type: ignore[import]
 )
 
 from opsiconfd.logging import logger
+
+from opsiconfd.config import get_configserver_id
 
 from . import rpc_method
 
@@ -44,6 +47,19 @@ class RPCConfigStateMixin(Protocol):
 		if with_defaults:
 			defaults = {c.id: c.defaultValues for c in self.config_getObjects(id=config_ids)}
 			res = {h: defaults.copy() for h in self.host_getIdents(returnType="str", id=object_ids)}
+			client_id_to_depot_id = {
+				ctd.getObjectId(): ctd.getValues()[0]
+				for ctd in self.configState_getObjects(objectId=object_ids, configId="clientconfig.depot.id")
+			}
+			depot_values: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
+			depot_ids = list(set(client_id_to_depot_id.values()))
+			if depot_ids:
+				for config_state in self.configState_getObjects(configId=config_ids, objectId=depot_ids):
+					depot_values[config_state.getObjectId()][config_state.getConfigId()] = config_state.values
+			for host_id in self.host_getIdents(returnType="str", id=object_ids):
+				depot_id = client_id_to_depot_id.get(host_id)
+				if depot_id and depot_id in depot_values:
+					res[host_id] = depot_values[depot_id].copy()
 		for config_state in self.configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}
@@ -53,12 +69,16 @@ class RPCConfigStateMixin(Protocol):
 	def configState_bulkInsertObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState]
 	) -> None:
+		# Todo: Cannot set config state for configserver. Where is this function used?
 		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_insertObject")
 		configState = forceObjectClass(configState, ConfigState)
+		if configState.getObjectId() == get_configserver_id():
+			logger.warning("Cannot set config state for configserver.")
+			raise ValueError("Cannot set config state for configserver.")
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
@@ -67,6 +87,9 @@ class RPCConfigStateMixin(Protocol):
 	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_updateObject")
 		configState = forceObjectClass(configState, ConfigState)
+		if configState.getObjectId() == get_configserver_id():
+			logger.warning("Cannot set config state for configserver.")
+			raise ValueError("Cannot set config state for configserver.")
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
@@ -79,6 +102,9 @@ class RPCConfigStateMixin(Protocol):
 		with self._mysql.session() as session:
 			for config_state in forceList(configStates):
 				config_state = forceObjectClass(config_state, ConfigState)
+				if config_state.getObjectId() == get_configserver_id():
+					logger.warning("Cannot set config state for configserver.")
+					raise ValueError("Cannot set config state for configserver.")
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
 		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)

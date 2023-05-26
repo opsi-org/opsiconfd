@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-test opsiconfd.backend.mysql
+test opsiconfd.backend.rpc.obj_config
 """
 
 from pathlib import Path

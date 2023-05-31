@@ -10,49 +10,53 @@
 		"DEV_USER": "${localEnv:USER}",
 		"DEV_UID": "${localEnv:UID}"
 	},
-	"settings": {
-		"python.pythonPath": ".venv/bin/python",
-		"editor.formatOnType": true,
-		"editor.formatOnPaste": true,
-		"editor.formatOnSave": true,
-		"editor.codeActionsOnSave": {
-			"source.organizeImports": true
-		},
-		"files.trimTrailingWhitespace": true,
-		"files.autoSave": "off",
-		"python.formatting.provider": "black",
-		"python.formatting.blackPath": ".venv/bin/tan",
-		"python.terminal.activateEnvironment": false,
-		"python.testing.pytestArgs": [
-			"--tb=short",
-			"-o junit_family=xunit2",
-			"--junitxml=testreport.xml",
-			"-vv",
-			"--cov-append",
-			"--cov=opsiconfd",
-			"--cov-report=term",
-			"--cov-report=xml",
-			"tests"
-		],
-		"python.testing.unittestEnabled": false,
-		"python.testing.nosetestsEnabled": false,
-		"python.testing.pytestEnabled": true,
-		"python.testing.pytestPath": ".venv/bin/pytest",
-		"python.linting.enabled": true,
-		"python.linting.flake8Enabled": false,
-		"python.linting.pylintEnabled": true,
-		"python.linting.pylintCategorySeverity.refactor": "Information",
-		"python.linting.mypyPath": ".venv/bin/mypy",
-		"python.linting.mypyEnabled": true,
-		"python.linting.mypyArgs": [
-			"--show-error-codes"
-		],
-		"python.languageServer": "Pylance"
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.pythonPath": ".venv/bin/python",
+				"editor.formatOnType": true,
+				"editor.formatOnPaste": true,
+				"editor.formatOnSave": true,
+				"editor.codeActionsOnSave": {
+					"source.organizeImports": true
+				},
+				"files.trimTrailingWhitespace": true,
+				"files.autoSave": "off",
+				"python.formatting.provider": "black",
+				"python.formatting.blackPath": ".venv/bin/tan",
+				"python.terminal.activateEnvironment": false,
+				"python.testing.pytestArgs": [
+					"--tb=short",
+					"-o junit_family=xunit2",
+					"--junitxml=testreport.xml",
+					"-vv",
+					"--cov-append",
+					"--cov=opsiconfd",
+					"--cov-report=term",
+					"--cov-report=xml",
+					"tests"
+				],
+				"python.testing.unittestEnabled": false,
+				"python.testing.nosetestsEnabled": false,
+				"python.testing.pytestEnabled": true,
+				"python.testing.pytestPath": ".venv/bin/pytest",
+				"python.linting.enabled": true,
+				"python.linting.flake8Enabled": false,
+				"python.linting.pylintEnabled": true,
+				"python.linting.pylintCategorySeverity.refactor": "Information",
+				"python.linting.mypyPath": ".venv/bin/mypy",
+				"python.linting.mypyEnabled": true,
+				"python.linting.mypyArgs": [
+					"--show-error-codes"
+				],
+				"python.languageServer": "Pylance"
+			},
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ryanluker.vscode-coverage-gutters"
+			]
+		}
 	},
-	"extensions": [
-		"ms-python.python",
-		"ms-python.vscode-pylance",
-		"ryanluker.vscode-coverage-gutters"
-	],
 	"remoteUser": "${localEnv:USER}"
 }

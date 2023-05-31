@@ -286,6 +286,7 @@ def test_config_state_cleanup(test_client: OpsiconfdTestClient) -> None:  # pyli
 def test_set_cs_on_server(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
+	# setting config state on server object should not be possible
 	conf = {"configId": "test-backend-rpc-obj-config", "objectId": get_configserver_id(), "values": ["acpi=off"]}
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_create", "params": conf}
 	res = test_client.post("/rpc", json=rpc).json()
@@ -293,6 +294,7 @@ def test_set_cs_on_server(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 	assert res["error"]["message"] == "Cannot set config state for configserver."
 	print(res)
 
+	# result should be empty
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,

@@ -13,6 +13,7 @@ from typing import Any, Generator
 import pytest
 from opsiconfd.backend.mysql.cleanup import remove_orphans_config_state
 from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.config import get_configserver_id
 
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -275,6 +276,28 @@ def test_config_state_cleanup(test_client: OpsiconfdTestClient) -> None:  # pyli
 		"id": 1,
 		"method": "configState_getObjects",
 		"params": [[], {"objectId": depot["id"], "configId": depot_conf["configId"]}],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	print(res)
+	assert "error" not in res
+	assert res["result"] == []
+
+
+def test_set_cs_on_server(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	conf = {"configId": "test-backend-rpc-obj-config", "objectId": get_configserver_id(), "values": ["acpi=off"]}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_create", "params": conf}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "ValueError"
+	assert res["error"]["message"] == "Cannot set config state for configserver."
+	print(res)
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "configState_getObjects",
+		"params": [[], {"objectId": get_configserver_id(), "configId": "test-backend-rpc-obj-config"}],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
 	print(res)

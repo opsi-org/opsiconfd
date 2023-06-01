@@ -69,16 +69,12 @@ class RPCConfigStateMixin(Protocol):
 	def configState_bulkInsertObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState]
 	) -> None:
-		# Todo: Cannot set config state for configserver. Where is this function used?
 		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_insertObject")
 		configState = forceObjectClass(configState, ConfigState)
-		if configState.getObjectId() == get_configserver_id():
-			logger.warning("Cannot set config state for configserver.")
-			raise ValueError("Cannot set config state for configserver.")
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
@@ -87,9 +83,6 @@ class RPCConfigStateMixin(Protocol):
 	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_updateObject")
 		configState = forceObjectClass(configState, ConfigState)
-		if configState.getObjectId() == get_configserver_id():
-			logger.warning("Cannot set config state for configserver.")
-			raise ValueError("Cannot set config state for configserver.")
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
@@ -102,9 +95,6 @@ class RPCConfigStateMixin(Protocol):
 		with self._mysql.session() as session:
 			for config_state in forceList(configStates):
 				config_state = forceObjectClass(config_state, ConfigState)
-				if config_state.getObjectId() == get_configserver_id():
-					logger.warning("Cannot set config state for configserver.")
-					raise ValueError("Cannot set config state for configserver.")
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
 		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)

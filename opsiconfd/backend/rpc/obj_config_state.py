@@ -25,8 +25,6 @@ from opsicommon.types import (  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
-from opsiconfd.config import get_configserver_id
-
 from . import rpc_method
 
 if TYPE_CHECKING:

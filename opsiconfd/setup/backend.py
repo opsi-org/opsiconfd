@@ -236,14 +236,6 @@ def file_mysql_migration() -> None:
 	dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
 
 
-def cleanup_backend() -> None:
-	mysql = MySQLConnection()
-	mysql.connect()
-	logger.notice("Cleanup backend...")
-	cleanup_database(mysql)
-	mysql.disconnect()
-
-
 def setup_backend(force_server_id: str | None = None) -> None:
 	if opsi_config.get("host", "server-role") != "configserver":
 		return

@@ -39,7 +39,7 @@ from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import delete_recursively
-from opsiconfd.setup.backend import cleanup_backend, setup_backend, setup_mysql
+from opsiconfd.setup.backend import setup_backend, setup_mysql
 from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
 from opsiconfd.setup.samba import setup_samba
@@ -146,7 +146,6 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	logger.notice("Running opsiconfd setup")
 	register_depot = getattr(config, "register_depot", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
-	cleanup = getattr(config, "cleanup_backend", False)
 	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and full
 	force_server_id = None
 	rename_server = getattr(config, "rename_server", False)
@@ -159,10 +158,6 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	if register_depot:
 		if not setup_depotserver():
 			return
-
-	if cleanup:
-		cleanup_backend()
-		return
 
 	if opsi_config.get("host", "server-role") == "depotserver":
 		for attempt in range(1, 6):

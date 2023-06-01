@@ -127,7 +127,7 @@ def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # p
 	clients, depot = _create_clients_and_depot(test_client)
 
 	# create config on configserver
-	_create_test_server_config(test_client)
+	default_conf = _create_test_server_config(test_client)
 
 	# both clients should use server default
 	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
@@ -136,7 +136,23 @@ def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # p
 	print(res)
 	assert "error" not in res
 	for client in clients:
-		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == ["vga=normal"]
+		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
+
+	# set config state on server, client 1 should use this value, client 2 should still use the default value
+	server_conf = _set_config_state(test_client, get_configserver_id(), "test-backend-rpc-obj-config", ["acpi=on"])
+	print("##############################################################")
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_getObjects", "params": []}
+	res = test_client.post("/rpc", json=rpc).json()
+	print(res)
+
+	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_getValues", "params": params}
+	res = test_client.post("/rpc", json=rpc).json()
+	print(res)
+	assert "error" not in res
+	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == server_conf["values"]
+	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
 
 	# Set config state on depot, client 2 should use this config value
 	depot_conf = _set_config_state(test_client, depot["id"], "test-backend-rpc-obj-config", ["acpi=off"])
@@ -146,8 +162,8 @@ def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # p
 	res = test_client.post("/rpc", json=rpc).json()
 	print(res)
 	assert "error" not in res
-	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == ["vga=normal"]
-	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == ["acpi=off"]
+	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == server_conf["values"]
+	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == depot_conf["values"]
 
 	# Set config values for clients, clients should use this value
 	client_conf1 = {"configId": "test-backend-rpc-obj-config", "objectId": clients[0]["id"], "values": ["reboot=b"]}
@@ -167,11 +183,16 @@ def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # p
 	res = test_client.post("/rpc", json=rpc).json()
 	print(res)
 	assert "error" not in res
-	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == ["reboot=b"]
-	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == ["reboot=b"]
+	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == client_conf2["values"]
+	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == client_conf2["values"]
 
 	# delete all config states client should use server default again
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_deleteObjects", "params": [[depot_conf, client_conf1, client_conf2]]}
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "configState_deleteObjects",
+		"params": [[depot_conf, client_conf1, client_conf2, server_conf]],
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	print(res)
 	assert "error" not in res
@@ -182,7 +203,7 @@ def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # p
 	print(res)
 	assert "error" not in res
 	for client in clients:
-		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == ["vga=normal"]
+		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
 
 
 def test_cs_get_values_rename_depot(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name, too-many-statements
@@ -276,30 +297,6 @@ def test_config_state_cleanup(test_client: OpsiconfdTestClient) -> None:  # pyli
 		"id": 1,
 		"method": "configState_getObjects",
 		"params": [[], {"objectId": depot["id"], "configId": depot_conf["configId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	print(res)
-	assert "error" not in res
-	assert res["result"] == []
-
-
-def test_set_cs_on_server(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-
-	# setting config state on server object should not be possible
-	conf = {"configId": "test-backend-rpc-obj-config", "objectId": get_configserver_id(), "values": ["acpi=off"]}
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_create", "params": conf}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "ValueError"
-	assert res["error"]["message"] == "Cannot set config state for configserver."
-	print(res)
-
-	# result should be empty
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "configState_getObjects",
-		"params": [[], {"objectId": get_configserver_id(), "configId": "test-backend-rpc-obj-config"}],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
 	print(res)

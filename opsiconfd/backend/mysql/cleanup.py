@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 def remove_orphans_config_state(session: Session) -> None:
-	result = session.execute(
+	res1 = session.execute(
 		"""
 		DELETE s.* FROM CONFIG_STATE AS s
 		LEFT JOIN CONFIG AS c
@@ -27,8 +27,17 @@ def remove_orphans_config_state(session: Session) -> None:
 		WHERE c.configId IS NULL
 		"""
 	)
-	if result.rowcount > 0:
-		logger.notice("Removed %d orphaned entries from CONFIG_STATE", result.rowcount)
+
+	res2 = session.execute(
+		"""
+		DELETE s.* FROM CONFIG_STATE AS s
+		LEFT JOIN HOST AS h
+		ON h.hostId = s.objectId
+		WHERE h.hostId IS NULL
+		"""
+	)
+	if res_count := (res1.rowcount + res2.rowcount) > 0:
+		logger.notice("Removed %d orphaned entries from CONFIG_STATE", res_count)
 
 
 def remove_orphans_config_value(session: Session) -> None:

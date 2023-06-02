@@ -8,6 +8,7 @@
 opsiconfd.backend.rpc.config_state
 """
 from __future__ import annotations
+from collections import defaultdict
 
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -23,6 +24,8 @@ from opsicommon.types import (  # type: ignore[import]
 )
 
 from opsiconfd.logging import logger
+
+from opsiconfd.config import get_configserver_id
 
 from . import rpc_method
 
@@ -42,8 +45,25 @@ class RPCConfigStateMixin(Protocol):
 		object_ids = forceObjectIdList(object_ids or [])
 		res: dict[str, dict[str, list[Any]]] = {}
 		if with_defaults:
+			configserver_id = get_configserver_id()
 			defaults = {c.id: c.defaultValues for c in self.config_getObjects(id=config_ids)}
 			res = {h: defaults.copy() for h in self.host_getIdents(returnType="str", id=object_ids)}
+			client_id_to_depot_id = {
+				ctd.getObjectId(): ctd.getValues()[0]
+				for ctd in self.configState_getObjects(objectId=object_ids, configId="clientconfig.depot.id")
+			}
+			depot_values: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
+			depot_ids = list(set(client_id_to_depot_id.values()))
+			depot_ids.append(configserver_id)
+			if depot_ids:
+				for config_state in self.configState_getObjects(configId=config_ids, objectId=depot_ids):
+					depot_values[config_state.getObjectId()][config_state.getConfigId()] = config_state.values
+			for host_id in self.host_getIdents(returnType="str", id=object_ids):
+				depot_id = client_id_to_depot_id.get(host_id)
+				if depot_id and depot_id in depot_values:
+					res[host_id] = depot_values[depot_id].copy()
+				elif not depot_id and configserver_id in depot_values:
+					res[host_id] = depot_values[configserver_id].copy()
 		for config_state in self.configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}

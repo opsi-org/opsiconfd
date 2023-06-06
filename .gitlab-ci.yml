@@ -204,18 +204,6 @@ build:arm64-pyinstaller:
       - opsiconfd-arm64
     expire_in: 2 day
 
-
-publish:obs_int:
-  stage: publish
-  dependencies:
-    - build:linux-pyinstaller
-    - build:arm64-pyinstaller
-  script:
-    - *install_tools
-    - ./opsi-dev-tool -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
-  only:
-    - tags
-
 publish:obs_ext:
   stage: publish
   dependencies:

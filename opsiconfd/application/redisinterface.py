@@ -90,3 +90,19 @@ async def clear_rpc_cache(request: Request) -> RESTResponse:
 	cache_name = (params.get("cache_name") if params else None) or None
 	await run_in_threadpool(rpc_cache_clear, cache_name)
 	return RESTResponse({"result": "OK"})
+
+
+@redis_interface_router.delete("/deprecated-calls")
+@rest_api
+async def delete_deprecated_calls() -> RESTResponse:
+	redis_prefix_stats = config.redis_key("stats")
+	redis = await async_redis_client()
+	deleted_keys = set()
+	async with redis.pipeline(transaction=False) as pipe:
+		async for key in redis.scan_iter(f"{redis_prefix_stats}:rpcs:deprecated:*"):
+			key_str = key.decode("utf8")
+			deleted_keys.add(key_str)
+			logger.debug("redis key to delete: %s", key_str)
+			await pipe.delete(key)  # type: ignore[attr-defined]
+		await pipe.execute()  # type: ignore[attr-defined]
+	return RESTResponse({"redis-keys": list(deleted_keys)})

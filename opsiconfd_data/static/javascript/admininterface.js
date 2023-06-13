@@ -217,6 +217,14 @@ function clearRPCCache(cacheName = null) {
 }
 
 
+function clearDeprecatedCalls(cacheName = null) {
+	let req = ajaxRequest("DELETE", "/redis-interface/deprecated-calls");
+	req.then((result) => {
+		outputToHTML(result, "redis-result");
+	});
+}
+
+
 function loadDepotTable() {
 	let req = ajaxRequest("GET", "/admin/depots");
 	req.then((result) => {

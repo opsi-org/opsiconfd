@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 class RPCExtOpsiMixin(Protocol):
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects", check_acl=False)
+	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
 	def setProductActionRequestWithDependencies(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
 	) -> None:

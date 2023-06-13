@@ -1082,6 +1082,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		productActionProgress = productActionProgress or None
 		action_result = None
 
+		depot_id = self.getDepotId(clientId=objectId)
+		product_on_depot = self.productOnDepot_getObjects(depotId=depot_id, productId=productId)
+		if not product_on_depot:
+			raise BackendMissingDataError(f"Product {productId!r} not found on depot {depot_id!r}")
+
 		if actionRequest:
 			productActionProgress = ""
 			if actionRequest != "none":
@@ -1099,18 +1104,16 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				action_result = "none"
 				installationStatus = "unknown"
 
-		depot_id = self.getDepotId(clientId=objectId)
-		product_type = None
-		for product_on_depot in self.productOnDepot_getObjects(depotId=depot_id, productId=productId):
-			product_type = product_on_depot.productType
-
-		if not product_type:
-			raise BackendMissingDataError(f"Product {productId!r} not found on depot {depot_id!r}")
+		if (actionRequest and actionRequest != "none") or installationStatus:
+			if not productVersion:
+				productVersion = product_on_depot.productVersion
+			if not packageVersion:
+				packageVersion = product_on_depot.packageVersion
 
 		self.productOnClient_updateObjects(
 			ProductOnClient(
 				productId=productId,
-				productType=product_type,
+				productType=product_on_depot.productType,
 				clientId=objectId,
 				installationStatus=installationStatus,
 				actionRequest=actionRequest,
@@ -1122,13 +1125,13 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			)
 		)
 
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects", check_acl=False)
+	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
 	def setProductInstallationStatus(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, objectId: str, installationStatus: str
 	) -> None:
 		self.setProductState(productId=productId, objectId=objectId, installationStatus=installationStatus)
 
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects", check_acl=False)
+	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
 	def setProductActionProgress(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, hostId: str, productActionProgress: dict
 	) -> None:

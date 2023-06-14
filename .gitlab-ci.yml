@@ -15,6 +15,7 @@ stages:
     wget "$OPSIDEVTOOLS_URL_LINUX_ARM64" -O opsi-dev-tools.tar.gz
   fi
   tar -xvf opsi-dev-tools.tar.gz
+  ./opsi-dev-tool --self-install
 
 .prepare_tests: &prepare_tests |
   # Install debian packages
@@ -163,7 +164,7 @@ build:linux-pyinstaller:
     - *install_tools
     - poetry lock --no-update
     - poetry install
-    - poetry run ./opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - poetry run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64
     # Check if binary is working
@@ -182,7 +183,7 @@ build:arm64-pyinstaller:
     - *install_tools
     - poetry lock --no-update
     - poetry install
-    - poetry run ./opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - poetry run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-arm64
     # Check if binary is working
@@ -201,7 +202,7 @@ build:arm64-pyinstaller:
 #    - build:arm64-pyinstaller
 #  script:
 #    - *install_tools
-#    - ./opsi-dev-tool -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.3:development
+#    - opsi-dev-tool -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.3:development
 #  only:
 #    - tags
 
@@ -212,9 +213,8 @@ publish:obs_ext:
     - build:arm64-pyinstaller
   script:
     - *install_tools
-    - opsi-dev-tool --self-install
     - opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
-    - opsi-dev-tool -l 5 --create-changelog output/
+    - opsi-dev-cli -l 5 changelog from-git output
     - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md
   only:
     - tags

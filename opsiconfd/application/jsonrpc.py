@@ -518,6 +518,8 @@ async def process_request(  # pylint: disable=too-many-locals,too-many-branches,
 
 	response_serialization = response_serialization or "json"
 	response.headers["content-type"] = f"application/{response_serialization}"
+	response.headers["accept"] = "application/msgpack,application/json"
+	response.headers["accept-encoding"] = "lz4,gzip"
 	with server_timing("serialization"):
 		data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, response_serialization)
 

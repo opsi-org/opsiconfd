@@ -106,3 +106,12 @@ async def delete_deprecated_calls() -> RESTResponse:
 			await pipe.delete(key)  # type: ignore[attr-defined]
 		await pipe.execute()  # type: ignore[attr-defined]
 	return RESTResponse({"redis-keys": list(deleted_keys)})
+
+
+@redis_interface_router.get("/deprecated-calls")
+@rest_api
+async def get_deprecated_calls() -> RESTResponse:
+	redis_prefix_stats = config.redis_key("stats")
+	redis = await async_redis_client()
+	methods = decode_redis_result(await redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods"))
+	return RESTResponse({"deprecated calls": list(methods)})

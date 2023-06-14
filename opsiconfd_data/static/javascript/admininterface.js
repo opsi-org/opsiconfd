@@ -217,8 +217,16 @@ function clearRPCCache(cacheName = null) {
 }
 
 
-function clearDeprecatedCalls(cacheName = null) {
+function clearDeprecatedCalls() {
 	let req = ajaxRequest("DELETE", "/redis-interface/deprecated-calls");
+	req.then((result) => {
+		outputToHTML(result, "redis-result");
+	});
+}
+
+
+function getDeprecatedCalls() {
+	let req = ajaxRequest("GET", "/redis-interface/deprecated-calls");
 	req.then((result) => {
 		outputToHTML(result, "redis-result");
 	});

@@ -1083,8 +1083,8 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		action_result = None
 
 		depot_id = self.getDepotId(clientId=objectId)
-		product_on_depot = self.productOnDepot_getObjects(depotId=depot_id, productId=productId)
-		if not product_on_depot:
+		product_on_depots = self.productOnDepot_getObjects(depotId=depot_id, productId=productId)
+		if not product_on_depots:
 			raise BackendMissingDataError(f"Product {productId!r} not found on depot {depot_id!r}")
 
 		if actionRequest:
@@ -1106,14 +1106,14 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		if (actionRequest and actionRequest != "none") or installationStatus:
 			if not productVersion:
-				productVersion = product_on_depot.productVersion
+				productVersion = product_on_depots[0].productVersion
 			if not packageVersion:
-				packageVersion = product_on_depot.packageVersion
+				packageVersion = product_on_depots[0].packageVersion
 
 		self.productOnClient_updateObjects(
 			ProductOnClient(
 				productId=productId,
-				productType=product_on_depot.productType,
+				productType=product_on_depots[0].productType,
 				clientId=objectId,
 				installationStatus=installationStatus,
 				actionRequest=actionRequest,

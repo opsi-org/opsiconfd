@@ -427,11 +427,30 @@ async def get_locked_products_list() -> RESTResponse:
 	return RESTResponse(products)
 
 
-async def _unlock_product(product: str, depots: list[str] | None = None) -> RESTResponse:
+async def _unlock_products(product_ids: list[str] | None = None, depot_ids: list[str] | None = None) -> None:
+	product_ids = product_ids or []
+	depot_ids = depot_ids or []
 	backend = get_unprotected_backend()
+	product_on_depots = await backend.async_call("productOnDepot_getObjects", productId=product_ids, depotId=depot_ids, locked=True)
+	if not product_on_depots:
+		return
+	for product_on_depot in product_on_depots:
+		product_on_depot.locked = False
+	await backend.async_call("productOnDepot_updateObjects", productOnDepots=product_on_depots)
+
+
+@admin_interface_router.post("/products/{product}/unlock")
+@rest_api
+async def unlock_product(request: Request, product: str) -> RESTResponse:
 
 	try:
-		await run_in_threadpool(backend.unlockProduct, product, depots)  # pylint: disable=no-member
+		request_body = await request.json()
+		depot_ids = request_body.get("depots") or []
+	except json.decoder.JSONDecodeError:
+		pass
+
+	try:
+		await _unlock_products(product, depot_ids)
 		return RESTResponse({"product": product, "action": "unlock"})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
@@ -442,35 +461,16 @@ async def _unlock_product(product: str, depots: list[str] | None = None) -> REST
 		)
 
 
-@admin_interface_router.post("/products/{product}/unlock")
+@admin_interface_router.post("/products/unlock")
 @rest_api
-async def unlock_product(request: Request, product: str) -> RESTResponse:
-
-	try:
-		request_body = await request.json()
-		depots = request_body.get("depots", None)
-	except json.decoder.JSONDecodeError:
-		pass
-	return await _unlock_product(product, depots)
-
-
-async def _unlock_all_products() -> RESTResponse:
+async def unlock_all_products() -> RESTResponse:
 	backend = get_unprotected_backend()
 	try:
-		for product in set(
-			pod.productId for pod in backend.productOnDepot_getObjects(depotId=[], locked=True)  # pylint: disable=no-member
-		):
-			await run_in_threadpool(backend.unlockProduct, product)  # pylint: disable=no-member
+		await _unlock_products()
 		return RESTResponse()
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
 		return RESTErrorResponse(message="Error while unlocking products", details=err)
-
-
-@admin_interface_router.post("/products/unlock")
-@rest_api
-async def unlock_all_products() -> RESTResponse:
-	return await _unlock_all_products()
 
 
 @admin_interface_router.get("/blocked-clients", response_model=list[str])

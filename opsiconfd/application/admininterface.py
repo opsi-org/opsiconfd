@@ -464,7 +464,6 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 @admin_interface_router.post("/products/unlock")
 @rest_api
 async def unlock_all_products() -> RESTResponse:
-	backend = get_unprotected_backend()
 	try:
 		await _unlock_products()
 		return RESTResponse()

@@ -31,6 +31,7 @@ from opsiconfd.config import config
 from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
+	subject_to_dict,
 	create_ca,
 	create_local_server_cert,
 	get_ca_cert_info,
@@ -211,53 +212,88 @@ def test_renew_expired_ca(tmpdir: Path) -> None:
 		notBefore = lib.X509_getm_notBefore(self._x509)  # pylint: disable=invalid-name,protected-access
 		lib.X509_gmtime_adj(notBefore, -3600 * 24 * 10)  # 10 days in the past
 
-	with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-		with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmpdir), "echo")):
-			with mock.patch("OpenSSL.crypto.X509.gmtime_adj_notBefore", mock_gmtime_adj_notBefore):
-				setup_ca()
-				setup_server_cert()
+	ca_subject = {
+		"C": "DE",
+		"ST": "RP",
+		"L": "MAINZ",
+		"O": "uib",
+		"OU": "opsi@mydom.tld",
+		"CN": "opsi CA",
+		"emailAddress": "opsi@mydom.tld",
+	}
 
-			# Check CA
-			assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days >= 10
-			ca_crt = load_ca_cert()
-			enddate = datetime.datetime.strptime((ca_crt.get_notAfter() or b"").decode("utf-8"), "%Y%m%d%H%M%SZ")
-			assert (enddate - datetime.datetime.now()).days == 299
-
-			assert os.path.exists(config.ssl_ca_key)
-			assert os.path.exists(config.ssl_ca_cert)
-			mtime = ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
-			ca_key = load_ca_key()
-
-			# Check server_cert
-			assert (datetime.datetime.now() - get_server_cert_info()["not_before"]).days >= 10
-			server_crt = load_local_server_cert()
-			validate_cert(server_crt, ca_crt)
-
-			config.ssl_ca_cert_renew_days = 100
-			# Recreation not needed
-			time.sleep(2)
+	with (
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmpdir), "echo")),
+		mock.patch("opsiconfd.ssl.get_ca_subject", lambda: ca_subject),
+	):
+		with mock.patch("OpenSSL.crypto.X509.gmtime_adj_notBefore", mock_gmtime_adj_notBefore):
 			setup_ca()
-			assert mtime == ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
-			# Key must stay the same
-			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
-
-			config.ssl_ca_cert_renew_days = 300
-			# Recreation needed
-			time.sleep(2)
-			setup_ca()
-			assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days == 0
-			ca_crt = load_ca_cert()
-			assert mtime != ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
-			# Key must stay the same
-			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
-
-			# Check if server cert validity
-			with pytest.raises(X509StoreContextError, match=r"CA is not valid before.*but certificate is valid before"):
-				validate_cert(server_crt, ca_crt)
-
 			setup_server_cert()
-			server_crt = load_local_server_cert()
+
+		# Check CA
+		assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days >= 10
+		ca_crt = load_ca_cert()
+		enddate = datetime.datetime.strptime((ca_crt.get_notAfter() or b"").decode("utf-8"), "%Y%m%d%H%M%SZ")
+		assert (enddate - datetime.datetime.now()).days == 299
+
+		assert os.path.exists(config.ssl_ca_key)
+		assert os.path.exists(config.ssl_ca_cert)
+		mtime = ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
+		ca_key = load_ca_key()
+
+		# Check server_cert
+		assert (datetime.datetime.now() - get_server_cert_info()["not_before"]).days >= 10
+		server_crt = load_local_server_cert()
+		validate_cert(server_crt, ca_crt)
+
+		# Change subject
+		orig_ca_subject = ca_subject.copy()
+		ca_subject["OU"] = "opsi@mynewdom.tld"
+		ca_subject["emailAddress"] = "opsi@mynewdom.tld"
+		assert ca_subject != orig_ca_subject
+
+		config.ssl_ca_cert_renew_days = 100
+		# Recreation not needed
+		time.sleep(2)
+		setup_ca()
+		assert mtime == ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
+		# Key must stay the same
+		assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
+		# Subject must stay the same
+		ca_crt = load_ca_cert()
+		assert subject_to_dict(ca_crt.get_subject()) == orig_ca_subject
+
+		config.ssl_ca_cert_renew_days = 300
+		# Recreation needed
+		time.sleep(2)
+		setup_ca()
+		assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days == 0
+		ca_crt = load_ca_cert()
+		assert mtime != ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
+		# Key must stay the same
+		assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
+		# Subject must stay the same
+		assert subject_to_dict(ca_crt.get_subject()) == orig_ca_subject
+
+		# Check server cert validity
+		with pytest.raises(X509StoreContextError, match=r"CA is not valid before.*but certificate is valid before"):
 			validate_cert(server_crt, ca_crt)
+
+		setup_server_cert()
+		server_crt = load_local_server_cert()
+		validate_cert(server_crt, ca_crt)
+
+		# Delete the CA cert => old subject unknown
+		os.unlink(config.ssl_ca_cert)
+		setup_ca()
+		# Key must stay the same
+		assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
+		# Subject must be changed
+		ca_crt = load_ca_cert()
+		new_subject = subject_to_dict(ca_crt.get_subject())
+		assert new_subject != orig_ca_subject
+		assert new_subject == ca_subject
 
 
 def test_create_local_server_cert(tmpdir: Path) -> None:

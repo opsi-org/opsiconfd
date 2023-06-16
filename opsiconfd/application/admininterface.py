@@ -450,7 +450,7 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 		pass
 
 	try:
-		await _unlock_products(product, depot_ids)
+		await _unlock_products([product], depot_ids)
 		return RESTResponse({"product": product, "action": "unlock"})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)

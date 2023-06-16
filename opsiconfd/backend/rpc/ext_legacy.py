@@ -633,7 +633,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		_hash["ip"] = _hash["ipAddress"]
 		return self._hash_values_none_to_empty_string(_hash)
 
-	@rpc_method(deprecated=True, alternative_method="configState_getClientToDepotserver", check_acl=False)
+	@rpc_method(deprecated=False, alternative_method="configState_getClientToDepotserver", check_acl=False)
 	def getDepotId(self: BackendProtocol, clientId: str) -> str:  # pylint: disable=invalid-name
 		clientId = forceHostId(clientId)
 

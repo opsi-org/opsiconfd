@@ -91,7 +91,7 @@ def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: 
 	methods = {}
 	for _, function in getmembers(instance, ismethod):
 		rpc_interface: MethodInterface | None = getattr(function, "rpc_interface", None)
-		if rpc_interface:
+		if rpc_interface and (not rpc_interface.deprecated or config.provide_deprecated_methods):
 			methods[rpc_interface.name] = rpc_interface
 	return methods
 
@@ -210,7 +210,11 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		for method in self._interface_list:
 			try:
 				method_name = method["name"]
-				self._interface[method_name] = MethodInterface(**method)
+				method_interface = MethodInterface(**method)
+				if not method_interface.deprecated or config.provide_deprecated_methods:
+					continue
+
+				self._interface[method_name] = method_interface
 
 				if method_name.startswith(("depot_", "dhcpd_", "opsipxeconfd_", "network_", "workbench_")) or method_name in (
 					"backend_exit",

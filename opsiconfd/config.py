@@ -1129,6 +1129,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			default=False,
 			help=self._help("opsiconfd", "Delete all locks on startup."),
 		)
+		self._parser.add(
+			"--provide-deprecated-methods",
+			env_var="OPSICONFD_PROVIDE_DEPRECATED_METHODS",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help("opsiconfd", "Provide deprecated methods in API."),
+		)
 
 		if self._pytest:
 			self._parser.add("args", nargs="*")

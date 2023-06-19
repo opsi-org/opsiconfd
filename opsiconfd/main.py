@@ -63,9 +63,17 @@ async def log_viewer() -> None:
 		await asyncio.sleep(1)
 
 
+def delete_locks() -> None:
+	with redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True):
+		logger.notice("Deleting all locks")
+		delete_recursively(config.redis_key("locks"))
+
+
 def setup_main() -> None:
 	init_logging(log_mode="local")
 	log_config()
+	if config.delete_locks:
+		delete_locks()
 	setup(full=True)
 
 
@@ -82,6 +90,9 @@ def health_check_main() -> None:
 
 
 def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-statements
+	if config.delete_locks:
+		delete_locks()
+
 	console = Console(quiet=config.quiet)
 	backup_file = None
 
@@ -173,6 +184,9 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 
 
 def restore_main() -> None:
+	if config.delete_locks:
+		delete_locks()
+
 	console = Console(quiet=config.quiet)
 	backup_file = None
 	try:
@@ -277,11 +291,12 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 		logger.info("Testing redis connection (timeout: %d)", REDIS_CONECTION_TIMEOUT)
 		with redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True):
 			logger.info("Redis connection is working")
-			if config.delete_locks:
-				logger.notice("Deleting all locks")
-				delete_recursively(config.redis_key("locks"))
 
 		init_logging(log_mode=config.log_mode)
+
+		if config.delete_locks:
+			delete_locks()
+
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
 
 		logger.essential(

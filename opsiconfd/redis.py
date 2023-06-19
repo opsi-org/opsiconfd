@@ -178,11 +178,11 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 	indentifier_b = identifier.encode("utf-8")
 	redis_key = f"{conf.redis_key('locks')}:{lock_name}"
 	end = time.time() + acquire_timeout
+	pxt = round(lock_timeout) * 1000 if lock_timeout else None
 	with redis_client() as client:
 		while True:
-			if client.setnx(redis_key, identifier):
-				if lock_timeout:
-					client.pexpire(redis_key, round(lock_timeout * 1000))  # milliseconds
+			# PXAT timestamp-milliseconds -- Set the specified Unix time at which the key will expire, in milliseconds.
+			if client.set(redis_key, identifier, nx=True, px=pxt):
 				break
 			if time.time() >= end:
 				raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")
@@ -215,12 +215,12 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 	identifier_b = identifier.encode("utf-8")
 	redis_key = f"{conf.redis_key('locks')}:{lock_name}"
 	end = time.time() + acquire_timeout
+	pxt = round(lock_timeout) * 1000 if lock_timeout else None
 	client = await async_redis_client()
 
 	while True:
-		if await client.setnx(redis_key, identifier):
-			if lock_timeout:
-				await client.pexpire(redis_key, round(lock_timeout * 1000))  # milliseconds
+		# PXAT timestamp-milliseconds -- Set the specified Unix time at which the key will expire, in milliseconds.
+		if await client.set(redis_key, identifier, nx=True, px=pxt):
 			break
 		if time.time() >= end:
 			raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")

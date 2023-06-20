@@ -210,7 +210,7 @@ publish:obs_ext:
   stage: publish
   dependencies:
     - build:linux-pyinstaller
-    - build:arm64-pyinstaller
+    #- build:arm64-pyinstaller
   script:
     - *install_tools
     - opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development

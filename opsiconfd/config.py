@@ -1127,7 +1127,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			nargs="?",
 			const=True,
 			default=False,
-			help=self._help("opsiconfd", "Delete all locks on startup."),
+			help=self._help(("opsiconfd", "setup", "backup", "restore"), "Delete all locks on startup."),
 		)
 		self._parser.add(
 			"--provide-deprecated-methods",

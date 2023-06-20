@@ -1,4 +1,4 @@
-image: docker.uib.gmbh/opsi/dev/pybuilder-ssl43:uib-python-3.11
+image: docker.uib.gmbh/opsi/dev/pybuilder-ssl3:uib-python-3.11
 
 stages:
   - test

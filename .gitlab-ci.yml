@@ -1,4 +1,4 @@
-image: docker.uib.gmbh/opsi/dev/pybuilder-ssl3:uib-python-3.11.4-x86_64
+image: docker.uib.gmbh/opsi/dev/pybuilder-ssl43:uib-python-3.11
 
 stages:
   - test
@@ -175,24 +175,24 @@ build:linux-pyinstaller:
       - opsiconfd-amd64
     expire_in: 2 day
 
-#build:arm64-pyinstaller:
-#  stage: build
-#  tags:
-#    - arm64
-#  script:
-#    - *install_tools
-#    - poetry lock --no-update
-#    - poetry install
-#    - poetry run opsi-dev-cli -l debug pyinstaller build
-#    - mv opsiconfd opsiconfd.src
-#    - mv dist/opsiconfd ./opsiconfd-arm64
-#    # Check if binary is working
-#    - OPSI_HOSTNAME=test.uib.local ./opsiconfd-arm64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --version
-#  artifacts:
-#    name: 'opsiconfd-arm64-pyinstaller'
-#    paths:
-#      - opsiconfd-arm64
-#    expire_in: 2 day
+build:arm64-pyinstaller:
+  stage: build
+  tags:
+    - arm64
+  script:
+    - *install_tools
+    - poetry lock --no-update
+    - poetry install
+    - poetry run opsi-dev-cli -l debug pyinstaller build
+    - mv opsiconfd opsiconfd.src
+    - mv dist/opsiconfd ./opsiconfd-arm64
+    # Check if binary is working
+    - OPSI_HOSTNAME=test.uib.local ./opsiconfd-arm64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --version
+  artifacts:
+    name: 'opsiconfd-arm64-pyinstaller'
+    paths:
+      - opsiconfd-arm64
+    expire_in: 2 day
 
 
 #publish:obs_int:
@@ -210,7 +210,7 @@ publish:obs_ext:
   stage: publish
   dependencies:
     - build:linux-pyinstaller
-    #- build:arm64-pyinstaller
+    - build:arm64-pyinstaller
   script:
     - *install_tools
     - opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development

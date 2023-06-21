@@ -13,6 +13,7 @@ import os
 import time
 from logging import LogRecord
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from opsicommon.logging.constants import (
@@ -47,23 +48,23 @@ async def test_async_rotating_file_handler_rotation(tmp_path: Path) -> None:
 		with open(f"{log_file}.{num}", "wb"):
 			pass
 
-	AsyncRotatingFileHandler.rollover_check_interval = 1
-	handler = AsyncRotatingFileHandler(
-		filename=str(log_file), formatter=Formatter("%(message)s"), max_bytes=max_log_file_size, keep_rotated=keep_rotated_log_files
-	)
-	await asyncio.sleep(1)
-	for num in range(5):
-		record = LogRecord("test", 3, "pathname", 1, f"message {num}", None, None)
-		await handler.emit(record)
+	with patch("opsiconfd.logging.AsyncRotatingFileHandler.rollover_check_interval", 1):
+		handler = AsyncRotatingFileHandler(
+			filename=str(log_file), formatter=Formatter("%(message)s"), max_bytes=max_log_file_size, keep_rotated=keep_rotated_log_files
+		)
 		await asyncio.sleep(1)
+		for num in range(5):
+			record = LogRecord("test", 3, "pathname", 1, f"message {num}", None, None)
+			await handler.emit(record)
+			await asyncio.sleep(1)
 
-	await handler.close()
-	await asyncio.sleep(1)
-	assert os.path.exists(log_file)
-	assert os.path.exists(f"{log_file}.1")
-	assert os.path.exists(f"{log_file}.2")
-	assert os.path.exists(f"{log_file}.3")
-	assert len(os.listdir(tmp_path)) == 4
+		await handler.close()
+		await asyncio.sleep(1)
+		assert os.path.exists(log_file)
+		assert os.path.exists(f"{log_file}.1")
+		assert os.path.exists(f"{log_file}.2")
+		assert os.path.exists(f"{log_file}.3")
+		assert len(os.listdir(tmp_path)) == 4
 
 
 @pytest.mark.asyncio
@@ -81,7 +82,6 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 		nonlocal handled_record
 		handled_record = record
 
-	AsyncRotatingFileHandler.rollover_check_interval = 60
 	handler = AsyncRotatingFileHandler(filename=str(log_file), formatter=Formatter("%(message)s"), error_handler=handle_file_handler_error)
 	await asyncio.sleep(1)
 	await handler.emit(LogRecord("test", 3, "pathname", 1, "message 1", None, None))

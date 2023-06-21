@@ -116,15 +116,9 @@ package:
     dist=$(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2)
 
     # Distribution specific workarounds
-    if [[ "$dist" =~ "Red Hat Enterprise Linux 8" ]] || [[ "$dist" =~ "CentOS Linux 8" ]] || [[ "$dist" =~ "AlmaLinux 8" ]] || [[ "$dist" =~ "Rocky Linux 8" ]] || [[ "$dist" =~ "Oracle Linux Server 8" ]]; then
-      # PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
-      cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
-    elif [[ "$dist" =~ "SUSE Linux Enterprise Server 15 SP1" ]]; then
+    if [[ "$dist" =~ "SUSE Linux Enterprise Server 15 SP1" ]]; then
       # opsiconfd setup: /bin/sh: /usr/lib/opsiconfd/libreadline.so.7: no version information available (required by /bin/sh)
       cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
-    elif [[ "$dist" =~ "SUSE Linux Enterprise Server 15 SP2" ]]; then
-      # /usr/lib/opsiconfd/libssl.so.1.1: symbol EVP_idea_cbc, version OPENSSL_1_1_0 not defined in file libcrypto.so.1.1
-      cp /usr/lib64/libssl.so.1.1 /usr/lib/opsiconfd/libssl.so.1.1
     fi
 
     # Use pam_unix.so from system

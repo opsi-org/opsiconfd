@@ -295,10 +295,6 @@ function startLog() {
 				element.scrollIntoView({ block: "end", behavior: "smooth" });
 			}
 		}
-		else if (message[0].type == "set-cookie") {
-			console.log("Set-Cookie");
-			document.cookie = message[0].payload;
-		}
 	};
 
 	ws.onclose = function (event) {

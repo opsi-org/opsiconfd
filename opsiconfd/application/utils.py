@@ -9,17 +9,9 @@ application utils
 """
 
 from asyncio import Task, create_task, sleep
-from inspect import Parameter
-from typing import Optional
 
 import msgspec
-from fastapi import HTTPException, params
-from fastapi.dependencies.utils import (
-	get_dependant,
-	get_param_field,
-	solve_dependencies,
-)
-from fastapi.exceptions import WebSocketRequestValidationError
+from fastapi import HTTPException
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import (
 	HTTP_401_UNAUTHORIZED,

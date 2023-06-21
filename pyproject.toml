@@ -96,6 +96,14 @@ line-length = 140
 # Ignore E402 (Module level import not at top of file)
 # Ignore F811 (Redefinition of unused)
 ignore = ["F401", "E402", "F811"]
+select = [
+    # Pyflakes
+    "F",
+    # Pycodestyle
+    "E",
+    # isort
+    "I"
+]
 
 [tool.ruff.per-file-ignores]
 "opsiconfd/check.py" = ["E101","E501"]

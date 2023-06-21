@@ -134,12 +134,19 @@ def setup_file_permissions() -> None:
 	setup_ssl_file_permissions()
 
 	for path_str in _get_default_dirs():
+		path = Path(path_str)
+		if not path.is_dir():
+			continue
 		try:
-			path = Path(path_str)
-			if path.is_dir() and path.owner() != config.run_as_user:
-				set_rights(str(path))
+			owner = path.owner()
 		except KeyError as err:
-			logger.warning("Failed to set permissions on '%s': %s", str(path), err)
+			logger.warning("Failed to get owner of '%s': %s", path, err)
+			owner = ""
+		if owner != config.run_as_user:
+			try:
+				set_rights(str(path))
+			except KeyError as err:
+				logger.warning("Failed to set permissions on '%s': %s", str(path), err)
 
 
 def cleanup_log_files() -> None:

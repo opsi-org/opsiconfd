@@ -1106,9 +1106,9 @@ async def _authenticate(  # pylint: disable=unused-argument,too-many-branches,to
 			if not mfa_otp:
 				mfa_otp = headers.get("x-opsi-mfa-otp")
 			if not mfa_otp:
-				logger.info("Assuming that TOTP is attached to password")
 				match = re.search(r"^(.+)(\d{6})$", session.password)
 				if match:
+					logger.info("Assuming that TOTP is attached to password")
 					session.password = match.group(1)
 					secret_filter.add_secrets(session.password)
 					mfa_otp = match.group(2)

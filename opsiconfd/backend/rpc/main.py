@@ -203,7 +203,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		else:
 			logger.info("Configserver %r not found in backend", self._depot_id)
 
-	def _create_jsonrpc_instance_methods(self) -> None:  # pylint: disable=too-many-locals
+	def _create_jsonrpc_instance_methods(self) -> None:  # pylint: disable=too-many-locals,too-many-branches
 		if self._interface_list is None:
 			raise ValueError("No interface specification present for _create_jsonrpc_instance_methods")
 

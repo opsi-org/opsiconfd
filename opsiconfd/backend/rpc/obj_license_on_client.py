@@ -183,7 +183,8 @@ class RPCLicenseOnClientMixin(Protocol):
 				)
 			if len(license_pool_ids) > 1:
 				raise LicenseConfigurationError(
-					f"Multiple license pools for product id '{productId}', windowsSoftwareId '{windowsSoftwareId}' found: {license_pool_ids}"
+					f"Multiple license pools for product id '{productId}', "
+					f"windowsSoftwareId '{windowsSoftwareId}' found: {license_pool_ids}"
 				)
 			licensePoolId = license_pool_ids[0]
 		else:
@@ -266,7 +267,8 @@ class RPCLicenseOnClientMixin(Protocol):
 
 		if not software_license_id:
 			raise LicenseMissingError(
-				f"No license available for pool '{license_pool_id}' and client '{client_id}', or all remaining licenses are bound to a different host."
+				f"No license available for pool '{license_pool_id}' and client '{client_id}',"
+				" or all remaining licenses are bound to a different host."
 			)
 
 		license_keys = []

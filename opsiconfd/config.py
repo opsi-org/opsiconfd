@@ -16,15 +16,7 @@ import re
 import socket
 import sys
 import warnings
-from argparse import (
-	OPTIONAL,
-	SUPPRESS,
-	ZERO_OR_MORE,
-	Action,
-	ArgumentTypeError,
-	HelpFormatter,
-	_ArgumentGroup,
-)
+from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import unquote, urlparse
@@ -199,7 +191,9 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 			)
 		return text
 
-	def _format_usage(self, usage: str | None, actions: Iterable[Action], groups: Iterable[_ArgumentGroup], prefix: str | None) -> str:
+	def _format_usage(
+		self, usage: str | None, actions: Iterable[Action], groups: Iterable[_MutuallyExclusiveGroup], prefix: str | None
+	) -> str:
 		text = super()._format_usage(usage, actions, groups, prefix)
 		sub = f" {self._sub_command}" if self._sub_command else ""
 		text = re.sub(r"usage:\s+(\S+)\s+", rf"Usage: {self.CW}\g<1>{sub}{self.CN} ", text)
@@ -267,7 +261,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		try:
 			# Pre-parse command line / env to get sub_command and ex-help (may fail)
 			self._init_parser()
-			conf, _unknown = self._parser.parse_known_args(self._args, ignore_help_args=True, config_file_contents="")  # type: ignore[union-attr]
+			assert self._parser
+			# type: ignore[union-attr]
+			conf, _unknown = self._parser.parse_known_args(self._args, ignore_help_args=True, config_file_contents="")
 			self._config.config_file = conf.config_file
 			self._ex_help = conf.ex_help
 			if self._ex_help and "--help" not in self._args:
@@ -721,7 +717,10 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		self._parser.add(
 			"--log-format-stderr",
 			env_var="OPSICONFD_LOG_FORMAT_STDERR",
-			default="%(log_color)s[%(opsilevel)d] [%(asctime)s.%(msecs)03d]%(reset)s [%(contextstring)-15s] %(message)s   (%(filename)s:%(lineno)d)",
+			default=(
+				"%(log_color)s[%(opsilevel)d] [%(asctime)s.%(msecs)03d]%(reset)s "
+				"[%(contextstring)-15s] %(message)s   (%(filename)s:%(lineno)d)"
+			),
 			help=self._help("opsiconfd", "Set the log format for stder."),
 		)
 		self._parser.add(

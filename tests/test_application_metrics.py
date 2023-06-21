@@ -126,7 +126,7 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 			"worker_num",
 			1,
 		)
-		await redis.execute_command(" ".join([str(x) for x in cmd]))  # type: ignore[no-untyped-call] #  pylint: disable=loop-invariant-statement
+		await redis.execute_command(" ".join([str(x) for x in cmd]))  # type: ignore[no-untyped-call]
 
 
 @pytest.mark.grafana_available

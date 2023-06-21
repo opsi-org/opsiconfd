@@ -192,7 +192,7 @@ def add_dependent_product_on_clients(
 		pocs_by_client_id_and_product_id[product_on_client.clientId][product_on_client.productId] = product_on_client
 
 	dependend_product_on_clients = []
-	for (client_id, product_on_client_by_product_id) in pocs_by_client_id_and_product_id.items():
+	for client_id, product_on_client_by_product_id in pocs_by_client_id_and_product_id.items():
 		logger.debug("Adding dependent productOnClients for client %s", client_id)
 
 		added_info: dict[str, dict[str, str | None]] = {}
@@ -589,7 +589,8 @@ def modify_sorting_classes(  # pylint: disable=too-many-branches
 					else:
 						if f_id_to_prod[requ[0]].revised_priority < level:
 							logger.debug(
-								"product %s must be pushed upwards from level %s to level %s, the level of %s, to meet the requirement first %s, later %s",
+								"product %s must be pushed upwards from level %s to level %s, the level of %s,"
+								" to meet the requirement first %s, later %s",
 								requ[0],
 								f_id_to_prod[requ[0]].revised_priority,
 								level,
@@ -655,7 +656,7 @@ def generate_product_sequence_from_requ_pairs(  # pylint: disable=too-many-local
 
 	requirements_by_classes = defaultdict(list)
 
-	for (prod1, prod2) in setup_requirements:
+	for prod1, prod2 in setup_requirements:
 		logger.debug("First product: %s", prod1)
 		if prod1 not in product_by_id:
 			logger.debug("Product %s is requested but not available", prod1)

@@ -97,8 +97,9 @@ class RPCObjectToGroupMixin(Protocol):
 		self.objectToGroup_createObjects(ObjectToGroup.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def objectToGroup_delete(  # pylint: disable=invalid-name
-		self: BackendProtocol, groupType: list[str] | str, groupId: list[str] | str, objectId: list[str] | str  # pylint: disable=invalid-name
+	# pylint: disable=invalid-name
+	def objectToGroup_delete(
+		self: BackendProtocol, groupType: list[str] | str, groupId: list[str] | str, objectId: list[str] | str
 	) -> None:
 		idents = self.objectToGroup_getIdents(returnType="dict", groupType=groupType, groupId=groupId, objectId=objectId)
 		if idents:

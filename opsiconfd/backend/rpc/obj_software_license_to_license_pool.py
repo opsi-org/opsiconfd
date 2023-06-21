@@ -22,9 +22,11 @@ if TYPE_CHECKING:
 
 class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	def softwareLicenseToLicensePool_bulkInsertObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, softwareLicenseToLicensePools: list[dict] | list[SoftwareLicenseToLicensePool]
+		self: BackendProtocol, softwareLicenseToLicensePools: list[SoftwareLicenseToLicensePool | dict[str, Any]]
 	) -> None:
-		self._mysql.bulk_insert_objects(table="SOFTWARE_LICENSE_TO_LICENSE_POOL", objs=softwareLicenseToLicensePools)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(
+			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", objs=softwareLicenseToLicensePools  # type: ignore[arg-type]
+		)
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_insertObject(  # pylint: disable=invalid-name

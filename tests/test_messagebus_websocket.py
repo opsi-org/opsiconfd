@@ -156,7 +156,7 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 				test_client.websocket_connect("/messagebus/v1") as websocket1,
 				test_client.websocket_connect("/messagebus/v1") as websocket2,
 			):
-				with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
+				with WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2:
 					for reader, _websocket in ((reader1, websocket1), (reader2, websocket2)):
 						reader.wait_for_message(count=1)
 						messages = list(reader.get_messages())
@@ -358,7 +358,9 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				reader.wait_for_message(count=2)
 
 				responses = sorted(
-					[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
+					# type: ignore[arg-type,attr-defined]
+					[Message.from_dict(msg) for msg in reader.get_messages()],
+					key=lambda m: m.created,
 				)
 
 				assert isinstance(responses[0], TerminalOpenEventMessage)
@@ -379,7 +381,9 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				reader.wait_for_message(count=1)
 
 				responses = sorted(
-					[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
+					# type: ignore[arg-type,attr-defined]
+					[Message.from_dict(msg) for msg in reader.get_messages()],
+					key=lambda m: m.created,
 				)
 				assert isinstance(responses[0], TerminalDataReadMessage)
 				assert responses[0].terminal_id == terminal_id
@@ -391,7 +395,9 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 
 				reader.wait_for_message(count=1)
 				responses = sorted(
-					[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
+					# type: ignore[arg-type,attr-defined]
+					[Message.from_dict(msg) for msg in reader.get_messages()],
+					key=lambda m: m.created,
 				)
 				assert responses[0].type == MessageType.TERMINAL_RESIZE_EVENT
 				assert isinstance(responses[0], TerminalResizeEventMessage)

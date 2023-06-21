@@ -374,7 +374,8 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(
-			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) "
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			[0, "opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now],
 		)
 		cur.execute("SELECT id FROM user WHERE user.login='opsiconfd';")

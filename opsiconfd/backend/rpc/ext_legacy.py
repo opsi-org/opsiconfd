@@ -394,7 +394,8 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				][audit_software_on_client.architecture]
 			except KeyError:
 				logger.error(
-					'No auditSoftwares found with filter: {"name": %s, "version": %s, "subVersion": %s, "language": %s, "architecture": %s}',
+					"No auditSoftwares found with filter: "
+					'{"name": %s, "version": %s, "subVersion": %s, "language": %s, "architecture": %s}',
 					audit_software_on_client.getName(),
 					audit_software_on_client.getVersion(),
 					audit_software_on_client.getSubVersion(),
@@ -454,7 +455,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		hostId = forceHostId(hostId)
 		self.auditSoftwareOnClient_delete(name=[], version=[], subVersion=[], language=[], architecture=[], clientId=hostId)
 
-		for (windows_software_id, value) in info.items():
+		for windows_software_id, value in info.items():
 			if windows_software_id == "SCANPROPERTIES":
 				continue
 
@@ -476,7 +477,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				"usageFrequency": -1,
 				"lastUsed": None,
 			}
-			for (key, val) in value.items():
+			for key, val in value.items():
 				if key.lower() == "displayname":
 					audit_software["name"] = audit_software["windowsDisplayName"] = val
 				elif key.lower() == "displayversion":
@@ -532,7 +533,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		hostId = forceHostId(hostId)
 		self.auditHardwareOnHost_setObsolete(hostId)
 		audit_hardware_on_hosts = []
-		for (hardware_class, devices) in info.items():
+		for hardware_class, devices in info.items():
 			if hardware_class == "SCANPROPERTIES":
 				continue
 
@@ -1454,7 +1455,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			property_multi_value[prop.propertyId] = prop.getMultiValue()
 
 		new_properties = {}
-		for (property_id, value) in properties.items():
+		for property_id, value in properties.items():
 			property_type = property_classes.get(property_id)
 			if not property_type:
 				raise BackendMissingDataError(f"Property with id {property_id!r} not found for product {productId!r}!") from None
@@ -1535,7 +1536,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 					] = []
 				product_dependencies[product_dependency.productId][product_dependency.productVersion][
 					product_dependency.packageVersion
-				].append(product_dependency)
+				].append(
+					product_dependency
+				)
 
 			for product_on_depot in self.productOnDepot_getIdents(depotId=depotId, returnType="dict"):
 				for product_dependency in (

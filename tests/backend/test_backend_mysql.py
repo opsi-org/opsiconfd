@@ -77,7 +77,7 @@ def test_connect() -> None:
 			assert session.execute("SELECT 999").fetchone()[0] == 999
 
 
-def test_get_columns() -> None:
+def test_get_columns() -> None:  # pylint: disable=too-many-branches
 	allowed_attributes = {"id", "type", "description"}
 	client_id = "client1.opsi.org"
 	ace = [

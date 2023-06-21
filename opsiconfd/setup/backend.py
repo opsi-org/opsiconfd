@@ -70,7 +70,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.update_config_file()
 
 
-def setup_mysql_connection(interactive: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
+def setup_mysql_connection(interactive: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	error: Exception | None = None
 
 	mysql = MySQLConnection()

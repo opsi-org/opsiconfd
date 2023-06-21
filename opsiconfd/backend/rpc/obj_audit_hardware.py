@@ -72,7 +72,6 @@ def inherit_from_super_classes(
 def get_audit_hardware_config(
 	language: str | None = None,
 ) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:
-
 	if not language:
 		language = "en_US"
 	language = forceLanguageCode(language).replace("-", "_")
@@ -303,7 +302,11 @@ class RPCAuditHardwareMixin(Protocol):
 					if return_type == "object":
 						results.append(AuditHardware(hardwareClass=hardware_class, **data))
 					elif return_type == "ident":
-						results.append(self._mysql.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type))  # type: ignore[arg-type]
+						results.append(
+							self._mysql.get_ident(  # type: ignore[arg-type]
+								data=data, ident_attributes=ident_attributes, ident_type=ident_type
+							)
+						)
 					else:
 						results.append(data)  # type: ignore[arg-type]
 		return results  # type: ignore[return-value]

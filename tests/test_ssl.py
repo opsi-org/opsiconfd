@@ -192,7 +192,7 @@ def test_recreate_ca(tmpdir: Path) -> None:
 		assert dump_privatekey(FILETYPE_PEM, ca_key) != dump_privatekey(FILETYPE_PEM, key1)
 
 
-def test_renew_expired_ca(tmpdir: Path) -> None:
+def test_renew_expired_ca(tmpdir: Path) -> None:  # pylint: disable=too-many-statements
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	ssl_server_cert = tmpdir / "opsiconfd-cert.pem"

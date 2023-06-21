@@ -42,7 +42,9 @@ class RPCProductPropertyMixin(Protocol):
 				session.execute(
 					"""
 					DELETE FROM `PRODUCT_PROPERTY_VALUE`
-					WHERE productId = :productId AND productVersion = :productVersion AND packageVersion = :packageVersion AND propertyId = :propertyId
+					WHERE
+						productId = :productId AND productVersion = :productVersion AND
+						packageVersion = :packageVersion AND propertyId = :propertyId
 					""",
 					params=data,
 				)

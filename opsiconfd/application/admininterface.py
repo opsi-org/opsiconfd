@@ -185,7 +185,6 @@ async def _unblock_all_clients() -> dict:
 @admin_interface_router.post("/unblock-all")
 @rest_api
 async def unblock_all_clients() -> RESTResponse:
-
 	try:
 		result = await _unblock_all_clients()
 		return RESTResponse(result)
@@ -328,7 +327,6 @@ async def install_addon(request: Request) -> RESTResponse:
 @admin_interface_router.get("/rpc-list")
 @rest_api
 async def get_rpc_list() -> RESTResponse:
-
 	redis = await async_redis_client()
 	redis_result = await redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, -1)
 
@@ -442,7 +440,6 @@ async def _unlock_products(product_ids: list[str] | None = None, depot_ids: list
 @admin_interface_router.post("/products/{product}/unlock")
 @rest_api
 async def unlock_product(request: Request, product: str) -> RESTResponse:
-
 	try:
 		request_body = await request.json()
 		depot_ids = request_body.get("depots") or []
@@ -531,7 +528,6 @@ async def open_grafana(request: Request) -> RedirectResponse:
 @admin_interface_router.get("/config")
 @rest_api
 def get_confd_conf(all: bool = False) -> RESTResponse:  # pylint: disable=redefined-builtin
-
 	keys_to_remove = (
 		"version",
 		"setup",
@@ -627,6 +623,8 @@ def get_licensing_info() -> RESTResponse:
 async def license_upload(files: list[UploadFile]) -> RESTResponse:
 	try:
 		for file in files:
+			if not file.filename:
+				raise ValueError(f"No filename in {file!r}")
 			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):
 				raise ValueError(f"Invalid filename {file.filename!r}")
 			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))

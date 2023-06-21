@@ -52,7 +52,7 @@ async def messagebus_cleanup(full: bool = False) -> None:
 	await cleanup_channels(full)
 
 
-async def cleanup_channels(full: bool = False) -> None:
+async def cleanup_channels(full: bool = False) -> None:  # pylint: disable=too-many-locals
 	logger.debug("Cleaning up messagebus channels")
 	backend = get_unprotected_backend()
 	redis = await async_redis_client()
@@ -352,7 +352,6 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 				raise
 
 		try:  # pylint: disable=too-many-nested-blocks
-
 			_logger.debug("%s: getting messages", self)
 
 			redis = await async_redis_client()

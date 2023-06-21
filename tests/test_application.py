@@ -90,7 +90,8 @@ def test_app_state_from_dict() -> None:
 	state2 = AppState.from_dict(state_dict)
 	assert type(state) is type(state2)
 
-	state = MaintenanceState(retry_after=60, message="test", address_exceptions=["10.10.10.1/32", "10.10.10.2/32"])  # type: ignore[assignment]
+	# type: ignore[assignment]
+	state = MaintenanceState(retry_after=60, message="test", address_exceptions=["10.10.10.1/32", "10.10.10.2/32"])
 	state_dict = state.to_dict()
 	state2 = AppState.from_dict(state_dict)
 	assert type(state) is type(state2)

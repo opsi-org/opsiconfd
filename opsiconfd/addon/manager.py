@@ -90,7 +90,7 @@ class AddonManager(metaclass=Singleton):
 				addon_path = abspath(join(addon_dir, entry))
 				if not exists(join(addon_path, "python", "__init__.py")):
 					continue
-				try:  # pylint:disable=loop-try-except-usage
+				try:
 					self.load_addon(addon_path=addon_path)
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to load addon from %s: %s", addon_path, err, exc_info=True)

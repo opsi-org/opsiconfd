@@ -234,7 +234,8 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)  # type: ignore[attr-defined]
 		pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")  # type: ignore[attr-defined]
 		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count", expire_time)  # type: ignore[attr-defined]
-		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])  # type: ignore[attr-defined]
+		# type: ignore[attr-defined]
+		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
 		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)  # type: ignore[attr-defined]
 		pipe.set(  # type: ignore[attr-defined]
 			f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call",

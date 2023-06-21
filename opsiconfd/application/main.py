@@ -159,9 +159,13 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 			logger.error(err, exc_info=True)
 
 	async def on_connect(  # pylint: disable=arguments-differ
-		self, websocket: WebSocket, client: str = Query(default=None), start_time: int = Query(default=0)
+		self, websocket: WebSocket, client: str | None = None, start_time: str | int | None = None
 	) -> None:
 		start_id = "$"
+		try:
+			start_time = int(start_time or 0)
+		except (ValueError, TypeError):
+			start_time = 0
 		if start_time > 0:
 			start_id = str(start_time * 1000)
 		self._log_reader_task = asyncio.create_task(self._log_reader(websocket, start_id, client))

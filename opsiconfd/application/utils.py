@@ -152,6 +152,9 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 		await websocket.accept()
 
 		self._check_session_task = create_task(self.check_session_task(websocket))
+
+		await self.on_connect(websocket, **websocket.query_params)
+
 		close_code = WS_1000_NORMAL_CLOSURE
 
 		try:

@@ -184,7 +184,9 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 	def format_help(self) -> str:
 		text = HelpFormatter.format_help(self)
 		text = text.split("Args that start")[0].rstrip()
-		if not self._sub_command:
+		if self._sub_command:
+			text += "\n\n"
+		else:
 			text += (
 				"\n"
 				"\n"

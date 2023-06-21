@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import asyncio
 import time
-from contextlib import nullcontext
+from contextlib import asynccontextmanager, nullcontext
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from threading import Event
-from typing import Any, Callable, Type, TypeVar
+from typing import Any, AsyncGenerator, Callable, Type, TypeVar
 
 from fastapi import FastAPI
 from msgspec import msgpack
@@ -24,6 +24,7 @@ from opsicommon import __version__ as python_opsi_common_version  # type: ignore
 from opsicommon.messagebus import EventMessage
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
+from starlette.types import ASGIApp
 
 from opsiconfd import __version__
 from opsiconfd.config import config
@@ -115,11 +116,38 @@ class MaintenanceState(AppState):
 		self.address_exceptions = sorted(list(set(self.address_exceptions)))
 
 
+@asynccontextmanager
+async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
+	from opsiconfd.application.main import (  # pylint: disable=import-outside-toplevel
+		application_shutdown,
+		application_startup,
+		async_application_shutdown,
+		async_application_startup,
+	)
+
+	try:
+		asyncio_create_task(opsiconfd_app.app_state_manager_task(manager_mode=False))
+		await run_in_threadpool(application_startup)
+		await async_application_startup()
+	except Exception as error:  # pylint: disable=broad-except
+		logger.critical("Error during application startup: %s", error, exc_info=True)
+		raise error
+	yield
+	logger.info("Processing shutdown event")
+	try:
+		await run_in_threadpool(application_shutdown)
+		await async_application_shutdown()
+	except Exception as error:  # pylint: disable=broad-except
+		logger.critical("Error during application shutdown: %s", error, exc_info=True)
+	opsiconfd_app.set_app_state(ShutdownState(), wait_accomplished=None)
+
+
 class OpsiconfdApp(FastAPI):
 	def __init__(self) -> None:
 		super().__init__(
 			title="opsiconfd",
 			description="",
+			lifespan=lifespan,
 			version=f"{__version__} [python-opsi-common={python_opsi_common_version}]",
 			responses={422: {"model": RestApiValidationError, "description": "Validation Error"}},
 		)
@@ -131,6 +159,14 @@ class OpsiconfdApp(FastAPI):
 	@property
 	def app_state(self) -> AppState:
 		return self._app_state
+
+	def build_middleware_stack(self) -> ASGIApp:
+		from opsiconfd.application.main import setup_app  # pylint: disable=import-outside-toplevel
+
+		setup_app()
+
+		stack = super().build_middleware_stack()
+		return stack
 
 	def register_app_state_handler(self, handler: Callable) -> None:
 		self._app_state_handler.add(handler)
@@ -261,15 +297,3 @@ class OpsiconfdApp(FastAPI):
 
 
 app = OpsiconfdApp()
-
-
-@app.on_event("startup")
-async def startup() -> None:
-	"""This will be run in worker processes"""
-	asyncio_create_task(app.app_state_manager_task(manager_mode=False))
-	from . import main  # pylint: disable=import-outside-toplevel,unused-import
-
-
-@app.on_event("shutdown")
-async def shutdown() -> None:
-	app.set_app_state(ShutdownState(), wait_accomplished=None)

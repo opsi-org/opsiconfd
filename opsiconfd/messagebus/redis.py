@@ -30,8 +30,8 @@ from redis.typing import StreamIdT
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
-from opsiconfd.redis import async_delete_recursively, async_redis_client, redis_client
 from opsiconfd.messagebus import check_channel_name
+from opsiconfd.redis import async_delete_recursively, async_redis_client, redis_client
 
 from . import get_user_id_for_host
 

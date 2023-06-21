@@ -19,9 +19,9 @@ from re import findall
 from subprocess import run
 from typing import Any, Generator, Iterator
 
+import ldap3  # type: ignore[import]
 import psutil
 import requests
-import ldap3  # type: ignore[import]
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.logging.constants import (
 	LEVEL_TO_NAME,

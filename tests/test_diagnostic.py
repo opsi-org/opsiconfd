@@ -12,9 +12,8 @@ from typing import Any
 from unittest.mock import PropertyMock, patch
 
 from opsiconfd.config import FQDN
-from opsiconfd.diagnostic import get_backendmanager_extension_methods
-from opsiconfd.diagnostic import get_config as config_info
 from opsiconfd.diagnostic import (
+	get_backendmanager_extension_methods,
 	get_disk_info,
 	get_lsb_release,
 	get_memory_info,
@@ -23,6 +22,7 @@ from opsiconfd.diagnostic import (
 	get_processor_info,
 	get_system_info,
 )
+from opsiconfd.diagnostic import get_config as config_info
 
 from .backend.rpc.test_obj_product_on_depot import create_test_pods
 from .utils import (  # pylint: disable=unused-import

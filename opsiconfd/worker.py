@@ -23,8 +23,10 @@ from multiprocessing.context import SpawnProcess
 from signal import SIGHUP
 from typing import TYPE_CHECKING, Optional
 
-from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
-from opsicommon.utils import ip_address_in_network
+from opsicommon.utils import (
+	ip_address_in_network,
+	monkeypatch_subprocess_for_frozen,  # type: ignore[import]
+)
 from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]

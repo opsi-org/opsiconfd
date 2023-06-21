@@ -15,7 +15,7 @@ import pytest
 from starlette.datastructures import Headers
 
 from opsiconfd.session import OPSISession, SessionManager
-from opsiconfd.utils import utc_time_timestamp, asyncio_create_task
+from opsiconfd.utils import asyncio_create_task, utc_time_timestamp
 
 from .utils import (  # pylint: disable=unused-import
 	async_redis_client,

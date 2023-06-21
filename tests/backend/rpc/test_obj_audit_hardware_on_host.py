@@ -8,8 +8,9 @@
 test opsiconfd.backend.rpc.test_obj_audit_hardware_on_host
 """
 
-from pathlib import Path
 import json
+from pathlib import Path
+
 import pytest
 
 from tests.utils import (  # pylint: disable=unused-import
@@ -17,8 +18,8 @@ from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	OpsiconfdTestClient,
 	clean_redis,
-	test_client,
 	database_connection,
+	test_client,
 )
 
 from .utils import cleanup_database  # pylint: disable=unused-import

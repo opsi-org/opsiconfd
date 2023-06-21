@@ -14,9 +14,9 @@ from typing import Generator
 from unittest.mock import patch
 
 from msgspec import json
+from opsicommon.objects import OpsiClient
 from werkzeug.http import parse_options_header
 
-from opsicommon.objects import OpsiClient
 from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage
 
 from .utils import (  # pylint: disable=unused-import

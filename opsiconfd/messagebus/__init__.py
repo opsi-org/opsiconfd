@@ -9,10 +9,11 @@ opsiconfd.messagebus
 """
 
 from __future__ import annotations
-from uuid import UUID
-from typing import TYPE_CHECKING
 
-from opsicommon.types import forceHostId, forceUserId, forceStringLower, forceHostname, forceUnsignedInt
+from typing import TYPE_CHECKING
+from uuid import UUID
+
+from opsicommon.types import forceHostId, forceHostname, forceStringLower, forceUnsignedInt, forceUserId
 
 from opsiconfd.worker import Worker
 

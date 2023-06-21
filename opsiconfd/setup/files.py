@@ -40,7 +40,6 @@ from opsiconfd.dhcpd import get_dhcpd_conf_location
 from opsiconfd.logging import logger
 from opsiconfd.ssl import setup_ssl_file_permissions
 
-
 EXTENDER_FILES = (
 	"10_opsi.conf",
 	"10_wim.conf",

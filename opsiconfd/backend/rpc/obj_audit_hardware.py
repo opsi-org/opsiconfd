@@ -10,10 +10,10 @@ opsiconfd.backend.rpc.audit_hardware
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import (

@@ -43,9 +43,8 @@ from opsicommon.package.associated_files import (
 	create_package_zsync_file,
 )
 from opsicommon.server.rights import set_rights
-from opsicommon.types import forceBool, forceDict, forceFilename
+from opsicommon.types import forceBool, forceDict, forceFilename, forceUnicodeLower
 from opsicommon.types import forceProductId as typeForceProductId
-from opsicommon.types import forceUnicodeLower
 from opsicommon.utils import compare_versions, make_temp_dir
 
 from opsiconfd.config import (

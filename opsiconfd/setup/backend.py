@@ -10,8 +10,8 @@ opsiconfd.setup.backend
 
 import os
 import re
-import time
 import string
+import time
 from pathlib import Path
 
 import OPSI.Backend.File  # type: ignore[import]

@@ -13,7 +13,9 @@ from os.path import abspath
 from pathlib import Path
 from threading import Event, Thread
 from unittest.mock import patch
+
 import pytest
+
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backup import create_backup, restore_backup

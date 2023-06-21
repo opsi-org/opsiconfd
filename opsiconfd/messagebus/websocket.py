@@ -8,8 +8,8 @@
 messagebus.websocket
 """
 
-import traceback
 import re
+import traceback
 from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from time import time
@@ -30,7 +30,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TraceResponseMessage,
 	timestamp,
 )
-
 from starlette.concurrency import run_in_threadpool
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import (
@@ -46,7 +45,7 @@ from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
 
-from . import get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user, check_channel_name
+from . import check_channel_name, get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
 from .redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,

@@ -21,10 +21,10 @@ from opsiconfd.logging import logger
 
 from .cleanup import (
 	remove_orphans_config_value,
+	remove_orphans_hardware_config,
 	remove_orphans_license_on_client_to_host,
 	remove_orphans_product_id_to_license_pool,
 	remove_orphans_product_property_value,
-	remove_orphans_hardware_config,
 )
 
 if TYPE_CHECKING:

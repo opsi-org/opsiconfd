@@ -14,9 +14,9 @@ import os
 from typing import TYPE_CHECKING, Protocol
 
 from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.types import forceProductId, forceList
-from opsicommon.package.wim import wim_info
 from opsicommon.objects import ProductProperty
+from opsicommon.package.wim import wim_info
+from opsicommon.types import forceList, forceProductId
 
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.logging import logger

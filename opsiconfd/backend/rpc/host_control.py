@@ -23,9 +23,8 @@ from ipaddress import (
 	ip_network,
 )
 from pathlib import Path
-from socket import AF_INET, SHUT_RDWR, SOCK_STREAM
+from socket import AF_INET, SHUT_RDWR, SOCK_STREAM, gethostbyname, socket
 from socket import error as socket_error
-from socket import gethostbyname, socket
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Protocol
 

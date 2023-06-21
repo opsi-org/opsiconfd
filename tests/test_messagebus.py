@@ -9,6 +9,7 @@ opsiconfd.messagebus tests
 """
 
 from typing import Type
+
 import pytest
 
 from opsiconfd.messagebus import check_channel_name

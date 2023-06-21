@@ -8,8 +8,8 @@
 opsiconfd.backend.rpc.config_state
 """
 from __future__ import annotations
-from collections import defaultdict
 
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ConfigState, ProductOnDepot  # type: ignore[import]
@@ -23,9 +23,8 @@ from opsicommon.types import (  # type: ignore[import]
 	forceUnicodeList,
 )
 
-from opsiconfd.logging import logger
-
 from opsiconfd.config import get_configserver_id
+from opsiconfd.logging import logger
 
 from . import rpc_method
 

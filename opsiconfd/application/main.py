@@ -10,28 +10,20 @@ application main
 
 import asyncio
 import os
-import warnings
-from ctypes import c_long
-from datetime import datetime, timezone
-from time import time
 from typing import Any, AsyncGenerator
-from urllib.parse import urlparse
 
 import msgspec
-from fastapi import FastAPI, Query, status
+from fastapi import Query, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
-from opsicommon.logging.constants import TRACE  # type: ignore[import]
-from starlette.concurrency import run_in_threadpool
-from starlette.datastructures import MutableHeaders
-from starlette.types import Message, Receive, Scope, Send
+from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from opsiconfd import __version__, contextvar_client_address, contextvar_request_id
+from opsiconfd import __version__
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import app
 from opsiconfd.application.admininterface import admin_interface_setup
@@ -42,6 +34,7 @@ from opsiconfd.application.jsonrpc import (
 	jsonrpc_setup,
 )
 from opsiconfd.application.metrics import metrics_setup
+from opsiconfd.application.middleware import BaseMiddleware
 from opsiconfd.application.monitoring.monitoring import monitoring_setup
 from opsiconfd.application.proxy import reverse_proxy_setup
 from opsiconfd.application.redisinterface import redis_interface_setup
@@ -51,7 +44,7 @@ from opsiconfd.application.utils import OpsiconfdWebSocketEndpoint
 from opsiconfd.application.webdav import webdav_setup
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.config import config, opsi_config
-from opsiconfd.logging import get_logger, logger
+from opsiconfd.logging import logger
 from opsiconfd.messagebus.terminal import (
 	async_terminal_shutdown,
 	async_terminal_startup,
@@ -62,35 +55,6 @@ from opsiconfd.redis import async_redis_client
 from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware
 from opsiconfd.ssl import get_ca_cert_as_pem
-from opsiconfd.utils import normalize_ip_address
-from opsiconfd.worker import Worker
-
-PATH_MAPPINGS = {
-	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
-	"/dav": "/dav/",
-	"/boot": "/boot/",
-	"/depot": "/depot/",
-	"/public": "/public/",
-	"/repository": "/repository/",
-	"/workbench": "/workbench/",
-}
-
-header_logger = get_logger("opsiconfd.headers")
-
-
-server_date = (0, b"", b"")  # pylint: disable=invalid-name
-
-
-def get_server_date() -> tuple[bytes, bytes]:
-	global server_date  # pylint: disable=global-statement,invalid-name
-	now = int(time())
-	if server_date[0] != now:
-		server_date = (
-			now,
-			str(now).encode("ascii"),
-			datetime.fromtimestamp(now, timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %Z").encode("utf-8"),
-		)
-	return server_date[1], server_date[2]
 
 
 @app.get("/")
@@ -207,130 +171,6 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 			self._log_reader_task.cancel()
 
 
-class BaseMiddleware:  # pylint: disable=too-few-public-methods
-	def __init__(self, app: FastAPI) -> None:  # pylint: disable=redefined-outer-name
-		self.app = app
-		self.worker_id = Worker.get_instance().id.encode("utf-8")
-
-	@staticmethod
-	def get_client_address(scope: Scope) -> tuple[str | None, int]:
-		"""Get sanitized client address"""
-		host, port = scope.get("client", (None, 0))
-		if host:
-			host = normalize_ip_address(host)
-		return host, port
-
-	@staticmethod
-	def before_send(scope: Scope, receive: Receive, send: Send) -> None:
-		pass
-
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-statements
-		if scope["type"] not in ("http", "websocket"):
-			return await self.app(scope, receive, send)
-
-		# Generate request id and store in contextvar
-		request_id = id(scope)
-
-		# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
-		# Ensure it fits inside a long, truncating if necessary
-		request_id = abs(c_long(request_id).value)
-		scope["request_id"] = request_id
-		contextvar_request_id.set(request_id)
-		req_headers = dict(scope["headers"])
-
-		# scope["path"] can change while processing, keep original value in scope["full_path"]
-		# Wrong path will still appear in log: GET /boot/ HTTP/1.1" 200   (h11_impl.py:477)
-		# Remove full_path and replace with path when the following issue is fixed:
-		# https://github.com/encode/starlette/issues/1336
-		scope["full_path"] = scope.get("path")
-		if scope["full_path"]:
-			new_path: str | None = None
-			if scope["full_path"].startswith("/grafana/api/datasources/proxy"):
-				# Redirect grafana proxy calls to simplify and avoid authentication grafana server => opsiconfd
-				# Without redirect:
-				#   browser => opsiconfd (reverse proxy) => grafana server (simple json) => opsiconfd (/metrics)
-				# With redirect:
-				#   browser => opsiconfd (/metrics)
-				new_path = f"/metrics/grafana/{scope['full_path'].rsplit('/')[-1]}"
-			else:
-				new_path = PATH_MAPPINGS.get(scope["full_path"])
-			if new_path:
-				scope["full_path"] = scope["path"] = new_path
-				scope["raw_path"] = new_path.encode("utf-8")
-
-		client_host, client_port = self.get_client_address(scope)
-
-		if scope.get("http_version") and scope["http_version"] != "1.1":
-			warnings.warn(
-				f"Client {client_host!r} ({req_headers.get('user-agent', '')!r}) is using http version {scope.get('http_version')}",
-				RuntimeWarning,
-			)
-
-		if client_host in config.trusted_proxies:
-			proxy_host = client_host
-			# from uvicorn/middleware/proxy_headers.py
-
-			if b"x-forwarded-for" in req_headers:
-				# Determine the client address from the last trusted IP in the
-				# X-Forwarded-For header. We've lost the connecting client's port
-				# information by now, so only include the host.
-				x_forwarded_for = req_headers[b"x-forwarded-for"].decode("ascii")
-				client_host = x_forwarded_for.split(",")[-1].strip()
-				client_port = 0
-				logger.debug("Accepting x-forwarded-for header (host=%s) from trusted proxy %s", client_host, proxy_host)
-
-		scope["client"] = (client_host, client_port)
-		contextvar_client_address.set(client_host)
-
-		async def send_wrapper(message: Message) -> None:
-			if message["type"] == "http.response.start":
-				host = req_headers.get(b"host", b"localhost:4447").decode().split(":")[0]
-				origin_scheme = "https"
-				origin_port = 4447
-				try:
-					origin = urlparse(req_headers[b"origin"].decode())
-					origin_scheme = origin.scheme
-					origin_port = int(origin.port)
-				except Exception:  # pylint: disable=broad-except
-					pass
-
-				headers = MutableHeaders(scope=message)
-				headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
-				headers.append("Access-Control-Allow-Methods", "*")
-				headers.append(
-					"Access-Control-Allow-Headers",
-					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime,X-Requested-With",
-				)
-				headers.append("Access-Control-Allow-Credentials", "true")
-
-				if header_logger.isEnabledFor(TRACE):
-					header_logger.trace("<<< HTTP/%s %s %s", scope.get("http_version"), scope.get("method"), scope.get("path"))
-					for header, value in req_headers.items():
-						header_logger.trace("<<< %s: %s", header.decode("utf-8", "replace"), value.decode("utf-8", "replace"))
-					header_logger.trace(">>> HTTP/%s %s", scope.get("http_version"), message.get("status"))
-					for header, value in dict(headers).items():
-						header_logger.trace(">>> %s: %s", header, value)
-
-			self.before_send(scope, receive, send)
-
-			if "headers" in message:
-				if (
-					scope["full_path"]
-					and scope["full_path"].startswith("/public/boot")
-					and req_headers.get("user-agent", "").startswith("UefiHttpBoot")
-				):
-					# Grub 2.06 needs titled headers (Content-Length instead of content-length)
-					message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
-
-				dat = get_server_date()
-				message["headers"].append((b"date", dat[1]))
-				message["headers"].append((b"x-date-unix-timestamp", dat[0]))
-				message["headers"].append((b"x-opsi-worker-id", self.worker_id))
-			await send(message)
-
-		return await self.app(scope, receive, send_wrapper)
-
-
 @app.exception_handler(RequestValidationError)
 @rest_api
 def validation_exception_handler(request: Request, exc: Exception) -> None:
@@ -346,46 +186,6 @@ def application_setup() -> None:
 	get_protected_backend()
 
 	FileResponse.chunk_size = 32 * 1024  # Speeds up transfer of big files massively, original value is 4*1024
-
-	# Every Starlette application automatically includes two pieces of middleware by default:
-	#    ServerErrorMiddleware: Ensures that application exceptions may return a custom 500 page,
-	#                           or display an application traceback in DEBUG mode.
-	#                           This is always the outermost middleware layer.
-	#      ExceptionMiddleware: Adds exception handlers, so that particular types of expected
-	#                           exception cases can be associated with handler functions.
-	#                           For example raising HTTPException(status_code=404) within an endpoint
-	#                           will end up rendering a custom 404 page.
-	#
-	# Last added middleware will be executed first
-	# middleware stack:
-	#    ServerErrorMiddleware
-	#    user added middlewares
-	#    ExceptionMiddleware
-	#
-	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-
-	public_path = [
-		"/favicon.ico",
-		"/login",
-		"/session/login",
-		"/session/logout",
-		"/ssl/opsi-ca-cert.pem",
-		"/static",
-		"/welcome",
-	]
-	if "status-page" not in config.disabled_features:
-		public_path.append("/status")
-	if "public-folder" not in config.disabled_features:
-		public_path.extend(["/public", "/dav/public"])
-
-	app.add_middleware(SessionMiddleware, public_path=public_path)
-	# app.add_middleware(GZipMiddleware, minimum_size=1000)
-	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
-	app.add_middleware(BaseMiddleware)
-	if os.path.isdir(config.static_dir):
-		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")
-	else:
-		logger.warning("Static dir '%s' not found", config.static_dir)
 
 	jsonrpc_setup(app)
 	session_setup(app)
@@ -441,21 +241,43 @@ async def async_application_shutdown() -> None:
 	await async_terminal_shutdown()
 
 
-@app.on_event("startup")
-async def startup() -> None:
-	try:
-		await run_in_threadpool(application_startup)
-		await async_application_startup()
-	except Exception as error:  # pylint: disable=broad-except
-		logger.critical("Error during application startup: %s", error, exc_info=True)
-		raise error
+def setup_app() -> None:
+	# Every Starlette application automatically includes two pieces of middleware by default:
+	#    ServerErrorMiddleware: Ensures that application exceptions may return a custom 500 page,
+	#                           or display an application traceback in DEBUG mode.
+	#                           This is always the outermost middleware layer.
+	#      ExceptionMiddleware: Adds exception handlers, so that particular types of expected
+	#                           exception cases can be associated with handler functions.
+	#                           For example raising HTTPException(status_code=404) within an endpoint
+	#                           will end up rendering a custom 404 page.
+	#
+	# Last added middleware will be executed first
+	# middleware stack:
+	#    ServerErrorMiddleware
+	#    user added middlewares
+	#    ExceptionMiddleware
+	#
+	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 
+	public_path = [
+		"/favicon.ico",
+		"/login",
+		"/session/login",
+		"/session/logout",
+		"/ssl/opsi-ca-cert.pem",
+		"/static",
+		"/welcome",
+	]
+	if "status-page" not in config.disabled_features:
+		public_path.append("/status")
+	if "public-folder" not in config.disabled_features:
+		public_path.extend(["/public", "/dav/public"])
 
-@app.on_event("shutdown")
-async def shutdown() -> None:
-	logger.info("Processing shutdown event")
-	try:
-		await run_in_threadpool(application_shutdown)
-		await async_application_shutdown()
-	except Exception as error:  # pylint: disable=broad-except
-		logger.critical("Error during application shutdown: %s", error, exc_info=True)
+	app.add_middleware(SessionMiddleware, public_path=public_path)
+	# app.add_middleware(GZipMiddleware, minimum_size=1000)
+	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
+	app.add_middleware(BaseMiddleware)
+	if os.path.isdir(config.static_dir):
+		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")
+	else:
+		logger.warning("Static dir '%s' not found", config.static_dir)

@@ -9,9 +9,10 @@ test application.main
 """
 
 import warnings
-from unittest.mock import patch
 from datetime import datetime
-from time import time, sleep
+from time import sleep, time
+from unittest.mock import patch
+
 from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware

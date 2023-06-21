@@ -30,8 +30,8 @@ from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
-from opsicommon.utils import ip_address_in_network
 from opsicommon.system.network import get_fqdn
+from opsicommon.utils import ip_address_in_network
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 

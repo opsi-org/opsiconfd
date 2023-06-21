@@ -15,8 +15,9 @@ from unittest.mock import patch
 
 import pyotp
 import pytest
-from MySQLdb.connections import Connection  # type: ignore[import]
 from fastapi import status
+from MySQLdb.connections import Connection  # type: ignore[import]
+
 from opsiconfd import (
 	contextvar_client_session,
 	get_contextvars,

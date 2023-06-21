@@ -20,9 +20,8 @@ from typing import Any, AsyncGenerator, Callable, Generator
 from uuid import uuid4
 
 import redis
-from redis import BusyLoadingError
+from redis import BusyLoadingError, ResponseError
 from redis import ConnectionError as RedisConnectionError
-from redis import ResponseError
 from redis import asyncio as async_redis
 
 from opsiconfd.config import config

@@ -20,14 +20,19 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.messagebus import EventMessage  # type: ignore[import]
-from opsicommon.messagebus import JSONRPCRequestMessage, timestamp
+from opsicommon.messagebus import (
+	EventMessage,  # type: ignore[import]
+	JSONRPCRequestMessage,
+	timestamp,
+)
 from opsicommon.objects import OpsiDepotserver, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 # server_timing needed for jsonrpc_forward
-from opsiconfd import server_timing  # pylint: disable=unused-import
-from opsiconfd import contextvar_client_session
+from opsiconfd import (  # pylint: disable=unused-import
+	contextvar_client_session,
+	server_timing,
+)
 from opsiconfd.application import app
 from opsiconfd.backend import get_service_client
 from opsiconfd.backend.rpc import MethodInterface

@@ -11,19 +11,19 @@ test opsiconfd.backend.rpc.obj_config_state
 from typing import Any, Generator
 
 import pytest
-from opsiconfd.backend.mysql.cleanup import remove_orphans_config_state
-from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.config import get_configserver_id
 
+from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.mysql.cleanup import remove_orphans_config_state
+from opsiconfd.config import get_configserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,
 	OpsiconfdTestClient,
+	backend,
+	clean_redis,
 	database_connection,
 	test_client,
-	clean_redis,
-	backend,
 )
 
 

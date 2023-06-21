@@ -18,10 +18,11 @@ from re import DOTALL, finditer
 from socket import gethostbyaddr
 from typing import Any
 
-from OpenSSL.crypto import FILETYPE_PEM, X509, X509Name
-from OpenSSL.crypto import Error as CryptoError
 from OpenSSL.crypto import (
+	FILETYPE_PEM,
+	X509,
 	PKey,
+	X509Name,
 	X509Store,
 	X509StoreContext,
 	X509StoreContextError,
@@ -29,6 +30,7 @@ from OpenSSL.crypto import (
 	load_certificate,
 	load_privatekey,
 )
+from OpenSSL.crypto import Error as CryptoError
 from opsicommon.server.rights import FilePermission, PermissionRegistry, set_rights
 from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca
 from requests.exceptions import ConnectionError as RequestsConnectionError

@@ -16,9 +16,8 @@ import warnings
 from functools import wraps
 from types import NoneType
 from typing import Any, Callable, Optional
+
 import msgspec
-
-
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel  # pylint: disable=no-name-in-module

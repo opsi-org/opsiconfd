@@ -8,18 +8,19 @@
 test opsiconfd.backend.rpc.test_obj_audit_hardware
 """
 
-from pathlib import Path
 import json
 from collections import defaultdict
-from opsicommon.objects import AuditHardware, serialize, deserialize
+from pathlib import Path
+
+from opsicommon.objects import AuditHardware, deserialize, serialize
 
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
 	clean_redis,
-	test_client,
 	database_connection,
+	test_client,
 )
 
 from .utils import cleanup_database  # pylint: disable=unused-import

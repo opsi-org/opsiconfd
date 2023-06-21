@@ -25,7 +25,6 @@ from opsiconfd.logging import logger
 from ..auth import RPCACE, RPCACE_ALLOW_ALL
 from . import rpc_method
 
-
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 

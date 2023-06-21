@@ -250,7 +250,7 @@ function startLog() {
 	}
 	logLineId = 0;
 	var client = null;
-	var params = ["set_cookie_interval=30"]
+	var params = []
 	if (startTime) {
 		params.push("start_time=" + startTime);
 	}

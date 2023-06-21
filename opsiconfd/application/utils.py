@@ -128,7 +128,6 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
-		self._set_cookie_task: Task
 		self._check_session_task: Task
 
 	async def _check_authorization(self) -> None:
@@ -140,18 +139,6 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				status_code=HTTP_403_FORBIDDEN,
 				detail=f"Access to {self} denied for user {self.scope['session'].username!r}",
 			)
-
-	async def set_cookie_task(self, websocket: WebSocket, set_cookie_interval: int) -> None:
-		try:
-			session = self.scope["session"]
-			while True:
-				await sleep(set_cookie_interval)
-				if websocket.client_state != WebSocketState.CONNECTED:
-					break
-				logger.debug("Send set-cookie")
-				await websocket.send_bytes(msgspec.msgpack.encode({"type": "set-cookie", "payload": session.get_cookie()}))
-		except (ConnectionClosedOK, WebSocketDisconnect) as err:
-			logger.debug("set_cookie_task: %s", err)
 
 	async def check_session_task(self, websocket: WebSocket) -> None:
 		try:
@@ -170,27 +157,9 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 		websocket = OpsiconfdWebSocket(self.scope, receive=self.receive, send=self.send)
 		await self._check_authorization()
 
-		dependant = get_dependant(path="", call=self.on_connect)
-
-		param = Parameter("set_cookie_interval", default=0, annotation=Optional[int], kind=Parameter.KEYWORD_ONLY)
-
-		dependant.query_params.append(get_param_field(param=param, default_field_info=params.Query, param_name=param.name))
-		solved_result = await solve_dependencies(request=websocket, dependant=dependant)
-		values, errors, *_ = solved_result
-		if errors:
-			logger.info(errors)
-			raise WebSocketRequestValidationError(errors)
-
 		await websocket.accept()
 
 		self._check_session_task = create_task(self.check_session_task(websocket))
-
-		set_cookie_interval = values.pop("set_cookie_interval")
-		if set_cookie_interval > 0:
-			logger.debug("set_cookie_interval is %d", set_cookie_interval)
-			self._set_cookie_task = create_task(self.set_cookie_task(websocket, set_cookie_interval))
-		await self.on_connect(**values)
-
 		close_code = WS_1000_NORMAL_CLOSURE
 
 		try:

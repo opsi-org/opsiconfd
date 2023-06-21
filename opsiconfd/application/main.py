@@ -13,7 +13,7 @@ import os
 from typing import Any, AsyncGenerator
 
 import msgspec
-from fastapi import Query, status
+from fastapi import status
 from fastapi.exceptions import RequestValidationError
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response

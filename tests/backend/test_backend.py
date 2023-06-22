@@ -11,7 +11,6 @@ webdav tests
 from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
 from opsiconfd.backend import (
-	execute_on_secondary_backends,
 	get_mysql,
 	get_unprotected_backend,
 )
@@ -43,13 +42,6 @@ def test_get_mysql() -> None:
 	with mysql.session() as session:
 		host_ids = session.execute("SELECT hostId FROM HOST").fetchall()
 		assert len(host_ids) > 0
-
-
-def test_execute_on_secondary_backends() -> None:
-	# TODO:
-	backend = get_unprotected_backend()
-	host = backend.host_getObjects()[0]  # pylint: disable=no-member
-	execute_on_secondary_backends("host_updateObjects", hosts=[host])
 
 
 def test_opsiconfd_backend_get_domain(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

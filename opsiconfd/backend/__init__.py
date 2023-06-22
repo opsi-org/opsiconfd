@@ -88,23 +88,3 @@ def get_service_client(name: str = "") -> ServiceClient:
 			service_client.connect_messagebus()
 			service_clients[name] = service_client
 		return service_clients[name]
-
-
-def execute_on_secondary_backends(
-	method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any  # pylint: disable=unused-argument
-) -> dict:
-	result: dict[str, Any] = {}
-	# backend = get_protected_backend()
-	# TODO:
-	for _backend_id in backends:
-		pass
-		# if backend_id not in backend._backends:  # pylint: disable=protected-access
-		# 	continue
-		# logger.info("Executing '%s' on secondary backend '%s'", method, backend_id)
-		# meth = getattr(backend._backends[backend_id]["instance"], method)  # pylint: disable=protected-access
-		# try:
-		# 	result[backend_id] = {"data": meth(**kwargs), "error": None}
-		# except Exception as err:  # pylint: disable=broad-except
-		# 	result[backend_id] = {"data": None, "error": err}
-		# backend._backends[backend_id]["instance"].backend_exit()  # pylint: disable=protected-access
-	return result

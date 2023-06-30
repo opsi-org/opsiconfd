@@ -19,7 +19,7 @@ import subprocess
 from contextlib import closing, contextmanager
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
-from typing import TYPE_CHECKING, Any, Generator, Protocol
+from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
 
 from opsicommon.exceptions import (
 	BackendBadValueError,
@@ -290,7 +290,11 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise BackendIOError(f"Package source dir '{package_path}' does not exist")
 		opsi_package = OpsiPackage()
 		opsi_package.find_and_parse_control_file(package_path)
-		package_file = opsi_package.create_package_archive(package_path, destination=package_path)
+		compression: Literal["zstd", "gz", "bz2"] = "zstd"
+		if Path("/etc/opsi/makepackage_marker_use_gz").exists():
+			logger.warning("Overriding compression to use 'gz' because of marker '/etc/opsi/makepackage_marker_use_gz'")
+			compression = "gz"
+		package_file = opsi_package.create_package_archive(package_path, destination=package_path, compression=compression)
 		self.depot_createMd5SumFile(str(package_file), f"{package_file}.md5")
 		self.depot_createZsyncFile(str(package_file), f"{package_file}.zsync")
 		if os.name == "posix":

@@ -309,6 +309,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 			subject=ca_subject,
 			valid_days=config.ssl_ca_cert_valid_days,
 			key=cur_ca_key,
+			permitted_domains=config.ssl_ca_permitted_domains or None,
 		)
 		if not cur_ca_key:
 			store_ca_key(ca_key)

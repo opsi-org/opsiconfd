@@ -318,6 +318,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			# Use None if empty string
 			self._config.ssl_server_key_passphrase = None
 
+		if self._config.ssl_ca_permitted_domains:
+			ssl_ca_permitted_domains = {f".{d.lstrip('.')}" for d in self._config.ssl_ca_permitted_domains}
+			ssl_ca_permitted_domains.add("localhost")
+			self._config.ssl_ca_permitted_domains = sorted(list(ssl_ca_permitted_domains))
+		else:
+			self._config.ssl_ca_permitted_domains = None
+
 		secret_filter.add_secrets(self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase)
 
 		try:
@@ -822,6 +829,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			type=int,
 			default=700,
 			help=self._help("expert", "The CA will be renewed if the validity falls below the specified number of days."),
+		)
+		self._parser.add(
+			"--ssl-ca-permitted-domains",
+			env_var="OPSICONFD_SSL_CA_PERMITTED_DOMAINS",
+			nargs="+",
+			default=[],
+			help=self._help("opsiconfd", "The CA will be limited to these domains (X.509 Name Constraints)."),
 		)
 		self._parser.add(
 			"--ssl-server-key",

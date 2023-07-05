@@ -52,6 +52,7 @@ from opsiconfd.ssl import (
 	subject_to_dict,
 	validate_cert,
 )
+from .utils import get_config
 
 
 def test_get_ips() -> None:
@@ -111,6 +112,32 @@ def test_create_ca(tmpdir: Path) -> None:
 
 			info = get_ca_cert_info()
 			assert info["serial_number"].replace(":", "").lstrip("0") == openssl_serial.replace(":", "").lstrip("0").upper()
+
+
+def test_create_ca_permitted_domains(tmpdir: Path) -> None:
+	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
+	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	ssl_ca_permitted_domains = ["mycompany1.tld", "mycompany2.tld"]
+	with (
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmpdir), "echo")),
+		get_config(
+			{
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_permitted_domains": ssl_ca_permitted_domains,
+			}
+		),
+	):
+		setup_ca()
+		ca_cert = load_ca_cert()
+		name_constraints = [
+			ca_cert.get_extension(idx)
+			for idx in range(ca_cert.get_extension_count())
+			if ca_cert.get_extension(idx).get_short_name() == b"nameConstraints"
+		][0]
+		assert b"\x0f.mycompany1.tld0\x11\x82\x0f.mycompany2.tld0\x0b\x82\tlocalhost" in name_constraints.get_data()
 
 
 def test_ca_key_fallback(tmpdir: Path) -> None:

@@ -52,6 +52,7 @@ from opsiconfd.ssl import (
 	subject_to_dict,
 	validate_cert,
 )
+
 from .utils import get_config
 
 

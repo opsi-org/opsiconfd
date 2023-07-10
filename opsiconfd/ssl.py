@@ -18,7 +18,7 @@ from re import DOTALL, finditer
 from socket import gethostbyaddr
 from typing import Any, Dict, Set, Tuple
 
-from OpenSSL.crypto import FILETYPE_PEM, X509
+from OpenSSL.crypto import FILETYPE_PEM, X509, X509Name
 from OpenSSL.crypto import Error as CryptoError
 from OpenSSL.crypto import (
 	PKey,
@@ -227,6 +227,31 @@ def depotserver_setup_ca() -> bool:
 	return False
 
 
+def get_ca_subject() -> dict[str, str]:
+	domain = get_domain()
+	return {
+		"C": "DE",
+		"ST": "RP",
+		"L": "MAINZ",
+		"O": "uib",
+		"OU": f"opsi@{domain}",
+		"CN": config.ssl_ca_subject_cn,
+		"emailAddress": f"opsi@{domain}",
+	}
+
+
+def subject_to_dict(subject: X509Name) -> dict[str, str]:
+	return {
+		"C": subject.C,
+		"ST": subject.ST,
+		"L": subject.L,
+		"O": subject.O,
+		"OU": subject.OU,
+		"CN": subject.CN,
+		"emailAddress": subject.emailAddress,
+	}
+
+
 def configserver_setup_ca() -> bool:
 	logger.info("Checking CA")
 
@@ -260,7 +285,27 @@ def configserver_setup_ca() -> bool:
 			)
 
 	if create or renew:
-		domain = get_domain()
+		ca_subject = get_ca_subject()
+		current_ca_subject = {}
+		if os.path.exists(config.ssl_ca_cert):
+			try:
+				current_ca_subject = subject_to_dict(load_ca_cert().get_subject())
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error("Failed to load CA cert: %s", err, exc_info=True)
+
+		if current_ca_subject and ca_subject != current_ca_subject:
+			logger.warning(
+				"The subject of the CA has change from %r to %r."
+				" If this change is intended, please delete"
+				" the current CA certificate '%s' and restart opsiconfd."
+				" Caution, clients that trust an opsi CA with the previous subject"
+				" will not trust the CA with the changed subject!",
+				current_ca_subject,
+				ca_subject,
+				config.ssl_ca_cert,
+			)
+			ca_subject = current_ca_subject
+
 		cur_ca_key = None
 		if renew:
 			logger.notice("Renewing opsi CA")
@@ -268,11 +313,7 @@ def configserver_setup_ca() -> bool:
 		else:
 			logger.notice("Creating opsi CA")
 
-		(ca_crt, ca_key) = create_ca(
-			subject={"CN": config.ssl_ca_subject_cn, "OU": f"opsi@{domain}", "emailAddress": f"opsi@{domain}"},
-			valid_days=config.ssl_ca_cert_valid_days,
-			key=cur_ca_key,
-		)
+		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_valid_days, key=cur_ca_key)
 		if not cur_ca_key:
 			store_ca_key(ca_key)
 		store_ca_cert(ca_crt)

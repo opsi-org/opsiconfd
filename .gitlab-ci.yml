@@ -73,7 +73,7 @@ stages:
 
 
 .perftest: &perftest |
-  poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --max-session-per-ip=20000 &
+  poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --max-session-per-ip=20000 --log-mode=local -l6 &
   sleep 10
 
   echo "---------------------------------------"

@@ -178,6 +178,37 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
+def test_config_createUnicode_empty_string(  # pylint: disable=invalid-name
+	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "config_createUnicode",
+		"params": {
+			"id": "test-unicode-config-1",
+			"description": "test desc",
+			"possibleValues": [""],
+			"defaultValues": [""],
+			"editable": True,
+			"multiValue": True,
+		},
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_getObjects", "params": [None, {"id": ["test-unicode-config-1"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+
+	assert "error" not in res
+	assert len(res["result"]) == 1
+	assert res["result"][0]["possibleValues"] == [""]
+	assert res["result"][0]["defaultValues"] == [""]
+	assert res["result"][0]["editable"] == True
+	assert res["result"][0]["multiValue"] == True
+
+
 def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name
 	configs = []
 	for idx in range(10):

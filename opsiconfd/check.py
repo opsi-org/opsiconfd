@@ -838,7 +838,6 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 				productId=product_id,
 				installationStatus="installed",
 			):
-
 				version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
 				if compare_versions(version, ">=", available_version):
 					continue
@@ -923,7 +922,6 @@ def check_distro_eol() -> CheckResult:
 		""",
 	)
 	with exc_to_result(result):
-
 		distro = linux_distro_id()
 		version = linux_distro_version_id()
 		if version_info := LINUX_DISTRO_EOL.get(distro):

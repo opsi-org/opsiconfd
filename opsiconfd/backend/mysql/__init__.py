@@ -533,7 +533,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	def _process_aggregates(self, data: dict[str, Any], aggregates: list[str]) -> None:
 		for attr in aggregates:
 			try:
-				data[attr] = data[attr].split(self.record_separator) if data[attr] else []
+				data[attr] = data[attr].split(self.record_separator) if data[attr] is not None else []
 			except KeyError:
 				pass
 
@@ -686,10 +686,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			result = session.execute(query, params=params).fetchall()
 
 			with server_timing("database_result_processing"):
-				l_aggregates = list(aggregates)
-
 				if not result:
 					return []
+
+				l_aggregates = list(aggregates)
 				if return_type == "ident":
 					return [self.get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result]
 

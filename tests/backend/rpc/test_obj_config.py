@@ -205,8 +205,8 @@ def test_config_createUnicode_empty_string(  # pylint: disable=invalid-name
 	assert len(res["result"]) == 1
 	assert res["result"][0]["possibleValues"] == [""]
 	assert res["result"][0]["defaultValues"] == [""]
-	assert res["result"][0]["editable"] == True
-	assert res["result"][0]["multiValue"] == True
+	assert res["result"][0]["editable"] is True
+	assert res["result"][0]["multiValue"] is True
 
 
 def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name

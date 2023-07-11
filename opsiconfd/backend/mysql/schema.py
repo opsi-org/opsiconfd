@@ -401,7 +401,7 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 
 	existing_tables = set(tables.keys())
 
-	for (hw_class, values) in get_audit_hardware_database_config().items():  # pylint: disable=too-many-nested-blocks
+	for hw_class, values in get_audit_hardware_database_config().items():  # pylint: disable=too-many-nested-blocks
 		logger.debug("Processing hardware class '%s'", hw_class)
 		hardware_device_table_name = f"HARDWARE_DEVICE_{hw_class}"
 		hardware_config_table_name = f"HARDWARE_CONFIG_{hw_class}"
@@ -429,7 +429,7 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 
 		hardware_device_values_processed = 0
 		hardware_config_values_processed = 0
-		for (value, value_info) in values.items():
+		for value, value_info in values.items():
 			logger.debug("  Processing value '%s'", value)
 			if value_info["Scope"] == "g":
 				if hardware_device_table_exists:
@@ -489,6 +489,7 @@ def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-
 		if hardware_config_values_processed or not hardware_config_table_exists:
 			logger.debug(hardware_config_table)
 			session.execute(hardware_config_table)
+	session.commit()
 
 
 def read_schema_version(session: Session) -> int | None:
@@ -668,6 +669,8 @@ def drop_database(mysql: MySQLConnection) -> None:
 def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	with mysql.session() as session:
 		session.execute(CREATE_TABLES_SQL)
+		session.commit()
+
 		create_audit_hardware_tables(session, mysql.tables)
 		mysql.read_tables()
 

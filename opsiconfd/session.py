@@ -372,7 +372,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 				delete_session_ids = []
 				for session in list(self.sessions.values()):
 					if session.expired:
-						logger.debug("Deleting expired session: %s", session.session_id)
+						logger.debug("Delete expired session: %s", session.session_id)
 						await session.delete()
 						delete_session_ids.append(session.session_id)
 					elif session.deleted:

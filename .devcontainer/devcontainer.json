@@ -25,21 +25,13 @@
 				"python.formatting.provider": "black",
 				"python.formatting.blackPath": ".venv/bin/tan",
 				"python.terminal.activateEnvironment": false,
-				"python.testing.pytestArgs": [
-					"--tb=short",
-					"-o junit_family=xunit2",
-					"--junitxml=testreport.xml",
-					"-vv",
-					"--cov-append",
-					"--cov=opsiconfd",
-					"--cov-report=term",
-					"--cov-report=xml",
-					"tests"
-				],
 				"python.testing.unittestEnabled": false,
 				"python.testing.nosetestsEnabled": false,
 				"python.testing.pytestEnabled": true,
 				"python.testing.pytestPath": ".venv/bin/pytest",
+				"python.testing.pytestArgs": [
+					"tests"
+				],
 				"python.linting.enabled": true,
 				"python.linting.flake8Enabled": false,
 				"python.linting.pylintEnabled": true,

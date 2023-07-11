@@ -59,6 +59,11 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 @hookimpl()
 def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
+	print(sys.argv)
+	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
+		# vscode test discovery running
+		return
+
 	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
 
 	Path("tests/data/opsi-config/opsi.conf").unlink(missing_ok=True)
@@ -96,7 +101,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	print("Setup backend")
 	setup_backend()
 
-	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
+	with patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None):
 		print("Setup SSL")
 		setup_ssl()
 

@@ -773,8 +773,8 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 							f" < available version {available_version!r}."
 						)
 				elif available_version == "0.0":
-					logger.notice("Could not find product %r on repository %s.", product_id, OPSI_REPO)
-					logger.notice("Removing product %r from checked list.", product_id)
+					logger.info("Could not find product %r on repository %s.", product_id, OPSI_REPO)
+					logger.info("Removing product %r from checked list.", product_id)
 					packages_not_on_repo.append(product_id)
 					continue
 				else:
@@ -787,9 +787,10 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
-			for package in packages_not_on_repo:
-				del available_packages[package]
 
+		for package in packages_not_on_repo:
+			if package in available_packages:
+				del available_packages[package]
 		result.details = {"products": len(available_packages), "depots": len(depots), "not_installed": not_installed, "outdated": outdated}
 		if not_installed > 0 or outdated > 0:
 			result.message = (

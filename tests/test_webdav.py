@@ -19,7 +19,7 @@ import pytest
 
 from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
-from opsiconfd.config import FQDN
+from opsiconfd.config import get_depotserver_id
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -181,7 +181,7 @@ def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # pyl
 
 
 def test_webdav_setup_exception(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
-	host = backend.host_getObjects(type="OpsiDepotserver", id=FQDN)[0]  # pylint: disable=no-member
+	host = backend.host_getObjects(type="OpsiDepotserver", id=get_depotserver_id())[0]  # pylint: disable=no-member
 	repo_url = host.getRepositoryLocalUrl()
 	depot_url = host.getDepotLocalUrl()
 	workbench_url = host.getWorkbenchLocalUrl()

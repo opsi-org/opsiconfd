@@ -143,8 +143,7 @@ class DumpedKey:
 	@classmethod
 	def from_dict(cls, data: dict[str, str | bytes | int | None]) -> DumpedKey:
 		if isinstance(data["value"], str):
-			# type: ignore[arg-type]
-			return DumpedKey(name=data["name"], value=base64.b64decode(data["value"]), expires=data["expires"])
+			return DumpedKey(name=data["name"], value=base64.b64decode(data["value"]), expires=data["expires"])  # type: ignore[arg-type]
 		return DumpedKey(**data)  # type: ignore[arg-type]
 
 

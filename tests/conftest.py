@@ -59,7 +59,7 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 @hookimpl()
 def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
-	print(sys.argv)
+	# print(sys.argv)
 	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
 		# vscode test discovery running
 		return
@@ -112,7 +112,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 
 @hookimpl()
 def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: disable=unused-argument
-	print(sys.argv)
+	# print(sys.argv)
 	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
 		# vscode test discovery running
 		return

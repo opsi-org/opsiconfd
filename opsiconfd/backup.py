@@ -19,6 +19,7 @@ from opsicommon.types import forceHostId  # type: ignore[import]
 from rich.progress import Progress
 
 from opsiconfd import __version__
+from opsiconfd.redis import dump, restore, delete_recursively, DumpedKey
 from opsiconfd.application import MaintenanceState, app
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
@@ -137,6 +138,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 	backup_file: Path | None = None,
 	*,
 	config_files: bool = True,
+	redis: bool = True,
 	file_encoding: Literal["msgpack", "json"] = "msgpack",
 	file_compression: Literal["lz4", "gz"] = "lz4",
 	password: str | None = None,
@@ -215,6 +217,15 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 					if progress:
 						progress.advance(file_task)
 
+			if redis:
+				logger.notice("Backing up redis data")
+				if progress:
+					progress.console.print("Backing up redis data")
+					redis_task = progress.add_task("Backing up redis data", total=None)
+				data["redis"] = {"dumped_keys": list(dump(config.redis_key(), excludes=[config.redis_key("locks")]))}
+				if progress:
+					progress.update(redis_task, total=1, completed=True)
+
 		if not backup_file:
 			return data
 
@@ -258,6 +269,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 	data_or_file: dict[str, dict[str, Any]] | Path,
 	*,
 	config_files: bool = True,
+	redis: bool = True,
 	server_id: str = "backup",
 	password: str | None = None,
 	batch: bool = True,
@@ -267,6 +279,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 ) -> None:
 	with redis_lock("backup-restore", acquire_timeout=2.0, lock_timeout=12 * 3600):
 		data = {}
+		encoding: str | None = None
 		if isinstance(data_or_file, Path):
 			backup_file = data_or_file
 			logger.notice("Reading data from file %s", backup_file)
@@ -445,6 +458,18 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 							progress.advance(file_task)
 					else:
 						logger.info("Skipping config file %r (%s)", name, file)
+
+			if redis and data.get("redis", {}).get("dumped_keys"):
+				logger.notice("Restoring redis data")
+				dumped_keys = [DumpedKey.from_dict(k) for k in data["redis"]["dumped_keys"]]
+				if progress:
+					progress.console.print(f"Restoring {len(dumped_keys)} redis keys")
+					redis_task = progress.add_task("Restoring redis data", total=None)
+
+				delete_recursively(config.redis_key(), excludes=[config.redis_key("locks")])
+				restore(dumped_keys)
+				if progress:
+					progress.update(redis_task, total=1, completed=True)
 
 			server_key = backend.host_getObjects(attributes=["opsiHostKey"], type="OpsiConfigserver")[0].opsiHostKey
 			secret_filter.add_secrets(server_key)

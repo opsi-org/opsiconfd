@@ -12,12 +12,14 @@ opsiconfd redis utils
 from __future__ import annotations
 
 import asyncio
+import base64
 import functools
 import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, AsyncGenerator, Callable, Generator
+from typing import Any, AsyncGenerator, Callable, Generator, Iterable
 from uuid import uuid4
+from dataclasses import dataclass
 
 import redis
 from redis import BusyLoadingError, ResponseError
@@ -132,10 +134,74 @@ async def async_redis_client(timeout: int = 0, test_connection: bool = False) ->
 	return await get_async_redis_connection(url=config.redis_internal_url, timeout=timeout, test_connection=test_connection)
 
 
-def delete_recursively(redis_key: str, piped: bool = True) -> None:
+@dataclass(frozen=True, slots=True)
+class DumpedKey:
+	name: str
+	value: bytes
+	expires: int | None = None  # absolute unix timestamp in milliseconds or None if not expires
+
+	@classmethod
+	def from_dict(cls, data: dict[str, str | bytes | int | None]) -> DumpedKey:
+		if isinstance(data["value"], str):
+			# type: ignore[arg-type]
+			return DumpedKey(name=data["name"], value=base64.b64decode(data["value"]), expires=data["expires"])
+		return DumpedKey(**data)  # type: ignore[arg-type]
+
+
+def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[DumpedKey, None, None]:
+	excludes = excludes or []
+	with redis_client() as client:
+		for key in client.scan_iter(f"{redis_key}:*"):
+			assert isinstance(key, bytes)
+			key = key.decode("utf-8")
+
+			exclude_key = False
+			for exclude in excludes:
+				if key == exclude or key.startswith(f"{exclude}:"):
+					exclude_key = True
+					break
+			if exclude_key:
+				continue
+
+			now = int(time.time() * 1000)
+			value = client.dump(key)
+			pttl = client.pttl(key)
+			expires = None
+			if pttl >= 0:
+				expires = now + pttl
+			assert isinstance(value, bytes)
+			yield DumpedKey(key, value, expires)
+
+
+def restore(dumped_keys: Iterable[DumpedKey]) -> None:
+	with redis_client() as client:
+		for dumped_key in dumped_keys:
+			client.restore(
+				name=dumped_key.name,
+				ttl=0 if dumped_key.expires is None else dumped_key.expires,
+				value=dumped_key.value,
+				absttl=True,
+				replace=True,
+			)
+
+
+def delete_recursively(redis_key: str, *, piped: bool = True, excludes: Iterable[str] | None = None) -> None:
+	excludes = excludes or []
+
 	with redis_client() as client:
 		delete_keys = []
 		for key in client.scan_iter(f"{redis_key}:*"):
+			assert isinstance(key, bytes)
+			key = key.decode("utf-8")
+
+			exclude_key = False
+			for exclude in excludes:
+				if key == exclude or key.startswith(f"{exclude}:"):
+					exclude_key = True
+					break
+			if exclude_key:
+				continue
+
 			if piped:
 				delete_keys.append(key)
 			else:

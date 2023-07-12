@@ -10,6 +10,7 @@ redis tests
 
 import asyncio
 import time
+from random import randbytes
 
 import pytest
 
@@ -22,6 +23,8 @@ from opsiconfd.redis import (
 	redis_client,
 	redis_connection_pool,
 	redis_lock,
+	dump,
+	restore,
 )
 
 from .utils import Config, config  # pylint: disable=unused-import
@@ -174,3 +177,38 @@ async def test_async_redis_lock(config: Config) -> None:  # pylint: disable=rede
 			await asyncio.sleep(1.0)
 
 	assert not await client.get(redis_key)
+
+
+def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	base_key = config.redis_key("dump_recursively")
+	rand = randbytes(3000)
+	num1 = 30
+	num2 = 30
+	with redis_client() as client:
+		for idx in range(num1):
+			for idx2 in range(num2):
+				ex = None if idx % 2 else 30
+				client.set(f"{base_key}:{idx}:{idx2}", rand, ex=ex)
+
+		dumped_keys = list(dump(base_key, excludes=[f"{base_key}:1", f"{base_key}:2"]))
+		assert len(dumped_keys) == (num1 - 2) * num2
+
+		dumped_keys = list(dump(base_key))
+		assert len(dumped_keys) == num1 * num2
+
+		delete_recursively(base_key)
+
+		restore(dumped_keys)
+
+		dumped_keys2 = list(dump(base_key))
+
+		dumped_keys2.sort(key=lambda dk: dk.name)
+		dumped_keys.sort(key=lambda dk: dk.name)
+		assert len(dumped_keys2) == len(dumped_keys)
+		for idx in range(len(dumped_keys)):  # pylint: disable=consider-using-enumerate
+			assert dumped_keys2[idx].name == dumped_keys[idx].name
+			assert dumped_keys2[idx].value == dumped_keys[idx].value
+			if dumped_keys2[idx].expires is None:
+				assert dumped_keys[idx].expires is None
+			else:
+				assert abs((dumped_keys2[idx].expires or 0) - (dumped_keys[idx].expires or 0)) < 3000

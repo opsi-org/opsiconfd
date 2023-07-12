@@ -23,7 +23,7 @@ from typing import Any, Optional
 import msgspec
 import pyotp
 from fastapi import FastAPI, HTTPException, status
-from fastapi.exceptions import ValidationError
+from fastapi.exceptions import ValidationException
 from fastapi.requests import HTTPConnection
 from fastapi.responses import (
 	JSONResponse,
@@ -272,7 +272,7 @@ class SessionMiddleware:
 			status_code = status.HTTP_403_FORBIDDEN
 			error = str(err)
 
-		elif isinstance(err, ValidationError):
+		elif isinstance(err, ValidationException):
 			status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
 			error = str(err)
 

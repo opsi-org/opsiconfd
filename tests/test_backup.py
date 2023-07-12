@@ -39,9 +39,11 @@ from .utils import Config, clean_redis, config, get_config  # pylint: disable=un
 				"overwrite": True,
 				"no_maintenance": True,
 				"no_config_files": True,
+				"no_redis_data": True,
 			},
 			{
 				"config_files": False,
+				"redis_data": False,
 				"backup_file": Path("/tmp/test.json"),
 				"file_encoding": "json",
 				"file_compression": None,
@@ -57,9 +59,11 @@ from .utils import Config, clean_redis, config, get_config  # pylint: disable=un
 				"overwrite": True,
 				"no_maintenance": False,
 				"no_config_files": False,
+				"no_redis_data": False,
 			},
 			{
 				"config_files": True,
+				"redis_data": True,
 				"backup_file": Path("/tmp/test.json.gz"),
 				"file_encoding": "json",
 				"file_compression": "gz",
@@ -111,6 +115,7 @@ def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dic
 		"overwrite": True,
 		"no_maintenance": False,
 		"no_config_files": False,
+		"no_redis_data": False,
 	}
 	conf.update(cmdline_config)
 	kwargs = {}

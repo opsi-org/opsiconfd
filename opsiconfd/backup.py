@@ -138,7 +138,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 	backup_file: Path | None = None,
 	*,
 	config_files: bool = True,
-	redis: bool = True,
+	redis_data: bool = True,
 	file_encoding: Literal["msgpack", "json"] = "msgpack",
 	file_compression: Literal["lz4", "gz"] = "lz4",
 	password: str | None = None,
@@ -217,7 +217,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 					if progress:
 						progress.advance(file_task)
 
-			if redis:
+			if redis_data:
 				logger.notice("Backing up redis data")
 				if progress:
 					progress.console.print("Backing up redis data")
@@ -268,8 +268,8 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 	data_or_file: dict[str, dict[str, Any]] | Path,
 	*,
-	config_files: bool = True,
-	redis: bool = True,
+	config_files: bool = False,
+	redis_data: bool = False,
 	server_id: str = "backup",
 	password: str | None = None,
 	batch: bool = True,
@@ -459,7 +459,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 					else:
 						logger.info("Skipping config file %r (%s)", name, file)
 
-			if redis and data.get("redis", {}).get("dumped_keys"):
+			if redis_data and data.get("redis", {}).get("dumped_keys"):
 				logger.notice("Restoring redis data")
 				dumped_keys = [DumpedKey.from_dict(k) for k in data["redis"]["dumped_keys"]]
 				if progress:

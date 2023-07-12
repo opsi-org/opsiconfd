@@ -142,8 +142,9 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 			maintenance = not config.no_maintenance
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={not config.no_config_files} maintenance={maintenance}, "
-				f"encoding={encoding}, compression={compression or 'none'}, encrypt={bool(config.password)}"
+				f"Using arguments: config_files={not config.no_config_files}, redis_data={not config.no_redis_data}, "
+				f"maintenance={maintenance}, encoding={encoding}, "
+				f"compression={compression or 'none'}, encrypt={bool(config.password)}"
 			)
 			if maintenance:
 				initalized_event = threading.Event()
@@ -160,6 +161,7 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 
 			create_backup(
 				config_files=not config.no_config_files,
+				redis_data=not config.no_redis_data,
 				backup_file=backup_file,
 				file_encoding=encoding,  # type: ignore[arg-type]
 				file_compression=compression,  # type: ignore[arg-type]
@@ -210,8 +212,8 @@ def restore_main() -> None:
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={config.config_files}, ignore_errors={config.ignore_errors}"
-				f", server_id={server_id}, decrypt={bool(config.password)}"
+				f"Using arguments: config_files={config.config_files}, redis_data={config.redis_data}, "
+				f"ignore_errors={config.ignore_errors}, server_id={server_id}, decrypt={bool(config.password)}"
 			)
 
 			initalized_event = threading.Event()
@@ -229,6 +231,7 @@ def restore_main() -> None:
 			restore_backup(
 				backup_file,
 				config_files=config.config_files,
+				redis_data=config.redis_data,
 				ignore_errors=config.ignore_errors,
 				batch=not config.ignore_errors,
 				server_id=server_id,

@@ -1255,6 +1255,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				help=self._help("backup", "Do not add config files to backup."),
 			)
 			self._parser.add(
+				"--no-redis-data",
+				action="store_true",
+				help=self._help("backup", "Do not add redis data to backup."),
+			)
+			self._parser.add(
 				"--overwrite",
 				action="store_true",
 				help=self._help("backup", "Overwrite existing backup file."),
@@ -1283,6 +1288,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				"--config-files",
 				action="store_true",
 				help=self._help("restore", "Restore config files from backup."),
+			)
+			self._parser.add(
+				"--redis-data",
+				action="store_true",
+				help=self._help("restore", "Restore redis data from backup."),
 			)
 			self._parser.add(
 				"--ignore-errors",

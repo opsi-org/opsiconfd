@@ -169,13 +169,23 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return get_diagnostic_data()
 
 	@rpc_method
-	def service_createBackup(  # pylint: disable=invalid-name
+	def service_createBackup(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		config_files: bool = True,
+		redis_data: bool = True,
 		maintenance_mode: bool = True,
 		password: str | None = None,
 		return_type: str = "file_id",
 	) -> dict[str, dict[str, Any]] | str:
+		"""
+		Create a backup
+
+		config_files: Backup config files?
+		redis_data: Backup redis data?
+		maintenance_mode: Run backup in maintenance mode?
+		password: Password for backup encryption (optional).
+		return_type: file_id or data.
+		"""
 		self._check_role("admin")
 		session = contextvar_client_session.get()
 		if not session:
@@ -194,6 +204,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		data = create_backup(
 			config_files=config_files,
+			redis_data=redis_data,
 			backup_file=backup_file,
 			file_encoding=file_encoding,  # type: ignore[arg-type]
 			file_compression=file_compression,  # type: ignore[arg-type]
@@ -210,10 +221,21 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self: BackendProtocol,
 		data_or_file_id: dict[str, dict[str, Any]] | str,
 		config_files: bool = False,
+		redis_data: bool = False,
 		server_id: str = "backup",
 		password: str | None = None,
 		batch: bool = True,
 	) -> None:
+		"""
+		Restore a backup
+
+		data_or_file_id: file_id or raw data.
+		config_files: Restore config files?
+		redis_data: Restore redis data?
+		server_id: The server ID to set ("local", "backup" or "<server-id>").
+		password: Password for backup decryption (optional).
+		batch: Batch mode or restore objects one by one.
+		"""
 		self._check_role("admin")
 		session = contextvar_client_session.get()
 		if not session:
@@ -232,6 +254,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		restore_backup(
 			data_or_file=data_or_file,
 			config_files=config_files,
+			redis_data=redis_data,
 			server_id=server_id,
 			password=password,
 			batch=batch,

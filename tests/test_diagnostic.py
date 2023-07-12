@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import PropertyMock, patch
 
-from opsiconfd.config import FQDN
+from opsiconfd.config import get_depotserver_id
 from opsiconfd.diagnostic import (
 	get_backendmanager_extension_methods,
 	get_disk_info,
@@ -195,6 +195,7 @@ def test_get_opsi_product_versions(test_client: OpsiconfdTestClient) -> None:  #
 	create_test_pods(test_client)
 
 	product_versions = get_opsi_product_versions()
-	assert isinstance(product_versions[FQDN], dict)
-	assert product_versions[FQDN]["test-backend-rpc-product-1"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}
-	assert product_versions[FQDN]["test-backend-rpc-product-2"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}
+	depot_id = get_depotserver_id()
+	assert isinstance(product_versions[depot_id], dict)
+	assert product_versions[depot_id]["test-backend-rpc-product-1"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}
+	assert product_versions[depot_id]["test-backend-rpc-product-2"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}

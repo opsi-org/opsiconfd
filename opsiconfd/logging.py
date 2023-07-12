@@ -386,15 +386,14 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 						record_dict = msgpack_decoder.decode(entry[1][b"record"])
 						record_dict.update({"scope": None, "exc_info": None, "args": None})
 						record = pylogging.makeLogRecord(record_dict)
-						# workaround for problem in aiologger.formatters.base.Formatter.format
-						setattr(record, "get_message", record.getMessage)
-						if self._stderr_handler and record.levelno >= self._log_level_stderr:
-							await self._stderr_handler.handle(record)
 
 						if record.levelno >= self._log_level_file:
 							file_handler = self.get_file_handler(client)
 							if file_handler:
 								await file_handler.handle(record)
+
+						if self._stderr_handler and record.levelno >= self._log_level_stderr:
+							await self._stderr_handler.handle(record)
 
 			except (KeyboardInterrupt, SystemExit):  # pylint: disable=try-except-raise
 				raise

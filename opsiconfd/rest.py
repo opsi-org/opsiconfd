@@ -20,7 +20,7 @@ from typing import Any, Callable, Optional
 import msgspec
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel  # pylint: disable=no-name-in-module
+from pydantic import ConfigDict, BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import asc, column, desc  # type: ignore[import]
 from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
 from starlette.datastructures import URL, MutableHeaders
@@ -34,11 +34,9 @@ class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-metho
 	class_value: str = "RequestValidationError"
 	message: str
 	status: int = 422
-	code: Optional[str]
-	details: Optional[str]
-
-	class Config:  # pylint: disable=too-few-public-methods
-		fields = {"class_value": "class"}
+	code: Optional[str] = None
+	details: Optional[str] = None
+	model_config = ConfigDict()
 
 
 class OpsiApiException(Exception):
@@ -139,7 +137,6 @@ class RESTErrorResponse(RESTResponse):
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
 		headers: dict | None = None,
 	):  # pylint: disable=too-many-arguments
-
 		if isinstance(details, Exception):
 			error_class = details.__class__.__name__
 			details = str(details)

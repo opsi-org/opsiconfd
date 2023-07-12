@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol
 from opsicommon.types import forceList  # type: ignore[import]
 from pydantic import (  # pylint: disable=no-name-in-module
 	BaseModel,
-	model_validator,
 	field_validator,
+	model_validator,
 )
 
 from opsiconfd.config import SSH_COMMANDS_CUSTOM_FILE, SSH_COMMANDS_DEFAULT_FILE

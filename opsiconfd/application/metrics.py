@@ -15,7 +15,7 @@ from time import time
 from typing import Any
 
 from fastapi import APIRouter, FastAPI
-from pydantic import ConfigDict, BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from redis import ResponseError as RedisResponseError
 
 from opsiconfd.config import config

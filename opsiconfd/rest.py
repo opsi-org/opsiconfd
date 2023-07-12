@@ -20,7 +20,7 @@ from typing import Any, Callable, Optional
 import msgspec
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response
-from pydantic import ConfigDict, BaseModel  # pylint: disable=no-name-in-module
+from pydantic import BaseModel, ConfigDict  # pylint: disable=no-name-in-module
 from sqlalchemy import asc, column, desc  # type: ignore[import]
 from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
 from starlette.datastructures import URL, MutableHeaders

@@ -216,5 +216,6 @@ publish:obs_ext:
     - opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
     - opsi-dev-cli -l 5 changelog from-git output
     - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md
+    - opsi-dev-cli release-service push-repository-state opsiconfd SERVER_PACKAGE SERVER_PACKAGE-4.3-development
   only:
     - tags

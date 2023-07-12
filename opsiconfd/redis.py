@@ -17,9 +17,9 @@ import functools
 import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
+from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Callable, Generator, Iterable
 from uuid import uuid4
-from dataclasses import dataclass
 
 import redis
 from redis import BusyLoadingError, ResponseError

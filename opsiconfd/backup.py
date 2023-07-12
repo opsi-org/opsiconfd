@@ -19,7 +19,6 @@ from opsicommon.types import forceHostId  # type: ignore[import]
 from rich.progress import Progress
 
 from opsiconfd import __version__
-from opsiconfd.redis import dump, restore, delete_recursively, DumpedKey
 from opsiconfd.application import MaintenanceState, app
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
@@ -40,7 +39,7 @@ from opsiconfd.config import (
 	opsi_config,
 )
 from opsiconfd.logging import logger, secret_filter
-from opsiconfd.redis import redis_lock
+from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_lock, restore
 from opsiconfd.utils import (
 	aes_decrypt_with_password,
 	aes_encrypt_with_password,

@@ -20,10 +20,10 @@ from opsiconfd.redis import (
 	async_redis_connection_pool,
 	async_redis_lock,
 	delete_recursively,
+	dump,
 	redis_client,
 	redis_connection_pool,
 	redis_lock,
-	dump,
 	restore,
 )
 

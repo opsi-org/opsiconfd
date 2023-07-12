@@ -219,6 +219,10 @@
 				<input type="checkbox" id="create-backup-config-files" checked>
 				<br />
 
+				<label for="create-backup-redis-data">With redis data:</label>
+				<input type="checkbox" id="create-backup-redis-data" checked>
+				<br />
+
 				<label for="create-backup-password">Password: </label>
 				<input type="password" id="create-backup-password" placeholder="Optional encryption password"
 					style="width: 200px">
@@ -229,8 +233,13 @@
 				<h4>Restore backup:</h4>
 				<input id="restore-backup-file" type="file" name="addon-file" />
 				<br />
+
 				<label for="restore-backup-config-files">With config files:</label>
-				<input type="checkbox" id="restore-backup-config-files" checked>
+				<input type="checkbox" id="restore-backup-config-files">
+				<br />
+
+				<label for="restore-backup-redis-data">With redis data:</label>
+				<input type="checkbox" id="restore-backup-redis-data">
 				<br />
 
 				<label>Server-ID: </label>

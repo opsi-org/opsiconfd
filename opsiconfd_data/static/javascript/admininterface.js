@@ -102,9 +102,10 @@ function createBackup() {
 	const button = document.getElementById("create-backup-create-button");
 	button.classList.add("loading");
 	const config_files = document.getElementById("create-backup-config-files").checked;
+	const redis_data = document.getElementById("create-backup-redis-data").checked;
 	const maintenance_mode = document.getElementById("create-backup-maintenance-mode").checked;
 	const password = document.getElementById("create-backup-password").value;
-	const req = rpcRequest("service_createBackup", [config_files, maintenance_mode, password, "file_id"]);
+	const req = rpcRequest("service_createBackup", [config_files, redis_data, maintenance_mode, password, "file_id"]);
 	req.then((response) => {
 		console.debug(response);
 		if (response.error) {
@@ -113,7 +114,7 @@ function createBackup() {
 		else {
 			showNotifcation("Backup successfully created", "backup", "success", 5);
 			const link = document.createElement('a');
-			link.setAttribute('href', `/file-transfer/${response.result}`);
+			link.setAttribute('href', `/file-transfer/${response.result}?delete=true`);
 			link.style.display = 'none';
 			document.body.appendChild(link);
 			link.click();
@@ -155,9 +156,10 @@ function restoreBackup() {
 	req.then((response) => {
 		console.debug(response);
 		const configFiles = document.getElementById("restore-backup-config-files").checked;
+		const redisData = document.getElementById("restore-backup-redis-data").checked;
 		const batch = true;
 		const req = rpcRequest(
-			"service_restoreBackup", [response.file_id, configFiles, serverID, password, batch]
+			"service_restoreBackup", [response.file_id, configFiles, redisData, serverID, password, batch]
 		);
 		req.then((response) => {
 			console.debug(response);

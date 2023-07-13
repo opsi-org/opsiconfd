@@ -36,6 +36,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 		for metric in MetricsRegistry().get_metrics():
 			is_worker_metric = isinstance(metric, WorkerMetric)
 			is_node_metric = isinstance(metric, NodeMetric)
+
 			if not metric.downsampling:
 				continue
 
@@ -84,7 +85,13 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 					retention, retention_time, aggregation = rule
 					time_bucket = get_time_bucket_duration(retention)
 					key = f"{orig_key}:{retention}"
-					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+					if is_worker_metric:
+						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+					elif is_node_metric:
+						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name}"
+					else:
+						cmd = f"TS.CREATE {key} RETENTION {retention_time}"
+
 					try:
 						client.execute_command(cmd)
 					except RedisResponseError as err:

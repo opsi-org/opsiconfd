@@ -185,7 +185,7 @@ async def test_async_redis_lock(config: Config) -> None:  # pylint: disable=rede
 
 
 @pytest.mark.asyncio
-async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name
+async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-locals
 	base_key = config.redis_key("dump_recursively")
 	metric = NodeMetric(
 		id="opsiconfd:pytest:metric",
@@ -201,7 +201,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 
 	current_timestamp = 0
 
-	def _get_timestamp(self: ManagerMetricsCollector) -> int:
+	def _get_timestamp(self: ManagerMetricsCollector) -> int:  # pylint:disable=unused-argument
 		# Return unix timestamp (UTC) in millis
 		return current_timestamp
 
@@ -213,7 +213,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 		for val_num in range(num_values):
 			current_timestamp = start_ts + val_num * 1000
 			await collector.add_value(metric_id=metric.id, value=10.0)
-			await collector._write_values_to_redis()
+			await collector._write_values_to_redis()  # pylint:disable=protected-access
 
 	await asyncio.sleep(3)
 	rand = randbytes(3000)

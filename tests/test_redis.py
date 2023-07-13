@@ -223,19 +223,32 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 	client = await async_redis_client()
 
 	async def check_time_series(client: async_redis.StrictRedis) -> None:
-		async for key in client.scan_iter(f"{base_key}:*"):
-			assert isinstance(key, bytes)
-			# print(key)
+		num_found = 0
+		async for key_b in client.scan_iter(f"{base_key}:stats:*"):
+			num_found += 1
+			assert isinstance(key_b, bytes)
+			key = key_b.decode("utf-8")
+			res = await client.execute_command("TS.INFO", key)  # type: ignore[no-untyped-call]
+			info = {k.decode("utf-8"): v for k, v in dict(zip(res[::2], res[1::2])).items()}
+			# print(key, info)
+
+			assert info["firstTimestamp"]
+			if not key.endswith((":minute", ":hour")):
+				assert len(info["rules"]) == 2
+				for rule in info["rules"]:
+					assert rule[0] in (f"{key}:minute".encode("utf-8"), f"{key}:hour".encode("utf-8"))
+
 			cmd = ("TS.RANGE", key, start_ts, now_ts, "AGGREGATION", "avg", 1000)
 			# print(cmd)
 			vals = await client.execute_command(*cmd)  # type: ignore[no-untyped-call]
 			# print(len(vals))
-			if key.endswith(b":hour"):
+			if key.endswith(":hour"):
 				assert len(vals) == 1
-			elif key.endswith(b":minute"):
+			elif key.endswith(":minute"):
 				assert len(vals) == 119
 			else:
 				assert len(vals) == 7200
+		assert num_found == 3
 
 	await check_time_series(client)
 

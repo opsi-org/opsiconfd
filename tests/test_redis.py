@@ -11,11 +11,16 @@ redis tests
 import asyncio
 import time
 from random import randbytes
+from unittest.mock import patch
 
 import pytest
 
+from opsiconfd.metrics.collector import ManagerMetricsCollector
+from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric
+from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
 	async_delete_recursively,
+	async_redis,
 	async_redis_client,
 	async_redis_connection_pool,
 	async_redis_lock,
@@ -179,36 +184,87 @@ async def test_async_redis_lock(config: Config) -> None:  # pylint: disable=rede
 	assert not await client.get(redis_key)
 
 
-def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name
+@pytest.mark.asyncio
+async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	base_key = config.redis_key("dump_recursively")
+	metric = NodeMetric(
+		id="opsiconfd:pytest:metric",
+		name="opsiconfd pytest metric",
+		retention=24 * 3600 * 1000,
+		grafana_config=None,
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"]],
+	)
+	metric.set_redis_prefix(f"{base_key}:stats")
+	metrics_registry = MetricsRegistry()
+	metrics_registry.register(metric)
+	setup_metric_downsampling()
+
+	current_timestamp = 0
+
+	def _get_timestamp(self: ManagerMetricsCollector) -> int:
+		# Return unix timestamp (UTC) in millis
+		return current_timestamp
+
+	collector = ManagerMetricsCollector()
+	with patch("opsiconfd.metrics.collector.ManagerMetricsCollector._get_timestamp", _get_timestamp):
+		now_ts = int(time.time() * 1000)
+		num_values = 7200
+		start_ts = now_ts - num_values * 1000
+		for val_num in range(num_values):
+			current_timestamp = start_ts + val_num * 1000
+			await collector.add_value(metric_id=metric.id, value=10.0)
+			await collector._write_values_to_redis()
+
+	await asyncio.sleep(3)
 	rand = randbytes(3000)
 	num1 = 30
 	num2 = 30
-	with redis_client() as client:
-		for idx in range(num1):
-			for idx2 in range(num2):
-				ex = None if idx % 2 else 30
-				client.set(f"{base_key}:{idx}:{idx2}", rand, ex=ex)
 
-		dumped_keys = list(dump(base_key, excludes=[f"{base_key}:1", f"{base_key}:2"]))
-		assert len(dumped_keys) == (num1 - 2) * num2
+	client = await async_redis_client()
 
-		dumped_keys = list(dump(base_key))
-		assert len(dumped_keys) == num1 * num2
-
-		delete_recursively(base_key)
-
-		restore(dumped_keys)
-
-		dumped_keys2 = list(dump(base_key))
-
-		dumped_keys2.sort(key=lambda dk: dk.name)
-		dumped_keys.sort(key=lambda dk: dk.name)
-		assert len(dumped_keys2) == len(dumped_keys)
-		for idx in range(len(dumped_keys)):  # pylint: disable=consider-using-enumerate
-			assert dumped_keys2[idx].name == dumped_keys[idx].name
-			assert dumped_keys2[idx].value == dumped_keys[idx].value
-			if dumped_keys2[idx].expires is None:
-				assert dumped_keys[idx].expires is None
+	async def check_time_series(client: async_redis.StrictRedis) -> None:
+		async for key in client.scan_iter(f"{base_key}:*"):
+			assert isinstance(key, bytes)
+			# print(key)
+			cmd = ("TS.RANGE", key, start_ts, now_ts, "AGGREGATION", "avg", 1000)
+			# print(cmd)
+			vals = await client.execute_command(*cmd)  # type: ignore[no-untyped-call]
+			# print(len(vals))
+			if key.endswith(b":hour"):
+				assert len(vals) == 1
+			elif key.endswith(b":minute"):
+				assert len(vals) == 119
 			else:
-				assert abs((dumped_keys2[idx].expires or 0) - (dumped_keys[idx].expires or 0)) < 3000
+				assert len(vals) == 7200
+
+	await check_time_series(client)
+
+	for idx in range(num1):
+		for idx2 in range(num2):
+			ex = None if idx % 2 else 30
+			await client.set(f"{base_key}:{idx}:{idx2}", rand, ex=ex)
+
+	dumped_keys = list(dump(base_key, excludes=[f"{base_key}:1", f"{base_key}:2"]))
+	assert len(dumped_keys) == (num1 - 2) * num2 + 3
+
+	dumped_keys = list(dump(base_key))
+	assert len(dumped_keys) == num1 * num2 + 3
+
+	delete_recursively(base_key)
+
+	restore(dumped_keys)
+
+	dumped_keys2 = list(dump(base_key))
+
+	dumped_keys2.sort(key=lambda dk: dk.name)
+	dumped_keys.sort(key=lambda dk: dk.name)
+	assert len(dumped_keys2) == len(dumped_keys)
+	for idx in range(len(dumped_keys)):  # pylint: disable=consider-using-enumerate
+		assert dumped_keys2[idx].name == dumped_keys[idx].name
+		assert dumped_keys2[idx].value == dumped_keys[idx].value
+		if dumped_keys2[idx].expires is None:
+			assert dumped_keys[idx].expires is None
+		else:
+			assert abs((dumped_keys2[idx].expires or 0) - (dumped_keys[idx].expires or 0)) < 3000
+
+	# await check_time_series(client)

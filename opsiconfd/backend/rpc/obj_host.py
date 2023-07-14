@@ -28,6 +28,8 @@ from opsiconfd import contextvar_client_session
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
+from opsiconfd.metrics.statistics import setup_metric_downsampling
+from opsiconfd.redis import redis_client
 from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
 	as_pem,
 	create_server_cert,
@@ -35,8 +37,6 @@ from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
 	load_ca_cert,
 	load_ca_key,
 )
-from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import redis_client
 
 from . import rpc_method
 

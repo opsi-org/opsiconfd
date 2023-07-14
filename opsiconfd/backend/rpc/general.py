@@ -490,6 +490,8 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to set file permissions on '%s': %s", log_file, err)
 
+		self._send_messagebus_event("log_updated", data={"type": logType, "object_id": objectId})
+
 	@rpc_method
 	def log_read(self: BackendProtocol, logType: str, objectId: str | None = None, maxSize: int = 0) -> str:  # pylint: disable=invalid-name
 		"""

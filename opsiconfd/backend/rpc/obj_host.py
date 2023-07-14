@@ -13,7 +13,7 @@ from __future__ import annotations
 import socket
 from copy import deepcopy
 from ipaddress import ip_address
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import urlparse
 
 from opsicommon.exceptions import (
@@ -35,6 +35,8 @@ from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
 	load_ca_cert,
 	load_ca_key,
 )
+from opsiconfd.metrics.statistics import setup_metric_downsampling
+from opsiconfd.redis import redis_client
 
 from . import rpc_method
 
@@ -530,6 +532,13 @@ class RPCHostMixin(Protocol):
 
 		logger.info("Deleting old depot %s", old_depot)
 		self.host_deleteObjects([old_depot])
+
+		with redis_client() as redis:
+			for key_b in redis.scan_iter(f"{config.redis_key()}:*"):
+				key_b = cast(bytes, key_b)
+				key = key_b.decode("utf-8")
+				if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):
+					redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))  # type: ignore[no-untyped-call]
 
 	@rpc_method(check_acl=False)
 	async def host_getMessagebusConnectedIds(  # pylint: disable=invalid-name

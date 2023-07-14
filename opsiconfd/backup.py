@@ -270,6 +270,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 	*,
 	config_files: bool = False,
 	redis_data: bool = False,
+	hw_audit: bool = True,
 	server_id: str = "backup",
 	password: str | None = None,
 	batch: bool = True,
@@ -386,7 +387,11 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 				progress.advance(db_task)
 
 			backend = get_unprotected_backend()
-			total_objects = sum(len(objs) for objs in data["objects"].values())
+			total_objects = sum(
+				len(objs)
+				for obj_class, objs in data["objects"].items()
+				if hw_audit or obj_class not in ("AuditHardware", "AuditHardwareOnHost")
+			)
 
 			logger.notice("Restoring %d database objects", total_objects)
 			if progress:
@@ -394,6 +399,9 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 
 			with backend.events_disabled(), mysql.disable_unique_hardware_addresses():
 				for obj_class in OBJECT_CLASSES:
+					if not hw_audit and obj_class in ("AuditHardware", "AuditHardwareOnHost"):
+						continue
+
 					objects = data["objects"].get(obj_class)
 					if not objects:
 						continue
@@ -432,6 +440,35 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 							if progress:
 								progress.advance(restore_task)
 
+				if redis_data and data.get("redis", {}).get("dumped_keys"):
+					logger.notice("Restoring redis data")
+					dumped_keys = [DumpedKey.from_dict(k) for k in data["redis"]["dumped_keys"]]
+					if progress:
+						progress.console.print(f"Restoring {len(dumped_keys)} redis keys")
+						redis_task = progress.add_task("Restoring redis data", total=None)
+
+					delete_recursively(config.redis_key(), excludes=[config.redis_key("locks")])
+					restore(dumped_keys)
+					setup_metric_downsampling()
+					if progress:
+						progress.update(redis_task, total=1, completed=True)
+
+				if config_files and data.get("config_files"):
+					logger.notice("Restoring config files")
+					num_files = len([cf for cf in data["config_files"].values() if cf["content"] is not None])
+					if progress:
+						progress.console.print(f"Restoring {num_files} config files")
+						file_task = progress.add_task("Restoring config files", total=num_files)
+					for name, file in get_config_files().items():
+						config_file = data["config_files"].get(name)
+						if config_file and config_file["content"] is not None:
+							logger.info("Restoring config file %r (%s)", name, file)
+							file.write_text(config_file["content"], encoding="utf-8")
+							if progress:
+								progress.advance(file_task)
+						else:
+							logger.info("Skipping config file %r (%s)", name, file)
+
 				if server_id != backup_server_id:
 					logger.notice("Renaming server from %r to %r", backup_server_id, server_id)
 					if progress:
@@ -442,35 +479,6 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 						progress.update(rename_task, total=1, completed=True)
 
 			rpc_cache_clear()
-
-			if config_files and data.get("config_files"):
-				logger.notice("Restoring config files")
-				num_files = len([cf for cf in data["config_files"].values() if cf["content"] is not None])
-				if progress:
-					progress.console.print(f"Restoring {num_files} config files")
-					file_task = progress.add_task("Restoring config files", total=num_files)
-				for name, file in get_config_files().items():
-					config_file = data["config_files"].get(name)
-					if config_file and config_file["content"] is not None:
-						logger.info("Restoring config file %r (%s)", name, file)
-						file.write_text(config_file["content"], encoding="utf-8")
-						if progress:
-							progress.advance(file_task)
-					else:
-						logger.info("Skipping config file %r (%s)", name, file)
-
-			if redis_data and data.get("redis", {}).get("dumped_keys"):
-				logger.notice("Restoring redis data")
-				dumped_keys = [DumpedKey.from_dict(k) for k in data["redis"]["dumped_keys"]]
-				if progress:
-					progress.console.print(f"Restoring {len(dumped_keys)} redis keys")
-					redis_task = progress.add_task("Restoring redis data", total=None)
-
-				delete_recursively(config.redis_key(), excludes=[config.redis_key("locks")])
-				restore(dumped_keys)
-				setup_metric_downsampling()
-				if progress:
-					progress.update(redis_task, total=1, completed=True)
 
 			server_key = backend.host_getObjects(attributes=["opsiHostKey"], type="OpsiConfigserver")[0].opsiHostKey
 			secret_filter.add_secrets(server_key)

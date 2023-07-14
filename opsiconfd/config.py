@@ -1300,6 +1300,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				help=self._help("restore", "Continue on errors."),
 			)
 			self._parser.add(
+				"--no-hw-audit",
+				action="store_true",
+				help=self._help("restore", "Do not restore hardware audit data."),
+			)
+			self._parser.add(
 				"--server-id",
 				env_var="OPSICONFD_SERVER_ID",
 				default="backup",

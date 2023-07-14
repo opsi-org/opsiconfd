@@ -248,6 +248,8 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 				assert len(vals) == 119
 			else:
 				assert len(vals) == 7200
+			assert vals[0][1] == b"10"
+			assert vals[-1][1] == b"10"
 		assert num_found == 3
 
 	await check_time_series(client)

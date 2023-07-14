@@ -212,8 +212,9 @@ def restore_main() -> None:
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={config.config_files}, redis_data={config.redis_data}, "
-				f"ignore_errors={config.ignore_errors}, server_id={server_id}, decrypt={bool(config.password)}"
+				f"Using arguments: server_id={server_id}, decrypt={bool(config.password)}, "
+				f"config_files={config.config_files}, redis_data={config.redis_data}, "
+				f"hw_audit={not config.no_hw_audit}, ignore_errors={config.ignore_errors}"
 			)
 
 			initalized_event = threading.Event()
@@ -232,6 +233,7 @@ def restore_main() -> None:
 				backup_file,
 				config_files=config.config_files,
 				redis_data=config.redis_data,
+				hw_audit=not config.no_hw_audit,
 				ignore_errors=config.ignore_errors,
 				batch=not config.ignore_errors,
 				server_id=server_id,

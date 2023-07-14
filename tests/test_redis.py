@@ -266,6 +266,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 	delete_recursively(base_key)
 
 	restore(dumped_keys)
+	setup_metric_downsampling()
 
 	dumped_keys2 = list(dump(base_key))
 
@@ -280,4 +281,4 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 		else:
 			assert abs((dumped_keys2[idx].expires or 0) - (dumped_keys[idx].expires or 0)) < 3000
 
-	# await check_time_series(client)
+	await check_time_series(client)

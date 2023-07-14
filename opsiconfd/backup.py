@@ -39,6 +39,7 @@ from opsiconfd.config import (
 	opsi_config,
 )
 from opsiconfd.logging import logger, secret_filter
+from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_lock, restore
 from opsiconfd.utils import (
 	aes_decrypt_with_password,
@@ -467,6 +468,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 
 				delete_recursively(config.redis_key(), excludes=[config.redis_key("locks")])
 				restore(dumped_keys)
+				setup_metric_downsampling()
 				if progress:
 					progress.update(redis_task, total=1, completed=True)
 

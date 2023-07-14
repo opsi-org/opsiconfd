@@ -539,6 +539,7 @@ class RPCHostMixin(Protocol):
 				key = key_b.decode("utf-8")
 				if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):
 					redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))  # type: ignore[no-untyped-call]
+			setup_metric_downsampling()
 
 	@rpc_method(check_acl=False)
 	async def host_getMessagebusConnectedIds(  # pylint: disable=invalid-name

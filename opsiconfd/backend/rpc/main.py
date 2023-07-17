@@ -216,7 +216,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			try:
 				method_name = method["name"]
 				method_interface = MethodInterface(**method)
-				if not method_interface.deprecated or config.provide_deprecated_methods:
+				if method_interface.deprecated and not config.provide_deprecated_methods:
 					continue
 
 				self._interface[method_name] = method_interface

@@ -21,6 +21,7 @@ from opsicommon.objects import (
 	ProductOnDepot,
 )
 
+from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -38,7 +39,6 @@ from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
-
 	pod1, pod2 = create_test_pods(test_client)
 
 	client1 = {
@@ -545,13 +545,14 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
 			# productAction "setup" requires installationStatus "installed" before (fulfilled)
 			("setup", None, "installed", "before"),
-			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
+			[("product1", "setup"), ("product2", "setup"), ("product3", "none")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
 			# productAction "setup" requires installationStatus "installed"
+			# requirementType None => before
 			("setup", None, "installed", None),
-			[("product1", "setup"), ("product2", "setup"), ("product3", "setup")],
+			[("product1", "setup"), ("product3", "setup"), ("product2", "setup")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
@@ -587,7 +588,7 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
 			# productAction "setup" requires installationStatus "not_installed" before (fulfilled)
 			("setup", None, "not_installed", "before"),
-			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
+			[("product1", "setup"), ("product2", "setup"), ("product3", "none")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
@@ -619,6 +620,14 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 	product_on_clients = _prepare_product_on_client_sequence_dependencies(
 		test_client=test_client, poc_status=poc_status, requirement=requirement
 	)
+	# print("-------------------------------------------------------------------")
+	# print(poc_status)
+	# print(requirement)
+	# print(expected_actions)
+	# print("-------------------------------------------------------------------")
+	# pprint([poc.to_hash() for poc in product_on_clients])
+	# print("-------------------------------------------------------------------")
+
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": 1,
@@ -634,3 +643,90 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 	for idx, expected in enumerate(expected_actions):
 		assert pocs[idx]["productId"] == f"test-backend-rpc-{expected[0]}"
 		assert pocs[idx]["actionRequest"] == expected[1]
+
+
+def test_setProductActionRequestWithDependencies(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+	product1 = {
+		"name": "citrixworkspaceapp",
+		"licenseRequired": False,
+		"setupScript": "setup.opsiscript",
+		"uninstallScript": "uninstall.opsiscript",
+		"updateScript": "update.opsiscript",
+		"priority": 0,
+		"id": "citrixworkspaceapp",
+		"productVersion": "22.12.0.48or22.3.2000.2105",
+		"packageVersion": "8",
+		"type": "LocalbootProduct",
+	}
+	product2 = {
+		"name": "citrix",
+		"licenseRequired": False,
+		"setupScript": "setup.opsiscript",
+		"uninstallScript": "uninstall.opsiscript",
+		"updateScript": "update.opsiscript",
+		"priority": 0,
+		"id": "citrix",
+		"productVersion": "14.12.0.18020",
+		"packageVersion": "35",
+		"type": "LocalbootProduct",
+	}
+	product_dependency1 = {
+		"productId": "citrixworkspaceapp",
+		"productType": "LocalbootProduct",
+		"productVersion": "22.12.0.48or22.3.2000.2105",
+		"packageVersion": "8",
+		"productAction": "setup",
+		"requiredProductId": "citrix",
+		"requiredInstallationStatus": "not_installed",
+		"requirementType": "before",
+	}
+	product_dependency2 = {
+		"productId": "citrix",
+		"productType": "LocalbootProduct",
+		"productVersion": "14.12.0.18020",
+		"packageVersion": "35",
+		"productAction": "setup",
+		"requiredProductId": "citrixworkspaceapp",
+		"requiredInstallationStatus": "not_installed",
+		"requirementType": "before",
+	}
+	product_on_depot1 = {
+		"productId": "citrixworkspaceapp",
+		"productType": "LocalbootProduct",
+		"productVersion": "22.12.0.48or22.3.2000.2105",
+		"packageVersion": "8",
+		"depotId": depot_id,
+	}
+	product_on_depot2 = {
+		"productId": "citrix",
+		"productType": "LocalbootProduct",
+		"productVersion": "14.12.0.18020",
+		"packageVersion": "35",
+		"depotId": depot_id,
+	}
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createOpsiClient", "params": [client_id]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product1, product2]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_createObjects", "params": [[product_dependency1, product_dependency2]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_createObjects", "params": [[product_on_depot1, product_on_depot2]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "setProductActionRequestWithDependencies", "params": [product1["id"], client_id, "setup"]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res

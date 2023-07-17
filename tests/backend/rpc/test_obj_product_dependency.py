@@ -5,15 +5,19 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-test opsiconfd.backend.rpc.obj_product
+test opsiconfd.backend.rpc.obj_product_dependency
 """
 
+from opsicommon.objects import LocalbootProduct, ProductDependency, ProductOnClient, ProductOnDepot
 
+from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
 	clean_redis,
 	database_connection,
 	get_config,
@@ -24,8 +28,224 @@ from .test_obj_product import create_test_products
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 
-def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
+def test_get_product_action_groups(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
 
+	product1 = LocalbootProduct(
+		id="opsi-client-agent", productVersion="4.3.0.0", packageVersion="1", priority=95, setupScript="setup.opsiscript"
+	)
+	product2 = LocalbootProduct(id="someapp6", productVersion="6.0", packageVersion="1", priority=0, setupScript="setup.opsiscript")
+	product3 = LocalbootProduct(id="someapp7", productVersion="7.0", packageVersion="1", priority=10, setupScript="setup.opsiscript")
+	product4 = LocalbootProduct(id="someapp-config", productVersion="7.0", packageVersion="1", priority=20, setupScript="setup.opsiscript")
+	product5 = LocalbootProduct(id="firefox", productVersion="115.0.2", packageVersion="1", priority=-80, setupScript="setup.opsiscript")
+	product6 = LocalbootProduct(id="firefox-addon1", productVersion="1.0", packageVersion="1", priority=-10, setupScript="setup.opsiscript")
+	product_dependency1 = ProductDependency(
+		productId="someapp6",
+		productVersion="6.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="someapp7",
+		requiredInstallationStatus="not_installed",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="someapp6",
+		productVersion="6.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="someapp-config",
+		requiredAction="setup",
+		requirementType="after",
+	)
+	product_dependency3 = ProductDependency(
+		productId="someapp7",
+		productVersion="7.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="someapp6",
+		requiredInstallationStatus="not_installed",
+	)
+
+	product_dependency4 = ProductDependency(
+		productId="someapp7",
+		productVersion="7.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="someapp-config",
+		requiredAction="setup",
+		requirementType="after",
+	)
+	product_dependency5 = ProductDependency(
+		productId="firefox-addon1",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="firefox",
+		requiredProductVersion="115.0.2",
+		requiredPackageVersion="1",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_on_depot1 = ProductOnDepot(
+		productId="opsi-client-agent", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="someapp6", productType="localboot", productVersion="6.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot3 = ProductOnDepot(
+		productId="someapp7", productType="localboot", productVersion="7.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot4 = ProductOnDepot(
+		productId="someapp-config", productType="localboot", productVersion="7.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot5 = ProductOnDepot(
+		productId="firefox", productType="localboot", productVersion="115.0.2", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot6 = ProductOnDepot(
+		productId="firefox-addon1", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_client_be_1 = ProductOnClient(
+		productId="someapp6",
+		productType="localboot",
+		productVersion="6.0",
+		packageVersion="1",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="none",
+	)
+	product_on_client_be_2 = ProductOnClient(
+		productId="firefox",
+		productType="localboot",
+		productVersion="111.1.1",
+		packageVersion="1",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="none",
+	)
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2, product3, product4, product5, product6])
+	backend.productDependency_createObjects(
+		[product_dependency1, product_dependency2, product_dependency3, product_dependency4, product_dependency5]
+	)
+	backend.productOnDepot_createObjects(
+		[product_on_depot1, product_on_depot2, product_on_depot3, product_on_depot4, product_on_depot5, product_on_depot6]
+	)
+	backend.productOnClient_createObjects([product_on_client_be_1, product_on_client_be_2])
+	product_on_client_1 = ProductOnClient(
+		productId="opsi-client-agent",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="someapp7",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_3 = ProductOnClient(
+		productId="firefox-addon1",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	res = backend.get_product_action_groups(  # type: ignore[misc]
+		[product_on_client_3, product_on_client_1, product_on_client_2],
+	)[client_id]
+
+	assert res[0].priority == 95
+	assert len(res[0].product_on_clients) == 1
+	assert res[0].product_on_clients[0].productId == "opsi-client-agent"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+
+	assert res[1].priority == 0
+	assert len(res[1].product_on_clients) == 3
+	assert res[1].product_on_clients[0].productId == "someapp6"
+	assert res[1].product_on_clients[0].actionRequest == "uninstall"
+	assert res[1].product_on_clients[0].actionSequence == 1
+	assert res[1].product_on_clients[1].productId == "someapp7"
+	assert res[1].product_on_clients[1].actionRequest == "setup"
+	assert res[1].product_on_clients[1].actionSequence == 2
+	assert res[1].product_on_clients[2].productId == "someapp-config"
+	assert res[1].product_on_clients[2].actionRequest == "setup"
+	assert res[1].product_on_clients[2].actionSequence == 3
+
+	assert res[2].priority == -80
+	assert len(res[2].product_on_clients) == 2
+	assert res[2].product_on_clients[0].productId == "firefox"
+	assert res[2].product_on_clients[0].actionRequest == "setup"
+	assert res[2].product_on_clients[0].actionSequence == 4
+	assert res[2].product_on_clients[1].productId == "firefox-addon1"
+	assert res[2].product_on_clients[1].actionRequest == "setup"
+	assert res[2].product_on_clients[1].actionSequence == 5
+
+	res2 = backend.productOnClient_generateSequence([product_on_client_3, product_on_client_1, product_on_client_2])
+	assert len(res2) == 3
+	assert res2[0].productId == "opsi-client-agent"
+	assert res2[0].actionRequest == "setup"
+	assert res2[0].actionSequence == 0
+	assert res2[1].productId == "someapp7"
+	assert res2[1].actionRequest == "setup"
+	assert res2[1].actionSequence == 2
+	assert res2[2].productId == "firefox-addon1"
+	assert res2[2].actionRequest == "setup"
+	assert res2[2].actionSequence == 5
+
+	res2 = backend.productOnClient_addDependencies([product_on_client_3, product_on_client_1, product_on_client_2])
+	assert len(res2) == 6
+	assert res2[0].productId == "opsi-client-agent"
+	assert res2[0].actionRequest == "setup"
+	assert res2[0].actionSequence == 0
+	assert res2[1].productId == "someapp6"
+	assert res2[1].actionRequest == "uninstall"
+	assert res2[1].actionSequence == 1
+	assert res2[2].productId == "someapp7"
+	assert res2[2].actionRequest == "setup"
+	assert res2[2].actionSequence == 2
+	assert res2[3].productId == "someapp-config"
+	assert res2[3].actionRequest == "setup"
+	assert res2[3].actionSequence == 3
+	assert res2[4].productId == "firefox"
+	assert res2[4].actionRequest == "setup"
+	assert res2[4].actionSequence == 4
+	assert res2[5].productId == "firefox-addon1"
+	assert res2[5].actionRequest == "setup"
+	assert res2[5].actionSequence == 5
+
+	# Match required version
+	product_on_client_be_2 = ProductOnClient(
+		productId="firefox",
+		productType="localboot",
+		productVersion="115.0.2",
+		packageVersion="1",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="none",
+	)
+	backend.productOnClient_createObjects([product_on_client_be_2])
+
+	res = backend.get_product_action_groups(  # type: ignore[misc]
+		[product_on_client_3, product_on_client_1, product_on_client_2],
+	)[client_id]
+
+	assert res[2].priority == -10
+	assert len(res[2].product_on_clients) == 1
+	assert res[2].product_on_clients[0].productId == "firefox-addon1"
+	assert res[2].product_on_clients[0].actionRequest == "setup"
+	assert res[2].product_on_clients[0].actionSequence == 4
+
+	product_ordering = backend.getProductOrdering(depotId=depot_id)
+	assert product_ordering["not_sorted"] == ["firefox", "firefox-addon1", "opsi-client-agent", "someapp-config", "someapp6", "someapp7"]
+	assert product_ordering["sorted"] == ["opsi-client-agent", "someapp7", "someapp-config", "someapp6", "firefox", "firefox-addon1"]
+
+
+def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
 	product1, product2 = create_test_products(test_client)
 
 	product_dependency1 = {

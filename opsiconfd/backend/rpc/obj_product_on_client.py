@@ -17,10 +17,7 @@ from opsicommon.objects import Product, ProductDependency, ProductOnClient
 from opsicommon.types import forceObjectClass, forceObjectClassList
 
 from . import rpc_method
-from .obj_product_dependency import (
-	add_dependent_product_on_clients,
-	generate_product_on_client_sequence,
-)
+
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
@@ -236,7 +233,7 @@ class RPCProductOnClientMixin(Protocol):
 						)
 
 		product_on_clients = []
-		for (depot_id, client_ids) in depot_to_clients.items():
+		for depot_id, client_ids in depot_to_clients.items():
 			products: set[Product] = set()
 			product_dependencies: set[ProductDependency] = set()
 
@@ -280,7 +277,17 @@ class RPCProductOnClientMixin(Protocol):
 		Returns the same list of in the order in which the actions must be processed.
 		Please also check if `productOnClient_addDependencies` is more suitable.
 		"""
-		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)
+		product_ids_by_client_id: dict[str, list[str]] = defaultdict(list)
+		for poc in productOnClients:
+			product_ids_by_client_id[poc.clientId].append(poc.productId)
+
+		return [
+			poc
+			for group in self.get_product_action_groups(productOnClients).values()
+			for g in group
+			for poc in g.product_on_clients
+			if poc.productId in product_ids_by_client_id.get(poc.clientId, [])
+		]
 
 	@rpc_method(check_acl=False)
 	def productOnClient_addDependencies(  # pylint: disable=invalid-name
@@ -293,5 +300,4 @@ class RPCProductOnClientMixin(Protocol):
 		Returns the expanded list of ProductOnClient objects in the order in which the actions must be processed
 		(like productOnClient_generateSequence would do).
 		"""
-		productOnClients = self._product_on_client_process_with_function(productOnClients, add_dependent_product_on_clients)
-		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)
+		return [poc for group in self.get_product_action_groups(productOnClients).values() for g in group for poc in g.product_on_clients]

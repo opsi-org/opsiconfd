@@ -320,7 +320,7 @@ class Worker(WorkerInfo, UvicornServer):
 					break
 		scope = connection.scope
 		if connection.scope:
-			method = scope.get("method")
+			method = str(scope.get("method"))
 			info = f'{info} - {method + " " if method else ""}{scope.get("path", "")}'
 		return f"{connection.__class__.__name__}({info})"
 

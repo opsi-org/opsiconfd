@@ -18,7 +18,6 @@ from opsicommon.types import forceObjectClass, forceObjectClassList
 
 from . import rpc_method
 
-
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 

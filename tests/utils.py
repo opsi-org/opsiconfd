@@ -364,7 +364,14 @@ def get_product_ordering_jsonrpc(client: OpsiconfdTestClient, depot_id: str) -> 
 
 def get_dummy_products(count: int) -> list[dict[str, Any]]:
 	return [
-		{"id": f"dummy-prod-{num}", "productVersion": "1.0", "packageVersion": "1", "name": "Dummy PRODUCT {num}", "priority": num % 8}
+		{
+			"id": f"dummy-prod-{num}",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+			"name": "Dummy PRODUCT {num}",
+			"priority": num % 8,
+			"setupScript": "setup.opsiscript",
+		}
 		for num in range(count)
 	]
 

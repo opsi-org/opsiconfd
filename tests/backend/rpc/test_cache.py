@@ -83,7 +83,6 @@ def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> Non
 		depot_jsonrpc(test_client, "", depot_id),
 		products_jsonrpc(test_client, "", products, [depot_id]),  # Create products
 	):
-
 		# Execution of method getProductOrdering will fill the product ordering cache
 		get_product_ordering_jsonrpc(test_client, depot_id)
 
@@ -122,8 +121,22 @@ def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> Non
 	depot_id = "test-product-ordering-depot.uib.gmbh"
 	products = get_dummy_products(100)
 	additional_products = [
-		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
-		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
+		{
+			"id": "test_product01",
+			"name": "Test Product 01",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+			"priority": 80,
+			"setupScript": "setup.opsiscript",
+		},
+		{
+			"id": "test_product02",
+			"name": "Test Product 02",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+			"priority": 81,
+			"setupScript": "setup.opsiscript",
+		},
 	]
 
 	with depot_jsonrpc(test_client, "", depot_id):
@@ -158,9 +171,30 @@ def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> Non
 def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	depot_id = "test-product-ordering-depot.uib.gmbh"
 	products = [
-		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
-		{"id": "test_product2", "name": "Test Product 2", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
-		{"id": "test_product3", "name": "Test Product 3", "productVersion": "1.0", "packageVersion": "1", "priority": 90},
+		{
+			"id": "test_product1",
+			"name": "Test Product 1",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+			"priority": 95,
+			"setupScript": "setup.opsiscript",
+		},
+		{
+			"id": "test_product2",
+			"name": "Test Product 2",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+			"priority": 81,
+			"setupScript": "setup.opsiscript",
+		},
+		{
+			"id": "test_product3",
+			"name": "Test Product 3",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+			"priority": 90,
+			"setupScript": "setup.opsiscript",
+		},
 	]
 	products_sorted = ["test_product1", "test_product3", "test_product2"]
 	with depot_jsonrpc(test_client, "", depot_id):  # Create depot

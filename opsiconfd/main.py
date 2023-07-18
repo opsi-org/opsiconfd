@@ -317,7 +317,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 				user = pwd.getpwnam(config.run_as_user)
 				gids = os.getgrouplist(user.pw_name, user.pw_gid)
 				logger.debug("Set uid=%s, gid=%s, groups=%s", user.pw_uid, user.pw_gid, gids)
-				os.chdir(user.pw_dir)
+				# os.chdir(user.pw_dir)
 				os.setgid(user.pw_gid)
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)

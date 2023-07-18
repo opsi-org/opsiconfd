@@ -42,6 +42,8 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	product4 = LocalbootProduct(id="someapp-config", productVersion="7.0", packageVersion="1", priority=20, setupScript="setup.opsiscript")
 	product5 = LocalbootProduct(id="firefox", productVersion="115.0.2", packageVersion="1", priority=-80, setupScript="setup.opsiscript")
 	product6 = LocalbootProduct(id="firefox-addon1", productVersion="1.0", packageVersion="1", priority=-10, setupScript="setup.opsiscript")
+	product7 = LocalbootProduct(id="virscan", productVersion="1.0", packageVersion="1", priority=-90, setupScript="setup.opsiscript")
+	product8 = LocalbootProduct(id="virdat", productVersion="1.0", packageVersion="1", priority=-90, setupScript="setup.opsiscript")
 	product_dependency1 = ProductDependency(
 		productId="someapp6",
 		productVersion="6.0",
@@ -68,7 +70,6 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		requiredProductId="someapp6",
 		requiredInstallationStatus="not_installed",
 	)
-
 	product_dependency4 = ProductDependency(
 		productId="someapp7",
 		productVersion="7.0",
@@ -99,6 +100,23 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		requiredPackageVersion="1",
 		requiredAction="setup",
 		requirementType="after",
+	)
+	product_dependency7 = ProductDependency(
+		productId="virscan",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="virdat",
+		requiredInstallationStatus="installed",
+	)
+	product_dependency8 = ProductDependency(
+		productId="virdat",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="virscan",
+		requiredInstallationStatus="installed",
+		requirementType="before",
 	)
 	product_on_depot1 = ProductOnDepot(
 		productId="opsi-client-agent", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
@@ -137,9 +155,18 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		actionRequest="none",
 	)
 	backend.host_createOpsiClient(id=client_id)
-	backend.product_createObjects([product1, product2, product3, product4, product5, product6])
+	backend.product_createObjects([product1, product2, product3, product4, product5, product6, product7, product8])
 	backend.productDependency_createObjects(
-		[product_dependency1, product_dependency2, product_dependency3, product_dependency4, product_dependency5, product_dependency6]
+		[
+			product_dependency1,
+			product_dependency2,
+			product_dependency3,
+			product_dependency4,
+			product_dependency5,
+			product_dependency6,
+			product_dependency7,
+			product_dependency8,
+		]
 	)
 	backend.productOnDepot_createObjects(
 		[product_on_depot1, product_on_depot2, product_on_depot3, product_on_depot4, product_on_depot5, product_on_depot6]

@@ -44,7 +44,7 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	product4 = LocalbootProduct(id="someapp-config", productVersion="7.0", packageVersion="1", priority=20, setupScript="setup.opsiscript")
 	product5 = LocalbootProduct(id="firefox", productVersion="115.0.2", packageVersion="1", priority=-80, setupScript="setup.opsiscript")
 	product6 = LocalbootProduct(id="firefox-addon1", productVersion="1.0", packageVersion="1", priority=-10, setupScript="setup.opsiscript")
-	product7 = LocalbootProduct(id="virscan", productVersion="1.0", packageVersion="1", priority=-90, setupScript="setup.opsiscript")
+	product7 = LocalbootProduct(id="virscan", productVersion="1.0", packageVersion="1", priority=-10, setupScript="setup.opsiscript")
 	product8 = LocalbootProduct(id="virdat", productVersion="1.0", packageVersion="1", priority=-90, setupScript="setup.opsiscript")
 	product_dependency1 = ProductDependency(
 		productId="someapp6",
@@ -231,7 +231,7 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res[0].product_on_clients[0].actionRequest == "setup"
 	assert res[0].product_on_clients[0].actionSequence == 0
 
-	assert res[1].priority == 0
+	assert res[1].priority == 20
 	assert len(res[1].product_on_clients) == 3
 	assert res[1].product_on_clients[0].productId == "someapp6"
 	assert res[1].product_on_clients[0].actionRequest == "uninstall"
@@ -338,8 +338,8 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	]
 	assert product_ordering["sorted"] == [
 		"opsi-client-agent",
-		"someapp7",
 		"someapp6",
+		"someapp7",
 		"someapp-config",
 		"firefox",
 		"firefox-addon1",

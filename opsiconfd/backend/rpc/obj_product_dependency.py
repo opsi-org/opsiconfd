@@ -50,7 +50,7 @@ class ProductActionGroup:
 
 class RPCProductDependencyMixin(Protocol):
 	def get_product_action_groups(  # pylint: disable=too-many-locals,too-many-statements
-		self: BackendProtocol, product_on_clients: list[ProductOnClient], ignore_unavailable_products: bool = True
+		self: BackendProtocol, product_on_clients: list[ProductOnClient], *, ignore_unavailable_products: bool = True
 	) -> dict[str, list[ProductActionGroup]]:
 		product_cache: dict[tuple[str, str, str], Product] = {}
 		product_on_depot_cache: dict[tuple[str, str], ProductOnDepot] = {}
@@ -116,16 +116,15 @@ class RPCProductDependencyMixin(Protocol):
 				product_on_client_cache[pkey] = objs[0]
 			return product_on_client_cache[pkey]
 
-		dependencies_processed: list[str] = []
-
 		def add_product_on_client(  # pylint: disable=too-many-locals,too-many-branches
 			product_action_groups: list[ProductActionGroup],
 			product_on_client: ProductOnClient,
 			group: ProductActionGroup | None = None,
 			group_idx: int = 0,
+			dependencies_processed: list[str] | None = None,
 		) -> None:
 			logger.debug("add_product_on_client: %s", product_on_client)
-			nonlocal dependencies_processed
+			dependencies_processed = dependencies_processed or []
 			for product_action_group in product_action_groups:
 				for poc in product_action_group.product_on_clients:
 					if poc.productId == product_on_client.productId:
@@ -176,11 +175,17 @@ class RPCProductDependencyMixin(Protocol):
 				product_action_groups.append(group)
 
 			group.product_on_clients.insert(group_idx, product_on_client)
-			if group_idx == 0:
-				group.priority = product.priority or 0
+			product_priority = product.priority or 0
+			if product_priority > 0 and product_priority > group.priority:
+				# Prefer highest priority > 0
+				group.priority = product_priority
+			elif product_priority < 0 and group.priority <= 0 and product_priority < group.priority:
+				# After that prefer lowest priority < 0
+				group.priority = product_priority
 
 			for dependency in dependencies:
 				if dependency.requiredProductId in dependencies_processed:
+					logger.debug("Skipping dependency to product id already processed: %s", dependency.requiredProductId)
 					continue
 				dependencies_processed.append(dependency.requiredProductId)
 
@@ -236,6 +241,7 @@ class RPCProductDependencyMixin(Protocol):
 					product_on_client=dep_poc,
 					group=group,
 					group_idx=dep_group_idx,
+					dependencies_processed=dependencies_processed,
 				)
 
 		for client_id, pocs in product_on_clients_by_client_id.items():
@@ -245,6 +251,7 @@ class RPCProductDependencyMixin(Protocol):
 
 			action_sequence = 0
 			for group in product_action_groups[client_id]:
+				logger.trace(group)
 				for poc in group.product_on_clients:
 					poc.actionSequence = action_sequence
 					action_sequence += 1

@@ -282,7 +282,7 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 
 	product_ordering = backend.getProductOrdering(depotId=depot_id)
 	assert product_ordering["not_sorted"] == ["firefox", "firefox-addon1", "opsi-client-agent", "someapp-config", "someapp6", "someapp7"]
-	assert product_ordering["sorted"] == ["opsi-client-agent", "someapp7", "someapp-config", "someapp6", "firefox", "firefox-addon1"]
+	assert product_ordering["sorted"] == ["opsi-client-agent", "someapp7", "someapp6", "someapp-config", "firefox", "firefox-addon1"]
 
 
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name

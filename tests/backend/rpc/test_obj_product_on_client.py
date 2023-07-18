@@ -580,7 +580,7 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
-			# productAction "setup" requires installationStatus "not_installed" before (fulfilled)
+			# productAction "setup" requires installationStatus "not_installed" before
 			("setup", None, "not_installed", "before"),
 			[("product1", "setup"), ("product3", "uninstall"), ("product2", "setup")],
 		),
@@ -589,6 +589,12 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 			# productAction "setup" requires installationStatus "not_installed" before (fulfilled)
 			("setup", None, "not_installed", "before"),
 			[("product1", "setup"), ("product2", "setup"), ("product3", "none")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
+			# productAction "setup" requires installationStatus "not_installed" after
+			("setup", None, "not_installed", "after"),
+			[("product1", "setup"), ("product2", "setup"), ("product3", "uninstall")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
@@ -607,6 +613,18 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 			# productAction "uninstall" requires actionRequest "uninstall" before
 			("uninstall", "uninstall", None, "before"),
 			[("product1", "setup"), ("product3", "uninstall"), ("product2", "uninstall")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires actionRequest "once" before
+			("setup", "once", None, "before"),
+			[("product1", "setup"), ("product3", "once"), ("product2", "setup")],
+		),
+		(
+			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
+			# productAction "setup" requires actionRequest "always"
+			("setup", "always", None, None),
+			[("product1", "setup"), ("product3", "always"), ("product2", "setup")],
 		),
 	),
 )

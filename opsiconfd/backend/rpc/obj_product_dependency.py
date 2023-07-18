@@ -112,12 +112,16 @@ class RPCProductDependencyMixin(Protocol):
 				product_on_client_cache[pkey] = objs[0]
 			return product_on_client_cache[pkey]
 
+		dependencies_processed = []
+
 		def add_product_on_client(  # pylint: disable=too-many-locals,too-many-branches
 			product_action_groups: list[ProductActionGroup],
 			product_on_client: ProductOnClient,
 			group: ProductActionGroup | None = None,
 			group_idx: int = 0,
 		) -> None:
+			logger.debug("add_product_on_client: %s", product_on_client)
+			nonlocal dependencies_processed
 			for product_action_group in product_action_groups:
 				for poc in product_action_group.product_on_clients:
 					if poc.productId == product_on_client.productId:
@@ -169,6 +173,10 @@ class RPCProductDependencyMixin(Protocol):
 				group.priority = product.priority or 0
 
 			for dependency in dependencies:
+				if dependency.requiredProductId in dependencies_processed:
+					continue
+				dependencies_processed.append(dependency.requiredProductId)
+
 				try:
 					dep_product_on_depot = get_product_on_depot(
 						depot_id=depot_id,

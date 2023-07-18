@@ -112,7 +112,7 @@ class RPCProductDependencyMixin(Protocol):
 				product_on_client_cache[pkey] = objs[0]
 			return product_on_client_cache[pkey]
 
-		dependencies_processed = []
+		dependencies_processed: list[str] = []
 
 		def add_product_on_client(  # pylint: disable=too-many-locals,too-many-branches
 			product_action_groups: list[ProductActionGroup],

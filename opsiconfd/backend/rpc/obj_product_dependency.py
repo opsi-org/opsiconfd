@@ -34,8 +34,12 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
 
-class OpsiProductNotFoundError(OpsiError):
-	ExceptionShortDescription = "Product not found"
+class OpsiProductNotAvailableError(OpsiError):
+	ExceptionShortDescription = "Product not available on depot"
+
+
+class OpsiProductNotAvailableOnDepotError(OpsiError):
+	ExceptionShortDescription = "Product not available on depot"
 
 
 @dataclass
@@ -46,7 +50,7 @@ class ProductActionGroup:
 
 class RPCProductDependencyMixin(Protocol):
 	def get_product_action_groups(  # pylint: disable=too-many-locals,too-many-statements
-		self: BackendProtocol, product_on_clients: list[ProductOnClient]
+		self: BackendProtocol, product_on_clients: list[ProductOnClient], ignore_unavailable_products: bool = True
 	) -> dict[str, list[ProductActionGroup]]:
 		product_cache: dict[tuple[str, str, str], Product] = {}
 		product_on_depot_cache: dict[tuple[str, str], ProductOnDepot] = {}
@@ -68,7 +72,7 @@ class RPCProductDependencyMixin(Protocol):
 					packageVersion=package_version,
 				)
 				if not objs:
-					raise OpsiProductNotFoundError(f"Product {pkey} not found")
+					raise OpsiProductNotAvailableError(f"Product {product_id!r} (version: {product_version}-{package_version}) not found")
 				product_cache[pkey] = objs[0]
 			return product_cache[pkey]
 
@@ -81,8 +85,8 @@ class RPCProductDependencyMixin(Protocol):
 					productId=product_id, productVersion=product_version, packageVersion=package_version, depotId=depot_id
 				)
 				if not objs:
-					raise OpsiProductNotFoundError(
-						f"Product {product_id} (version: {product_version}-{package_version}) not found on depot {depot_id}"
+					raise OpsiProductNotAvailableOnDepotError(
+						f"Product {product_id!r} (version: {product_version}-{package_version}) not found on depot {depot_id}"
 					)
 				product_on_depot_cache[pkey] = objs[0]
 			return product_on_depot_cache[pkey]
@@ -152,9 +156,12 @@ class RPCProductDependencyMixin(Protocol):
 					product_version=product_on_client.productVersion,
 					package_version=product_on_client.packageVersion,
 				)
-			except OpsiProductNotFoundError as err:
+			except (OpsiProductNotAvailableError, OpsiProductNotAvailableOnDepotError) as err:
+				if not ignore_unavailable_products:
+					raise
 				logger.info(err)
 				return
+
 			dependencies = [
 				d
 				for d in get_product_dependencies(
@@ -189,7 +196,9 @@ class RPCProductDependencyMixin(Protocol):
 						product_version=dep_product_on_depot.productVersion,
 						package_version=dep_product_on_depot.packageVersion,
 					)
-				except OpsiProductNotFoundError as err:
+				except (OpsiProductNotAvailableError, OpsiProductNotAvailableOnDepotError) as err:
+					if not ignore_unavailable_products:
+						raise
 					logger.info(err)
 					continue
 
@@ -218,9 +227,9 @@ class RPCProductDependencyMixin(Protocol):
 					elif dependency.requiredInstallationStatus == "not_installed":
 						required_action = "uninstall"
 				dep_poc.actionRequest = required_action
-				# dependency.requirementType None => before
+				# dependency.requirementType None => after
 				dep_group_idx = group_idx
-				if dependency.requirementType == "after":
+				if dependency.requirementType != "before":
 					dep_group_idx += 1
 				add_product_on_client(
 					product_action_groups=product_action_groups,

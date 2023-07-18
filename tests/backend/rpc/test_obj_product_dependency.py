@@ -8,8 +8,10 @@
 test opsiconfd.backend.rpc.obj_product_dependency
 """
 
+import pytest
 from opsicommon.objects import LocalbootProduct, ProductDependency, ProductOnClient, ProductOnDepot
 
+from opsiconfd.backend.rpc.obj_product_dependency import OpsiProductNotAvailableOnDepotError
 from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -69,6 +71,7 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		productAction="setup",
 		requiredProductId="someapp6",
 		requiredInstallationStatus="not_installed",
+		requirementType="before",
 	)
 	product_dependency4 = ProductDependency(
 		productId="someapp7",
@@ -136,6 +139,12 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	product_on_depot6 = ProductOnDepot(
 		productId="firefox-addon1", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
 	)
+	product_on_depot7 = ProductOnDepot(
+		productId="virscan", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot8 = ProductOnDepot(
+		productId="virdat", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
+	)
 	product_on_client_be_1 = ProductOnClient(
 		productId="someapp6",
 		productType="localboot",
@@ -169,7 +178,16 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		]
 	)
 	backend.productOnDepot_createObjects(
-		[product_on_depot1, product_on_depot2, product_on_depot3, product_on_depot4, product_on_depot5, product_on_depot6]
+		[
+			product_on_depot1,
+			product_on_depot2,
+			product_on_depot3,
+			product_on_depot4,
+			product_on_depot5,
+			product_on_depot6,
+			product_on_depot7,
+			product_on_depot8,
+		]
 	)
 	backend.productOnClient_createObjects([product_on_client_be_1, product_on_client_be_2])
 	product_on_client_1 = ProductOnClient(
@@ -193,10 +211,19 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		installationStatus="not_installed",
 		actionRequest="setup",
 	)
+	product_on_client_4 = ProductOnClient(
+		productId="virdat",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
 
 	res = backend.get_product_action_groups(  # type: ignore[misc]
-		[product_on_client_3, product_on_client_1, product_on_client_2],
+		[product_on_client_3, product_on_client_4, product_on_client_1, product_on_client_2],
 	)[client_id]
+
+	assert len(res) == 4
 
 	assert res[0].priority == 95
 	assert len(res[0].product_on_clients) == 1
@@ -225,8 +252,17 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res[2].product_on_clients[1].actionRequest == "setup"
 	assert res[2].product_on_clients[1].actionSequence == 5
 
-	res2 = backend.productOnClient_generateSequence([product_on_client_3, product_on_client_1, product_on_client_2])
-	assert len(res2) == 3
+	assert res[3].priority == -90
+	assert len(res[3].product_on_clients) == 2
+	assert res[3].product_on_clients[0].productId == "virscan"
+	assert res[3].product_on_clients[0].actionRequest == "setup"
+	assert res[3].product_on_clients[0].actionSequence == 6
+	assert res[3].product_on_clients[1].productId == "virdat"
+	assert res[3].product_on_clients[1].actionRequest == "setup"
+	assert res[3].product_on_clients[1].actionSequence == 7
+
+	res2 = backend.productOnClient_generateSequence([product_on_client_4, product_on_client_3, product_on_client_1, product_on_client_2])
+	assert len(res2) == 4
 	assert res2[0].productId == "opsi-client-agent"
 	assert res2[0].actionRequest == "setup"
 	assert res2[0].actionSequence == 0
@@ -236,9 +272,12 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[2].productId == "firefox-addon1"
 	assert res2[2].actionRequest == "setup"
 	assert res2[2].actionSequence == 5
+	assert res2[3].productId == "virdat"
+	assert res2[3].actionRequest == "setup"
+	assert res2[3].actionSequence == 7
 
-	res2 = backend.productOnClient_addDependencies([product_on_client_3, product_on_client_1, product_on_client_2])
-	assert len(res2) == 6
+	res2 = backend.productOnClient_addDependencies([product_on_client_4, product_on_client_3, product_on_client_1, product_on_client_2])
+	assert len(res2) == 8
 	assert res2[0].productId == "opsi-client-agent"
 	assert res2[0].actionRequest == "setup"
 	assert res2[0].actionSequence == 0
@@ -257,6 +296,12 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[5].productId == "firefox-addon1"
 	assert res2[5].actionRequest == "setup"
 	assert res2[5].actionSequence == 5
+	assert res2[6].productId == "virscan"
+	assert res2[6].actionRequest == "setup"
+	assert res2[6].actionSequence == 6
+	assert res2[7].productId == "virdat"
+	assert res2[7].actionRequest == "setup"
+	assert res2[7].actionSequence == 7
 
 	# Match required version
 	product_on_client_be_2 = ProductOnClient(
@@ -281,8 +326,34 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res[2].product_on_clients[0].actionSequence == 4
 
 	product_ordering = backend.getProductOrdering(depotId=depot_id)
-	assert product_ordering["not_sorted"] == ["firefox", "firefox-addon1", "opsi-client-agent", "someapp-config", "someapp6", "someapp7"]
-	assert product_ordering["sorted"] == ["opsi-client-agent", "someapp7", "someapp6", "someapp-config", "firefox", "firefox-addon1"]
+	assert product_ordering["not_sorted"] == [
+		"firefox",
+		"firefox-addon1",
+		"opsi-client-agent",
+		"someapp-config",
+		"someapp6",
+		"someapp7",
+		"virdat",
+		"virscan",
+	]
+	assert product_ordering["sorted"] == [
+		"opsi-client-agent",
+		"someapp7",
+		"someapp6",
+		"someapp-config",
+		"firefox",
+		"firefox-addon1",
+		"virscan",
+		"virdat",
+	]
+
+	with pytest.raises(
+		OpsiProductNotAvailableOnDepotError,
+		match=r"Product not available on depot: Product 'not-available' \(version: 1\.0-1\) not found on depot.*",
+	):
+		backend.get_product_action_groups(  # type: ignore[misc]
+			[product_on_client_3, product_on_client_4, product_on_client_1, product_on_client_2], ignore_unavailable_products=False
+		)
 
 
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name

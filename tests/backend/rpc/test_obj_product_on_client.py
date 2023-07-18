@@ -550,9 +550,9 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
 			# productAction "setup" requires installationStatus "installed"
-			# requirementType None => before
+			# requirementType None => after
 			("setup", None, "installed", None),
-			[("product1", "setup"), ("product3", "setup"), ("product2", "setup")],
+			[("product1", "setup"), ("product2", "setup"), ("product3", "setup")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
@@ -624,7 +624,7 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
 			# productAction "setup" requires actionRequest "always"
 			("setup", "always", None, None),
-			[("product1", "setup"), ("product3", "always"), ("product2", "setup")],
+			[("product1", "setup"), ("product2", "setup"), ("product3", "always")],
 		),
 	),
 )

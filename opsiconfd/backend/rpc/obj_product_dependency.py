@@ -13,6 +13,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
+from opsicommon.exceptions import OpsiError
 from opsicommon.objects import (  # type: ignore[import]
 	LocalbootProduct,
 	Product,
@@ -31,6 +32,10 @@ from . import rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
+
+
+class OpsiProductNotFoundError(OpsiError):
+	ExceptionShortDescription = "Product not found"
 
 
 @dataclass
@@ -63,7 +68,7 @@ class RPCProductDependencyMixin(Protocol):
 					packageVersion=package_version,
 				)
 				if not objs:
-					raise RuntimeError(f"Product {pkey} not found")
+					raise OpsiProductNotFoundError(f"Product {pkey} not found")
 				product_cache[pkey] = objs[0]
 			return product_cache[pkey]
 
@@ -76,7 +81,9 @@ class RPCProductDependencyMixin(Protocol):
 					productId=product_id, productVersion=product_version, packageVersion=package_version, depotId=depot_id
 				)
 				if not objs:
-					raise RuntimeError(f"Product {product_id} (version: {product_version}-{package_version}) not found on depot {depot_id}")
+					raise OpsiProductNotFoundError(
+						f"Product {product_id} (version: {product_version}-{package_version}) not found on depot {depot_id}"
+					)
 				product_on_depot_cache[pkey] = objs[0]
 			return product_on_depot_cache[pkey]
 
@@ -132,14 +139,18 @@ class RPCProductDependencyMixin(Protocol):
 						break
 
 			depot_id = client_to_depot.get(product_on_client.clientId, product_on_client.clientId)
-			product_on_depot = get_product_on_depot(depot_id=depot_id, product_id=product_on_client.productId)
-			product_on_client.productVersion = product_on_depot.productVersion
-			product_on_client.packageVersion = product_on_depot.packageVersion
-			product = get_product(
-				product_id=product_on_client.productId,
-				product_version=product_on_client.productVersion,
-				package_version=product_on_client.packageVersion,
-			)
+			try:
+				product_on_depot = get_product_on_depot(depot_id=depot_id, product_id=product_on_client.productId)
+				product_on_client.productVersion = product_on_depot.productVersion
+				product_on_client.packageVersion = product_on_depot.packageVersion
+				product = get_product(
+					product_id=product_on_client.productId,
+					product_version=product_on_client.productVersion,
+					package_version=product_on_client.packageVersion,
+				)
+			except OpsiProductNotFoundError as err:
+				logger.info(err)
+				return
 			dependencies = [
 				d
 				for d in get_product_dependencies(
@@ -158,17 +169,22 @@ class RPCProductDependencyMixin(Protocol):
 				group.priority = product.priority or 0
 
 			for dependency in dependencies:
-				dep_product_on_depot = get_product_on_depot(
-					depot_id=depot_id,
-					product_id=dependency.requiredProductId,
-					product_version=dependency.requiredProductVersion,
-					package_version=dependency.requiredPackageVersion,
-				)
-				dep_product = get_product(
-					product_id=dependency.requiredProductId,
-					product_version=dep_product_on_depot.productVersion,
-					package_version=dep_product_on_depot.packageVersion,
-				)
+				try:
+					dep_product_on_depot = get_product_on_depot(
+						depot_id=depot_id,
+						product_id=dependency.requiredProductId,
+						product_version=dependency.requiredProductVersion,
+						package_version=dependency.requiredPackageVersion,
+					)
+					dep_product = get_product(
+						product_id=dependency.requiredProductId,
+						product_version=dep_product_on_depot.productVersion,
+						package_version=dep_product_on_depot.packageVersion,
+					)
+				except OpsiProductNotFoundError as err:
+					logger.info(err)
+					continue
+
 				dep_poc = get_product_on_client(
 					product_id=dep_product.id, product_type=dep_product.getType(), client_id=product_on_client.clientId
 				)

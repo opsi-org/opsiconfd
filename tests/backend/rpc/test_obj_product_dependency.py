@@ -28,7 +28,9 @@ from .test_obj_product import create_test_products
 from .utils import cleanup_database  # pylint: disable=unused-import
 
 
-def test_get_product_action_groups(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
+	backend: UnprotectedBackend,
+) -> None:
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
 
@@ -87,6 +89,17 @@ def test_get_product_action_groups(backend: UnprotectedBackend) -> None:  # pyli
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
+	product_dependency6 = ProductDependency(
+		productId="firefox-addon1",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="not-available",
+		requiredProductVersion="1.0",
+		requiredPackageVersion="1",
+		requiredAction="setup",
+		requirementType="after",
+	)
 	product_on_depot1 = ProductOnDepot(
 		productId="opsi-client-agent", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
 	)
@@ -126,7 +139,7 @@ def test_get_product_action_groups(backend: UnprotectedBackend) -> None:  # pyli
 	backend.host_createOpsiClient(id=client_id)
 	backend.product_createObjects([product1, product2, product3, product4, product5, product6])
 	backend.productDependency_createObjects(
-		[product_dependency1, product_dependency2, product_dependency3, product_dependency4, product_dependency5]
+		[product_dependency1, product_dependency2, product_dependency3, product_dependency4, product_dependency5, product_dependency6]
 	)
 	backend.productOnDepot_createObjects(
 		[product_on_depot1, product_on_depot2, product_on_depot3, product_on_depot4, product_on_depot5, product_on_depot6]

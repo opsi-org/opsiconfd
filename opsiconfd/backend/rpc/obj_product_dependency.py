@@ -404,9 +404,7 @@ class RPCProductDependencyMixin(Protocol):
 			action_sorter.sort()
 
 			for dependency_group in action_sorter.groups:
-				from opsicommon.logging.constants import ESSENTIAL
-
-				dependency_group.log(ESSENTIAL)
+				dependency_group.log()
 				group = ProductActionGroup()
 				for action_list in dependency_group.action_lists:
 					for action in action_list.actions:

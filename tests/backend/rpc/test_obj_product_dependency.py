@@ -45,7 +45,10 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	product5 = LocalbootProduct(id="firefox", productVersion="115.0.2", packageVersion="1", priority=-80, setupScript="setup.opsiscript")
 	product6 = LocalbootProduct(id="firefox-addon1", productVersion="1.0", packageVersion="1", priority=-10, setupScript="setup.opsiscript")
 	product7 = LocalbootProduct(id="virscan", productVersion="1.0", packageVersion="1", priority=-10, setupScript="setup.opsiscript")
-	product8 = LocalbootProduct(id="virdat", productVersion="1.0", packageVersion="1", priority=-90, setupScript="setup.opsiscript")
+	product8 = LocalbootProduct(id="virconf", productVersion="1.0", packageVersion="1", priority=-30, setupScript="setup.opsiscript")
+	product9 = LocalbootProduct(id="virdat", productVersion="1.0", packageVersion="1", priority=-90, setupScript="setup.opsiscript")
+	product10 = LocalbootProduct(id="some-meta", productVersion="10.0", packageVersion="1", priority=0, setupScript="setup.opsiscript")
+
 	product_dependency1 = ProductDependency(
 		productId="someapp6",
 		productVersion="6.0",
@@ -113,6 +116,15 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		requiredInstallationStatus="installed",
 	)
 	product_dependency8 = ProductDependency(
+		productId="virscan",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="virconf",
+		requiredAction="setup",
+		requirementType="after",
+	)
+	product_dependency9 = ProductDependency(
 		productId="virdat",
 		productVersion="1.0",
 		packageVersion="1",
@@ -121,6 +133,32 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
+	product_dependency10 = ProductDependency(
+		productId="virconf",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="virscan",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency11 = ProductDependency(
+		productId="some-meta",
+		productVersion="10.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="someapp7",
+		requiredInstallationStatus="installed",
+	)
+	product_dependency12 = ProductDependency(
+		productId="some-meta",
+		productVersion="10.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="firefox",
+		requiredInstallationStatus="installed",
+	)
+
 	product_on_depot1 = ProductOnDepot(
 		productId="opsi-client-agent", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
 	)
@@ -143,8 +181,15 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		productId="virscan", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
 	)
 	product_on_depot8 = ProductOnDepot(
+		productId="virconf", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot9 = ProductOnDepot(
 		productId="virdat", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
 	)
+	product_on_depot10 = ProductOnDepot(
+		productId="some-meta", productType="localboot", productVersion="10.0", packageVersion="1", depotId=depot_id
+	)
+
 	product_on_client_be_1 = ProductOnClient(
 		productId="someapp6",
 		productType="localboot",
@@ -164,7 +209,7 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		actionRequest="none",
 	)
 	backend.host_createOpsiClient(id=client_id)
-	backend.product_createObjects([product1, product2, product3, product4, product5, product6, product7, product8])
+	backend.product_createObjects([product1, product2, product3, product4, product5, product6, product7, product8, product9, product10])
 	backend.productDependency_createObjects(
 		[
 			product_dependency1,
@@ -175,6 +220,10 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 			product_dependency6,
 			product_dependency7,
 			product_dependency8,
+			product_dependency9,
+			product_dependency10,
+			product_dependency11,
+			product_dependency12,
 		]
 	)
 	backend.productOnDepot_createObjects(
@@ -187,6 +236,8 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 			product_on_depot6,
 			product_on_depot7,
 			product_on_depot8,
+			product_on_depot9,
+			product_on_depot10,
 		]
 	)
 	backend.productOnClient_createObjects([product_on_client_be_1, product_on_client_be_2])
@@ -222,7 +273,6 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	res = backend.get_product_action_groups(  # type: ignore[misc]
 		[product_on_client_3, product_on_client_4, product_on_client_1, product_on_client_2],
 	)[client_id]
-
 	assert len(res) == 4
 
 	assert res[0].priority == 95
@@ -253,13 +303,16 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res[2].product_on_clients[1].actionSequence == 5
 
 	assert res[3].priority == -90
-	assert len(res[3].product_on_clients) == 2
+	assert len(res[3].product_on_clients) == 3
 	assert res[3].product_on_clients[0].productId == "virscan"
 	assert res[3].product_on_clients[0].actionRequest == "setup"
 	assert res[3].product_on_clients[0].actionSequence == 6
-	assert res[3].product_on_clients[1].productId == "virdat"
+	assert res[3].product_on_clients[1].productId == "virconf"
 	assert res[3].product_on_clients[1].actionRequest == "setup"
 	assert res[3].product_on_clients[1].actionSequence == 7
+	assert res[3].product_on_clients[2].productId == "virdat"
+	assert res[3].product_on_clients[2].actionRequest == "setup"
+	assert res[3].product_on_clients[2].actionSequence == 8
 
 	res2 = backend.productOnClient_generateSequence([product_on_client_4, product_on_client_3, product_on_client_1, product_on_client_2])
 	assert len(res2) == 4
@@ -274,10 +327,10 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[2].actionSequence == 5
 	assert res2[3].productId == "virdat"
 	assert res2[3].actionRequest == "setup"
-	assert res2[3].actionSequence == 7
+	assert res2[3].actionSequence == 8
 
 	res2 = backend.productOnClient_addDependencies([product_on_client_4, product_on_client_3, product_on_client_1, product_on_client_2])
-	assert len(res2) == 8
+	assert len(res2) == 9
 	assert res2[0].productId == "opsi-client-agent"
 	assert res2[0].actionRequest == "setup"
 	assert res2[0].actionSequence == 0
@@ -299,9 +352,64 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[6].productId == "virscan"
 	assert res2[6].actionRequest == "setup"
 	assert res2[6].actionSequence == 6
-	assert res2[7].productId == "virdat"
+	assert res2[7].productId == "virconf"
 	assert res2[7].actionRequest == "setup"
 	assert res2[7].actionSequence == 7
+	assert res2[8].productId == "virdat"
+	assert res2[8].actionRequest == "setup"
+	assert res2[8].actionSequence == 8
+
+	# Setup some-meta
+	product_on_client_be_2 = ProductOnClient(
+		productId="firefox",
+		productType="localboot",
+		productVersion="111.1.1",
+		packageVersion="1",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="none",
+	)
+	backend.productOnClient_createObjects([product_on_client_be_2])
+
+	product_on_client_1 = ProductOnClient(
+		productId="some-meta",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	res = backend.get_product_action_groups(  # type: ignore[misc]
+		[product_on_client_1],
+	)[client_id]
+
+	import pprint
+
+	pprint.pprint(res)
+	assert len(res) == 3
+
+	assert res[0].priority == 20
+	assert len(res[0].product_on_clients) == 3
+	assert res[0].product_on_clients[0].productId == "someapp6"
+	assert res[0].product_on_clients[0].actionRequest == "uninstall"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "someapp7"
+	assert res[0].product_on_clients[1].actionRequest == "setup"
+	assert res[0].product_on_clients[1].actionSequence == 1
+	assert res[0].product_on_clients[2].productId == "someapp-config"
+	assert res[0].product_on_clients[2].actionRequest == "setup"
+	assert res[0].product_on_clients[2].actionSequence == 2
+
+	assert res[1].priority == 0
+	assert len(res[1].product_on_clients) == 1
+	assert res[1].product_on_clients[0].productId == "some-meta"
+	assert res[1].product_on_clients[0].actionRequest == "setup"
+	assert res[1].product_on_clients[0].actionSequence == 3
+
+	assert res[2].priority == -80
+	assert len(res[2].product_on_clients) == 1
+	assert res[2].product_on_clients[0].productId == "firefox"
+	assert res[2].product_on_clients[0].actionRequest == "setup"
+	assert res[2].product_on_clients[0].actionSequence == 4
 
 	# Match required version
 	product_on_client_be_2 = ProductOnClient(
@@ -330,9 +438,11 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		"firefox",
 		"firefox-addon1",
 		"opsi-client-agent",
+		"some-meta",
 		"someapp-config",
 		"someapp6",
 		"someapp7",
+		"virconf",
 		"virdat",
 		"virscan",
 	]
@@ -341,9 +451,11 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		"someapp6",
 		"someapp7",
 		"someapp-config",
+		"some-meta",
 		"firefox",
 		"firefox-addon1",
 		"virscan",
+		"virconf",
 		"virdat",
 	]
 

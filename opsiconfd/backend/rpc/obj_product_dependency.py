@@ -135,8 +135,20 @@ class RPCProductDependencyMixin(Protocol):
 			def add_action_unsorted(self, action: Action) -> None:
 				if action.product_id not in self.unsorted_actions:
 					self.unsorted_actions[action.product_id] = []
-				if action in self.unsorted_actions[action.product_id]:
-					return
+
+				product_on_client: ProductOnClient | None = None
+				remove_index = -1
+				for idx, act in enumerate(self.unsorted_actions[action.product_id]):
+					if act == action:
+						return
+					if not act.action or act.action == "none":
+						remove_index = idx
+					if act.product_on_client:
+						product_on_client = act.product_on_client
+				if remove_index > -1:
+					self.unsorted_actions[action.product_id].pop(remove_index)
+				if product_on_client and not action.product_on_client:
+					action.product_on_client = product_on_client
 				self.unsorted_actions[action.product_id].append(action)
 
 			def add_dependency_actions_unsorted(  # pylint: disable=too-many-arguments,too-many-branches
@@ -375,6 +387,11 @@ class RPCProductDependencyMixin(Protocol):
 				)
 				product_on_client.actionRequest = self.action
 				return product_on_client
+
+			def __eq__(self, other: Any) -> bool:
+				if not isinstance(other, Action):
+					return False
+				return self.product_id == other.product_id and self.action == other.action and self.required_by == other.required_by
 
 		for client_id, pocs in product_on_clients_by_client_id.items():
 			product_action_groups[client_id] = []

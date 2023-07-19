@@ -378,8 +378,15 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		installationStatus="not_installed",
 		actionRequest="setup",
 	)
+	product_on_client_2 = ProductOnClient(
+		productId="someapp7",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="none",
+	)
 	res = backend.get_product_action_groups(  # type: ignore[misc]
-		[product_on_client_1],
+		[product_on_client_1, product_on_client_2],
 	)[client_id]
 
 	assert len(res) == 3

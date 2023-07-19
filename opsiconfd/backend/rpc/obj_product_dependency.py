@@ -267,9 +267,13 @@ class RPCProductDependencyMixin(Protocol):
 			"""
 			A group of actions with hard dependencies on each other.
 
+			The action lists represent the hard dependencies to ensure the correct order of before/after requirements (must).
+			The actions in each action action list represent the priorities (may).
+
 			Example:
 
 			- product2 requires product1 before not_installed
+			- product3 requires product1 before not_installed
 			- product3 requires product4 after once
 
 			Action lists
@@ -289,6 +293,12 @@ class RPCProductDependencyMixin(Protocol):
 			│                         │ │  └───────────────────┘  │ │                         │
 			│                         │ │                         │ │                         │
 			└─────────────────────────┘ └─────────────────────────┘ └─────────────────────────┘
+
+			Resulting actions:
+			- product1 uninstall (before)
+			- product2 setup (prio 20)
+			- product3 setup (prio 10)
+			- product4 once (after)
 			"""
 
 			action_lists: list[ActionList] = field(default_factory=list)

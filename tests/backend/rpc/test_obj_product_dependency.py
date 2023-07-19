@@ -382,9 +382,6 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		[product_on_client_1],
 	)[client_id]
 
-	import pprint
-
-	pprint.pprint(res)
 	assert len(res) == 3
 
 	assert res[0].priority == 20

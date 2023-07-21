@@ -40,7 +40,14 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	product1 = LocalbootProduct(
 		id="opsi-client-agent", productVersion="4.3.0.0", packageVersion="1", priority=95, setupScript="setup.opsiscript"
 	)
-	product2 = LocalbootProduct(id="someapp6", productVersion="6.0", packageVersion="1", priority=0, setupScript="setup.opsiscript")
+	product2 = LocalbootProduct(
+		id="someapp6",
+		productVersion="6.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
 	product3 = LocalbootProduct(id="someapp7", productVersion="7.0", packageVersion="1", priority=10, setupScript="setup.opsiscript")
 	product4 = LocalbootProduct(id="someapp-config", productVersion="7.0", packageVersion="1", priority=20, setupScript="setup.opsiscript")
 	product5 = LocalbootProduct(id="firefox", productVersion="115.0.2", packageVersion="1", priority=-80, setupScript="setup.opsiscript")

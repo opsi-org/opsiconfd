@@ -516,6 +516,9 @@ class DepotserverPackageManager:
 					continue
 				# Copy .../SERVER_DATA/tmp/foo/bar to /tmp/foo/bar
 				destination = Path("/") / source.relative_to(server_data)
+				if destination.parents[0] in (Path("/tftpboot"), Path("/$BOOT_DIR")):
+					destination = Path(BOOT_DIR) / destination.relative_to(destination.parents[0])
+
 				allowed = False
 				for allowed_dir in ALLOWED_SERVER_DATA:
 					if destination.is_relative_to(allowed_dir):

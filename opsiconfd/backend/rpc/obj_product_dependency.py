@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
+from functools import cmp_to_key
 
 from opsicommon.exceptions import OpsiError
 from opsicommon.logging.constants import TRACE  # type: ignore[import]
@@ -128,30 +129,12 @@ class RPCProductDependencyMixin(Protocol):
 		class ActionSorter:
 			client_id: str
 			depot_id: str
-			groups: list[DependencyGroup] = field(default_factory=list)
-			unsorted_actions: dict[str, list[Action]] = field(default_factory=dict)
-			dependencies: dict[str, set[str]] = field(default_factory=dict)
+			groups: list[ActionGroup] = field(default_factory=list)
+			unsorted_actions: dict[str, list[Action]] = field(default_factory=lambda: defaultdict(list))
+			product_id_groups: list[set[str]] = field(default_factory=list)
+			dependencies: dict[str, list[ProductDependency]] = field(default_factory=lambda: defaultdict(list))
 
-			def add_action_unsorted(self, action: Action) -> None:
-				if action.product_id not in self.unsorted_actions:
-					self.unsorted_actions[action.product_id] = []
-
-				product_on_client: ProductOnClient | None = None
-				remove_index = -1
-				for idx, act in enumerate(self.unsorted_actions[action.product_id]):
-					if act == action:
-						return
-					if not act.action or act.action == "none":
-						remove_index = idx
-					if act.product_on_client:
-						product_on_client = act.product_on_client
-				if remove_index > -1:
-					self.unsorted_actions[action.product_id].pop(remove_index)
-				if product_on_client and not action.product_on_client:
-					action.product_on_client = product_on_client
-				self.unsorted_actions[action.product_id].append(action)
-
-			def add_dependency_actions_unsorted(  # pylint: disable=too-many-arguments,too-many-branches
+			def process_dependencies(  # pylint: disable=too-many-arguments,too-many-branches
 				self,
 				action: Action,
 				dependency_path: list[str] | None = None,
@@ -229,154 +212,129 @@ class RPCProductDependencyMixin(Protocol):
 						product_type=dep_product.getType(),
 						action=required_action,
 						priority=dep_product.priority or 0,
-						required_by=product.id,
-						requirement_type=dependency.requirementType,
 					)
-					self.add_action_unsorted(dep_action)
+					self.unsorted_actions[dep_action.product_id].append(dep_action)
 
 					if dependency.requirementType:
-						# Only "hard" requirements should end in the same DependencyGroup
-						if action.product_id not in self.dependencies:
-							self.dependencies[action.product_id] = set()
-						self.dependencies[action.product_id].add(dep_action.product_id)
+						# Only "hard" requirements should affect action order
+						self.dependencies[product.id].append(dependency)
+						group_idx = -1
+						for product_id in action.product_id, dep_action.product_id:
+							for idx, product_group in enumerate(self.product_id_groups):
+								if product_id in product_group:
+									group_idx = idx
+									break
+						if group_idx == -1:
+							self.product_id_groups.append({action.product_id, dep_action.product_id})
+						else:
+							self.product_id_groups[group_idx].add(action.product_id)
+							self.product_id_groups[group_idx].add(dep_action.product_id)
 
-						if dep_action.product_id not in self.dependencies:
-							self.dependencies[dep_action.product_id] = set()
-						self.dependencies[dep_action.product_id].add(action.product_id)
-
-					self.add_dependency_actions_unsorted(
+					self.process_dependencies(
 						action=dep_action,
 						dependency_path=dependency_path,
 					)
 
-			def add_action(self, dependency_group: DependencyGroup, action: Action) -> None:
-				dependency_group.add_action(action)
-				self.add_dependency_actions(dependency_group, action)
+			def process_product_on_clients(self, product_on_clients: list[ProductOnClient]) -> None:
+				for poc in product_on_clients:
+					self.add_product_on_client(poc)
 
-			def add_dependency_actions(self, dependency_group: DependencyGroup, action: Action) -> None:
-				for dep_product_id in self.dependencies.get(action.product_id, set()):
-					dep_actions = self.unsorted_actions.pop(dep_product_id, [])
-					for dep_action in dep_actions:
-						self.add_action(dependency_group, dep_action)
-
-			def sort(self) -> None:
 				for actions in list(self.unsorted_actions.values()):
 					for action in actions:
-						self.add_dependency_actions_unsorted(action)
+						self.process_dependencies(action)
 
-				for product_id in list(self.unsorted_actions):
-					actions = self.unsorted_actions.pop(product_id, [])
-					if not actions:
+				for product_id, actions in self.unsorted_actions.items():
+					if len(actions) <= 1:
 						continue
+					action = actions[0]
+					product_on_client = None
+					for act in actions:
+						if not product_on_client and act.product_on_client:
+							product_on_client = act.product_on_client
+						if not act.action or act.action == "none":
+							continue
+						action = act
+					action.product_on_client = product_on_client
+					self.unsorted_actions[product_id] = [action]
 
-					dependency_group = DependencyGroup()
-					self.groups.append(dependency_group)
-					for action in actions:
-						self.add_action(dependency_group, action)
+				for product_id_group in self.product_id_groups:
+					group = ActionGroup()
+					for product_id in product_id_group:
+						group.add_action(self.unsorted_actions.pop(product_id)[0])
+					group.sort(self.dependencies)
+					self.groups.append(group)
 
-		@dataclass
-		class DependencyGroup:
-			"""
-			A group of actions with hard dependencies on each other.
+				for product_id, actions in self.unsorted_actions.items():
+					group = ActionGroup()
+					group.add_action(actions[0])
+					self.groups.append(group)
 
-			The action lists represent the hard dependencies to ensure the correct order of before/after requirements (must).
-			The actions in each action action list represent the priorities (may).
-
-			Example:
-
-			- product2 requires product1 before not_installed
-			- product3 requires product1 before not_installed
-			- product3 requires product4 after once
-
-			Action lists
-			┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
-			│ ActionList              │ │ ActionList              │ │ ActionList              │
-			│                         │ │                         │ │                         │
-			│  ┌───────────────────┐  │ │  ┌───────────────────┐  │ │  ┌───────────────────┐  │
-			│  │priority: 0        │  │ │  │priority: 20       │  │ │  │priority: -90      │  │
-			│  │product1: uninstall│  │ │  │product2: setup    │  │ │  │product4: once     │  │
-			│  │                   │  │ │  │                   │  │ │  │                   │  │
-			│  └───────────────────┘  │ │  └───────────────────┘  │ │  └───────────────────┘  │
-			│                         │ │                         │ │                         │
-			│                         │ │  ┌───────────────────┐  │ │                         │
-			│                         │ │  │priority: 10       │  │ │                         │
-			│                         │ │  │product3: setup    │  │ │                         │
-			│                         │ │  │                   │  │ │                         │
-			│                         │ │  └───────────────────┘  │ │                         │
-			│                         │ │                         │ │                         │
-			└─────────────────────────┘ └─────────────────────────┘ └─────────────────────────┘
-
-			Resulting actions:
-			- product1 uninstall (before)
-			- product2 setup (prio 20)
-			- product3 setup (prio 10)
-			- product4 once (after)
-			"""
-
-			action_lists: list[ActionList] = field(default_factory=list)
-
-			def log(self, level: int = TRACE) -> None:
-				if not logger.isEnabledFor(level):
+			def add_product_on_client(self, product_on_client: ProductOnClient) -> None:
+				try:
+					product_on_depot = get_product_on_depot(depot_id=self.depot_id, product_id=product_on_client.productId)
+					product = get_product(
+						product_id=product_on_client.productId,
+						product_version=product_on_depot.productVersion,
+						package_version=product_on_depot.packageVersion,
+					)
+				except (OpsiProductNotAvailableError, OpsiProductNotAvailableOnDepotError) as err:
+					if not ignore_unavailable_products:
+						raise
+					logger.info(err)
 					return
-				logger.log(level, "=> Dependency group (prio %r to %r)", self.min_priority(), self.max_priority())
-				for action_list in self.action_lists:
-					logger.log(level, "   => Action list")
-					for action in action_list.actions:
-						logger.log(level, "      -> %s: %s (%r)", action.product_id, action.action, action.priority)
 
-			def add_action(self, action: Action) -> None:
-				cur_action_list_index, cur_action_index = self.action_list_idx(action.product_id)
-				dep_action_list_index, _ = self.action_list_idx(action.required_by) if action.required_by else (-1, -1)
-
-				if action.requirement_type:
-					# Add a new ActionList before or after
-					if cur_action_list_index != -1:
-						self.action_lists[cur_action_list_index].actions.pop(cur_action_index)
-					action_list_index = dep_action_list_index
-					if action.requirement_type == "after":
-						action_list_index += 1
-					self.action_lists.insert(action_list_index, ActionList(actions=[action]))
-					if not self.action_lists[cur_action_list_index].actions:
-						# Remove empty list
-						del self.action_lists[cur_action_list_index]
-				else:
-					if cur_action_list_index != -1:
-						# Keep position
-						return
-					if not self.action_lists:
-						self.action_lists = [ActionList()]
-					action_list_index = dep_action_list_index if dep_action_list_index != -1 else len(self.action_lists) - 1
-					self.action_lists[action_list_index].add_action(action)
-
-			def action_list_idx(self, product_id: str) -> tuple[int, int]:
-				for idx, action_list in enumerate(self.action_lists):
-					for idx2, act in enumerate(action_list.actions):
-						if act.product_id == product_id:
-							return idx, idx2
-				return -1, -1
-
-			def min_priority(self) -> int:
-				return min(al.actions[0].priority if al and al.actions else 0 for al in self.action_lists)
-
-			def max_priority(self) -> int:
-				return max(al.actions[-1].priority if al and al.actions else 0 for al in self.action_lists)
+				action = Action(
+					product_id=product_on_client.productId,
+					product_type=product_on_client.productType,
+					action=product_on_client.actionRequest or "none",
+					priority=product.priority or 0,
+					product_on_client=product_on_client,
+				)
+				self.unsorted_actions[action.product_id].append(action)
 
 		@dataclass
-		class ActionList:
+		class ActionGroup:
+			priority: int = 0
 			actions: list[Action] = field(default_factory=list)
+
+			def sort(self, dependencies: dict[str, list[ProductDependency]]) -> None:
+				self.actions.sort(key=lambda a: a.priority, reverse=True)
+				for action in list(self.actions):
+					for dependency in dependencies.get(action.product_id, []):
+						pos_prd = -1
+						pos_req = -1
+						for idx, act in enumerate(self.actions):
+							if act.product_id == action.product_id:
+								pos_prd = idx
+							elif act.product_id == dependency.requiredProductId:
+								pos_req = idx
+							if pos_prd > -1 and pos_req > -1:
+								break
+
+						if dependency.requirementType == "before":
+							if pos_req > pos_prd:
+								self.actions.insert(pos_prd, self.actions.pop(pos_req))
+						elif dependency.requirementType == "after":
+							if pos_req < pos_prd:
+								self.actions.insert(pos_prd + 1, self.actions.pop(pos_req))
 
 			def add_action(self, action: Action) -> None:
 				self.actions.append(action)
-				self.actions.sort(key=lambda a: a.priority)
+				max_priority = max(self.priority, action.priority)
+				min_priority = min(self.priority, action.priority)
+				if max_priority > 0:
+					# Prefer highest priority > 0
+					self.priority = max_priority
+				elif min_priority < 0:
+					# After that prefer lowest priority < 0
+					self.priority = min_priority
 
 		@dataclass
 		class Action:
 			product_id: str
 			product_type: str
 			action: str
-			priority: int
-			required_by: str | None = None
-			requirement_type: str | None = None
+			priority: int = 0
 			product_on_client: ProductOnClient | None = None
 
 			def get_product_on_client(self, client_id: str) -> ProductOnClient:
@@ -388,75 +346,23 @@ class RPCProductDependencyMixin(Protocol):
 				product_on_client.actionRequest = self.action
 				return product_on_client
 
-			def __eq__(self, other: Any) -> bool:
-				if not isinstance(other, Action):
-					return False
-				return self.product_id == other.product_id and self.action == other.action and self.required_by == other.required_by
-
 		for client_id, pocs in product_on_clients_by_client_id.items():
 			product_action_groups[client_id] = []
 			depot_id = client_to_depot.get(client_id, client_id)
 			action_sorter = ActionSorter(client_id=client_id, depot_id=depot_id)
 
-			for poc in pocs:
-				if not poc.actionRequest:
-					continue
-
-				logger.debug("add_product_on_client: %s", poc)
-
-				try:
-					product_on_depot = get_product_on_depot(depot_id=depot_id, product_id=poc.productId)
-					poc.productVersion = product_on_depot.productVersion
-					poc.packageVersion = product_on_depot.packageVersion
-					product = get_product(
-						product_id=poc.productId,
-						product_version=poc.productVersion,
-						package_version=poc.packageVersion,
-					)
-				except (OpsiProductNotAvailableError, OpsiProductNotAvailableOnDepotError) as err:
-					if not ignore_unavailable_products:
-						raise
-					logger.info(err)
-					continue
-
-				action = Action(
-					product_id=poc.productId,
-					product_type=product.getType(),
-					action=poc.actionRequest,
-					priority=product.priority or 0,
-					product_on_client=poc,
-				)
-				action_sorter.add_action_unsorted(action)
-
-			action_sorter.sort()
-
-			for dependency_group in action_sorter.groups:
-				dependency_group.log()
-				group = ProductActionGroup()
-				for action_list in dependency_group.action_lists:
-					for action in action_list.actions:
-						group.product_on_clients.append(action.get_product_on_client(client_id))
-				if not group.product_on_clients:
-					continue
-
-				min_prio = dependency_group.min_priority()
-				max_prio = dependency_group.max_priority()
-				if max_prio > 0:
-					# Prefer highest priority > 0
-					group.priority = max_prio
-				elif min_prio < 0:
-					# After that prefer lowest priority < 0
-					group.priority = min_prio
-				product_action_groups[client_id].append(group)
-
-			product_action_groups[client_id].sort(key=lambda x: x.priority, reverse=True)
+			action_sorter.process_product_on_clients(pocs)
 
 			action_sequence = 0
-			for group in product_action_groups[client_id]:
-				group.log()
-				for poc in group.product_on_clients:
+			for a_group in sorted(action_sorter.groups, key=lambda x: x.priority, reverse=True):
+				group = ProductActionGroup(priority=a_group.priority)
+				for action in a_group.actions:
+					poc = action.get_product_on_client(client_id)
 					poc.actionSequence = action_sequence
+					group.product_on_clients.append(poc)
 					action_sequence += 1
+				product_action_groups[client_id].append(group)
+				group.log()
 
 		return product_action_groups
 

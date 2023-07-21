@@ -452,8 +452,8 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	]
 	assert product_ordering["sorted"] == [
 		"opsi-client-agent",
-		"someapp6",
 		"someapp7",
+		"someapp6",
 		"someapp-config",
 		"some-meta",
 		"firefox",

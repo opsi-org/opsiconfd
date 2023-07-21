@@ -7,6 +7,7 @@
 """
 test opsiconfd.backend.rpc.obj_product_dependency
 """
+# pylint: disable=too-many-lines
 
 import pytest
 from opsicommon.objects import LocalbootProduct, ProductDependency, ProductOnClient, ProductOnDepot
@@ -650,7 +651,7 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 		"l-messe-desktop",
 		"opsi-linux-client-agent",
 		"install-completed",
-		"shutdown-system"
+		"shutdown-system",
 	]
 
 

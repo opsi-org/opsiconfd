@@ -277,7 +277,7 @@ class RPCProductDependencyMixin(Protocol):
 					self.groups.append(group)
 
 				logger.debug("Sort action groups by priority")
-				action_sorter.groups.sort(key=lambda g: g.priority, reverse=True)
+				self.groups.sort(key=lambda g: g.priority, reverse=True)
 
 			def add_product_on_client(self, product_on_client: ProductOnClient) -> None:
 				try:

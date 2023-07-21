@@ -493,6 +493,12 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 	product5 = LocalbootProduct(
 		id="l-messe-desktop", productVersion="4.3.0.0", packageVersion="1", priority=0, setupScript="setup.opsiscript"
 	)
+	product6 = LocalbootProduct(
+		id="install-completed", productVersion="4.3.0.0", packageVersion="1", priority=-98, customScript="custom.opsiscript"
+	)
+	product7 = LocalbootProduct(
+		id="shutdown-system", productVersion="4.3.0.0", packageVersion="1", priority=-99, onceScript="once.opsiscript"
+	)
 
 	product_dependency1 = ProductDependency(
 		productId="l-opsi-server",
@@ -521,6 +527,14 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
+	product_dependency4 = ProductDependency(
+		productId="l-messe-desktop",
+		productVersion="4.3.0.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="install-completed",
+		requiredAction="custom",
+	)
 
 	product_on_depot1 = ProductOnDepot(
 		productId="opsi-linux-client-agent", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
@@ -537,16 +551,16 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 	product_on_depot5 = ProductOnDepot(
 		productId="l-messe-desktop", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
 	)
+	product_on_depot6 = ProductOnDepot(
+		productId="install-completed", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot7 = ProductOnDepot(
+		productId="shutdown-system", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
 
 	backend.host_createOpsiClient(id=client_id)
-	backend.product_createObjects([product1, product2, product3, product4, product5])
-	backend.productDependency_createObjects(
-		[
-			product_dependency1,
-			product_dependency2,
-			product_dependency3,
-		]
-	)
+	backend.product_createObjects([product1, product2, product3, product4, product5, product6, product7])
+	backend.productDependency_createObjects([product_dependency1, product_dependency2, product_dependency3, product_dependency4])
 	backend.productOnDepot_createObjects(
 		[
 			product_on_depot1,
@@ -554,6 +568,8 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 			product_on_depot3,
 			product_on_depot4,
 			product_on_depot5,
+			product_on_depot6,
+			product_on_depot7,
 		]
 	)
 	product_on_client_1 = ProductOnClient(
@@ -570,12 +586,19 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 		installationStatus="not_installed",
 		actionRequest="setup",
 	)
+	product_on_client_3 = ProductOnClient(
+		productId="shutdown-system",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="once",
+	)
 
 	res = backend.get_product_action_groups(  # type: ignore[misc]
-		[product_on_client_1, product_on_client_2],
+		[product_on_client_3, product_on_client_1, product_on_client_2],
 	)[client_id]
 
-	assert len(res) == 2
+	assert len(res) == 4
 
 	assert res[0].priority == 98
 	assert len(res[0].product_on_clients) == 4
@@ -598,15 +621,37 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 	assert res[1].product_on_clients[0].actionRequest == "setup"
 	assert res[1].product_on_clients[0].actionSequence == 4
 
+	assert res[2].priority == -98
+	assert len(res[2].product_on_clients) == 1
+	assert res[2].product_on_clients[0].productId == "install-completed"
+	assert res[2].product_on_clients[0].actionRequest == "custom"
+	assert res[2].product_on_clients[0].actionSequence == 5
+
+	assert res[3].priority == -99
+	assert len(res[3].product_on_clients) == 1
+	assert res[3].product_on_clients[0].productId == "shutdown-system"
+	assert res[3].product_on_clients[0].actionRequest == "once"
+	assert res[3].product_on_clients[0].actionSequence == 6
+
 	product_ordering = backend.getProductOrdering(depotId=depot_id)
 	assert product_ordering["not_sorted"] == [
+		"install-completed",
 		"l-messe-desktop",
 		"l-opsi-server",
 		"l-system-update",
 		"opsi-configed",
 		"opsi-linux-client-agent",
+		"shutdown-system",
 	]
-	assert product_ordering["sorted"] == ["l-system-update", "opsi-configed", "l-opsi-server", "l-messe-desktop", "opsi-linux-client-agent"]
+	assert product_ordering["sorted"] == [
+		"l-system-update",
+		"opsi-configed",
+		"l-opsi-server",
+		"l-messe-desktop",
+		"opsi-linux-client-agent",
+		"install-completed",
+		"shutdown-system"
+	]
 
 
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name

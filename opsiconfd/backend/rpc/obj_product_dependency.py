@@ -207,6 +207,12 @@ class RPCProductDependencyMixin(Protocol):
 
 					assert required_action
 
+					if not getattr(dep_product, f"{required_action}Script"):
+						logger.warning(
+							"%r cannot be fulfilled because product %r is missing a %sScript", dependency, dep_product, required_action
+						)
+						continue
+
 					dep_action = Action(
 						product_id=dep_product.id,
 						product_type=dep_product.getType(),
@@ -529,18 +535,19 @@ class RPCProductDependencyMixin(Protocol):
 				continue
 
 			product_ids.append(product.id)
-			if not product.setupScript:
-				continue
 
-			product_on_clients.append(
-				ProductOnClient(
-					productId=product_on_depot.productId,
-					productType=product_on_depot.productType,
-					clientId=depotId,
-					installationStatus="not_installed",
-					actionRequest="setup",
-				)
-			)
+			for action in ("setup", "always", "once", "custom", "uninstall"):
+				if getattr(product, f"{action}Script"):
+					product_on_clients.append(
+						ProductOnClient(
+							productId=product_on_depot.productId,
+							productType=product_on_depot.productType,
+							clientId=depotId,
+							installationStatus="not_installed",
+							actionRequest=action,
+						)
+					)
+					break
 
 		product_ids.sort()
 		sorted_ids = [

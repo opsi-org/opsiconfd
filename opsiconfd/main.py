@@ -23,7 +23,6 @@ from pathlib import Path
 import uvloop
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
-from opsiconfd.setup.backend import setup_mysql
 from opsicommon.types import forceHostId  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
 from rich.console import Console
@@ -50,6 +49,7 @@ from opsiconfd.manager import Manager
 from opsiconfd.patch import apply_patches
 from opsiconfd.redis import delete_recursively, redis_client
 from opsiconfd.setup import setup
+from opsiconfd.setup.backend import setup_mysql
 from opsiconfd.utils import get_manager_pid, log_config
 
 from .check import console_health_check

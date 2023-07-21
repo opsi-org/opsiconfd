@@ -472,6 +472,143 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		)
 
 
+def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
+	backend: UnprotectedBackend,
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	product1 = LocalbootProduct(
+		id="opsi-linux-client-agent", productVersion="4.3.0.0", packageVersion="1", priority=95, setupScript="setup.opsiscript"
+	)
+	product2 = LocalbootProduct(
+		id="opsi-configed", productVersion="4.3.0.0", packageVersion="1", priority=1, setupScript="setup.opsiscript"
+	)
+	product3 = LocalbootProduct(
+		id="l-system-update", productVersion="4.3.0.0", packageVersion="1", priority=98, setupScript="setup.opsiscript"
+	)
+	product4 = LocalbootProduct(
+		id="l-opsi-server", productVersion="4.3.0.0", packageVersion="1", priority=0, setupScript="setup.opsiscript"
+	)
+	product5 = LocalbootProduct(
+		id="l-messe-desktop", productVersion="4.3.0.0", packageVersion="1", priority=0, setupScript="setup.opsiscript"
+	)
+
+	product_dependency1 = ProductDependency(
+		productId="l-opsi-server",
+		productVersion="4.3.0.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="l-system-update",
+		requiredAction="setup",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="l-messe-desktop",
+		productVersion="4.3.0.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="l-opsi-server",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency3 = ProductDependency(
+		productId="l-messe-desktop",
+		productVersion="4.3.0.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="opsi-configed",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="opsi-linux-client-agent", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="opsi-configed", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot3 = ProductOnDepot(
+		productId="l-system-update", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot4 = ProductOnDepot(
+		productId="l-opsi-server", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot5 = ProductOnDepot(
+		productId="l-messe-desktop", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2, product3, product4, product5])
+	backend.productDependency_createObjects(
+		[
+			product_dependency1,
+			product_dependency2,
+			product_dependency3,
+		]
+	)
+	backend.productOnDepot_createObjects(
+		[
+			product_on_depot1,
+			product_on_depot2,
+			product_on_depot3,
+			product_on_depot4,
+			product_on_depot5,
+		]
+	)
+	product_on_client_1 = ProductOnClient(
+		productId="opsi-linux-client-agent",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="l-messe-desktop",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	res = backend.get_product_action_groups(  # type: ignore[misc]
+		[product_on_client_1, product_on_client_2],
+	)[client_id]
+
+	assert len(res) == 2
+
+	assert res[0].priority == 98
+	assert len(res[0].product_on_clients) == 4
+	assert res[0].product_on_clients[0].productId == "l-system-update"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "opsi-configed"
+	assert res[0].product_on_clients[1].actionRequest == "setup"
+	assert res[0].product_on_clients[1].actionSequence == 1
+	assert res[0].product_on_clients[2].productId == "l-opsi-server"
+	assert res[0].product_on_clients[2].actionRequest == "setup"
+	assert res[0].product_on_clients[2].actionSequence == 2
+	assert res[0].product_on_clients[3].productId == "l-messe-desktop"
+	assert res[0].product_on_clients[3].actionRequest == "setup"
+	assert res[0].product_on_clients[3].actionSequence == 3
+
+	assert res[1].priority == 95
+	assert len(res[1].product_on_clients) == 1
+	assert res[1].product_on_clients[0].productId == "opsi-linux-client-agent"
+	assert res[1].product_on_clients[0].actionRequest == "setup"
+	assert res[1].product_on_clients[0].actionSequence == 4
+
+	product_ordering = backend.getProductOrdering(depotId=depot_id)
+	assert product_ordering["not_sorted"] == [
+		"l-messe-desktop",
+		"l-opsi-server",
+		"l-system-update",
+		"opsi-configed",
+		"opsi-linux-client-agent",
+	]
+	assert product_ordering["sorted"] == ["l-system-update", "opsi-configed", "l-opsi-server", "l-messe-desktop", "opsi-linux-client-agent"]
+
+
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
 	product1, product2 = create_test_products(test_client)
 

@@ -12,7 +12,6 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
-from functools import cmp_to_key
 
 from opsicommon.exceptions import OpsiError
 from opsicommon.logging.constants import TRACE  # type: ignore[import]
@@ -162,6 +161,7 @@ class RPCProductDependencyMixin(Protocol):
 					if dependency.productAction != action.action or dependency.requiredProductId in dependency_path:
 						continue
 
+					logger.debug("Dependency found: %r", dependency)
 					try:
 						dep_product_on_depot = get_product_on_depot(
 							depot_id=self.depot_id,
@@ -236,13 +236,16 @@ class RPCProductDependencyMixin(Protocol):
 					)
 
 			def process_product_on_clients(self, product_on_clients: list[ProductOnClient]) -> None:
+				logger.debug("Add ProductOnClients to unsorted actions")
 				for poc in product_on_clients:
 					self.add_product_on_client(poc)
 
+				logger.debug("Add dependent actions to unsorted actions")
 				for actions in list(self.unsorted_actions.values()):
 					for action in actions:
 						self.process_dependencies(action)
 
+				logger.debug("Merge duplicate actions")
 				for product_id, actions in self.unsorted_actions.items():
 					if len(actions) <= 1:
 						continue
@@ -257,17 +260,24 @@ class RPCProductDependencyMixin(Protocol):
 					action.product_on_client = product_on_client
 					self.unsorted_actions[product_id] = [action]
 
+				logger.debug("Build and sort action groups")
 				for product_id_group in self.product_id_groups:
 					group = ActionGroup()
 					for product_id in product_id_group:
-						group.add_action(self.unsorted_actions.pop(product_id)[0])
+						actions = self.unsorted_actions.pop(product_id, [])
+						if actions:
+							group.add_action(actions[0])
 					group.sort(self.dependencies)
 					self.groups.append(group)
 
+				logger.debug("Add remaining independent actions")
 				for product_id, actions in self.unsorted_actions.items():
 					group = ActionGroup()
 					group.add_action(actions[0])
 					self.groups.append(group)
+
+				logger.debug("Sort action groups by priority")
+				action_sorter.groups.sort(key=lambda g: g.priority, reverse=True)
 
 			def add_product_on_client(self, product_on_client: ProductOnClient) -> None:
 				try:
@@ -298,25 +308,35 @@ class RPCProductDependencyMixin(Protocol):
 			actions: list[Action] = field(default_factory=list)
 
 			def sort(self, dependencies: dict[str, list[ProductDependency]]) -> None:
+				logger.debug("Sort actions by priority")
 				self.actions.sort(key=lambda a: a.priority, reverse=True)
-				for action in list(self.actions):
-					for dependency in dependencies.get(action.product_id, []):
-						pos_prd = -1
-						pos_req = -1
-						for idx, act in enumerate(self.actions):
-							if act.product_id == action.product_id:
-								pos_prd = idx
-							elif act.product_id == dependency.requiredProductId:
-								pos_req = idx
-							if pos_prd > -1 and pos_req > -1:
-								break
 
-						if dependency.requirementType == "before":
-							if pos_req > pos_prd:
-								self.actions.insert(pos_prd, self.actions.pop(pos_req))
-						elif dependency.requirementType == "after":
-							if pos_req < pos_prd:
-								self.actions.insert(pos_prd + 1, self.actions.pop(pos_req))
+				run_number = 0
+				while run_number < len(self.actions):
+					logger.debug("Dependency sort run #%d", run_number)
+					run_number += 1
+					actions = self.actions.copy()
+					for action in actions:
+						for dependency in dependencies.get(action.product_id, []):
+							pos_prd = -1
+							pos_req = -1
+							for idx, act in enumerate(self.actions):
+								if act.product_id == action.product_id:
+									pos_prd = idx
+								elif act.product_id == dependency.requiredProductId:
+									pos_req = idx
+								if pos_prd > -1 and pos_req > -1:
+									break
+
+							if dependency.requirementType == "before":
+								if pos_req > pos_prd:
+									self.actions.insert(pos_prd, self.actions.pop(pos_req))
+							elif dependency.requirementType == "after":
+								if pos_req < pos_prd:
+									self.actions.insert(pos_prd + 1, self.actions.pop(pos_req))
+					if actions == self.actions:
+						logger.debug("Sort run finished after %d iterations", run_number)
+						break
 
 			def add_action(self, action: Action) -> None:
 				self.actions.append(action)
@@ -349,12 +369,13 @@ class RPCProductDependencyMixin(Protocol):
 		for client_id, pocs in product_on_clients_by_client_id.items():
 			product_action_groups[client_id] = []
 			depot_id = client_to_depot.get(client_id, client_id)
-			action_sorter = ActionSorter(client_id=client_id, depot_id=depot_id)
 
+			action_sorter = ActionSorter(client_id=client_id, depot_id=depot_id)
 			action_sorter.process_product_on_clients(pocs)
 
+			# Build ProductActionGroups and add action_sequence to ProductOnClient objects
 			action_sequence = 0
-			for a_group in sorted(action_sorter.groups, key=lambda x: x.priority, reverse=True):
+			for a_group in action_sorter.groups:
 				group = ProductActionGroup(priority=a_group.priority)
 				for action in a_group.actions:
 					poc = action.get_product_on_client(client_id)

@@ -419,9 +419,36 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 ) -> list[ProductOnClient]:
 	depot1 = OpsiDepotserver(id="test-backend-rpc-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-backend-rpc-host-1.opsi.test")
-	product1 = LocalbootProduct(id="test-backend-rpc-product1", productVersion="1", packageVersion="1", priority=100)
-	product2 = LocalbootProduct(id="test-backend-rpc-product2", productVersion="1", packageVersion="1", priority=0)
-	product3 = LocalbootProduct(id="test-backend-rpc-product3", productVersion="1", packageVersion="1", priority=-100)
+	product1 = LocalbootProduct(
+		id="test-backend-rpc-product1",
+		productVersion="1",
+		packageVersion="1",
+		priority=100,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+		alwaysScript="always.opsiscript",
+		onceScript="once.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="test-backend-rpc-product2",
+		productVersion="1",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+		alwaysScript="always.opsiscript",
+		onceScript="once.opsiscript",
+	)
+	product3 = LocalbootProduct(
+		id="test-backend-rpc-product3",
+		productVersion="1",
+		packageVersion="1",
+		priority=-100,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+		alwaysScript="always.opsiscript",
+		onceScript="once.opsiscript",
+	)
 	product_dependency = None
 	if requirement[0]:
 		product_dependency = ProductDependency(

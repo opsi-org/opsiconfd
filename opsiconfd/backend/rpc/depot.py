@@ -48,8 +48,8 @@ from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
 
 from opsiconfd.config import (
-	DEPOT_DIR,
 	BOOT_DIR,
+	DEPOT_DIR,
 	PACKAGE_SCRIPT_TIMEOUT,
 	WORKBENCH_DIR,
 	opsi_config,

@@ -49,6 +49,7 @@ from opsicommon.utils import compare_versions, make_temp_dir
 
 from opsiconfd.config import (
 	DEPOT_DIR,
+	BOOT_DIR,
 	PACKAGE_SCRIPT_TIMEOUT,
 	WORKBENCH_DIR,
 	opsi_config,
@@ -64,7 +65,7 @@ if TYPE_CHECKING:
 ALLOWED_SERVER_DATA = (
 	Path("/tmp"),
 	Path("/var/lib/opsi"),
-	Path("/tftpboot"),
+	Path(BOOT_DIR),
 )
 
 
@@ -509,17 +510,28 @@ class DepotserverPackageManager:
 						self.backend.productPropertyState_updateObjects(update_product_property_states)
 
 		def copy_server_data(server_data: Path) -> None:
+			prohibited_files = []
 			for source in (server_data).rglob("*"):
 				if source.is_dir():
 					continue
-				# copy .../SERVER_DATA/tmp/foo/bar to /tmp/foo/bar
+				# Copy .../SERVER_DATA/tmp/foo/bar to /tmp/foo/bar
 				destination = Path("/") / source.relative_to(server_data)
+				allowed = False
 				for allowed_dir in ALLOWED_SERVER_DATA:
 					if destination.is_relative_to(allowed_dir):
+						allowed = True
 						destination.parent.mkdir(exist_ok=True, parents=True)
 						logger.debug("Copying %s to %s", source, destination)
 						shutil.copy(source, destination)
 						break
+				if not allowed:
+					prohibited_files.append(str(destination))
+			if prohibited_files:
+				logger.warning(
+					"Package SERVER_DATA contains prohibited files: %s, allowed destinations are: %s",
+					", ".join(prohibited_files),
+					", ".join([str(a) for a in ALLOWED_SERVER_DATA]),
+				)
 
 		logger.info("=================================================================================================")
 		if force_product_id:
@@ -568,6 +580,7 @@ class DepotserverPackageManager:
 							"DEPOT_ID": self._depot_id,
 							"OLD_PRODUCT_VERSION": old_product_version,
 							"OLD_PACKAGE_VERSION": old_package_version,
+							"BOOT_DIR": BOOT_DIR,
 						}
 						with run_package_scripts(opsi_package, tmp_unpack_dir, product_path, env=env):
 							logger.info("Deleting old client-data dir")

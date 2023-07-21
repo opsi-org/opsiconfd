@@ -50,6 +50,8 @@ SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 GC_THRESHOLDS = (150_000, 50, 100)
 LOG_SIZE_HARD_LIMIT = 10000000
 BOOT_DIR = "/tftpboot"
+if not os.path.exists(BOOT_DIR) and os.path.exists("/var/lib/tftpboot"):
+	BOOT_DIR = "/var/lib/tftpboot"
 TMP_DIR = "/var/lib/opsi/tmp"
 DEPOT_DIR = "/var/lib/opsi/depot"
 FILE_TRANSFER_STORAGE_DIR = "/var/lib/opsi/tmp/file-transfer"

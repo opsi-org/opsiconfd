@@ -479,6 +479,52 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 			[product_on_client_3, product_on_client_4, product_on_client_1, product_on_client_2], ignore_unavailable_products=False
 		)
 
+	product_on_client_1 = ProductOnClient(
+		productId="some-meta",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	pocs = backend.productOnClient_addDependencies([product_on_client_1])
+	backend.productOnClient_createObjects(pocs)
+	res2 = backend.productOnClient_getObjectsWithSequence(clientId=client_id)
+
+	assert len(res2) == 5
+
+	assert res2[0].productId == "someapp6"
+	assert res2[0].actionRequest == "uninstall"
+	assert res2[0].actionSequence == 0
+	assert res2[1].productId == "someapp7"
+	assert res2[1].actionRequest == "setup"
+	assert res2[1].actionSequence == 1
+	assert res2[2].productId == "someapp-config"
+	assert res2[2].actionRequest == "setup"
+	assert res2[2].actionSequence == 2
+	assert res2[3].productId == "some-meta"
+	assert res2[3].actionRequest == "setup"
+	assert res2[3].actionSequence == 3
+	assert res2[4].productId == "firefox"
+	assert res2[4].installationStatus == "installed"
+	assert res2[4].actionSequence == -1
+
+	product_on_client_1 = ProductOnClient(
+		productId="firefox",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="none",
+	)
+	backend.productOnClient_createObjects([product_on_client_1])
+
+	# Must not add dependent actions
+	res2 = backend.productOnClient_getObjectsWithSequence(clientId=client_id)
+	assert len(res2) == 5
+	assert res2[4].productId == "firefox"
+	assert res2[4].installationStatus == "not_installed"
+	assert res2[4].actionRequest == "none"
+	assert res2[4].actionSequence == -1
+
 
 def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
 	backend: UnprotectedBackend,

@@ -181,6 +181,22 @@ class RPCProductDependencyMixin(Protocol):
 						continue
 
 					dep_poc = get_product_on_client(product_id=dep_product.id, product_type=dep_product.getType(), client_id=client_id)
+
+					if dependency.requirementType:
+						# Only "hard" requirements should affect action order
+						self.dependencies[product.id].append(dependency)
+						group_idx = -1
+						for product_id in action.product_id, dep_product.id:
+							for idx, product_group in enumerate(self.product_id_groups):
+								if product_id in product_group:
+									group_idx = idx
+									break
+						if group_idx == -1:
+							self.product_id_groups.append({action.product_id, dep_product.id})
+						else:
+							self.product_id_groups[group_idx].add(action.product_id)
+							self.product_id_groups[group_idx].add(dep_product.id)
+
 					required_action = dependency.requiredAction
 					if not required_action:
 						if (  # pylint: disable=too-many-boolean-expressions
@@ -220,21 +236,6 @@ class RPCProductDependencyMixin(Protocol):
 						priority=dep_product.priority or 0,
 					)
 					self.unsorted_actions[dep_action.product_id].append(dep_action)
-
-					if dependency.requirementType:
-						# Only "hard" requirements should affect action order
-						self.dependencies[product.id].append(dependency)
-						group_idx = -1
-						for product_id in action.product_id, dep_action.product_id:
-							for idx, product_group in enumerate(self.product_id_groups):
-								if product_id in product_group:
-									group_idx = idx
-									break
-						if group_idx == -1:
-							self.product_id_groups.append({action.product_id, dep_action.product_id})
-						else:
-							self.product_id_groups[group_idx].add(action.product_id)
-							self.product_id_groups[group_idx].add(dep_action.product_id)
 
 					self.process_dependencies(
 						action=dep_action,
@@ -385,9 +386,12 @@ class RPCProductDependencyMixin(Protocol):
 				group = ProductActionGroup(priority=a_group.priority)
 				for action in a_group.actions:
 					poc = action.get_product_on_client(client_id)
-					poc.actionSequence = action_sequence
+					if action.action and action.action != "none":
+						poc.actionSequence = action_sequence
+						action_sequence += 1
+					else:
+						poc.actionSequence = -1
 					group.product_on_clients.append(poc)
-					action_sequence += 1
 				product_action_groups[client_id].append(group)
 				group.log()
 

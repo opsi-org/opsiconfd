@@ -1196,14 +1196,8 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		]
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def setProductActionRequest(  # pylint: disable=invalid-name
-		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
-	) -> None:
-		self.setProductState(productId=productId, objectId=clientId, actionRequest=actionRequest)
-
-	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects", check_acl=False)
 	def unsetProductActionRequest(self: BackendProtocol, productId: str, clientId: str) -> None:  # pylint: disable=invalid-name
-		self.setProductActionRequest(productId=productId, clientId=clientId, actionRequest="none")
+		self.setProductState(productId=productId, objectId=clientId, actionRequest="none")
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects", check_acl=False)
 	def getLocalBootProductStates_hash(  # pylint: disable=invalid-name

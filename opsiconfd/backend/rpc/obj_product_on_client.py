@@ -268,6 +268,27 @@ class RPCProductOnClientMixin(Protocol):
 		return product_on_clients
 
 	@rpc_method(check_acl=False)
+	def productOnClient_getObjectsWithSequence(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[ProductOnClient]:
+		"""
+		Like productOnClient_getObjects, but return objects in order and with attribute actionSequence set.
+		Will not add dependent ProductOnClients!
+		"""
+		ace = self._get_ace("productOnClient_getObjects")
+		product_on_clients = self._mysql.get_objects(
+			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
+		)
+		action_requests = {f"{poc.clientId}:{poc.productId}": poc.actionRequest for poc in product_on_clients}
+		product_on_clients = self.productOnClient_generateSequence(product_on_clients)
+		for poc in product_on_clients:
+			if action_request := action_requests.get(f"{poc.clientId}:{poc.productId}"):
+				poc.actionRequest = action_request
+				if not poc.actionRequest or poc.actionRequest == "none":
+					poc.actionSequence = -1
+		return product_on_clients
+
+	@rpc_method(check_acl=False)
 	def productOnClient_generateSequence(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[ProductOnClient]
 	) -> list[ProductOnClient]:

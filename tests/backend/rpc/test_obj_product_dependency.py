@@ -525,6 +525,47 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[4].actionRequest == "none"
 	assert res2[4].actionSequence == -1
 
+	# Delete all
+	backend.productOnClient_deleteObjects(backend.productOnClient_getObjects(clientId=client_id))
+
+	res2 = backend.productOnClient_getObjects(clientId=client_id)
+	assert len(res2) == 0
+
+	product_on_client_1 = ProductOnClient(
+		productId="some-meta",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	pocs = backend.productOnClient_updateObjectsWithDependencies([product_on_client_1])
+	res2 = backend.productOnClient_getObjects(clientId=client_id)
+	assert len(res2) == 4
+	res2 = sorted(res2, key=lambda p: p.productId)
+	assert res2[0].productId == "firefox"
+	assert res2[0].actionRequest == "setup"
+	assert res2[1].productId == "some-meta"
+	assert res2[1].actionRequest == "setup"
+	assert res2[2].productId == "someapp-config"
+	assert res2[2].actionRequest == "setup"
+	assert res2[3].productId == "someapp7"
+	assert res2[3].actionRequest == "setup"
+
+	res2 = backend.productOnClient_getObjectsWithSequence(clientId=client_id)
+	assert len(res2) == 4
+	assert res2[0].productId == "someapp7"
+	assert res2[0].actionRequest == "setup"
+	assert res2[0].actionSequence == 0
+	assert res2[1].productId == "someapp-config"
+	assert res2[1].actionRequest == "setup"
+	assert res2[1].actionSequence == 1
+	assert res2[2].productId == "some-meta"
+	assert res2[2].actionRequest == "setup"
+	assert res2[2].actionSequence == 2
+	assert res2[3].productId == "firefox"
+	assert res2[3].actionRequest == "setup"
+	assert res2[3].actionSequence == 3
+
 
 def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
 	backend: UnprotectedBackend,

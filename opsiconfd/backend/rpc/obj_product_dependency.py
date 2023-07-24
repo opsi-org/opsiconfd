@@ -65,11 +65,32 @@ class RPCProductDependencyMixin(Protocol):
 		product_on_client_cache: dict[tuple[str, str], ProductOnClient] = {}
 		product_dependency_cache: dict[tuple[str, str, str], list[ProductDependency]] = {}
 		product_on_clients_by_client_id: dict[str, list[ProductOnClient]] = defaultdict(list)
+		product_ids = set()
 		for poc in product_on_clients:
 			product_on_clients_by_client_id[poc.clientId].append(poc)
+			product_ids.add(poc.productId)
 		client_ids = list(product_on_clients_by_client_id)
 		client_to_depot = {c2d["clientId"]: c2d["depotId"] for c2d in self.configState_getClientToDepotserver(clientIds=client_ids)}
+		depot_ids = list(set(client_to_depot.values()))
 		product_action_groups: dict[str, list[ProductActionGroup]] = {c: [] for c in client_ids}
+
+		if product_ids:
+			# Prefill caches
+			for dependency in self.productDependency_getObjects(productId=list(product_ids)):
+				pdkey = (dependency.productId, dependency.productVersion, dependency.packageVersion)
+				if pdkey not in product_dependency_cache:
+					product_dependency_cache[pdkey] = []
+				product_dependency_cache[pdkey].append(dependency)
+				product_ids.add(dependency.requiredProductId)
+
+			for product in self.product_getObjects(id=list(product_ids)):
+				pkey = (product.id, product.productVersion, product.packageVersion)
+				product_cache[pkey] = product
+
+			if depot_ids:
+				for product_on_depot in self.productOnDepot_getObjects(productId=list(product_ids), depotId=depot_ids):
+					podkey = (product_on_depot.depotId, product_on_depot.productId)
+					product_on_depot_cache[podkey] = product_on_depot
 
 		def get_product(product_id: str, product_version: str, package_version: str) -> Product:
 			pkey = (product_id, product_version, package_version)
@@ -79,9 +100,10 @@ class RPCProductDependencyMixin(Protocol):
 					productVersion=product_version,
 					packageVersion=package_version,
 				)
-				if not objs:
-					raise OpsiProductNotAvailableError(f"Product {product_id!r} (version: {product_version}-{package_version}) not found")
-				product_cache[pkey] = objs[0]
+				product_cache[pkey] = objs[0] if objs else None
+			if not product_cache[pkey]:
+				raise OpsiProductNotAvailableError(f"Product {product_id!r} (version: {product_version}-{package_version}) not found")
+
 			return product_cache[pkey]
 
 		def get_product_on_depot(
@@ -89,14 +111,18 @@ class RPCProductDependencyMixin(Protocol):
 		) -> ProductOnDepot:
 			pkey = (depot_id, product_id)
 			if pkey not in product_on_depot_cache:
-				objs = self.productOnDepot_getObjects(
-					productId=product_id, productVersion=product_version, packageVersion=package_version, depotId=depot_id
+				objs = self.productOnDepot_getObjects(productId=product_id, depotId=depot_id)
+				product_on_depot_cache[pkey] = objs[0] if objs else None
+
+			if (
+				not product_on_depot_cache[pkey]
+				or (product_version and product_on_depot_cache[pkey].productVersion != product_version)
+				or (package_version and product_on_depot_cache[pkey].packageVersion != package_version)
+			):
+				raise OpsiProductNotAvailableOnDepotError(
+					f"Product {product_id!r} (version: {product_version}-{package_version}) not found on depot {depot_id}"
 				)
-				if not objs:
-					raise OpsiProductNotAvailableOnDepotError(
-						f"Product {product_id!r} (version: {product_version}-{package_version}) not found on depot {depot_id}"
-					)
-				product_on_depot_cache[pkey] = objs[0]
+
 			return product_on_depot_cache[pkey]
 
 		def get_product_dependencies(product_id: str, product_version: str, package_version: str) -> list[ProductDependency]:

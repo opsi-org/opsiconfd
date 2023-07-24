@@ -572,7 +572,7 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
 			# productAction "setup" requires installationStatus "installed" before (fulfilled)
 			("setup", None, "installed", "before"),
-			[("product1", "setup"), ("product2", "setup"), ("product3", "none")],
+			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
@@ -615,7 +615,7 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],
 			# productAction "setup" requires installationStatus "not_installed" before (fulfilled)
 			("setup", None, "not_installed", "before"),
-			[("product1", "setup"), ("product2", "setup"), ("product3", "none")],
+			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
@@ -665,13 +665,13 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 	product_on_clients = _prepare_product_on_client_sequence_dependencies(
 		test_client=test_client, poc_status=poc_status, requirement=requirement
 	)
-	# print("-------------------------------------------------------------------")
-	# print(poc_status)
-	# print(requirement)
-	# print(expected_actions)
-	# print("-------------------------------------------------------------------")
-	# pprint([poc.to_hash() for poc in product_on_clients])
-	# print("-------------------------------------------------------------------")
+	print("-------------------------------------------------------------------")
+	print(poc_status)
+	print(requirement)
+	print(expected_actions)
+	print("-------------------------------------------------------------------")
+	pprint([poc.to_hash() for poc in product_on_clients])
+	print("-------------------------------------------------------------------")
 
 	rpc = {
 		"jsonrpc": "2.0",

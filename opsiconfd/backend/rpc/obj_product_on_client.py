@@ -174,14 +174,17 @@ class RPCProductOnClientMixin(Protocol):
 		Like productOnClient_getObjects, but return objects in order and with attribute actionSequence set.
 		Will not add dependent ProductOnClients!
 		"""
+		if attributes and "actionSequence" not in attributes:
+			return self.productOnClient_getObjects(attributes, **filter)
+
 		ace = self._get_ace("productOnClient_getObjects")
 		product_on_clients = self._mysql.get_objects(
 			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
 		)
-		action_requests = {f"{poc.clientId}:{poc.productId}": poc.actionRequest for poc in product_on_clients}
+		action_requests = {(poc.clientId, poc.productId): poc.actionRequest for poc in product_on_clients}
 		product_on_clients = self.productOnClient_generateSequence(product_on_clients)
 		for poc in product_on_clients:
-			if action_request := action_requests.get(f"{poc.clientId}:{poc.productId}"):
+			if action_request := action_requests.get((poc.clientId, poc.productId)):
 				poc.actionRequest = action_request
 				if not poc.actionRequest or poc.actionRequest == "none":
 					poc.actionSequence = -1

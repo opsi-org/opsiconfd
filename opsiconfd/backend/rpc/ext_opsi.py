@@ -59,45 +59,19 @@ class RPCExtOpsiMixin(Protocol):
 		if not self.productOnDepot_getObjects(depotId=depotId, productId=productId):
 			raise BackendMissingDataError(f"Product {productId!r} not found on depot {depotId!r}")
 
-		if self.product_getObjects(id=productId, type="NetbootProduct"):
-			# Handling a netboot product
-			logger.debug("Dependency-handling for netboot-products is unsupported. Calling setProductActionRequest instead.")
-			self.setProductActionRequest(productId, clientId, actionRequest)
-			return
-
-		if actionRequest in ("none", None):
-			logger.warning(
-				"Dependency-handling for action request '%s' is unsupported. Calling setProductActionRequest instead.", actionRequest
-			)
-			self.setProductActionRequest(productId, clientId, actionRequest)
-			return
-
-		pocExists = False
-		found_product_on_clients = []
-		for poc in self.productOnClient_getObjects(clientId=clientId):
-			if poc.productId == productId:
-				logger.debug("productOnClient for requested product found, updating")
-				if poc.getActionRequest() != actionRequest:
-					poc.setActionRequest(actionRequest)
-				pocExists = True
-			found_product_on_clients.append(poc)
-
-		if not pocExists:
-			logger.debug("requested productOnClient object does not exist, creating")
-			found_product_on_clients.append(
-				ProductOnClient(
-					productId=productId,
-					productType="LocalbootProduct",
-					clientId=clientId,
-					installationStatus="not_installed",
-					actionRequest=actionRequest,
-				)
+		if res := self.productOnClient_getObjects(clientId=clientId, productId=productId):
+			product_on_client = res[0]
+			product_on_client.actionRequest = actionRequest
+		else:
+			product_on_client = ProductOnClient(
+				productId=productId,
+				productType="LocalbootProduct",
+				clientId=clientId,
+				installationStatus="not_installed",
+				actionRequest=actionRequest,
 			)
 
-		product_on_clients = self.productOnClient_addDependencies(found_product_on_clients)
-		pocsToUpdate = [poc for poc in product_on_clients if poc.getActionRequest() not in (None, "none")]
-		if pocsToUpdate:
-			self.productOnClient_updateObjects(pocsToUpdate)
+		self.productOnClient_updateObjectsWithDependencies([product_on_client])
 
 	@rpc_method(deprecated=True, alternative_method="accessControl_userIsReadOnlyUser", check_acl=False)
 	def userIsReadOnlyUser(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name

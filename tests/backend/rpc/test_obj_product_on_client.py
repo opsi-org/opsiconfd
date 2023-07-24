@@ -665,13 +665,13 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 	product_on_clients = _prepare_product_on_client_sequence_dependencies(
 		test_client=test_client, poc_status=poc_status, requirement=requirement
 	)
-	print("-------------------------------------------------------------------")
-	print(poc_status)
-	print(requirement)
-	print(expected_actions)
-	print("-------------------------------------------------------------------")
-	pprint([poc.to_hash() for poc in product_on_clients])
-	print("-------------------------------------------------------------------")
+	# print("-------------------------------------------------------------------")
+	# print(poc_status)
+	# print(requirement)
+	# print(expected_actions)
+	# print("-------------------------------------------------------------------")
+	# pprint([poc.to_hash() for poc in product_on_clients])
+	# print("-------------------------------------------------------------------")
 
 	rpc = {
 		"jsonrpc": "2.0",

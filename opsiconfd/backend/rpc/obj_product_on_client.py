@@ -10,10 +10,9 @@ opsiconfd.backend.rpc.product_on_client
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.objects import Product, ProductDependency, ProductOnClient
+from opsicommon.objects import ProductOnClient
 from opsicommon.types import forceObjectClass, forceObjectClassList
 
 from . import rpc_method

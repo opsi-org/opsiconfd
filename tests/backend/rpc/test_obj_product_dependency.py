@@ -122,6 +122,7 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 		productAction="setup",
 		requiredProductId="virdat",
 		requiredInstallationStatus="installed",
+		requirementType="after",
 	)
 	product_dependency8 = ProductDependency(
 		productId="virscan",

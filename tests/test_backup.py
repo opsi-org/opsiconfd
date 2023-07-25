@@ -171,8 +171,6 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 	try:
 		print("initalized_event =", initalized_event.wait(10))
 
-		backup = create_backup(config_files=False)
-
 		database = "opsitestbackup"
 		mysql = MySQLConnection()
 		mysql.connect()
@@ -182,17 +180,30 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 		mysql.database = database  # pylint: disable=protected-access
 		mysql.connect()
 
-		restore_backup(deepcopy(backup))
+		restore_backup(Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False)
 		with mysql.session() as session:
 			databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
 			assert database in databases
 
-		backup2 = create_backup(config_files=False)
+		backup = create_backup(config_files=False, redis_data=False)
 
 		with mysql.session() as session:
-			session.execute(f"DROP DATABASE IF EXISTS {database}")
+			session.execute(f"DROP DATABASE {database}")
 
-		assert backup["objects"] == backup2["objects"]
+		restore_backup(deepcopy(backup))
+		backup2 = create_backup(config_files=False, redis_data=False)
+
+		assert sorted(list(backup["objects"])) == sorted(list(backup["objects"]))
+		for object_type in backup["objects"]:
+			assert backup["objects"][object_type] == backup2["objects"][object_type]
+
+		# Test truncate
+		for host in backup2["objects"]["Host"]:
+			# Max 256
+			host["description"] = "x" * 1000
+
+		restore_backup(backup2)
+
 	finally:
 		app.set_app_state(NormalState())
 		app.stop_app_state_manager_task()

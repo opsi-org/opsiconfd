@@ -58,6 +58,73 @@ class ProductActionGroup:
 			logger.log(level, "   -> %s: %s", product_on_clients.productId, product_on_clients.actionRequest)
 
 
+@dataclass
+class ActionGroup:
+	priority: int = 0
+	actions: list[Action] = field(default_factory=list)
+	dependencies: dict[str, list[ProductDependency]] = field(default_factory=dict)
+
+	def sort(self) -> None:
+		logger.debug("Sort actions by priority")
+		self.actions.sort(key=lambda a: a.priority, reverse=True)
+
+		run_number = 0
+		while run_number < len(self.actions):
+			logger.debug("Dependency sort run #%d", run_number)
+			run_number += 1
+			actions = self.actions.copy()
+			for action in actions:
+				for dependency in self.dependencies.get(action.product_id, []):
+					pos_prd = -1
+					pos_req = -1
+					for idx, act in enumerate(self.actions):
+						if act.product_id == action.product_id:
+							pos_prd = idx
+						elif act.product_id == dependency.requiredProductId:
+							pos_req = idx
+						if pos_prd > -1 and pos_req > -1:
+							break
+
+					if dependency.requirementType == "before":
+						if pos_req > pos_prd:
+							self.actions.insert(pos_prd, self.actions.pop(pos_req))
+					elif dependency.requirementType == "after":
+						if pos_req < pos_prd:
+							self.actions.insert(pos_prd + 1, self.actions.pop(pos_req))
+			if actions == self.actions:
+				logger.debug("Sort run finished after %d iterations", run_number)
+				break
+
+	def add_action(self, action: Action) -> None:
+		self.actions.append(action)
+		max_priority = max(self.priority, action.priority)
+		min_priority = min(self.priority, action.priority)
+		if max_priority > 0:
+			# Prefer highest priority > 0
+			self.priority = max_priority
+		elif min_priority < 0:
+			# After that prefer lowest priority < 0
+			self.priority = min_priority
+
+
+@dataclass
+class Action:
+	product_id: str
+	product_type: str
+	action: str
+	priority: int = 0
+	product_on_client: ProductOnClient | None = None
+
+	def get_product_on_client(self, client_id: str) -> ProductOnClient:
+		product_on_client = (
+			self.product_on_client.clone()
+			if self.product_on_client
+			else ProductOnClient(productId=self.product_id, productType=self.product_type, clientId=client_id)
+		)
+		product_on_client.actionRequest = self.action
+		return product_on_client
+
+
 class RPCProductDependencyMixin(Protocol):
 	def get_product_action_groups(  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
 		self: BackendProtocol, product_on_clients: list[ProductOnClient], *, ignore_unavailable_products: bool = True
@@ -340,71 +407,6 @@ class RPCProductDependencyMixin(Protocol):
 					product_on_client=product_on_client,
 				)
 				self.unsorted_actions[action.product_id].append(action)
-
-		@dataclass
-		class ActionGroup:
-			priority: int = 0
-			actions: list[Action] = field(default_factory=list)
-			dependencies: dict[str, list[ProductDependency]] = field(default_factory=dict)
-
-			def sort(self) -> None:
-				logger.debug("Sort actions by priority")
-				self.actions.sort(key=lambda a: a.priority, reverse=True)
-
-				run_number = 0
-				while run_number < len(self.actions):
-					logger.debug("Dependency sort run #%d", run_number)
-					run_number += 1
-					actions = self.actions.copy()
-					for action in actions:
-						for dependency in self.dependencies.get(action.product_id, []):
-							pos_prd = -1
-							pos_req = -1
-							for idx, act in enumerate(self.actions):
-								if act.product_id == action.product_id:
-									pos_prd = idx
-								elif act.product_id == dependency.requiredProductId:
-									pos_req = idx
-								if pos_prd > -1 and pos_req > -1:
-									break
-
-							if dependency.requirementType == "before":
-								if pos_req > pos_prd:
-									self.actions.insert(pos_prd, self.actions.pop(pos_req))
-							elif dependency.requirementType == "after":
-								if pos_req < pos_prd:
-									self.actions.insert(pos_prd + 1, self.actions.pop(pos_req))
-					if actions == self.actions:
-						logger.debug("Sort run finished after %d iterations", run_number)
-						break
-
-			def add_action(self, action: Action) -> None:
-				self.actions.append(action)
-				max_priority = max(self.priority, action.priority)
-				min_priority = min(self.priority, action.priority)
-				if max_priority > 0:
-					# Prefer highest priority > 0
-					self.priority = max_priority
-				elif min_priority < 0:
-					# After that prefer lowest priority < 0
-					self.priority = min_priority
-
-		@dataclass
-		class Action:
-			product_id: str
-			product_type: str
-			action: str
-			priority: int = 0
-			product_on_client: ProductOnClient | None = None
-
-			def get_product_on_client(self, client_id: str) -> ProductOnClient:
-				product_on_client = (
-					self.product_on_client.clone()
-					if self.product_on_client
-					else ProductOnClient(productId=self.product_id, productType=self.product_type, clientId=client_id)
-				)
-				product_on_client.actionRequest = self.action
-				return product_on_client
 
 		for client_id, pocs in product_on_clients_by_client_id.items():
 			product_action_groups[client_id] = []

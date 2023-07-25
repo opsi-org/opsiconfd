@@ -185,7 +185,7 @@ async def test_async_redis_lock(config: Config) -> None:  # pylint: disable=rede
 
 
 @pytest.mark.asyncio
-async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-locals
+async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
 	base_key = config.redis_key("dump_recursively")
 	metric = NodeMetric(
 		id="opsiconfd:pytest:metric",

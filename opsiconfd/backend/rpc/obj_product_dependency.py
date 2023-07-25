@@ -212,18 +212,19 @@ class RPCProductDependencyMixin(Protocol):
 
 					if dependency.requirementType:
 						# Only "hard" requirements should affect action order
-						self.dependencies[product.id].append(dependency)
-						group_idx = -1
-						for product_id in action.product_id, dep_product.id:
-							for idx, product_group in enumerate(self.product_id_groups):
-								if product_id in product_group:
-									group_idx = idx
-									break
-						if group_idx == -1:
-							self.product_id_groups.append({action.product_id, dep_product.id})
-						else:
-							self.product_id_groups[group_idx].add(action.product_id)
-							self.product_id_groups[group_idx].add(dep_product.id)
+						if dependency not in self.dependencies[product.id]:
+							self.dependencies[product.id].append(dependency)
+							group_idx = -1
+							for product_id in action.product_id, dep_product.id:
+								for idx, product_group in enumerate(self.product_id_groups):
+									if product_id in product_group:
+										group_idx = idx
+										break
+							if group_idx == -1:
+								self.product_id_groups.append({action.product_id, dep_product.id})
+							else:
+								self.product_id_groups[group_idx].add(action.product_id)
+								self.product_id_groups[group_idx].add(dep_product.id)
 
 					required_action = dependency.requiredAction
 					if not required_action:

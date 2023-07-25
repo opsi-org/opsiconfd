@@ -173,6 +173,8 @@ class RPCProductOnClientMixin(Protocol):
 		"""
 		Like productOnClient_getObjects, but return objects in order and with attribute actionSequence set.
 		Will not add dependent ProductOnClients!
+		If attributes are passed and `actionSequence` is not included in the list of attributes,
+		the method behaves like `productOnClient_getObjects` (which is faster).
 		"""
 		if attributes and "actionSequence" not in attributes:
 			return self.productOnClient_getObjects(attributes, **filter)

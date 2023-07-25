@@ -47,6 +47,8 @@ class OpsiProductNotAvailableOnDepotError(OpsiError):
 class ProductActionGroup:
 	priority: int = 0
 	product_on_clients: list[ProductOnClient] = field(default_factory=list)
+	priorities: dict[str, int] = field(default_factory=dict)
+	dependencies: dict[str, list[ProductDependency]] = field(default_factory=lambda: defaultdict(list))
 
 	def log(self, level: int = TRACE) -> None:
 		if not logger.isEnabledFor(level):
@@ -300,7 +302,10 @@ class RPCProductDependencyMixin(Protocol):
 						actions = self.unsorted_actions.pop(product_id, [])
 						if actions:
 							group.add_action(actions[0])
-					group.sort(self.dependencies)
+							dependencies = self.dependencies.get(actions[0].product_id)
+							if dependencies:
+								group.dependencies[actions[0].product_id] = dependencies
+					group.sort()
 					self.groups.append(group)
 
 				logger.debug("Add remaining independent actions")
@@ -339,8 +344,9 @@ class RPCProductDependencyMixin(Protocol):
 		class ActionGroup:
 			priority: int = 0
 			actions: list[Action] = field(default_factory=list)
+			dependencies: dict[str, list[ProductDependency]] = field(default_factory=dict)
 
-			def sort(self, dependencies: dict[str, list[ProductDependency]]) -> None:
+			def sort(self) -> None:
 				logger.debug("Sort actions by priority")
 				self.actions.sort(key=lambda a: a.priority, reverse=True)
 
@@ -350,7 +356,7 @@ class RPCProductDependencyMixin(Protocol):
 					run_number += 1
 					actions = self.actions.copy()
 					for action in actions:
-						for dependency in dependencies.get(action.product_id, []):
+						for dependency in self.dependencies.get(action.product_id, []):
 							pos_prd = -1
 							pos_req = -1
 							for idx, act in enumerate(self.actions):
@@ -409,8 +415,9 @@ class RPCProductDependencyMixin(Protocol):
 			# Build ProductActionGroups and add action_sequence to ProductOnClient objects
 			action_sequence = 0
 			for a_group in action_sorter.groups:
-				group = ProductActionGroup(priority=a_group.priority)
+				group = ProductActionGroup(priority=a_group.priority, dependencies=a_group.dependencies)
 				for action in a_group.actions:
+					group.priorities[action.product_id] = action.priority
 					poc = action.get_product_on_client(client_id)
 					if action.action and action.action != "none":
 						poc.actionSequence = action_sequence

@@ -211,7 +211,7 @@ class RPCProductOnClientMixin(Protocol):
 			if poc.productId in product_ids_by_client_id.get(poc.clientId, [])
 		]
 
-	@rpc_method(check_acl=False)
+	@rpc_method()
 	def productOnClient_addDependencies(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[ProductOnClient]
 	) -> list[ProductOnClient]:
@@ -223,3 +223,24 @@ class RPCProductOnClientMixin(Protocol):
 		(like productOnClient_generateSequence would do).
 		"""
 		return [poc for group in self.get_product_action_groups(productOnClients).values() for g in group for poc in g.product_on_clients]
+
+	@rpc_method(check_acl=False)
+	def productOnClient_getActionGroups(self: BackendProtocol, clientId: str) -> list[dict]:  # pylint: disable=invalid-name
+		"""
+		Get product action groups of action requests set for a client.
+		"""
+		ace = self._get_ace("productOnClient_getObjects")
+		product_on_clients = self._mysql.get_objects(
+			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, filter={"clientId": clientId}
+		)
+
+		action_groups: list[dict] = []
+		for group in self.get_product_action_groups(product_on_clients).get(clientId, []):
+			group.product_on_clients = [
+				poc.to_hash() for poc in group.product_on_clients if poc.actionRequest and poc.actionRequest != "none"  # type: ignore[misc]
+			]
+			if group.product_on_clients:
+				group.dependencies = {product_id: [d.to_hash() for d in dep] for product_id, dep in group.dependencies.items()}  # type: ignore[misc]
+				action_groups.append(group)  # type: ignore[arg-type]
+
+		return action_groups

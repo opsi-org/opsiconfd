@@ -750,6 +750,357 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 	]
 
 
+def test_get_product_action_groups_vmware(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
+	backend: UnprotectedBackend,
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	product1 = LocalbootProduct(
+		id="vmware-app-volumes-agent",
+		name="App Volumes Agent",
+		productVersion="4.8.0.33",
+		packageVersion="9",
+		priority=-98,
+		setupScript="action-local.opsiscript",
+		uninstallScript="action-local.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="vmware-dem-enterprise",
+		name="VMware Dynamic Environment Manager Enterprise",
+		productVersion="2203.10.5",
+		packageVersion="1",
+		priority=92,
+		setupScript="setup3264.opsiscript",
+		uninstallScript="uninstall3264.opsiscript",
+	)
+	product3 = LocalbootProduct(
+		id="vmware-horizon-agent",
+		name="VMware Horizon Agent",
+		productVersion="2209.8.7.0.20606795",
+		packageVersion="8",
+		priority=93,
+		setupScript="action-local.opsiscript",
+		uninstallScript="action-local.opsiscript",
+	)
+	product4 = LocalbootProduct(
+		id="vmware-osot",
+		name="VMware Horizon OS Optimization Tool",
+		productVersion="1.1.2204.19587979",
+		packageVersion="16",
+		priority=-80,
+		setupScript="setup3264.opsiscript",
+		uninstallScript="uninstall3264.opsiscript",
+	)
+	product5 = LocalbootProduct(
+		id="vmware-powercli",
+		name="VMware.PowerCLI",
+		productVersion="12.0.0.15947286",
+		packageVersion="2",
+		priority=0,
+		setupScript="setup3264.opsiscript",
+		uninstallScript="uninstall3264.opsiscript",
+	)
+	product6 = LocalbootProduct(
+		id="vmware-tools", name="VMware Tools", productVersion="1.1", packageVersion="6", priority=94, setupScript="setup3264.opsiscript"
+	)
+	product7 = LocalbootProduct(
+		id="customize-startmenu",
+		name="Customize Startmenu",
+		productVersion="1",
+		packageVersion="6",
+		priority=-1,
+		setupScript="action-local.opsiscript",
+		uninstallScript="action-local.opsiscript",
+	)
+
+	product_dependency1 = ProductDependency(
+		productId="vmware-app-volumes-agent",
+		productVersion="4.8.0.33",
+		packageVersion="9",
+		productAction="setup",
+		requiredProductId="vmware-osot",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="vmware-osot",
+		productVersion="1.1.2204.19587979",
+		packageVersion="16",
+		productAction="setup",
+		requiredProductId="customize-startmenu",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency3 = ProductDependency(
+		productId="vmware-osot",
+		productVersion="1.1.2204.19587979",
+		packageVersion="16",
+		productAction="setup",
+		requiredProductId="vmware-app-volumes-agent",
+		requiredInstallationStatus="not_installed",
+		requirementType="before",
+	)
+	product_dependency4 = ProductDependency(
+		productId="vmware-osot",
+		productVersion="1.1.2204.19587979",
+		packageVersion="16",
+		productAction="setup",
+		requiredProductId="vmware-dem-enterprise",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency5 = ProductDependency(
+		productId="vmware-osot",
+		productVersion="1.1.2204.19587979",
+		packageVersion="16",
+		productAction="setup",
+		requiredProductId="vmware-horizon-agent",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency6 = ProductDependency(
+		productId="vmware-osot",
+		productVersion="1.1.2204.19587979",
+		packageVersion="16",
+		productAction="setup",
+		requiredProductId="vmware-tools",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency7 = ProductDependency(
+		productId="vmware-tools",
+		productVersion="1.1",
+		packageVersion="6",
+		productAction="setup",
+		requiredProductId="vmware-app-volumes-agent",
+		requiredInstallationStatus="not_installed",
+		requirementType="before",
+	)
+	product_dependency8 = ProductDependency(
+		productId="vmware-tools",
+		productVersion="1.1",
+		packageVersion="6",
+		productAction="setup",
+		requiredProductId="vmware-powercli",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency9 = ProductDependency(
+		productId="vmware-app-volumes-agent",
+		productVersion="4.8.0.33",
+		packageVersion="9",
+		productAction="setup",
+		requiredProductId="vmware-dem-enterprise",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency10 = ProductDependency(
+		productId="vmware-app-volumes-agent",
+		productVersion="4.8.0.33",
+		packageVersion="9",
+		productAction="setup",
+		requiredProductId="vmware-horizon-agent",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency11 = ProductDependency(
+		productId="vmware-app-volumes-agent",
+		productVersion="4.8.0.33",
+		packageVersion="9",
+		productAction="setup",
+		requiredProductId="vmware-osot",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency12 = ProductDependency(
+		productId="vmware-app-volumes-agent",
+		productVersion="4.8.0.33",
+		packageVersion="9",
+		productAction="setup",
+		requiredProductId="vmware-tools",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency13 = ProductDependency(
+		productId="vmware-dem-enterprise",
+		productVersion="2203.10.5",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="vmware-app-volumes-agent",
+		requiredInstallationStatus="not_installed",
+		requirementType="before",
+	)
+	product_dependency14 = ProductDependency(
+		productId="vmware-dem-enterprise",
+		productVersion="2203.10.5",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="vmware-horizon-agent",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency15 = ProductDependency(
+		productId="vmware-dem-enterprise",
+		productVersion="2203.10.5",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="vmware-tools",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency16 = ProductDependency(
+		productId="vmware-horizon-agent",
+		productVersion="2209.8.7.0.20606795",
+		packageVersion="8",
+		productAction="setup",
+		requiredProductId="vmware-app-volumes-agent",
+		requiredInstallationStatus="not_installed",
+		requirementType="before",
+	)
+	product_dependency17 = ProductDependency(
+		productId="vmware-horizon-agent",
+		productVersion="2209.8.7.0.20606795",
+		packageVersion="8",
+		productAction="setup",
+		requiredProductId="vmware-tools",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="vmware-app-volumes-agent", productType="localboot", productVersion="4.8.0.33", packageVersion="9", depotId=depot_id
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="vmware-dem-enterprise", productType="localboot", productVersion="2203.10.5", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot3 = ProductOnDepot(
+		productId="vmware-horizon-agent",
+		productType="localboot",
+		productVersion="2209.8.7.0.20606795",
+		packageVersion="8",
+		depotId=depot_id,
+	)
+	product_on_depot4 = ProductOnDepot(
+		productId="vmware-osot", productType="localboot", productVersion="1.1.2204.19587979", packageVersion="16", depotId=depot_id
+	)
+	product_on_depot5 = ProductOnDepot(
+		productId="vmware-powercli", productType="localboot", productVersion="12.0.0.15947286", packageVersion="2", depotId=depot_id
+	)
+	product_on_depot6 = ProductOnDepot(
+		productId="vmware-tools", productType="localboot", productVersion="1.1", packageVersion="6", depotId=depot_id
+	)
+	product_on_depot7 = ProductOnDepot(
+		productId="customize-startmenu", productType="localboot", productVersion="1", packageVersion="6", depotId=depot_id
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2, product3, product4, product5, product6, product7])
+	backend.productDependency_createObjects(
+		[
+			product_dependency1,
+			product_dependency2,
+			product_dependency3,
+			product_dependency4,
+			product_dependency5,
+			product_dependency6,
+			product_dependency7,
+			product_dependency8,
+			product_dependency9,
+			product_dependency10,
+			product_dependency11,
+			product_dependency12,
+			product_dependency13,
+			product_dependency14,
+			product_dependency15,
+			product_dependency16,
+			product_dependency17,
+		]
+	)
+	backend.productOnDepot_createObjects(
+		[
+			product_on_depot1,
+			product_on_depot2,
+			product_on_depot3,
+			product_on_depot4,
+			product_on_depot5,
+			product_on_depot6,
+			product_on_depot7,
+		]
+	)
+
+	product_on_client_1 = ProductOnClient(
+		productId="customize-startmenu",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="vmware-dem-enterprise",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_3 = ProductOnClient(
+		productId="vmware-horizon-agent",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_4 = ProductOnClient(
+		productId="vmware-osot",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_5 = ProductOnClient(
+		productId="vmware-powercli",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_6 = ProductOnClient(
+		productId="vmware-tools",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	for product_on_clients in (
+		[product_on_client_4],
+		[product_on_client_1, product_on_client_2, product_on_client_3, product_on_client_4, product_on_client_5, product_on_client_6],
+	):
+		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
+
+		assert len(res) == 1
+		assert res[0].priority == 94
+		assert len(res[0].product_on_clients) == 6
+		assert res[0].product_on_clients[0].productId == "vmware-powercli"
+		assert res[0].product_on_clients[0].actionRequest == "setup"
+		assert res[0].product_on_clients[0].actionSequence == 0
+		assert res[0].product_on_clients[1].productId == "vmware-tools"
+		assert res[0].product_on_clients[1].actionRequest == "setup"
+		assert res[0].product_on_clients[1].actionSequence == 1
+		assert res[0].product_on_clients[2].productId == "vmware-horizon-agent"
+		assert res[0].product_on_clients[2].actionRequest == "setup"
+		assert res[0].product_on_clients[2].actionSequence == 2
+		assert res[0].product_on_clients[3].productId == "vmware-dem-enterprise"
+		assert res[0].product_on_clients[3].actionRequest == "setup"
+		assert res[0].product_on_clients[3].actionSequence == 3
+		assert res[0].product_on_clients[4].productId == "customize-startmenu"
+		assert res[0].product_on_clients[4].actionRequest == "setup"
+		assert res[0].product_on_clients[4].actionSequence == 4
+		assert res[0].product_on_clients[5].productId == "vmware-osot"
+		assert res[0].product_on_clients[5].actionRequest == "setup"
+		assert res[0].product_on_clients[5].actionSequence == 5
+
+
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
 	product1, product2 = create_test_products(test_client)
 

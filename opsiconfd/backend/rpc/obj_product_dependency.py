@@ -290,7 +290,7 @@ class RPCProductDependencyMixin(Protocol):
 							if not group_idx:
 								self.product_id_groups.append({action.product_id, dep_product.id})
 							else:
-								gidx = list(group_idx)
+								gidx = sorted(list(group_idx))
 								if len(gidx) > 1:
 									self.product_id_groups[gidx[0]].update(self.product_id_groups[gidx[1]])
 									del self.product_id_groups[gidx[1]]

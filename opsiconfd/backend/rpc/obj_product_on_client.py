@@ -163,9 +163,9 @@ class RPCProductOnClientMixin(Protocol):
 		"""
 		Like productOnClient_updateObjects, but add dependent product actions.
 		"""
-		productOnClients = self.productOnClient_addDependencies(productOnClients)
-		self.productOnClient_updateObjects(productOnClients)
-		return productOnClients
+		product_on_clients = self.productOnClient_addDependencies(productOnClients)
+		self.productOnClient_updateObjects(product_on_clients)
+		return product_on_clients
 
 	@rpc_method(check_acl=False)
 	def productOnClient_getObjectsWithSequence(  # pylint: disable=invalid-name

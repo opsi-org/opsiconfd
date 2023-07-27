@@ -1225,7 +1225,10 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				),
 			)
 			self._parser.add(
-				"--manual", action="store_true", help=self._help("health-check", "Outputs a description of each check on the console.")
+				"--docs",
+				"--documentation",
+				action="store_true",
+				help=self._help("health-check", "Outputs a description of each check on the console."),
 			)
 
 		if self._sub_command in ("backup", "restore"):

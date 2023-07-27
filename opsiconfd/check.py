@@ -1111,7 +1111,7 @@ def console_health_check() -> int:  # pylint: disable=too-many-branches
 	console = Console(log_time=False)
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
-		if config.manual:
+		if config.docs or config.documentation:
 			print_health_check_manual(console=console)
 			return 0
 		for result in health_check():

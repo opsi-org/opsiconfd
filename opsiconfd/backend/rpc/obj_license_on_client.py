@@ -84,7 +84,7 @@ class RPCLicenseOnClientMixin(Protocol):
 			table="LICENSE_ON_CLIENT", ace=ace, object_type=LicenseOnClient, attributes=attributes, filter=filter
 		)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="licenseOnClient_getObjects", check_acl=False)
 	def licenseOnClient_getHashes(  # pylint: disable=redefined-builtin,invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:

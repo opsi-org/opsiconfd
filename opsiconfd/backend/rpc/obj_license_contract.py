@@ -71,7 +71,7 @@ class RPCLicenseContractMixin(Protocol):
 		ace = self._get_ace("licenseContract_getObjects")
 		return self._mysql.get_objects(table="LICENSE_CONTRACT", ace=ace, object_type=LicenseContract, attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="licenseContract_getObjects", check_acl=False)
 	def licenseContract_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict]:

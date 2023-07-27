@@ -99,7 +99,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 			filter=filter,
 		)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="softwareLicenseToLicensePool_getObjects", check_acl=False)
 	def softwareLicenseToLicensePool_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict[str, Any]]:

@@ -121,7 +121,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace, object_type=ConfigState, attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="configState_getObjects", check_acl=False)
 	def configState_getHashes(  # pylint: disable=redefined-builtin,invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:
@@ -244,7 +244,7 @@ class RPCConfigStateMixin(Protocol):
 				po_depots_by_depot_id_and_product_id[pod.depotId] = {pod.productId: pod}
 
 		p_hash = {}
-		for (depotId, productOnDepotsByProductId) in po_depots_by_depot_id_and_product_id.items():
+		for depotId, productOnDepotsByProductId in po_depots_by_depot_id_and_product_id.items():
 			product_string = [
 				f"|{productId};{productOnDepotsByProductId[productId].productVersion};{productOnDepotsByProductId[productId].packageVersion}"
 				for productId in sorted(productOnDepotsByProductId.keys())

@@ -139,7 +139,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
 	def host_getHashes(  # pylint: disable=redefined-builtin,invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:

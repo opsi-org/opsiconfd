@@ -104,7 +104,7 @@ class RPCConfigMixin(Protocol):
 		ace = self._get_ace("config_getObjects")
 		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="config_getObjects", check_acl=False)
 	def config_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict]:

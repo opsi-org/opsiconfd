@@ -77,7 +77,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		ace = self._get_ace("softwareLicense_getObjects")
 		return self._mysql.get_objects(table="SOFTWARE_LICENSE", ace=ace, object_type=SoftwareLicense, attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="softwareLicense_getObjects", check_acl=False)
 	def softwareLicense_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict]:

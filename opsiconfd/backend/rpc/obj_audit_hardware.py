@@ -320,7 +320,7 @@ class RPCAuditHardwareMixin(Protocol):
 			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
 		)  # type: ignore[return-value]
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="auditHardware_getObjects", check_acl=False)
 	def auditHardware_getHashes(  # pylint: disable=redefined-builtin,invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:

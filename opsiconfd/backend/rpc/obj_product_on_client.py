@@ -159,12 +159,13 @@ class RPCProductOnClientMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObjectsWithDependencies(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
-	) -> None:
+	) -> list[ProductOnClient]:
 		"""
 		Like productOnClient_updateObjects, but add dependent product actions.
 		"""
 		productOnClients = self.productOnClient_addDependencies(productOnClients)
 		self.productOnClient_updateObjects(productOnClients)
+		return productOnClients
 
 	@rpc_method(check_acl=False)
 	def productOnClient_getObjectsWithSequence(  # pylint: disable=invalid-name

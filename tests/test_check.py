@@ -53,7 +53,7 @@ from opsiconfd.check import (
 	health_check,
 	process_check_result,
 )
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -97,7 +97,7 @@ def test_check_run_as_user() -> None:
 	class MockUser:  # pylint: disable=too-few-public-methods
 		pw_name = "opsiconfd"
 		pw_gid = 103
-		pw_dir = "/wrong/home"
+		pw_dir = OPSICONFD_HOME
 
 	class MockGroup:  # pylint: disable=too-few-public-methods
 		gr_name = "nogroup"
@@ -116,15 +116,19 @@ def test_check_run_as_user() -> None:
 			group.gr_gid = 103
 		return group
 
-	result = check_run_as_user()
+	with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+		"opsiconfd.check.grp.getgrnam", mock_getgrnam
+	):
+		result = check_run_as_user()
 
-	pprint.pprint(result)
-	assert result.check_status == CheckStatus.OK
+		pprint.pprint(result)
+		assert result.check_status == CheckStatus.OK
 
 	with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
 		"opsiconfd.check.grp.getgrnam", mock_getgrnam
 	):
 		with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
+			mock_user.pw_dir = "/wrong/home"
 			result = check_run_as_user()
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].details["home_directory"] == "/wrong/home"

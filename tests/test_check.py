@@ -116,6 +116,9 @@ def test_check_run_as_user() -> None:
 		return group
 
 	result = check_run_as_user()
+	import pprint
+
+	pprint.pprint(result)
 	assert result.check_status == CheckStatus.OK
 
 	with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(

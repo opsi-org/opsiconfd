@@ -32,13 +32,13 @@ from opsicommon.logging.constants import (
 	LOG_TRACE,
 	OPSI_LEVEL_TO_LEVEL,
 )
+from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.system.info import (  # type: ignore[import]
 	linux_distro_id,
 	linux_distro_id_like_contains,
 	linux_distro_version_id,
 )
 from opsicommon.utils import compare_versions
-from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
@@ -827,7 +827,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 							f" < available version {available_version!r}."
 						)
 				elif available_version == "0.0":
-					logger.info("Could not find product %r on repository %s.", product_id, OPSI_REPO)
+					logger.info("Could not find product %r on repository %s.", product_id, OPSI_REPO_FILE)
 					logger.info("Removing product %r from checked list.", product_id)
 					packages_not_on_repo.append(product_id)
 					continue

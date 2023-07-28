@@ -1225,7 +1225,6 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				),
 			)
 			self._parser.add(
-				"--docs",
 				"--documentation",
 				action="store_true",
 				help=self._help("health-check", "Outputs a description of each check on the console."),

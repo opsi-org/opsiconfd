@@ -10,6 +10,9 @@ health check
 # pylint: disable=too-many-lines
 from __future__ import annotations
 
+import grp
+import os
+import pwd
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -47,7 +50,7 @@ from sqlalchemy.exc import OperationalError  # type: ignore[import]
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config
+from opsiconfd.config import DEPOT_DIR, OPSICONFD_HOME, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import ldap3_uri_to_str
@@ -152,37 +155,38 @@ def print_health_check_manual(console: Console) -> None:
 	"""
 	console.print(Markdown(text.replace("\t", "")))
 	for check in (
-		check_opsiconfd_config,
 		check_opsi_config,
-		check_disk_usage,
-		check_depotservers,
-		check_system_packages,
-		check_product_on_depots,
-		check_product_on_clients,
+		check_opsiconfd_config,
 		check_redis,
 		check_mysql,
+		check_run_as_user,
 		check_opsi_licenses,
-		check_deprecated_calls,
 		check_distro_eol,
+		check_system_packages,
+		check_disk_usage,
+		check_depotservers,
+		check_product_on_depots,
+		check_product_on_clients,
+		check_deprecated_calls,
 	):
 		console.print(Markdown(check.__doc__.replace("\t", "")))  # type: ignore[union-attr]
 
 
 def health_check() -> Iterator[CheckResult]:
 	for check in (
-		check_opsiconfd_config,
 		check_opsi_config,
-		check_ldap_connection,
-		check_disk_usage,
-		check_depotservers,
-		check_system_packages,
-		check_product_on_depots,
-		check_product_on_clients,
+		check_opsiconfd_config,
 		check_redis,
 		check_mysql,
+		check_run_as_user,
 		check_opsi_licenses,
-		check_deprecated_calls,
 		check_distro_eol,
+		check_system_packages,
+		check_disk_usage,
+		check_depotservers,
+		check_product_on_depots,
+		check_product_on_clients,
+		check_deprecated_calls,
 	):
 		yield check()
 
@@ -245,6 +249,63 @@ def get_disk_mountpoints() -> set:
 	return check_mountpoints
 
 
+def check_run_as_user() -> CheckResult:
+	"""
+	## Run as user
+	Checks the system user running opsiconfd.
+	Checks for group membership and home directory.
+	"""
+	result = CheckResult(
+		check_id="run_as_user",
+		check_name="Run as user",
+		check_description="Check system user running opsiconfd",
+		message=f"User {config.run_as_user} has correct group memberships and home directory.",
+	)
+
+	with exc_to_result(result):
+		user = pwd.getpwnam(config.run_as_user)
+		partial_result = PartialCheckResult(
+			check_id="run_as_user:home_directory",
+			check_name=f"Home directory of user {config.run_as_user}",
+			check_status=CheckStatus.OK,
+			message=(f"Home directory of user {config.run_as_user} is {user.pw_dir}"),
+			details={"user": config.run_as_user, "home_directory": user.pw_dir},
+		)
+
+		if user.pw_dir != OPSICONFD_HOME:
+			partial_result.check_status = CheckStatus.WARNING
+		result.add_partial_result(partial_result)
+
+		gids = os.getgrouplist(user.pw_name, user.pw_gid)
+		for groupname in ("shadow", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "fileadmingroup")):
+			logger.debug("Processing group %s", groupname)
+			partial_result = PartialCheckResult(
+				check_id=f"run_as_user:group_membership:{groupname}",
+				check_name=f"Group membership of user '{config.run_as_user}' in group '{groupname}'",
+				check_status=CheckStatus.OK,
+				message=(f"User '{config.run_as_user}' is a member of group '{groupname}'"),
+				details={"user": config.run_as_user, "group": groupname, "primary": False},  # type: ignore[has-type]
+			)
+			try:
+				group = grp.getgrnam(groupname)
+				partial_result.details["primary"] = group.gr_gid == user.pw_gid
+				if partial_result.details["primary"]:
+					partial_result.message += " (primary)"
+				if group.gr_gid not in gids:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = f"User '{config.run_as_user}' is not a member of group '{groupname}'."
+				elif groupname == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
+					partial_result.check_status = CheckStatus.WARNING
+					partial_result.message = f"Group '{groupname}' is not the primary group of user '{config.run_as_user}'."
+			except KeyError:
+				logger.debug("Group not found: %s", groupname)
+				partial_result.check_status = CheckStatus.ERROR
+				partial_result.message = f"Group '{groupname}' not found."
+			result.add_partial_result(partial_result)
+
+	return result
+
+
 def check_disk_usage() -> CheckResult:
 	"""
 	## Disk usage
@@ -299,7 +360,7 @@ def check_depotservers() -> CheckResult:
 	"""
 	## Depotserver check
 	The opsi repository, workbench and depot must be located under /var/lib/opsi/.
-	"f this is not the case, an error will be reported.
+	If this is not the case, an error will be reported.
 	"""
 	result = CheckResult(
 		check_id="depotservers",
@@ -1111,7 +1172,7 @@ def console_health_check() -> int:  # pylint: disable=too-many-branches
 	console = Console(log_time=False)
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
-		if config.docs or config.documentation:
+		if config.documentation:
 			print_health_check_manual(console=console)
 			return 0
 		for result in health_check():

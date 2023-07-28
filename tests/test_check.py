@@ -10,7 +10,6 @@ check tests
 
 
 import io
-import pwd
 import sys
 import time
 from datetime import datetime, timezone

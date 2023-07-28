@@ -94,32 +94,51 @@ def test_check_disk_usage() -> None:
 
 
 def test_check_run_as_user() -> None:
+	class MockUser:  # pylint: disable=too-few-public-methods
+		pw_name = "opsiconfd"
+		pw_gid = 103
+		pw_dir = "/wrong/home"
+
+	class MockGroup:  # pylint: disable=too-few-public-methods
+		gr_name = "nogroup"
+		gr_gid = 65534
+
+	mock_user = MockUser()
+
+	def mock_getgrnam(groupname: str) -> MockGroup:
+		group = MockGroup()
+		group.gr_name = groupname
+		if groupname == "shadow":
+			group.gr_gid = 101
+		elif groupname == opsi_config.get("groups", "admingroup"):
+			group.gr_gid = 102
+		elif groupname == opsi_config.get("groups", "fileadmingroup"):
+			group.gr_gid = 103
+		return group
+
 	result = check_run_as_user()
 	assert result.check_status == CheckStatus.OK
 
-	user = pwd.getpwnam(config.run_as_user)
+	with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+		"opsiconfd.check.grp.getgrnam", mock_getgrnam
+	):
+		with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
+			result = check_run_as_user()
+			assert result.check_status == CheckStatus.WARNING
+			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
 
-	class MockUser:  # pylint: disable=too-few-public-methods
-		pw_name = user.pw_name
-		pw_gid = user.pw_gid
-		pw_dir = "/wrong/home"
-
-	with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=MockUser())):
-		result = check_run_as_user()
-		assert result.check_status == CheckStatus.WARNING
-		assert result.partial_results[0].details["home_directory"] == "/wrong/home"
-
-	with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))):
-		result = check_run_as_user()
-		assert result.check_status == CheckStatus.ERROR
-		assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
-		assert (
-			result.partial_results[2].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
-		)
-		assert (
-			result.partial_results[3].message
-			== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
-		)
+		with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))):
+			result = check_run_as_user()
+			assert result.check_status == CheckStatus.ERROR
+			assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
+			assert (
+				result.partial_results[2].message
+				== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
+			)
+			assert (
+				result.partial_results[3].message
+				== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
+			)
 
 
 def test_check_opsiconfd_config() -> None:

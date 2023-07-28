@@ -10,6 +10,7 @@ check tests
 
 
 import io
+import pprint
 import sys
 import time
 from datetime import datetime, timezone
@@ -116,7 +117,6 @@ def test_check_run_as_user() -> None:
 		return group
 
 	result = check_run_as_user()
-	import pprint
 
 	pprint.pprint(result)
 	assert result.check_status == CheckStatus.OK

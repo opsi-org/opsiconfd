@@ -116,35 +116,38 @@ def test_check_run_as_user() -> None:
 			group.gr_gid = 103
 		return group
 
-	with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
-		"opsiconfd.check.grp.getgrnam", mock_getgrnam
-	):
-		result = check_run_as_user()
+	with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
+		with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.grp.getgrnam", mock_getgrnam
+		):
+			result = check_run_as_user()
 
-		pprint.pprint(result)
-		assert result.check_status == CheckStatus.OK
+			pprint.pprint(result)
+			assert result.check_status == CheckStatus.OK
 
-	with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
-		"opsiconfd.check.grp.getgrnam", mock_getgrnam
-	):
-		with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
+		with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.grp.getgrnam", mock_getgrnam
+		):
 			mock_user.pw_dir = "/wrong/home"
 			result = check_run_as_user()
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
 
-		with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))):
-			result = check_run_as_user()
-			assert result.check_status == CheckStatus.ERROR
-			assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
-			assert (
-				result.partial_results[2].message
-				== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
-			)
-			assert (
-				result.partial_results[3].message
-				== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
-			)
+	with (
+		mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))),
+		mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
+		mock.patch("opsiconfd.check.grp.getgrnam", mock_getgrnam),
+	):
+		result = check_run_as_user()
+		assert result.check_status == CheckStatus.ERROR
+		assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
+		assert (
+			result.partial_results[2].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
+		)
+		assert (
+			result.partial_results[3].message
+			== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
+		)
 
 
 def test_check_opsiconfd_config() -> None:

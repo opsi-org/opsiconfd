@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opsiconfd"
-version = "4.3.0.79"
+version = "4.3.0.80"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"

@@ -45,6 +45,7 @@ from opsiconfd.check import (
 	check_opsiconfd_config,
 	check_product_on_clients,
 	check_product_on_depots,
+	get_available_product_versions,
 	check_redis,
 	check_run_as_user,
 	check_system_packages,
@@ -356,6 +357,15 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 			assert partial_result.message == (
 				f"Package {partial_result.details['package']!r} is up to date. Installed version: {partial_result.details['version']!r}"
 			)
+
+
+def test_get_available_product_versions() -> None:
+	product_ids = ["opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-mac-client-agent", "hwaudit", "win10", "hwinvent"]
+	available_packages = get_available_product_versions(product_ids)
+	print(available_packages)
+	assert list(available_packages) == product_ids
+	for product_id, version in available_packages.items():
+		assert version != "0.0"
 
 
 def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

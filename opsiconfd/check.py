@@ -38,6 +38,7 @@ from opsicommon.system.info import (  # type: ignore[import]
 	linux_distro_version_id,
 )
 from opsicommon.utils import compare_versions
+from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
@@ -56,16 +57,7 @@ from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import ldap3_uri_to_str
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
-OPSI_REPO = "https://download.uib.de"
-OPSI_PRODUCTS_PATHS = [
-	"4.2/stable/packages/windows/localboot/",
-	"4.2/stable/packages/windows/netboot/",
-	"4.2/stable/packages/linux/localboot/",
-	"4.2/stable/packages/linux/netboot/",
-	"4.2/stable/packages/macos/localboot/",
-	"4.2/stable/packages/opsi-local-image/localboot/",
-	"4.2/stable/packages/opsi-local-image/netboot/",
-]
+OPSI_REPO_FILE = "https://opsipackages.43.opsi.org/stable/packages.msgpack.zstd"
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
 MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
@@ -746,18 +738,19 @@ def check_deprecated_calls() -> CheckResult:
 	return result
 
 
-def get_available_product_versions(product_list: list) -> dict:
-	repo_text = ""
-	available_packages = {p: "0.0" for p in product_list}
+def get_available_product_versions(product_ids: list[str]) -> dict:
+	available_packages = {}
 
-	for path in OPSI_PRODUCTS_PATHS:
-		res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
-		repo_text = repo_text + res.text
+	res = requests.get(OPSI_REPO_FILE, timeout=10, stream=True)
+	res.raise_for_status()
 
-	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
-		product_id, available_version = split_name_and_version(filename)
-		if product_id in available_packages:
-			available_packages[product_id] = available_version
+	col = RepoMetaPackageCollection()
+	col.read_metafile_data(res.raw.read())
+	for product_id in product_ids:
+		if product_id in col.packages:
+			available_packages[product_id] = list(col.packages[product_id])[0]
+		else:
+			available_packages[product_id] = "0.0"
 
 	return available_packages
 
@@ -789,7 +782,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			available_packages = get_available_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
-			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 			return result
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
@@ -890,7 +883,7 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 			available_packages = get_available_product_versions(list(MANDATORY_IF_INSTALLED))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
-			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 			return result
 
 		for product_id, available_version in available_packages.items():

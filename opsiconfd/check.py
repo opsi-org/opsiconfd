@@ -250,16 +250,16 @@ def check_run_as_user() -> CheckResult:
 		check_id="run_as_user",
 		check_name="Run as user",
 		check_description="Check system user running opsiconfd",
-		message=f"User {config.run_as_user} has correct group memberships and home directory.",
+		message=f"No issues found with user '{config.run_as_user}'.",
 	)
 
 	with exc_to_result(result):
 		user = pwd.getpwnam(config.run_as_user)
 		partial_result = PartialCheckResult(
 			check_id="run_as_user:home_directory",
-			check_name=f"Home directory of user {config.run_as_user}",
+			check_name=f"Home directory of user '{config.run_as_user}'",
 			check_status=CheckStatus.OK,
-			message=(f"Home directory of user {config.run_as_user} is {user.pw_dir}"),
+			message=(f"Home directory of user '{config.run_as_user}' is {user.pw_dir}"),
 			details={"user": config.run_as_user, "home_directory": user.pw_dir},
 		)
 
@@ -294,6 +294,8 @@ def check_run_as_user() -> CheckResult:
 				partial_result.message = f"Group '{groupname}' not found."
 			result.add_partial_result(partial_result)
 
+	if result.check_status != CheckStatus.OK:
+		result.message = f"Some issues found with user '{config.run_as_user}'."
 	return result
 
 

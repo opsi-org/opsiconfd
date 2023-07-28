@@ -362,9 +362,8 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 def test_get_available_product_versions() -> None:
 	product_ids = ["opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-mac-client-agent", "hwaudit", "win10", "hwinvent"]
 	available_packages = get_available_product_versions(product_ids)
-	print(available_packages)
 	assert list(available_packages) == product_ids
-	for product_id, version in available_packages.items():
+	for version in available_packages.values():
 		assert version != "0.0"
 
 

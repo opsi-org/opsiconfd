@@ -18,7 +18,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from enum import StrEnum
-from re import findall
 from subprocess import run
 from typing import Any, Generator, Iterator
 

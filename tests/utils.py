@@ -430,9 +430,10 @@ class WebSocketMessageReader(Thread):
 				break
 			if data["type"] == "websocket.send":
 				msg = data["bytes"]
+				print(f"WebSocketMessageReader received message (size: {len(msg)})")
 				if self.decode:
 					msg = msgpack.loads(msg)
-				# print(f"received: >>>{msg}<<<")
+				# print(f"WebSocketMessageReader received message: >>>{msg}<<<")
 				self.messages.put(msg)
 
 	def stop(self) -> None:

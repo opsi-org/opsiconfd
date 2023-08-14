@@ -568,6 +568,76 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[3].actionSequence == 3
 
 
+def test_get_product_action_groups_no_dep_always_update(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
+	backend: UnprotectedBackend,
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	product1 = LocalbootProduct(
+		id="swaudit",
+		productVersion="4.3.0.0",
+		packageVersion="1",
+		priority=-90,
+		setupScript="swaudit4.opsiscript",
+		alwaysScript="swaudit4.opsiscript",
+	)
+	product2 = LocalbootProduct(id="dummy-update", productVersion="1.0", packageVersion="1", priority=0, updateScript="update.opsiscript")
+
+	product_on_depot1 = ProductOnDepot(
+		productId="swaudit", productType="localboot", productVersion="4.3.0.0", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="dummy-update", productType="localboot", productVersion="1.0", packageVersion="1", depotId=depot_id
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2])
+	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2])
+	product_on_client_1 = ProductOnClient(
+		productId="swaudit",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="always",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="dummy-update",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="update",
+	)
+
+	res = backend.get_product_action_groups(  # type: ignore[misc]
+		[product_on_client_1, product_on_client_2],
+	)[client_id]
+
+	assert len(res) == 2
+
+	assert res[0].priority == 0
+	assert len(res[0].product_on_clients) == 1
+	assert res[0].product_on_clients[0].productId == "dummy-update"
+	assert res[0].product_on_clients[0].actionRequest == "update"
+	assert res[0].product_on_clients[0].actionSequence == 0
+
+	assert res[1].priority == -90
+	assert len(res[1].product_on_clients) == 1
+	assert res[1].product_on_clients[0].productId == "swaudit"
+	assert res[1].product_on_clients[0].actionRequest == "always"
+	assert res[1].product_on_clients[0].actionSequence == 1
+
+	product_ordering = backend.getProductOrdering(depotId=depot_id)
+	assert product_ordering["not_sorted"] == [
+		"dummy-update",
+		"swaudit",
+	]
+	assert product_ordering["sorted"] == [
+		"dummy-update",
+		"swaudit",
+	]
+
+
 def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
 	backend: UnprotectedBackend,
 ) -> None:

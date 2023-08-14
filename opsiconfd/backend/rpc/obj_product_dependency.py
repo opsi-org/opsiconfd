@@ -583,7 +583,7 @@ class RPCProductDependencyMixin(Protocol):
 
 			product_ids.append(product.id)
 
-			for action in ("setup", "always", "once", "custom", "uninstall"):
+			for action in ("setup", "update", "always", "once", "custom", "uninstall"):
 				if getattr(product, f"{action}Script"):
 					product_on_clients.append(
 						ProductOnClient(

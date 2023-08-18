@@ -14,10 +14,11 @@ from typing import Any
 import pytest
 from opsicommon.messagebus import Message  # type: ignore[import]
 
-from opsiconfd.messagebus.redis import (
+from opsiconfd.messagebus.redis import (  # pylint: disable=unused-import
 	ConsumerGroupMessageReader,
 	MessageReader,
 	send_message,
+	MAX_STREAM_LENGTH,
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -343,3 +344,15 @@ async def test_message_reader_survives_recreate_channel(config: Config) -> None:
 		assert reader.received[1][1].id == "6"
 
 		await reader.stop()
+
+
+@pytest.mark.asyncio
+async def test_message_trim_to_maxlen(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+	channel = "event:test_reader"
+	async with async_redis_client() as redis_client:
+		# Add some messages before reader starts reading
+		for count in range(0, 1500):
+			await send_message(Message(id=f"{count}", type="test", sender="*", channel=channel))
+
+		await asyncio.sleep(1)
+		assert await redis_client.xlen(f"{config.redis_key('messagebus')}:channels:{channel}") < MAX_STREAM_LENGTH + 100

@@ -347,10 +347,9 @@ async def test_message_reader_survives_recreate_channel(config: Config) -> None:
 
 
 @pytest.mark.asyncio
-async def test_message_trim_to_maxlen(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+async def test_message_trim_to_maxlen(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	channel = "event:test_reader"
 	async with async_redis_client() as redis_client:
-		# Add some messages before reader starts reading
 		for count in range(0, 1500):
 			await send_message(Message(id=f"{count}", type="test", sender="*", channel=channel))
 

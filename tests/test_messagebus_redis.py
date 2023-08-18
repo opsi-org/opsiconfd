@@ -14,11 +14,11 @@ from typing import Any
 import pytest
 from opsicommon.messagebus import Message  # type: ignore[import]
 
-from opsiconfd.messagebus.redis import (  # pylint: disable=unused-import
+from opsiconfd.messagebus.redis import (
+	MAX_STREAM_LENGTH,
 	ConsumerGroupMessageReader,
 	MessageReader,
 	send_message,
-	MAX_STREAM_LENGTH,
 )
 
 from .utils import (  # pylint: disable=unused-import

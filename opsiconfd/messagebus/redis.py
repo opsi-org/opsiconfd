@@ -43,6 +43,7 @@ logger = get_logger("opsiconfd.messagebus")
 
 
 CHANNEL_INFO_SUFFIX = b":info"
+MAX_STREAM_LENGTH = 1000
 
 
 async def messagebus_cleanup(full: bool = False) -> None:
@@ -124,14 +125,18 @@ async def send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
 	redis = await async_redis_client()
-	await redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
+	await redis.xadd(
+		f"{config.redis_key('messagebus')}:channels:{message.channel}", maxlen=MAX_STREAM_LENGTH, approximate=True, fields=fields
+	)  # type: ignore[arg-type]
 
 
 def sync_send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
 	with redis_client() as redis:
-		redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
+		redis.xadd(
+			f"{config.redis_key('messagebus')}:channels:{message.channel}", maxlen=MAX_STREAM_LENGTH, approximate=True, fields=fields
+		)  # type: ignore[arg-type]
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:

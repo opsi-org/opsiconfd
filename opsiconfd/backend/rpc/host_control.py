@@ -534,6 +534,35 @@ class RPCHostControlMixin(Protocol):
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="getActiveSessions", params=[])
 
 	@rpc_method
+	async def hostControl_processActionRequests(  # pylint: disable=invalid-name
+		self: BackendProtocol, hostIds: list[str] | None = None, productIds: list[str] | None = None
+	) -> dict[str, dict[str, Any]]:
+		client_ids = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
+		if not client_ids:
+			raise BackendMissingDataError("No matching host ids found")
+
+		if not productIds:
+			if self._host_control_use_messagebus:
+				return await self._messagebus_rpc(client_ids=client_ids, method="hostControl_processActionRequests", params=[])
+			return await run_in_threadpool(
+				self._opsiclientd_rpc, host_ids=client_ids, method="hostControl_processActionRequests", params=[]
+			)
+
+		result: dict[str, dict[str, Any]] = {}
+		for client_id in client_ids:
+			pocs = self.productOnClient_getObjects(clientId=[client_id], productId=productIds)
+			product_ids = [poc.productId for poc in self.productOnClient_addDependencies(pocs)]
+			if self._host_control_use_messagebus:
+				result[client_id] = await self._messagebus_rpc(
+					client_ids=[client_id], method="hostControl_processActionRequests", params=[product_ids]
+				)
+			else:
+				result[client_id] = await run_in_threadpool(
+					self._opsiclientd_rpc, host_ids=[client_id], method="hostControl_processActionRequests", params=[product_ids]
+				)
+		return result
+
+	@rpc_method
 	async def hostControl_opsiclientdRpc(  # pylint: disable=invalid-name
 		self: BackendProtocol,
 		method: str,

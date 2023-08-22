@@ -543,22 +543,18 @@ class RPCHostControlMixin(Protocol):
 
 		if not productIds:
 			if self._host_control_use_messagebus:
-				return await self._messagebus_rpc(client_ids=client_ids, method="hostControl_processActionRequests", params=[])
-			return await run_in_threadpool(
-				self._opsiclientd_rpc, host_ids=client_ids, method="hostControl_processActionRequests", params=[]
-			)
+				return await self._messagebus_rpc(client_ids=client_ids, method="processActionRequests", params=[])
+			return await run_in_threadpool(self._opsiclientd_rpc, host_ids=client_ids, method="processActionRequests", params=[])
 
 		result: dict[str, dict[str, Any]] = {}
 		for client_id in client_ids:
 			pocs = self.productOnClient_getObjects(clientId=[client_id], productId=productIds)
 			product_ids = [poc.productId for poc in self.productOnClient_addDependencies(pocs)]
 			if self._host_control_use_messagebus:
-				result[client_id] = await self._messagebus_rpc(
-					client_ids=[client_id], method="hostControl_processActionRequests", params=[product_ids]
-				)
+				result[client_id] = await self._messagebus_rpc(client_ids=[client_id], method="processActionRequests", params=[product_ids])
 			else:
 				result[client_id] = await run_in_threadpool(
-					self._opsiclientd_rpc, host_ids=[client_id], method="hostControl_processActionRequests", params=[product_ids]
+					self._opsiclientd_rpc, host_ids=[client_id], method="processActionRequests", params=[product_ids]
 				)
 		return result
 

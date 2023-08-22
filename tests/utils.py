@@ -34,6 +34,7 @@ from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
 
+from opsicommon.objects import serialize, deserialize
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
@@ -86,6 +87,12 @@ class OpsiconfdTestClient(TestClient):
 
 	def get_client_address(self) -> tuple[str, int]:
 		return self._address
+
+	def jsonrpc20(self, method: str, params: dict[str, Any] | list[Any] | None = None) -> Any:
+		params = serialize(params or {})
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+		print(self._username, self._password)
+		return deserialize(self.post("/rpc", json=rpc).json(), deep=True)
 
 
 @pytest.fixture()

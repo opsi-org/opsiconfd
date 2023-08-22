@@ -28,13 +28,12 @@ import redis
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from MySQLdb.connections import Connection  # type: ignore[import]
-from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[import]
+from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
 from redis import asyncio as async_redis
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
 
-from opsicommon.objects import serialize, deserialize
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend

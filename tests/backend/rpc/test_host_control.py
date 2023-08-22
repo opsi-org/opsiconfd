@@ -9,20 +9,20 @@ test opsiconfd.backend.rpc.host_control
 """
 
 from typing import Any
-import pytest
 from unittest import mock
 
-from opsiconfd.config import get_depotserver_id
+import pytest
+from opsicommon.objects import LocalbootProduct, OpsiClient, ProductDependency, ProductOnClient, ProductOnDepot
 
-from opsicommon.objects import ProductDependency, ProductOnDepot, ProductOnClient, LocalbootProduct, OpsiClient
+from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
-	clean_redis,
-	test_client,
 	UnprotectedBackend,
 	backend,
+	clean_redis,
+	test_client,
 )
 
 

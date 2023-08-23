@@ -386,7 +386,7 @@ class RPCHostControlMixin(Protocol):
 			ipa = ip_address(host.ipAddress)
 			networks = [ipn for ipn in self._host_control_broadcast_addresses if ipa and ipa in ipn]
 			if len(networks) > 1:
-				# Take bets matching network by prefix length
+				# Take best matching network by prefix length
 				networks = [sorted(networks, key=lambda x: x.prefixlen, reverse=True)[0]]
 			elif not networks:
 				logger.debug("No matching ip network found for host address '%s', using all broadcasts", ipa.compressed)

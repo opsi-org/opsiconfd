@@ -331,7 +331,7 @@ def test_max_sessions_limit(
 	max_session_per_ip = 10
 	over_limit = 3
 	redis_key = f"{config.redis_key('session')}:*"
-	with (get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis):
+	with get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis:
 		for num in range(1, max_session_per_ip + 1 + over_limit):
 			res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 			if num > max_session_per_ip:
@@ -364,7 +364,7 @@ def test_max_sessions_not_for_depot(
 	depot_key = "29124776768a560d5e45d3c50889ec51"
 	with depot_jsonrpc(test_client, "", depot_id, depot_key):
 		test_client.reset_cookies()
-		with (get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis):
+		with get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis:
 			for _ in range(1, max_session_per_ip + 1 + over_limit):
 				res = test_client.get("/depot", auth=(depot_id, depot_key))
 				assert res.status_code == 200
@@ -399,7 +399,7 @@ def test_max_auth_failures(
 ) -> None:
 	over_limit = 3
 	max_auth_failures = 5
-	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
+	with get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis:
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
@@ -411,6 +411,9 @@ def test_max_auth_failures(
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1])
 				print("num_failed_auth:", num_failed_auth)
+
+			# if num == max_auth_failures:
+			# 	time.sleep(2)
 			if method == "get":
 				res = test_client.get(url, auth=("client.domain.tld", "hostkey"))
 				if num > max_auth_failures + 1:
@@ -437,8 +440,6 @@ def test_max_auth_failures(
 					assert body["status"] == status.HTTP_401_UNAUTHORIZED
 
 			print("Auth:", num, max_auth_failures, res.status_code, res.text)
-
-			time.sleep(2)
 
 
 def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
@@ -583,7 +584,6 @@ def test_auth_only_hostkey(
 	database_connection: Connection,  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-
 	host_key = "f020dcde5108508cd947c5e229d9ec04"
 
 	database_connection.query(
@@ -596,7 +596,6 @@ def test_auth_only_hostkey(
 	)
 	database_connection.commit()
 	try:
-
 		data = json.dumps({"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": "onlyhostkey.uib.gmbh"}]})
 
 		res = test_client.post("/rpc", auth=("", host_key), content=data)
@@ -626,7 +625,6 @@ def test_auth_only_hostkey_id_header(
 	database_connection: Connection,  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-
 	host_key = "f020dcde5108508cd947c5e229d9ec04"
 
 	database_connection.query(
@@ -639,7 +637,6 @@ def test_auth_only_hostkey_id_header(
 	)
 	database_connection.commit()
 	try:
-
 		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": "onlyhostkey.uib.gmbh"}]}
 
 		config.allow_host_key_only_auth = True

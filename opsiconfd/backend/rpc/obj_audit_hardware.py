@@ -77,7 +77,7 @@ def get_audit_hardware_config(
 	language = forceLanguageCode(language).replace("-", "_")
 
 	locale_path = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR)
-	locale_file = locale_path / f"{language}.properties"
+	locale_file = locale_path / f"hwaudit_{language}.properties"
 	if not locale_file.exists():
 		orig_language = language
 		if "_" in language:
@@ -85,11 +85,11 @@ def get_audit_hardware_config(
 		else:
 			language = f"{language}_{language.upper()}"
 		logger.debug("No translation file found for language %r, trying %r", orig_language, language)
-		locale_file = locale_path / f"{language}.properties"
+		locale_file = locale_path / f"hwaudit_{language}.properties"
 		if not locale_file.exists():
 			logger.error("No translation file found for language %r, falling back to en", language)
 			language = "en"
-			locale_file = locale_path / f"{language}.properties"
+			locale_file = locale_path / f"hwaudit_{language}.properties"
 
 	locale = {}
 	try:

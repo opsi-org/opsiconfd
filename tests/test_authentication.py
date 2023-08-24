@@ -409,7 +409,7 @@ def test_max_auth_failures(
 					f"{(now-(conf.auth_failures_interval*1000))} {now} aggregation count {(conf.auth_failures_interval*1000)}"
 				)
 				num_failed_auth = redis.execute_command(cmd)
-				num_failed_auth = int(num_failed_auth[-1][1])
+				num_failed_auth = int(num_failed_auth[-1][1]) if num_failed_auth else -1
 				print("num_failed_auth:", num_failed_auth)
 
 			# if num == max_auth_failures:

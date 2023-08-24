@@ -73,20 +73,23 @@ def get_audit_hardware_config(
 	language: str | None = None,
 ) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:
 	if not language:
-		language = "en_US"
+		language = "en"
 	language = forceLanguageCode(language).replace("-", "_")
 
 	locale_path = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR)
-	locale_file = locale_path / language
+	locale_file = locale_path / f"{language}.properties"
 	if not locale_file.exists():
+		orig_language = language
 		if "_" in language:
-			locale_file = locale_path / language.split("_")[0]
+			language = language.split("_")[0]
 		else:
-			locale_file = locale_path / f"{language}_{language.upper()}"
+			language = f"{language}_{language.upper()}"
+		logger.debug("No translation file found for language %r, trying %r", orig_language, language)
+		locale_file = locale_path / f"{language}.properties"
 		if not locale_file.exists():
-			logger.error("No translation file found for language %s, falling back to en_US", language)
-			language = "en_US"
-			locale_file = locale_path / language
+			logger.error("No translation file found for language %r, falling back to en", language)
+			language = "en"
+			locale_file = locale_path / f"{language}.properties"
 
 	locale = {}
 	try:

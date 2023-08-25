@@ -22,8 +22,8 @@ from opsicommon.objects import (
 )
 from opsicommon.types import forceLanguageCode, forceList
 
-from opsiconfd.logging import logger
 from opsiconfd.config import AUDIT_HARDWARE_CONFIG_FILE, AUDIT_HARDWARE_CONFIG_LOCALES_DIR
+from opsiconfd.logging import logger
 
 from ..auth import RPCACE
 from . import rpc_method

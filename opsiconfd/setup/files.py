@@ -21,6 +21,7 @@ from opsicommon.server.rights import (  # type: ignore[import]
 )
 
 from opsiconfd.config import (
+	AUDIT_HARDWARE_CONFIG_LOCALES_DIR,
 	DEPOT_DIR,
 	FILE_TRANSFER_STORAGE_DIR,
 	LOG_DIR,
@@ -33,7 +34,6 @@ from opsiconfd.config import (
 	TMP_DIR,
 	VAR_ADDON_DIR,
 	WORKBENCH_DIR,
-	AUDIT_HARDWARE_CONFIG_LOCALES_DIR,
 	config,
 	opsi_config,
 )

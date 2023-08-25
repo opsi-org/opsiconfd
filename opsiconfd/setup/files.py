@@ -33,6 +33,7 @@ from opsiconfd.config import (
 	TMP_DIR,
 	VAR_ADDON_DIR,
 	WORKBENCH_DIR,
+	AUDIT_HARDWARE_CONFIG_LOCALES_DIR,
 	config,
 	opsi_config,
 )
@@ -80,7 +81,7 @@ def move_exender_files() -> None:
 	if not extender_folder.exists():
 		return
 	if not any(extender_folder.iterdir()):
-		logger.notice("Removing empty folder %s", extender_folder)
+		logger.notice("Removing empty folder '%s'", extender_folder)
 		extender_folder.rmdir()
 		return
 	backup_folder = extender_folder.with_suffix(".old")
@@ -89,11 +90,18 @@ def move_exender_files() -> None:
 	for extender_file in EXTENDER_FILES:
 		file_path = extender_folder.joinpath(extender_file)
 		if file_path.exists():
-			logger.notice("Moving %s to %s", extender_file, backup_folder)
+			logger.notice("Moving '%s' to '%s'", extender_file, backup_folder)
 			shutil.move(file_path, backup_folder.joinpath(extender_file))
 	permission = DirPermission(backup_folder, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770)
 	PermissionRegistry().register_permission(permission)
 	set_rights(permission.path)
+
+
+def cleanup_audit_hardware_config_locales_dir() -> None:
+	for file in Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR).iterdir():
+		if file.suffix != ".properties" and file.is_file():
+			logger.notice("Removing legacy locale file '%s'", file)
+			file.unlink()
 
 
 def setup_files() -> None:
@@ -102,6 +110,7 @@ def setup_files() -> None:
 			os.makedirs(_dir)
 			set_rights(_dir)
 	move_exender_files()
+	cleanup_audit_hardware_config_locales_dir()
 
 
 def setup_file_permissions() -> None:

@@ -23,6 +23,7 @@ from opsicommon.objects import (
 from opsicommon.types import forceLanguageCode, forceList
 
 from opsiconfd.logging import logger
+from opsiconfd.config import AUDIT_HARDWARE_CONFIG_FILE, AUDIT_HARDWARE_CONFIG_LOCALES_DIR
 
 from ..auth import RPCACE
 from . import rpc_method
@@ -31,8 +32,6 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
 
-AUDIT_HARDWARE_CONFIG_FILE: str = "/etc/opsi/hwaudit/opsihwaudit.conf"
-AUDIT_HARDWARE_CONFIG_LOCALES_DIR: str = "/etc/opsi/hwaudit/locales"
 OPSI_HARDWARE_CLASSES: list[dict[str, Any]] = []
 
 

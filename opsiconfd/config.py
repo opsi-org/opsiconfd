@@ -72,6 +72,8 @@ WORKBENCH_DIR = "/var/lib/opsi/workbench"
 SMB_CONF = "/etc/samba/smb.conf"
 SUDOERS_CONF = "/etc/sudoers"
 PACKAGE_SCRIPT_TIMEOUT = 600  # Seconds
+AUDIT_HARDWARE_CONFIG_FILE = "/etc/opsi/hwaudit/opsihwaudit.conf"
+AUDIT_HARDWARE_CONFIG_LOCALES_DIR = "/etc/opsi/hwaudit/locales"
 
 try:
 	FQDN = get_fqdn()

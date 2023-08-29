@@ -126,7 +126,10 @@ async def send_message(message: Message, context: Any = None) -> None:
 	logger.debug("Message to redis: %r", message)
 	redis = await async_redis_client()
 	await redis.xadd(
-		f"{config.redis_key('messagebus')}:channels:{message.channel}", maxlen=MAX_STREAM_LENGTH, approximate=True, fields=fields  # type: ignore[arg-type]
+		f"{config.redis_key('messagebus')}:channels:{message.channel}",
+		maxlen=MAX_STREAM_LENGTH,
+		approximate=True,
+		fields=fields,  # type: ignore[arg-type]
 	)
 
 
@@ -135,7 +138,10 @@ def sync_send_message(message: Message, context: Any = None) -> None:
 	logger.debug("Message to redis: %r", message)
 	with redis_client() as redis:
 		redis.xadd(
-			f"{config.redis_key('messagebus')}:channels:{message.channel}", maxlen=MAX_STREAM_LENGTH, approximate=True, fields=fields  # type: ignore[arg-type]
+			f"{config.redis_key('messagebus')}:channels:{message.channel}",
+			maxlen=MAX_STREAM_LENGTH,
+			approximate=True,
+			fields=fields,  # type: ignore[arg-type]
 		)
 
 

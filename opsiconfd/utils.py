@@ -109,6 +109,8 @@ def is_manager(proc: psutil.Process) -> bool:
 
 
 def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> Optional[int]:
+	container_procs = ("containerd-shim", "lxc-start")
+
 	manager_pid = None
 	ignore_pids = []
 	if ignore_self:
@@ -122,6 +124,16 @@ def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> 
 	for proc in psutil.process_iter():
 		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
 			continue
+
+		running_in_container_pid = 0
+		for parent in proc.parents():
+			if parent.name() in container_procs:
+				running_in_container_pid = parent.pid
+				break
+		if running_in_container_pid:
+			get_logger().debug("Process %d is running in container %d, skipping", proc.pid, running_in_container_pid)
+			continue
+
 		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
 			# Do not return, prefer higher pids
 			manager_pid = proc.pid

@@ -265,6 +265,54 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 		return data
 
 
+def read_backup_file_data(backup_file: Path, progress: Progress | None = None, password: str | None = None) -> dict:
+	logger.notice("Reading data from file %s", backup_file)
+	if progress:
+		progress.console.print("Reading data from file")
+		file_task = progress.add_task("Processing backup file", total=None)
+
+	bdata = backup_file.read_bytes()
+
+	head = bdata[0:4].hex()
+
+	if head == "7b616573":
+		if not password:
+			raise ValueError("Backup file is encrypted, but no password supplied")
+		logger.notice("Decrypting data")
+		if progress:
+			progress.console.print("Decrypting data")
+		pos = bdata.find(b"}")
+		if pos == -1 or pos > 30 or bdata[1:pos] != b"aes-256-gcm-sha256":
+			raise RuntimeError("Failed to decrypt data")
+		pos += 1
+		key_salt = bdata[pos : pos + 32]
+		mac_tag = bdata[pos + 32 : pos + 48]
+		nonce = bdata[pos + 48 : pos + 64]
+		bdata = aes_decrypt_with_password(ciphertext=bdata[pos + 64 :], key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password)
+		head = bdata[0:4].hex()
+
+	compression = None
+	if head == "04224d18":
+		compression = "lz4"
+	elif head.startswith("1f8b"):
+		compression = "gz"
+	if compression:
+		logger.notice("Decomressing %s data", compression)
+		if progress:
+			progress.console.print(f"Decomressing {compression} data")
+		bdata = decompress_data(bdata, compression=compression)
+
+	encoding = "json" if bdata.startswith(b"{") else "msgpack"
+	logger.notice("Decoding %s data", encoding)
+	if progress:
+		progress.console.print(f"Decoding {encoding} data")
+	decode = json.decode if encoding == "json" else msgpack.decode
+	data = decode(bdata)  # type: ignore[operator]
+	if progress:
+		progress.update(file_task, total=1, completed=True)
+	return data
+
+
 def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 	data_or_file: dict[str, dict[str, Any]] | Path,
 	*,
@@ -280,55 +328,9 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 ) -> None:
 	with redis_lock("backup-restore", acquire_timeout=2.0, lock_timeout=12 * 3600):
 		data = {}
-		encoding: str | None = None
 		if isinstance(data_or_file, Path):
 			backup_file = data_or_file
-			logger.notice("Reading data from file %s", backup_file)
-			if progress:
-				progress.console.print("Reading data from file")
-				file_task = progress.add_task("Processing backup file", total=None)
-
-			bdata = backup_file.read_bytes()
-
-			head = bdata[0:4].hex()
-
-			if head == "7b616573":
-				if not password:
-					raise ValueError("Backup file is encrypted, but no password supplied")
-				logger.notice("Decrypting data")
-				if progress:
-					progress.console.print("Decrypting data")
-				pos = bdata.find(b"}")
-				if pos == -1 or pos > 30 or bdata[1:pos] != b"aes-256-gcm-sha256":
-					raise RuntimeError("Failed to decrypt data")
-				pos += 1
-				key_salt = bdata[pos : pos + 32]
-				mac_tag = bdata[pos + 32 : pos + 48]
-				nonce = bdata[pos + 48 : pos + 64]
-				bdata = aes_decrypt_with_password(
-					ciphertext=bdata[pos + 64 :], key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password
-				)
-				head = bdata[0:4].hex()
-
-			compression = None
-			if head == "04224d18":
-				compression = "lz4"
-			elif head.startswith("1f8b"):
-				compression = "gz"
-			if compression:
-				logger.notice("Decomressing %s data", compression)
-				if progress:
-					progress.console.print(f"Decomressing {compression} data")
-				bdata = decompress_data(bdata, compression=compression)
-
-			encoding = "json" if bdata.startswith(b"{") else "msgpack"
-			logger.notice("Decoding %s data", encoding)
-			if progress:
-				progress.console.print(f"Decoding {encoding} data")
-			decode = json.decode if encoding == "json" else msgpack.decode
-			data = decode(bdata)  # type: ignore[operator]
-			if progress:
-				progress.update(file_task, total=1, completed=True)
+			data = read_backup_file_data(backup_file=backup_file, progress=progress, password=password)
 		else:
 			data = data_or_file
 

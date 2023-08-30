@@ -272,7 +272,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._ex_help = conf.ex_help
 			if self._ex_help and "--help" not in self._args:
 				self._args.append("--help")
-			self._sub_command = conf.action if conf.action in ("health-check", "log-viewer", "setup", "backup", "restore") else None
+			self._sub_command = (
+				conf.action if conf.action in ("health-check", "log-viewer", "setup", "backup", "backup-info", "restore") else None
+			)
 			if self._sub_command:
 				self._args.remove(self._sub_command)
 		except BaseException:  # pylint: disable=broad-except
@@ -1177,6 +1179,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"log-viewer",
 					"health-check",
 					"backup",
+					"backup-info",
 					"restore",
 				),
 				default="start",
@@ -1194,6 +1197,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"log-viewer:    Show log stream on console.\n"
 					"health-check:  Run a health-check.\n"
 					"backup:        Run backup.\n"
+					"backup-info:   Show backup info.\n"
 					"restore:       Restore backup.\n",
 				),
 			)
@@ -1232,12 +1236,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				help=self._help("health-check", "Outputs a description of each check on the console."),
 			)
 
-		if self._sub_command in ("backup", "restore"):
-			self._parser.add(
-				"--quiet",
-				action="store_true",
-				help=self._help(("backup", "restore"), "Do not show output or progress except errors."),
-			)
+		if self._sub_command in ("backup", "backup-info", "restore"):
 			self._parser.add(
 				"--password",
 				nargs="?",
@@ -1247,6 +1246,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"Password for backup encryption and decryption. "
 					"If the argument is given without a value, the user will be prompted for a password.",
 				),
+			)
+
+		if self._sub_command in ("backup", "restore"):
+			self._parser.add(
+				"--quiet",
+				action="store_true",
+				help=self._help(("backup", "restore"), "Do not show output or progress except errors."),
 			)
 
 		if self._sub_command == "backup":
@@ -1287,6 +1293,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 						"Example for a msgpack encoded, lz4 compressed and aes encrypted backup: opsi-backup.msgpack.lz4.aes"
 					),
 				),
+			)
+
+		if self._sub_command == "backup-info":
+			self._parser.add(
+				"backup_file",
+				metavar="BACKUP_FILE",
+				help=self._help("backup-info", "The BACKUP_FILE for which the information is to be displayed."),
 			)
 
 		if self._sub_command == "restore":

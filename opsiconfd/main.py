@@ -31,7 +31,7 @@ from rich.prompt import Prompt
 
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
-from opsiconfd.backup import create_backup, restore_backup
+from opsiconfd.backup import create_backup, restore_backup, read_backup_file_data
 from opsiconfd.config import (
 	GC_THRESHOLDS,
 	config,
@@ -186,6 +186,46 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 	sys.exit(0)
 
 
+def get_password_interative(console: Console) -> None:
+	if config.quiet:
+		raise RuntimeError("Interactive password prompt not available in quiet mode")
+	if not console.file.isatty():
+		raise RuntimeError("Interactive password prompt only available with tty")
+	config.password = Prompt.ask("Please enter password", console=console, password=True)
+
+
+def backup_info_main() -> None:
+	console = Console()
+	backup_file = None
+	try:
+		if config.password is None:
+			# Argument --pasword given without value
+			get_password_interative(console)
+
+		init_logging(log_mode="rich", console=console)
+		backup_file = Path(config.backup_file)
+		meta_data = read_backup_file_data(backup_file=backup_file, password=config.password).get("meta", {})
+		if meta_data.get("type") != "opsiconfd_backup":
+			raise ValueError("Not an opsiconfd backup")
+		for key, val in meta_data.items():
+			if key == "type":
+				continue
+			console.print(f"[bold]{key}[/bold]: {val}", highlight=False)
+
+	except KeyboardInterrupt:
+		logger.error("Backup info interrupted")
+		console.quiet = False
+		console.print("[bold red]Backup info interrupted[/bold red]")
+		sys.exit(2)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
+		console.quiet = False
+		baf = f" from '{str(backup_file)}'" if backup_file else ""
+		console.print(f"[bold red]Failed to get backup info{baf}: {err}[/bold red]")
+		sys.exit(1)
+	sys.exit(0)
+
+
 def restore_main() -> None:
 	if config.delete_locks:
 		delete_locks()
@@ -195,11 +235,7 @@ def restore_main() -> None:
 	try:
 		if config.password is None:
 			# Argument --pasword given without value
-			if config.quiet:
-				raise RuntimeError("Interactive password prompt not available in quiet mode")
-			if not console.file.isatty():
-				raise RuntimeError("Interactive password prompt only available with tty")
-			config.password = Prompt.ask("Please enter password", console=console, password=True)
+			get_password_interative()
 
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)
@@ -371,6 +407,9 @@ def main() -> None:  # pylint: disable=too-many-return-statements
 
 	if config.action == "backup":
 		return backup_main()
+
+	if config.action == "backup-info":
+		return backup_info_main()
 
 	if config.action == "restore":
 		return restore_main()

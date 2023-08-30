@@ -235,7 +235,7 @@ def restore_main() -> None:
 	try:
 		if config.password is None:
 			# Argument --pasword given without value
-			get_password_interative()
+			get_password_interative(console)
 
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)

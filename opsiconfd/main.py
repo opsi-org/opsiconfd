@@ -187,8 +187,6 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 
 
 def get_password_interative(console: Console) -> None:
-	if config.quiet:
-		raise RuntimeError("Interactive password prompt not available in quiet mode")
 	if not console.file.isatty():
 		raise RuntimeError("Interactive password prompt only available with tty")
 	config.password = Prompt.ask("Please enter password", console=console, password=True)
@@ -235,6 +233,8 @@ def restore_main() -> None:
 	try:
 		if config.password is None:
 			# Argument --pasword given without value
+			if config.quiet:
+				raise RuntimeError("Interactive password prompt not available in quiet mode")
 			get_password_interative(console)
 
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:

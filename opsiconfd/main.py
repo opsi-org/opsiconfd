@@ -31,7 +31,7 @@ from rich.prompt import Prompt
 
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
-from opsiconfd.backup import create_backup, restore_backup, read_backup_file_data
+from opsiconfd.backup import create_backup, read_backup_file_data, restore_backup
 from opsiconfd.config import (
 	GC_THRESHOLDS,
 	config,

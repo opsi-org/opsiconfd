@@ -46,7 +46,7 @@
 		{
 			"label": "PyInstaller build",
 			"type": "shell",
-			"command": "sudo poetry run opsi-dev-tool --pyinstaller-poetry-build -l debug",
+			"command": "sudo poetry run opsi-dev-cli -l debug pyinstaller build",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"

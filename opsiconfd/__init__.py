@@ -8,7 +8,7 @@
 The opsi configuration service.
 """
 
-__version__ = "4.3.0.86"
+__version__ = "4.3.0.88"
 
 from contextlib import contextmanager
 from contextvars import Context, ContextVar

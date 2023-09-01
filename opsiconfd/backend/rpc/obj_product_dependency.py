@@ -111,7 +111,8 @@ class ActionGroup:
 							)
 							logger.debug(log)
 							self.sort_log.append(log)
-							self.actions.insert(pos_prd + 1, self.actions.pop(pos_req))
+							# Do not insert at pos_prd + 1, because pos_req < pos_prd and pop(pos_req)!
+							self.actions.insert(pos_prd, self.actions.pop(pos_req))
 			if actions == self.actions:
 				logger.debug("Sort run finished after %d iterations", run_number)
 				break

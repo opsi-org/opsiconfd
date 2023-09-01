@@ -33,6 +33,8 @@ from opsiconfd.logging import logger
 
 class Role:
 	name: str = "default"
+	role: str = ""
+	modified: str = ""
 	read_only: bool = False
 	create_client: bool = True
 	opsi_server_write: bool = True
@@ -46,7 +48,7 @@ class Role:
 	ssh_command: bool = True
 	ssh_menu_server_console: bool = True
 	ssh_server_configuration: bool = True
-	configes: dict[str, Config] = {}
+	configes: dict[str, str] = {}
 
 	def __init__(
 		self,
@@ -77,40 +79,23 @@ class Role:
 		self.ssh_server_configuration = ssh_server_configuration
 
 		now = datetime.utcnow()
+		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
 		self.configes = {
-			"role": Config(f"user.role.{{{self.name}}}.has_role"),
-			"modified": Config(f"user.role.{{{self.name}}}.modified", defaultValues=[now.strftime("%Y-%m-%d %H:%M:%S")]),
-			"read_only": Config(f"user.role.{{{self.name}}}.privilege.host.all.registered_readonly", defaultValues=[self.read_only]),
-			"create_client": Config(f"user.role.{{{self.name}}}.privilege.host.createclient", defaultValues=[self.create_client]),
-			"opsi_server_write": Config(
-				f"user.role.{{{self.name}}}.privilege.host.opsiserver.write", defaultValues=[self.opsi_server_write]
-			),
-			"ssh_command_management": Config(
-				f"user.role.{{{self.name}}}.ssh.commandmanagement.active", defaultValues=[self.ssh_command_management]
-			),
-			"ssh_command": Config(f"user.role.{{{self.name}}}.ssh.commands.active", defaultValues=[self.ssh_command]),
-			"ssh_menu_server_console": Config(
-				f"user.role.{{{self.name}}}.ssh.menu_serverconsole.active", defaultValues=[self.ssh_menu_server_console]
-			),
-			"ssh_server_configuration": Config(
-				f"user.role.{{{self.name}}}.ssh.serverconfiguration.active", defaultValues=[self.ssh_server_configuration]
-			),
-			"depot_access_configured": Config(
-				f"user.role.{{{self.name}}}.privilege.host.depotaccess.configured", defaultValues=[self.depot_access]
-			),
-			"depot_access": Config(f"user.role.{{{self.name}}}.privilege.host.depotaccess.depots", defaultValues=[self.depot_access]),
-			"host_group_access_configured": Config(
-				f"user.role.{{{self.name}}}.privilege.host.groupaccess.configured", defaultValues=[self.host_group_access]
-			),
-			"host_group_access": Config(
-				f"user.role.{{{self.name}}}.privilege.host.groupaccess.hostgroups", defaultValues=[self.host_group_access]
-			),
-			"product_group_access_configured": Config(
-				f"user.role.{{{self.name}}}.privilege.product.groupaccess.configured", defaultValues=[self.product_group_access]
-			),
-			"product_group_access": Config(
-				f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups", defaultValues=[self.product_group_access]
-			),
+			"role": f"user.role.{{{self.name}}}.has_role",
+			"modified": f"user.role.{{{self.name}}}.modified",
+			"read_only": f"user.role.{{{self.name}}}.privilege.host.all.registered_readonly",
+			"create_client": f"user.role.{{{self.name}}}.privilege.host.createclient",
+			"opsi_server_write": f"user.role.{{{self.name}}}.privilege.host.opsiserver.write",
+			"ssh_command_management": f"user.role.{{{self.name}}}.ssh.commandmanagement.active",
+			"ssh_command": f"user.role.{{{self.name}}}.ssh.commands.active",
+			"ssh_menu_server_console": f"user.role.{{{self.name}}}.ssh.menu_serverconsole.active",
+			"ssh_server_configuration": f"user.role.{{{self.name}}}.ssh.serverconfiguration.active",
+			"depot_access_configured": f"user.role.{{{self.name}}}.privilege.host.depotaccess.configured",
+			"depot_access": f"user.role.{{{self.name}}}.privilege.host.depotaccess.depots",
+			"host_group_access_configured": f"user.role.{{{self.name}}}.privilege.host.groupaccess.configured",
+			"host_group_access": f"user.role.{{{self.name}}}.privilege.host.groupaccess.hostgroups",
+			"product_group_access_configured": f"user.role.{{{self.name}}}.privilege.product.groupaccess.configured",
+			"product_group_access": f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups",
 		}
 
 		# if self.depot_access:
@@ -142,19 +127,26 @@ class Role:
 		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.product.groupaccess.configured", defaultValues=[False]))
 		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups", defaultValues=[]))
 
-		self.read_configes()
+		# self.read_configes()
 		self.create_configes()
 
-	def read_configes(self) -> None:
-		role_configs = self.backend.config_getObjects([[], {"configId": f"user.role.{{{self.name}}}*"}])
-		for config in role_configs:
-			for key, conf in self.configes.items():
-				logger.devel(key)
-				logger.devel(conf)
-				# if config.id == conf.id:
-
-				#  self.__setattr__(key, config.defaultValues)
-				#  conf.defaultValues = config.defaultValues
+	# def read_configes(self) -> None:
+	# 	role_configs = self.backend.config_getObjects([[], {"configId": f"user.role.{{{self.name}}}*"}])
+	# 	for config in role_configs:
+	# 		logger.devel(config)
+	# 		for key, conf in self.configes.items():
+	# 			logger.devel(key)
+	# 			logger.devel(conf)
+	# 			if config.id == conf:
+	# 				self.__setattr__(key, config.defaultValues)
 
 	def create_configes(self) -> None:
-		self.backend.config_createObjects(self.configes.values)
+		user_roles = self.backend.config_getObjects(configId="opsi.roles")[0]
+		if user_roles and self.name not in user_roles.defaultValues:
+			user_roles.append(self.name)
+			self.backend.config_createObjects([Config("user.roles", defaultValues=user_roles)])
+		for value_key, config in self.configes.items():
+			current_conf = self.backend.config_getObjects(configId=config)
+			if current_conf:
+				self.__setattr__(value_key, current_conf[0].defaultValues)
+			self.backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])

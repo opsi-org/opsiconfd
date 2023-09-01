@@ -74,3 +74,17 @@ class User:
 		]
 
 		self.backend.config_createObjects(configes)
+
+
+def create_user(backend, name: str, groups: set) -> None:
+	if backend.config_getObjects(configId="user.{}.register")[0] is False:
+		return
+
+	user_group = "default"
+	for group in groups:
+		user_roles = backend.config_getObjects(configId="opsi.roles")[0].defaultValues
+		if group in user_roles:
+			user_group = group
+			break
+	role = Role(backend, user_group)
+	User(backend=backend, name=name, role=role)

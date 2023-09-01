@@ -58,6 +58,9 @@ from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
 from opsiconfd.utils import asyncio_create_task, utc_time_timestamp
 
+
+from opsiconfd.auth.user import create_user
+
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
 # You can add middleware to FastAPI applications.
@@ -1046,7 +1049,31 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	session.is_admin = authm.user_is_admin(session.username)
 	session.is_read_only = authm.user_is_read_only(session.username)
 
+	# for group in session.user_groups:
+	# 	group = group.replace(" ", "_")
+	# 	if (
+	# 		group not in opsi_config.get("groups", "admingroup")
+	# 		and group not in opsi_config.get("groups", "fileadmingroup")
+	# 		and group in opsi_config.get("ldap", "groups")
+	# 	):
+	# 		Role(get_unprotected_backend(), group.replace(" ", "_"))
+
+	if session.is_admin:
+		backend = get_unprotected_backend()
+		asyncio.get_running_loop().run_in_executor(None, create_user, backend, session.username, session.user_groups)
+	# asyncio.to_thread(create_user, backend, session.username, session.user_groups)
+
 	logger.info(
+		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
+		session.username,
+		",".join(session.user_groups),
+		authm.get_admin_groupname(),
+		session.is_admin,
+		authm.get_read_only_groupnames(),
+		session.is_read_only,
+	)
+
+	logger.devel(
 		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
 		session.username,
 		",".join(session.user_groups),

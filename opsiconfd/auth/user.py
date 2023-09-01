@@ -13,6 +13,9 @@ from opsicommon.objects import Config
 from opsiconfd.auth.role import Role
 
 
+from opsiconfd.logging import logger
+
+
 class User:
 	backend = None
 	name: str
@@ -77,7 +80,8 @@ class User:
 
 
 def create_user(backend, name: str, groups: set) -> None:
-	if backend.config_getObjects(configId="user.{}.register")[0] is False:
+	logger.devel(backend.config_getObjects(configId="user.{}.register")[0])
+	if not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
 		return
 
 	user_group = "default"

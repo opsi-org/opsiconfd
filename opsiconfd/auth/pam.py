@@ -33,7 +33,7 @@ class PAMAuthentication(AuthenticationModule):
 				self._pam_service = "opsi-auth"
 			elif linux_distro_id_like_contains(("sles", "opensuse")):
 				self._pam_service = "sshd"
-			elif linux_distro_id_like_contains(("rhel", "centos")):
+			elif linux_distro_id_like_contains(("rhel", "centos", "fedora")):
 				self._pam_service = "system-auth"
 			else:
 				self._pam_service = "common-auth"

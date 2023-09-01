@@ -97,7 +97,8 @@ class ActionGroup:
 					if dependency.requirementType == "before":
 						if pos_req > pos_prd:
 							log = (
-								f"Sort run #{run_number}: Moving {dependency.requiredProductId!r} ({pos_req}) before {action.product_id!r} ({pos_prd})"
+								f"Sort run #{run_number}: Moving {dependency.requiredProductId!r} ({pos_req}) "
+								f"before {action.product_id!r} ({pos_prd})"
 							)
 							logger.debug(log)
 							self.sort_log.append(log)
@@ -105,7 +106,8 @@ class ActionGroup:
 					elif dependency.requirementType == "after":
 						if pos_req < pos_prd:
 							log = (
-								f"Sort run #{run_number}: Moving {dependency.requiredProductId!r} ({pos_req}) after {action.product_id!r} ({pos_prd})"
+								f"Sort run #{run_number}: Moving {dependency.requiredProductId!r} ({pos_req}) "
+								f"after {action.product_id!r} ({pos_prd})"
 							)
 							logger.debug(log)
 							self.sort_log.append(log)

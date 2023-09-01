@@ -49,6 +49,7 @@ class ProductActionGroup:
 	product_on_clients: list[ProductOnClient] = field(default_factory=list)
 	priorities: dict[str, int] = field(default_factory=dict)
 	dependencies: dict[str, list[ProductDependency]] = field(default_factory=lambda: defaultdict(list))
+	sort_log: list[str] = field(default_factory=list)
 
 	def log(self, level: int = TRACE) -> None:
 		if not logger.isEnabledFor(level):
@@ -63,10 +64,15 @@ class ActionGroup:
 	priority: int = 0
 	actions: list[Action] = field(default_factory=list)
 	dependencies: dict[str, list[ProductDependency]] = field(default_factory=dict)
+	sort_log: list[str] = field(default_factory=list)
 
-	def sort(self) -> None:
+	def sort(self) -> None:  # pylint: disable=too-many-branches
 		logger.debug("Sort actions by priority")
 		self.actions.sort(key=lambda a: a.priority, reverse=True)
+		prods = [f"{a.product_id}({a.priority})" for a in self.actions]
+		log = f"Ordered by priority: {','.join(prods)}"
+		logger.debug(log)
+		self.sort_log.append(log)
 
 		run_number = 0
 		while run_number < len(self.actions):
@@ -75,6 +81,9 @@ class ActionGroup:
 			actions = self.actions.copy()
 			for action in actions:
 				for dependency in self.dependencies.get(action.product_id, []):
+					if dependency.requirementType not in ("before", "after"):
+						continue
+
 					pos_prd = -1
 					pos_req = -1
 					for idx, act in enumerate(self.actions):
@@ -87,9 +96,19 @@ class ActionGroup:
 
 					if dependency.requirementType == "before":
 						if pos_req > pos_prd:
+							log = (
+								f"Sort run #{run_number}: Moving {dependency.requiredProductId!r} ({pos_req}) before {action.product_id!r} ({pos_prd})"
+							)
+							logger.debug(log)
+							self.sort_log.append(log)
 							self.actions.insert(pos_prd, self.actions.pop(pos_req))
 					elif dependency.requirementType == "after":
 						if pos_req < pos_prd:
+							log = (
+								f"Sort run #{run_number}: Moving {dependency.requiredProductId!r} ({pos_req}) after {action.product_id!r} ({pos_prd})"
+							)
+							logger.debug(log)
+							self.sort_log.append(log)
 							self.actions.insert(pos_prd + 1, self.actions.pop(pos_req))
 			if actions == self.actions:
 				logger.debug("Sort run finished after %d iterations", run_number)
@@ -425,7 +444,7 @@ class RPCProductDependencyMixin(Protocol):
 			# Build ProductActionGroups and add action_sequence to ProductOnClient objects
 			action_sequence = 0
 			for a_group in action_sorter.groups:
-				group = ProductActionGroup(priority=a_group.priority, dependencies=a_group.dependencies)
+				group = ProductActionGroup(priority=a_group.priority, dependencies=a_group.dependencies, sort_log=a_group.sort_log)
 				for action in a_group.actions:
 					group.priorities[action.product_id] = action.priority
 					poc = action.get_product_on_client(client_id)

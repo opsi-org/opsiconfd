@@ -13,23 +13,6 @@ from opsicommon.objects import Config
 
 from opsiconfd.logging import logger
 
-# DEFAULT_ROLE = [
-# 	Config("user.{default}.has_role"),
-# 	Config("user.role.{default}.privilege.host.all.registered_readonly", defaultValues=[False]),
-# 	Config("user.role.{default}.privilege.host.createclient", defaultValues=[True]),
-# 	Config("user.role.{default}.privilege.host.depotaccess.configured", defaultValues=[False]),
-# 	Config("user.role.{default}.privilege.host.depotaccess.depots", defaultValues=[]),
-# 	Config("user.role.{default}.privilege.host.groupaccess.configured", defaultValues=[False]),
-# 	Config("user.role.{default}.privilege.host.groupaccess.hostgroups", defaultValues=[]),
-# 	Config("user.role.{default}.privilege.host.opsiserver.write", defaultValues=[True]),
-# 	Config("user.role.{default}.privilege.product.groupaccess.configured", defaultValues=[False]),
-# 	Config("user.role.{default}.privilege.product.groupaccess.productgroups", defaultValues=[]),
-# 	Config("user.role.{default}.ssh.commandmanagement.active", defaultValues=[False]),
-# 	Config("user.role.{default}.ssh.commands.active", defaultValues=[True]),
-# 	Config("user.role.{default}.ssh.menu_serverconsole.active", defaultValues=[True]),
-# 	Config("user.role.{default}.ssh.serverconfiguration.active", defaultValues=[True]),
-# ]
-
 
 class Role:
 	name: str = "default"
@@ -98,47 +81,7 @@ class Role:
 			"product_group_access": f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups",
 		}
 
-		# if self.depot_access:
-		# 	self.configes.append()
-
-		# else:
-		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.host.depotaccess.configured", defaultValues=[False]))
-		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.host.depotaccess.depots", defaultValues=[]))
-
-		# if self.host_group_access:
-		# 	self.configes.append(
-		# 		Config(f"user.role.{{{self.name}}}.privilege.host.groupaccess.configured", defaultValues=[self.host_group_access])
-		# 	)
-		# 	self.configes.append(
-		# 		Config(f"user.role.{{{self.name}}}.privilege.host.groupaccess.hostgroups", defaultValues=[self.host_group_access])
-		# 	)
-		# else:
-		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.host.groupaccess.configured", defaultValues=[False]))
-		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.host.groupaccess.hostgroups", defaultValues=[]))
-
-		# if self.product_group_access:
-		# 	self.configes.append(
-		# 		Config(f"user.role.{{{self.name}}}.privilege.product.groupaccess.configured", defaultValues=[self.product_group_access])
-		# 	)
-		# 	self.configes.append(
-		# 		Config(f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups", defaultValues=[self.product_group_access])
-		# 	)
-		# else:
-		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.product.groupaccess.configured", defaultValues=[False]))
-		# 	self.configes.append(Config(f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups", defaultValues=[]))
-
-		# self.read_configes()
 		self.create_configes()
-
-	# def read_configes(self) -> None:
-	# 	role_configs = self.backend.config_getObjects([[], {"configId": f"user.role.{{{self.name}}}*"}])
-	# 	for config in role_configs:
-	# 		logger.devel(config)
-	# 		for key, conf in self.configes.items():
-	# 			logger.devel(key)
-	# 			logger.devel(conf)
-	# 			if config.id == conf:
-	# 				self.__setattr__(key, config.defaultValues)
 
 	def create_configes(self) -> None:
 		user_roles = self.backend.config_getObjects(configId="opsi.roles")[0]

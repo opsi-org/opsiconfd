@@ -92,16 +92,6 @@ class User:
 		self.create_configes()
 
 	def create_configes(self) -> None:
-		# pylint: disable=import-outside-toplevel
-
-		# now = datetime.utcnow()
-		# configes = [
-		# 	Config(f"user.{{{self.name}}}.has_role", defaultValues=[self.role.name]),
-		# 	Config(f"user.{{{self.name}}}.modified", defaultValues=[now.strftime("%Y-%m-%d %H:%M:%S")]),
-		# ]
-
-		# self.backend.config_createObjects(configes)
-
 		for value_key, config in self.configes.items():
 			current_conf = self.backend.config_getObjects(configId=config)
 			if current_conf:

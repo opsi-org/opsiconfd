@@ -105,10 +105,10 @@ async def cleanup_channels(full: bool = False) -> None:  # pylint: disable=too-m
 				logger.debug("Removing key %r (host not found)", key)
 				remove_keys.append(key)
 
-		if channel.startswith("service_worker") and channel.endswith("terminal"):
+		if channel.startswith("service_worker:") and channel.endswith(":terminal"):
 			terminal_keys.append(key)
 
-		if channel.startswith("event") and not channel.endswith("info"):
+		if channel.startswith("event:") and not channel.endswith(":info"):
 			event_keys.append(key)
 
 	if remove_keys or terminal_keys or event_keys:

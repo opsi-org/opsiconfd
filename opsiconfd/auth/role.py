@@ -144,10 +144,13 @@ class Role:
 		user_roles = self.backend.config_getObjects(configId="opsi.roles")[0]
 
 		if user_roles and self.name not in user_roles.defaultValues:
-			user_roles.append(self.name)
+			user_roles.defaultValues.append(self.name)
 			self.backend.config_createObjects([Config("user.roles", defaultValues=user_roles)])
 		for value_key, config in self.configes.items():
 			current_conf = self.backend.config_getObjects(configId=config)
 			if current_conf:
 				self.__setattr__(value_key, current_conf[0].defaultValues)
-			self.backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])
+			if isinstance(self.__getattribute__(value_key), list):
+				self.backend.config_createObjects([Config(config, defaultValues=self.__getattribute__(value_key))])
+			else:
+				self.backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])

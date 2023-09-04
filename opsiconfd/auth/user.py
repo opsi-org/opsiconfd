@@ -23,8 +23,11 @@ class User:
 	read_only: bool = False
 	create_client: bool = True
 	opsi_server_write: bool = True
+	depot_access_configured: bool = False
 	depot_access: list[str] | None = None
+	host_group_access_configured: bool = False
 	host_group_access: list[str] | None = None
+	product_group_access_configured: bool = False
 	product_group_access: list[str] | None = None
 	ssh_command_management: bool = False
 	ssh_command: bool = True
@@ -65,18 +68,50 @@ class User:
 		else:
 			self.role = Role(self.backend)
 
+		now = datetime.utcnow()
+		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
+
+		self.configes = {
+			"role": f"user.role.{{{self.name}}}.has_role",
+			"modified": f"user.role.{{{self.name}}}.modified",
+			"read_only": f"user.role.{{{self.name}}}.privilege.host.all.registered_readonly",
+			"create_client": f"user.role.{{{self.name}}}.privilege.host.createclient",
+			"opsi_server_write": f"user.role.{{{self.name}}}.privilege.host.opsiserver.write",
+			"ssh_command_management": f"user.role.{{{self.name}}}.ssh.commandmanagement.active",
+			"ssh_command": f"user.role.{{{self.name}}}.ssh.commands.active",
+			"ssh_menu_server_console": f"user.role.{{{self.name}}}.ssh.menu_serverconsole.active",
+			"ssh_server_configuration": f"user.role.{{{self.name}}}.ssh.serverconfiguration.active",
+			"depot_access_configured": f"user.role.{{{self.name}}}.privilege.host.depotaccess.configured",
+			"depot_access": f"user.role.{{{self.name}}}.privilege.host.depotaccess.depots",
+			"host_group_access_configured": f"user.role.{{{self.name}}}.privilege.host.groupaccess.configured",
+			"host_group_access": f"user.role.{{{self.name}}}.privilege.host.groupaccess.hostgroups",
+			"product_group_access_configured": f"user.role.{{{self.name}}}.privilege.product.groupaccess.configured",
+			"product_group_access": f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups",
+		}
+
 		self.create_configes()
 
 	def create_configes(self) -> None:
 		# pylint: disable=import-outside-toplevel
 
-		now = datetime.utcnow()
-		configes = [
-			Config(f"user.{{{self.name}}}.has_role", defaultValues=[self.role.name]),
-			Config(f"user.{{{self.name}}}.modified", defaultValues=[now.strftime("%Y-%m-%d %H:%M:%S")]),
-		]
+		# now = datetime.utcnow()
+		# configes = [
+		# 	Config(f"user.{{{self.name}}}.has_role", defaultValues=[self.role.name]),
+		# 	Config(f"user.{{{self.name}}}.modified", defaultValues=[now.strftime("%Y-%m-%d %H:%M:%S")]),
+		# ]
 
-		self.backend.config_createObjects(configes)
+		# self.backend.config_createObjects(configes)
+
+		for value_key, config in self.configes.items():
+			current_conf = self.backend.config_getObjects(configId=config)
+			if current_conf:
+				self.__setattr__(value_key, current_conf[0].defaultValues)
+			if value_key == self.role:
+				self.backend.config_createObjects([Config(config, defaultValues=[self.role.name])])
+			elif isinstance(self.__getattribute__(value_key), list):
+				self.backend.config_createObjects([Config(config, defaultValues=self.__getattribute__(value_key))])
+			else:
+				self.backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])
 
 
 def create_user(backend, name: str, groups: set) -> None:

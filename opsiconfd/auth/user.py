@@ -94,9 +94,9 @@ class User:
 	def create_configes(self) -> None:
 		for value_key, config in self.configes.items():
 			current_conf = self.backend.config_getObjects(configId=config)
-			if current_conf:
+			if current_conf and value_key != "role":
 				self.__setattr__(value_key, current_conf[0].defaultValues)
-			if value_key == self.role:
+			if value_key == "role":
 				self.backend.config_createObjects([Config(config, defaultValues=[self.role.name])])
 			elif isinstance(self.__getattribute__(value_key), list):
 				self.backend.config_createObjects([Config(config, defaultValues=self.__getattribute__(value_key))])

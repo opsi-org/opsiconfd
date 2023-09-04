@@ -84,9 +84,9 @@ class Role:
 		self.create_configes()
 
 	def create_configes(self) -> None:
-		user_roles = self.backend.config_getObjects(configId="opsi.roles")[0]
+		user_roles = self.backend.config_getObjects(configId="opsi.roles")
 
-		if user_roles and self.name not in user_roles.defaultValues:
+		if user_roles and self.name not in user_roles[0].defaultValues:
 			user_roles.defaultValues.append(self.name)
 			self.backend.config_createObjects([Config("user.roles", defaultValues=user_roles)])
 		for value_key, config in self.configes.items():

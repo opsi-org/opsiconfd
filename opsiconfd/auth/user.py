@@ -72,21 +72,21 @@ class User:
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
 
 		self.configes = {
-			"role": f"user.role.{{{self.name}}}.has_role",
-			"modified": f"user.role.{{{self.name}}}.modified",
-			"read_only": f"user.role.{{{self.name}}}.privilege.host.all.registered_readonly",
-			"create_client": f"user.role.{{{self.name}}}.privilege.host.createclient",
-			"opsi_server_write": f"user.role.{{{self.name}}}.privilege.host.opsiserver.write",
-			"ssh_command_management": f"user.role.{{{self.name}}}.ssh.commandmanagement.active",
-			"ssh_command": f"user.role.{{{self.name}}}.ssh.commands.active",
-			"ssh_menu_server_console": f"user.role.{{{self.name}}}.ssh.menu_serverconsole.active",
-			"ssh_server_configuration": f"user.role.{{{self.name}}}.ssh.serverconfiguration.active",
-			"depot_access_configured": f"user.role.{{{self.name}}}.privilege.host.depotaccess.configured",
-			"depot_access": f"user.role.{{{self.name}}}.privilege.host.depotaccess.depots",
-			"host_group_access_configured": f"user.role.{{{self.name}}}.privilege.host.groupaccess.configured",
-			"host_group_access": f"user.role.{{{self.name}}}.privilege.host.groupaccess.hostgroups",
-			"product_group_access_configured": f"user.role.{{{self.name}}}.privilege.product.groupaccess.configured",
-			"product_group_access": f"user.role.{{{self.name}}}.privilege.product.groupaccess.productgroups",
+			"role": f"user.{{{self.name}}}.has_role",
+			"modified": f"user.{{{self.name}}}.modified",
+			"read_only": f"user.{{{self.name}}}.privilege.host.all.registered_readonly",
+			"create_client": f"user.{{{self.name}}}.privilege.host.createclient",
+			"opsi_server_write": f"user.{{{self.name}}}.privilege.host.opsiserver.write",
+			"ssh_command_management": f"user.{{{self.name}}}.ssh.commandmanagement.active",
+			"ssh_command": f"user.{{{self.name}}}.ssh.commands.active",
+			"ssh_menu_server_console": f"user.{{{self.name}}}.ssh.menu_serverconsole.active",
+			"ssh_server_configuration": f"user.{{{self.name}}}.ssh.serverconfiguration.active",
+			"depot_access_configured": f"user.{{{self.name}}}.privilege.host.depotaccess.configured",
+			"depot_access": f"user.{{{self.name}}}.privilege.host.depotaccess.depots",
+			"host_group_access_configured": f"user.{{{self.name}}}.privilege.host.groupaccess.configured",
+			"host_group_access": f"user.{{{self.name}}}.privilege.host.groupaccess.hostgroups",
+			"product_group_access_configured": f"user.{{{self.name}}}.privilege.product.groupaccess.configured",
+			"product_group_access": f"user.{{{self.name}}}.privilege.product.groupaccess.productgroups",
 		}
 
 		self.create_configes()
@@ -111,8 +111,8 @@ def create_user(backend, name: str, groups: set) -> None:
 
 	user_group = "default"
 	for group in groups:
-		user_roles = backend.config_getObjects(configId="opsi.roles")[0].defaultValues
-		if group in user_roles:
+		user_roles = backend.config_getObjects(configId="opsi.roles")
+		if user_roles and group in user_roles[0].defaultValues:
 			user_group = group
 			break
 	role = Role(backend, user_group)

@@ -139,11 +139,6 @@ async def send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
 	redis = await async_redis_client()
-	#  max_length = MAX_STREAM_LENGTH
-	# if "terminal" in message.channel:
-	# 	max_length = TERMINAL_MAX_STREAM_LENGTH
-	# elif message.channel.startswith("event"):
-	# 	max_length = EVENT_MAX_STREAM_LENGTH
 	await redis.xadd(
 		f"{config.redis_key('messagebus')}:channels:{message.channel}", maxlen=MAX_STREAM_LENGTH, approximate=True, fields=fields
 	)  # type: ignore[arg-type]

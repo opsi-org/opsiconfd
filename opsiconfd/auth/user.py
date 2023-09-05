@@ -17,7 +17,6 @@ from opsiconfd.logging import logger
 
 
 class User:
-	backend = None
 	name: str
 	role: Role
 	read_only: bool = False
@@ -36,7 +35,6 @@ class User:
 
 	def __init__(
 		self,
-		backend,
 		name: str,
 		role: Role | None = None,
 		read_only: bool = False,
@@ -50,7 +48,6 @@ class User:
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
 	):
-		self.backend = backend
 		self.name = name
 		self.read_only = read_only
 		self.create_client = create_client
@@ -92,19 +89,31 @@ class User:
 		self.create_configes()
 
 	def create_configes(self) -> None:
+		from opsiconfd.backend import (
+			get_unprotected_backend,  # pylint: disable=import-outside-toplevel
+		)
+
+		backend = get_unprotected_backend()
+
 		for value_key, config in self.configes.items():
-			current_conf = self.backend.config_getObjects(configId=config)
+			current_conf = backend.config_getObjects(configId=config)
 			if current_conf and value_key != "role":
 				self.__setattr__(value_key, current_conf[0].defaultValues)
 			if value_key == "role":
-				self.backend.config_createObjects([Config(config, defaultValues=[self.role.name])])
+				backend.config_createObjects([Config(config, defaultValues=[self.role.name])])
 			elif isinstance(self.__getattribute__(value_key), list):
-				self.backend.config_createObjects([Config(config, defaultValues=self.__getattribute__(value_key))])
+				backend.config_createObjects([Config(config, defaultValues=self.__getattribute__(value_key))])
 			else:
-				self.backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])
+				backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])
 
 
-def create_user(backend, name: str, groups: set) -> None:
+def create_user(name: str, groups: set) -> None:
+	from opsiconfd.backend import (
+		get_unprotected_backend,  # pylint: disable=import-outside-toplevel
+	)
+
+	backend = get_unprotected_backend()
+
 	logger.devel(backend.config_getObjects(configId="user.{}.register")[0])
 	if not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
 		return
@@ -116,4 +125,4 @@ def create_user(backend, name: str, groups: set) -> None:
 			user_group = group
 			break
 	role = Role(backend, user_group)
-	User(backend=backend, name=name, role=role)
+	User(name=name, role=role)

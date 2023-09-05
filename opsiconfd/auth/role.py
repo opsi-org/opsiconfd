@@ -12,6 +12,7 @@ from datetime import datetime
 from opsicommon.objects import Config
 
 from opsiconfd.logging import logger
+from opsicommon.types import forceBool
 
 
 class Role:
@@ -100,9 +101,9 @@ class Role:
 			},
 		}
 
-		self.create_configes()
+		self.create_configs()
 
-	def create_configes(self) -> None:
+	def create_configs(self) -> None:
 		from opsiconfd.backend import (
 			get_unprotected_backend,  # pylint: disable=import-outside-toplevel
 		)
@@ -115,9 +116,14 @@ class Role:
 			user_roles[0].defaultValues.append(self.name)
 			backend.config_createUnicode(id="opsi.roles", defaultValues=user_roles[0].defaultValues, multiValue=True)
 		for value_key, config in self.configes.items():
-			current_conf = backend.config_getObjects(configId=config)
+			current_conf = backend.config_getObjects(configId=config["configId"])
 			if current_conf:
-				self.__setattr__(value_key, current_conf[0].defaultValues)
+				if config["type"] == "BoolConfig":
+					self.__setattr__(value_key, forceBool(current_conf[0].defaultValues[0]))
+				elif config["multiValue"]:
+					self.__setattr__(value_key, current_conf[0].defaultValues)
+				else:
+					self.__setattr__(value_key, current_conf[0].defaultValues[0])
 			if config["type"] == "UnicodeConfig" and config["multiValue"]:
 				backend.config_createUnicode(
 					id=config["configId"], defaultValues=self.__getattribute__(value_key), multiValue=config["multiValue"]

@@ -49,21 +49,32 @@ class User:
 		ssh_server_configuration: bool = True,
 	):
 		self.name = name
-		self.read_only = read_only
-		self.create_client = create_client
-		self.opsi_server_write = opsi_server_write
-		self.depot_access = depot_access
-		self.host_group_access = host_group_access
-		self.product_group_access = product_group_access
-		self.ssh_command_management = ssh_command_management
-		self.ssh_command = ssh_command
-		self.ssh_menu_server_console = ssh_menu_server_console
-		self.ssh_server_configuration = ssh_server_configuration
 
 		if role:
 			self.role = role
+
+		if self.role:
+			self.read_only = self.role.read_only
+			self.create_client = self.role.create_client
+			self.opsi_server_write = self.role.opsi_server_write
+			self.depot_access = self.role.depot_access
+			self.host_group_access = self.role.host_group_access
+			self.product_group_access = self.role.product_group_access
+			self.ssh_command_management = self.role.ssh_command_management
+			self.ssh_command = self.role.ssh_command
+			self.ssh_menu_server_console = self.role.ssh_menu_server_console
+			self.ssh_server_configuration = self.role.ssh_server_configuration
 		else:
-			self.role = Role()
+			self.read_only = read_only
+			self.create_client = create_client
+			self.opsi_server_write = opsi_server_write
+			self.depot_access = depot_access
+			self.host_group_access = host_group_access
+			self.product_group_access = product_group_access
+			self.ssh_command_management = ssh_command_management
+			self.ssh_command = ssh_command
+			self.ssh_menu_server_console = ssh_menu_server_console
+			self.ssh_server_configuration = ssh_server_configuration
 
 		now = datetime.utcnow()
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -116,8 +127,24 @@ class User:
 
 		backend = get_unprotected_backend()
 
+		user_role = backend.config_getObjects(configId=self.configes["role"]["configId"])
+		if user_role or self.role:
+			for value_key, config in self.configes.items():
+				if config["type"] == "UnicodeConfig" and config["multiValue"]:
+					backend.config_createUnicode(
+						id=config["configId"], defaultValues=self.__getattribute__(value_key), multiValue=config["multiValue"]
+					)
+				elif value_key == "role":
+					backend.config_createUnicode(id=config["configId"], defaultValues=[self.role.name])
+				elif config["type"] == "UnicodeConfig":
+					backend.config_createUnicode(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
+				else:
+					backend.config_createBool(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
+			return
+
 		for value_key, config in self.configes.items():
 			current_conf = backend.config_getObjects(configId=config)
+
 			if current_conf:
 				self.__setattr__(value_key, current_conf[0].defaultValues)
 			if config["type"] == "UnicodeConfig" and config["multiValue"]:
@@ -143,11 +170,11 @@ def create_user(name: str, groups: set) -> None:
 	if not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
 		return
 
-	user_group = "default"
+	role = None
 	for group in groups:
 		user_roles = backend.config_getObjects(configId="opsi.roles")
 		if user_roles and group in user_roles[0].defaultValues:
-			user_group = group
+			role = Role(group)
 			break
-	role = Role(user_group)
+
 	User(name=name, role=role)

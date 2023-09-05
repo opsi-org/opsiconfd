@@ -1050,8 +1050,7 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	session.is_read_only = authm.user_is_read_only(session.username)
 
 	if session.is_admin:
-		backend = get_unprotected_backend()
-		asyncio.get_running_loop().run_in_executor(None, create_user, backend, session.username, session.user_groups)
+		asyncio.get_running_loop().run_in_executor(None, create_user, session.username, session.user_groups)
 
 	logger.info(
 		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",

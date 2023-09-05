@@ -63,27 +63,48 @@ class User:
 		if role:
 			self.role = role
 		else:
-			self.role = Role(self.backend)
+			self.role = Role()
 
 		now = datetime.utcnow()
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
 
 		self.configes = {
-			"role": f"user.{{{self.name}}}.has_role",
-			"modified": f"user.{{{self.name}}}.modified",
-			"read_only": f"user.{{{self.name}}}.privilege.host.all.registered_readonly",
-			"create_client": f"user.{{{self.name}}}.privilege.host.createclient",
-			"opsi_server_write": f"user.{{{self.name}}}.privilege.host.opsiserver.write",
-			"ssh_command_management": f"user.{{{self.name}}}.ssh.commandmanagement.active",
-			"ssh_command": f"user.{{{self.name}}}.ssh.commands.active",
-			"ssh_menu_server_console": f"user.{{{self.name}}}.ssh.menu_serverconsole.active",
-			"ssh_server_configuration": f"user.{{{self.name}}}.ssh.serverconfiguration.active",
-			"depot_access_configured": f"user.{{{self.name}}}.privilege.host.depotaccess.configured",
-			"depot_access": f"user.{{{self.name}}}.privilege.host.depotaccess.depots",
-			"host_group_access_configured": f"user.{{{self.name}}}.privilege.host.groupaccess.configured",
-			"host_group_access": f"user.{{{self.name}}}.privilege.host.groupaccess.hostgroups",
-			"product_group_access_configured": f"user.{{{self.name}}}.privilege.product.groupaccess.configured",
-			"product_group_access": f"user.{{{self.name}}}.privilege.product.groupaccess.productgroups",
+			"role": {"configId": f"user.{{{self.name}}}.has_role", "type": "UnicodeConfig", "multiValue": False},
+			"modified": {"configId": f"user.{{{self.name}}}.modified", "type": "UnicodeConfig", "multiValue": False},
+			"read_only": {"configId": f"user.{{{self.name}}}.privilege.host.all.registered_readonly", "type": "BoolConfig"},
+			"create_client": {"configId": f"user.{{{self.name}}}.privilege.host.createclient", "type": "BoolConfig"},
+			"opsi_server_write": {"configId": f"user.{{{self.name}}}.privilege.host.opsiserver.write", "type": "BoolConfig"},
+			"ssh_command_management": {"configId": f"user.{{{self.name}}}.ssh.commandmanagement.active", "type": "BoolConfig"},
+			"ssh_command": {"configId": f"user.{{{self.name}}}.ssh.commands.active", "type": "BoolConfig"},
+			"ssh_menu_server_console": {"configId": f"user.{{{self.name}}}.ssh.menu_serverconsole.active", "type": "BoolConfig"},
+			"ssh_server_configuration": {"configId": f"user.{{{self.name}}}.ssh.serverconfiguration.active", "type": "BoolConfig"},
+			"depot_access_configured": {
+				"configId": f"user.{{{self.name}}}.privilege.host.depotaccess.configured",
+				"type": "BoolConfig",
+			},
+			"depot_access": {
+				"configId": f"user.{{{self.name}}}.privilege.host.depotaccess.depots",
+				"type": "UnicodeConfig",
+				"multiValue": True,
+			},
+			"host_group_access_configured": {
+				"configId": f"user.{{{self.name}}}.privilege.host.groupaccess.configured",
+				"type": "BoolConfig",
+			},
+			"host_group_access": {
+				"configId": f"user.{{{self.name}}}.privilege.host.groupaccess.hostgroups",
+				"type": "UnicodeConfig",
+				"multiValue": True,
+			},
+			"product_group_access_configured": {
+				"configId": f"user.{{{self.name}}}.privilege.product.groupaccess.configured",
+				"type": "BoolConfig",
+			},
+			"product_group_access": {
+				"configId": f"user.{{{self.name}}}.privilege.product.groupaccess.productgroups",
+				"type": "UnicodeConfig",
+				"multiValue": True,
+			},
 		}
 
 		self.create_configes()
@@ -97,14 +118,18 @@ class User:
 
 		for value_key, config in self.configes.items():
 			current_conf = backend.config_getObjects(configId=config)
-			if current_conf and value_key != "role":
+			if current_conf:
 				self.__setattr__(value_key, current_conf[0].defaultValues)
-			if value_key == "role":
-				backend.config_createObjects([Config(config, defaultValues=[self.role.name])])
-			elif isinstance(self.__getattribute__(value_key), list):
-				backend.config_createObjects([Config(config, defaultValues=self.__getattribute__(value_key))])
+			if config["type"] == "UnicodeConfig" and config["multiValue"]:
+				backend.config_createUnicode(
+					id=config["configId"], defaultValues=self.__getattribute__(value_key), multiValue=config["multiValue"]
+				)
+			elif value_key == "role":
+				backend.config_createUnicode(id=config["configId"], defaultValues=[self.role.name])
+			elif config["type"] == "UnicodeConfig":
+				backend.config_createUnicode(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
 			else:
-				backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])
+				backend.config_createBool(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
 
 
 def create_user(name: str, groups: set) -> None:
@@ -124,5 +149,5 @@ def create_user(name: str, groups: set) -> None:
 		if user_roles and group in user_roles[0].defaultValues:
 			user_group = group
 			break
-	role = Role(backend, user_group)
+	role = Role(user_group)
 	User(name=name, role=role)

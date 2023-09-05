@@ -35,7 +35,6 @@ class Role:
 
 	def __init__(
 		self,
-		backend,
 		name: str = "default",
 		read_only: bool = False,
 		create_client: bool = True,
@@ -48,7 +47,6 @@ class Role:
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
 	):
-		self.backend = backend
 		self.name = name
 		self.read_only = read_only
 		self.create_client = create_client
@@ -105,16 +103,26 @@ class Role:
 		self.create_configes()
 
 	def create_configes(self) -> None:
-		user_roles = self.backend.config_getObjects(configId="opsi.roles")
+		from opsiconfd.backend import (
+			get_unprotected_backend,  # pylint: disable=import-outside-toplevel
+		)
+
+		backend = get_unprotected_backend()
+
+		user_roles = backend.config_getObjects(configId="opsi.roles")
 
 		if user_roles and self.name not in user_roles[0].defaultValues:
 			user_roles[0].defaultValues.append(self.name)
-			self.backend.config_createObjects([Config("user.roles", defaultValues=user_roles[0].defaultValues)])
+			backend.config_createUnicode(id="opsi.roles", defaultValues=user_roles[0].defaultValues, multiValue=True)
 		for value_key, config in self.configes.items():
-			current_conf = self.backend.config_getObjects(configId=config)
+			current_conf = backend.config_getObjects(configId=config)
 			if current_conf:
 				self.__setattr__(value_key, current_conf[0].defaultValues)
-			if isinstance(self.__getattribute__(value_key), list):
-				self.backend.config_create([Config(config, type="UnicodeConfig", defaultValues=self.__getattribute__(value_key))])
+			if config["type"] == "UnicodeConfig" and config["multiValue"]:
+				backend.config_createUnicode(
+					id=config["configId"], defaultValues=self.__getattribute__(value_key), multiValue=config["multiValue"]
+				)
+			elif config["type"] == "UnicodeConfig":
+				backend.config_createUnicode(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
 			else:
-				self.backend.config_createObjects([Config(config, defaultValues=[self.__getattribute__(value_key)])])
+				backend.config_createBool(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])

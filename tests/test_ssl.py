@@ -10,7 +10,6 @@ ssl tests
 import datetime
 import os
 import re
-import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -27,6 +26,7 @@ from OpenSSL.crypto import (
 )
 
 import opsiconfd.ssl
+from opsiconfd.application.main import get_ssl_ca_cert
 from opsiconfd.config import config
 from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
@@ -50,7 +50,10 @@ from opsiconfd.ssl import (
 	store_local_server_cert,
 	store_local_server_key,
 	subject_to_dict,
+	load_certs,
 	validate_cert,
+	store_cert,
+	as_pem,
 )
 
 from .utils import get_config
@@ -78,6 +81,55 @@ def test_ssl_server_cert_and_key_in_different_files() -> None:
 	config.ssl_server_cert = config.ssl_server_key = "opsiconfd.pem"
 	with pytest.raises(ValueError, match=r".*cannot be stored in the same file.*"):
 		setup_server_cert()
+
+
+def test_store_load_cert(tmpdir: Path) -> None:
+	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
+	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	config.ssl_ca_cert = str(ssl_ca_cert)
+	config.ssl_ca_key = str(ssl_ca_key)
+	config.ssl_ca_key_passphrase = "secret"
+	with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
+		with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmpdir), "echo")):
+			# Test one cert in file
+			setup_ca()
+
+			certs = load_certs(ssl_ca_cert)
+			assert len(certs) == 1
+			assert certs[0].get_subject().CN == "opsi CA"
+			assert load_ca_cert().get_subject().CN == "opsi CA"
+			assert load_cert(ssl_ca_cert, subject_cn="opsi CA").get_subject().CN == "opsi CA"
+
+			# Add another cert to file
+			(ca_crt, _ca_key) = create_ca(subject={"CN": "other CA"}, valid_days=100)
+			store_cert(cert_file=ssl_ca_cert, cert=ca_crt, keep_others=True)
+			certs = load_certs(ssl_ca_cert)
+			assert len(certs) == 2
+			assert certs[0].get_subject().CN == "opsi CA"
+			assert certs[1].get_subject().CN == "other CA"
+			assert load_ca_cert().get_subject().CN == "opsi CA"
+			assert load_cert(ssl_ca_cert, subject_cn="other CA").get_subject().CN == "other CA"
+
+			# Replace certs in file
+			store_cert(cert_file=ssl_ca_cert, cert=ca_crt, keep_others=False)
+			certs = load_certs(ssl_ca_cert)
+			assert len(certs) == 1
+			assert certs[0].get_subject().CN == "other CA"
+			with pytest.raises(RuntimeError, match="Failed to load 'opsi CA' from.*"):
+				load_ca_cert()
+			assert load_cert(ssl_ca_cert, subject_cn="other CA").get_subject().CN == "other CA"
+
+			# Test keep other CA
+			setup_ca()
+			certs = load_certs(ssl_ca_cert)
+			assert len(certs) == 2
+			assert certs[0].get_subject().CN == "other CA"
+			assert certs[1].get_subject().CN == "opsi CA"
+			cert = load_ca_cert()
+			assert cert.get_subject().CN == "opsi CA"
+
+			response = get_ssl_ca_cert(None)  # type: ignore
+			assert response.body.decode("ascii") == "".join(as_pem(c) for c in certs)
 
 
 def test_create_ca(tmpdir: Path) -> None:
@@ -392,47 +444,6 @@ def test_recreate_server_key(tmpdir: Path) -> None:
 			# New key
 			(srv_crt, srv_key) = create_local_server_cert(renew=False)
 			assert dump_privatekey(FILETYPE_PEM, srv_key) != dump_privatekey(FILETYPE_PEM, key1)
-
-
-def test_key_cache(tmpdir: Path) -> None:
-	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
-	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
-	config.ssl_ca_cert = str(ssl_ca_cert)
-	config.ssl_ca_key = str(ssl_ca_key)
-	config.ssl_ca_key_passphrase = "secret"
-
-	ssl_server_cert = tmpdir / "opsi-server-cert.pem"
-	ssl_server_key = tmpdir / "opsi-server-key.pem"
-	config.ssl_server_cert = str(ssl_server_cert)
-	config.ssl_server_key = str(ssl_server_key)
-	config.ssl_server_key_passphrase = "secret"
-
-	with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-		with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmpdir), "echo")):
-			setup_ca()
-
-			(_srv_crt, srv_key) = create_local_server_cert(renew=False)
-			store_local_server_key(srv_key)
-
-			shutil.move(config.ssl_server_key, config.ssl_server_key + ".renamed")
-
-			key1 = load_local_server_key()
-			assert dump_privatekey(FILETYPE_PEM, srv_key) == dump_privatekey(FILETYPE_PEM, key1)
-
-			with pytest.raises(FileNotFoundError):
-				key2 = load_local_server_key(use_cache=False)
-				assert dump_privatekey(FILETYPE_PEM, srv_key) == dump_privatekey(FILETYPE_PEM, key2)
-
-			(_srv_crt, srv_key) = create_local_server_cert(renew=False)
-			store_local_server_key(srv_key)
-
-			key1 = load_local_server_key(use_cache=False)
-			assert dump_privatekey(FILETYPE_PEM, srv_key) == dump_privatekey(FILETYPE_PEM, key1)
-
-			shutil.move(config.ssl_server_key, config.ssl_server_key + ".renamed2")
-
-			key2 = load_local_server_key(use_cache=True)
-			assert dump_privatekey(FILETYPE_PEM, srv_key) == dump_privatekey(FILETYPE_PEM, key2)
 
 
 def test_change_hostname(tmpdir: Path) -> None:

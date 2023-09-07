@@ -8,9 +8,10 @@
 opsiconfd.ssl
 """
 
-import codecs
 import datetime
 import os
+from pathlib import Path
+import re
 import socket
 import time
 from ipaddress import ip_address
@@ -97,56 +98,70 @@ def setup_ssl_file_permissions() -> None:
 		set_rights(permission.path)
 
 
-KEY_CACHE = {}
+def store_key(key_file: str | Path, passphrase: str, key: PKey) -> None:
+	if not isinstance(key_file, Path):
+		key_file = Path(key_file)
 
-
-def store_key(key_file: str, passphrase: str, key: PKey) -> None:
-	if os.path.exists(key_file):
-		os.unlink(key_file)
-	if not os.path.exists(os.path.dirname(key_file)):
-		os.makedirs(os.path.dirname(key_file))
-	KEY_CACHE[key_file] = as_pem(key, passphrase)
-	with codecs.open(key_file, "w", "utf-8") as file:
-		file.write(KEY_CACHE[key_file])
+	key_file.unlink(missing_ok=True)
+	key_file.parent.mkdir(parents=True, exist_ok=True)
+	key_file.write_text(as_pem(key, passphrase), encoding="utf-8")
 	setup_ssl_file_permissions()
 
 
-def load_key(key_file: str, passphrase: str, use_cache: bool = True) -> PKey:
+def load_key(key_file: str | Path, passphrase: str) -> PKey:
+	if not isinstance(key_file, Path):
+		key_file = Path(key_file)
 	try:
-		if key_file not in KEY_CACHE or not use_cache:
-			with codecs.open(key_file, "r", "utf-8") as file:
-				KEY_CACHE[key_file] = file.read()
-
-		return load_privatekey(FILETYPE_PEM, KEY_CACHE[key_file], passphrase=passphrase.encode("utf-8"))
+		return load_privatekey(FILETYPE_PEM, key_file.read_text(encoding="utf-8"), passphrase=passphrase.encode("utf-8"))
 	except CryptoError as err:
 		raise RuntimeError(f"Failed to load private key from '{key_file}': {err}") from err
 
 
-def store_cert(cert_file: str, cert: X509) -> None:
-	if os.path.exists(cert_file):
-		os.unlink(cert_file)
-	if not os.path.exists(os.path.dirname(cert_file)):
-		os.makedirs(os.path.dirname(cert_file))
-	with codecs.open(cert_file, "w", "utf-8") as file:
-		file.write(as_pem(cert))
+def store_cert(cert_file: str | Path, cert: X509, keep_others: bool = False) -> None:
+	if not isinstance(cert_file, Path):
+		cert_file = Path(cert_file)
+
+	cert_file.parent.mkdir(parents=True, exist_ok=True)
+	certs = []
+	if cert_file.exists() and keep_others:
+		certs = [c for c in load_certs(cert_file) if c.get_subject().CN != cert.get_subject().CN]
+	certs.append(cert)
+	cert_file.write_text("".join(as_pem(c) for c in certs), encoding="utf-8")
 	setup_ssl_file_permissions()
 
 
-def load_cert(cert_file: str) -> X509:
-	with codecs.open(cert_file, "r", "utf-8") as file:
+def load_certs(cert_file: Path | str) -> list[X509]:
+	if not isinstance(cert_file, Path):
+		cert_file = Path(cert_file)
+
+	certs = []
+	data = cert_file.read_text(encoding="utf-8")
+	for match in re.finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", data, re.DOTALL):
 		try:
-			return load_certificate(FILETYPE_PEM, file.read().encode("ascii"))
+			certs.append(load_certificate(FILETYPE_PEM, match.group(1).encode("utf-8")))
 		except CryptoError as err:
-			raise RuntimeError(f"Failed to load cert from '{cert_file}': {err}") from err
+			logger.warning(err, exc_info=True)
+	return certs
+
+
+def load_cert(cert_file: Path | str, subject_cn: str | None = None) -> X509:
+	if not isinstance(cert_file, Path):
+		cert_file = Path(cert_file)
+
+	for cert in load_certs(cert_file):
+		if not subject_cn or cert.get_subject().CN == subject_cn:
+			return cert
+
+	raise RuntimeError(f"Failed to load {repr(subject_cn) if subject_cn else 'cert'} from '{cert_file}': Not found")
 
 
 def store_ca_key(ca_key: PKey) -> None:
 	store_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, ca_key)
 
 
-def load_ca_key(use_cache: bool = True) -> PKey:
+def load_ca_key() -> PKey:
 	try:
-		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, use_cache)
+		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase)
 	except RuntimeError:
 		if config.ssl_ca_key_passphrase == CA_KEY_DEFAULT_PASSPHRASE:
 			raise
@@ -158,11 +173,11 @@ def load_ca_key(use_cache: bool = True) -> PKey:
 
 
 def store_ca_cert(ca_cert: X509) -> None:
-	store_cert(config.ssl_ca_cert, ca_cert)
+	store_cert(config.ssl_ca_cert, ca_cert, keep_others=True)
 
 
 def load_ca_cert() -> X509:
-	return load_cert(config.ssl_ca_cert)
+	return load_cert(config.ssl_ca_cert, subject_cn=config.ssl_ca_subject_cn)
 
 
 def get_ca_cert_as_pem() -> str:
@@ -173,9 +188,9 @@ def store_local_server_key(srv_key: PKey) -> None:
 	store_key(config.ssl_server_key, config.ssl_server_key_passphrase, srv_key)
 
 
-def load_local_server_key(use_cache: bool = True) -> PKey:
+def load_local_server_key() -> PKey:
 	try:
-		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase, use_cache)
+		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase)
 	except RuntimeError:
 		if config.ssl_ca_key_passphrase == SERVER_KEY_DEFAULT_PASSPHRASE:
 			raise
@@ -253,15 +268,18 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 
 	create = False
 	renew = False
-
-	if not os.path.exists(config.ssl_ca_key):
-		create = True
-	elif not os.path.exists(config.ssl_ca_cert):
-		renew = True
-	else:
+	try:
 		ca_key = load_ca_key()
-		ca_crt = load_ca_cert()
+		try:
+			ca_crt = load_ca_cert()
+		except Exception:  # pylint: disable=broad-except
+			ca_crt = None
+			renew = True
+	except Exception:  # pylint: disable=broad-except
+		ca_key = None
+		create = True
 
+	if ca_key and ca_crt:
 		if dump_publickey(FILETYPE_PEM, ca_key) != dump_publickey(FILETYPE_PEM, ca_crt.get_pubkey()):
 			logger.warning("CA cert does not match CA key, creating new CA cert")
 			renew = True

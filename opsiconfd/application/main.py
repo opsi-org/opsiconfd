@@ -54,7 +54,7 @@ from opsiconfd.metrics.statistics import StatisticsMiddleware
 from opsiconfd.redis import async_redis_client
 from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware
-from opsiconfd.ssl import get_ca_cert_as_pem
+from opsiconfd.ssl import load_certs, as_pem
 
 
 @app.get("/")
@@ -88,8 +88,9 @@ async def favicon(request: Request, response: Response) -> RedirectResponse:  # 
 
 @app.get("/ssl/opsi-ca-cert.pem")
 def get_ssl_ca_cert(request: Request) -> Response:  # pylint: disable=unused-argument
+	pem = "".join(as_pem(c) for c in load_certs(config.ssl_ca_cert))
 	return Response(
-		content=get_ca_cert_as_pem(),
+		content=pem,
 		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
 	)
 

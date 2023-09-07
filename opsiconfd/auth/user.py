@@ -8,32 +8,17 @@
 opsiconfd.auth.user
 """
 
-from datetime import datetime
-from opsicommon.objects import Config
+from opsicommon.objects import UnicodeConfig
 from opsiconfd.auth.role import Role
-
-
 from opsiconfd.logging import logger
+from opsiconfd.auth.rights import Rights
 
 
-class User:
+class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-public-methods
+	role: Role | None = None
 	name: str
-	role: Role
-	read_only: bool = False
-	create_client: bool = True
-	opsi_server_write: bool = True
-	depot_access_configured: bool = False
-	depot_access: list[str] | None = None
-	host_group_access_configured: bool = False
-	host_group_access: list[str] | None = None
-	product_group_access_configured: bool = False
-	product_group_access: list[str] | None = None
-	ssh_command_management: bool = False
-	ssh_command: bool = True
-	ssh_menu_server_console: bool = True
-	ssh_server_configuration: bool = True
 
-	def __init__(
+	def __init__(  # pylint: disable=too-many-arguments
 		self,
 		name: str,
 		role: Role | None = None,
@@ -49,11 +34,25 @@ class User:
 		ssh_server_configuration: bool = True,
 	):
 		self.name = name
+		self.config_prefix = f"user.{{{self.name}}}"
 
+		super().__init__(
+			name,
+			read_only,
+			create_client,
+			opsi_server_write,
+			depot_access,
+			host_group_access,
+			product_group_access,
+			ssh_command_management,
+			ssh_command,
+			ssh_menu_server_console,
+			ssh_server_configuration,
+		)
+
+		# if a role is set, all values are set by the role
 		if role:
 			self.role = role
-
-		if self.role:
 			self.read_only = self.role.read_only
 			self.create_client = self.role.create_client
 			self.opsi_server_write = self.role.opsi_server_write
@@ -64,105 +63,21 @@ class User:
 			self.ssh_command = self.role.ssh_command
 			self.ssh_menu_server_console = self.role.ssh_menu_server_console
 			self.ssh_server_configuration = self.role.ssh_server_configuration
+
+			self.configs["role"] = UnicodeConfig(
+				id=f"{self.config_prefix}.has_role", multiValue=False, defaultValues=self.role.name  # pylint: disable=no-member
+			)
 		else:
-			self.read_only = read_only
-			self.create_client = create_client
-			self.opsi_server_write = opsi_server_write
-			self.depot_access = depot_access
-			self.host_group_access = host_group_access
-			self.product_group_access = product_group_access
-			self.ssh_command_management = ssh_command_management
-			self.ssh_command = ssh_command
-			self.ssh_menu_server_console = ssh_menu_server_console
-			self.ssh_server_configuration = ssh_server_configuration
+			self.configs["role"] = UnicodeConfig(
+				id=f"{self.config_prefix}.has_role", multiValue=False, defaultValues=[]  # pylint: disable=no-member
+			)
+			self.read_configs()
 
-		now = datetime.utcnow()
-		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
-
-		self.configes = {
-			"role": {"configId": f"user.{{{self.name}}}.has_role", "type": "UnicodeConfig", "multiValue": False},
-			"modified": {"configId": f"user.{{{self.name}}}.modified", "type": "UnicodeConfig", "multiValue": False},
-			"read_only": {"configId": f"user.{{{self.name}}}.privilege.host.all.registered_readonly", "type": "BoolConfig"},
-			"create_client": {"configId": f"user.{{{self.name}}}.privilege.host.createclient", "type": "BoolConfig"},
-			"opsi_server_write": {"configId": f"user.{{{self.name}}}.privilege.host.opsiserver.write", "type": "BoolConfig"},
-			"ssh_command_management": {"configId": f"user.{{{self.name}}}.ssh.commandmanagement.active", "type": "BoolConfig"},
-			"ssh_command": {"configId": f"user.{{{self.name}}}.ssh.commands.active", "type": "BoolConfig"},
-			"ssh_menu_server_console": {"configId": f"user.{{{self.name}}}.ssh.menu_serverconsole.active", "type": "BoolConfig"},
-			"ssh_server_configuration": {"configId": f"user.{{{self.name}}}.ssh.serverconfiguration.active", "type": "BoolConfig"},
-			"depot_access_configured": {
-				"configId": f"user.{{{self.name}}}.privilege.host.depotaccess.configured",
-				"type": "BoolConfig",
-			},
-			"depot_access": {
-				"configId": f"user.{{{self.name}}}.privilege.host.depotaccess.depots",
-				"type": "UnicodeConfig",
-				"multiValue": True,
-			},
-			"host_group_access_configured": {
-				"configId": f"user.{{{self.name}}}.privilege.host.groupaccess.configured",
-				"type": "BoolConfig",
-			},
-			"host_group_access": {
-				"configId": f"user.{{{self.name}}}.privilege.host.groupaccess.hostgroups",
-				"type": "UnicodeConfig",
-				"multiValue": True,
-			},
-			"product_group_access_configured": {
-				"configId": f"user.{{{self.name}}}.privilege.product.groupaccess.configured",
-				"type": "BoolConfig",
-			},
-			"product_group_access": {
-				"configId": f"user.{{{self.name}}}.privilege.product.groupaccess.productgroups",
-				"type": "UnicodeConfig",
-				"multiValue": True,
-			},
-		}
-
-		self.create_configes()
-
-	def create_configes(self) -> None:
-		from opsiconfd.backend import (
-			get_unprotected_backend,  # pylint: disable=import-outside-toplevel
-		)
-
-		backend = get_unprotected_backend()
-
-		user_role = backend.config_getObjects(configId=self.configes["role"]["configId"])
-		if user_role or self.role:
-			for value_key, config in self.configes.items():
-				if config["type"] == "UnicodeConfig" and config["multiValue"]:
-					backend.config_createUnicode(
-						id=config["configId"], defaultValues=self.__getattribute__(value_key), multiValue=config["multiValue"]
-					)
-				elif value_key == "role":
-					backend.config_createUnicode(id=config["configId"], defaultValues=[self.role.name])
-				elif config["type"] == "UnicodeConfig":
-					backend.config_createUnicode(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
-				else:
-					backend.config_createBool(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
-			return
-
-		for value_key, config in self.configes.items():
-			current_conf = backend.config_getObjects(configId=config)
-
-			if current_conf:
-				self.__setattr__(value_key, current_conf[0].defaultValues)
-			if config["type"] == "UnicodeConfig" and config["multiValue"]:
-				backend.config_createUnicode(
-					id=config["configId"], defaultValues=self.__getattribute__(value_key), multiValue=config["multiValue"]
-				)
-			elif value_key == "role":
-				backend.config_createUnicode(id=config["configId"], defaultValues=[self.role.name])
-			elif config["type"] == "UnicodeConfig":
-				backend.config_createUnicode(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
-			else:
-				backend.config_createBool(id=config["configId"], defaultValues=[self.__getattribute__(value_key)])
+		self.create_configs()
 
 
 def create_user(name: str, groups: set) -> None:
-	from opsiconfd.backend import (
-		get_unprotected_backend,  # pylint: disable=import-outside-toplevel
-	)
+	from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
 
 	backend = get_unprotected_backend()
 
@@ -171,10 +86,12 @@ def create_user(name: str, groups: set) -> None:
 		return
 
 	role = None
-	for group in groups:
-		user_roles = backend.config_getObjects(configId="opsi.roles")
-		if user_roles and group in user_roles[0].defaultValues:
-			role = Role(group)
-			break
+	groups_to_import = backend.config_getObjects(configId="opsi.roles")
+	if groups_to_import:
+		for group in groups:
+			if group in groups_to_import[0].defaultValues:
+				# use first match as role and skip other groups
+				role = Role(group)
+				break
 
 	User(name=name, role=role)

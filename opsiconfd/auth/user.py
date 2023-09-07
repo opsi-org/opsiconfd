@@ -8,14 +8,14 @@
 opsiconfd.auth.user
 """
 
-from opsicommon.objects import UnicodeConfig
+from opsicommon.objects import UnicodeConfig, BoolConfig
+from opsicommon.types import forceBool
 from opsiconfd.auth.role import Role
 from opsiconfd.logging import logger
 from opsiconfd.auth.rights import Rights
 
 
 class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-public-methods
-	role: Role | None = None
 	name: str
 
 	def __init__(  # pylint: disable=too-many-arguments
@@ -65,9 +65,10 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 			self.ssh_server_configuration = self.role.ssh_server_configuration
 
 			self.configs["role"] = UnicodeConfig(
-				id=f"{self.config_prefix}.has_role", multiValue=False, defaultValues=self.role.name  # pylint: disable=no-member
+				id=f"{self.config_prefix}.has_role", multiValue=False, defaultValues=[self.role.name]  # pylint: disable=no-member
 			)
 		else:
+			self.role = None
 			self.configs["role"] = UnicodeConfig(
 				id=f"{self.config_prefix}.has_role", multiValue=False, defaultValues=[]  # pylint: disable=no-member
 			)
@@ -75,14 +76,42 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 
 		self.create_configs()
 
+	def read_configs(self) -> None:
+		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+
+		backend = get_unprotected_backend()
+
+		current_configs = backend.config_getObjects(configId=f"{self.config_prefix}.*")
+		if not current_configs:
+			return
+		logger.devel(current_configs)
+		for var, config in self.configs.items():
+			if var == "modified":
+				continue
+			logger.devel(var)
+			for current_config in current_configs:
+				logger.devel(current_config)
+				if current_config.id == config.id and current_config.defaultValues:
+					logger.devel(current_config.defaultValues)
+					if isinstance(config, BoolConfig):
+						setattr(self, var, forceBool(current_config.defaultValues[0]))
+					elif config.multiValue:
+						setattr(self, var, current_config.defaultValues)
+					elif var == "role":
+						setattr(self, var, Role(current_config.defaultValues[0]))
+					else:
+						setattr(self, var, current_config.defaultValues[0])
+					current_configs.remove(current_config)
+					break
+
 
 def create_user(name: str, groups: set) -> None:
 	from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
 
 	backend = get_unprotected_backend()
 
-	logger.devel(backend.config_getObjects(configId="user.{}.register")[0])
-	if not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
+	user_register = backend.config_getObjects(configId="user.{}.register")
+	if not user_register or (user_register and not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]):
 		return
 
 	role = None

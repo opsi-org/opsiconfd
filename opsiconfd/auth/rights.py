@@ -8,7 +8,7 @@
 opsiconfd.auth.rights
 """
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Self
 
@@ -34,7 +34,7 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 	ssh_command: bool = True
 	ssh_menu_server_console: bool = True
 	ssh_server_configuration: bool = True
-	configs: dict[str, UnicodeConfig, BoolConfig] = {}
+	configs: dict[str, UnicodeConfig | BoolConfig] = {}
 	config_prefix: str = "user"
 
 	def __init__(  # pylint: disable=too-many-arguments
@@ -89,31 +89,9 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 			"product_group_access": UnicodeConfig(id=f"{self.config_prefix}.privilege.product.groupaccess.productgroups", multiValue=True),
 		}
 
+	@abstractmethod
 	def read_configs(self) -> None:
-		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
-
-		backend = get_unprotected_backend()
-
-		current_configs = backend.config_getObjects(configId=f"{self.config_prefix}.*")
-		if not current_configs:
-			return
-		logger.devel(current_configs)
-		for var, config in self.configs.items():
-			if var == "modified":
-				continue
-			logger.devel(var)
-			for current_config in current_configs:
-				logger.devel(current_config)
-				if current_config.id == config.id:
-					logger.devel(current_config.defaultValues)
-					if isinstance(config, BoolConfig):
-						setattr(self, var, forceBool(current_config.defaultValues[0]))
-					elif config.multiValue:
-						setattr(self, var, current_config.defaultValues)
-					else:
-						setattr(self, var, current_config.defaultValues[0])
-					current_configs.remove(current_config)
-					break
+		pass
 
 	def create_configs(self) -> None:
 		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
@@ -125,7 +103,7 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 			if isinstance(getattr(self, var), list):
 				config.defaultValues = getattr(self, var)
 			elif var == "role" and self.role and not isinstance(self.role, str):
-				config.defaultValues = self.role.name
+				config.defaultValues = [self.role.name]
 			else:
 				config.defaultValues = [getattr(self, var)]
 		logger.devel(self.configs)

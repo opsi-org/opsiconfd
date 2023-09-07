@@ -50,6 +50,7 @@ from opsiconfd.application import app as opsiconfd_app
 from opsiconfd.auth import AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
+from opsiconfd.auth.user import create_user
 from opsiconfd.backend import (
 	get_unprotected_backend,  # pylint: disable=import-outside-toplevel
 )
@@ -57,9 +58,6 @@ from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
 from opsiconfd.utils import asyncio_create_task, utc_time_timestamp
-
-
-from opsiconfd.auth.user import create_user
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #

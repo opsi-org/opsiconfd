@@ -54,7 +54,7 @@ from opsiconfd.metrics.statistics import StatisticsMiddleware
 from opsiconfd.redis import async_redis_client
 from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware
-from opsiconfd.ssl import load_certs, as_pem
+from opsiconfd.ssl import as_pem, load_certs
 
 
 @app.get("/")

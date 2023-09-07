@@ -31,6 +31,7 @@ from opsiconfd.config import config
 from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
+	as_pem,
 	create_ca,
 	create_local_server_cert,
 	get_ca_cert_info,
@@ -40,6 +41,7 @@ from opsiconfd.ssl import (
 	load_ca_cert,
 	load_ca_key,
 	load_cert,
+	load_certs,
 	load_key,
 	load_local_server_cert,
 	load_local_server_key,
@@ -47,13 +49,11 @@ from opsiconfd.ssl import (
 	setup_server_cert,
 	store_ca_cert,
 	store_ca_key,
+	store_cert,
 	store_local_server_cert,
 	store_local_server_key,
 	subject_to_dict,
-	load_certs,
 	validate_cert,
-	store_cert,
-	as_pem,
 )
 
 from .utils import get_config

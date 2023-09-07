@@ -10,11 +10,11 @@ opsiconfd.ssl
 
 import datetime
 import os
-from pathlib import Path
 import re
 import socket
 import time
 from ipaddress import ip_address
+from pathlib import Path
 from re import DOTALL, finditer
 from socket import gethostbyaddr
 from typing import Any

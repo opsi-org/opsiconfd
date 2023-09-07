@@ -53,20 +53,22 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 
 		# if a role is set, all values are set by the role
 		if role:
-			self.role = role
-			self.read_only = self.role.read_only
-			self.create_client = self.role.create_client
-			self.opsi_server_write = self.role.opsi_server_write
-			self.depot_access = self.role.depot_access
-			self.host_group_access = self.role.host_group_access
-			self.product_group_access = self.role.product_group_access
-			self.ssh_command_management = self.role.ssh_command_management
-			self.ssh_command = self.role.ssh_command
-			self.ssh_menu_server_console = self.role.ssh_menu_server_console
-			self.ssh_server_configuration = self.role.ssh_server_configuration
+			self.role = role  # type: ignore[assignment]
+			self.read_only = self.role.read_only  # type: ignore[union-attr]
+			self.create_client = self.role.create_client  # type: ignore[union-attr]
+			self.opsi_server_write = self.role.opsi_server_write  # type: ignore[union-attr]
+			self.depot_access = self.role.depot_access  # type: ignore[union-attr]
+			self.host_group_access = self.role.host_group_access  # type: ignore[union-attr]
+			self.product_group_access = self.role.product_group_access  # type: ignore[union-attr]
+			self.ssh_command_management = self.role.ssh_command_management  # type: ignore[union-attr]
+			self.ssh_command = self.role.ssh_command  # type: ignore[union-attr]
+			self.ssh_menu_server_console = self.role.ssh_menu_server_console  # type: ignore[union-attr]
+			self.ssh_server_configuration = self.role.ssh_server_configuration  # type: ignore[union-attr]
 
 			self.configs["role"] = UnicodeConfig(
-				id=f"{self.config_prefix}.has_role", multiValue=False, defaultValues=[self.role.name]  # pylint: disable=no-member
+				id=f"{self.config_prefix}.has_role",
+				multiValue=False,
+				defaultValues=[self.role.name],  # type: ignore[union-attr] # pylint: disable=no-member
 			)
 		else:
 			self.role = None

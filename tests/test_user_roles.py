@@ -9,11 +9,11 @@ test user roles
 """
 
 from datetime import datetime
-
 from unittest.mock import Mock
 
 import pytest_asyncio
-from opsicommon.objects import UnicodeConfig, BoolConfig, Config
+from opsicommon.objects import BoolConfig, Config, UnicodeConfig
+
 from opsiconfd.auth.role import Role
 from opsiconfd.auth.user import User
 from opsiconfd.backend.mysql import MySQLConnection

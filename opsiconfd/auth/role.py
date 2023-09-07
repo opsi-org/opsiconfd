@@ -10,8 +10,9 @@ opsiconfd.auth.role
 
 from typing import Self
 
-from opsicommon.objects import UnicodeConfig, BoolConfig
+from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBool
+
 from opsiconfd.auth.rights import Rights
 from opsiconfd.logging import logger
 

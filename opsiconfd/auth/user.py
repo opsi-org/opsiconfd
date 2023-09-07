@@ -8,11 +8,12 @@
 opsiconfd.auth.user
 """
 
-from opsicommon.objects import UnicodeConfig, BoolConfig
+from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBool
+
+from opsiconfd.auth.rights import Rights
 from opsiconfd.auth.role import Role
 from opsiconfd.logging import logger
-from opsiconfd.auth.rights import Rights
 
 
 class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-public-methods

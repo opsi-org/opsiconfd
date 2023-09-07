@@ -12,7 +12,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Self
 
-from opsicommon.objects import UnicodeConfig, BoolConfig
+from opsicommon.objects import BoolConfig, UnicodeConfig
+
 from opsiconfd.logging import logger
 
 

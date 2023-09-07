@@ -10,11 +10,10 @@ test user roles
 
 from datetime import datetime
 
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import Mock
 
 import pytest_asyncio
 from opsicommon.objects import UnicodeConfig, BoolConfig, Config
-from opsiconfd.auth.rights import Rights
 from opsiconfd.auth.role import Role
 from opsiconfd.auth.user import User
 from opsiconfd.backend.mysql import MySQLConnection

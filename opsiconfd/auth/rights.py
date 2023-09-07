@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import Self
 
 from opsicommon.objects import UnicodeConfig, BoolConfig
-from opsicommon.types import forceBool
 from opsiconfd.logging import logger
 
 

@@ -16,7 +16,7 @@ from opsicommon.objects import BoolConfig, HostGroup, OpsiDepotserver, ProductGr
 from sqlalchemy.orm import Session  # type: ignore
 
 from opsiconfd.auth.role import Role
-from opsiconfd.auth.user import User
+from opsiconfd.auth.user import User, create_user
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 
@@ -345,3 +345,117 @@ def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # pylint: 
 	assert role.host_group_access == ["group1", "group2"]
 	assert role.product_group_access_configured is True
 	assert role.product_group_access == ["product1", "product2"]
+
+
+def test_create_user_function(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+	create_user("admin", {"admingroup"})
+
+	configs = backend.config_getObjects(id="user.{admin}.*")
+
+	expected_configs = [
+		UnicodeConfig(id="user.{admin}.has_role", defaultValues=[""]),
+		BoolConfig(id="user.{admin}.privilege.host.all.registered_readonly", defaultValues=[False]),
+		BoolConfig(id="user.{admin}.privilege.host.createclient", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.privilege.host.opsiserver.write", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.ssh.commandmanagement.active", defaultValues=[False]),
+		BoolConfig(id="user.{admin}.ssh.commands.active", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.ssh.menu_serverconsole.active", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.ssh.serverconfiguration.active", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.privilege.host.depotaccess.configured", defaultValues=[False]),
+		UnicodeConfig(
+			id="user.{admin}.privilege.host.depotaccess.depots",
+			possibleValues=["depot1.test.local", "depot2.test.local"],
+			defaultValues=[],
+		),
+		BoolConfig(id="user.{admin}.privilege.host.groupaccess.configured", defaultValues=[False]),
+		UnicodeConfig(id="user.{admin}.privilege.host.groupaccess.hostgroups", possibleValues=["group1", "group2"], defaultValues=[]),
+		BoolConfig(id="user.{admin}.privilege.product.groupaccess.configured", defaultValues=[False]),
+		UnicodeConfig(
+			id="user.{admin}.privilege.product.groupaccess.productgroups",
+			possibleValues=["product1", "product2"],
+			defaultValues=[],
+		),
+	]
+
+	assert len(configs) == len(expected_configs) + 1  # dont check modified
+	for expected_config in expected_configs:
+		for config in configs:
+			if config.id == expected_config.id:
+				print(config.id)
+				assert config.defaultValues == expected_config.defaultValues
+				if config.id == "user.{admin}.privilege.host.groupaccess.hostgroups":
+					assert expected_config.possibleValues[0] in config.possibleValues  # type: ignore
+
+
+def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+	backend.config_createUnicode(id="opsi.roles", defaultValues=["admingroup"], multiValue=True)
+
+	create_user("admin", {"admingroup"})
+
+	configs = backend.config_getObjects(id="user.{admin}.*")
+
+	expected_configs = [
+		UnicodeConfig(id="user.{admin}.has_role", defaultValues=["admingroup"]),
+		BoolConfig(id="user.{admin}.privilege.host.all.registered_readonly", defaultValues=[False]),
+		BoolConfig(id="user.{admin}.privilege.host.createclient", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.privilege.host.opsiserver.write", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.ssh.commandmanagement.active", defaultValues=[False]),
+		BoolConfig(id="user.{admin}.ssh.commands.active", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.ssh.menu_serverconsole.active", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.ssh.serverconfiguration.active", defaultValues=[True]),
+		BoolConfig(id="user.{admin}.privilege.host.depotaccess.configured", defaultValues=[False]),
+		UnicodeConfig(
+			id="user.{admin}.privilege.host.depotaccess.depots",
+			possibleValues=["depot1.test.local", "depot2.test.local"],
+			defaultValues=[],
+		),
+		BoolConfig(id="user.{admin}.privilege.host.groupaccess.configured", defaultValues=[False]),
+		UnicodeConfig(id="user.{admin}.privilege.host.groupaccess.hostgroups", possibleValues=["group1", "group2"], defaultValues=[]),
+		BoolConfig(id="user.{admin}.privilege.product.groupaccess.configured", defaultValues=[False]),
+		UnicodeConfig(
+			id="user.{admin}.privilege.product.groupaccess.productgroups",
+			possibleValues=["product1", "product2"],
+			defaultValues=[],
+		),
+	]
+
+	assert len(configs) == len(expected_configs) + 1  # dont check modified
+	for expected_config in expected_configs:
+		for config in configs:
+			if config.id == expected_config.id:
+				print(config.id)
+				assert config.defaultValues == expected_config.defaultValues
+				if config.id == "user.{admin}.privilege.host.groupaccess.hostgroups":
+					assert expected_config.possibleValues[0] in config.possibleValues  # type: ignore
+
+	expected_configs = [
+		UnicodeConfig(id="user.role.{admin}.has_role", defaultValues=[""]),
+		BoolConfig(id="user.role.{admin}.privilege.host.all.registered_readonly", defaultValues=[False]),
+		BoolConfig(id="user.role.{admin}.privilege.host.createclient", defaultValues=[True]),
+		BoolConfig(id="user.role.{admin}.privilege.host.opsiserver.write", defaultValues=[True]),
+		BoolConfig(id="user.role.{admin}.ssh.commandmanagement.active", defaultValues=[False]),
+		BoolConfig(id="user.role.{admin}.ssh.commands.active", defaultValues=[True]),
+		BoolConfig(id="user.role.{admin}.ssh.menu_serverconsole.active", defaultValues=[True]),
+		BoolConfig(id="user.role.{admin}.ssh.serverconfiguration.active", defaultValues=[True]),
+		BoolConfig(id="user.role.{admin}.privilege.host.depotaccess.configured", defaultValues=[False]),
+		UnicodeConfig(
+			id="user.role.{admin}.privilege.host.depotaccess.depots",
+			possibleValues=["depot1.test.local", "depot2.test.local"],
+			defaultValues=[],
+		),
+		BoolConfig(id="user.role.{admin}.privilege.host.groupaccess.configured", defaultValues=[False]),
+		UnicodeConfig(id="user.role.{admin}.privilege.host.groupaccess.hostgroups", possibleValues=["group1", "group2"], defaultValues=[]),
+		BoolConfig(id="user.role.{admin}.privilege.product.groupaccess.configured", defaultValues=[False]),
+		UnicodeConfig(
+			id="user.role.{admin}.privilege.product.groupaccess.productgroups",
+			possibleValues=["product1", "product2"],
+			defaultValues=[],
+		),
+	]
+
+	assert len(configs) == len(expected_configs) + 1  # dont check modified
+	for expected_config in expected_configs:
+		for config in configs:
+			if config.id == expected_config.id:
+				print(config.id)
+				assert config.defaultValues == expected_config.defaultValues

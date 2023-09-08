@@ -10,10 +10,10 @@ test user roles
 
 from datetime import datetime
 from typing import Generator
-from sqlalchemy.orm import Session  # type: ignore
 
 import pytest_asyncio
-from opsicommon.objects import BoolConfig, UnicodeConfig, OpsiDepotserver, ProductGroup, HostGroup
+from opsicommon.objects import BoolConfig, HostGroup, OpsiDepotserver, ProductGroup, UnicodeConfig
+from sqlalchemy.orm import Session  # type: ignore
 
 from opsiconfd.auth.role import Role
 from opsiconfd.auth.user import User

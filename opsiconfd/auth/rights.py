@@ -13,13 +13,14 @@ from datetime import datetime
 from typing import Self
 
 from opsicommon.objects import BoolConfig, UnicodeConfig
+from opsicommon.types import forceBool
 
 from opsiconfd.logging import logger
 
 
 class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 	name: str
-	role: Self | None
+	role: str = ""
 	modified: str = ""
 	read_only: bool = False
 	create_client: bool = True
@@ -73,25 +74,104 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
 
 		self.configs = {
-			"modified": UnicodeConfig(id=f"{self.config_prefix}.modified", multiValue=False, defaultValues=[self.modified]),
-			"read_only": BoolConfig(id=f"{self.config_prefix}.privilege.host.all.registered_readonly"),
-			"create_client": BoolConfig(id=f"{self.config_prefix}.privilege.host.createclient"),
-			"opsi_server_write": BoolConfig(id=f"{self.config_prefix}.privilege.host.opsiserver.write"),
-			"ssh_command_management": BoolConfig(id=f"{self.config_prefix}.ssh.commandmanagement.active"),
-			"ssh_command": BoolConfig(id=f"{self.config_prefix}.ssh.commands.active"),
-			"ssh_menu_server_console": BoolConfig(id=f"{self.config_prefix}.ssh.menu_serverconsole.active"),
-			"ssh_server_configuration": BoolConfig(id=f"{self.config_prefix}.ssh.serverconfiguration.active"),
-			"depot_access_configured": BoolConfig(id=f"{self.config_prefix}.privilege.host.depotaccess.configured"),
-			"depot_access": UnicodeConfig(id=f"{self.config_prefix}.privilege.host.depotaccess.depots", multiValue=True),
-			"host_group_access_configured": BoolConfig(id=f"{self.config_prefix}.privilege.host.groupaccess.configured"),
-			"host_group_access": UnicodeConfig(id=f"{self.config_prefix}.privilege.host.groupaccess.hostgroups", multiValue=True),
-			"product_group_access_configured": BoolConfig(id=f"{self.config_prefix}.privilege.product.groupaccess.configured"),
-			"product_group_access": UnicodeConfig(id=f"{self.config_prefix}.privilege.product.groupaccess.productgroups", multiValue=True),
+			"role": UnicodeConfig(
+				id=f"{self.config_prefix}.has_role",
+				multiValue=False,
+				editable=False,
+				defaultValues=[""],
+				description="which role should determine this users configuration",
+			),
+			"modified": UnicodeConfig(
+				id=f"{self.config_prefix}.modified",
+				multiValue=False,
+				editable=False,
+				defaultValues=[self.modified],
+				description="last modification time for entries of this user",
+			),
+			"read_only": BoolConfig(
+				id=f"{self.config_prefix}.privilege.host.all.registered_readonly",
+				description="the primary value setting is based on the user group",
+			),
+			"create_client": BoolConfig(
+				id=f"{self.config_prefix}.privilege.host.createclient",
+				description="the primary value setting is false",
+			),
+			"opsi_server_write": BoolConfig(
+				id=f"{self.config_prefix}.privilege.host.opsiserver.write",
+				description="the primary value setting is based on the user group",
+			),
+			"ssh_command_management": BoolConfig(
+				id=f"{self.config_prefix}.ssh.commandmanagement.active", description="the primary value setting is based on the user group"
+			),
+			"ssh_command": BoolConfig(
+				id=f"{self.config_prefix}.ssh.commands.active", description="the primary value setting is based on the user group"
+			),
+			"ssh_menu_server_console": BoolConfig(
+				id=f"{self.config_prefix}.ssh.menu_serverconsole.active", description="the primary value setting is based on the user group"
+			),
+			"ssh_server_configuration": BoolConfig(
+				id=f"{self.config_prefix}.ssh.serverconfiguration.active",
+				description="the primary value setting is based on the user group",
+			),
+			"depot_access_configured": BoolConfig(
+				id=f"{self.config_prefix}.privilege.host.depotaccess.configured",
+				description="the primary value setting is false",
+			),
+			"depot_access": UnicodeConfig(
+				id=f"{self.config_prefix}.privilege.host.depotaccess.depots",
+				multiValue=True,
+				editable=False,
+				description="the primary value setting is an empty selection list, but all existing items as option",
+			),
+			"host_group_access_configured": BoolConfig(
+				id=f"{self.config_prefix}.privilege.host.groupaccess.configured",
+				description="the primary value setting is false",
+			),
+			"host_group_access": UnicodeConfig(
+				id=f"{self.config_prefix}.privilege.host.groupaccess.hostgroups",
+				multiValue=True,
+				editable=False,
+				description="the primary value setting is an empty selection list, but all existing items as option",
+			),
+			"product_group_access_configured": BoolConfig(
+				id=f"{self.config_prefix}.privilege.product.groupaccess.configured",
+				description="the primary value setting is false",
+			),
+			"product_group_access": UnicodeConfig(
+				id=f"{self.config_prefix}.privilege.product.groupaccess.productgroups",
+				multiValue=True,
+				editable=False,
+				description="the primary value setting is an empty selection list, but all existing items as option",
+			),
 		}
 
-	@abstractmethod
+	# @abstractmethod
+	# def read_configs(self) -> None:
+	# 	pass
+
 	def read_configs(self) -> None:
-		pass
+		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+
+		backend = get_unprotected_backend()
+
+		current_configs = backend.config_getObjects(configId=f"{self.config_prefix}.*")
+		if not current_configs:
+			return
+		for var, config in self.configs.items():
+			if var == "modified":
+				continue
+			for current_config in current_configs:
+				logger.devel(current_config)
+				if current_config.id == config.id and current_config.defaultValues:
+					logger.devel(current_config.defaultValues)
+					if isinstance(config, BoolConfig):
+						setattr(self, var, forceBool(current_config.defaultValues[0]))
+					elif config.multiValue:
+						setattr(self, var, current_config.defaultValues)
+					else:
+						setattr(self, var, current_config.defaultValues[0])
+					current_configs.remove(current_config)
+					break
 
 	def create_configs(self) -> None:
 		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
@@ -102,8 +182,6 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 			# config.defaultValues = getattr(self, var)
 			if isinstance(getattr(self, var), list):
 				config.defaultValues = getattr(self, var)
-			elif var == "role" and self.role and not isinstance(self.role, str):
-				config.defaultValues = [self.role.name]
 			else:
 				config.defaultValues = [getattr(self, var)]
 		logger.devel(self.configs)

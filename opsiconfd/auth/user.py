@@ -8,7 +8,7 @@
 opsiconfd.auth.user
 """
 
-
+from opsicommon.objects import UnicodeConfig
 from opsiconfd.auth.rights import Rights
 from opsiconfd.auth.role import Role
 
@@ -63,34 +63,19 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 			self.ssh_menu_server_console = user_role.ssh_menu_server_console  # type: ignore[union-attr]
 			self.ssh_server_configuration = user_role.ssh_server_configuration  # type: ignore[union-attr]
 
+			self.configs["role"] = UnicodeConfig(
+				id=f"{self.config_prefix}.has_role",
+				multiValue=False,
+				editable=False,
+				defaultValues=[self.role],
+				possibleValues=[self.role],
+				description="which role should determine this users configuration",
+			)
+
 		else:
 			self.read_configs()
 
 		self.create_configs()
-
-	# def read_configs(self) -> None:
-	# 	from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
-
-	# 	backend = get_unprotected_backend()
-
-	# 	current_configs = backend.config_getObjects(configId=f"{self.config_prefix}.*")
-	# 	if not current_configs:
-	# 		return
-	# 	for var, config in self.configs.items():
-	# 		if var == "modified":
-	# 			continue
-	# 		for current_config in current_configs:
-	# 			logger.devel(current_config)
-	# 			if current_config.id == config.id and current_config.defaultValues:
-	# 				logger.devel(current_config.defaultValues)
-	# 				if isinstance(config, BoolConfig):
-	# 					setattr(self, var, forceBool(current_config.defaultValues[0]))
-	# 				elif config.multiValue:
-	# 					setattr(self, var, current_config.defaultValues)
-	# 				else:
-	# 					setattr(self, var, current_config.defaultValues[0])
-	# 				current_configs.remove(current_config)
-	# 				break
 
 
 def create_user(name: str, groups: set) -> None:
@@ -99,7 +84,7 @@ def create_user(name: str, groups: set) -> None:
 	backend = get_unprotected_backend()
 
 	user_register = backend.config_getObjects(configId="user.{}.register")
-	if not user_register or (user_register and not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]):
+	if not user_register or not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
 		return
 
 	role = ""

@@ -160,28 +160,24 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 	# 	pass
 
 	def read_configs(self) -> None:
-		current_configs = self.backend.config_getObjects(configId=f"{self.config_prefix}.*")
+		current_configs = self.backend.config_getObjects(configId=f"{self.config_prefix}.*")  # type: ignore[]
 		if not current_configs:
 			return
 		for config_name, config in self.configs.items():
 			if config_name == "modified":
 				continue
 			for current_config in current_configs:
-				# if not current_config.defaultValues:
-				# 	continue
-				# if current_config.id == config.id and current_config.defaultValues:
+				if not current_config.defaultValues:
+					continue
 				if current_config.id == config.id:
-					print("-> ", config_name, current_config.defaultValues)
-					print("=> ", config.id)
-					print("=> ", current_config.id)
 					if isinstance(config, BoolConfig):
 						setattr(self, config_name, forceBool(current_config.defaultValues[0]))
 					elif config.multiValue:
 						setattr(self, config_name, current_config.defaultValues)
 					else:
 						setattr(self, config_name, current_config.defaultValues[0])
-					# current_configs.remove(current_config)
-					# break
+					current_configs.remove(current_config)
+					break
 
 	def create_configs(self) -> None:
 		for config_name, config in self.configs.items():
@@ -190,4 +186,4 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 			else:
 				config.defaultValues = [getattr(self, config_name)]
 
-		self.backend.config_updateObjects(list(self.configs.values()))
+		self.backend.config_updateObjects(list(self.configs.values()))  # type: ignore[]

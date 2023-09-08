@@ -24,7 +24,7 @@ from .utils import backend  # pylint: disable=unused-import
 
 
 @pytest_asyncio.fixture(autouse=True)
-def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:
+def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # pylint: disable=redefined-outer-name
 	mysql = MySQLConnection()
 	with mysql.connection():
 		with mysql.session() as session:
@@ -76,7 +76,7 @@ def delete_groups(session: Session) -> None:
 
 
 # Tests that a User object can be created with all parameters provided
-def test_create_user_with_all_parameters() -> None:  # pylint: disable=redefined-outer-name
+def test_create_user_with_all_parameters() -> None:
 	test_role = Role(
 		name="test_role",
 		read_only=True,

@@ -8,17 +8,14 @@
 opsiconfd.auth.rights
 """
 
-from abc import ABC, abstractmethod
+
 from datetime import datetime
-from typing import Self
 
 from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBool
 
-from opsiconfd.logging import logger
 
-
-class Rights(ABC):  # pylint: disable=too-many-instance-attributes
+class Rights:  # pylint: disable=too-many-instance-attributes
 	name: str
 	role: str = ""
 	modified: str = ""
@@ -38,7 +35,7 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 	configs: dict[str, UnicodeConfig | BoolConfig] = {}
 	config_prefix: str = "user"
 
-	def __init__(  # pylint: disable=too-many-arguments
+	def __init__(  # pylint: disable=too-many-arguments, too-many-locals
 		self,
 		name: str,
 		read_only: bool = False,
@@ -72,6 +69,13 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 
 		now = datetime.utcnow()
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
+
+		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+
+		self.backend = get_unprotected_backend()
+		depots = [depot.id for depot in self.backend.host_getObjects(type="OpsiDepotserver")]
+		product_groups = [group.id for group in self.backend.group_getObjects(type="ProductGroup")]
+		host_groups = [group.id for group in self.backend.group_getObjects(type="HostGroup")]
 
 		self.configs = {
 			"role": UnicodeConfig(
@@ -122,6 +126,8 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 				multiValue=True,
 				editable=False,
 				description="the primary value setting is an empty selection list, but all existing items as option",
+				defaultValues=[],
+				possibleValues=depots,
 			),
 			"host_group_access_configured": BoolConfig(
 				id=f"{self.config_prefix}.privilege.host.groupaccess.configured",
@@ -132,6 +138,8 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 				multiValue=True,
 				editable=False,
 				description="the primary value setting is an empty selection list, but all existing items as option",
+				defaultValues=[],
+				possibleValues=host_groups,
 			),
 			"product_group_access_configured": BoolConfig(
 				id=f"{self.config_prefix}.privilege.product.groupaccess.configured",
@@ -142,6 +150,8 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 				multiValue=True,
 				editable=False,
 				description="the primary value setting is an empty selection list, but all existing items as option",
+				defaultValues=[],
+				possibleValues=product_groups,
 			),
 		}
 
@@ -150,39 +160,34 @@ class Rights(ABC):  # pylint: disable=too-many-instance-attributes
 	# 	pass
 
 	def read_configs(self) -> None:
-		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
-
-		backend = get_unprotected_backend()
-
-		current_configs = backend.config_getObjects(configId=f"{self.config_prefix}.*")
+		current_configs = self.backend.config_getObjects(configId=f"{self.config_prefix}.*")
 		if not current_configs:
 			return
-		for var, config in self.configs.items():
-			if var == "modified":
+		for config_name, config in self.configs.items():
+			if config_name == "modified":
 				continue
 			for current_config in current_configs:
-				logger.devel(current_config)
-				if current_config.id == config.id and current_config.defaultValues:
-					logger.devel(current_config.defaultValues)
+				# if not current_config.defaultValues:
+				# 	continue
+				# if current_config.id == config.id and current_config.defaultValues:
+				if current_config.id == config.id:
+					print("-> ", config_name, current_config.defaultValues)
+					print("=> ", config.id)
+					print("=> ", current_config.id)
 					if isinstance(config, BoolConfig):
-						setattr(self, var, forceBool(current_config.defaultValues[0]))
+						setattr(self, config_name, forceBool(current_config.defaultValues[0]))
 					elif config.multiValue:
-						setattr(self, var, current_config.defaultValues)
+						setattr(self, config_name, current_config.defaultValues)
 					else:
-						setattr(self, var, current_config.defaultValues[0])
-					current_configs.remove(current_config)
-					break
+						setattr(self, config_name, current_config.defaultValues[0])
+					# current_configs.remove(current_config)
+					# break
 
 	def create_configs(self) -> None:
-		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
-
-		logger.devel(self.configs)
-		backend = get_unprotected_backend()
-		for var, config in self.configs.items():
-			# config.defaultValues = getattr(self, var)
-			if isinstance(getattr(self, var), list):
-				config.defaultValues = getattr(self, var)
+		for config_name, config in self.configs.items():
+			if isinstance(getattr(self, config_name), list):
+				config.defaultValues = getattr(self, config_name)
 			else:
-				config.defaultValues = [getattr(self, var)]
-		logger.devel(self.configs)
-		backend.config_createObjects(list(self.configs.values()))
+				config.defaultValues = [getattr(self, config_name)]
+
+		self.backend.config_updateObjects(list(self.configs.values()))

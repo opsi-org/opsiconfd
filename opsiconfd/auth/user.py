@@ -8,12 +8,9 @@
 opsiconfd.auth.user
 """
 
-from opsicommon.objects import BoolConfig, UnicodeConfig
-from opsicommon.types import forceBool
 
 from opsiconfd.auth.rights import Rights
 from opsiconfd.auth.role import Role
-from opsiconfd.logging import logger
 
 
 class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-public-methods
@@ -53,27 +50,20 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 
 		# if a role is set, all values are set by the role
 		if role:
-			self.role = Role(role)  # type: ignore[assignment]
-			self.read_only = self.role.read_only  # type: ignore[union-attr]
-			self.create_client = self.role.create_client  # type: ignore[union-attr]
-			self.opsi_server_write = self.role.opsi_server_write  # type: ignore[union-attr]
-			self.depot_access = self.role.depot_access  # type: ignore[union-attr]
-			self.host_group_access = self.role.host_group_access  # type: ignore[union-attr]
-			self.product_group_access = self.role.product_group_access  # type: ignore[union-attr]
-			self.ssh_command_management = self.role.ssh_command_management  # type: ignore[union-attr]
-			self.ssh_command = self.role.ssh_command  # type: ignore[union-attr]
-			self.ssh_menu_server_console = self.role.ssh_menu_server_console  # type: ignore[union-attr]
-			self.ssh_server_configuration = self.role.ssh_server_configuration  # type: ignore[union-attr]
+			user_role = Role(name=role)
+			self.role = role  # type: ignore[assignment]
+			self.read_only = user_role.read_only  # type: ignore[union-attr]
+			self.create_client = user_role.create_client  # type: ignore[union-attr]
+			self.opsi_server_write = user_role.opsi_server_write  # type: ignore[union-attr]
+			self.depot_access = user_role.depot_access  # type: ignore[union-attr]
+			self.host_group_access = user_role.host_group_access  # type: ignore[union-attr]
+			self.product_group_access = user_role.product_group_access  # type: ignore[union-attr]
+			self.ssh_command_management = user_role.ssh_command_management  # type: ignore[union-attr]
+			self.ssh_command = user_role.ssh_command  # type: ignore[union-attr]
+			self.ssh_menu_server_console = user_role.ssh_menu_server_console  # type: ignore[union-attr]
+			self.ssh_server_configuration = user_role.ssh_server_configuration  # type: ignore[union-attr]
 
-			self.configs["role"] = UnicodeConfig(
-				id=f"{self.config_prefix}.has_role",
-				multiValue=False,
-				editable=False,
-				defaultValues=[self.role.name],  # type: ignore[union-attr]
-				description="which role should determine this users configuration",
-			)
 		else:
-			self.role = None
 			self.read_configs()
 
 		self.create_configs()
@@ -112,13 +102,14 @@ def create_user(name: str, groups: set) -> None:
 	if not user_register or (user_register and not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]):
 		return
 
-	role = None
+	role = ""
 	groups_to_import = backend.config_getObjects(configId="opsi.roles")
 	if groups_to_import:
 		for group in groups:
 			if group in groups_to_import[0].defaultValues:
 				# use first match as role and skip other groups
-				role = Role(group)
+				# role = Role(group)
+				role = str(group)
 				break
 
 	User(name=name, role=role)

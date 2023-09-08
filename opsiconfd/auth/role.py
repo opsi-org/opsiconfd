@@ -8,13 +8,7 @@
 opsiconfd.auth.role
 """
 
-from typing import Self
-
-from opsicommon.objects import BoolConfig, UnicodeConfig
-from opsicommon.types import forceBool
-
 from opsiconfd.auth.rights import Rights
-from opsiconfd.logging import logger
 
 
 class Role(Rights):  # pylint: disable=too-many-instance-attributes

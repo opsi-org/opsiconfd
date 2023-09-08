@@ -9,6 +9,7 @@ opsiconfd.auth.user
 """
 
 from opsicommon.objects import UnicodeConfig
+
 from opsiconfd.auth.rights import Rights
 from opsiconfd.auth.role import Role
 

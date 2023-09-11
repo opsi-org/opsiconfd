@@ -166,7 +166,9 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 		}
 
 	def read_configs(self) -> None:
-		current_configs = self.backend.config_getObjects(configId=f"{self.config_prefix}.*")
+		current_configs = [
+			config for config in self.backend.config_getObjects(configId=f"{self.config_prefix}.*") if config.defaultValues != []
+		]
 		if not current_configs:
 			return
 		for config_name, config in self.configs.items():
@@ -174,8 +176,6 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 			if config_name in ("modified", "depot_access_configured", "host_group_access_configured", "product_group_access_configured"):
 				continue
 			for current_config in current_configs:
-				if not current_config.defaultValues:
-					continue
 				if current_config.id == config.id:
 					if isinstance(config, BoolConfig):
 						setattr(self, config_name, forceBool(current_config.defaultValues[0]))

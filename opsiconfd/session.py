@@ -50,6 +50,7 @@ from opsiconfd.application import app as opsiconfd_app
 from opsiconfd.auth import AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
+from opsiconfd.auth.user import create_user
 from opsiconfd.backend import (
 	get_unprotected_backend,  # pylint: disable=import-outside-toplevel
 )
@@ -1045,6 +1046,9 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	session.user_groups = authm.get_groupnames(session.username)
 	session.is_admin = authm.user_is_admin(session.username)
 	session.is_read_only = authm.user_is_read_only(session.username)
+
+	if session.is_admin:
+		create_user(session.username, session.user_groups)
 
 	logger.info(
 		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",

@@ -94,7 +94,6 @@ def create_user(name: str, groups: set) -> None:
 		for group in groups:
 			if group in groups_to_import[0].defaultValues:
 				# use first match as role and skip other groups
-				# role = Role(group)
 				role = str(group)
 				break
 

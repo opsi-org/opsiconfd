@@ -31,6 +31,8 @@ def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # pyli
 			delete_config_values(session)
 			delete_hosts(session)
 			delete_groups(session)
+
+	backend.config_delete(id="user.*")
 	backend.config_createBool(id="user.{}.register", defaultValues=True)
 
 	backend.host_createObjects(
@@ -53,8 +55,9 @@ def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # pyli
 			HostGroup(id="group4"),
 		]
 	)
-
+	print("clean up defore")
 	yield
+	backend.config_delete(id="user.*")
 	with mysql.connection():
 		with mysql.session() as session:
 			delete_config_values(session)
@@ -459,3 +462,21 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 			if config.id == expected_config.id:
 				print(config.id)
 				assert config.defaultValues == expected_config.defaultValues
+
+
+def test_create_user_function_register_false(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+	backend.config_createBool(id="user.{}.register", defaultValues=False)
+
+	create_user("admin", {"admingroup"})
+
+	configs = backend.config_getObjects(id="user.{admin}.*")
+
+	assert len(configs) == 0
+
+
+def test_create_user_function_without_register_key(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+	backend.config_delete(id="user.{}.register")
+
+	create_user("admin", {"admingroup"})
+	configs = backend.config_getObjects(id="user.{admin}.*")
+	assert len(configs) == 0

@@ -70,7 +70,7 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 				editable=False,
 				defaultValues=[self.role],
 				possibleValues=list(roles),
-				description="which role should determine this users configuration",
+				description="Which role should determine this users configuration.",
 			)
 
 		else:

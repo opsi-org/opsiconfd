@@ -92,49 +92,50 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 				multiValue=False,
 				editable=False,
 				defaultValues=[""],
-				description="which role should determine this users configuration",
+				description="Which role should determine this users configuration.",
 			),
 			"modified": UnicodeConfig(
 				id=f"{self.config_prefix}.modified",
 				multiValue=False,
 				editable=False,
 				defaultValues=[self.modified],
-				description="last modification time for entries of this user",
+				description="Last modification time for entries of this user.",
 			),
 			"read_only": BoolConfig(
 				id=f"{self.config_prefix}.privilege.host.all.registered_readonly",
-				description="the primary value setting is based on the user group",
+				description="The primary value setting is based on the user group.",
 			),
 			"create_client": BoolConfig(
 				id=f"{self.config_prefix}.privilege.host.createclient",
-				description="the primary value setting is false",
+				description="The primary value setting is false.",
 			),
 			"opsi_server_write": BoolConfig(
 				id=f"{self.config_prefix}.privilege.host.opsiserver.write",
-				description="the primary value setting is based on the user group",
+				description="The primary value setting is based on the user group.",
 			),
 			"ssh_command_management": BoolConfig(
-				id=f"{self.config_prefix}.ssh.commandmanagement.active", description="the primary value setting is based on the user group"
+				id=f"{self.config_prefix}.ssh.commandmanagement.active", description="The primary value setting is based on the user group."
 			),
 			"ssh_command": BoolConfig(
-				id=f"{self.config_prefix}.ssh.commands.active", description="the primary value setting is based on the user group"
+				id=f"{self.config_prefix}.ssh.commands.active", description="The primary value setting is based on the user group."
 			),
 			"ssh_menu_server_console": BoolConfig(
-				id=f"{self.config_prefix}.ssh.menu_serverconsole.active", description="the primary value setting is based on the user group"
+				id=f"{self.config_prefix}.ssh.menu_serverconsole.active",
+				description="The primary value setting is based on the user group.",
 			),
 			"ssh_server_configuration": BoolConfig(
 				id=f"{self.config_prefix}.ssh.serverconfiguration.active",
-				description="the primary value setting is based on the user group",
+				description="The primary value setting is based on the user group.",
 			),
 			"depot_access_configured": BoolConfig(
 				id=f"{self.config_prefix}.privilege.host.depotaccess.configured",
-				description="the primary value setting is false",
+				description="The primary value setting is false.",
 			),
 			"depot_access": UnicodeConfig(
 				id=f"{self.config_prefix}.privilege.host.depotaccess.depots",
 				multiValue=True,
 				editable=False,
-				description="the primary value setting is an empty selection list, but all existing items as option",
+				description="The primary value setting is an empty selection list, but all existing items as option.",
 				defaultValues=[],
 				possibleValues=depots,
 			),
@@ -146,7 +147,7 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 				id=f"{self.config_prefix}.privilege.host.groupaccess.hostgroups",
 				multiValue=True,
 				editable=False,
-				description="the primary value setting is an empty selection list, but all existing items as option",
+				description="The primary value setting is an empty selection list, but all existing items as option.",
 				defaultValues=[],
 				possibleValues=host_groups,
 			),
@@ -158,7 +159,7 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 				id=f"{self.config_prefix}.privilege.product.groupaccess.productgroups",
 				multiValue=True,
 				editable=False,
-				description="the primary value setting is an empty selection list, but all existing items as option",
+				description="The primary value setting is an empty selection list, but all existing items as option.",
 				defaultValues=[],
 				possibleValues=product_groups,
 			),

@@ -44,7 +44,7 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 		return bool(self.host_group_access)
 
 	@property
-	def product_group_access_configured(self):
+	def product_group_access_configured(self) -> bool:
 		return bool(self.product_group_access)
 
 	def __init__(  # pylint: disable=too-many-arguments, too-many-locals

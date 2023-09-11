@@ -52,24 +52,24 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 		# if a role is set, all values are set by the role
 		if role:
 			user_role = Role(name=role)
-			self.role = role  # type: ignore[assignment]
-			self.read_only = user_role.read_only  # type: ignore[union-attr]
-			self.create_client = user_role.create_client  # type: ignore[union-attr]
-			self.opsi_server_write = user_role.opsi_server_write  # type: ignore[union-attr]
-			self.depot_access = user_role.depot_access  # type: ignore[union-attr]
-			self.host_group_access = user_role.host_group_access  # type: ignore[union-attr]
-			self.product_group_access = user_role.product_group_access  # type: ignore[union-attr]
-			self.ssh_command_management = user_role.ssh_command_management  # type: ignore[union-attr]
-			self.ssh_command = user_role.ssh_command  # type: ignore[union-attr]
-			self.ssh_menu_server_console = user_role.ssh_menu_server_console  # type: ignore[union-attr]
-			self.ssh_server_configuration = user_role.ssh_server_configuration  # type: ignore[union-attr]
-
+			self.role = role
+			self.read_only = user_role.read_only
+			self.create_client = user_role.create_client
+			self.opsi_server_write = user_role.opsi_server_write
+			self.depot_access = user_role.depot_access
+			self.host_group_access = user_role.host_group_access
+			self.product_group_access = user_role.product_group_access
+			self.ssh_command_management = user_role.ssh_command_management
+			self.ssh_command = user_role.ssh_command
+			self.ssh_menu_server_console = user_role.ssh_menu_server_console
+			self.ssh_server_configuration = user_role.ssh_server_configuration
+			roles = {r.id.split(".")[2].strip("{}") for r in self.backend.config_getObjects(configId="user.role.*")}
 			self.configs["role"] = UnicodeConfig(
 				id=f"{self.config_prefix}.has_role",
 				multiValue=False,
 				editable=False,
 				defaultValues=[self.role],
-				possibleValues=[self.role],
+				possibleValues=list(roles),
 				description="which role should determine this users configuration",
 			)
 

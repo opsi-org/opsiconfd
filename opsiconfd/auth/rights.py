@@ -155,15 +155,12 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 			),
 		}
 
-	# @abstractmethod
-	# def read_configs(self) -> None:
-	# 	pass
-
 	def read_configs(self) -> None:
-		current_configs = self.backend.config_getObjects(configId=f"{self.config_prefix}.*")  # type: ignore[]
+		current_configs = self.backend.config_getObjects(configId=f"{self.config_prefix}.*")
 		if not current_configs:
 			return
 		for config_name, config in self.configs.items():
+			# modification date should always be new
 			if config_name == "modified":
 				continue
 			for current_config in current_configs:
@@ -186,4 +183,4 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 			else:
 				config.defaultValues = [getattr(self, config_name)]
 
-		self.backend.config_updateObjects(list(self.configs.values()))  # type: ignore[]
+		self.backend.config_updateObjects(list(self.configs.values()))

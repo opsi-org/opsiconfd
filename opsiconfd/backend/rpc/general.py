@@ -11,6 +11,7 @@ opsiconfd.backend.rpc.extender
 from __future__ import annotations
 
 import os
+import random
 import shutil
 import socket
 import time
@@ -19,6 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
+import uuid
 
 from opsicommon.exceptions import (
 	BackendAuthenticationError,
@@ -37,6 +39,7 @@ from opsicommon.license import (
 )
 from opsicommon.types import forceBool, forceObjectId
 
+from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd import __version__, contextvar_client_address, contextvar_client_session
 from opsiconfd.application import AppState
 from opsiconfd.application.filetransfer import delete_file, prepare_file
@@ -69,6 +72,11 @@ LOG_TYPES = {  # key = logtype, value = requires objectId for read
 	"userlogin": True,
 	"winpe": True,
 }
+
+CONNECTION_SLOT_CONFIG = "opsiconfd.connection.slot"
+CONNECTION_SLOT_MAX = 10
+CONNECTION_SLOT_RETENTION_TIME = 60
+CONNECTION_SLOT_RETRY_AFTER = CONNECTION_SLOT_RETENTION_TIME * 1.5
 
 
 def truncate_log_data(data: str, max_size: int) -> str:
@@ -270,6 +278,38 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self._check_role("admin")
 		self._app.set_app_state(AppState.from_dict(app_state), wait_accomplished=wait_accomplished)
 		return self._app.app_state.to_dict()
+
+	@rpc_method
+	def service_acquire_slot(self: BackendProtocol) -> dict:
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+		logger.devel(session.client_addr)
+		logger.devel(session.host)
+		# session.host = "test.uib.local"
+		host = "test.uib.local"
+		# if not session.host:
+		# 	return "Only opsi Hosts can acquire connection slots!"
+		responsible_depot_id = self._get_responsible_depot_id(host) or self._depot_id
+		max_slots = CONNECTION_SLOT_MAX
+		slot_config = (
+			self.configState_getValues(CONNECTION_SLOT_CONFIG, responsible_depot_id)
+			.get(opsi_config.get("host", "id"), {})
+			.get(CONNECTION_SLOT_CONFIG)
+		)
+		if slot_config:
+			max_slots = slot_config[0]
+
+		with redis_client() as redis:
+			depot_slots = decode_redis_result(redis.keys(f"{config.redis_key('session')}:{responsible_depot_id}:solt:*"))
+			if len(depot_slots) >= max_slots:
+				retry_after = random.randint(CONNECTION_SLOT_RETENTION_TIME, CONNECTION_SLOT_RETENTION_TIME * 2)
+				return {"slot_id": None, "retry_after": retry_after}
+
+			slot_id = str(uuid.uuid4())
+			redis.set(f"{config.redis_key('session')}:{responsible_depot_id}:solt:{slot_id}", host, ex=CONNECTION_SLOT_RETENTION_TIME)
+
+			return {"slot_id": slot_id, "retry_after": None}
 
 	@rpc_method(check_acl=False)
 	def getDomain(self: BackendProtocol) -> str:  # pylint: disable=invalid-name

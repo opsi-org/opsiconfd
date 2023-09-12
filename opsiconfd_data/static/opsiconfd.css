@@ -10,8 +10,8 @@ body {
 	width: 100%;
 	margin: 0px;
 	padding: 0px;
-	background-color: #eeeeee;
-	color: #3a3a3a;
+	background-color: #e4e4e3;
+	color: #3f3f3e;
 }
 
 p {
@@ -20,14 +20,15 @@ p {
 
 #logo,
 #interface-logo {
-	width: 120px;
+	/* margin-top: 55px; */
+	width: 100px;
 	display: inline-block;
 }
 
 a:link,
 a:visited,
 a:active {
-	color: #0068aa;
+	color: #3f5aa6;
 	text-decoration: none;
 }
 
@@ -37,12 +38,12 @@ a:hover {
 }
 
 input {
-	border: 1px solid #cccccc;
+	border: 1px solid #b2b2b2;
 }
 
 button {
 	appearance: none;
-	border: 1px solid #cccccc;
+	border: 1px solid #b2b2b2;
 	padding-bottom: 2px;
 }
 
@@ -51,7 +52,7 @@ button:hover {
 }
 
 button:active {
-	background-color: #eeeeee !important;
+	background-color: #e4e4e3 !important;
 }
 
 li {
@@ -75,13 +76,13 @@ div#tab-links ul li {
 h1 {
 	margin-left: 25px;
 	font-size: 16px;
-	color: #0068aa;
+	color: #3f5aa6;
 }
 
 h2 {
 	margin-left: 25px;
 	font-size: 14px;
-	color: #0068aa;
+	color: #3f5aa6;
 }
 
 .content {
@@ -133,21 +134,21 @@ select {
 
 .rpc-table {
 	table-layout: auto;
-	background-color: #eeeeee;
+	background-color: #e4e4e3;
 }
 
 .rpc-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: #e4e4e3;
+	background-color: #3f5aa6;
 }
 
 .rpc-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #000000
@@ -155,7 +156,7 @@ select {
 
 .rpc-error-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #dc322b
@@ -163,7 +164,7 @@ select {
 
 .rpc-deprecated-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: darkorange;
@@ -174,7 +175,7 @@ select {
 .host-table,
 .locked-products-table {
 	table-layout: auto;
-	background-color: #eeeeee;
+	background-color: #e4e4e3;
 }
 
 .session-th,
@@ -182,11 +183,11 @@ select {
 .host-th,
 .locked-products-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: #e4e4e3;
+	background-color: #3f5aa6;
 }
 
 .session-td,
@@ -194,7 +195,7 @@ select {
 .host-td,
 .locked-products-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #000000;
@@ -217,21 +218,21 @@ select {
 
 .addon-table {
 	table-layout: auto;
-	background-color: #eeeeee;
+	background-color: #e4e4e3;
 }
 
 .addon-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: #e4e4e3;
+	background-color: #3f5aa6;
 }
 
 .addon-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #000000;
@@ -240,7 +241,7 @@ select {
 /* Style the tab */
 .tab {
 	overflow: hidden;
-	border: 1px solid #cccccc;
+	border: 1px solid #b2b2b2;
 	background-color: #f1f1f1;
 }
 
@@ -498,7 +499,7 @@ input[type=button] {
 
 button:hover,
 input[type=button]:hover {
-	background-color: #cccccc;
+	background-color: #b2b2b2;
 }
 
 button:active,
@@ -567,7 +568,7 @@ td.licensing-info-key {
 }
 
 .lic-state-valid {
-	color: #3a3a3a;
+	color: #3f3f3e;
 }
 
 .lic-state-replaced_by_non_core {
@@ -673,7 +674,7 @@ div#notifications div {
 	padding: 5px 20px 5px 20px;
 	margin-bottom: 15px;
 	background-color: white;
-	border: 1px solid #cccccc;
+	border: 1px solid #b2b2b2;
 }
 
 div#notifications div.error {
@@ -805,21 +806,21 @@ div#login_error {
 
 .rpc-cache-table {
 	table-layout: auto;
-	background-color: #eeeeee;
+	background-color: #e4e4e3;
 }
 
 .rpc-cache-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: #e4e4e3;
+	background-color: #3f5aa6;
 }
 
 .rpc-cache-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px #3f5aa6 solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #000000

@@ -9,6 +9,7 @@ opsiconfd.backend.rpc.extender
 """
 
 from __future__ import annotations
+from dataclasses import dataclass
 
 import os
 import random
@@ -73,10 +74,9 @@ LOG_TYPES = {  # key = logtype, value = requires objectId for read
 	"winpe": True,
 }
 
-CONNECTION_SLOT_CONFIG = "opsiconfd.connection.slot"
-CONNECTION_SLOT_MAX = 10
-CONNECTION_SLOT_RETENTION_TIME = 60
-CONNECTION_SLOT_RETRY_AFTER = CONNECTION_SLOT_RETENTION_TIME * 1.5
+TRANSFER_SLOT_CONFIG = "opsiconfd.transfer.slot"
+TRANSFER_SLOT_MAX = 10
+TRANSFER_SLOT_RETENTION_TIME = 60
 
 
 def truncate_log_data(data: str, max_size: int) -> str:
@@ -91,6 +91,19 @@ def truncate_log_data(data: str, max_size: int) -> str:
 	if idx > 0:
 		data = data[: idx + 1]
 	return data
+
+
+@dataclass(init=True)
+class TransferSlot:
+	slot_id: str | None
+	retry_after: int | None
+	depot_id: str | None
+
+	def __init__(self, depot_id: str | None, retry_after: int | None) -> None:
+		self.depot_id = depot_id
+		self.retry_after = retry_after
+		if self.depot_id:
+			self.slot_id = self.depot_id + "-" + str(uuid.uuid4())[:8]
 
 
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
@@ -280,36 +293,40 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self._app.app_state.to_dict()
 
 	@rpc_method
-	def service_acquire_slot(self: BackendProtocol) -> dict:
+	def service_acquireTransferSlot(self: BackendProtocol, depot: str) -> TransferSlot:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		logger.devel(session.client_addr)
-		logger.devel(session.host)
-		# session.host = "test.uib.local"
-		host = "test.uib.local"
-		# if not session.host:
-		# 	return "Only opsi Hosts can acquire connection slots!"
-		responsible_depot_id = self._get_responsible_depot_id(host) or self._depot_id
-		max_slots = CONNECTION_SLOT_MAX
-		slot_config = (
-			self.configState_getValues(CONNECTION_SLOT_CONFIG, responsible_depot_id)
-			.get(opsi_config.get("host", "id"), {})
-			.get(CONNECTION_SLOT_CONFIG)
-		)
+
+		if session.host:
+			client = session.host.id
+		else:
+			client = session.client_addr
+
+		max_slots = TRANSFER_SLOT_MAX
+		slot_config = self.configState_getValues(TRANSFER_SLOT_CONFIG, depot).get(depot, {}).get(TRANSFER_SLOT_CONFIG)
 		if slot_config:
 			max_slots = slot_config[0]
 
 		with redis_client() as redis:
-			depot_slots = decode_redis_result(redis.keys(f"{config.redis_key('session')}:{responsible_depot_id}:solt:*"))
+			depot_slots = decode_redis_result(redis.keys(f"{config.redis_key('slot')}:{depot}*"))
 			if len(depot_slots) >= max_slots:
-				retry_after = random.randint(CONNECTION_SLOT_RETENTION_TIME, CONNECTION_SLOT_RETENTION_TIME * 2)
-				return {"slot_id": None, "retry_after": retry_after}
+				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
+				return TransferSlot(depot_id=None, retry_after=retry_after)
 
-			slot_id = str(uuid.uuid4())
-			redis.set(f"{config.redis_key('session')}:{responsible_depot_id}:solt:{slot_id}", host, ex=CONNECTION_SLOT_RETENTION_TIME)
+			slot = TransferSlot(depot_id=depot, retry_after=None)
+			redis.set(f"{config.redis_key('slot')}:{slot.slot_id}", client, ex=TRANSFER_SLOT_RETENTION_TIME)
 
-			return {"slot_id": slot_id, "retry_after": None}
+			return slot
+
+	@rpc_method
+	def service_releaseTransferSlot(self: BackendProtocol, slot_id: str) -> None:  # pylint: disable=invalid-name
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+
+		with redis_client() as redis:
+			redis.unlink(f"{config.redis_key('slot')}:{slot_id}")
 
 	@rpc_method(check_acl=False)
 	def getDomain(self: BackendProtocol) -> str:  # pylint: disable=invalid-name

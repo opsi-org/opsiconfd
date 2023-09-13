@@ -76,7 +76,7 @@ div#tab-links ul li {
 h1 {
 	/* margin-left: 25px; */
 	font-size: 24px;
-	color: #3f5aa6;
+	color: #3f3f3e;
 }
 
 h2 {
@@ -128,7 +128,7 @@ select {
 .json-result,
 .redis-result,
 .adminpage-box {
-	outline: 1px solid #3f5aa6;
+	outline: 1px solid #3f3f3e;
 	padding: 5px;
 	margin: 15px 0px 15px 0px;
 	overflow: auto;
@@ -250,7 +250,7 @@ select {
 .tab {
 	overflow: hidden;
 	/* border: 1px solid #3f3f3e; */
-	background-color: #3f3f3e;
+	background-color: #3f3f3ebb;
 	margin-top: 10px;
 }
 

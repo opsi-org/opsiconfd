@@ -119,6 +119,8 @@ class ActionGroup:
 
 	def add_action(self, action: Action) -> None:
 		self.actions.append(action)
+		if action.action in ("none", None):
+			return
 		max_priority = max(self.priority, action.priority)
 		min_priority = min(self.priority, action.priority)
 		if max_priority > 0:

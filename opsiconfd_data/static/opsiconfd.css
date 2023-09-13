@@ -1,3 +1,11 @@
+:root {
+	--opsi-black: #3f3f3e;
+	--opsi-gray-1: #b2b2b2;
+	--opsi-gray-2: #e4e4e3;
+	--opsi-blue: #3f5aa6;
+	--opsi-magenta: #cb1e58;
+}
+
 html {
 	width: 100%;
 	height: 100%;
@@ -10,8 +18,8 @@ body {
 	width: 100%;
 	margin: 0px;
 	padding: 0px;
-	background-color: #e4e4e3;
-	color: #3f3f3e;
+	background-color: var(--opsi-gray-2);
+	color: var(--opsi-black);
 }
 
 p {
@@ -28,7 +36,7 @@ p {
 a:link,
 a:visited,
 a:active {
-	color: #3f5aa6;
+	color: var(--opsi-blue);
 	text-decoration: none;
 }
 
@@ -38,12 +46,12 @@ a:hover {
 }
 
 input {
-	border: 1px solid #b2b2b2;
+	border: 1px solid var(--opsi-gray-1);
 }
 
 button {
 	appearance: none;
-	border: 1px solid #b2b2b2;
+	border: 1px solid var(--opsi-gray-1);
 	padding-bottom: 2px;
 }
 
@@ -52,7 +60,7 @@ button:hover {
 }
 
 button:active {
-	background-color: #e4e4e3 !important;
+	background-color: var(--opsi-gray-2) !important;
 }
 
 li {
@@ -76,21 +84,21 @@ div#tab-links ul li {
 h1 {
 	/* margin-left: 25px; */
 	font-size: 24px;
-	color: #3f3f3e;
+	color: var(--opsi-black);
 }
 
 h2 {
 	margin-left: 25px;
 	font-size: 14px;
-	color: #cb1e58;
+	color: var(--opsi-magenta);
 }
 
 h3 {
-	color: #cb1e58;
+	color: var(--opsi-magenta);
 }
 
 h4 {
-	color: #cb1e58;
+	color: var(--opsi-magenta);
 }
 
 .content {
@@ -128,7 +136,7 @@ select {
 .json-result,
 .redis-result,
 .adminpage-box {
-	outline: 1px solid #3f3f3e;
+	outline: 1px solid var(--opsi-black);
 	padding: 5px;
 	margin: 15px 0px 15px 0px;
 	overflow: auto;
@@ -142,37 +150,38 @@ select {
 
 .rpc-table {
 	table-layout: auto;
-	background-color: #e4e4e3;
+	background-color: var(--opsi-gray-2);
 }
 
 .rpc-th {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #e4e4e3;
-	background-color: #3f3f3e;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-black);
 }
 
 .rpc-td {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #000000
+	color: var(--opsi-black)
 }
 
 .rpc-error-td {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #dc322b
+	/* color: #dc322b */
+	color: var(--opsi-magenta)
 }
 
 .rpc-deprecated-td {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: darkorange;
@@ -183,7 +192,7 @@ select {
 .host-table,
 .locked-products-table {
 	table-layout: auto;
-	background-color: #e4e4e3;
+	background-color: var(--opsi-gray-2);
 }
 
 .session-th,
@@ -191,11 +200,11 @@ select {
 .host-th,
 .locked-products-th {
 	font-size: 12px;
-	border: 1px #3f3f3e solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #e4e4e3;
-	background-color: #3f3f3e;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-black);
 }
 
 .session-td,
@@ -203,10 +212,10 @@ select {
 .host-td,
 .locked-products-td {
 	font-size: 12px;
-	border: 1px #3f3f3e solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #3f3f3e;
+	color: var(--opsi-black);
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 }
@@ -226,21 +235,21 @@ select {
 
 .addon-table {
 	table-layout: auto;
-	background-color: #e4e4e3;
+	background-color: var(--opsi-gray-2);
 }
 
 .addon-th {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #e4e4e3;
-	background-color: #3f5aa6;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-blue);
 }
 
 .addon-td {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #000000;
@@ -264,21 +273,21 @@ select {
 }
 
 .tablink:link {
-	color: #e4e4e3;
+	color: var(--opsi-gray-2);
 }
 
 .tablink:visited {
-	color: #e4e4e3;
+	color: var(--opsi-gray-2);
 }
 
 .tablink:hover {
-	background-color: #cb1e58;
+	background-color: var(--opsi-magenta);
 }
 
 .tablink:active,
 .tablink.active {
-	color: #e4e4e3;
-	background-color: #cb1e58;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-magenta);
 }
 
 /* Style the tab content */
@@ -509,7 +518,7 @@ input[type=button] {
 
 button:hover,
 input[type=button]:hover {
-	background-color: #b2b2b2;
+	background-color: var(--opsi-gray-1);
 }
 
 button:active,
@@ -577,11 +586,11 @@ table#licensing-info-table {
 
 table#licensing-info-table td {
 	font-size: 15px;
-	border: 1px #333 solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #333;
-	background-color: #fff;
+	color: var(--opsi-back);
+	background-color: var(--opsi-gray-2);
 }
 
 td.licensing-info-key {
@@ -589,7 +598,7 @@ td.licensing-info-key {
 }
 
 .lic-state-valid {
-	color: #3f3f3e;
+	color: var(--opsi-black);
 }
 
 .lic-state-replaced_by_non_core {
@@ -627,11 +636,11 @@ div#license-upload {
 table#licensing-dates-table td,
 table#licensing-dates-table th {
 	font-size: 15px;
-	border: 1px #333 solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #333;
-	background-color: #fff;
+	color: var(--opsi-back);
+	background-color: var(--opsi-gray-2);
 }
 
 table#licensing-dates-table tr:hover td {
@@ -660,7 +669,7 @@ table#licensing-dates-table td.changed {
 
 table#licensing-dates-table th.active,
 table#licensing-dates-table td.active {
-	background-color: #f5ffec;
+	background-color: #ecfff0;
 }
 
 
@@ -695,7 +704,7 @@ div#notifications div {
 	padding: 5px 20px 5px 20px;
 	margin-bottom: 15px;
 	background-color: white;
-	border: 1px solid #b2b2b2;
+	border: 1px solid var(--opsi-gray-1);
 }
 
 div#notifications div.error {
@@ -827,21 +836,21 @@ div#login_error {
 
 .rpc-cache-table {
 	table-layout: auto;
-	background-color: #e4e4e3;
+	background-color: var(--opsi-gray-2);
 }
 
 .rpc-cache-th {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #e4e4e3;
-	background-color: #3f5aa6;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-blue);
 }
 
 .rpc-cache-td {
 	font-size: 12px;
-	border: 1px #3f5aa6 solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #000000

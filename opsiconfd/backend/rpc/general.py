@@ -9,19 +9,19 @@ opsiconfd.backend.rpc.extender
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
 
 import os
 import random
 import shutil
 import socket
 import time
+import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
-import uuid
 
 from opsicommon.exceptions import (
 	BackendAuthenticationError,
@@ -40,7 +40,6 @@ from opsicommon.license import (
 )
 from opsicommon.types import forceBool, forceObjectId
 
-from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd import __version__, contextvar_client_address, contextvar_client_session
 from opsiconfd.application import AppState
 from opsiconfd.application.filetransfer import delete_file, prepare_file
@@ -58,6 +57,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import logger
+from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.ssl import get_ca_cert_as_pem
 
 from . import rpc_method

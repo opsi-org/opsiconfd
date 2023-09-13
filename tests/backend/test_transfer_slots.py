@@ -8,12 +8,11 @@
 webdav tests
 """
 
-from unittest.mock import patch, Mock
-
+from unittest.mock import Mock, patch
 
 from opsiconfd.backend.rpc.general import TRANSFER_SLOT_CONFIG, TransferSlot  # pylint: disable=unused-import
 
-from ..utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, test_client, client_jsonrpc, backend  # pylint: disable=unused-import
+from ..utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, backend, client_jsonrpc, test_client  # pylint: disable=unused-import
 
 
 # Acquiring a transfer slot when there are available slots.

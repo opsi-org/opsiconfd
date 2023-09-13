@@ -492,6 +492,10 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	res2 = backend.productOnClient_getObjectsWithSequence(clientId=client_id)
 
 	assert len(res2) == 5
+	import pprint
+
+	for x in res2:
+		pprint.pprint(x.__dict__)
 
 	assert res2[0].productId == "someapp6"
 	assert res2[0].actionRequest == "uninstall"
@@ -502,12 +506,12 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[2].productId == "someapp-config"
 	assert res2[2].actionRequest == "setup"
 	assert res2[2].actionSequence == 2
-	assert res2[3].productId == "some-meta"
-	assert res2[3].actionRequest == "setup"
-	assert res2[3].actionSequence == 3
-	assert res2[4].productId == "firefox"
-	assert res2[4].installationStatus == "installed"
-	assert res2[4].actionSequence == -1
+	assert res2[3].productId == "firefox"
+	assert res2[3].installationStatus == "installed"
+	assert res2[3].actionSequence == -1
+	assert res2[4].productId == "some-meta"
+	assert res2[4].actionRequest == "setup"
+	assert res2[4].actionSequence == 3
 
 	product_on_client_1 = ProductOnClient(
 		productId="firefox",

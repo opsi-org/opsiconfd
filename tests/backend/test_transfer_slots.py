@@ -8,10 +8,10 @@
 webdav tests
 """
 
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import patch, Mock
 
 
-from opsiconfd.backend.rpc.general import TRANSFER_SLOT_CONFIG, TransferSlot
+from opsiconfd.backend.rpc.general import TRANSFER_SLOT_CONFIG, TransferSlot  # pylint: disable=unused-import
 
 from ..utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, test_client, client_jsonrpc, backend  # pylint: disable=unused-import
 

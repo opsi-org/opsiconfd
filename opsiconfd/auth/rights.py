@@ -22,11 +22,11 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 	read_only: bool = False
 	create_client: bool = True
 	opsi_server_write: bool = True
-
+	depot_access_configured: bool = False
 	depot_access: list[str] | None = None
-
+	host_group_access_configured: bool = False
 	host_group_access: list[str] | None = None
-
+	product_group_access_configured: bool = False
 	product_group_access: list[str] | None = None
 	ssh_command_management: bool = False
 	ssh_command: bool = True
@@ -35,17 +35,17 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 	configs: dict[str, UnicodeConfig | BoolConfig] = {}
 	config_prefix: str = "user"
 
-	@property
-	def depot_access_configured(self) -> bool:
-		return bool(self.depot_access)
+	# @property
+	# def depot_access_configured(self) -> bool:
+	# 	return bool(self.depot_access)
 
-	@property
-	def host_group_access_configured(self) -> bool:
-		return bool(self.host_group_access)
+	# @property
+	# def host_group_access_configured(self) -> bool:
+	# 	return bool(self.host_group_access)
 
-	@property
-	def product_group_access_configured(self) -> bool:
-		return bool(self.product_group_access)
+	# @property
+	# def product_group_access_configured(self) -> bool:
+	# 	return bool(self.product_group_access)
 
 	def __init__(  # pylint: disable=too-many-arguments, too-many-locals
 		self,
@@ -66,10 +66,13 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 		self.create_client = create_client
 		self.opsi_server_write = opsi_server_write
 		if depot_access:
+			self.depot_access_configured = True
 			self.depot_access = depot_access
 		if host_group_access:
+			self.host_group_access_configured = True
 			self.host_group_access = host_group_access
 		if product_group_access:
+			self.product_group_access_configured = True
 			self.product_group_access = product_group_access
 		self.ssh_command_management = ssh_command_management
 		self.ssh_command = ssh_command
@@ -173,7 +176,7 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 			return
 		for config_name, config in self.configs.items():
 			# modification date should always be new
-			if config_name in ("modified", "depot_access_configured", "host_group_access_configured", "product_group_access_configured"):
+			if config_name in ("modified"):
 				continue
 			for current_config in current_configs:
 				if current_config.id == config.id:

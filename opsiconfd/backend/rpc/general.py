@@ -295,7 +295,9 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self._app.app_state.to_dict()
 
 	@rpc_method
-	def service_acquireTransferSlot(self: BackendProtocol, depot: str, slot_id: str | None) -> TransferSlot:  # pylint: disable=invalid-name
+	def service_acquireTransferSlot(  # pylint: disable=invalid-name
+		self: BackendProtocol, depot: str, slot_id: str | None = None
+	) -> TransferSlot:
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")

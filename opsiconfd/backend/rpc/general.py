@@ -99,11 +99,13 @@ class TransferSlot:
 	retry_after: int | None
 	depot_id: str | None
 
-	def __init__(self, depot_id: str | None, retry_after: int | None) -> None:
+	def __init__(self, depot_id: str | None, slot_id: str | None = None, retry_after: int | None = None) -> None:
 		self.depot_id = depot_id
 		self.retry_after = retry_after
 		if self.depot_id:
 			self.slot_id = self.depot_id + "-" + str(uuid.uuid4())[:8]
+		if slot_id:
+			self.slot_id = slot_id
 
 
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods

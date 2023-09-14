@@ -294,7 +294,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self._app.set_app_state(AppState.from_dict(app_state), wait_accomplished=wait_accomplished)
 		return self._app.app_state.to_dict()
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def service_acquireTransferSlot(  # pylint: disable=invalid-name
 		self: BackendProtocol, depot: str, slot_id: str | None = None
 	) -> TransferSlot:
@@ -331,7 +331,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 			return slot
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def service_releaseTransferSlot(self: BackendProtocol, slot_id: str) -> None:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
 		if not session:

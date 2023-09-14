@@ -293,7 +293,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self._app.app_state.to_dict()
 
 	@rpc_method
-	def service_acquireTransferSlot(self: BackendProtocol, depot: str) -> TransferSlot:  # pylint: disable=invalid-name
+	def service_acquireTransferSlot(self: BackendProtocol, depot: str, slot_id: str | None) -> TransferSlot:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
@@ -302,6 +302,14 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			client = session.host.id
 		else:
 			client = session.client_addr
+
+		if slot_id:
+			slot = TransferSlot(depot_id=depot, slot_id=slot_id, retry_after=None)
+			with redis_client() as redis:
+				res = decode_redis_result(redis.get(f"{config.redis_key('slot')}:{slot.slot_id}"))
+				if res:
+					redis.set(f"{config.redis_key('slot')}:{slot.slot_id}", client, ex=TRANSFER_SLOT_RETENTION_TIME)
+					return slot
 
 		max_slots = TRANSFER_SLOT_MAX
 		slot_config = self.configState_getValues(TRANSFER_SLOT_CONFIG, depot).get(depot, {}).get(TRANSFER_SLOT_CONFIG)

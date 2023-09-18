@@ -298,6 +298,20 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	def service_acquireTransferSlot(  # pylint: disable=invalid-name
 		self: BackendProtocol, depot: str, slot_id: str | None = None
 	) -> TransferSlot:
+		"""
+		Acquires a transfer slot for the specified depot and slot ID.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to acquire the transfer slot.
+			slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
+
+		Returns:
+			TransferSlot: The acquired transfer slot.
+
+		Raises:
+			BackendPermissionDeniedError: If access is denied.
+		"""
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
@@ -307,8 +321,8 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		else:
 			client = session.client_addr
 
+		slot = TransferSlot(depot_id=depot, slot_id=slot_id, retry_after=None)
 		if slot_id:
-			slot = TransferSlot(depot_id=depot, slot_id=slot_id, retry_after=None)
 			with redis_client() as redis:
 				res = decode_redis_result(redis.get(f"{config.redis_key('slot')}:{slot.slot_id}"))
 				if res:
@@ -326,9 +340,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
 				return TransferSlot(depot_id=None, retry_after=retry_after)
 
-			slot = TransferSlot(depot_id=depot, retry_after=None)
 			redis.set(f"{config.redis_key('slot')}:{slot.slot_id}", client, ex=TRANSFER_SLOT_RETENTION_TIME)
-
 			return slot
 
 	@rpc_method(check_acl=False)

@@ -7,23 +7,23 @@
 """
 webdav tests
 """
-import pytest
 from typing import Generator
 from unittest.mock import Mock, patch
 
-from opsiconfd.backend.rpc.general import TransferSlot, TRANSFER_SLOT_MAX, TRANSFER_SLOT_CONFIG
+import pytest
+
+from opsiconfd.backend.rpc.general import TRANSFER_SLOT_CONFIG, TRANSFER_SLOT_MAX, TransferSlot
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 
-
-from ..utils import (
+from ..utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
 	backend,
 	client_jsonrpc,
-	test_client,
 	sync_clean_redis,
-)  # pylint: disable=unused-import
+	test_client,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -76,7 +76,7 @@ def test_acquire_transfer_slot_with_slot_id(test_client: OpsiconfdTestClient) ->
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client_id = "test-client-dom.opsi.org"
 	host_key = "76768a28560d5924e4587dec5913c501"
-	for i in range(12):
+	for i in range(12):  # pylint: disable=unused-variable
 		with client_jsonrpc(test_client, "", client_id, host_key):
 			rpc = {"id": 1, "method": "service_acquireTransferSlot", "params": ["depot1.uib.test", "depot1.uib.test-slot1"]}
 			res = test_client.post("/rpc", json=rpc)

@@ -60,9 +60,11 @@ class RPCConfigStateMixin(Protocol):
 			for host_id in self.host_getIdents(returnType="str", id=object_ids):
 				depot_id = client_id_to_depot_id.get(host_id)
 				if depot_id and depot_id in depot_values:
-					res[host_id] = depot_values[depot_id].copy()
+					for cid, value in depot_values[depot_id].items():
+						res[host_id][cid] = value
 				elif not depot_id and configserver_id in depot_values:
-					res[host_id] = depot_values[configserver_id].copy()
+					for cid, value in depot_values[configserver_id].items():
+						res[host_id][cid] = value
 		for config_state in self.configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}

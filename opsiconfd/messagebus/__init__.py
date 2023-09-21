@@ -15,8 +15,8 @@ from uuid import UUID
 
 from opsicommon.types import forceHostId, forceHostname, forceStringLower, forceUnsignedInt, forceUserId
 
-from opsiconfd.worker import Worker
 from opsiconfd.utils import forceNodename
+from opsiconfd.worker import Worker
 
 if TYPE_CHECKING:
 	from .filetransfer import FileUpload

@@ -15,6 +15,7 @@ import datetime
 import gzip
 import os
 import random
+import re
 import secrets
 import string
 import threading
@@ -40,7 +41,7 @@ from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
-from opsicommon.types import forceString
+from opsicommon.types import forceString, forceStringLower
 from starlette.routing import Route
 
 logger: OPSILogger | None = None  # pylint: disable=invalid-name
@@ -418,3 +419,13 @@ def ldap3_uri_to_str(ldap_url: dict) -> str:
 	else:
 		url = "ldap://" + url
 	return url
+
+
+_NODENAME_REGEX = re.compile(r"^[a-z0-9][a-z0-9\-_]*$")
+
+
+def forceNodename(var: Any) -> str:  # pylint: disable=invalid-name
+	var = forceStringLower(var)
+	if not _NODENAME_REGEX.search(var):
+		raise ValueError(f"Bad nodename: '{var}'")
+	return var

@@ -16,6 +16,7 @@ from uuid import UUID
 from opsicommon.types import forceHostId, forceHostname, forceStringLower, forceUnsignedInt, forceUserId
 
 from opsiconfd.worker import Worker
+from opsiconfd.utils import forceNodename
 
 if TYPE_CHECKING:
 	from .filetransfer import FileUpload
@@ -106,7 +107,7 @@ def check_channel_name(channel: str) -> str:  # pylint: disable=too-many-return-
 		if len(parts) != 2:
 			raise ValueError(f"Invalid service_node channel: {channel!r}")
 		try:
-			parts[1] = forceHostname(parts[1])
+			parts[1] = forceNodename(parts[1])
 			return ":".join(parts)
 		except ValueError as err:
 			raise ValueError(f"Invalid service_node channel: {channel!r}") from err
@@ -117,7 +118,7 @@ def check_channel_name(channel: str) -> str:  # pylint: disable=too-many-return-
 		if len(parts) < 3:
 			raise ValueError(f"Invalid service_worker channel: {channel!r}")
 		try:
-			parts[1] = forceHostname(parts[1])
+			parts[1] = forceNodename(parts[1])
 			parts[2] = str(forceUnsignedInt(parts[2]))
 			return ":".join(parts)
 		except ValueError as err:

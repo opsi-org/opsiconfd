@@ -113,9 +113,12 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			stderr=subprocess.STDOUT,
 		).stdout.splitlines()
 	except Exception as err:
-		logger.error(err, exc_info=True)
+		str_err = str(err)
+		if isinstance(err, subprocess.CalledProcessError):
+			str_err = f"{err} - {err.output}"
+		logger.error(str_err, exc_info=True)
 		raise RuntimeError(
-			f"Failed to execute package script '{script_path.name}' of package '{opsi_package.product.getId()}': {err}"
+			f"Failed to execute package script '{script_path.name}' of package '{opsi_package.product.getId()}': {str_err}"
 		) from err
 	finally:
 		logger.debug("Finished running package script %s", script_path.name)

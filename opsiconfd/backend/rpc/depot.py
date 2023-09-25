@@ -47,6 +47,7 @@ from opsicommon.types import forceBool, forceDict, forceFilename, forceUnicodeLo
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
 
+from opsiconfd import __version__
 from opsiconfd.config import (
 	BOOT_DIR,
 	DEPOT_DIR,
@@ -97,6 +98,7 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			"PRODUCT_VERSION": opsi_package.product.getProductVersion(),
 			"PACKAGE_VERSION": opsi_package.product.getPackageVersion(),
 			"CLIENT_DATA_DIR": str(client_data_dir),
+			"OPSI_SERVER_VERSION": __version__,
 		}
 		sp_env.update(env)
 		logger.debug("Package script env: %s", sp_env)

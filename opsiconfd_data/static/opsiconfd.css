@@ -56,7 +56,7 @@ button {
 }
 
 button:hover {
-	background-color: #dddddd;
+	background-color: #eeeeee;
 }
 
 button:active {
@@ -82,8 +82,7 @@ div#tab-links ul li {
 }
 
 h1 {
-	/* margin-left: 25px; */
-	font-size: 24px;
+	font-size: 18px;
 	color: var(--opsi-black);
 }
 
@@ -167,7 +166,8 @@ select {
 	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: var(--opsi-black)
+	color: var(--opsi-black);
+	background-color: #f3f3f3;
 }
 
 .rpc-error-td {
@@ -192,7 +192,6 @@ select {
 .host-table,
 .locked-products-table {
 	table-layout: auto;
-	background-color: var(--opsi-gray-2);
 }
 
 .session-th,
@@ -218,6 +217,7 @@ select {
 	color: var(--opsi-black);
 	word-wrap: break-word;
 	overflow-wrap: break-word;
+	background-color: #f3f3f3;
 }
 
 .mfa-active {
@@ -235,7 +235,6 @@ select {
 
 .addon-table {
 	table-layout: auto;
-	background-color: var(--opsi-gray-2);
 }
 
 .addon-th {
@@ -258,8 +257,7 @@ select {
 /* Style the tab */
 .tab {
 	overflow: hidden;
-	/* border: 1px solid #3f3f3e; */
-	background-color: #3f3f3ebb;
+	background-color: var(--opsi-black);
 	margin-top: 10px;
 }
 
@@ -268,7 +266,7 @@ select {
 	color: #000000;
 	float: left;
 	font-size: 0.8em;
-	padding: 14px 16px;
+	padding: 10px 14px;
 	transition: 0.3s;
 }
 
@@ -513,7 +511,7 @@ input[type=button] {
 	margin-top: 10px;
 	margin-bottom: 10px;
 	border: solid 1px #333333;
-	background-color: #dddddd;
+	background-color: #f3f3f3;
 }
 
 button:hover,
@@ -556,25 +554,24 @@ input.loading {
 
 @media screen and (max-width: 1350px) {
 	.tab {
-		height: 90px;
+		height: 68px;
 	}
 }
 
 @media screen and (max-width: 1090px) {
 	.tab {
 		overflow: auto;
-		height: 90px;
+		height: 68px;
 	}
 
 	.header {
-		margin-bottom: 60px;
+		margin-bottom: 35px;
 	}
 }
 
 @media screen and (max-width: 650px) {
-
 	.header {
-		margin-bottom: 80px;
+		margin-bottom: 60px;
 	}
 }
 
@@ -590,7 +587,7 @@ table#licensing-info-table td {
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: var(--opsi-back);
-	background-color: var(--opsi-gray-2);
+	background-color: #f3f3f3;
 }
 
 td.licensing-info-key {
@@ -640,7 +637,7 @@ table#licensing-dates-table th {
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: var(--opsi-back);
-	background-color: var(--opsi-gray-2);
+	background-color: #f3f3f3;
 }
 
 table#licensing-dates-table tr:hover td {
@@ -853,5 +850,5 @@ div#login_error {
 	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #000000
+	background-color: #f3f3f3;
 }

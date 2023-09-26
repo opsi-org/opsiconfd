@@ -1,17 +1,25 @@
+:root {
+	--opsi-black: #3f3f3e;
+	--opsi-gray-1: #b2b2b2;
+	--opsi-gray-2: #e4e4e3;
+	--opsi-blue: #3f5aa6;
+	--opsi-magenta: #cb1e58;
+}
+
 html {
 	width: 100%;
 	height: 100%;
 	margin: 0px;
 	padding: 0px;
-	font-family: Arial, Helvetica, sans-serif;
+	font-family: open-Sanse, Ubuntu, Arial, Helvetica, sans-serif;
 }
 
 body {
 	width: 100%;
 	margin: 0px;
 	padding: 0px;
-	background-color: #eeeeee;
-	color: #3a3a3a;
+	background-color: var(--opsi-gray-2);
+	color: var(--opsi-black);
 }
 
 p {
@@ -20,14 +28,15 @@ p {
 
 #logo,
 #interface-logo {
-	width: 120px;
-	display: inline-block;
+	/* margin-top: 55px; */
+	width: 220px;
+	/* display: inline-block; */
 }
 
 a:link,
 a:visited,
 a:active {
-	color: #0068aa;
+	color: var(--opsi-blue);
 	text-decoration: none;
 }
 
@@ -37,21 +46,21 @@ a:hover {
 }
 
 input {
-	border: 1px solid #cccccc;
+	border: 1px solid var(--opsi-gray-1);
 }
 
 button {
 	appearance: none;
-	border: 1px solid #cccccc;
+	border: 1px solid var(--opsi-gray-1);
 	padding-bottom: 2px;
 }
 
 button:hover {
-	background-color: #dddddd;
+	background-color: #eeeeee;
 }
 
 button:active {
-	background-color: #eeeeee !important;
+	background-color: var(--opsi-gray-2) !important;
 }
 
 li {
@@ -69,19 +78,26 @@ div#tab-links ul li {
 	margin-left: auto;
 	margin-right: auto;
 	margin-top: 10px;
-	margin-bottom: 10px;
+	margin-bottom: 35px;
 }
 
 h1 {
-	margin-left: 25px;
-	font-size: 16px;
-	color: #0068aa;
+	font-size: 18px;
+	color: var(--opsi-black);
 }
 
 h2 {
 	margin-left: 25px;
 	font-size: 14px;
-	color: #0068aa;
+	color: var(--opsi-magenta);
+}
+
+h3 {
+	color: var(--opsi-magenta);
+}
+
+h4 {
+	color: var(--opsi-magenta);
 }
 
 .content {
@@ -119,7 +135,7 @@ select {
 .json-result,
 .redis-result,
 .adminpage-box {
-	outline: 1px solid #ccc;
+	outline: 1px solid var(--opsi-black);
 	padding: 5px;
 	margin: 15px 0px 15px 0px;
 	overflow: auto;
@@ -133,37 +149,39 @@ select {
 
 .rpc-table {
 	table-layout: auto;
-	background-color: #eeeeee;
+	background-color: var(--opsi-gray-2);
 }
 
 .rpc-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-black);
 }
 
 .rpc-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #000000
+	color: var(--opsi-black);
+	background-color: #f3f3f3;
 }
 
 .rpc-error-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #dc322b
+	/* color: #dc322b */
+	color: var(--opsi-magenta)
 }
 
 .rpc-deprecated-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: darkorange;
@@ -174,7 +192,6 @@ select {
 .host-table,
 .locked-products-table {
 	table-layout: auto;
-	background-color: #eeeeee;
 }
 
 .session-th,
@@ -182,11 +199,11 @@ select {
 .host-th,
 .locked-products-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-black);
 }
 
 .session-td,
@@ -194,12 +211,13 @@ select {
 .host-td,
 .locked-products-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #000000;
+	color: var(--opsi-black);
 	word-wrap: break-word;
 	overflow-wrap: break-word;
+	background-color: #f3f3f3;
 }
 
 .mfa-active {
@@ -217,21 +235,20 @@ select {
 
 .addon-table {
 	table-layout: auto;
-	background-color: #eeeeee;
 }
 
 .addon-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-blue);
 }
 
 .addon-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #000000;
@@ -240,8 +257,8 @@ select {
 /* Style the tab */
 .tab {
 	overflow: hidden;
-	border: 1px solid #cccccc;
-	background-color: #f1f1f1;
+	background-color: var(--opsi-black);
+	margin-top: 10px;
 }
 
 /* Style the buttons that are used to open the tab content */
@@ -249,25 +266,26 @@ select {
 	color: #000000;
 	float: left;
 	font-size: 0.8em;
-	padding: 14px 16px;
+	padding: 10px 14px;
 	transition: 0.3s;
 }
 
 .tablink:link {
-	color: #000000;
+	color: var(--opsi-gray-2);
 }
 
 .tablink:visited {
-	color: #000000;
+	color: var(--opsi-gray-2);
 }
 
 .tablink:hover {
-	background-color: #dddddd;
+	background-color: var(--opsi-magenta);
 }
 
 .tablink:active,
 .tablink.active {
-	background-color: #dddddd;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-magenta);
 }
 
 /* Style the tab content */
@@ -493,12 +511,12 @@ input[type=button] {
 	margin-top: 10px;
 	margin-bottom: 10px;
 	border: solid 1px #333333;
-	background-color: #dddddd;
+	background-color: #f3f3f3;
 }
 
 button:hover,
 input[type=button]:hover {
-	background-color: #cccccc;
+	background-color: var(--opsi-gray-1);
 }
 
 button:active,
@@ -536,14 +554,24 @@ input.loading {
 
 @media screen and (max-width: 1350px) {
 	.tab {
-		height: 90px;
+		height: 68px;
 	}
 }
 
-@media screen and (max-width: 1050px) {
+@media screen and (max-width: 1090px) {
 	.tab {
 		overflow: auto;
-		height: 90px;
+		height: 68px;
+	}
+
+	.header {
+		margin-bottom: 35px;
+	}
+}
+
+@media screen and (max-width: 650px) {
+	.header {
+		margin-bottom: 60px;
 	}
 }
 
@@ -555,11 +583,11 @@ table#licensing-info-table {
 
 table#licensing-info-table td {
 	font-size: 15px;
-	border: 1px #333 solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #333;
-	background-color: #fff;
+	color: var(--opsi-back);
+	background-color: #f3f3f3;
 }
 
 td.licensing-info-key {
@@ -567,7 +595,7 @@ td.licensing-info-key {
 }
 
 .lic-state-valid {
-	color: #3a3a3a;
+	color: var(--opsi-black);
 }
 
 .lic-state-replaced_by_non_core {
@@ -605,11 +633,11 @@ div#license-upload {
 table#licensing-dates-table td,
 table#licensing-dates-table th {
 	font-size: 15px;
-	border: 1px #333 solid;
+	border: 1px var(--opsi-black) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #333;
-	background-color: #fff;
+	color: var(--opsi-back);
+	background-color: #f3f3f3;
 }
 
 table#licensing-dates-table tr:hover td {
@@ -638,7 +666,7 @@ table#licensing-dates-table td.changed {
 
 table#licensing-dates-table th.active,
 table#licensing-dates-table td.active {
-	background-color: #f5ffec;
+	background-color: #ecfff0;
 }
 
 
@@ -673,7 +701,7 @@ div#notifications div {
 	padding: 5px 20px 5px 20px;
 	margin-bottom: 15px;
 	background-color: white;
-	border: 1px solid #cccccc;
+	border: 1px solid var(--opsi-gray-1);
 }
 
 div#notifications div.error {
@@ -805,22 +833,22 @@ div#login_error {
 
 .rpc-cache-table {
 	table-layout: auto;
-	background-color: #eeeeee;
+	background-color: var(--opsi-gray-2);
 }
 
 .rpc-cache-th {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #eeeeee;
-	background-color: #0068aa;
+	color: var(--opsi-gray-2);
+	background-color: var(--opsi-blue);
 }
 
 .rpc-cache-td {
 	font-size: 12px;
-	border: 1px #0068aa solid;
+	border: 1px var(--opsi-blue) solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #000000
+	background-color: #f3f3f3;
 }

@@ -108,10 +108,11 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			"PRODUCT_VERSION": opsi_package.product.getProductVersion(),
 			"PACKAGE_VERSION": opsi_package.product.getPackageVersion(),
 			"CLIENT_DATA_DIR": str(client_data_dir),
+			"OPSI_SERVER_VERSION": __version__,
 		}
 		sp_env.update(env)
 		logger.debug("Package script env: %s", sp_env)
-		return subprocess.run(
+		out = subprocess.run(
 			str(script_path),
 			shell=True,
 			check=True,
@@ -120,11 +121,16 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			encoding="utf-8",
 			stdout=subprocess.PIPE,
 			stderr=subprocess.STDOUT,
-		).stdout.splitlines()
+		).stdout
+		logger.debug("Package script %r of package %r output: %s", script_path.name, opsi_package.product.getId(), out)
+		return out.splitlines()
 	except Exception as err:
-		logger.error(err, exc_info=True)
+		str_err = str(err)
+		if isinstance(err, subprocess.CalledProcessError):
+			str_err = f"{err} - {err.stdout}"
+		logger.error(str_err, exc_info=True)
 		raise RuntimeError(
-			f"Failed to execute package script '{script_path.name}' of package '{opsi_package.product.getId()}': {err}"
+			f"Failed to execute package script {script_path.name!r} of package {opsi_package.product.getId()!r}: {str_err}"
 		) from err
 	finally:
 		logger.debug("Finished running package script %s", script_path.name)

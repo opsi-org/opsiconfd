@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`workbenchLocalUrl` varchar(128) DEFAULT NULL,
 	`workbenchRemoteUrl` varchar(255) DEFAULT NULL,
 	PRIMARY KEY (`hostId`),
+	UNIQUE KEY `systemUUID` (`systemUUID`),
 	KEY `index_host_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -755,6 +756,13 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="HOST",
+			index="UNIQUE",
+			columns=["systemUUID"],
+		)
 
 		session.execute(
 			"""ALTER TABLE `CONFIG`

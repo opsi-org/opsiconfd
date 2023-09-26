@@ -11,11 +11,9 @@ opsiconfd.backend.rpc.extender
 from __future__ import annotations
 
 import os
-
 import shutil
 import socket
 import time
-
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
@@ -56,7 +54,6 @@ from opsiconfd.config import (
 )
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import logger
-
 from opsiconfd.ssl import get_ca_cert_as_pem
 
 from . import rpc_method

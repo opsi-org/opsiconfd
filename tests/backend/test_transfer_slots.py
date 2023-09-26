@@ -10,7 +10,6 @@ webdav tests
 from typing import Generator
 
 import pytest
-
 from opsicommon.exceptions import BackendPermissionDeniedError
 
 from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_CONFIG, TRANSFER_SLOT_MAX, TransferSlot
@@ -24,10 +23,10 @@ from ..utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	OpsiconfdTestClient,
 	backend,
+	config,
 	sync_clean_redis,
 	sync_redis_client,
 	test_client,
-	config,
 )
 
 TEST_SLOT_ID = "17676023-8426-4094-8ac7-ef4c22ac9803"

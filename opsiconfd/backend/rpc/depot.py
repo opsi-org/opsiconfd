@@ -317,6 +317,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		Args:
 			self (BackendProtocol): The backend protocol object.
 			depot (str): The depot for which to acquire the transfer slot.
+			client (str): The client for which to acquire the transfer slot
 			slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
 
 		Returns:
@@ -353,6 +354,21 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 
 	@rpc_method(check_acl=False)
 	def depot_releaseTransferSlot(self: BackendProtocol, depot: str, client: str, slot_id: str) -> None:  # pylint: disable=invalid-name
+		"""
+		Release a transfer slot for the specified depot, client and slot ID.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to release the transfer slot.
+			client (str): The client for which to release the transfer slot
+			slot_id (str): The ID of the slot to release.
+		Returns:
+			None
+
+		Raises:
+			BackendPermissionDeniedError: If access is denied.
+		"""
+
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")

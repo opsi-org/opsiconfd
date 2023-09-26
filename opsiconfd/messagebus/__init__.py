@@ -128,6 +128,7 @@ def check_channel_name(channel: str) -> str:  # pylint: disable=too-many-return-
 		parts = channel.split(":")
 		if len(parts) == 2 and parts[-1] in (
 			"app_state_changed",
+			"log_updated",
 			"user_connected",
 			"user_disconnected",
 			"host_created",

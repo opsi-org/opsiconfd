@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import uuid
 from contextlib import closing, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
@@ -142,7 +142,7 @@ class TransferSlot:
 	depot_id: str | None
 	client_id: str | None
 	retry_after: int | None
-	retention: int = TRANSFER_SLOT_RETENTION_TIME
+	retention: int
 
 	def __init__(
 		self, depot_id: str | None = None, client_id: str | None = None, slot_id: str | None = None, retry_after: int | None = None
@@ -157,6 +157,7 @@ class TransferSlot:
 			self.slot_id = uuid.uuid4()
 		if not self.slot_id and not self.retry_after:
 			self.retry_after = TRANSFER_SLOT_RETENTION_TIME
+		self.retention = TRANSFER_SLOT_RETENTION_TIME
 
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods

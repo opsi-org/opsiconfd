@@ -58,6 +58,7 @@ def test_acquire_transfer_slot_available_slots(test_client: OpsiconfdTestClient)
 	assert result["result"].get("depot_id") == "depot1.uib.test"
 	assert result["result"].get("client_id") == "client1.uib.test"
 	assert result["result"].get("retry_after") is None
+	assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
 
 
 def test_acquire_transfer_slot_with_slot_id(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -72,6 +73,7 @@ def test_acquire_transfer_slot_with_slot_id(test_client: OpsiconfdTestClient) ->
 		assert result["result"].get("depot_id") == "depot1.uib.test"
 		assert result["result"].get("client_id") == "client1.uib.test"
 		assert result["result"].get("retry_after") is None
+		assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
 
 
 def test_acquire_transfer_slot_max(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -93,6 +95,7 @@ def test_acquire_transfer_slot_max(test_client: OpsiconfdTestClient) -> None:  #
 		assert result["result"].get("depot_id") == "depot1.uib.test"
 		assert result["result"].get("client_id") == "client1.uib.test"
 		assert result["result"].get("retry_after") is None
+		assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
 
 	rpc = {
 		"id": 1,

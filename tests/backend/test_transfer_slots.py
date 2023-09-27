@@ -12,7 +12,7 @@ from typing import Generator
 import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError
 
-from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_CONFIG, TRANSFER_SLOT_MAX, TransferSlot
+from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_CONFIG, TRANSFER_SLOT_MAX, TRANSFER_SLOT_RETENTION_TIME, TransferSlot
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
 from opsiconfd.redis import decode_redis_result

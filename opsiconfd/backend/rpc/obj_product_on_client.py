@@ -36,8 +36,8 @@ class RPCProductOnClientMixin(Protocol):
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 		self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObject(  # pylint: disable=invalid-name
@@ -48,8 +48,8 @@ class RPCProductOnClientMixin(Protocol):
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 		self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_createObjects(  # pylint: disable=invalid-name

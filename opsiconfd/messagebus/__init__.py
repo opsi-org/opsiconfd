@@ -128,6 +128,12 @@ def check_channel_name(channel: str) -> str:  # pylint: disable=too-many-return-
 		parts = channel.split(":")
 		if len(parts) == 2 and parts[-1] in (
 			"app_state_changed",
+			"config_created",
+			"config_updated",
+			"config_deleted",
+			"configState_created",
+			"configState_updated",
+			"configState_deleted",
 			"log_updated",
 			"user_connected",
 			"user_disconnected",

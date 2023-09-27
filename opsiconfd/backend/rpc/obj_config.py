@@ -12,8 +12,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from opsicommon.objects import BoolConfig, Config, UnicodeConfig  # type: ignore[import]
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.objects import BoolConfig, Config, UnicodeConfig
+from opsicommon.types import forceObjectClass, forceObjectClassList
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_config_state
@@ -49,32 +49,50 @@ class RPCConfigMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def config_insertObject(self: BackendProtocol, config: dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_insertObject")
+		config = forceObjectClass(config, Config)
 		self._config_insert_object(config=config, ace=ace, create=True, set_null=True)
+		if not self.events_enabled:
+			return
+		self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def config_updateObject(self: BackendProtocol, config: dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_updateObject")
+		config = forceObjectClass(config, Config)
 		self._config_insert_object(config=config, ace=ace, create=False, set_null=False)
+		if not self.events_enabled:
+			return
+		self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def config_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> None:
 		ace = self._get_ace("config_createObjects")
+		configs = forceObjectClassList(configs, Config)
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
-				for config in forceList(configs):
+				for config in configs:
 					self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session, lock=False)
+		if not self.events_enabled:
+			return
+		for config in configs:
+			self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def config_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> None:
 		ace = self._get_ace("config_updateObjects")
+		configs = forceObjectClassList(configs, Config)
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
-				for config in forceList(configs):
+				for config in configs:
 					self._config_insert_object(config=config, ace=ace, create=True, set_null=False, session=session, lock=False)
+		if not self.events_enabled:
+			return
+		for config in configs:
+			self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	def _config_get(  # pylint: disable=too-many-arguments,too-many-locals
 		self: BackendProtocol,
@@ -129,6 +147,11 @@ class RPCConfigMixin(Protocol):
 		self._mysql.delete_objects(table="CONFIG", object_type=Config, obj=configs, ace=ace)
 		with self._mysql.session() as session:
 			remove_orphans_config_state(session)
+		if not self.events_enabled:
+			return
+		configs = forceObjectClassList(configs, Config)
+		for config in configs:
+			self._send_messagebus_event("config_deleted", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def config_create(  # pylint: disable=too-many-arguments,invalid-name

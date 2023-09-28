@@ -8,6 +8,7 @@
 webdav tests
 """
 from typing import Generator
+import uuid
 
 import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError
@@ -186,6 +187,50 @@ def test_acquire_transfer_slot_max_config(  # pylint: disable=redefined-outer-na
 	assert result["result"].get("retry_after") is not None
 
 
+def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient, backend: UnprotectedBackend
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	clients, depot = _create_clients_and_depot(test_client)
+
+	backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[5])
+	backend.configState_create(configId=TRANSFER_SLOT_CONFIG, objectId=depot["id"], values=["invalid solt max"])
+
+	# should use default max
+	for i in range(TRANSFER_SLOT_MAX):
+		print(i)
+		# Call the method under test
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		rpc = {
+			"id": 1,
+			"method": "depot_acquireTransferSlot",
+			"params": [depot["id"], clients[1]["id"]],
+		}
+		res = test_client.post("/rpc", json=rpc)
+		result = res.json()
+		print(result)
+		# Assert the result
+		assert result["result"].get("slot_id") is not None
+		assert result["result"].get("depot_id") == depot["id"]
+		assert result["result"].get("client_id") == clients[1]["id"]
+		assert result["result"].get("retry_after") is None
+
+	rpc = {
+		"id": 1,
+		"method": "depot_acquireTransferSlot",
+		"params": [depot["id"], clients[1]["id"]],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	result = res.json()
+	print(result)
+	# Assert the result
+	assert result["result"].get("slot_id") is None
+	assert result["result"].get("depot_id") is None
+	assert result["result"].get("client_id") is None
+	assert result["result"].get("retry_after") is not None
+
+
 def test_create_transfer_slot_with_depot_id() -> None:
 	depot_id = "depot1.uib.test"
 	client_id = "client1.uib.test"
@@ -215,8 +260,8 @@ def test_create_transfer_slot_with_depot_id_slot_id_and_retry_after() -> None:
 	transfer_slot = TransferSlot(depot_id, client_id, slot_id, retry_after)
 	assert transfer_slot.depot_id == depot_id
 	assert transfer_slot.client_id == client_id
-	assert transfer_slot.slot_id is None
-	assert transfer_slot.retry_after == retry_after
+	assert transfer_slot.slot_id == uuid.UUID("urn:uuid:" + TEST_SLOT_ID)
+	assert transfer_slot.retry_after is None
 
 
 def test_transfer_slot_session_error(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
@@ -284,3 +329,19 @@ def test_return_list_with_valid_input(test_client: OpsiconfdTestClient) -> None:
 					assert slot[key] == value
 				excepted_slots.remove(expected_slot)  # pylint: disable=modified-iterating-list
 				break
+
+
+def test_valid_redis_key_with_all_values() -> None:
+	key = f"slot:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"
+	transfer_slot = TransferSlot.from_redis_key(key)
+	assert transfer_slot
+	assert transfer_slot.depot_id == "depot1.uib.test"
+	assert transfer_slot.client_id == "client1.uib.test"
+	assert isinstance(transfer_slot.slot_id, uuid.UUID)
+	assert transfer_slot.slot_id == uuid.UUID("urn:uuid:" + TEST_SLOT_ID)
+
+
+def test_invalid_redis_key() -> None:
+	key = "invalidrediskey:test"
+	transfer_slot = TransferSlot.from_redis_key(key)
+	assert transfer_slot is None

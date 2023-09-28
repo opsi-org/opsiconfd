@@ -24,6 +24,7 @@ from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
 
+from opsicommon.types import forceHostId  # type: ignore[import]
 from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
@@ -136,28 +137,42 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 		logger.debug("Finished running package script %s", script_path.name)
 
 
-@dataclass(init=True)
+@dataclass()
 class TransferSlot:
-	slot_id: uuid.UUID | None
-	depot_id: str | None
-	client_id: str | None
-	retry_after: int | None
-	retention: int
+	depot_id: str | None = None
+	client_id: str | None = None
+	slot_id: uuid.UUID | str | None = None
+	retry_after: int | None = None
+	retention: int = TRANSFER_SLOT_RETENTION_TIME
 
-	def __init__(
-		self, depot_id: str | None = None, client_id: str | None = None, slot_id: str | None = None, retry_after: int | None = None
-	) -> None:
-		self.depot_id = depot_id
-		self.client_id = client_id
-		self.retry_after = retry_after
-		self.slot_id = None
-		if slot_id and not retry_after:
-			self.slot_id = uuid.UUID("urn:uuid:" + slot_id)
-		if not self.slot_id and not retry_after:
+	def __post_init__(self) -> None:
+		if isinstance(self.slot_id, str):
+			self.slot_id = uuid.UUID("urn:uuid:" + self.slot_id)
+		if not self.slot_id and not self.retry_after:
 			self.slot_id = uuid.uuid4()
 		if not self.slot_id and not self.retry_after:
 			self.retry_after = TRANSFER_SLOT_RETENTION_TIME
-		self.retention = TRANSFER_SLOT_RETENTION_TIME
+		if self.slot_id:
+			self.depot_id = forceHostId(self.depot_id)
+			self.client_id = forceHostId(self.client_id)
+			self.retry_after = None
+
+	@property
+	def redis_key(self) -> str:
+		return f"{config.redis_key('slot')}:{self.depot_id}:{self.client_id}:{self.slot_id}"
+
+	@classmethod
+	def from_redis_key(cls, key: str) -> TransferSlot | None:
+		key_values = key.split(":")
+		try:
+			slot_id = key_values[-1]
+			client_id = key_values[-2]
+			depot_id = key_values[-3]
+		except IndexError as err:
+			logger.error("Cloud not parse redis key %s", key)
+			logger.debug(err)
+			return None
+		return cls(depot_id=depot_id, client_id=client_id, slot_id=slot_id)
 
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
@@ -340,15 +355,22 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		slot = TransferSlot(depot_id=depot, client_id=client, slot_id=slot_id, retry_after=None)
 		if slot_id:
 			with redis_client() as redis:
-				res = decode_redis_result(redis.get(f"{config.redis_key('slot')}:{depot}:{client}:{slot.slot_id}"))
+				res = decode_redis_result(redis.get(slot.redis_key))
 				if res:
-					redis.set(f"{config.redis_key('slot')}:{depot}:{client}:{slot.slot_id}", client, ex=TRANSFER_SLOT_RETENTION_TIME)
+					redis.set(slot.redis_key, client, ex=TRANSFER_SLOT_RETENTION_TIME)
 					return slot
 
 		max_slots = TRANSFER_SLOT_MAX
 		slot_config = self.configState_getValues(TRANSFER_SLOT_CONFIG, depot).get(depot, {}).get(TRANSFER_SLOT_CONFIG)
 		if slot_config:
-			max_slots = slot_config[0]
+			try:
+				max_slots = int(slot_config[0])
+			except ValueError:
+				logger.warning(
+					"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
+					TRANSFER_SLOT_CONFIG,
+					TRANSFER_SLOT_MAX,
+				)
 
 		with redis_client() as redis:
 			depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:*"))))
@@ -356,7 +378,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
 				return TransferSlot(retry_after=retry_after)
 
-			redis.set(f"{config.redis_key('slot')}:{depot}:{client}:{slot.slot_id}", client, ex=TRANSFER_SLOT_RETENTION_TIME)
+			redis.set(slot.redis_key, client, ex=TRANSFER_SLOT_RETENTION_TIME)
 			return slot
 
 	@rpc_method(check_acl=False)
@@ -381,7 +403,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise BackendPermissionDeniedError("Access denied")
 
 		with redis_client() as redis:
-			redis.unlink(f"{config.redis_key('slot')}:{depot}:{client}:{slot_id}")
+			redis.unlink(TransferSlot(depot_id=depot, client_id=client, slot_id=slot_id).redis_key)
 
 	@rpc_method
 	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:  # pylint: disable=invalid-name
@@ -392,10 +414,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			self (BackendProtocol): The backend protocol object.
 			depot (str): The depot for which to release the transfer slot.
 		Returns:
-			list
-
-		Raises:
-			BackendPermissionDeniedError: If access is denied.
+			list[TransferSlot]
 		"""
 
 		slots = []
@@ -404,8 +423,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			slot_keys = redis.scan_iter(f"{config.redis_key('slot')}:{depot}:*")
 			for slot_key in slot_keys:
 				slot_key = slot_key.decode()
-				client = decode_redis_result(redis.get(slot_key))
-				slots.append(TransferSlot(depot_id=depot, client_id=client, slot_id=slot_key.split(":")[-1]))
+				slot = TransferSlot.from_redis_key(slot_key)
+				if slot:
+					slots.append(slot)
 
 		return slots
 

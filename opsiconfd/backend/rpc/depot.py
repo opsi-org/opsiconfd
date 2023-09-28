@@ -24,7 +24,6 @@ from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
 
-from opsicommon.types import forceHostId  # type: ignore[import]
 from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
@@ -48,7 +47,13 @@ from opsicommon.package.associated_files import (
 	create_package_zsync_file,
 )
 from opsicommon.server.rights import set_rights
-from opsicommon.types import forceBool, forceDict, forceFilename, forceUnicodeLower
+from opsicommon.types import (
+	forceBool,
+	forceDict,
+	forceFilename,
+	forceHostId,  # type: ignore[import]
+	forceUnicodeLower,
+)
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
 

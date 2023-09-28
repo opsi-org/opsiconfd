@@ -7,8 +7,8 @@
 """
 webdav tests
 """
-from typing import Generator
 import uuid
+from typing import Generator
 
 import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError

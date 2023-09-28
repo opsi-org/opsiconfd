@@ -8,18 +8,15 @@
 webdav tests
 """
 from typing import Generator
-from mock import patch
 
 import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError
-from opsiconfd.backend import get_unprotected_backend
 
 from opsiconfd.backend.rpc.depot import (
 	TRANSFER_SLOT_CONFIG,
 	TRANSFER_SLOT_MAX,
 	TRANSFER_SLOT_RETENTION_TIME,
 	TransferSlot,
-	RPCDepotserverMixin,
 )
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config

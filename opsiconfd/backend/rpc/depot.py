@@ -51,7 +51,7 @@ from opsicommon.types import (
 	forceBool,
 	forceDict,
 	forceFilename,
-	forceHostId,  # type: ignore[import]
+	forceHostId,
 	forceUnicodeLower,
 )
 from opsicommon.types import forceProductId as typeForceProductId

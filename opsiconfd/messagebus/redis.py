@@ -148,7 +148,6 @@ async def send_message(message: Message, context: Any = None) -> None:
 
 
 def sync_send_message(message: Message, context: Any = None) -> None:
-	print("sync_send_message START")
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
 	with redis_client() as redis:
@@ -158,7 +157,6 @@ def sync_send_message(message: Message, context: Any = None) -> None:
 			approximate=True,
 			fields=fields,  # type: ignore[arg-type]
 		)
-	print("sync_send_message DONE")
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:

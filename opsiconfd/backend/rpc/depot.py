@@ -404,9 +404,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			slot_keys = redis.scan_iter(f"{config.redis_key('slot')}:{depot}:*")
 			for slot_key in slot_keys:
 				slot_key = slot_key.decode()
-				logger.devel(slot_key)
 				client = decode_redis_result(redis.get(slot_key))
-				logger.devel(client)
 				slots.append(TransferSlot(depot_id=depot, client_id=client, slot_id=slot_key.split(":")[-1]))
 
 		return slots

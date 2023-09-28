@@ -483,7 +483,7 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 			assert result["error"] is None
 			assert result["result"] is None
 
-			reader.wait_for_message(count=1, timeout=10)
+			reader.wait_for_message(count=1)
 			msg = next(reader.get_messages())
 			assert msg["type"] == "event"
 			assert msg["channel"] == "event:config_created"

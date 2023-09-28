@@ -68,6 +68,8 @@ class RPCConfigMixin(Protocol):
 	def config_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> None:
+		print("============================== CI DEBUG =====================================")
+		print("self.events_enabled:", self.events_enabled)
 		ace = self._get_ace("config_createObjects")
 		configs = forceObjectClassList(configs, Config)
 		with self._mysql.session() as session:
@@ -77,6 +79,7 @@ class RPCConfigMixin(Protocol):
 		if not self.events_enabled:
 			return
 		for config in configs:
+			print("_send_messagebus_event", config)
 			self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)

@@ -384,6 +384,34 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			redis.unlink(f"{config.redis_key('slot')}:{depot}:{client}:{slot_id}")
 
 	@rpc_method
+	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:  # pylint: disable=invalid-name
+		"""
+		List all reserved TransferSlots of depot.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to release the transfer slot.
+		Returns:
+			list
+
+		Raises:
+			BackendPermissionDeniedError: If access is denied.
+		"""
+
+		slots = []
+
+		with redis_client() as redis:
+			slot_keys = redis.scan_iter(f"{config.redis_key('slot')}:{depot}:*")
+			for slot_key in slot_keys:
+				slot_key = slot_key.decode()
+				logger.devel(slot_key)
+				client = decode_redis_result(redis.get(slot_key))
+				logger.devel(client)
+				slots.append(TransferSlot(depot_id=depot, client_id=client, slot_id=slot_key.split(":")[-1]))
+
+		return slots
+
+	@rpc_method
 	def workbench_buildPackage(self: BackendProtocol, package_dir: str) -> str:  # pylint: disable=invalid-name
 		"""
 		Creates an opsi package from an opsi package source directory.

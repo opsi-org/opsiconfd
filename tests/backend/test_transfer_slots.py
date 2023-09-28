@@ -8,11 +8,19 @@
 webdav tests
 """
 from typing import Generator
+from mock import patch
 
 import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError
+from opsiconfd.backend import get_unprotected_backend
 
-from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_CONFIG, TRANSFER_SLOT_MAX, TRANSFER_SLOT_RETENTION_TIME, TransferSlot
+from opsiconfd.backend.rpc.depot import (
+	TRANSFER_SLOT_CONFIG,
+	TRANSFER_SLOT_MAX,
+	TRANSFER_SLOT_RETENTION_TIME,
+	TransferSlot,
+	RPCDepotserverMixin,
+)
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
 from opsiconfd.redis import decode_redis_result
@@ -44,6 +52,34 @@ def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # pyli
 	sync_clean_redis()
 	backend.configState_delete(configId=TRANSFER_SLOT_CONFIG, objectId="*")
 	backend.config_delete(id=TRANSFER_SLOT_CONFIG)
+
+
+def _get_slots(test_client: OpsiconfdTestClient, number: int) -> list[dict]:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	slots = []
+	for i in range(number):
+		print(i)
+		# Call the method under test
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		rpc = {
+			"id": 1,
+			"method": "depot_acquireTransferSlot",
+			"params": ["depot1.uib.test", "client1.uib.test"],
+		}
+		res = test_client.post("/rpc", json=rpc)
+		result = res.json()
+		print(result)
+		# Assert the result
+		assert result["result"].get("slot_id") is not None
+		assert result["result"].get("depot_id") == "depot1.uib.test"
+		assert result["result"].get("client_id") == "client1.uib.test"
+		assert result["result"].get("retry_after") is None
+		assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
+
+		del result["result"]["retention"]
+		slots.append(result["result"])
+
+	return slots
 
 
 # Acquiring a transfer slot when there are available slots.
@@ -78,24 +114,8 @@ def test_acquire_transfer_slot_with_slot_id(test_client: OpsiconfdTestClient) ->
 
 def test_acquire_transfer_slot_max(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	for i in range(TRANSFER_SLOT_MAX):
-		print(i)
-		# Call the method under test
-		test_client.auth = (ADMIN_USER, ADMIN_PASS)
-		rpc = {
-			"id": 1,
-			"method": "depot_acquireTransferSlot",
-			"params": ["depot1.uib.test", "client1.uib.test"],
-		}
-		res = test_client.post("/rpc", json=rpc)
-		result = res.json()
-		print(result)
-		# Assert the result
-		assert result["result"].get("slot_id") is not None
-		assert result["result"].get("depot_id") == "depot1.uib.test"
-		assert result["result"].get("client_id") == "client1.uib.test"
-		assert result["result"].get("retry_after") is None
-		assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
+
+	_get_slots(test_client, TRANSFER_SLOT_MAX)
 
 	rpc = {
 		"id": 1,
@@ -245,3 +265,25 @@ def test_release_transfer_slot_with_slot_id(  # pylint: disable=redefined-outer-
 		redis_res = decode_redis_result(redis_client.get(f"{config.redis_key('slot')}:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"))
 		print(redis_res)
 		assert redis_res is None
+
+
+def test_return_list_with_valid_input(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	excepted_slots = _get_slots(test_client, TRANSFER_SLOT_MAX)
+
+	rpc = {
+		"id": 1,
+		"method": "depot_listTransferSlot",
+		"params": ["depot1.uib.test"],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	result = res.json()
+	slots = result["result"]
+
+	assert len(slots) == TRANSFER_SLOT_MAX
+	for slot in slots:
+		for expected_slot in excepted_slots:
+			if expected_slot["slot_id"] == slot["slot_id"]:
+				for key, value in expected_slot.items():
+					assert slot[key] == value
+				excepted_slots.remove(expected_slot)  # pylint: disable=modified-iterating-list
+				break

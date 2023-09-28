@@ -13,10 +13,13 @@ from __future__ import annotations
 import base64
 import grp
 import os
+import random
 import re
 import shutil
 import subprocess
+import uuid
 from contextlib import closing, contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
@@ -25,6 +28,7 @@ from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
 	BackendIOError,
+	BackendPermissionDeniedError,
 	BackendReferentialIntegrityError,
 	BackendTemporaryError,
 	BackendUnaccomplishableError,
@@ -43,19 +47,27 @@ from opsicommon.package.associated_files import (
 	create_package_zsync_file,
 )
 from opsicommon.server.rights import set_rights
-from opsicommon.types import forceBool, forceDict, forceFilename, forceUnicodeLower
+from opsicommon.types import (
+	forceBool,
+	forceDict,
+	forceFilename,
+	forceHostId,
+	forceUnicodeLower,
+)
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
 
-from opsiconfd import __version__
+from opsiconfd import __version__, contextvar_client_session
 from opsiconfd.config import (
 	BOOT_DIR,
 	DEPOT_DIR,
 	PACKAGE_SCRIPT_TIMEOUT,
 	WORKBENCH_DIR,
+	config,
 	opsi_config,
 )
 from opsiconfd.logging import logger
+from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
 # deprecated can be used in extension config files
@@ -68,6 +80,10 @@ ALLOWED_SERVER_DATA = (
 	Path("/var/lib/opsi"),
 	Path(BOOT_DIR),
 )
+
+TRANSFER_SLOT_CONFIG = "opsiconfd.transfer.slot"
+TRANSFER_SLOT_MAX = 10
+TRANSFER_SLOT_RETENTION_TIME = 60
 
 
 def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
@@ -124,6 +140,44 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 		) from err
 	finally:
 		logger.debug("Finished running package script %s", script_path.name)
+
+
+@dataclass()
+class TransferSlot:
+	depot_id: str | None = None
+	client_id: str | None = None
+	slot_id: uuid.UUID | str | None = None
+	retry_after: int | None = None
+	retention: int = TRANSFER_SLOT_RETENTION_TIME
+
+	def __post_init__(self) -> None:
+		if isinstance(self.slot_id, str):
+			self.slot_id = uuid.UUID("urn:uuid:" + self.slot_id)
+		if not self.slot_id and not self.retry_after:
+			self.slot_id = uuid.uuid4()
+		if not self.slot_id and not self.retry_after:
+			self.retry_after = TRANSFER_SLOT_RETENTION_TIME
+		if self.slot_id:
+			self.depot_id = forceHostId(self.depot_id)
+			self.client_id = forceHostId(self.client_id)
+			self.retry_after = None
+
+	@property
+	def redis_key(self) -> str:
+		return f"{config.redis_key('slot')}:{self.depot_id}:{self.client_id}:{self.slot_id}"
+
+	@classmethod
+	def from_redis_key(cls, key: str) -> TransferSlot | None:
+		key_values = key.split(":")
+		try:
+			slot_id = key_values[-1]
+			client_id = key_values[-2]
+			depot_id = key_values[-3]
+		except IndexError as err:
+			logger.error("Cloud not parse redis key %s", key)
+			logger.debug(err)
+			return None
+		return cls(depot_id=depot_id, client_id=client_id, slot_id=slot_id)
 
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
@@ -279,6 +333,106 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if os.name == "posix":
 			os.chown(zsyncFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(zsyncFilename, 0o660)
+
+	@rpc_method(check_acl=False)
+	def depot_acquireTransferSlot(  # pylint: disable=invalid-name
+		self: BackendProtocol, depot: str, client: str, slot_id: str | None = None
+	) -> TransferSlot:
+		"""
+		Acquires a transfer slot for the specified depot and slot ID.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to acquire the transfer slot.
+			client (str): The client for which to acquire the transfer slot
+			slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
+
+		Returns:
+			TransferSlot: The acquired transfer slot.
+
+		Raises:
+			BackendPermissionDeniedError: If access is denied.
+		"""
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+
+		slot = TransferSlot(depot_id=depot, client_id=client, slot_id=slot_id, retry_after=None)
+		if slot_id:
+			with redis_client() as redis:
+				res = decode_redis_result(redis.get(slot.redis_key))
+				if res:
+					redis.set(slot.redis_key, client, ex=TRANSFER_SLOT_RETENTION_TIME)
+					return slot
+
+		max_slots = TRANSFER_SLOT_MAX
+		slot_config = self.configState_getValues(TRANSFER_SLOT_CONFIG, depot).get(depot, {}).get(TRANSFER_SLOT_CONFIG)
+		if slot_config:
+			try:
+				max_slots = int(slot_config[0])
+			except ValueError:
+				logger.warning(
+					"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
+					TRANSFER_SLOT_CONFIG,
+					TRANSFER_SLOT_MAX,
+				)
+
+		with redis_client() as redis:
+			depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:*"))))
+			if depot_slots >= max_slots:
+				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
+				return TransferSlot(retry_after=retry_after)
+
+			redis.set(slot.redis_key, client, ex=TRANSFER_SLOT_RETENTION_TIME)
+			return slot
+
+	@rpc_method(check_acl=False)
+	def depot_releaseTransferSlot(self: BackendProtocol, depot: str, client: str, slot_id: str) -> None:  # pylint: disable=invalid-name
+		"""
+		Release a transfer slot for the specified depot, client and slot ID.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to release the transfer slot.
+			client (str): The client for which to release the transfer slot
+			slot_id (str): The ID of the slot to release.
+		Returns:
+			None
+
+		Raises:
+			BackendPermissionDeniedError: If access is denied.
+		"""
+
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+
+		with redis_client() as redis:
+			redis.unlink(TransferSlot(depot_id=depot, client_id=client, slot_id=slot_id).redis_key)
+
+	@rpc_method
+	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:  # pylint: disable=invalid-name
+		"""
+		List all reserved TransferSlots of depot.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to release the transfer slot.
+		Returns:
+			list[TransferSlot]
+		"""
+
+		slots = []
+
+		with redis_client() as redis:
+			slot_keys = redis.scan_iter(f"{config.redis_key('slot')}:{depot}:*")
+			for slot_key in slot_keys:
+				slot_key = slot_key.decode()
+				slot = TransferSlot.from_redis_key(slot_key)
+				if slot:
+					slots.append(slot)
+
+		return slots
 
 	@rpc_method
 	def workbench_buildPackage(self: BackendProtocol, package_dir: str) -> str:  # pylint: disable=invalid-name

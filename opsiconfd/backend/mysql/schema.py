@@ -25,6 +25,7 @@ from .cleanup import (
 	remove_orphans_license_on_client_to_host,
 	remove_orphans_product_id_to_license_pool,
 	remove_orphans_product_property_value,
+	remove_orphans_product_on_depot,
 )
 
 if TYPE_CHECKING:
@@ -842,17 +843,12 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			index="PRIMARY",
 			columns=["productId", "productType", "productVersion", "packageVersion", "depotId"],
 		)
-		create_index(
-			session=session,
-			database=mysql.database,
-			table="PRODUCT_ON_DEPOT",
-			index="UNIQUE",
-			columns=["productId", "depotId"],
-		)
+		create_index(session=session, database=mysql.database, table="PRODUCT_ON_DEPOT", index="UNIQUE", columns=["productId", "depotId"])
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
 			foreign_key=OpsiForeignKey(table="PRODUCT_ON_DEPOT", ref_table="HOST", f_keys=["depotId"], ref_keys=["hostId"]),
+			cleanup_function=remove_orphans_product_on_depot,
 		)
 
 		create_index(

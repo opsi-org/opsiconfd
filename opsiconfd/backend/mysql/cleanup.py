@@ -89,6 +89,30 @@ def remove_orphans_object_to_group_host(session: Session) -> None:
 		logger.notice("Removed %d orphaned HostGroup entries from OBJECT_TO_GROUP", result.rowcount)
 
 
+def remove_orphans_product_on_depot(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE d.* FROM PRODUCT_ON_DEPOT AS d
+		LEFT JOIN PRODUCT AS p
+		ON d.productId = p.productId
+		WHERE p.productId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from PRODUCT_ON_DEPOT (product)", result.rowcount)
+
+	result = session.execute(
+		"""
+		DELETE d.* FROM PRODUCT_ON_DEPOT AS d
+		LEFT JOIN HOST AS h
+		ON d.depotId = h.hostId
+		WHERE h.hostId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from PRODUCT_ON_DEPOT (host)", result.rowcount)
+
+
 def remove_orphans_product_on_client(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -193,6 +217,7 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_object_to_group_host(session)
 		remove_orphans_object_to_group_product(session)
 		remove_orphans_product_on_client(session)
+		remove_orphans_product_on_depot(session)
 		remove_orphans_windows_software_id_to_product(session)
 		remove_orphans_license_on_client_to_host(session)
 		remove_orphans_product_id_to_license_pool(session)

@@ -12,6 +12,7 @@ import json
 import time
 from datetime import datetime
 from unittest.mock import patch
+from packaging.version import Version
 
 import pyotp
 import pytest
@@ -648,3 +649,42 @@ def test_auth_only_hostkey_id_header(
 	finally:
 		database_connection.query('DELETE FROM HOST WHERE hostId = "onlyhostkey.uib.gmbh"')
 		database_connection.commit()
+
+
+test_urls = (
+	(
+		"/session/authenticated",
+		"get",
+	),
+	(
+		"/session/login",
+		"post",
+	),
+)
+
+
+@pytest.mark.parametrize(
+	"min_configed_version, user_agent, status_code, response_text_match",
+	(
+		(None, "opsiclientd 4.1.0.0", 200, ""),
+		("4.3.0.0", "opsiclientd 4.1.0.0", 200, ""),
+		("4.3.0.0", None, 200, ""),
+		(None, "opsi config editor 4.2.0.0", 200, ""),
+		("4.3.0.1", "opsi config editor 4.3.0.1", 200, ""),
+		("4.3.0.1", "opsi config editor 4.3.1.0", 200, ""),
+		("4.3.0.1", "opsi config editor 4.4.0.0", 200, ""),
+		("4.3.0.0", "opsi config editor 4.2.0.0", 403, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
+	),
+)
+def test_min_configed_version(
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	min_configed_version: str | None,
+	user_agent: str | None,
+	status_code: int,
+	response_text_match: str,
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with get_config({"min_configed_version": Version(min_configed_version) if min_configed_version else None}):
+		res = test_client.get("/admin/", headers={"User-Agent": str(user_agent)} if user_agent else {})
+		assert res.status_code == status_code
+		assert response_text_match in res.text

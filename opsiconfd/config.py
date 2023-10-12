@@ -15,6 +15,7 @@ import os
 import re
 import socket
 import sys
+from packaging.version import Version
 import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from pathlib import Path
@@ -139,6 +140,10 @@ def str2bool(value: str) -> bool:
 	if isinstance(value, bool):
 		return value
 	return str(value).lower() in ("yes", "true", "y", "1")
+
+
+def str2version(value: str) -> Version:
+	return Version(value)
 
 
 def format_help_without_msg(parser: configargparse.ArgumentParser) -> str:
@@ -956,6 +961,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			env_var="OPSICONFD_MAX_SESSIONS_EXCLUDES",
 			default=["127.0.0.1", "::1"],
 			help=self._help("expert", "Allow unlimited sessions for these addresses."),
+		)
+		self._parser.add(
+			"--min-configed-version",
+			env_var="OPSICONFD_MIN_CONFIGED_VERSION",
+			type=str2version,
+			default=None,
+			help=self._help("opsiconfd", "Minimum opsi-configed version allowed to connect."),
 		)
 		self._parser.add(
 			"--skip-setup",

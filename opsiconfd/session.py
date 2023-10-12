@@ -19,6 +19,7 @@ import uuid
 from collections import namedtuple
 from time import sleep as time_sleep
 from typing import Any, Optional
+from packaging.version import Version
 
 import msgspec
 import pyotp
@@ -1086,6 +1087,7 @@ async def _authenticate(  # pylint: disable=unused-argument,too-many-branches,to
 	session = scope["session"]
 	session.authenticated = False
 
+	await check_min_configed_version(session.user_agent)
 	# Check if client address is blocked
 	await check_blocked(session.client_addr)
 
@@ -1214,6 +1216,23 @@ async def check_network(client_addr: str) -> None:
 		if ip_address_in_network(client_addr, network):
 			return
 	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
+
+
+async def check_min_configed_version(user_agent: str) -> None:
+	if not config.min_configed_version or not user_agent or "opsi config editor" not in user_agent:
+		return
+
+	configed_version = None
+	try:
+		configed_version = Version(user_agent.rsplit()[-1])
+	except ValueError as err:
+		logger.debug(err)
+
+	if not configed_version or configed_version < config.min_configed_version:
+		raise ConnectionRefusedError(
+			f"Configed {(str(configed_version) if configed_version else user_agent)} "
+			f"is not allowed to connect (min-configed-version: {str(config.min_configed_version)})"
+		)
 
 
 async def check_access(connection: HTTPConnection) -> None:

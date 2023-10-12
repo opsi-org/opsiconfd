@@ -12,12 +12,12 @@ import json
 import time
 from datetime import datetime
 from unittest.mock import patch
-from packaging.version import Version
 
 import pyotp
 import pytest
 from fastapi import status
 from MySQLdb.connections import Connection  # type: ignore[import]
+from packaging.version import Version
 
 from opsiconfd import (
 	contextvar_client_session,
@@ -685,6 +685,9 @@ def test_min_configed_version(
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with get_config({"min_configed_version": Version(min_configed_version) if min_configed_version else None}):
-		res = test_client.get("/admin/", headers={"User-Agent": str(user_agent)} if user_agent else {})
+		if user_agent:
+			res = test_client.get("/admin/", headers={"User-Agent": str(user_agent)})
+		else:
+			res = test_client.get("/admin/")
 		assert res.status_code == status_code
 		assert response_text_match in res.text

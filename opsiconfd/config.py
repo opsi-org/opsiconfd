@@ -15,7 +15,6 @@ import os
 import re
 import socket
 import sys
-from packaging.version import Version
 import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from pathlib import Path
@@ -33,6 +32,7 @@ from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
+from packaging.version import Version
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 

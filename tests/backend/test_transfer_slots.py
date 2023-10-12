@@ -309,8 +309,12 @@ def test_release_transfer_slot_with_slot_id(  # pylint: disable=redefined-outer-
 		assert redis_res is None
 
 
-def test_return_list_with_valid_input(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	excepted_slots = _get_slots(test_client, TRANSFER_SLOT_MAX)
+def test_return_list_with_valid_input(  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient, backend: UnprotectedBackend
+) -> None:
+	backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[40])
+
+	excepted_slots = _get_slots(test_client, 40)
 
 	rpc = {
 		"id": 1,
@@ -321,7 +325,7 @@ def test_return_list_with_valid_input(test_client: OpsiconfdTestClient) -> None:
 	result = res.json()
 	slots = result["result"]
 
-	assert len(slots) == TRANSFER_SLOT_MAX
+	assert len(slots) == 40
 	for slot in slots:
 		for expected_slot in excepted_slots:
 			if expected_slot["slot_id"] == slot["slot_id"]:

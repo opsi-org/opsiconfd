@@ -605,8 +605,8 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 		SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.UPDATE_RULE, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
 		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
 		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-		WHERE LOWER(`t1`.`TABLE_SCHEMA`) = LOWER(:database) AND LOWER(`t1`.`TABLE_NAME`) = LOWER(:table)
-		AND LOWER(`t1`.`REFERENCED_TABLE_NAME`) = LOWER(:ref_table)
+		WHERE `t1`.`TABLE_SCHEMA` LIKE :database AND `t1`.`TABLE_NAME` LIKE :table
+		AND `t1`.`REFERENCED_TABLE_NAME` LIKE :ref_table
 		""",
 		params={"database": database, "table": foreign_key.table, "ref_table": foreign_key.ref_table},
 	).fetchone()

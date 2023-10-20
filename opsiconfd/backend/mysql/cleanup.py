@@ -208,6 +208,28 @@ def remove_orphans_hardware_config(mysql: MySQLConnection, session: Session) -> 
 			logger.notice("Removed %d orphaned entries from %s", result.rowcount, hc_table)
 
 
+def convert_config_objects(session: Session) -> None:
+	result = session.execute(
+		"""
+			UPDATE CONFIG as c
+			JOIN CONFIG_VALUE AS cv ON c.configId=cv.configId
+			SET c.`type` = "BoolConfig"
+			WHERE cv.value in ("0","1") AND c.type = "CONFIG" AND editable is FALSE AND multiValue is FALSE;
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Changed %d Configes to BoolConfigs.", result.rowcount)
+	result = session.execute(
+		"""
+			UPDATE CONFIG as c
+			SET c.`type` = "UnicodeConfig"
+			WHERE c.type = "CONFIG";
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Changed %d Configes to UnicodeConfigs.", result.rowcount)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		remove_orphans_config_value(session)
@@ -223,3 +245,4 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_product_id_to_license_pool(session)
 		remove_orphans_hardware_device(mysql, session)
 		remove_orphans_hardware_config(mysql, session)
+		convert_config_objects(session)

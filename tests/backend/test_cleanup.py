@@ -10,11 +10,12 @@ cleanup backend
 
 import pytest
 from opsicommon.objects import Config
+
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import convert_config_objects
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from tests.backend.rpc.test_config_state import _create_clients_and_depot
-from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, test_client, backend
+from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, backend, test_client
 
 
 def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name

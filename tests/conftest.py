@@ -42,7 +42,7 @@ from .utils import sync_clean_redis
 
 GRAFANA_AVAILABLE = False
 
-schemathesis.experimental.openapi_3_1.enable()
+schemathesis.experimental.openapi_3_1.enable()  # pylint: disable=no-member
 
 
 def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument

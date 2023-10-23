@@ -20,6 +20,7 @@ from tempfile import mkdtemp
 from types import FrameType
 from typing import Any, Generator
 from unittest.mock import patch
+import schemathesis
 
 import urllib3
 from _pytest.config import Config
@@ -40,6 +41,8 @@ from opsiconfd.worker import Worker
 from .utils import sync_clean_redis
 
 GRAFANA_AVAILABLE = False
+
+schemathesis.experimental.openapi_3_1.enable()
 
 
 def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument

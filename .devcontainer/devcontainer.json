@@ -13,6 +13,11 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
+				"workbench.colorCustomizations": {
+					"activityBar.background": "#3f5aa6",
+					"activityBar.foreground": "#cb1e58",
+					"activityBar.inactiveForeground": "#e4e4e3"
+				}
 				"python.pythonPath": ".venv/bin/python",
 				"editor.formatOnType": true,
 				"editor.formatOnPaste": true,

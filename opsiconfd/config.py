@@ -1001,6 +1001,20 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			],
 		)
 		self._parser.add(
+			"--allow-webdav-symlinks",
+			nargs="+",
+			default=None,
+			help=self._help(
+				("expert"),
+				"List of webdav directories that allow symlinks",
+			),
+			choices=[
+				"depot",
+				"repository",
+				"workbench",
+			],
+		)
+		self._parser.add(
 			"--redis-internal-url",
 			env_var="OPSICONFD_REDIS_INTERNAL_URL",
 			default="redis://localhost",

@@ -46,18 +46,21 @@ def get_schemathesis(test_client: OpsiconfdTestClient) -> BaseOpenAPISchema:  # 
 schema = from_pytest_fixture("get_schemathesis")
 
 
+@pytest.mark.xfail(reason="The provided schema uses Open API 3.1.0, which is currently not supported.")
 @schema.parametrize(endpoint="^/rpc$")
 def test_rpc(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
 	case.call(session=test_client)  # type: ignore[arg-type]
 
 
+@pytest.mark.xfail(reason="The provided schema uses Open API 3.1.0, which is currently not supported.")
 @schema.parametrize(endpoint="^/admin/(?!memory)")
 def test_admin(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
 	case.call(session=test_client)  # type: ignore[arg-type]
 
 
+@pytest.mark.xfail(reason="The provided schema uses Open API 3.1.0, which is currently not supported.")
 @schema.parametrize(endpoint="^/ssl")
 def test_ssl(case: Case, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()

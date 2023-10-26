@@ -223,7 +223,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			BoolConfig(
 				id="opsiclientd.config_service.permanent_connection",
 				description="Client should keep a permanent connection to the opsi messagebus",
-				defaultValues=[False],
+				defaultValues=[True],
 			)
 		)
 

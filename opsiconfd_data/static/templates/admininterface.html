@@ -143,11 +143,11 @@
 
 <body onload="onLoad();">
 	<div class="header">
-		<div style="width: 120px; float: left">
+		<div>
 			<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
 		</div>
-		<div style="overflow: hidden; display: flex; height: 100%;">
-			<div style="display: inline-block; align-self: flex-end;">
+		<div>
+			<div style="">
 				<h1>opsiconfd {{opsi_version}} running on {{node_name}} ({{username}})</h1>
 			</div>
 		</div>
@@ -602,13 +602,15 @@
 				<input id="input-objgraph-max-obj-types" type="number" value="25" style="width: 50px" />
 				<label>Max objects per type: </label>
 				<input id="input-objgraph-max-obj" type="number" value="50" style="width: 50px" />
-				<button id="button-objgraph-snapshot-new" onclick="objgraphSnapshot(false)">Take snapshot</button>
+				<button id="button-objgraph-snapshot-new" onclick="objgraphSnapshot(false)">Take
+					snapshot</button>
 				<button id="button-objgraph-snapshot-update" onclick="objgraphSnapshot(true)">Update
 					snapshot</button>
 				<br />
 				<label>Object id: </label>
 				<input id="input-objgraph-obj-id" type="text" />
-				<button id="button-objgraph-show-backrefs" onclick="objgraphShowBackrefs()">Show backrefs</button>
+				<button id="button-objgraph-show-backrefs" onclick="objgraphShowBackrefs()">Show
+					backrefs</button>
 
 				<br /><br />
 				<button id="button-tracemalloc-snapshot" onclick="tracemallocSnapshot()">Tracemalloc
@@ -679,7 +681,8 @@
 					<button id="increase-terminal-font-size" onclick="changeTerminalFontSize(+1);">+</button>
 					<br />
 					<label for="terminal-file-upload" class="terminal-file-upload">
-						To upload a file to the current working directory, drop it in the terminal window or click here.
+						To upload a file to the current working directory, drop it in the terminal window or
+						click here.
 					</label>
 					<input id="terminal-file-upload" type="file"
 						onchange="messagebusFileUpload(this.files[0], mbTerminal.terminalChannel, mbTerminal.terminalId); this.value='';">

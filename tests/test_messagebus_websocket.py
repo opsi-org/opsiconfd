@@ -30,6 +30,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TraceResponseMessage,
 	timestamp,
 )
+from opsicommon.objects import UnicodeConfig
 
 from opsiconfd.utils import compress_data, decompress_data
 
@@ -459,3 +460,32 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 				<= trc["broker_ws_send"]
 				<= trc["recipient_ws_receive"]
 			)
+
+
+def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	with test_client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket) as reader:
+			message = ChannelSubscriptionRequestMessage(
+				sender="@", channel="service:messagebus", channels=["event:config_created"], operation="add"
+			)
+			websocket.send_bytes(message.to_msgpack())
+			reader.wait_for_message(count=2)
+			list(reader.get_messages())
+
+			conf = UnicodeConfig("test.config")
+			rpc = {"id": 12345, "method": "config_createObjects", "params": [conf.to_hash()]}
+			res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+			res.raise_for_status()
+			result = res.json()
+			assert result["id"] == rpc["id"]
+			assert result["error"] is None
+			assert result["result"] is None
+
+			reader.wait_for_message(count=1)
+			msg = next(reader.get_messages())
+			assert msg["type"] == "event"
+			assert msg["channel"] == "event:config_created"
+			assert msg["event"] == "config_created"
+			assert msg["data"] == {"id": "test.config"}

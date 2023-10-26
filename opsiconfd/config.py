@@ -32,6 +32,7 @@ from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
+from packaging.version import Version
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 
@@ -72,6 +73,8 @@ WORKBENCH_DIR = "/var/lib/opsi/workbench"
 SMB_CONF = "/etc/samba/smb.conf"
 SUDOERS_CONF = "/etc/sudoers"
 PACKAGE_SCRIPT_TIMEOUT = 600  # Seconds
+AUDIT_HARDWARE_CONFIG_FILE = "/etc/opsi/hwaudit/opsihwaudit.conf"
+AUDIT_HARDWARE_CONFIG_LOCALES_DIR = "/etc/opsi/hwaudit/locales"
 
 try:
 	FQDN = get_fqdn()
@@ -137,6 +140,10 @@ def str2bool(value: str) -> bool:
 	if isinstance(value, bool):
 		return value
 	return str(value).lower() in ("yes", "true", "y", "1")
+
+
+def str2version(value: str) -> Version:
+	return Version(value)
 
 
 def format_help_without_msg(parser: configargparse.ArgumentParser) -> str:
@@ -270,7 +277,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._ex_help = conf.ex_help
 			if self._ex_help and "--help" not in self._args:
 				self._args.append("--help")
-			self._sub_command = conf.action if conf.action in ("health-check", "log-viewer", "setup", "backup", "restore") else None
+			self._sub_command = (
+				conf.action if conf.action in ("health-check", "log-viewer", "setup", "backup", "backup-info", "restore") else None
+			)
 			if self._sub_command:
 				self._args.remove(self._sub_command)
 		except BaseException:  # pylint: disable=broad-except
@@ -954,6 +963,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help("expert", "Allow unlimited sessions for these addresses."),
 		)
 		self._parser.add(
+			"--min-configed-version",
+			env_var="OPSICONFD_MIN_CONFIGED_VERSION",
+			type=str2version,
+			default=None,
+			help=self._help("opsiconfd", "Minimum opsi-configed version allowed to connect."),
+		)
+		self._parser.add(
 			"--skip-setup",
 			nargs="+",
 			env_var="OPSICONFD_SKIP_SETUP",
@@ -1175,6 +1191,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"log-viewer",
 					"health-check",
 					"backup",
+					"backup-info",
 					"restore",
 				),
 				default="start",
@@ -1192,6 +1209,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"log-viewer:    Show log stream on console.\n"
 					"health-check:  Run a health-check.\n"
 					"backup:        Run backup.\n"
+					"backup-info:   Show backup info.\n"
 					"restore:       Restore backup.\n",
 				),
 			)
@@ -1230,12 +1248,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				help=self._help("health-check", "Outputs a description of each check on the console."),
 			)
 
-		if self._sub_command in ("backup", "restore"):
-			self._parser.add(
-				"--quiet",
-				action="store_true",
-				help=self._help(("backup", "restore"), "Do not show output or progress except errors."),
-			)
+		if self._sub_command in ("backup", "backup-info", "restore"):
 			self._parser.add(
 				"--password",
 				nargs="?",
@@ -1245,6 +1258,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"Password for backup encryption and decryption. "
 					"If the argument is given without a value, the user will be prompted for a password.",
 				),
+			)
+
+		if self._sub_command in ("backup", "restore"):
+			self._parser.add(
+				"--quiet",
+				action="store_true",
+				help=self._help(("backup", "restore"), "Do not show output or progress except errors."),
 			)
 
 		if self._sub_command == "backup":
@@ -1285,6 +1305,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 						"Example for a msgpack encoded, lz4 compressed and aes encrypted backup: opsi-backup.msgpack.lz4.aes"
 					),
 				),
+			)
+
+		if self._sub_command == "backup-info":
+			self._parser.add(
+				"backup_file",
+				metavar="BACKUP_FILE",
+				help=self._help("backup-info", "The BACKUP_FILE for which the information is to be displayed."),
 			)
 
 		if self._sub_command == "restore":

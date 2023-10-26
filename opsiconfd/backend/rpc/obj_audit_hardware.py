@@ -22,6 +22,7 @@ from opsicommon.objects import (
 )
 from opsicommon.types import forceLanguageCode, forceList
 
+from opsiconfd.config import AUDIT_HARDWARE_CONFIG_FILE, AUDIT_HARDWARE_CONFIG_LOCALES_DIR
 from opsiconfd.logging import logger
 
 from ..auth import RPCACE
@@ -31,8 +32,6 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
 
-AUDIT_HARDWARE_CONFIG_FILE: str = "/etc/opsi/hwaudit/opsihwaudit.conf"
-AUDIT_HARDWARE_CONFIG_LOCALES_DIR: str = "/etc/opsi/hwaudit/locales"
 OPSI_HARDWARE_CLASSES: list[dict[str, Any]] = []
 
 
@@ -73,14 +72,23 @@ def get_audit_hardware_config(
 	language: str | None = None,
 ) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:
 	if not language:
-		language = "en_US"
+		language = "en"
 	language = forceLanguageCode(language).replace("-", "_")
 
-	locale_file = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR) / (language or "en_US")
+	locale_path = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR)
+	locale_file = locale_path / f"hwaudit_{language}.properties"
 	if not locale_file.exists():
-		logger.error("No translation file found for language %s, falling back to en_US", language)
-		language = "en_US"
-		locale_file = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR) / language
+		orig_language = language
+		if "_" in language:
+			language = language.split("_")[0]
+		else:
+			language = f"{language}_{language.upper()}"
+		logger.debug("No translation file found for language %r, trying %r", orig_language, language)
+		locale_file = locale_path / f"hwaudit_{language}.properties"
+		if not locale_file.exists():
+			logger.error("No translation file found for language %r, falling back to en", language)
+			language = "en"
+			locale_file = locale_path / f"hwaudit_{language}.properties"
 
 	locale = {}
 	try:

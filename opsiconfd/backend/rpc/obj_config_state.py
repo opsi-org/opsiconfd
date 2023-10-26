@@ -13,11 +13,11 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ConfigState, ProductOnDepot  # type: ignore[import]
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.types import (
 	forceBool,
 	forceHostIdList,
-	forceList,
 	forceObjectClass,
+	forceObjectClassList,
 	forceObjectIdList,
 	forceProductIdList,
 	forceUnicodeList,
@@ -60,9 +60,11 @@ class RPCConfigStateMixin(Protocol):
 			for host_id in self.host_getIdents(returnType="str", id=object_ids):
 				depot_id = client_id_to_depot_id.get(host_id)
 				if depot_id and depot_id in depot_values:
-					res[host_id] = depot_values[depot_id].copy()
+					for cid, value in depot_values[depot_id].items():
+						res[host_id][cid] = value
 				elif not depot_id and configserver_id in depot_values:
-					res[host_id] = depot_values[configserver_id].copy()
+					for cid, value in depot_values[configserver_id].items():
+						res[host_id][cid] = value
 		for config_state in self.configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}
@@ -79,6 +81,9 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_insertObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
+		if not self.events_enabled:
+			return
+		self._send_messagebus_event("configState_created", data=configState.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
 
@@ -87,6 +92,9 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_updateObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
+		if not self.events_enabled:
+			return
+		self._send_messagebus_event("configState_updated", data=configState.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
 
@@ -95,10 +103,15 @@ class RPCConfigStateMixin(Protocol):
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_createObjects")
+		configStates = forceObjectClassList(configStates, ConfigState)
 		with self._mysql.session() as session:
-			for config_state in forceList(configStates):
+			for config_state in configStates:
 				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
+		if not self.events_enabled:
+			return
+		for configState in configStates:
+			self._send_messagebus_event("configState_created", data=configState.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)
 
@@ -107,10 +120,15 @@ class RPCConfigStateMixin(Protocol):
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_updateObjects")
+		configStates = forceObjectClassList(configStates, ConfigState)
 		with self._mysql.session() as session:
-			for config_state in forceList(configStates):
+			for config_state in configStates:
 				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False, session=session)
+		if not self.events_enabled:
+			return
+		for configState in configStates:
+			self._send_messagebus_event("configState_updated", data=configState.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)
 
@@ -145,6 +163,11 @@ class RPCConfigStateMixin(Protocol):
 			return
 		ace = self._get_ace("configState_deleteObjects")
 		self._mysql.delete_objects(table="CONFIG_STATE", object_type=ConfigState, obj=configStates, ace=ace)
+		if not self.events_enabled:
+			return
+		configStates = forceObjectClassList(configStates, ConfigState)
+		for configState in configStates:
+			self._send_messagebus_event("configState_deleted", data=configState.getIdent("dict"))  # type: ignore[arg-type]
 		self.opsipxeconfd_config_states_deleted(configStates)
 
 	@rpc_method(check_acl=False)

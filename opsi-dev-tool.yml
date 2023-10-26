@@ -17,6 +17,22 @@ git:
       echo "Running mypy..."
       poetry run mypy opsiconfd tests
 
+transifex:
+  upload_resources:
+    - organization: opsi-org
+      project: opsiorg
+      resource_name: hwaudit.properties
+      resource_file: opsiconfd_data/etc/hwaudit/locales/hwaudit_en.properties
+  download_translations:
+    - organization: opsi-org
+      project: opsiorg
+      resource_name: hwaudit.properties
+      install_dir: opsiconfd_data/etc/hwaudit/locales
+      min_review_rate: $TRANSIFEX_MIN_REVIEW_RATE
+      languages:
+        - de
+        - fr
+
 pyinstaller-poetry:
   one_file: no
   strip: yes
@@ -98,11 +114,15 @@ package:
     fi;
     if [ -d ${pyi_src}/opsiconfd-amd64 ]; then
       mkdir -p ${DST}/rootfs-amd64/usr/lib
+      mkdir -p ${DST}/rootfs-amd64/etc/opsi
       cp -a ${pyi_src}/opsiconfd-amd64 ${DST}/rootfs-amd64/usr/lib/opsiconfd
+      cp -a ${pyi_src}/opsiconfd-amd64/opsiconfd_data/etc/* ${DST}/rootfs-amd64/etc/opsi/
     fi;
     if [ -d ${pyi_src}/opsiconfd-arm64 ]; then
       mkdir -p ${DST}/rootfs-arm64/usr/lib
+      mkdir -p ${DST}/rootfs-arm64/etc/opsi
       cp -a ${pyi_src}/opsiconfd-arm64 ${DST}/rootfs-arm64/usr/lib/opsiconfd
+      cp -a ${pyi_src}/opsiconfd-arm64/opsiconfd_data/etc/* ${DST}/rootfs-arm64/etc/opsi/
     fi;
     echo "#!/bin/sh"                                  > ${DST}/rootfs/usr/bin/opsiconfd
     echo "exec /usr/lib/opsiconfd/opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd

@@ -161,6 +161,8 @@ test:pylint-pytest:
 build:linux-pyinstaller:
   stage: build
   script:
+    - TRANSIFEX_MIN_REVIEW_RATE=0.0
+    - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - *install_tools
     - poetry lock --no-update
     - poetry install
@@ -180,6 +182,8 @@ build:arm64-pyinstaller:
   tags:
     - arm64
   script:
+    - TRANSIFEX_MIN_REVIEW_RATE=0.0
+    - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - *install_tools
     - poetry lock --no-update
     - poetry install

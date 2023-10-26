@@ -15,6 +15,7 @@ import datetime
 import gzip
 import os
 import random
+import re
 import secrets
 import string
 import threading
@@ -40,7 +41,7 @@ from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
-from opsicommon.types import forceString
+from opsicommon.types import forceString, forceStringLower
 from starlette.routing import Route
 
 logger: OPSILogger | None = None  # pylint: disable=invalid-name
@@ -109,6 +110,8 @@ def is_manager(proc: psutil.Process) -> bool:
 
 
 def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> Optional[int]:
+	container_procs = ("containerd-shim", "lxc-start")
+
 	manager_pid = None
 	ignore_pids = []
 	if ignore_self:
@@ -122,6 +125,16 @@ def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> 
 	for proc in psutil.process_iter():
 		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
 			continue
+
+		running_in_container_pid = 0
+		for parent in proc.parents():
+			if parent.name() in container_procs:
+				running_in_container_pid = parent.pid
+				break
+		if running_in_container_pid:
+			get_logger().debug("Process %d is running in container %d, skipping", proc.pid, running_in_container_pid)
+			continue
+
 		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
 			# Do not return, prefer higher pids
 			manager_pid = proc.pid
@@ -406,3 +419,13 @@ def ldap3_uri_to_str(ldap_url: dict) -> str:
 	else:
 		url = "ldap://" + url
 	return url
+
+
+_NODENAME_REGEX = re.compile(r"^[a-z0-9][a-z0-9\-_]*$")
+
+
+def forceNodename(var: Any) -> str:  # pylint: disable=invalid-name
+	var = forceStringLower(var)
+	if not _NODENAME_REGEX.search(var):
+		raise ValueError(f"Bad nodename: '{var}'")
+	return var

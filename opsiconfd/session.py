@@ -38,6 +38,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from opsicommon.objects import Host, OpsiClient, User  # type: ignore[import]
 from opsicommon.utils import ip_address_in_network, timestamp
+from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
@@ -50,6 +51,7 @@ from opsiconfd.application import app as opsiconfd_app
 from opsiconfd.auth import AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
+from opsiconfd.auth.user import create_user
 from opsiconfd.backend import (
 	get_unprotected_backend,  # pylint: disable=import-outside-toplevel
 )
@@ -1046,6 +1048,9 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	session.is_admin = authm.user_is_admin(session.username)
 	session.is_read_only = authm.user_is_read_only(session.username)
 
+	if session.is_admin:
+		create_user(session.username, session.user_groups)
+
 	logger.info(
 		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
 		session.username,
@@ -1082,6 +1087,7 @@ async def _authenticate(  # pylint: disable=unused-argument,too-many-branches,to
 	session = scope["session"]
 	session.authenticated = False
 
+	await check_min_configed_version(session.user_agent)
 	# Check if client address is blocked
 	await check_blocked(session.client_addr)
 
@@ -1210,6 +1216,23 @@ async def check_network(client_addr: str) -> None:
 		if ip_address_in_network(client_addr, network):
 			return
 	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
+
+
+async def check_min_configed_version(user_agent: str) -> None:
+	if not config.min_configed_version or not user_agent or "opsi config editor" not in user_agent:
+		return
+
+	configed_version = None
+	try:
+		configed_version = Version(user_agent.rsplit()[-1])
+	except ValueError as err:
+		logger.debug(err)
+
+	if not configed_version or configed_version < config.min_configed_version:
+		raise ConnectionRefusedError(
+			f"Configed {(str(configed_version) if configed_version else user_agent)} "
+			f"is not allowed to connect (min-configed-version: {str(config.min_configed_version)})"
+		)
 
 
 async def check_access(connection: HTTPConnection) -> None:

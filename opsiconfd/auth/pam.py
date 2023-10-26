@@ -33,7 +33,7 @@ class PAMAuthentication(AuthenticationModule):
 				self._pam_service = "opsi-auth"
 			elif linux_distro_id_like_contains(("sles", "opensuse")):
 				self._pam_service = "sshd"
-			elif linux_distro_id_like_contains(("rhel", "centos")):
+			elif linux_distro_id_like_contains(("rhel", "centos", "fedora")):
 				self._pam_service = "system-auth"
 			else:
 				self._pam_service = "common-auth"
@@ -52,12 +52,12 @@ class PAMAuthentication(AuthenticationModule):
 		:raises BackendAuthenticationError: If authentication fails.
 		"""
 		logger.confidential("Trying to authenticate user %s with password %s by PAM", username, password)
-		logger.trace("Attempting PAM authentication as user %s (service=%s)...", username, self._pam_service)
+		logger.debug("Attempting PAM authentication as user %s (service=%s)...", username, self._pam_service)
 
 		try:
 			auth = pam.pam()
 			if not auth.authenticate(username, password, service=self._pam_service):
-				logger.trace("PAM authentication failed: %s (code %s)", auth.reason, auth.code)
+				logger.debug("PAM authentication failed: %s (code %s)", auth.reason, auth.code)
 				raise RuntimeError(auth.reason)
 
 			logger.trace("PAM authentication successful.")

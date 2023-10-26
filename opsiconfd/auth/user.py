@@ -59,6 +59,18 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 			self.depot_access = user_role.depot_access
 			self.host_group_access = user_role.host_group_access
 			self.product_group_access = user_role.product_group_access
+			if self.depot_access:
+				self.depot_access_configured = True
+			else:
+				self.depot_access_configured = False
+			if self.host_group_access:
+				self.host_group_access_configured = True
+			else:
+				self.host_group_access_configured = False
+			if self.product_group_access:
+				self.product_group_access_configured = True
+			else:
+				self.product_group_access_configured = False
 			self.ssh_command_management = user_role.ssh_command_management
 			self.ssh_command = user_role.ssh_command
 			self.ssh_menu_server_console = user_role.ssh_menu_server_console

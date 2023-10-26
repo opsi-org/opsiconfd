@@ -220,7 +220,12 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"], fs_opts={})  # type: ignore[index]
+		if name in symlinks:
+			app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
+			fs_opts = {"follow_symlinks": True}
+			app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False, fs_opts=fs_opts)  # type: ignore[index]
+		else:
+			app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"], fs_opts={})  # type: ignore[index]
 		app_config["mount_path"] = f"/{name}"
 		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))
 

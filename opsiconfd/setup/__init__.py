@@ -52,14 +52,14 @@ def setup_redis() -> None:
 		delete_recursively(delete_key)
 
 
-def setup_depotserver(unattendedConfiguration=None) -> bool:  # pylint: disable=too-many-branches, too-many-statements
+def setup_depotserver(unattended_configuration=None) -> bool:  # pylint: disable=too-many-branches, too-many-statements
 	service = ServiceClient(
 		opsi_config.get("service", "url"), verify="accept_all", ca_cert_file=config.ssl_ca_cert, jsonrpc_create_objects=True
 	)
 	try:  # pylint: disable=too-many-nested-blocks
 		while True:
 			try:
-				if not unattendedConfiguration:
+				if not unattended_configuration:
 					if not Confirm.ask("Do you want to register this server as a depotserver?"):
 						return False
 
@@ -67,16 +67,16 @@ def setup_depotserver(unattendedConfiguration=None) -> bool:  # pylint: disable=
 				hostname = url.hostname
 				if hostname in ("127.0.0.1", "::1", "localhost"):
 					hostname = ""
-				if unattendedConfiguration:
-					inp = unattendedConfiguration.get("hostname", "")
+				if unattended_configuration:
+					inp = unattended_configuration.get("hostname", "")
 				else:
 					inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
 					if not inp:
 						raise ValueError(f"Invalid address {inp!r}")
 				service.set_addresses(inp)
-				if unattendedConfiguration:
-					service.username = unattendedConfiguration.get("username", "")
-					service.password = unattendedConfiguration.get("password", "")
+				if unattended_configuration:
+					service.username = unattended_configuration.get("username", "")
+					service.password = unattended_configuration.get("password", "")
 				else:
 					service.username = Prompt.ask("Enter username for service connection", default=service.username, show_default=True)
 					service.password = Prompt.ask(f"Enter password for {service.username!r}", password=True)
@@ -95,8 +95,8 @@ def setup_depotserver(unattendedConfiguration=None) -> bool:  # pylint: disable=
 		depot = OpsiDepotserver(id=depot_id)
 		while True:
 			try:
-				if unattendedConfiguration:
-					inp = unattendedConfiguration.get("depot_id", "")
+				if unattended_configuration:
+					inp = unattended_configuration.get("depot_id", "")
 				else:
 					inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
@@ -110,7 +110,7 @@ def setup_depotserver(unattendedConfiguration=None) -> bool:  # pylint: disable=
 						depot = OpsiDepotserver.fromHash({k: v for k, v in depot.to_hash().items() if k != "type"})
 
 				depot.isMasterDepot = True
-				if not unattendedConfiguration:
+				if not unattended_configuration:
 					depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
 				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
 				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"

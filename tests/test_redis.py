@@ -192,7 +192,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 		name="opsiconfd pytest metric",
 		retention=24 * 3600 * 1000,
 		grafana_config=None,
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"]],
+		downsampling=[["minute", 2 * 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"]],  # keep minutes longer
 	)
 	metric.set_redis_prefix(f"{base_key}:stats")
 	metrics_registry = MetricsRegistry()
@@ -215,7 +215,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 			await collector.add_value(metric_id=metric.id, value=10.0)
 			await collector._write_values_to_redis()  # pylint:disable=protected-access
 
-	await asyncio.sleep(3)
+	await asyncio.sleep(1)
 	rand = randbytes(3000)
 	num1 = 30
 	num2 = 30

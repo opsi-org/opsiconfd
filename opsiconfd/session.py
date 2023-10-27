@@ -1070,7 +1070,7 @@ async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str 
 			f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
 			f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
 		)
-		logger.debug(cmd)
+		logger.trace(cmd)
 		redis = await async_redis_client()
 		await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
 		await asyncio.sleep(0.2)

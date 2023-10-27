@@ -11,6 +11,7 @@ global config
 
 import getpass
 import ipaddress
+import json
 import os
 import re
 import socket
@@ -1235,6 +1236,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			)
 			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
+			self._parser.add(
+				"--unattended", 
+				action="store_true", 
+				nargs="1",
+				type=json.loads
+				help=self._help("setup", "Pass an unattended JSON object"),
+			)
 			self._parser.add(
 				"--rename-server",
 				metavar="NEW_SERVER_ID",

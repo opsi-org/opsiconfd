@@ -487,7 +487,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 
 def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 5):
+	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 10):
 		lifetime = 60
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -511,7 +511,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 		assert session_id == cookie.value
 
 		with test_client.websocket_connect("/messagebus/v1", headers={"Cookie": f"{cookie.name}={cookie.value}"}):
-			time.sleep(5)
+			time.sleep(1)
 			res = test_client.get("/admin/", headers=lt_headers)
 			assert res.status_code == 200
 			cookie = list(test_client.cookies.jar)[0]

@@ -7,9 +7,9 @@
 """
 webdav tests
 """
-from unittest.mock import patch
 import uuid
 from typing import Generator
+from unittest.mock import patch
 
 import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError

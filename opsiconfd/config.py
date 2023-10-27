@@ -1238,9 +1238,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
 			self._parser.add(
 				"--unattended",
-				action="store_true",
 				nargs="1",
 				type=json.loads,
+				default=False,
 				help=self._help("setup", "Pass an unattended JSON object"),
 			)
 			self._parser.add(

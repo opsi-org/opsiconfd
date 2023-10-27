@@ -111,7 +111,9 @@ def setup_depotserver(unattended_configuration: Optional[dict] = None) -> bool: 
 						depot = OpsiDepotserver.fromHash({k: v for k, v in depot.to_hash().items() if k != "type"})
 
 				depot.isMasterDepot = True
-				if not unattended_configuration:
+				if unattended_configuration:
+					depot.description = unattended_configuration.get("description", "")
+				else:
 					depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
 				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
 				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"
@@ -167,7 +169,10 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 			force_server_id = opsi_config.get("host", "id")
 
 	if register_depot:
-		if not setup_depotserver():
+		rich_print("[b]register_depot is set. Value is : {register_depot} [/b]")
+		unattended = None
+
+		if not setup_depotserver(unattended):
 			return
 
 	if opsi_config.get("host", "server-role") == "depotserver":

@@ -1240,7 +1240,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				"--unattended", 
 				action="store_true", 
 				nargs="1",
-				type=json.loads
+				type=json.loads,
 				help=self._help("setup", "Pass an unattended JSON object"),
 			)
 			self._parser.add(

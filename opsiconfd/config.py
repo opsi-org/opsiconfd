@@ -11,7 +11,6 @@ global config
 
 import getpass
 import ipaddress
-import json
 import os
 import re
 import socket
@@ -1238,10 +1237,12 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
 			self._parser.add(
 				"--unattended",
-				nargs="+",
-				type=json.loads,
+				metavar="UNATTENDED_CONFIG",
+				type=dict,
+				nargs="?",
+				const=True,
 				default=False,
-				help=self._help("setup", "Pass an unattended JSON object"),
+				help=self._help("setup", "Pass unattended config as dict"),
 			)
 			self._parser.add(
 				"--rename-server",

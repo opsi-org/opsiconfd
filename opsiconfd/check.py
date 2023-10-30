@@ -7,7 +7,7 @@
 """
 health check
 """
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,line-too-long
 from __future__ import annotations
 
 import grp

@@ -437,6 +437,8 @@ def check_opsiconfd_config() -> CheckResult:
 	  * The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
 	* `run-as-user`
 	  * Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
+	* `allow-webdav-symlinks`
+	  * Running the service opsiconfd with webdav symlinks allowd will be evaluated as an error , because this can this can lead to security problems. .
 
 	"""
 	result = CheckResult(
@@ -494,9 +496,20 @@ def check_opsiconfd_config() -> CheckResult:
 			check_id="opsiconfd_config:run-as-user",
 			check_name="Config run-as-user",
 			message=f"Opsiconfd is running as user {config.run_as_user}.",
-			details={"config": "profiler", "value": config.run_as_user},
+			details={"config": "run-as-user", "value": config.run_as_user},
 		)
 		if config.run_as_user == "root":
+			issues += 1
+			partial_result.check_status = CheckStatus.ERROR
+		result.add_partial_result(partial_result)
+
+		partial_result = PartialCheckResult(
+			check_id="opsiconfd_config:allow-webdav-symlinks",
+			check_name="Config allow-webdav-symlinks",
+			message=f"Webdav smylinks are allowed on the following folders: {config.allow_webdav_symlinks}.",
+			details={"config": "allow_webdav_symlinks", "value": config.allow_webdav_symlinks},
+		)
+		if config.allow_webdav_symlinks:
 			issues += 1
 			partial_result.check_status = CheckStatus.ERROR
 		result.add_partial_result(partial_result)

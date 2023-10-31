@@ -17,18 +17,21 @@
 					"activityBar.background": "#3f5aa6",
 					"activityBar.foreground": "#cb1e58",
 					"activityBar.inactiveForeground": "#e4e4e3"
-				}
-				"python.pythonPath": ".venv/bin/python",
-				"editor.formatOnType": true,
-				"editor.formatOnPaste": true,
-				"editor.formatOnSave": true,
-				"editor.codeActionsOnSave": {
-					"source.organizeImports": true
 				},
 				"files.trimTrailingWhitespace": true,
 				"files.autoSave": "off",
-				"python.formatting.provider": "black",
-				"python.formatting.blackPath": ".venv/bin/tan",
+				"editor.formatOnType": true,
+				"editor.formatOnPaste": true,
+				"editor.formatOnSave": true,
+				"[python]": {
+					"editor.codeActionsOnSave": {
+						"source.fixAll": true,
+						"source.organizeImports": true
+					},
+					"editor.defaultFormatter": "charliermarsh.ruff"
+				},
+				"python.pythonPath": ".venv/bin/python",
+				"python.languageServer": "Pylance",
 				"python.terminal.activateEnvironment": false,
 				"python.testing.unittestEnabled": false,
 				"python.testing.nosetestsEnabled": false,
@@ -37,21 +40,22 @@
 				"python.testing.pytestArgs": [
 					"tests"
 				],
-				"python.linting.enabled": true,
-				"python.linting.flake8Enabled": false,
-				"python.linting.pylintEnabled": true,
-				"python.linting.pylintCategorySeverity.refactor": "Information",
-				"python.linting.mypyPath": ".venv/bin/mypy",
-				"python.linting.mypyEnabled": true,
-				"python.linting.mypyArgs": [
-					"--show-error-codes"
+				"pylint.severity": {
+					"refactor": "Information"
+				},
+				"mypy-type-checker.path": [
+					".venv/bin/mypy"
 				],
-				"python.languageServer": "Pylance"
+				"mypy-type-checker.args": [
+					"--show-error-codes"
+				]
 			},
 			"extensions": [
 				"ms-python.python",
 				"ms-python.vscode-pylance",
-				"ryanluker.vscode-coverage-gutters"
+				"ryanluker.vscode-coverage-gutters",
+				"ms-python.mypy-type-checker",
+				"charliermarsh.ruff"
 			]
 		}
 	},

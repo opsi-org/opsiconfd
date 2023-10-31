@@ -89,7 +89,7 @@ follow_imports = "silent"
 
 [tool.ruff]
 line-length = 140
-#ignore = [ "F401", "E402", "F811",]
+ignore = [ "F401", "E402", "F811",]
 #select = [ "F", "E", "I",]
 
 [tool.ruff.per-file-ignores]

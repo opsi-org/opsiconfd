@@ -8,6 +8,7 @@
 opsiconfd - setup
 """
 
+import json
 import sys
 import time
 from pathlib import Path
@@ -170,9 +171,11 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 
 	if register_depot:
 		rich_print("[b]register_depot is set. Value is : {register_depot} [/b]")
-		unattended = None
+		unattended_str = getattr(config, "unattended", None)
+		if unattended_str:
+			unattended_configuration = json.loads(unattended_str)		
 
-		if not setup_depotserver(unattended):
+		if not setup_depotserver(unattended_configuration):
 			return
 
 	if opsi_config.get("host", "server-role") == "depotserver":

@@ -1238,9 +1238,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._parser.add(
 				"--unattended",
 				metavar="UNATTENDED_CONFIG",
-				type=dict,
-				nargs="?",
-				const=True,
+				type=str,
 				default=False,
 				help=self._help("setup", "Pass unattended config as dict"),
 			)

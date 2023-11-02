@@ -13,7 +13,7 @@ from __future__ import annotations
 import socket
 from copy import deepcopy
 from ipaddress import ip_address
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import urlparse
 
 from opsicommon.exceptions import (
@@ -28,6 +28,8 @@ from opsiconfd import contextvar_client_session
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
+from opsiconfd.metrics.statistics import setup_metric_downsampling
+from opsiconfd.redis import redis_client
 from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
 	as_pem,
 	create_server_cert,
@@ -137,7 +139,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
 	def host_getHashes(  # pylint: disable=redefined-builtin,invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:
@@ -530,6 +532,14 @@ class RPCHostMixin(Protocol):
 
 		logger.info("Deleting old depot %s", old_depot)
 		self.host_deleteObjects([old_depot])
+
+		with redis_client() as redis:
+			for key_b in redis.scan_iter(f"{config.redis_key()}:*"):
+				key_b = cast(bytes, key_b)
+				key = key_b.decode("utf-8")
+				if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):
+					redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))  # type: ignore[no-untyped-call]
+			setup_metric_downsampling()
 
 	@rpc_method(check_acl=False)
 	async def host_getMessagebusConnectedIds(  # pylint: disable=invalid-name

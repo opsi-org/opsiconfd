@@ -54,7 +54,7 @@ class RPCAuditSoftwareMixin(Protocol):
 			for auditSoftware in forceList(auditSoftwares):
 				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=False, session=session)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="auditSoftware_getObjects", check_acl=False)
 	def auditSoftware_getObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[AuditSoftware]:

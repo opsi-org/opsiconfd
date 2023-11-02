@@ -30,6 +30,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TraceResponseMessage,
 	timestamp,
 )
+from opsicommon.objects import UnicodeConfig
 
 from opsiconfd.utils import compress_data, decompress_data
 
@@ -176,6 +177,7 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 						assert messages[0]["type"] == "test_multi_client"
 						assert messages[0]["id"] == "1"
 
+					sleep(1)
 					# print(list(reader2.get_messages()))
 					with test_client.websocket_connect("/messagebus/v1") as websocket3:
 						with WebSocketMessageReader(websocket3) as reader3:
@@ -356,7 +358,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				websocket.send_bytes(terminal_open_request.to_msgpack())
 
 				reader.wait_for_message(count=2)
-
+				sleep(1)
 				responses = sorted(
 					# type: ignore[arg-type,attr-defined]
 					[Message.from_dict(msg) for msg in reader.get_messages()],
@@ -379,7 +381,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				)
 				websocket.send_bytes(terminal_data_write.to_msgpack())
 				reader.wait_for_message(count=1)
-
+				sleep(1)
 				responses = sorted(
 					# type: ignore[arg-type,attr-defined]
 					[Message.from_dict(msg) for msg in reader.get_messages()],
@@ -394,6 +396,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				websocket.send_bytes(terminal_resize_request.to_msgpack())
 
 				reader.wait_for_message(count=1)
+				sleep(1)
 				responses = sorted(
 					# type: ignore[arg-type,attr-defined]
 					[Message.from_dict(msg) for msg in reader.get_messages()],
@@ -459,3 +462,32 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 				<= trc["broker_ws_send"]
 				<= trc["recipient_ws_receive"]
 			)
+
+
+def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	with test_client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket) as reader:
+			message = ChannelSubscriptionRequestMessage(
+				sender="@", channel="service:messagebus", channels=["event:config_created"], operation="add"
+			)
+			websocket.send_bytes(message.to_msgpack())
+			reader.wait_for_message(count=2)
+			list(reader.get_messages())
+
+			conf = UnicodeConfig("test.config")
+			rpc = {"id": 12345, "method": "config_createObjects", "params": [conf.to_hash()]}
+			res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+			res.raise_for_status()
+			result = res.json()
+			assert result["id"] == rpc["id"]
+			assert result["error"] is None
+			assert result["result"] is None
+
+			reader.wait_for_message(count=1)
+			msg = next(reader.get_messages())
+			assert msg["type"] == "event"
+			assert msg["channel"] == "event:config_created"
+			assert msg["event"] == "config_created"
+			assert msg["data"] == {"id": "test.config"}

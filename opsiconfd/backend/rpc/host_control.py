@@ -386,7 +386,7 @@ class RPCHostControlMixin(Protocol):
 			ipa = ip_address(host.ipAddress)
 			networks = [ipn for ipn in self._host_control_broadcast_addresses if ipa and ipa in ipn]
 			if len(networks) > 1:
-				# Take bets matching network by prefix length
+				# Take best matching network by prefix length
 				networks = [sorted(networks, key=lambda x: x.prefixlen, reverse=True)[0]]
 			elif not networks:
 				logger.debug("No matching ip network found for host address '%s', using all broadcasts", ipa.compressed)
@@ -532,6 +532,33 @@ class RPCHostControlMixin(Protocol):
 		if self._host_control_use_messagebus:
 			return await self._messagebus_rpc(client_ids=hostIds, method="getActiveSessions", params=[])
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="getActiveSessions", params=[])
+
+	@rpc_method
+	async def hostControl_processActionRequests(  # pylint: disable=invalid-name
+		self: BackendProtocol, hostIds: list[str] | None = None, productIds: list[str] | None = None
+	) -> dict[str, dict[str, Any]]:
+		client_ids = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
+		if not client_ids:
+			raise BackendMissingDataError("No matching host ids found")
+
+		if not productIds:
+			if self._host_control_use_messagebus:
+				return await self._messagebus_rpc(client_ids=client_ids, method="processActionRequests", params=[])
+			return await run_in_threadpool(self._opsiclientd_rpc, host_ids=client_ids, method="processActionRequests", params=[])
+
+		result: dict[str, dict[str, Any]] = {}
+		for client_id in client_ids:
+			pocs = await run_in_threadpool(self.productOnClient_getObjects, clientId=[client_id], productId=productIds)
+			pocs = [poc for poc in pocs if poc.actionRequest and poc.actionRequest != "none"]
+			pocs = await run_in_threadpool(self.productOnClient_updateObjectsWithDependencies, productOnClients=pocs)
+			product_ids = [poc.productId for poc in pocs]
+			if self._host_control_use_messagebus:
+				result[client_id] = await self._messagebus_rpc(client_ids=[client_id], method="processActionRequests", params=[product_ids])
+			else:
+				result[client_id] = await run_in_threadpool(
+					self._opsiclientd_rpc, host_ids=[client_id], method="processActionRequests", params=[product_ids]
+				)
+		return result
 
 	@rpc_method
 	async def hostControl_opsiclientdRpc(  # pylint: disable=invalid-name

@@ -69,11 +69,10 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		self.zero_if_missing = zero_if_missing
 		self.time_related = time_related
 		self.grafana_config = grafana_config
-		self.redis_key = self.redis_key_prefix = f"{config.redis_key('stats')}:{id}"
 		self.downsampling = downsampling
 
-		for var in self.vars:
-			self.redis_key += ":{" + var + "}"
+		self.set_redis_prefix(f"{config.redis_key('stats')}:{id}")
+
 		name_regex = self.name
 		for var in self.vars:
 			name_regex = name_regex.replace("{" + var + "}", rf"(?P<{var}>\S+)")  # pylint: disable=anomalous-backslash-in-string
@@ -81,6 +80,11 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 
 	def __str__(self) -> str:
 		return f"<{self.__class__.__name__} id='{self.id}'>"
+
+	def set_redis_prefix(self, prefix: str) -> None:
+		self.redis_key = self.redis_key_prefix = prefix
+		for var in self.vars:
+			self.redis_key += ":{" + var + "}"
 
 	def get_redis_key(self, **kwargs: Any) -> str:
 		if not kwargs:

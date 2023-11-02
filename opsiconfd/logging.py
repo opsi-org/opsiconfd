@@ -354,7 +354,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 	async def _start(self) -> None:
 		try:
 			self._redis = await get_async_redis_connection(config.redis_internal_url, timeout=30, test_connection=True)
-			await self._redis.xtrim(name=self._redis_log_stream, maxlen=10000, approximate=True)
+			await self._redis.xtrim(name=self._redis_log_stream, maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
 			asyncio_create_task(self._reader(), self._loop)
 			asyncio_create_task(self._watch_log_files(), self._loop)
 

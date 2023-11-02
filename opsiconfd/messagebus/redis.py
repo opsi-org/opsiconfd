@@ -43,6 +43,9 @@ logger = get_logger("opsiconfd.messagebus")
 
 
 CHANNEL_INFO_SUFFIX = b":info"
+MAX_STREAM_LENGTH = 1000
+TERMINAL_MAX_STREAM_LENGTH = 100
+EVENT_MAX_STREAM_LENGTH = 10
 
 
 async def messagebus_cleanup(full: bool = False) -> None:
@@ -52,7 +55,7 @@ async def messagebus_cleanup(full: bool = False) -> None:
 	await cleanup_channels(full)
 
 
-async def cleanup_channels(full: bool = False) -> None:  # pylint: disable=too-many-locals
+async def cleanup_channels(full: bool = False) -> None:  # pylint: disable=too-many-locals, too-many-branches
 	logger.debug("Cleaning up messagebus channels")
 	backend = get_unprotected_backend()
 	redis = await async_redis_client()
@@ -84,6 +87,8 @@ async def cleanup_channels(full: bool = False) -> None:  # pylint: disable=too-m
 		host_channels.append(get_user_id_for_host(host.id))
 
 	remove_keys = []
+	terminal_keys = []
+	event_keys = []
 	async for key_b in redis.scan_iter(f"{channel_prefix}*"):
 		key = str(key_b.decode("utf-8"))
 		channel = key[channel_prefix_len:]
@@ -100,10 +105,20 @@ async def cleanup_channels(full: bool = False) -> None:  # pylint: disable=too-m
 				logger.debug("Removing key %r (host not found)", key)
 				remove_keys.append(key)
 
-	if remove_keys:
+		if channel.startswith("service_worker:") and channel.endswith(":terminal"):
+			terminal_keys.append(key)
+
+		if channel.startswith("event:") and not channel.endswith(":info"):
+			event_keys.append(key)
+
+	if remove_keys or terminal_keys or event_keys:
 		pipeline = redis.pipeline()
 		for key in remove_keys:
-			pipeline.delete(key)
+			pipeline.unlink(key)
+		for key in terminal_keys:
+			pipeline.xtrim(key, maxlen=TERMINAL_MAX_STREAM_LENGTH, approximate=True)
+		for key in event_keys:
+			pipeline.xtrim(key, maxlen=EVENT_MAX_STREAM_LENGTH, approximate=True)
 		await pipeline.execute()
 
 
@@ -124,14 +139,24 @@ async def send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
 	redis = await async_redis_client()
-	await redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
+	await redis.xadd(
+		f"{config.redis_key('messagebus')}:channels:{message.channel}",
+		maxlen=MAX_STREAM_LENGTH,
+		approximate=True,
+		fields=fields,  # type: ignore[arg-type]
+	)
 
 
 def sync_send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
 	with redis_client() as redis:
-		redis.xadd(f"{config.redis_key('messagebus')}:channels:{message.channel}", fields=fields)  # type: ignore[arg-type]
+		redis.xadd(
+			f"{config.redis_key('messagebus')}:channels:{message.channel}",
+			maxlen=MAX_STREAM_LENGTH,
+			approximate=True,
+			fields=fields,  # type: ignore[arg-type]
+		)
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:

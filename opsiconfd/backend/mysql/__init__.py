@@ -217,12 +217,15 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			SET SESSION sql_mode=(SELECT
 				REPLACE(
 					REPLACE(
-						REPLACE(@@sql_mode,
-							'ONLY_FULL_GROUP_BY', ''
+						REPLACE(
+							REPLACE(@@sql_mode,
+								'ONLY_FULL_GROUP_BY', ''
+							),
+							'NO_ZERO_IN_DATE', ''
 						),
-						'NO_ZERO_IN_DATE', ''
+						'NO_ZERO_DATE', ''
 					),
-					'NO_ZERO_DATE', ''
+					'STRICT_TRANS_TABLES', ''
 				)
 			);
 			SET SESSION group_concat_max_len = 1000000;

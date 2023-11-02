@@ -24,12 +24,12 @@ import msgpack  # type: ignore[import]
 import MySQLdb  # type: ignore[import]
 import pytest
 import pytest_asyncio
-import redis
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from MySQLdb.connections import Connection  # type: ignore[import]
-from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[import]
-from redis import asyncio as async_redis
+from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
+from redis import Redis
+from redis.asyncio import Redis as AsyncRedis
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
@@ -86,6 +86,12 @@ class OpsiconfdTestClient(TestClient):
 
 	def get_client_address(self) -> tuple[str, int]:
 		return self._address
+
+	def jsonrpc20(self, method: str, params: dict[str, Any] | list[Any] | None = None) -> Any:
+		params = serialize(params or {})
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+		print(self._username, self._password)
+		return deserialize(self.post("/rpc", json=rpc).json(), deep=True)
 
 
 @pytest.fixture()
@@ -144,17 +150,17 @@ def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None,
 
 
 @asynccontextmanager
-async def async_redis_client() -> AsyncGenerator[async_redis.StrictRedis, None]:  # pylint: disable=redefined-outer-name
-	redis_client = async_redis.StrictRedis.from_url(_config.redis_internal_url)
+async def async_redis_client() -> AsyncGenerator[AsyncRedis, None]:  # pylint: disable=redefined-outer-name
+	redis_client: AsyncRedis = AsyncRedis.from_url(_config.redis_internal_url)
 	try:
 		yield redis_client
 	finally:
-		await redis_client.close()
+		await redis_client.aclose()  # type: ignore[attr-defined]
 
 
 @contextmanager
-def sync_redis_client() -> Generator[redis.StrictRedis, None, None]:  # pylint: disable=redefined-outer-name
-	redis_client = redis.StrictRedis.from_url(_config.redis_internal_url)
+def sync_redis_client() -> Generator[Redis, None, None]:  # pylint: disable=redefined-outer-name
+	redis_client = Redis.from_url(_config.redis_internal_url)
 	try:
 		yield redis_client
 	finally:
@@ -364,7 +370,14 @@ def get_product_ordering_jsonrpc(client: OpsiconfdTestClient, depot_id: str) -> 
 
 def get_dummy_products(count: int) -> list[dict[str, Any]]:
 	return [
-		{"id": f"dummy-prod-{num}", "productVersion": "1.0", "packageVersion": "1", "name": "Dummy PRODUCT {num}", "priority": num % 8}
+		{
+			"id": f"dummy-prod-{num}",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+			"name": "Dummy PRODUCT {num}",
+			"priority": num % 8,
+			"setupScript": "setup.opsiscript",
+		}
 		for num in range(count)
 	]
 
@@ -423,9 +436,10 @@ class WebSocketMessageReader(Thread):
 				break
 			if data["type"] == "websocket.send":
 				msg = data["bytes"]
+				print(f"WebSocketMessageReader received message (size: {len(msg)})")
 				if self.decode:
 					msg = msgpack.loads(msg)
-				# print(f"received: >>>{msg}<<<")
+				# print(f"WebSocketMessageReader received message: >>>{msg}<<<")
 				self.messages.put(msg)
 
 	def stop(self) -> None:

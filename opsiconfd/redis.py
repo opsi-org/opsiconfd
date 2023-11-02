@@ -12,25 +12,27 @@ opsiconfd redis utils
 from __future__ import annotations
 
 import asyncio
+import base64
 import functools
 import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, AsyncGenerator, Callable, Generator
+from dataclasses import dataclass
+from typing import Any, AsyncGenerator, Callable, Generator, Iterable
 from uuid import uuid4
 
-import redis
-from redis import BusyLoadingError, ResponseError
+from redis import BusyLoadingError, ConnectionPool, Redis, ResponseError, WatchError
 from redis import ConnectionError as RedisConnectionError
-from redis import asyncio as async_redis
+from redis.asyncio import ConnectionPool as AsyncConnectionPool
+from redis.asyncio import Redis as AsyncRedis
 
 from opsiconfd.config import config
 from opsiconfd.utils import normalize_ip_address
 
 redis_pool_lock = threading.Lock()
 async_redis_pool_lock = asyncio.Lock()
-redis_connection_pool: dict[str, redis.ConnectionPool] = {}
-async_redis_connection_pool: dict[str, async_redis.ConnectionPool] = {}
+redis_connection_pool: dict[str, ConnectionPool] = {}
+async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
 
 
 def decode_redis_result(_obj: Any) -> Any:
@@ -75,8 +77,11 @@ def retry_redis_call(func: Callable) -> Callable:
 
 
 def get_redis_connection(
-	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False  # pylint: disable=invalid-name
-) -> redis.StrictRedis:
+	url: str,
+	db: int = 0,  # pylint: disable=invalid-name
+	timeout: int = 0,
+	test_connection: bool = False,
+) -> Redis:
 	start = time.time()
 	con_id = f"{url}/{db}"
 	while True:
@@ -85,8 +90,8 @@ def get_redis_connection(
 			with redis_pool_lock:
 				if con_id not in redis_connection_pool:
 					new_pool = True
-					redis_connection_pool[con_id] = redis.ConnectionPool.from_url(url, db=db)
-			client = redis.StrictRedis(connection_pool=redis_connection_pool[con_id])
+					redis_connection_pool[con_id] = ConnectionPool.from_url(url, db=db)
+			client = Redis(connection_pool=redis_connection_pool[con_id])
 			if new_pool or test_connection:
 				client.ping()
 			return client
@@ -97,7 +102,7 @@ def get_redis_connection(
 
 
 @contextmanager
-def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[redis.StrictRedis, None, None]:
+def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[Redis, None, None]:
 	con = get_redis_connection(url=config.redis_internal_url, timeout=timeout, test_connection=test_connection)
 	try:
 		yield con
@@ -106,8 +111,11 @@ def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[r
 
 
 async def get_async_redis_connection(
-	url: str, db: int = 0, timeout: int = 0, test_connection: bool = False  # pylint: disable=invalid-name
-) -> async_redis.StrictRedis:
+	url: str,
+	db: int = 0,  # pylint: disable=invalid-name
+	timeout: int = 0,
+	test_connection: bool = False,
+) -> AsyncRedis:
 	start = time.time()
 	while True:
 		try:
@@ -116,9 +124,9 @@ async def get_async_redis_connection(
 			async with async_redis_pool_lock:
 				if con_id not in async_redis_connection_pool:
 					new_pool = True
-					async_redis_connection_pool[con_id] = async_redis.ConnectionPool.from_url(url, db=db)
+					async_redis_connection_pool[con_id] = AsyncConnectionPool.from_url(url, db=db)
 			# This will return a client (no Exception) even if connection is currently lost
-			client: async_redis.StrictRedis = async_redis.StrictRedis(connection_pool=async_redis_connection_pool[con_id])
+			client = AsyncRedis(connection_pool=async_redis_connection_pool[con_id])
 			if new_pool or test_connection:
 				await client.ping()
 			return client
@@ -128,14 +136,77 @@ async def get_async_redis_connection(
 			await asyncio.sleep(2)
 
 
-async def async_redis_client(timeout: int = 0, test_connection: bool = False) -> async_redis.StrictRedis:
+async def async_redis_client(timeout: int = 0, test_connection: bool = False) -> AsyncRedis:
 	return await get_async_redis_connection(url=config.redis_internal_url, timeout=timeout, test_connection=test_connection)
 
 
-def delete_recursively(redis_key: str, piped: bool = True) -> None:
+@dataclass(frozen=True, slots=True)
+class DumpedKey:
+	name: str
+	value: bytes
+	expires: int | None = None  # absolute unix timestamp in milliseconds or None if not expires
+
+	@classmethod
+	def from_dict(cls, data: dict[str, str | bytes | int | None]) -> DumpedKey:
+		if isinstance(data["value"], str):
+			return DumpedKey(name=data["name"], value=base64.b64decode(data["value"]), expires=data["expires"])  # type: ignore[arg-type]
+		return DumpedKey(**data)  # type: ignore[arg-type]
+
+
+def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[DumpedKey, None, None]:
+	excludes = excludes or []
+	with redis_client() as client:
+		for key in client.scan_iter(f"{redis_key}:*"):
+			assert isinstance(key, bytes)
+			key = key.decode("utf-8")
+
+			exclude_key = False
+			for exclude in excludes:
+				if key == exclude or key.startswith(f"{exclude}:"):
+					exclude_key = True
+					break
+			if exclude_key:
+				continue
+
+			now = int(time.time() * 1000)
+			value = client.dump(key)
+			pttl = client.pttl(key)
+			expires = None
+			if pttl >= 0:
+				expires = now + pttl
+			assert isinstance(value, bytes)
+			yield DumpedKey(key, value, expires)
+
+
+def restore(dumped_keys: Iterable[DumpedKey]) -> None:
+	with redis_client() as client:
+		for dumped_key in dumped_keys:
+			client.restore(
+				name=dumped_key.name,
+				ttl=0 if dumped_key.expires is None else dumped_key.expires,
+				value=dumped_key.value,
+				absttl=True,
+				replace=True,
+			)
+
+
+def delete_recursively(redis_key: str, *, piped: bool = True, excludes: Iterable[str] | None = None) -> None:
+	excludes = excludes or []
+
 	with redis_client() as client:
 		delete_keys = []
 		for key in client.scan_iter(f"{redis_key}:*"):
+			assert isinstance(key, bytes)
+			key = key.decode("utf-8")
+
+			exclude_key = False
+			for exclude in excludes:
+				if key == exclude or key.startswith(f"{exclude}:"):
+					exclude_key = True
+					break
+			if exclude_key:
+				continue
+
 			if piped:
 				delete_keys.append(key)
 			else:
@@ -203,7 +274,7 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 							# Different identifier, not our lock
 							pipe.unwatch()
 						break
-					except redis.exceptions.WatchError:
+					except WatchError:
 						pass
 
 
@@ -242,11 +313,11 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 						# Different identifier, not our lock
 						await pipe.unwatch()  # type: ignore[attr-defined]
 					break
-				except redis.exceptions.WatchError:
+				except WatchError:
 					pass
 
 
-async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any]:  # pylint: disable=too-many-locals
+async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:  # pylint: disable=too-many-locals
 	conf = config
 
 	key_info: dict[str, dict[str, list | int]] = {

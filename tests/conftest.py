@@ -59,7 +59,7 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 @hookimpl()
 def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
-	print(sys.argv)
+	# print(sys.argv)
 	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
 		# vscode test discovery running
 		return
@@ -88,6 +88,15 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		GRAFANA_AVAILABLE = True
 
 	# return
+	def stderr_close() -> None:
+		raise RuntimeError("sys.stderr.close called!")
+
+	sys.stderr.close = stderr_close  # type: ignore[method-assign]
+
+	def stdout_close() -> None:
+		raise RuntimeError("sys.stdout.close called!")
+
+	sys.stdout.close = stdout_close  # type: ignore[method-assign]
 
 	print("Drop database")
 	try:
@@ -112,7 +121,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 
 @hookimpl()
 def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: disable=unused-argument
-	print(sys.argv)
+	# print(sys.argv)
 	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
 		# vscode test discovery running
 		return

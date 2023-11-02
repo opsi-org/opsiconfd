@@ -24,6 +24,7 @@ from .cleanup import (
 	remove_orphans_hardware_config,
 	remove_orphans_license_on_client_to_host,
 	remove_orphans_product_id_to_license_pool,
+	remove_orphans_product_on_depot,
 	remove_orphans_product_property_value,
 )
 
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`workbenchLocalUrl` varchar(128) DEFAULT NULL,
 	`workbenchRemoteUrl` varchar(255) DEFAULT NULL,
 	PRIMARY KEY (`hostId`),
+	UNIQUE KEY `systemUUID` (`systemUUID`),
 	KEY `index_host_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -603,8 +605,8 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 		SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.UPDATE_RULE, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
 		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
 		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-		WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = :table
-		AND `t1`.`REFERENCED_TABLE_NAME` = :ref_table
+		WHERE `t1`.`TABLE_SCHEMA` LIKE :database AND `t1`.`TABLE_NAME` LIKE :table
+		AND `t1`.`REFERENCED_TABLE_NAME` LIKE :ref_table
 		""",
 		params={"database": database, "table": foreign_key.table, "ref_table": foreign_key.ref_table},
 	).fetchone()
@@ -755,6 +757,13 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="HOST",
+			index="UNIQUE",
+			columns=["systemUUID"],
+		)
 
 		session.execute(
 			"""ALTER TABLE `CONFIG`
@@ -834,17 +843,12 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			index="PRIMARY",
 			columns=["productId", "productType", "productVersion", "packageVersion", "depotId"],
 		)
-		create_index(
-			session=session,
-			database=mysql.database,
-			table="PRODUCT_ON_DEPOT",
-			index="UNIQUE",
-			columns=["productId", "depotId"],
-		)
+		create_index(session=session, database=mysql.database, table="PRODUCT_ON_DEPOT", index="UNIQUE", columns=["productId", "depotId"])
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
 			foreign_key=OpsiForeignKey(table="PRODUCT_ON_DEPOT", ref_table="HOST", f_keys=["depotId"], ref_keys=["hostId"]),
+			cleanup_function=remove_orphans_product_on_depot,
 		)
 
 		create_index(

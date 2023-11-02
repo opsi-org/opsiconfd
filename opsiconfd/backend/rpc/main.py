@@ -154,7 +154,6 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		if self.__initialized:
 			return
 		self.__initialized = True
-
 		self.events_enabled = True
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
@@ -216,7 +215,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			try:
 				method_name = method["name"]
 				method_interface = MethodInterface(**method)
-				if not method_interface.deprecated or config.provide_deprecated_methods:
+				if method_interface.deprecated and not config.provide_deprecated_methods:
 					continue
 
 				self._interface[method_name] = method_interface
@@ -292,11 +291,11 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 
 	def shutdown(self) -> None:
 		self._shutting_down = True
-		self.events_enabled = False
-		for base in self.__class__.__bases__:
-			for method in base.__dict__.values():
-				if callable(method) and hasattr(method, "backend_event_shutdown"):
-					method(self)
+		with self.events_disabled():
+			for base in self.__class__.__bases__:
+				for method in base.__dict__.values():
+					if callable(method) and hasattr(method, "backend_event_shutdown"):
+						method(self)
 
 	def reload_config(self) -> None:
 		self._dhcpd_control_reload_config()  # pylint: disable=no-member
@@ -324,10 +323,8 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			return None
 
 	def _send_messagebus_event(self, event: str, data: dict[str, Any]) -> None:
-		if not self.events_enabled:
+		if not self.events_enabled or not self._messagebus_user_id:
 			return
-		if not self._messagebus_user_id:
-			raise ValueError("messagebus_user_id undefined")
 		sync_send_message(
 			EventMessage(
 				sender=self._messagebus_user_id,

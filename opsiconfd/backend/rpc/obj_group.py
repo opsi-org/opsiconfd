@@ -60,7 +60,7 @@ class RPCGroupMixin(Protocol):
 		ace = self._get_ace("group_getObjects")
 		return self._mysql.get_objects(table="GROUP", ace=ace, object_type=Group, attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="group_getObjects", check_acl=False)
 	def group_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict]:

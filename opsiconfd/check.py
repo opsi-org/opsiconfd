@@ -7,15 +7,17 @@
 """
 health check
 """
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,line-too-long
 from __future__ import annotations
 
+import grp
+import os
+import pwd
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from enum import StrEnum
-from re import findall
 from subprocess import run
 from typing import Any, Generator, Iterator
 
@@ -29,6 +31,7 @@ from opsicommon.logging.constants import (
 	LOG_TRACE,
 	OPSI_LEVEL_TO_LEVEL,
 )
+from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.system.info import (  # type: ignore[import]
 	linux_distro_id,
 	linux_distro_id_like_contains,
@@ -47,22 +50,13 @@ from sqlalchemy.exc import OperationalError  # type: ignore[import]
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config
+from opsiconfd.config import DEPOT_DIR, OPSICONFD_HOME, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import ldap3_uri_to_str
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
-OPSI_REPO = "https://download.uib.de"
-OPSI_PRODUCTS_PATHS = [
-	"4.2/stable/packages/windows/localboot/",
-	"4.2/stable/packages/windows/netboot/",
-	"4.2/stable/packages/linux/localboot/",
-	"4.2/stable/packages/linux/netboot/",
-	"4.2/stable/packages/macos/localboot/",
-	"4.2/stable/packages/opsi-local-image/localboot/",
-	"4.2/stable/packages/opsi-local-image/netboot/",
-]
+OPSI_REPO_FILE = "https://opsipackages.43.opsi.org/stable/packages.msgpack.zstd"
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
 MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
@@ -76,6 +70,7 @@ LINUX_DISTRO_EOL = {
 		"9": date(2021, 5, 1),
 		"10": date(2022, 8, 1),
 		"11": date(2024, 7, 1),
+		"12": date(2026, 6, 10),
 	},
 	"rhel": {
 		"7": date(2029, 5, 1),
@@ -152,37 +147,38 @@ def print_health_check_manual(console: Console) -> None:
 	"""
 	console.print(Markdown(text.replace("\t", "")))
 	for check in (
-		check_opsiconfd_config,
 		check_opsi_config,
-		check_disk_usage,
-		check_depotservers,
-		check_system_packages,
-		check_product_on_depots,
-		check_product_on_clients,
+		check_opsiconfd_config,
 		check_redis,
 		check_mysql,
+		check_run_as_user,
 		check_opsi_licenses,
-		check_deprecated_calls,
 		check_distro_eol,
+		check_system_packages,
+		check_disk_usage,
+		check_depotservers,
+		check_product_on_depots,
+		check_product_on_clients,
+		check_deprecated_calls,
 	):
 		console.print(Markdown(check.__doc__.replace("\t", "")))  # type: ignore[union-attr]
 
 
 def health_check() -> Iterator[CheckResult]:
 	for check in (
-		check_opsiconfd_config,
 		check_opsi_config,
-		check_ldap_connection,
-		check_disk_usage,
-		check_depotservers,
-		check_system_packages,
-		check_product_on_depots,
-		check_product_on_clients,
+		check_opsiconfd_config,
 		check_redis,
 		check_mysql,
+		check_run_as_user,
 		check_opsi_licenses,
-		check_deprecated_calls,
 		check_distro_eol,
+		check_system_packages,
+		check_disk_usage,
+		check_depotservers,
+		check_product_on_depots,
+		check_product_on_clients,
+		check_deprecated_calls,
 	):
 		yield check()
 
@@ -245,6 +241,65 @@ def get_disk_mountpoints() -> set:
 	return check_mountpoints
 
 
+def check_run_as_user() -> CheckResult:
+	"""
+	## Run as user
+	Checks the system user running opsiconfd.
+	Checks for group membership and home directory.
+	"""
+	result = CheckResult(
+		check_id="run_as_user",
+		check_name="Run as user",
+		check_description="Check system user running opsiconfd",
+		message=f"No issues found with user '{config.run_as_user}'.",
+	)
+
+	with exc_to_result(result):
+		user = pwd.getpwnam(config.run_as_user)
+		partial_result = PartialCheckResult(
+			check_id="run_as_user:home_directory",
+			check_name=f"Home directory of user '{config.run_as_user}'",
+			check_status=CheckStatus.OK,
+			message=(f"Home directory of user '{config.run_as_user}' is {user.pw_dir}"),
+			details={"user": config.run_as_user, "home_directory": user.pw_dir},
+		)
+
+		if user.pw_dir != OPSICONFD_HOME:
+			partial_result.check_status = CheckStatus.WARNING
+		result.add_partial_result(partial_result)
+
+		gids = os.getgrouplist(user.pw_name, user.pw_gid)
+		for groupname in ("shadow", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "fileadmingroup")):
+			logger.debug("Processing group %s", groupname)
+			partial_result = PartialCheckResult(
+				check_id=f"run_as_user:group_membership:{groupname}",
+				check_name=f"Group membership of user '{config.run_as_user}' in group '{groupname}'",
+				check_status=CheckStatus.OK,
+				message=(f"User '{config.run_as_user}' is a member of group '{groupname}'"),
+				details={"user": config.run_as_user, "group": groupname, "primary": False},  # type: ignore[has-type]
+			)
+			try:
+				group = grp.getgrnam(groupname)
+				partial_result.details["primary"] = group.gr_gid == user.pw_gid
+				if partial_result.details["primary"]:
+					partial_result.message += " (primary)"
+				if group.gr_gid not in gids:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = f"User '{config.run_as_user}' is not a member of group '{groupname}'."
+				elif groupname == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
+					partial_result.check_status = CheckStatus.WARNING
+					partial_result.message = f"Group '{groupname}' is not the primary group of user '{config.run_as_user}'."
+			except KeyError:
+				logger.debug("Group not found: %s", groupname)
+				partial_result.check_status = CheckStatus.ERROR
+				partial_result.message = f"Group '{groupname}' not found."
+			result.add_partial_result(partial_result)
+
+	if result.check_status != CheckStatus.OK:
+		result.message = f"Some issues found with user '{config.run_as_user}'."
+	return result
+
+
 def check_disk_usage() -> CheckResult:
 	"""
 	## Disk usage
@@ -299,7 +354,7 @@ def check_depotservers() -> CheckResult:
 	"""
 	## Depotserver check
 	The opsi repository, workbench and depot must be located under /var/lib/opsi/.
-	"f this is not the case, an error will be reported.
+	If this is not the case, an error will be reported.
 	"""
 	result = CheckResult(
 		check_id="depotservers",
@@ -382,6 +437,8 @@ def check_opsiconfd_config() -> CheckResult:
 	  * The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
 	* `run-as-user`
 	  * Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
+	* `allow-webdav-symlinks`
+	  * Running the service opsiconfd with webdav symlinks allowd will be evaluated as an error , because this can this can lead to security problems. .
 
 	"""
 	result = CheckResult(
@@ -439,9 +496,20 @@ def check_opsiconfd_config() -> CheckResult:
 			check_id="opsiconfd_config:run-as-user",
 			check_name="Config run-as-user",
 			message=f"Opsiconfd is running as user {config.run_as_user}.",
-			details={"config": "profiler", "value": config.run_as_user},
+			details={"config": "run-as-user", "value": config.run_as_user},
 		)
 		if config.run_as_user == "root":
+			issues += 1
+			partial_result.check_status = CheckStatus.ERROR
+		result.add_partial_result(partial_result)
+
+		partial_result = PartialCheckResult(
+			check_id="opsiconfd_config:allow-webdav-symlinks",
+			check_name="Config allow-webdav-symlinks",
+			message=f"Webdav smylinks are allowed on the following folders: {config.allow_webdav_symlinks}.",
+			details={"config": "allow_webdav_symlinks", "value": config.allow_webdav_symlinks},
+		)
+		if config.allow_webdav_symlinks:
 			issues += 1
 			partial_result.check_status = CheckStatus.ERROR
 		result.add_partial_result(partial_result)
@@ -685,18 +753,19 @@ def check_deprecated_calls() -> CheckResult:
 	return result
 
 
-def get_available_product_versions(product_list: list) -> dict:
-	repo_text = ""
-	available_packages = {p: "0.0" for p in product_list}
+def get_available_product_versions(product_ids: list[str]) -> dict:
+	available_packages = {}
 
-	for path in OPSI_PRODUCTS_PATHS:
-		res = requests.get(f"{OPSI_REPO}/{path}", timeout=5)
-		repo_text = repo_text + res.text
+	res = requests.get(OPSI_REPO_FILE, timeout=10, stream=True)
+	res.raise_for_status()
 
-	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', repo_text):
-		product_id, available_version = split_name_and_version(filename)
-		if product_id in available_packages:
-			available_packages[product_id] = available_version
+	col = RepoMetaPackageCollection()
+	col.read_metafile_data(res.raw.read())
+	for product_id in product_ids:
+		if product_id in col.packages:
+			available_packages[product_id] = list(col.packages[product_id])[0]
+		else:
+			available_packages[product_id] = "0.0"
 
 	return available_packages
 
@@ -728,7 +797,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 			available_packages = get_available_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
-			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 			return result
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
@@ -773,7 +842,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 							f" < available version {available_version!r}."
 						)
 				elif available_version == "0.0":
-					logger.info("Could not find product %r on repository %s.", product_id, OPSI_REPO)
+					logger.info("Could not find product %r on repository %s.", product_id, OPSI_REPO_FILE)
 					logger.info("Removing product %r from checked list.", product_id)
 					packages_not_on_repo.append(product_id)
 					continue
@@ -829,7 +898,7 @@ def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-local
 			available_packages = get_available_product_versions(list(MANDATORY_IF_INSTALLED))
 		except requests.RequestException as err:
 			result.check_status = CheckStatus.ERROR
-			result.message = f"Failed to get package info from repository '{OPSI_REPO}': {err}"
+			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 			return result
 
 		for product_id, available_version in available_packages.items():
@@ -1111,7 +1180,7 @@ def console_health_check() -> int:  # pylint: disable=too-many-branches
 	console = Console(log_time=False)
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
-		if config.manual:
+		if config.documentation:
 			print_health_check_manual(console=console)
 			return 0
 		for result in health_check():

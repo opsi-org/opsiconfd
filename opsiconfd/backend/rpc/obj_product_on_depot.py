@@ -83,7 +83,7 @@ class RPCProductOnDepotMixin(Protocol):
 		ace = self._get_ace("productOnDepot_getObjects")
 		return self._mysql.get_objects(table="PRODUCT_ON_DEPOT", ace=ace, object_type=ProductOnDepot, attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="productOnDepot_getObjects", check_acl=False)
 	def productOnDepot_getHashes(  # pylint: disable=redefined-builtin,invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:

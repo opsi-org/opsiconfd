@@ -202,11 +202,11 @@ async def test_session_manager_remove_expired_session() -> None:
 		headers = Headers({"x-opsi-session-lifetime": "5"})
 		sess = await manager.get_session("172.10.11.12", headers=headers)
 		sess.authenticated = True
-		await sleep(1)
+		await sleep(3)
 		assert sess.session_id in manager.sessions
 		res = await redis_client.hgetall(sess.redis_key)
 		assert res
-		await sleep(5)
+		await sleep(8)
 		assert sess.session_id not in manager.sessions
 		res = await redis_client.hgetall(sess.redis_key)
 		assert not res

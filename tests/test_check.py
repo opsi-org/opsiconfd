@@ -10,6 +10,7 @@ check tests
 
 
 import io
+import pprint
 import sys
 import time
 from datetime import datetime, timezone
@@ -45,12 +46,14 @@ from opsiconfd.check import (
 	check_product_on_clients,
 	check_product_on_depots,
 	check_redis,
+	check_run_as_user,
 	check_system_packages,
+	get_available_product_versions,
 	get_repo_versions,
 	health_check,
 	process_check_result,
 )
-from opsiconfd.config import config
+from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -88,6 +91,63 @@ def test_upgrade_issue() -> None:
 def test_check_disk_usage() -> None:
 	result = check_disk_usage()
 	assert result.check_status
+
+
+def test_check_run_as_user() -> None:
+	class MockUser:  # pylint: disable=too-few-public-methods
+		pw_name = "opsiconfd"
+		pw_gid = 103
+		pw_dir = OPSICONFD_HOME
+
+	class MockGroup:  # pylint: disable=too-few-public-methods
+		gr_name = "nogroup"
+		gr_gid = 65534
+
+	mock_user = MockUser()
+
+	def mock_getgrnam(groupname: str) -> MockGroup:
+		group = MockGroup()
+		group.gr_name = groupname
+		if groupname == "shadow":
+			group.gr_gid = 101
+		elif groupname == opsi_config.get("groups", "admingroup"):
+			group.gr_gid = 102
+		elif groupname == opsi_config.get("groups", "fileadmingroup"):
+			group.gr_gid = 103
+		return group
+
+	with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
+		with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.grp.getgrnam", mock_getgrnam
+		):
+			result = check_run_as_user()
+
+			pprint.pprint(result)
+			assert result.check_status == CheckStatus.OK
+
+		with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.grp.getgrnam", mock_getgrnam
+		):
+			mock_user.pw_dir = "/wrong/home"
+			result = check_run_as_user()
+			assert result.check_status == CheckStatus.WARNING
+			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
+
+	with (
+		mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))),
+		mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
+		mock.patch("opsiconfd.check.grp.getgrnam", mock_getgrnam),
+	):
+		result = check_run_as_user()
+		assert result.check_status == CheckStatus.ERROR
+		assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
+		assert (
+			result.partial_results[2].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
+		)
+		assert (
+			result.partial_results[3].message
+			== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
+		)
 
 
 def test_check_opsiconfd_config() -> None:
@@ -216,7 +276,6 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
-
 		result = check_system_packages()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
@@ -326,6 +385,14 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 			assert partial_result.message == (
 				f"Package {partial_result.details['package']!r} is up to date. Installed version: {partial_result.details['version']!r}"
 			)
+
+
+def test_get_available_product_versions() -> None:
+	product_ids = ["opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-mac-client-agent", "hwaudit", "win10", "hwinvent"]
+	available_packages = get_available_product_versions(product_ids)
+	assert list(available_packages) == product_ids
+	for version in available_packages.values():
+		assert version != "0.0"
 
 
 def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -512,7 +579,6 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # pylint:
 
 
 def test_check_ldap_connection() -> None:
-
 	result = check_ldap_connection()
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "LDAP authentication is not configured."

@@ -101,7 +101,7 @@ stages:
   echo "Run tests"
   echo "---------------------------------------"
   exit_code=0
-  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
+  poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
 
 .run_linters: &run_linters |
   echo "---------------------------------------"
@@ -161,6 +161,8 @@ test:pylint-pytest:
 build:linux-pyinstaller:
   stage: build
   script:
+    - TRANSIFEX_MIN_REVIEW_RATE=0.0
+    - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - *install_tools
     - poetry lock --no-update
     - poetry install
@@ -180,6 +182,8 @@ build:arm64-pyinstaller:
   tags:
     - arm64
   script:
+    - TRANSIFEX_MIN_REVIEW_RATE=0.0
+    - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - *install_tools
     - poetry lock --no-update
     - poetry install
@@ -216,5 +220,6 @@ publish:obs_ext:
     - opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
     - opsi-dev-cli -l 5 changelog from-git output
     - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md
+    - opsi-dev-cli release-service push-repository-state opsiconfd SERVER_PACKAGE SERVER_PACKAGE-4.3-development
   only:
     - tags

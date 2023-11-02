@@ -87,7 +87,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 			table="AUDIT_SOFTWARE_TO_LICENSE_POOL", ace=ace, object_type=AuditSoftwareToLicensePool, attributes=attributes, filter=filter
 		)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="auditSoftwareToLicensePool_getObjects", check_acl=False)
 	def auditSoftwareToLicensePool_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict]:

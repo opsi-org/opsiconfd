@@ -13,10 +13,13 @@ from __future__ import annotations
 import base64
 import grp
 import os
+import random
 import re
 import shutil
 import subprocess
+import uuid
 from contextlib import closing, contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
@@ -25,6 +28,7 @@ from opsicommon.exceptions import (
 	BackendBadValueError,
 	BackendError,
 	BackendIOError,
+	BackendPermissionDeniedError,
 	BackendReferentialIntegrityError,
 	BackendTemporaryError,
 	BackendUnaccomplishableError,
@@ -43,17 +47,27 @@ from opsicommon.package.associated_files import (
 	create_package_zsync_file,
 )
 from opsicommon.server.rights import set_rights
-from opsicommon.types import forceBool, forceDict, forceFilename, forceUnicodeLower
+from opsicommon.types import (
+	forceBool,
+	forceDict,
+	forceFilename,
+	forceHostId,
+	forceUnicodeLower,
+)
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
 
+from opsiconfd import __version__, contextvar_client_session
 from opsiconfd.config import (
+	BOOT_DIR,
 	DEPOT_DIR,
 	PACKAGE_SCRIPT_TIMEOUT,
 	WORKBENCH_DIR,
+	config,
 	opsi_config,
 )
 from opsiconfd.logging import logger
+from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
 # deprecated can be used in extension config files
@@ -64,8 +78,12 @@ if TYPE_CHECKING:
 ALLOWED_SERVER_DATA = (
 	Path("/tmp"),
 	Path("/var/lib/opsi"),
-	Path("/tftpboot"),
+	Path(BOOT_DIR),
 )
+
+TRANSFER_SLOT_CONFIG = "opsiconfd.transfer.slot"
+TRANSFER_SLOT_MAX = 1000
+TRANSFER_SLOT_RETENTION_TIME = 60
 
 
 def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
@@ -96,10 +114,11 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			"PRODUCT_VERSION": opsi_package.product.getProductVersion(),
 			"PACKAGE_VERSION": opsi_package.product.getPackageVersion(),
 			"CLIENT_DATA_DIR": str(client_data_dir),
+			"OPSI_SERVER_VERSION": __version__,
 		}
 		sp_env.update(env)
 		logger.debug("Package script env: %s", sp_env)
-		return subprocess.run(
+		out = subprocess.run(
 			str(script_path),
 			shell=True,
 			check=True,
@@ -108,14 +127,57 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			encoding="utf-8",
 			stdout=subprocess.PIPE,
 			stderr=subprocess.STDOUT,
-		).stdout.splitlines()
+		).stdout
+		logger.debug("Package script %r of package %r output: %s", script_path.name, opsi_package.product.getId(), out)
+		return out.splitlines()
 	except Exception as err:
-		logger.error(err, exc_info=True)
+		str_err = str(err)
+		if isinstance(err, subprocess.CalledProcessError):
+			str_err = f"{err} - {err.stdout}"
+		logger.error(str_err, exc_info=True)
 		raise RuntimeError(
-			f"Failed to execute package script '{script_path.name}' of package '{opsi_package.product.getId()}': {err}"
+			f"Failed to execute package script {script_path.name!r} of package {opsi_package.product.getId()!r}: {str_err}"
 		) from err
 	finally:
 		logger.debug("Finished running package script %s", script_path.name)
+
+
+@dataclass()
+class TransferSlot:
+	depot_id: str | None = None
+	client_id: str | None = None
+	slot_id: uuid.UUID | str | None = None
+	retry_after: int | None = None
+	retention: int = TRANSFER_SLOT_RETENTION_TIME
+
+	def __post_init__(self) -> None:
+		if isinstance(self.slot_id, str):
+			self.slot_id = uuid.UUID("urn:uuid:" + self.slot_id)
+		if not self.slot_id and not self.retry_after:
+			self.slot_id = uuid.uuid4()
+		if not self.slot_id and not self.retry_after:
+			self.retry_after = TRANSFER_SLOT_RETENTION_TIME
+		if self.slot_id:
+			self.depot_id = forceHostId(self.depot_id)
+			self.client_id = forceHostId(self.client_id)
+			self.retry_after = None
+
+	@property
+	def redis_key(self) -> str:
+		return f"{config.redis_key('slot')}:{self.depot_id}:{self.client_id}:{self.slot_id}"
+
+	@classmethod
+	def from_redis_key(cls, key: str) -> TransferSlot | None:
+		key_values = key.split(":")
+		try:
+			slot_id = key_values[-1]
+			client_id = key_values[-2]
+			depot_id = key_values[-3]
+		except IndexError as err:
+			logger.error("Cloud not parse redis key %s", key)
+			logger.debug(err)
+			return None
+		return cls(depot_id=depot_id, client_id=client_id, slot_id=slot_id)
 
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
@@ -271,6 +333,106 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if os.name == "posix":
 			os.chown(zsyncFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(zsyncFilename, 0o660)
+
+	@rpc_method(check_acl=False)
+	def depot_acquireTransferSlot(  # pylint: disable=invalid-name
+		self: BackendProtocol, depot: str, client: str, slot_id: str | None = None
+	) -> TransferSlot:
+		"""
+		Acquires a transfer slot for the specified depot and slot ID.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to acquire the transfer slot.
+			client (str): The client for which to acquire the transfer slot
+			slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
+
+		Returns:
+			TransferSlot: The acquired transfer slot.
+
+		Raises:
+			BackendPermissionDeniedError: If access is denied.
+		"""
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+
+		slot = TransferSlot(depot_id=depot, client_id=client, slot_id=slot_id, retry_after=None)
+		if slot_id:
+			with redis_client() as redis:
+				res = decode_redis_result(redis.get(slot.redis_key))
+				if res:
+					redis.set(slot.redis_key, client, ex=TRANSFER_SLOT_RETENTION_TIME)
+					return slot
+
+		max_slots = TRANSFER_SLOT_MAX
+		slot_config = self.configState_getValues(TRANSFER_SLOT_CONFIG, depot).get(depot, {}).get(TRANSFER_SLOT_CONFIG)
+		if slot_config:
+			try:
+				max_slots = int(slot_config[0])
+			except ValueError:
+				logger.warning(
+					"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
+					TRANSFER_SLOT_CONFIG,
+					TRANSFER_SLOT_MAX,
+				)
+
+		with redis_client() as redis:
+			depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:*"))))
+			if depot_slots >= max_slots:
+				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
+				return TransferSlot(retry_after=retry_after)
+
+			redis.set(slot.redis_key, client, ex=TRANSFER_SLOT_RETENTION_TIME)
+			return slot
+
+	@rpc_method(check_acl=False)
+	def depot_releaseTransferSlot(self: BackendProtocol, depot: str, client: str, slot_id: str) -> None:  # pylint: disable=invalid-name
+		"""
+		Release a transfer slot for the specified depot, client and slot ID.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to release the transfer slot.
+			client (str): The client for which to release the transfer slot
+			slot_id (str): The ID of the slot to release.
+		Returns:
+			None
+
+		Raises:
+			BackendPermissionDeniedError: If access is denied.
+		"""
+
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+
+		with redis_client() as redis:
+			redis.unlink(TransferSlot(depot_id=depot, client_id=client, slot_id=slot_id).redis_key)
+
+	@rpc_method
+	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:  # pylint: disable=invalid-name
+		"""
+		List all reserved TransferSlots of depot.
+
+		Args:
+			self (BackendProtocol): The backend protocol object.
+			depot (str): The depot for which to release the transfer slot.
+		Returns:
+			list[TransferSlot]
+		"""
+
+		slots = []
+
+		with redis_client() as redis:
+			slot_keys = redis.scan_iter(f"{config.redis_key('slot')}:{depot}:*")
+			for slot_key in slot_keys:
+				slot_key = slot_key.decode()
+				slot = TransferSlot.from_redis_key(slot_key)
+				if slot:
+					slots.append(slot)
+
+		return slots
 
 	@rpc_method
 	def workbench_buildPackage(self: BackendProtocol, package_dir: str) -> str:  # pylint: disable=invalid-name
@@ -509,17 +671,31 @@ class DepotserverPackageManager:
 						self.backend.productPropertyState_updateObjects(update_product_property_states)
 
 		def copy_server_data(server_data: Path) -> None:
+			prohibited_files = []
 			for source in (server_data).rglob("*"):
 				if source.is_dir():
 					continue
-				# copy .../SERVER_DATA/tmp/foo/bar to /tmp/foo/bar
+				# Copy .../SERVER_DATA/tmp/foo/bar to /tmp/foo/bar
 				destination = Path("/") / source.relative_to(server_data)
+				if destination.parents[0] in (Path("/tftpboot"), Path("/$BOOT_DIR")):
+					destination = Path(BOOT_DIR) / destination.relative_to(destination.parents[0])
+
+				allowed = False
 				for allowed_dir in ALLOWED_SERVER_DATA:
 					if destination.is_relative_to(allowed_dir):
+						allowed = True
 						destination.parent.mkdir(exist_ok=True, parents=True)
 						logger.debug("Copying %s to %s", source, destination)
 						shutil.copy(source, destination)
 						break
+				if not allowed:
+					prohibited_files.append(str(destination))
+			if prohibited_files:
+				logger.warning(
+					"Package SERVER_DATA contains prohibited files: %s, allowed destinations are: %s",
+					", ".join(prohibited_files),
+					", ".join([str(a) for a in ALLOWED_SERVER_DATA]),
+				)
 
 		logger.info("=================================================================================================")
 		if force_product_id:
@@ -568,6 +744,7 @@ class DepotserverPackageManager:
 							"DEPOT_ID": self._depot_id,
 							"OLD_PRODUCT_VERSION": old_product_version,
 							"OLD_PACKAGE_VERSION": old_package_version,
+							"BOOT_DIR": BOOT_DIR,
 						}
 						with run_package_scripts(opsi_package, tmp_unpack_dir, product_path, env=env):
 							logger.info("Deleting old client-data dir")

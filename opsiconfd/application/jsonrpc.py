@@ -528,7 +528,7 @@ async def process_request(  # pylint: disable=too-many-locals,too-many-branches,
 	if response_compression and data_len > COMPRESS_MIN_SIZE:
 		response.headers["content-encoding"] = response_compression
 		lz4_block_linked = True
-		if request.headers.get("user-agent", "").startswith("opsi config editor"):
+		if request.headers.get("user-agent", "").startswith(("opsi config editor", "opsi-configed")):
 			# lz4-java - RuntimeException: Dependent block stream is unsupported (BLOCK_INDEPENDENCE must be set).
 			lz4_block_linked = False
 		with server_timing("compression"):

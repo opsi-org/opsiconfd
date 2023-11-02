@@ -161,7 +161,7 @@ class RPCProductPropertyMixin(Protocol):
 		ace = self._get_ace("productProperty_getObjects")
 		return self._product_property_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="productProperty_getObjects", check_acl=False)
 	def productProperty_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict]:

@@ -71,7 +71,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 			table="SOFTWARE_CONFIG", ace=ace, object_type=AuditSoftwareOnClient, attributes=attributes, filter=filter
 		)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects", check_acl=False)
 	def auditSoftwareOnClient_getHashes(  # pylint: disable=redefined-builtin,invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:

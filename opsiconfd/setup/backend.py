@@ -219,21 +219,20 @@ def file_mysql_migration() -> None:
 	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()
-	backend.events_enabled = False
+	with backend.events_disabled():
+		mysql = MySQLConnection()
+		mysql.connect()
+		drop_database(mysql)
+		create_database(mysql)
+		mysql.disconnect()
+		mysql.connect()
+		update_database(mysql, force=True)
 
-	mysql = MySQLConnection()
-	mysql.connect()
-	drop_database(mysql)
-	create_database(mysql)
-	mysql.disconnect()
-	mysql.connect()
-	update_database(mysql, force=True)
+		with mysql.disable_unique_hardware_addresses():
+			backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)
+			backend_replicator.replicate(audit=False)
 
-	with mysql.disable_unique_hardware_addresses():
-		backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)
-		backend_replicator.replicate(audit=False)
-
-	dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
+		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
 
 
 def setup_backend(force_server_id: str | None = None) -> None:
@@ -248,55 +247,56 @@ def setup_backend(force_server_id: str | None = None) -> None:
 	config_server_id = force_server_id or get_configserver_id()
 
 	backend = get_unprotected_backend()
-	backend.events_enabled = False
-	conf_servers = backend.host_getObjects(type="OpsiConfigserver")
-	if not conf_servers:
-		logger.notice("Creating config server %r", config_server_id)
+	with backend.events_disabled():
+		conf_servers = backend.host_getObjects(type="OpsiConfigserver")
+		if not conf_servers:
+			logger.notice("Creating config server %r", config_server_id)
 
-		ip_address = None
-		network_address = None
-		for addr in get_ip_addresses():
-			if addr["interface"] == "lo":
-				continue
-			if not ip_address or addr["family"] == "ipv4":
-				# Prefer IPv4
-				ip_address = addr["address"]
-				network_address = addr["network"]
+			ip_address = None
+			network_address = None
+			for addr in get_ip_addresses():
+				if addr["interface"] == "lo":
+					continue
+				if not ip_address or addr["family"] == "ipv4":
+					# Prefer IPv4
+					ip_address = addr["address"]
+					network_address = addr["network"]
 
-		conf_servers = [
-			OpsiConfigserver(
-				id=config_server_id,
-				opsiHostKey=None,
-				depotLocalUrl=f"file://{DEPOT_DIR}",
-				depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
-				depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
-				repositoryLocalUrl=f"file://{REPOSITORY_DIR}",
-				repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
-				workbenchLocalUrl=f"file://{WORKBENCH_DIR}",
-				workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
-				description=None,
-				notes=None,
-				hardwareAddress=None,
-				ipAddress=ip_address,
-				inventoryNumber=None,
-				networkAddress=network_address,
-				maxBandwidth=0,
-				isMasterDepot=True,
-				masterDepotId=None,
-			)
-		]
-		backend.host_createObjects(conf_servers)
-	elif conf_servers[0].id != config_server_id:
-		if force_server_id:
-			logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, config_server_id)
-			backend.host_renameOpsiDepotserver(conf_servers[0].id, config_server_id)
-			opsi_config.set("host", "id", config_server_id, persistent=True)
-		else:
-			raise ValueError(
-				f"Config server ID {conf_servers[0].id!r} in database differs from host.id {config_server_id!r} in /etc/opsi/opsi.conf. "
-				f"Please change host.id in /etc/opsi/opsi.conf to {conf_servers[0].id!r} "
-				"or use `opsiconfd setup --rename-server` to fix this issue."
-			)
-	backend.exit()
+			conf_servers = [
+				OpsiConfigserver(
+					id=config_server_id,
+					opsiHostKey=None,
+					depotLocalUrl=f"file://{DEPOT_DIR}",
+					depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
+					depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
+					repositoryLocalUrl=f"file://{REPOSITORY_DIR}",
+					repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
+					workbenchLocalUrl=f"file://{WORKBENCH_DIR}",
+					workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
+					description=None,
+					notes=None,
+					hardwareAddress=None,
+					ipAddress=ip_address,
+					inventoryNumber=None,
+					networkAddress=network_address,
+					maxBandwidth=0,
+					isMasterDepot=True,
+					masterDepotId=None,
+				)
+			]
+			backend.host_createObjects(conf_servers)
+		elif conf_servers[0].id != config_server_id:
+			if force_server_id:
+				logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, config_server_id)
+				backend.host_renameOpsiDepotserver(conf_servers[0].id, config_server_id)
+				opsi_config.set("host", "id", config_server_id, persistent=True)
+			else:
+				raise ValueError(
+					f"Config server ID {conf_servers[0].id!r} in database differs from "
+					f"host.id {config_server_id!r} in /etc/opsi/opsi.conf. "
+					f"Please change host.id in /etc/opsi/opsi.conf to {conf_servers[0].id!r} "
+					"or use `opsiconfd setup --rename-server` to fix this issue."
+				)
+		backend.exit()
 
-	opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
+		opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)

@@ -10,17 +10,12 @@ opsiconfd.backend.rpc.product_on_client
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.objects import Product, ProductDependency, ProductOnClient
+from opsicommon.objects import ProductOnClient
 from opsicommon.types import forceObjectClass, forceObjectClassList
 
 from . import rpc_method
-from .obj_product_dependency import (
-	add_dependent_product_on_clients,
-	generate_product_on_client_sequence,
-)
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
@@ -36,14 +31,13 @@ class RPCProductOnClientMixin(Protocol):
 	def productOnClient_insertObject(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClient: dict | ProductOnClient
 	) -> None:
-		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 		self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObject(  # pylint: disable=invalid-name
@@ -54,14 +48,13 @@ class RPCProductOnClientMixin(Protocol):
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
-		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 		self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
-		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_createObjects")
 		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
 		with self._mysql.session() as session:
@@ -101,7 +94,7 @@ class RPCProductOnClientMixin(Protocol):
 			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
 		)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="productOnClient_getObjects", check_acl=False)
 	def productOnClient_getHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
 	) -> list[dict]:
@@ -161,114 +154,41 @@ class RPCProductOnClientMixin(Protocol):
 		if idents:
 			self.productOnClient_deleteObjects(idents)
 
-	def _product_on_client_process_with_function(  # pylint: disable=too-many-locals,too-many-branches
-		self: BackendProtocol, product_on_clients: list[ProductOnClient], function: Callable
+	@rpc_method(check_acl=False)
+	def productOnClient_updateObjectsWithDependencies(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> list[ProductOnClient]:
-		product_on_clients_by_client: dict[str, list[ProductOnClient]] = {}
-		product_ids = set()
-		for poc in product_on_clients:
-			poc = forceObjectClass(poc, ProductOnClient)
-			try:
-				product_on_clients_by_client[poc.getClientId()].append(poc)
-			except KeyError:
-				product_on_clients_by_client[poc.getClientId()] = [poc]
+		"""
+		Like productOnClient_updateObjects, but add dependent product actions.
+		"""
+		product_on_clients = self.productOnClient_addDependencies(productOnClients)
+		self.productOnClient_updateObjects(product_on_clients)
+		return product_on_clients
 
-			product_ids.add(poc.productId)
+	@rpc_method(check_acl=False)
+	def productOnClient_getObjectsWithSequence(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[ProductOnClient]:
+		"""
+		Like productOnClient_getObjects, but return objects in order and with attribute actionSequence set.
+		Will not add dependent ProductOnClients!
+		If attributes are passed and `actionSequence` is not included in the list of attributes,
+		the method behaves like `productOnClient_getObjects` (which is faster).
+		"""
+		if attributes and "actionSequence" not in attributes:
+			return self.productOnClient_getObjects(attributes, **filter)
 
-		depot_to_clients: dict[str, list[str]] = {}
-		for client_to_depot in self.configState_getClientToDepotserver(clientIds=(clientId for clientId in product_on_clients_by_client)):
-			try:
-				depot_to_clients[client_to_depot["depotId"]].append(client_to_depot["clientId"])
-			except KeyError:
-				depot_to_clients[client_to_depot["depotId"]] = [client_to_depot["clientId"]]
-
-		product_by_product_id_and_version: dict[str, dict[str, dict[str, Product]]] = defaultdict(lambda: defaultdict(dict))
-		for product in self.product_getObjects(id=product_ids):
-			product_by_product_id_and_version[product.id][product.productVersion][product.packageVersion] = product
-
-		additional_product_ids: list[str] = []
-		p_deps_by_product_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]] = defaultdict(
-			lambda: defaultdict(lambda: defaultdict(list))
+		ace = self._get_ace("productOnClient_getObjects")
+		product_on_clients = self._mysql.get_objects(
+			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
 		)
-
-		def collect_dependencies(
-			additional_product_ids: list[str],
-			product_dependency: ProductDependency,
-			p_deps_by_product_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]],
-		) -> None:
-			p_deps_by_product_id_and_version[product_dependency.productId][product_dependency.productVersion][
-				product_dependency.packageVersion
-			].append(product_dependency)
-
-			if (
-				product_dependency.requiredProductId not in product_ids
-				and product_dependency.requiredProductId not in additional_product_ids
-			):
-				additional_product_ids.append(product_dependency.requiredProductId)
-				for product_dependency_2 in self.productDependency_getObjects(productId=product_dependency.requiredProductId):
-					collect_dependencies(additional_product_ids, product_dependency_2, p_deps_by_product_id_and_version)
-
-		for product_dependency in self.productDependency_getObjects(productId=product_ids):
-			collect_dependencies(additional_product_ids, product_dependency, p_deps_by_product_id_and_version)
-
-		if additional_product_ids:
-			for product in self.product_getObjects(id=additional_product_ids):
-				product_by_product_id_and_version[product.id][product.productVersion][product.packageVersion] = product
-
-			product_ids = product_ids.union(additional_product_ids)
-
-		def add_dependencies(
-			product: Product,
-			products: set[Product],
-			product_dependencies: set[ProductDependency],
-			product_by_product_id_and_version: dict[str, dict[str, dict[str, Product]]],
-			p_deps_by_product_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]],
-		) -> None:
-			dependencies = p_deps_by_product_id_and_version[product.id][product.productVersion][product.packageVersion]
-			for dep in dependencies:
-				product = product_by_product_id_and_version[dep.productId][dep.productVersion][dep.packageVersion]
-				if product:
-					products.add(product)
-					if dep not in product_dependencies:
-						product_dependencies.add(dep)
-						add_dependencies(
-							product, products, product_dependencies, product_by_product_id_and_version, p_deps_by_product_id_and_version
-						)
-
-		product_on_clients = []
-		for (depot_id, client_ids) in depot_to_clients.items():
-			products: set[Product] = set()
-			product_dependencies: set[ProductDependency] = set()
-
-			for product_on_depot in self.productOnDepot_getObjects(depotId=depot_id, productId=product_ids):
-				product = product_by_product_id_and_version[product_on_depot.productId][product_on_depot.productVersion][
-					product_on_depot.packageVersion
-				]
-				if product is None:
-					raise BackendMissingDataError(
-						f"Product '{product_on_depot.productId}', "
-						f"productVersion '{product_on_depot.productVersion}', "
-						f"packageVersion '{product_on_depot.packageVersion}' not found"
-					)
-				products.add(product)
-				add_dependencies(
-					product, products, product_dependencies, product_by_product_id_and_version, p_deps_by_product_id_and_version
-				)
-
-			for client_id in client_ids:
-				try:
-					product_on_clients_by_client[client_id]
-				except KeyError:
-					continue
-
-				product_on_clients.extend(
-					function(
-						product_on_clients=product_on_clients_by_client[client_id],
-						available_products=products,
-						product_dependencies=product_dependencies,
-					)
-				)
-
+		action_requests = {(poc.clientId, poc.productId): poc.actionRequest for poc in product_on_clients}
+		product_on_clients = self.productOnClient_generateSequence(product_on_clients)
+		for poc in product_on_clients:
+			if action_request := action_requests.get((poc.clientId, poc.productId)):
+				poc.actionRequest = action_request
+				if not poc.actionRequest or poc.actionRequest == "none":
+					poc.actionSequence = -1
 		return product_on_clients
 
 	@rpc_method(check_acl=False)
@@ -280,9 +200,19 @@ class RPCProductOnClientMixin(Protocol):
 		Returns the same list of in the order in which the actions must be processed.
 		Please also check if `productOnClient_addDependencies` is more suitable.
 		"""
-		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)
+		product_ids_by_client_id: dict[str, list[str]] = defaultdict(list)
+		for poc in productOnClients:
+			product_ids_by_client_id[poc.clientId].append(poc.productId)
 
-	@rpc_method(check_acl=False)
+		return [
+			poc
+			for group in self.get_product_action_groups(productOnClients).values()
+			for g in group
+			for poc in g.product_on_clients
+			if poc.productId in product_ids_by_client_id.get(poc.clientId, [])
+		]
+
+	@rpc_method()
 	def productOnClient_addDependencies(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: list[ProductOnClient]
 	) -> list[ProductOnClient]:
@@ -293,5 +223,27 @@ class RPCProductOnClientMixin(Protocol):
 		Returns the expanded list of ProductOnClient objects in the order in which the actions must be processed
 		(like productOnClient_generateSequence would do).
 		"""
-		productOnClients = self._product_on_client_process_with_function(productOnClients, add_dependent_product_on_clients)
-		return self._product_on_client_process_with_function(productOnClients, generate_product_on_client_sequence)
+		return [poc for group in self.get_product_action_groups(productOnClients).values() for g in group for poc in g.product_on_clients]
+
+	@rpc_method(check_acl=False)
+	def productOnClient_getActionGroups(self: BackendProtocol, clientId: str) -> list[dict]:  # pylint: disable=invalid-name
+		"""
+		Get product action groups of action requests set for a client.
+		"""
+		ace = self._get_ace("productOnClient_getObjects")
+		product_on_clients = self._mysql.get_objects(
+			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, filter={"clientId": clientId}
+		)
+
+		action_groups: list[dict] = []
+		for group in self.get_product_action_groups(product_on_clients).get(clientId, []):
+			group.product_on_clients = [
+				poc.to_hash() for poc in group.product_on_clients if poc.actionRequest and poc.actionRequest != "none"  # type: ignore[misc]
+			]
+			if group.product_on_clients:
+				group.dependencies = {
+					product_id: [d.to_hash() for d in dep] for product_id, dep in group.dependencies.items()  # type: ignore[misc]
+				}
+				action_groups.append(group)  # type: ignore[arg-type]
+
+		return action_groups

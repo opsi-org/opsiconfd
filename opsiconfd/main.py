@@ -31,7 +31,7 @@ from rich.prompt import Prompt
 
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
-from opsiconfd.backup import create_backup, restore_backup
+from opsiconfd.backup import create_backup, read_backup_file_data, restore_backup
 from opsiconfd.config import (
 	GC_THRESHOLDS,
 	config,
@@ -49,6 +49,7 @@ from opsiconfd.manager import Manager
 from opsiconfd.patch import apply_patches
 from opsiconfd.redis import delete_recursively, redis_client
 from opsiconfd.setup import setup
+from opsiconfd.setup.backend import setup_mysql
 from opsiconfd.utils import get_manager_pid, log_config
 
 from .check import console_health_check
@@ -142,8 +143,9 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 			maintenance = not config.no_maintenance
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={not config.no_config_files} maintenance={maintenance}, "
-				f"encoding={encoding}, compression={compression or 'none'}, encrypt={bool(config.password)}"
+				f"Using arguments: config_files={not config.no_config_files}, redis_data={not config.no_redis_data}, "
+				f"maintenance={maintenance}, encoding={encoding}, "
+				f"compression={compression or 'none'}, encrypt={bool(config.password)}"
 			)
 			if maintenance:
 				initalized_event = threading.Event()
@@ -160,6 +162,7 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 
 			create_backup(
 				config_files=not config.no_config_files,
+				redis_data=not config.no_redis_data,
 				backup_file=backup_file,
 				file_encoding=encoding,  # type: ignore[arg-type]
 				file_compression=compression,  # type: ignore[arg-type]
@@ -183,6 +186,44 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 	sys.exit(0)
 
 
+def get_password_interative(console: Console) -> None:
+	if not console.file.isatty():
+		raise RuntimeError("Interactive password prompt only available with tty")
+	config.password = Prompt.ask("Please enter password", console=console, password=True)
+
+
+def backup_info_main() -> None:
+	console = Console()
+	backup_file = None
+	try:
+		if config.password is None:
+			# Argument --pasword given without value
+			get_password_interative(console)
+
+		init_logging(log_mode="rich", console=console)
+		backup_file = Path(config.backup_file)
+		meta_data = read_backup_file_data(backup_file=backup_file, password=config.password).get("meta", {})
+		if meta_data.get("type") != "opsiconfd_backup":
+			raise ValueError("Not an opsiconfd backup")
+		for key, val in meta_data.items():
+			if key == "type":
+				continue
+			console.print(f"[bold]{key}[/bold]: {val}", highlight=False)
+
+	except KeyboardInterrupt:
+		logger.error("Backup info interrupted")
+		console.quiet = False
+		console.print("[bold red]Backup info interrupted[/bold red]")
+		sys.exit(2)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
+		console.quiet = False
+		baf = f" from '{str(backup_file)}'" if backup_file else ""
+		console.print(f"[bold red]Failed to get backup info{baf}: {err}[/bold red]")
+		sys.exit(1)
+	sys.exit(0)
+
+
 def restore_main() -> None:
 	if config.delete_locks:
 		delete_locks()
@@ -194,9 +235,7 @@ def restore_main() -> None:
 			# Argument --pasword given without value
 			if config.quiet:
 				raise RuntimeError("Interactive password prompt not available in quiet mode")
-			if not console.file.isatty():
-				raise RuntimeError("Interactive password prompt only available with tty")
-			config.password = Prompt.ask("Please enter password", console=console, password=True)
+			get_password_interative(console)
 
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)
@@ -210,8 +249,9 @@ def restore_main() -> None:
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={config.config_files}, ignore_errors={config.ignore_errors}"
-				f", server_id={server_id}, decrypt={bool(config.password)}"
+				f"Using arguments: server_id={server_id}, decrypt={bool(config.password)}, "
+				f"config_files={config.config_files}, redis_data={config.redis_data}, "
+				f"hw_audit={not config.no_hw_audit}, ignore_errors={config.ignore_errors}"
 			)
 
 			initalized_event = threading.Event()
@@ -226,9 +266,13 @@ def restore_main() -> None:
 			).start()
 			initalized_event.wait(5)
 
+			setup_mysql(interactive=True)
+
 			restore_backup(
 				backup_file,
 				config_files=config.config_files,
+				redis_data=config.redis_data,
+				hw_audit=not config.no_hw_audit,
 				ignore_errors=config.ignore_errors,
 				batch=not config.ignore_errors,
 				server_id=server_id,
@@ -312,6 +356,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 				user = pwd.getpwnam(config.run_as_user)
 				gids = os.getgrouplist(user.pw_name, user.pw_gid)
 				logger.debug("Set uid=%s, gid=%s, groups=%s", user.pw_uid, user.pw_gid, gids)
+				# os.chdir(user.pw_dir)
 				os.setgid(user.pw_gid)
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)
@@ -362,6 +407,9 @@ def main() -> None:  # pylint: disable=too-many-return-statements
 
 	if config.action == "backup":
 		return backup_main()
+
+	if config.action == "backup-info":
+		return backup_info_main()
 
 	if config.action == "restore":
 		return restore_main()

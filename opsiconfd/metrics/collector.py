@@ -53,7 +53,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 	async def add_value(self, metric_id: str, value: float, timestamp: int | None = None) -> None:
 		timestamp = timestamp or self._get_timestamp()
 
-		logger.debug("add_value metric_id=%r, value=%r, timestamp=%r", metric_id, value, timestamp)
+		logger.trace("add_value metric_id=%r, value=%r, timestamp=%r", metric_id, value, timestamp)
 
 		async with self._values_lock:
 			if timestamp not in self._values[metric_id]:
@@ -97,7 +97,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				value /= count
 
 			cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **self._labels)
-			logger.debug("Redis ts cmd %s", cmd)
+			logger.trace("Redis ts cmd %s", cmd)
 			cmds.append(cmd)
 
 		try:
@@ -166,9 +166,9 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		async with redis.pipeline(transaction=False) as pipe:
 			for a_cmd in cmd:
 				a_cmd = str_cmd(a_cmd)
-				logger.debug("Adding redis command to pipe: %s", a_cmd)
+				logger.trace("Adding redis command to pipe: %s", a_cmd)
 				await pipe.execute_command(a_cmd)  # type: ignore[attr-defined]
-			logger.debug("Executing redis pipe (%d commands)", len(cmd))
+			logger.trace("Executing redis pipe (%d commands)", len(cmd))
 			return await pipe.execute()  # type: ignore[attr-defined]
 
 

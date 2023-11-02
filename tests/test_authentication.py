@@ -219,8 +219,8 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 
 
 def test_change_session_ip(
-	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> None:
 	with sync_redis_client() as redis:
 		client_addr = "192.168.1.1"
@@ -328,8 +328,8 @@ def test_public_access_put(test_client: OpsiconfdTestClient) -> None:  # pylint:
 
 
 def test_max_sessions_limit(
-	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.set_client_address("192.168.1.1", 12345)
 	max_session_per_ip = 10
@@ -358,8 +358,8 @@ def test_max_sessions_limit(
 
 
 def test_max_sessions_not_for_depot(
-	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.set_client_address("192.168.11.1", 12345)
 	max_session_per_ip = 3
@@ -533,7 +533,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 
 
 def test_onetime_password_host_id(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 	database_connection: Connection,  # pylint: disable=redefined-outer-name
 ) -> None:
 	database_connection.query(
@@ -560,7 +560,7 @@ def test_onetime_password_host_id(
 
 
 def test_onetime_password_hardware_address(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 	database_connection: Connection,  # pylint: disable=redefined-outer-name
 ) -> None:
 	database_connection.query(

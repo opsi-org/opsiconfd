@@ -78,9 +78,9 @@ def retry_redis_call(func: Callable) -> Callable:
 
 def get_redis_connection(
 	url: str,
-	db: int = 0,
+	db: int = 0,  # pylint: disable=invalid-name
 	timeout: int = 0,
-	test_connection: bool = False,  # pylint: disable=invalid-name
+	test_connection: bool = False,
 ) -> Redis:
 	start = time.time()
 	con_id = f"{url}/{db}"
@@ -112,9 +112,9 @@ def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[R
 
 async def get_async_redis_connection(
 	url: str,
-	db: int = 0,
+	db: int = 0,  # pylint: disable=invalid-name
 	timeout: int = 0,
-	test_connection: bool = False,  # pylint: disable=invalid-name
+	test_connection: bool = False,
 ) -> AsyncRedis:
 	start = time.time()
 	while True:

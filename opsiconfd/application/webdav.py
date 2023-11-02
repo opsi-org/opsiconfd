@@ -233,7 +233,9 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		if name in symlinks:
 			app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
-		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False, fs_opts={"follow_symlinks": name in symlinks})  # type: ignore[index]
+		app_config["provider_mapping"][f"/{name}"] = prov_class(  # type: ignore[index]
+			conf["path"], readonly=False, fs_opts={"follow_symlinks": name in symlinks}
+		)
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
 	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
 	app_config["mount_path"] = "/dav"

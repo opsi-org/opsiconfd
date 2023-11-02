@@ -114,7 +114,7 @@ def test_acquire_transfer_slot_max_default(test_client: OpsiconfdTestClient) -> 
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 20):
-		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX
+		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX  # pylint: disable=import-outside-toplevel
 
 		_get_slots(test_client, TRANSFER_SLOT_MAX)
 
@@ -195,7 +195,7 @@ def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-ou
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 20):
-		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX
+		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX  # pylint: disable=import-outside-toplevel
 
 		clients, depot = _create_clients_and_depot(test_client)
 

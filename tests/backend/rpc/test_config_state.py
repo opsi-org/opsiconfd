@@ -11,6 +11,7 @@ test opsiconfd.backend.rpc.obj_config_state
 from typing import Any, Generator
 
 import pytest
+from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver
 
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import remove_orphans_config_state
@@ -20,6 +21,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	Connection,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
 	backend,
 	clean_redis,
 	database_connection,
@@ -105,7 +107,10 @@ def _create_test_server_config(test_client: OpsiconfdTestClient, config_id: str)
 
 
 def _set_config_state(
-	test_client: OpsiconfdTestClient, object_id: str, config_id: str, values: list  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	object_id: str,
+	config_id: str,
+	values: list,  # pylint: disable=redefined-outer-name
 ) -> dict[str, Any]:
 	# Set config state on depot, client 2 should use this config value
 	conf = {"configId": config_id, "objectId": object_id, "values": values}
@@ -307,3 +312,49 @@ def test_config_state_cleanup(test_client: OpsiconfdTestClient) -> None:  # pyli
 	print(res)
 	assert "error" not in res
 	assert res["result"] == []
+
+
+def test_configState_getClientToDepotserver(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+	depot1 = OpsiDepotserver(id="test-config-state-depot-1.opsi.test")
+	client1 = OpsiClient(id="test-config-state-client-1.opsi.test")
+	client2 = OpsiClient(id="test-config-state-client-2.opsi.test")
+
+	server_id = backend.host_getIdents(type="OpsiConfigserver")[0]
+
+	backend.host_createObjects([depot1, client1, client2])
+
+	for depot_ids in server_id, [server_id], [], None:
+		client_to_depots = backend.configState_getClientToDepotserver(depotIds=depot_ids)
+		assert len(client_to_depots) == 2
+		for client_to_depot in client_to_depots:
+			assert client_to_depot["depotId"] == server_id
+			assert client_to_depot["clientId"] in (client1.id, client2.id)
+
+	client_to_depots = backend.configState_getClientToDepotserver(clientIds=client1.id)
+	assert len(client_to_depots) == 1
+	assert client_to_depots[0]["depotId"] == server_id
+	assert client_to_depots[0]["clientId"] == client1.id
+
+	client_to_depots = backend.configState_getClientToDepotserver(depotIds=server_id, clientIds=[client1.id])
+	assert len(client_to_depots) == 1
+	assert client_to_depots[0]["depotId"] == server_id
+	assert client_to_depots[0]["clientId"] == client1.id
+
+	client_to_depots = backend.configState_getClientToDepotserver(depotIds=depot1.id)
+	assert len(client_to_depots) == 0
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client1.id, values=[depot1.id])
+	backend.configState_createObjects([config_state])
+
+	client_to_depots = backend.configState_getClientToDepotserver(depotIds=depot1.id)
+	assert len(client_to_depots) == 1
+	assert client_to_depots[0]["depotId"] == depot1.id
+	assert client_to_depots[0]["clientId"] == client1.id
+
+	client_to_depots = backend.configState_getClientToDepotserver(depotIds=server_id, clientIds=[client1.id])
+	assert len(client_to_depots) == 0
+
+	client_to_depots = backend.configState_getClientToDepotserver(depotIds=server_id, clientIds=[])
+	assert len(client_to_depots) == 1
+	assert client_to_depots[0]["depotId"] == server_id
+	assert client_to_depots[0]["clientId"] == client2.id

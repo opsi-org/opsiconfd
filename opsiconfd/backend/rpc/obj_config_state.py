@@ -149,10 +149,10 @@ class RPCConfigStateMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def configState_getIdents(  # pylint: disable=invalid-name
+	def configState_getIdents(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		returnType: IdentType = "str",
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_idents(table="CONFIG_STATE", object_type=ConfigState, ace=ace, ident_type=returnType, filter=filter)

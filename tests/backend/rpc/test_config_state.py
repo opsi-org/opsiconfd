@@ -106,11 +106,11 @@ def _create_test_server_config(test_client: OpsiconfdTestClient, config_id: str)
 	return server_conf
 
 
-def _set_config_state(
+def _set_config_state(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient,
 	object_id: str,
 	config_id: str,
-	values: list,  # pylint: disable=redefined-outer-name
+	values: list,
 ) -> dict[str, Any]:
 	# Set config state on depot, client 2 should use this config value
 	conf = {"configId": config_id, "objectId": object_id, "values": values}
@@ -314,7 +314,7 @@ def test_config_state_cleanup(test_client: OpsiconfdTestClient) -> None:  # pyli
 	assert res["result"] == []
 
 
-def test_configState_getClientToDepotserver(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_configState_getClientToDepotserver(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name
 	depot1 = OpsiDepotserver(id="test-config-state-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-config-state-client-1.opsi.test")
 	client2 = OpsiClient(id="test-config-state-client-2.opsi.test")

@@ -4,14 +4,13 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "opsiconfd"
-version = "4.3.0.112"
+version = "4.3.0.113"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
 maintainers = [ "uib GmbH <info@uib.de>",]
 authors = [ "uib GmbH <info@uib.de>",]
 include = [ "run-opsiconfd", "opsiconfd_data/**/*",]
-
 [[tool.poetry.source]]
 name = "uibpypi"
 url = "https://pypi.uib.gmbh/simple"
@@ -20,6 +19,16 @@ priority = "primary"
 [[tool.poetry.source]]
 name = "PyPI"
 priority = "primary"
+
+[tool.mypy]
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+follow_imports = "silent"
+
+[tool.ruff]
+line-length = 140
+ignore = [ "F401", "E402", "F811",]
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"
@@ -58,6 +67,22 @@ websockets = "^12.0"
 wsgidav = "^4.0"
 yappi = "^1.4"
 
+[tool.ruff.per-file-ignores]
+"opsiconfd/check.py" = [ "E101", "E501",]
+
+[tool.ruff.format]
+indent-style = "tab"
+
+[tool.pylint.MASTER]
+load-plugins = "pylint_pydantic"
+
+[tool.pylint.BASIC]
+no-docstring-rgx = ".*"
+
+[tool.pylint.FORMAT]
+indent-string = "\t"
+max-line-length = 140
+
 [tool.poetry.group.dev.dependencies]
 hypothesis = "^6.32"
 idna = "^3.3"
@@ -80,30 +105,3 @@ pydevd = "^2.9.5"
 wrapt = "^1.14.1"
 dill = "^0.3.6"
 bandit = "^1.7.4"
-
-[tool.mypy]
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-follow_imports = "silent"
-
-[tool.ruff]
-line-length = 140
-ignore = [ "F401", "E402", "F811",]
-#select = [ "F", "E", "I",]
-
-[tool.ruff.per-file-ignores]
-"opsiconfd/check.py" = [ "E101", "E501",]
-
-[tool.ruff.format]
-indent-style = "tab"
-
-[tool.pylint.MASTER]
-load-plugins = "pylint_pydantic"
-
-[tool.pylint.BASIC]
-no-docstring-rgx = ".*"
-
-[tool.pylint.FORMAT]
-indent-string = "\t"
-max-line-length = 140

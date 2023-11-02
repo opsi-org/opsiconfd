@@ -155,7 +155,7 @@ async def async_redis_client() -> AsyncGenerator[AsyncRedis, None]:  # pylint: d
 	try:
 		yield redis_client
 	finally:
-		await redis_client.aclose()
+		await redis_client.aclose()  # type: ignore[attr-defined]
 
 
 @contextmanager

@@ -24,12 +24,12 @@ import msgpack  # type: ignore[import]
 import MySQLdb  # type: ignore[import]
 import pytest
 import pytest_asyncio
-import redis
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from MySQLdb.connections import Connection  # type: ignore[import]
 from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
-from redis import asyncio as async_redis
+from redis import Redis
+from redis.asyncio import Redis as AsyncRedis
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
@@ -150,17 +150,17 @@ def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None,
 
 
 @asynccontextmanager
-async def async_redis_client() -> AsyncGenerator[async_redis.StrictRedis, None]:  # pylint: disable=redefined-outer-name
-	redis_client = async_redis.StrictRedis.from_url(_config.redis_internal_url)
+async def async_redis_client() -> AsyncGenerator[AsyncRedis, None]:  # pylint: disable=redefined-outer-name
+	redis_client: AsyncRedis = AsyncRedis.from_url(_config.redis_internal_url)
 	try:
 		yield redis_client
 	finally:
-		await redis_client.close()
+		await redis_client.aclose()
 
 
 @contextmanager
-def sync_redis_client() -> Generator[redis.StrictRedis, None, None]:  # pylint: disable=redefined-outer-name
-	redis_client = redis.StrictRedis.from_url(_config.redis_internal_url)
+def sync_redis_client() -> Generator[Redis, None, None]:  # pylint: disable=redefined-outer-name
+	redis_client = Redis.from_url(_config.redis_internal_url)
 	try:
 		yield redis_client
 	finally:

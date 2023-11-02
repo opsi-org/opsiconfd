@@ -129,13 +129,20 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method(deprecated=True, alternative_method="log_write", check_acl=False)
 	def writeLog(  # pylint: disable=invalid-name
-		self: BackendProtocol, type: str, data: str, objectId: str | None = None, append: bool = True  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		type: str,  # pylint: disable=redefined-builtin
+		data: str,
+		objectId: str | None = None,
+		append: bool = True,
 	) -> None:
 		self.log_write(logType=type, data=data, objectId=objectId, append=append)
 
 	@rpc_method(deprecated=True, alternative_method="log_read", check_acl=False)
 	def readLog(  # pylint: disable=invalid-name
-		self: BackendProtocol, type: str, objectId: str | None = None, maxSize: int = 0  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		type: str,  # pylint: disable=redefined-builtin
+		objectId: str | None = None,
+		maxSize: int = 0,
 	) -> str:
 		return self.log_read(logType=type, objectId=objectId, maxSize=maxSize)
 
@@ -711,7 +718,8 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method(deprecated=True, alternative_method="productOnDepot_getObjects", check_acl=False)
 	def getProductLocks_hash(  # pylint: disable=invalid-name
-		self: BackendProtocol, depotIds: list[str] | None = None  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		depotIds: list[str] | None = None,  # pylint: disable=invalid-name
 	) -> dict[str, list[str]]:
 		result: dict[str, list[str]] = {}
 		for product_on_depot in self.productOnDepot_getObjects(depotId=depotIds, locked=True):
@@ -848,9 +856,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			depotIds,
 		)
 
-	@rpc_method(deprecated=True, alternative_method="product_getObjects", check_acl=False)
+	@rpc_method(check_acl=False)
 	def getProduct_hash(  # pylint: disable=invalid-name
-		self: BackendProtocol, productId: str, depotId: str | None = None  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		productId: str,
+		depotId: str | None = None,  # pylint: disable=invalid-name
 	) -> dict[str, Any]:
 		if not depotId:
 			products = self.product_getObjects(id=productId)
@@ -1530,9 +1540,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 					] = []
 				product_dependencies[product_dependency.productId][product_dependency.productVersion][
 					product_dependency.packageVersion
-				].append(
-					product_dependency
-				)
+				].append(product_dependency)
 
 			for product_on_depot in self.productOnDepot_getIdents(depotId=depotId, returnType="dict"):
 				for product_dependency in (

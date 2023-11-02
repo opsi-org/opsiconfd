@@ -219,25 +219,21 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	symlinks = config.allow_webdav_symlinks or []
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()
+		app_config["dir_browser"]["davmount_links"] = name in symlinks  # type: ignore[index]
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		if name in symlinks:
-			app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
-			fs_opts = {"follow_symlinks": True}
-			app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False, fs_opts=fs_opts)  # type: ignore[index]
-		else:
-			app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"], fs_opts={})  # type: ignore[index]
+		app_config["provider_mapping"]["/"] = prov_class(  # type: ignore[index]
+			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": name in symlinks}
+		)
 		app_config["mount_path"] = f"/{name}"
 		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))
 
+	# Virtual filesystem /dav
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		if name in symlinks:
 			app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
-			fs_opts = {"follow_symlinks": True}
-			app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False, fs_opts=fs_opts)  # type: ignore[index]
-		else:
-			app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False, fs_opts={})  # type: ignore[index]
+		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False, fs_opts={"follow_symlinks": name in symlinks})  # type: ignore[index]
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
 	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
 	app_config["mount_path"] = "/dav"

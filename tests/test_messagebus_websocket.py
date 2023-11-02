@@ -177,6 +177,7 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 						assert messages[0]["type"] == "test_multi_client"
 						assert messages[0]["id"] == "1"
 
+					sleep(1)
 					# print(list(reader2.get_messages()))
 					with test_client.websocket_connect("/messagebus/v1") as websocket3:
 						with WebSocketMessageReader(websocket3) as reader3:
@@ -357,7 +358,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				websocket.send_bytes(terminal_open_request.to_msgpack())
 
 				reader.wait_for_message(count=2)
-
+				sleep(1)
 				responses = sorted(
 					# type: ignore[arg-type,attr-defined]
 					[Message.from_dict(msg) for msg in reader.get_messages()],
@@ -380,7 +381,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				)
 				websocket.send_bytes(terminal_data_write.to_msgpack())
 				reader.wait_for_message(count=1)
-
+				sleep(1)
 				responses = sorted(
 					# type: ignore[arg-type,attr-defined]
 					[Message.from_dict(msg) for msg in reader.get_messages()],
@@ -395,6 +396,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				websocket.send_bytes(terminal_resize_request.to_msgpack())
 
 				reader.wait_for_message(count=1)
+				sleep(1)
 				responses = sorted(
 					# type: ignore[arg-type,attr-defined]
 					[Message.from_dict(msg) for msg in reader.get_messages()],

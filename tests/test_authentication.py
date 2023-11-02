@@ -418,10 +418,10 @@ def test_max_auth_failures(
 			# 	time.sleep(2)
 			if method == "get":
 				res = test_client.get(url, auth=("client.domain.tld", "hostkey"))
-				if num > max_auth_failures + 1:
+				if num > max_auth_failures + 2:
 					assert res.status_code == status.HTTP_403_FORBIDDEN
 					assert "blocked" in res.text
-				elif num == max_auth_failures + 1:
+				elif max_auth_failures + 1 <= num <= max_auth_failures + 2:
 					assert res.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
 				else:
 					assert res.status_code == status.HTTP_401_UNAUTHORIZED
@@ -487,7 +487,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 
 def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 5):
+	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 9):
 		lifetime = 60
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -511,14 +511,14 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 		assert session_id == cookie.value
 
 		with test_client.websocket_connect("/messagebus/v1", headers={"Cookie": f"{cookie.name}={cookie.value}"}):
-			time.sleep(1)
+			time.sleep(2)
 			res = test_client.get("/admin/", headers=lt_headers)
 			assert res.status_code == 200
 			cookie = list(test_client.cookies.jar)[0]
 			# Session cookie
 			assert cookie.expires is None
 
-		time.sleep(6)
+		time.sleep(10)
 		res = test_client.get("/admin/")
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]

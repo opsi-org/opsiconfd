@@ -101,7 +101,7 @@ stages:
   echo "Run tests"
   echo "---------------------------------------"
   exit_code=0
-  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
+  poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
 
 .run_linters: &run_linters |
   echo "---------------------------------------"

@@ -9,6 +9,7 @@ webdav tests
 """
 import uuid
 from typing import Generator
+from unittest.mock import patch
 
 import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError
@@ -190,18 +191,33 @@ def test_acquire_transfer_slot_max_config(  # pylint: disable=redefined-outer-na
 def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient, backend: UnprotectedBackend
 ) -> None:
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-
-	clients, depot = _create_clients_and_depot(test_client)
-
-	backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[5])
-	backend.configState_create(configId=TRANSFER_SLOT_CONFIG, objectId=depot["id"], values=["invalid solt max"])
-
-	# should use default max
-	for i in range(TRANSFER_SLOT_MAX):
-		print(i)
-		# Call the method under test
+	with patch("opsiconfd.backend.rpc.depot", 120):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+		clients, depot = _create_clients_and_depot(test_client)
+
+		backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[4])
+		backend.configState_create(configId=TRANSFER_SLOT_CONFIG, objectId=depot["id"], values=["invalid solt max"])
+
+		# should use default max
+		for i in range(TRANSFER_SLOT_MAX):
+			print(i)
+			# Call the method under test
+			test_client.auth = (ADMIN_USER, ADMIN_PASS)
+			rpc = {
+				"id": 1,
+				"method": "depot_acquireTransferSlot",
+				"params": [depot["id"], clients[1]["id"]],
+			}
+			res = test_client.post("/rpc", json=rpc)
+			result = res.json()
+			print(result)
+			# Assert the result
+			assert result["result"].get("slot_id") is not None
+			assert result["result"].get("depot_id") == depot["id"]
+			assert result["result"].get("client_id") == clients[1]["id"]
+			assert result["result"].get("retry_after") is None
+
 		rpc = {
 			"id": 1,
 			"method": "depot_acquireTransferSlot",
@@ -211,24 +227,10 @@ def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-ou
 		result = res.json()
 		print(result)
 		# Assert the result
-		assert result["result"].get("slot_id") is not None
-		assert result["result"].get("depot_id") == depot["id"]
-		assert result["result"].get("client_id") == clients[1]["id"]
-		assert result["result"].get("retry_after") is None
-
-	rpc = {
-		"id": 1,
-		"method": "depot_acquireTransferSlot",
-		"params": [depot["id"], clients[1]["id"]],
-	}
-	res = test_client.post("/rpc", json=rpc)
-	result = res.json()
-	print(result)
-	# Assert the result
-	assert result["result"].get("slot_id") is None
-	assert result["result"].get("depot_id") is None
-	assert result["result"].get("client_id") is None
-	assert result["result"].get("retry_after") is not None
+		assert result["result"].get("slot_id") is None
+		assert result["result"].get("depot_id") is None
+		assert result["result"].get("client_id") is None
+		assert result["result"].get("retry_after") is not None
 
 
 def test_create_transfer_slot_with_depot_id() -> None:

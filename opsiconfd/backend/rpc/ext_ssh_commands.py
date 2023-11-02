@@ -53,7 +53,7 @@ class SSHCommand(BaseModel):
 		return value
 
 	@model_validator(mode="after")  # type: ignore[arg-type]
-	def validate_id(cls, cmd: SSHCommand) -> SSHCommand:
+	def validate_id(cls, cmd: SSHCommand) -> SSHCommand:  # pylint: disable=no-self-argument
 		cmd.id = cmd.menuText.strip().lower().replace(" ", "_")
 		return cmd
 

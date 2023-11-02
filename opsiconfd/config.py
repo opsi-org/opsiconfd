@@ -1238,9 +1238,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._parser.add(
 				"--unattended",
 				metavar="UNATTENDED_CONFIG",
+				nargs="?",
+				const=True,
 				type=str,
 				default=False,
-				help=self._help("setup", "Pass unattended config as dict"),
+				help=self._help("setup", "Pass unattended config for '--register-depot' as '{key:value}'"),
 			)
 			self._parser.add(
 				"--rename-server",

@@ -173,7 +173,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 		rich_print("[b]register_depot is set. Value is : {register_depot} [/b]")
 		unattended_str = getattr(config, "unattended", None)
 		if unattended_str:
-			unattended_configuration = json.loads(unattended_str)		
+			unattended_configuration = json.loads(unattended_str)
 
 		if not setup_depotserver(unattended_configuration):
 			return

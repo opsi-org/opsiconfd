@@ -23,6 +23,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
+	clean_mysql,
 	clean_redis,
 	database_connection,
 	test_client,

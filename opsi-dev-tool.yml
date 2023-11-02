@@ -40,22 +40,6 @@ pyinstaller-poetry:
     all:
       - ipaddress
       - colorsys
-      - uvicorn.workers
-      - uvicorn.loops
-      - uvicorn.loops.auto
-      - uvicorn.loops.uvloop
-      - uvicorn.lifespan
-      - uvicorn.lifespan.on
-      - uvicorn.protocols
-      - uvicorn.protocols.http
-      - uvicorn.protocols.http.h11_impl
-      - uvicorn.protocols.http.httptools_impl
-      - uvicorn.protocols.websockets
-      - uvicorn.protocols.websockets.auto
-      - pydantic.color
-      - pydantic.validators
-      - pydantic.datetime_parse
-      - pydantic_core._pydantic_core
       # UserWarning: You do not have a working installation of the service_identity module: 'No module named 'service_identity''.
       # Please install it from <https://pypi.python.org/pypi/service_identity> and make sure all of its dependencies are satisfied.
       # Without the service_identity module, Twisted can perform only rudimentary TLS client hostname verification.
@@ -64,8 +48,10 @@ pyinstaller-poetry:
       - OPSI.Util.WIM
       - opsiconfd.application.utils
       - opsiconfd.rest
-  before_script: |
-    find .venv -iname "*linux-gnu.so" | grep pydantic | xargs rm -v 2>/dev/null || true
+  collect_submodules:
+    - pydantic_core
+    - pydantic
+    - uvicorn
   scripts:
     - script: run-opsiconfd
       binaries:

@@ -177,7 +177,8 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 		assert "Incorrect one-time password" in res.json()["message"]
 
 		res = test_client.post(
-			"/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()}  # type: ignore[attr-defined]
+			"/session/login",
+			json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()},  # type: ignore[attr-defined]
 		)
 		assert res.status_code == 200
 
@@ -218,7 +219,8 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 
 
 def test_change_session_ip(
-	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	with sync_redis_client() as redis:
 		client_addr = "192.168.1.1"
@@ -320,14 +322,14 @@ def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	assert res.status_code == 200
 
 
-@pytest.mark.xfail()
 def test_public_access_put(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.put("/public/test.bin", content=b"test")
-	assert res.status_code == 405
+	assert res.status_code == 403
 
 
 def test_max_sessions_limit(
-	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.set_client_address("192.168.1.1", 12345)
 	max_session_per_ip = 10
@@ -356,7 +358,8 @@ def test_max_sessions_limit(
 
 
 def test_max_sessions_not_for_depot(
-	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.set_client_address("192.168.11.1", 12345)
 	max_session_per_ip = 3
@@ -403,16 +406,16 @@ def test_max_auth_failures(
 	max_auth_failures = 5
 	with get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis:
 		for num in range(max_auth_failures + over_limit):
+			print("num:", num, "max_auth_failures:", max_auth_failures)
 			now = round(time.time()) * 1000
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
-				# print("key:", key)
 				cmd = (
 					f"ts.range {key.decode()} "
 					f"{(now-(conf.auth_failures_interval*1000))} {now} aggregation count {(conf.auth_failures_interval*1000)}"
 				)
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1]) if num_failed_auth else -1
-				print("num_failed_auth:", num_failed_auth)
+				print("key:", key, "num_failed_auth:", num_failed_auth)
 
 			# if num == max_auth_failures:
 			# 	time.sleep(2)
@@ -530,7 +533,8 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 
 
 def test_onetime_password_host_id(
-	test_client: OpsiconfdTestClient, database_connection: Connection  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	database_connection: Connection,  # pylint: disable=redefined-outer-name
 ) -> None:
 	database_connection.query(
 		"""
@@ -556,7 +560,8 @@ def test_onetime_password_host_id(
 
 
 def test_onetime_password_hardware_address(
-	test_client: OpsiconfdTestClient, database_connection: Connection  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	database_connection: Connection,  # pylint: disable=redefined-outer-name
 ) -> None:
 	database_connection.query(
 		"""

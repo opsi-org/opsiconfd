@@ -68,7 +68,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 					key_list = ["configserver", "username", "password", "depot_id", "description"]
 					for key in key_list:
 						if key not in unattended_configuration:
-							rich_print(f"Missing unattended configuration '{key}' in {unattended_configuration}")
+							raise ValueError(f"Missing unattended configuration '{key}' in {unattended_configuration}")
 							return False
 
 				url = urlparse(service.base_url)
@@ -76,15 +76,15 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				if hostname in ("127.0.0.1", "::1", "localhost"):
 					hostname = ""
 				if unattended_configuration:
-					inp = unattended_configuration.get("configserver", "")
+					inp = unattended_configuration["configserver"]
 				else:
 					inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
 					if not inp:
 						raise ValueError(f"Invalid address {inp!r}")
 				service.set_addresses(inp)
 				if unattended_configuration:
-					service.username = unattended_configuration.get("username", "")
-					service.password = unattended_configuration.get("password", "")
+					service.username = unattended_configuration["username"]
+					service.password = unattended_configuration["password"]
 				else:
 					service.username = Prompt.ask("Enter username for service connection", default=service.username, show_default=True)
 					service.password = Prompt.ask(f"Enter password for {service.username!r}", password=True)
@@ -104,7 +104,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 		while True:
 			try:
 				if unattended_configuration:
-					inp = unattended_configuration.get("depot_id", "")
+					inp = unattended_configuration["depot_id"]
 				else:
 					inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
@@ -119,7 +119,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 
 				depot.isMasterDepot = True
 				if unattended_configuration:
-					depot.description = unattended_configuration.get("description", "")
+					depot.description = unattended_configuration["description"]
 				else:
 					depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
 				depot.depotLocalUrl = f"file://{DEPOT_DIR}"

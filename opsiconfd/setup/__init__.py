@@ -170,6 +170,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 			force_server_id = opsi_config.get("host", "id")
 
 	if register_depot:
+		unattended_configuration = None
 		rich_print("[b]register_depot is set. Value is : {register_depot} [/b]")
 		unattended_str = getattr(config, "unattended", None)
 		if unattended_str:

@@ -37,9 +37,10 @@ async def test_hostControl_processActionRequests(  # pylint: disable=invalid-nam
 
 	async def mock_messagebus_rpc(  # pylint: disable=too-many-locals,unused-argument
 		self: UnprotectedBackend, client_ids: list[str], method: str, params: list[Any] | None = None, timeout: float | int | None = None
-	) -> None:
+	) -> dict[str, dict[str, Any]]:
 		nonlocal messagebus_rpcs
 		messagebus_rpcs.append((client_ids, method, params))
+		return {c: {"result": None, "error": None} for c in client_ids}
 
 	client1 = OpsiClient(id=client_id)
 	product1 = LocalbootProduct(id="prod1", productVersion="1", packageVersion="1", setupScript="setup.opsiscript")

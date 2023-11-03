@@ -15,7 +15,7 @@ from time import time
 from typing import Any
 
 from fastapi import APIRouter, FastAPI
-from pydantic import BaseModel  # pylint: disable=no-name-in-module
+from pydantic import BaseModel, ConfigDict, Field
 from redis import ResponseError as RedisResponseError
 
 from opsiconfd.config import config
@@ -144,12 +144,10 @@ async def grafana_search() -> list[str]:
 
 
 class GrafanaQueryTargetRange(BaseModel):  # pylint: disable=too-few-public-methods
-	from_: str
+	from_: str = Field(alias="from")
 	to: str
 	raw: dict
-
-	class Config:  # pylint: disable=too-few-public-methods
-		fields = {"from_": "from"}
+	model_config = ConfigDict()
 
 
 class GrafanaQueryTarget(BaseModel):  # pylint: disable=too-few-public-methods

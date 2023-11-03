@@ -88,6 +88,15 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		GRAFANA_AVAILABLE = True
 
 	# return
+	def stderr_close() -> None:
+		raise RuntimeError("sys.stderr.close called!")
+
+	sys.stderr.close = stderr_close  # type: ignore[method-assign]
+
+	def stdout_close() -> None:
+		raise RuntimeError("sys.stdout.close called!")
+
+	sys.stdout.close = stdout_close  # type: ignore[method-assign]
 
 	print("Drop database")
 	try:

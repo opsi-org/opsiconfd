@@ -149,8 +149,10 @@ class RPCConfigStateMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def configState_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+	def configState_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_idents(table="CONFIG_STATE", object_type=ConfigState, ace=ace, ident_type=returnType, filter=filter)
@@ -245,14 +247,14 @@ class RPCConfigStateMixin(Protocol):
 				logger.error("No depot server configured for client %s", client_id)
 				continue
 
+			clientIds.remove(client_id)
 			if depotId not in depotIds:
 				continue
+
 			used_depot_ids.add(depotId)
-
 			result.append({"depotId": depotId, "clientId": client_id, "alternativeDepotIds": []})
-			clientIds.remove(client_id)
 
-		if clientIds:
+		if clientIds and (not depotIds or config_server_id in depotIds):
 			used_depot_ids.add(config_server_id)
 			result += [{"depotId": config_server_id, "clientId": client_id, "alternativeDepotIds": []} for client_id in clientIds]
 

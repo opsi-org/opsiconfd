@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol
 from opsicommon.types import forceList  # type: ignore[import]
 from pydantic import (  # pylint: disable=no-name-in-module
 	BaseModel,
-	root_validator,
-	validator,
+	field_validator,
+	model_validator,
 )
 
 from opsiconfd.config import SSH_COMMANDS_CUSTOM_FILE, SSH_COMMANDS_DEFAULT_FILE
@@ -40,25 +40,25 @@ class SSHCommand(BaseModel):
 	parentMenuText: str | None = None
 	buildIn: bool = False
 
-	@validator("menuText", always=True)
+	@field_validator("menuText", mode="after")
 	def validate_menu_text(cls, value: str) -> str:
 		if not value:
 			raise ValueError("menuText must not be empty")
 		return value
 
-	@validator("commands", always=True)
+	@field_validator("commands", mode="after")
 	def validate_commands(cls, value: list[str]) -> list[str]:
 		if not value:
 			raise ValueError("'commands' has to be a non empty list")
 		return value
 
-	@root_validator
-	def validate_id(cls, values: dict[str, Any]) -> dict[str, Any]:
-		values["id"] = values["menuText"].strip().lower().replace(" ", "_")
-		return values
+	@model_validator(mode="after")  # type: ignore[arg-type]
+	def validate_id(cls, cmd: SSHCommand) -> SSHCommand:  # pylint: disable=no-self-argument
+		cmd.id = cmd.menuText.strip().lower().replace(" ", "_")
+		return cmd
 
 	def conf_dict(self) -> dict[str, Any]:
-		ret = self.dict()
+		ret = self.model_dump()
 		del ret["buildIn"]
 		return ret
 
@@ -102,7 +102,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 					continue
 				try:
 					entry = json.loads(line)
-					ssh_command = SSHCommand.parse_obj(entry)
+					ssh_command = SSHCommand.model_validate(entry)
 					ssh_command.buildIn = build_in  # pylint: disable=invalid-name
 					logger.trace("Read ssh command from '%s': %s", file_path, entry)
 					commands.append(ssh_command)
@@ -144,7 +144,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 	def SSHCommand_createObjects(self: BackendProtocol, commandList: list[dict[str, Any]]) -> None:  # pylint: disable=invalid-name
 		commands = self._read_ssh_commands_files()
 		for cmd_dict in forceList(commandList):
-			cmd = SSHCommand.parse_obj(cmd_dict)
+			cmd = SSHCommand.model_validate(cmd_dict)
 			commands[cmd.menuText] = cmd
 		self._write_custom_ssh_command_file(list(commands.values()))
 

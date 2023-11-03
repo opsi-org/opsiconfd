@@ -16,7 +16,6 @@ from opsicommon.exceptions import BackendPermissionDeniedError
 
 from opsiconfd.backend.rpc.depot import (
 	TRANSFER_SLOT_CONFIG,
-	TRANSFER_SLOT_MAX,
 	TRANSFER_SLOT_RETENTION_TIME,
 	TransferSlot,
 )
@@ -111,38 +110,41 @@ def test_acquire_transfer_slot_with_slot_id(test_client: OpsiconfdTestClient) ->
 		assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
 
 
-def test_acquire_transfer_slot_max(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_acquire_transfer_slot_max_default(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	_get_slots(test_client, TRANSFER_SLOT_MAX)
+	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 20):
+		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX  # pylint: disable=import-outside-toplevel
 
-	rpc = {
-		"id": 1,
-		"method": "depot_acquireTransferSlot",
-		"params": ["depot1.uib.test", "client1.uib.test"],
-	}
-	res = test_client.post("/rpc", json=rpc)
-	result = res.json()
-	print(result)
-	# Assert the result
-	assert result["result"].get("slot_id") is None
-	assert result["result"].get("depot_id") is None
-	assert result["result"].get("client_id") is None
-	assert result["result"].get("retry_after") is not None
+		_get_slots(test_client, TRANSFER_SLOT_MAX)
 
-	rpc = {
-		"id": 1,
-		"method": "depot_acquireTransferSlot",
-		"params": ["depot1.uib.test", "client1.uib.test", TEST_SLOT_ID],
-	}
-	res = test_client.post("/rpc", json=rpc)
-	result = res.json()
-	print(result)
-	# Assert the result
-	assert result["result"].get("slot_id") is None
-	assert result["result"].get("depot_id") is None
-	assert result["result"].get("client_id") is None
-	assert result["result"].get("retry_after") is not None
+		rpc = {
+			"id": 1,
+			"method": "depot_acquireTransferSlot",
+			"params": ["depot1.uib.test", "client1.uib.test"],
+		}
+		res = test_client.post("/rpc", json=rpc)
+		result = res.json()
+		print(result)
+		# Assert the result
+		assert result["result"].get("slot_id") is None
+		assert result["result"].get("depot_id") is None
+		assert result["result"].get("client_id") is None
+		assert result["result"].get("retry_after") is not None
+
+		rpc = {
+			"id": 1,
+			"method": "depot_acquireTransferSlot",
+			"params": ["depot1.uib.test", "client1.uib.test", TEST_SLOT_ID],
+		}
+		res = test_client.post("/rpc", json=rpc)
+		result = res.json()
+		print(result)
+		# Assert the result
+		assert result["result"].get("slot_id") is None
+		assert result["result"].get("depot_id") is None
+		assert result["result"].get("client_id") is None
+		assert result["result"].get("retry_after") is not None
 
 
 def test_acquire_transfer_slot_max_config(  # pylint: disable=redefined-outer-name
@@ -191,13 +193,14 @@ def test_acquire_transfer_slot_max_config(  # pylint: disable=redefined-outer-na
 def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient, backend: UnprotectedBackend
 ) -> None:
-	with patch("opsiconfd.backend.rpc.depot", 120):
-		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 20):
+		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX  # pylint: disable=import-outside-toplevel
 
 		clients, depot = _create_clients_and_depot(test_client)
 
 		backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[4])
-		backend.configState_create(configId=TRANSFER_SLOT_CONFIG, objectId=depot["id"], values=["invalid solt max"])
+		backend.configState_create(configId=TRANSFER_SLOT_CONFIG, objectId=depot["id"], values=["invalid max"])
 
 		# should use default max
 		for i in range(TRANSFER_SLOT_MAX):

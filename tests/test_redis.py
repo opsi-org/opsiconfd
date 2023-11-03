@@ -19,8 +19,8 @@ from opsiconfd.metrics.collector import ManagerMetricsCollector
 from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
+	AsyncRedis,
 	async_delete_recursively,
-	async_redis,
 	async_redis_client,
 	async_redis_connection_pool,
 	async_redis_lock,
@@ -222,7 +222,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 
 	client = await async_redis_client()
 
-	async def check_time_series(client: async_redis.StrictRedis) -> None:
+	async def check_time_series(client: AsyncRedis) -> None:
 		num_found = 0
 		async for key_b in client.scan_iter(f"{base_key}:stats:*"):
 			num_found += 1

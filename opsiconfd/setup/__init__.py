@@ -12,7 +12,6 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -54,7 +53,7 @@ def setup_redis() -> None:
 		delete_recursively(delete_key)
 
 
-def setup_depotserver(unattended_configuration: Optional[dict] = None) -> bool:  # pylint: disable=too-many-branches, too-many-statements
+def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # pylint: disable=too-many-branches, too-many-statements
 	service = ServiceClient(
 		opsi_config.get("service", "url"), verify="accept_all", ca_cert_file=config.ssl_ca_cert, jsonrpc_create_objects=True
 	)

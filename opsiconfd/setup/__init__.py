@@ -66,13 +66,17 @@ def setup_depotserver(unattended_configuration: Optional[dict] = None) -> bool: 
 						return False
 				else:
 					print(f"Registering server as depotserver with unattended configuration '{unattended_configuration}'")
+					key_list = ["configserver", "username", "password", "depot_id", "description"]
+					key_element = None
+					if not all(key_element in unattended_configuration for key_element in key_list):
+						raise ValueError(f"Missing unattended configuration {key_element} in {unattended_configuration}")
 
 				url = urlparse(service.base_url)
 				hostname = url.hostname
 				if hostname in ("127.0.0.1", "::1", "localhost"):
 					hostname = ""
 				if unattended_configuration:
-					inp = unattended_configuration.get("hostname", "")
+					inp = unattended_configuration.get("configserver", "")
 				else:
 					inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
 					if not inp:

@@ -406,8 +406,8 @@ def test_max_auth_failures(
 	max_auth_failures = 5
 	with get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis:
 		for num in range(max_auth_failures + over_limit):
-			print("num:", num, "max_auth_failures:", max_auth_failures)
 			now = round(time.time()) * 1000
+			print("now:", now, ", num:", num, ", max_auth_failures:", max_auth_failures)
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
 				cmd = (
 					f"ts.range {key.decode()} "
@@ -415,7 +415,7 @@ def test_max_auth_failures(
 				)
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1]) if num_failed_auth else -1
-				print("key:", key, "num_failed_auth:", num_failed_auth)
+				print("key:", key, ", num_failed_auth:", num_failed_auth)
 
 			# if num == max_auth_failures:
 			# 	time.sleep(2)

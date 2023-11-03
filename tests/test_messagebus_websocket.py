@@ -143,7 +143,8 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 
 
 def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals
-	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+	config: Config,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> None:
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
@@ -187,6 +188,8 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 							assert len(messages[0]["subscribed_channels"]) == 2
 							assert channel in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
+							sleep(1)
+							sleep(1)
 							sleep(1)
 							assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"3"
 							message = Message(type="test_multi_client", sender="@", channel=channel, id="2")

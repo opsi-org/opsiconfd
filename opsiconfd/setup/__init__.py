@@ -65,7 +65,7 @@ def setup_depotserver(unattended_configuration: Optional[dict] = None) -> bool: 
 					if not Confirm.ask("Do you want to register this server as a depotserver?"):
 						return False
 				else:
-					print(f"Registering server as depotserver with unattended configuration '{unattended_configuration}'")
+					rich_print(f"Registering server as depotserver with unattended configuration '{unattended_configuration}'")
 					key_list = ["configserver", "username", "password", "depot_id", "description"]
 					for key in key_list:
 						if key not in unattended_configuration:

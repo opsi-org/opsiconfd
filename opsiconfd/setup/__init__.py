@@ -182,8 +182,6 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 		if unattended_str:
 			rich_print("[b]unattended is set[/b]")
 			unattended_configuration = json.loads(unattended_str)
-			if unattended_configuration:
-				rich_print(f"[b]unattended_configuration is : {unattended_configuration} [/b]")
 
 		if not setup_depotserver(unattended_configuration):
 			return

@@ -142,9 +142,9 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			assert sorted([msg.id for msg in messages]) == ["3", "4", "5", "6"]
 
 
-def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals
+def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals,redefined-outer-name
 	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
 ) -> None:
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"

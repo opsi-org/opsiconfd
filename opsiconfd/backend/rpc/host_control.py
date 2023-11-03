@@ -467,7 +467,9 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method
 	async def hostControl_fireEvent(  # pylint: disable=invalid-name
-		self: BackendProtocol, event: str, hostIds: list[str] | None = None  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		event: str,
+		hostIds: list[str] | None = None,  # pylint: disable=invalid-name
 	) -> dict[str, Any]:
 		event = str(event)
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
@@ -511,7 +513,8 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method
 	async def hostControl_uptime(  # pylint: disable=invalid-name
-		self: BackendProtocol, hostIds: list[str] | None = None  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		hostIds: list[str] | None = None,  # pylint: disable=invalid-name
 	) -> dict[str, Any]:
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
@@ -553,10 +556,12 @@ class RPCHostControlMixin(Protocol):
 			pocs = await run_in_threadpool(self.productOnClient_updateObjectsWithDependencies, productOnClients=pocs)
 			product_ids = [poc.productId for poc in pocs]
 			if self._host_control_use_messagebus:
-				result[client_id] = await self._messagebus_rpc(client_ids=[client_id], method="processActionRequests", params=[product_ids])
+				result.update(await self._messagebus_rpc(client_ids=[client_id], method="processActionRequests", params=[product_ids]))
 			else:
-				result[client_id] = await run_in_threadpool(
-					self._opsiclientd_rpc, host_ids=[client_id], method="processActionRequests", params=[product_ids]
+				result.update(
+					await run_in_threadpool(
+						self._opsiclientd_rpc, host_ids=[client_id], method="processActionRequests", params=[product_ids]
+					)
 				)
 		return result
 
@@ -578,7 +583,9 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method
 	async def hostControl_reachable(  # pylint: disable=invalid-name,too-many-branches
-		self: BackendProtocol, hostIds: list[str] | None = None, timeout: int | None = None  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		hostIds: list[str] | None = None,
+		timeout: int | None = None,  # pylint: disable=invalid-name
 	) -> dict[str, bool]:  # pylint: disable=too-many-branches
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:

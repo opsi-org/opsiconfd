@@ -69,7 +69,7 @@ def setup_depotserver(unattended_configuration: Optional[dict] = None) -> bool: 
 					key_list = ["configserver", "username", "password", "depot_id", "description"]
 					for key in key_list:
 						if key not in unattended_configuration:
-							rich_print(f"Missing unattended configuration {key} in {unattended_configuration}")
+							rich_print(f"Missing unattended configuration '{key}' in {unattended_configuration}")
 							return False
 
 				url = urlparse(service.base_url)
@@ -178,10 +178,9 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 
 	if register_depot:
 		unattended_configuration = None
-		rich_print(f"[b]register_depot is set. Value is : {register_depot} [/b]")
 		unattended_str = getattr(config, "unattended", None)
 		if unattended_str:
-			rich_print(f"[b]unattended is set. Value is : {unattended_str} [/b]")
+			rich_print("[b]unattended is set[/b]")
 			unattended_configuration = json.loads(unattended_str)
 			if unattended_configuration:
 				rich_print(f"[b]unattended_configuration is : {unattended_configuration} [/b]")

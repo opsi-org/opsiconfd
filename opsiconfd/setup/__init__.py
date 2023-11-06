@@ -68,7 +68,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 					key_list = ["configserver", "username", "password", "depot_id", "description"]
 					for key in key_list:
 						if key not in unattended_configuration:
-							raise ValueError(f"[b][red]Missing unattended configuration '{key}' in {unattended_configuration}[/red][/b]")
+							raise ValueError(f"Missing unattended configuration '{key}' in {unattended_configuration}")
 
 				url = urlparse(service.base_url)
 				hostname = url.hostname

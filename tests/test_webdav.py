@@ -185,9 +185,15 @@ def test_webdav_symlink(
 		test_file.write_bytes(b"opsi")
 		Path(base_dir / "test_link_file").symlink_to(test_file)
 		Path(base_dir / "test_link_dir").symlink_to(test_dir)
-		for path in ("testdir/testfile.txt", "test_link_file", "test_link_dir/testfile.txt"):
-			url = f"/depot/symlink_test/{path}"
-			res = test_client.get(url=url)
+		for path in (
+			"/depot/symlink_test/testdir/testfile.txt",
+			"/depot/symlink_test/test_link_file",
+			"/depot/symlink_test/test_link_dir/testfile.txt",
+			"/dav/depot/symlink_test/testdir/testfile.txt",
+			"/dav/depot/symlink_test/test_link_file",
+			"/dav/depot/symlink_test/test_link_dir/testfile.txt",
+		):
+			res = test_client.get(url=path)
 			res.raise_for_status()
 			assert res.content == b"opsi"
 	finally:

@@ -96,7 +96,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				print("")
 				return False
 			except ValueError:
-				rich_print(f"Missing unattended configuration '{key}' in {unattended_configuration}")
+				rich_print(f"[b][red]Missing unattended configuration '{key}' in {unattended_configuration}[/red][/b]")
 				return False
 			except Exception as err:  # pylint: disable=broad-except
 				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")

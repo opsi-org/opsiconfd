@@ -11,6 +11,7 @@ webdav tests
 import os
 import random
 import shutil
+from pathlib import Path
 from string import ascii_letters
 from typing import Type
 from unittest.mock import patch
@@ -130,7 +131,10 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	),
 )
 def test_webdav_ignore_case_download(
-	test_client: OpsiconfdTestClient, filename: str, path: str, exception: Type[Exception]  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	filename: str,
+	path: str,
+	exception: Type[Exception],  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	base_dir = "/var/lib/opsi/depot"
@@ -166,6 +170,29 @@ def test_webdav_ignore_case_download(
 			shutil.rmtree(os.path.join(base_dir, directory.split("/")[0]))
 		else:
 			os.unlink(abs_filename)
+
+
+def test_webdav_symlink(
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	base_dir = Path("/var/lib/opsi/depot/symlink_test")
+	base_dir.mkdir(parents=True)
+	try:
+		test_dir = Path(base_dir / "testdir")
+		test_dir.mkdir()
+		test_file = Path(test_dir / "testfile.txt")
+		test_file.write_bytes(b"opsi")
+		Path(base_dir / "test_link_file").symlink_to(test_file)
+		Path(base_dir / "test_link_dir").symlink_to(test_dir)
+		for path in ("testdir/testfile.txt", "test_link_file", "test_link_dir/testfile.txt"):
+			url = f"/depot/symlink_test/{path}"
+			res = test_client.get(url=url)
+			res.raise_for_status()
+			assert res.content == b"opsi"
+	finally:
+		if base_dir.exists():
+			shutil.rmtree(base_dir)
 
 
 def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

@@ -18,7 +18,7 @@ from tests.utils import backend  # pylint: disable=unused-import
 
 
 def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
-	configs: BoolConfig | UnicodeConfig = []
+	configs: list[BoolConfig | UnicodeConfig] = []
 	for i in range(0, 50):
 		configs.append(BoolConfig(id=f"test-convert-boolconfig-{i}"))
 

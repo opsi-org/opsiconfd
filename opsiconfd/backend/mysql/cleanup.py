@@ -214,16 +214,16 @@ def convert_config_objects(session: Session) -> None:
 			UPDATE CONFIG as c
 			JOIN CONFIG_VALUE AS cv ON c.configId=cv.configId
 			SET c.`type` = "BoolConfig"
-			WHERE cv.value in ("0","1") AND c.type = "CONFIG" AND editable is FALSE AND multiValue is FALSE;
+			WHERE cv.value in ("0","1") AND c.type = "Config" AND editable is FALSE AND multiValue is FALSE;
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Changed %d Configes to BoolConfigs.", result.rowcount)
+		logger.notice("Changed %d Configs to BoolConfigs.", result.rowcount)
 	result = session.execute(
 		"""
 			UPDATE CONFIG as c
 			SET c.`type` = "UnicodeConfig"
-			WHERE c.type = "CONFIG";
+			WHERE c.type = "Config";
 		"""
 	)
 	if result.rowcount > 0:

@@ -9,7 +9,7 @@ cleanup backend
 """
 
 import pytest  # pylint: disable=unused-import
-from opsicommon.objects import Config
+from opsicommon.objects import BoolConfig, UnicodeConfig
 
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import convert_config_objects
@@ -20,23 +20,46 @@ from tests.utils import backend  # pylint: disable=unused-import
 def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	configs = []
 	for i in range(0, 50):
-		configs.append(Config(id=f"boolconfig-{i}", possibleValues=[True, False], defaultValues=[True], multiValue=False, editable=False))
+		configs.append(BoolConfig(id=f"test-convert-boolconfig-{i}"))
 
-	configs.append(Config(id=f"boolconfig-{111}", possibleValues=[True, False], defaultValues=[False], multiValue=False, editable=False))
+	configs.append(BoolConfig(id=f"test-convert-boolconfig-{111}"))
 
-	configs.append(Config(id=f"unicodeconfig-{1}", possibleValues=["bla", "blub"], defaultValues=["bla"], multiValue=False, editable=False))
-	configs.append(Config(id=f"unicodeconfig-{2}", possibleValues=["bla", "blub"], defaultValues=["bla"], multiValue=True, editable=False))
-	configs.append(Config(id=f"unicodeconfig-{3}", possibleValues=["bla", "blub"], defaultValues=["bla"], multiValue=True, editable=True))
+	configs.append(
+		UnicodeConfig(
+			id=f"test-convert-unicodeconfig-{1}", possibleValues=["bla", "blub"], defaultValues=["bla"], multiValue=False, editable=False
+		)
+	)
+	configs.append(
+		UnicodeConfig(
+			id=f"test-convert-unicodeconfig-{2}", possibleValues=["bla", "blub"], defaultValues=["bla"], multiValue=True, editable=False
+		)
+	)
+	configs.append(
+		UnicodeConfig(
+			id=f"test-convert-unicodeconfig-{3}", possibleValues=["bla", "blub"], defaultValues=["bla"], multiValue=True, editable=True
+		)
+	)
 
 	backend.config_updateObjects(configs)
 
-	for obj in backend.config_getObjects(configId="boolconfig*"):
-		assert obj.getType() == "Config"
-
-	for obj in backend.config_getObjects(configId="unicodeconfig*"):
-		assert obj.getType() == "Config"
-
+	# Set invalid type "Config"
 	mysql = MySQLConnection()  # pylint: disable=invalid-name
+	with mysql.connection():
+		with mysql.session() as session:
+			session.execute(
+				"""
+					UPDATE CONFIG as c
+					SET c.`type` = "Config"
+					WHERE c.configId LIKE "test-convert-%";
+				"""
+			)
+
+	for obj in backend.config_getObjects(configId="test-convert-boolconfig*"):
+		assert obj.getType() == "Config"
+
+	for obj in backend.config_getObjects(configId="test-convert-unicodeconfig*"):
+		assert obj.getType() == "Config"
+
 	with mysql.connection():
 		with mysql.session() as session:
 			convert_config_objects(session)
@@ -44,8 +67,8 @@ def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # pylint:
 	for obj in backend.config_getObjects():
 		assert obj.getType() in ("BoolConfig", "UnicodeConfig")
 
-	for obj in backend.config_getObjects(configId="boolconfig*"):
+	for obj in backend.config_getObjects(configId="test-convert-boolconfig*"):
 		assert obj.getType() == "BoolConfig"
 
-	for obj in backend.config_getObjects(configId="unicodeconfig*"):
+	for obj in backend.config_getObjects(configId="test-convert-unicodeconfig*"):
 		assert obj.getType() == "UnicodeConfig"

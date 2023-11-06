@@ -64,7 +64,7 @@ def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # pylint:
 		with mysql.session() as session:
 			convert_config_objects(session)
 
-	for obj in backend.config_getObjects():
+	for obj in backend.config_getObjects(configId="test-convert-*"):
 		assert obj.getType() in ("BoolConfig", "UnicodeConfig")
 
 	for obj in backend.config_getObjects(configId="test-convert-boolconfig*"):

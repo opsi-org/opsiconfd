@@ -68,7 +68,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 					key_list = ["configserver", "username", "password", "depot_id", "description"]
 					for key in key_list:
 						if key not in unattended_configuration:
-							raise ValueError
+							raise ValueError(f"[b][red]Missing unattended configuration '{key}' in {unattended_configuration}[/red][/b]")
 
 				url = urlparse(service.base_url)
 				hostname = url.hostname
@@ -95,11 +95,11 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 			except KeyboardInterrupt:
 				print("")
 				return False
-			except ValueError:
-				rich_print(f"[b][red]Missing unattended configuration '{key}' in [/red]{unattended_configuration}[/b]")
-				return False
 			except Exception as err:  # pylint: disable=broad-except
-				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
+				if unattended_configuration:
+					raise
+				else:
+					rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
 
 		depot_id = opsi_config.get("host", "id")
 		depot = OpsiDepotserver(id=depot_id)
@@ -134,7 +134,10 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				try:
 					depot.systemUUID = str(UUID(Path("/sys/class/dmi/id/product_uuid").read_text(encoding="ascii").strip()))
 				except Exception as err:  # pylint: disable=broad-except
-					logger.debug(err)
+					if unattended_configuration:
+						raise
+					else:
+						logger.debug(err)
 
 				rich_print("[b]Registering depot[/b]")
 				service.jsonrpc("host_createObjects", params=[depot])

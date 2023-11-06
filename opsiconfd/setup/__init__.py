@@ -68,8 +68,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 					key_list = ["configserver", "username", "password", "depot_id", "description"]
 					for key in key_list:
 						if key not in unattended_configuration:
-							raise ValueError(f"Missing unattended configuration '{key}' in {unattended_configuration}")
-							return False
+							raise ValueError
 
 				url = urlparse(service.base_url)
 				hostname = url.hostname
@@ -79,8 +78,8 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 					inp = unattended_configuration["configserver"]
 				else:
 					inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
-					if not inp:
-						raise ValueError(f"Invalid address {inp!r}")
+				if not inp:
+					raise ValueError(f"Invalid address {inp!r}")
 				service.set_addresses(inp)
 				if unattended_configuration:
 					service.username = unattended_configuration["username"]
@@ -95,6 +94,9 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				break
 			except KeyboardInterrupt:
 				print("")
+				return False
+			except ValueError:
+				rich_print(f"Missing unattended configuration '{key}' in {unattended_configuration}")
 				return False
 			except Exception as err:  # pylint: disable=broad-except
 				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")

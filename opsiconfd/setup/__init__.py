@@ -8,6 +8,7 @@
 opsiconfd - setup
 """
 
+import json
 import sys
 import time
 from pathlib import Path
@@ -52,26 +53,40 @@ def setup_redis() -> None:
 		delete_recursively(delete_key)
 
 
-def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-statements
+def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # pylint: disable=too-many-branches, too-many-statements
 	service = ServiceClient(
 		opsi_config.get("service", "url"), verify="accept_all", ca_cert_file=config.ssl_ca_cert, jsonrpc_create_objects=True
 	)
 	try:  # pylint: disable=too-many-nested-blocks
 		while True:
 			try:
-				if not Confirm.ask("Do you want to register this server as a depotserver?"):
-					return False
+				if not unattended_configuration:
+					if not Confirm.ask("Do you want to register this server as a depotserver?"):
+						return False
+				else:
+					rich_print(f"Registering server as depotserver with unattended configuration '{unattended_configuration}'")
+					key_list = ["configserver", "username", "password", "depot_id", "description"]
+					for key in key_list:
+						if key not in unattended_configuration:
+							raise ValueError(f"Missing unattended configuration '{key}' in {unattended_configuration}")
 
 				url = urlparse(service.base_url)
 				hostname = url.hostname
 				if hostname in ("127.0.0.1", "::1", "localhost"):
 					hostname = ""
-				inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
+				if unattended_configuration:
+					inp = unattended_configuration["configserver"]
+				else:
+					inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
 				if not inp:
 					raise ValueError(f"Invalid address {inp!r}")
 				service.set_addresses(inp)
-				service.username = Prompt.ask("Enter username for service connection", default=service.username, show_default=True)
-				service.password = Prompt.ask(f"Enter password for {service.username!r}", password=True)
+				if unattended_configuration:
+					service.username = unattended_configuration["username"]
+					service.password = unattended_configuration["password"]
+				else:
+					service.username = Prompt.ask("Enter username for service connection", default=service.username, show_default=True)
+					service.password = Prompt.ask(f"Enter password for {service.username!r}", password=True)
 
 				rich_print(f"[b]Connecting to service {service.base_url!r}[/b]")
 				service.connect()
@@ -81,13 +96,18 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 				print("")
 				return False
 			except Exception as err:  # pylint: disable=broad-except
+				if unattended_configuration:
+					raise
 				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
 
 		depot_id = opsi_config.get("host", "id")
 		depot = OpsiDepotserver(id=depot_id)
 		while True:
 			try:
-				inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
+				if unattended_configuration:
+					inp = unattended_configuration["depot_id"]
+				else:
+					inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
 
 				hosts = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})
@@ -99,7 +119,10 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 						depot = OpsiDepotserver.fromHash({k: v for k, v in depot.to_hash().items() if k != "type"})
 
 				depot.isMasterDepot = True
-				depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
+				if unattended_configuration:
+					depot.description = unattended_configuration["description"]
+				else:
+					depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
 				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
 				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"
 				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs:///{FQDN}:4447/depot"
@@ -110,6 +133,8 @@ def setup_depotserver() -> bool:  # pylint: disable=too-many-branches, too-many-
 				try:
 					depot.systemUUID = str(UUID(Path("/sys/class/dmi/id/product_uuid").read_text(encoding="ascii").strip()))
 				except Exception as err:  # pylint: disable=broad-except
+					if unattended_configuration:
+						raise
 					logger.debug(err)
 
 				rich_print("[b]Registering depot[/b]")
@@ -154,7 +179,13 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 			force_server_id = opsi_config.get("host", "id")
 
 	if register_depot:
-		if not setup_depotserver():
+		unattended_configuration = None
+		unattended_str = getattr(config, "unattended", None)
+		if unattended_str:
+			rich_print("[b]unattended is set[/b]")
+			unattended_configuration = json.loads(unattended_str)
+
+		if not setup_depotserver(unattended_configuration):
 			return
 
 	if opsi_config.get("host", "server-role") == "depotserver":

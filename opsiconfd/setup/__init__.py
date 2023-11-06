@@ -98,8 +98,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 			except Exception as err:  # pylint: disable=broad-except
 				if unattended_configuration:
 					raise
-				else:
-					rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
+				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
 
 		depot_id = opsi_config.get("host", "id")
 		depot = OpsiDepotserver(id=depot_id)
@@ -136,8 +135,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				except Exception as err:  # pylint: disable=broad-except
 					if unattended_configuration:
 						raise
-					else:
-						logger.debug(err)
+					logger.debug(err)
 
 				rich_print("[b]Registering depot[/b]")
 				service.jsonrpc("host_createObjects", params=[depot])

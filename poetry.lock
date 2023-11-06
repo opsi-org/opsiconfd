@@ -4350,13 +4350,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "wsgidav"
-version = "4.2.0"
+version = "4.3.0"
 description = "Generic and extendable WebDAV server based on WSGI"
 optional = false
 python-versions = "*"
 files = [
-    {file = "WsgiDAV-4.2.0-py3-none-any.whl", hash = "sha256:7be1bdc96e7cd2631ec7ea9ae072738e523b80cf941de212a73c88a38379bf74"},
-    {file = "WsgiDAV-4.2.0.tar.gz", hash = "sha256:8f1a8d80126702dc9c19423f946614ea0a1eb09e996327ed9c2f09062ee83abe"},
+    {file = "WsgiDAV-4.3.0-py3-none-any.whl", hash = "sha256:2cc21151485670f83004cbf0617fa6b104f877e2954b92682fe2c87551810cf7"},
+    {file = "WsgiDAV-4.3.0.tar.gz", hash = "sha256:9814bf0cd370046a4b1d7fecb7093d4c32c44fc689dc272e8e6d33a70a5960c5"},
 ]
 
 [package.dependencies]
@@ -4364,6 +4364,9 @@ defusedxml = "*"
 Jinja2 = "*"
 json5 = "*"
 PyYAML = "*"
+
+[package.extras]
+pam = ["python-pam"]
 
 [package.source]
 type = "legacy"
@@ -4649,4 +4652,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "83c58777abe76c645d181795c396ae95e6acefc5b83f444bb00874319d2c58b9"
+content-hash = "9bf869d7eb0a5af85edf72f8d497249de5aa229d62c717dddf70c05df7486bf2"

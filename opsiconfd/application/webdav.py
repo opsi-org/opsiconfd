@@ -219,7 +219,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		app_config["dir_browser"]["davmount_links"] = True
+		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
 		app_config["provider_mapping"]["/"] = prov_class(  # type: ignore[index]
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True}
 		)
@@ -230,7 +230,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		app_config["dir_browser"]["davmount_links"] = True
+		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
 		app_config["provider_mapping"][f"/{name}"] = prov_class(  # type: ignore[index]
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True}
 		)

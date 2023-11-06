@@ -553,6 +553,13 @@ class RPCHostControlMixin(Protocol):
 		for client_id in client_ids:
 			pocs = await run_in_threadpool(self.productOnClient_getObjects, clientId=[client_id], productId=productIds)
 			pocs = [poc for poc in pocs if poc.actionRequest and poc.actionRequest != "none"]
+			if not pocs:
+				result[client_id] = {
+					"result": None,
+					"error": f"No product action requests set for client {client_id!r} and products {productIds!r}",
+				}
+				continue
+
 			pocs = await run_in_threadpool(self.productOnClient_updateObjectsWithDependencies, productOnClients=pocs)
 			product_ids = [poc.productId for poc in pocs]
 			if self._host_control_use_messagebus:

@@ -60,7 +60,8 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 
 
 def test_host_insertObject(  # pylint: disable=invalid-name
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -131,7 +132,8 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 
 
 def test_host_updateObject(  # pylint: disable=invalid-name
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -187,6 +189,22 @@ def test_host_updateObject(  # pylint: disable=invalid-name
 	assert client["notes"] == "notes"
 	assert client["oneTimePassword"] == "secret"
 
+	# Test update without type
+	client1_upd = {
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"description": "without type",
+	}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1_upd]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
+	assert client["description"] == client1_upd["description"]
+	assert client["type"] == "OpsiClient"
+
 	# Test client permissions
 	test_client.reset_cookies()
 	test_client.auth = (client1["id"], client1["opsiHostKey"])
@@ -202,7 +220,8 @@ def test_host_updateObject(  # pylint: disable=invalid-name
 
 
 def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -293,7 +312,8 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 
 
 def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -382,7 +402,8 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 
 
 def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -428,7 +449,8 @@ def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements
 
 
 def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -501,7 +523,8 @@ def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
 
 
 def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-statements
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create client
@@ -545,7 +568,8 @@ def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-stateme
 
 
 def test_host_createOpsiDepotserver(  # pylint: disable=invalid-name,too-many-statements
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create depot
@@ -573,7 +597,8 @@ def test_host_createOpsiDepotserver(  # pylint: disable=invalid-name,too-many-st
 
 
 def test_host_createOpsiConfigserver(  # pylint: disable=invalid-name,too-many-statements
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create depot

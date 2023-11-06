@@ -131,10 +131,10 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	),
 )
 def test_webdav_ignore_case_download(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 	filename: str,
 	path: str,
-	exception: Type[Exception],  # pylint: disable=redefined-outer-name
+	exception: Type[Exception],
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	base_dir = "/var/lib/opsi/depot"

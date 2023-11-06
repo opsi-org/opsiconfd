@@ -24,8 +24,11 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 		read_only: bool = False,
 		create_client: bool = True,
 		opsi_server_write: bool = True,
+		depot_access_configured: bool = False,
 		depot_access: list[str] | None = None,
+		host_group_access_configured: bool = False,
 		host_group_access: list[str] | None = None,
+		product_group_access_configured: bool= False,
 		product_group_access: list[str] | None = None,
 		ssh_command_management: bool = False,
 		ssh_command: bool = True,
@@ -40,8 +43,11 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 			read_only,
 			create_client,
 			opsi_server_write,
+			depot_access_configured,
 			depot_access,
+			host_group_access_configured,
 			host_group_access,
+			product_group_access_configured,
 			product_group_access,
 			ssh_command_management,
 			ssh_command,
@@ -59,18 +65,9 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 			self.depot_access = user_role.depot_access
 			self.host_group_access = user_role.host_group_access
 			self.product_group_access = user_role.product_group_access
-			if self.depot_access:
-				self.depot_access_configured = True
-			else:
-				self.depot_access_configured = False
-			if self.host_group_access:
-				self.host_group_access_configured = True
-			else:
-				self.host_group_access_configured = False
-			if self.product_group_access:
-				self.product_group_access_configured = True
-			else:
-				self.product_group_access_configured = False
+			self.depot_access_configured = user_role.depot_access_configured
+			self.host_group_access_configured = user_role.host_group_access_configured
+			self.product_group_access_configured = user_role.product_group_access_configured
 			self.ssh_command_management = user_role.ssh_command_management
 			self.ssh_command = user_role.ssh_command
 			self.ssh_menu_server_console = user_role.ssh_menu_server_console

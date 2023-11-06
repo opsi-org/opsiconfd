@@ -430,15 +430,13 @@ def check_opsiconfd_config() -> CheckResult:
 
 	* `log-level-stderr`, `log-level-file`, `log-level`
 	  * If the log level is too high for a productive environment, then performance problems may occur.
-		For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
+	        For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
 	* `debug-options`
 	  * If a debug option is active, this is considered an error, as it can lead to performance problems in productive environments.
 	* `profiler`
 	  * The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
 	* `run-as-user`
 	  * Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
-	* `allow-webdav-symlinks`
-	  * Running the service opsiconfd with webdav symlinks allowd will be evaluated as an error , because this can this can lead to security problems. .
 
 	"""
 	result = CheckResult(
@@ -499,17 +497,6 @@ def check_opsiconfd_config() -> CheckResult:
 			details={"config": "run-as-user", "value": config.run_as_user},
 		)
 		if config.run_as_user == "root":
-			issues += 1
-			partial_result.check_status = CheckStatus.ERROR
-		result.add_partial_result(partial_result)
-
-		partial_result = PartialCheckResult(
-			check_id="opsiconfd_config:allow-webdav-symlinks",
-			check_name="Config allow-webdav-symlinks",
-			message=f"Webdav smylinks are allowed on the following folders: {config.allow_webdav_symlinks}.",
-			details={"config": "allow_webdav_symlinks", "value": config.allow_webdav_symlinks},
-		)
-		if config.allow_webdav_symlinks:
 			issues += 1
 			partial_result.check_status = CheckStatus.ERROR
 		result.add_partial_result(partial_result)

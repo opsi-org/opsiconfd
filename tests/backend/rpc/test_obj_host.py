@@ -275,7 +275,7 @@ def test_host_updateObject_systemUUID(  # pylint: disable=invalid-name,redefined
 	assert client["systemUUID"] == "9f3f1c96-1821-413c-b850-0507a17c7e47"
 
 	# Update client 1
-	client1["systemUUID"] = None
+	client1["systemUUID"] = None  # type: ignore[assignment]
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res

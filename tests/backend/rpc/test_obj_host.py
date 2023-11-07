@@ -219,6 +219,75 @@ def test_host_updateObject(  # pylint: disable=invalid-name,redefined-outer-name
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
+def test_host_updateObject_systemUUID(  # pylint: disable=invalid-name,redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		""
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47"
+	}
+
+	# Create client 1
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+
+	# Update client 1
+	client1["description"] = "new"
+	client1["oneTimePassword"] = None  # type: ignore[assignment]
+	client1["systemUUID"] = ""
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# oneTimePassword should not be update because it is null
+	# notes should not be update because not passed
+	# systemUUID should be null
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
+	assert client["description"] == client1["description"]
+	assert client["notes"] == "notes"
+	assert client["oneTimePassword"] == "secret"
+	assert client["systemUUID"] is None
+
+	# Update client 1
+	client1["systemUUID"] = "9f3f1c96-1821-413c-b850-0507a17c7e47"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# systemUUID should be "9f3f1c96-1821-413c-b850-0507a17c7e47"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
+	assert client["systemUUID"] == "9f3f1c96-1821-413c-b850-0507a17c7e47"
+
+	# Update client 1
+	client1["systemUUID"] = None  # type: ignore[assignment]
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# systemUUID should be "9f3f1c96-1821-413c-b850-0507a17c7e47"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
+	assert client["systemUUID"] == "9f3f1c96-1821-413c-b850-0507a17c7e47"
+
+
 def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
 	acl_file: Path,
 	test_client: OpsiconfdTestClient,
@@ -309,6 +378,97 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 				assert client["opsiHostKey"] == client1["opsiHostKey"]
 			else:
 				assert client["opsiHostKey"] is None
+
+
+def test_host_createObjects_with_systemUUID(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+		"systemUUID": ""
+	}
+	client2 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-2.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924e",
+		"description": "description",
+		"oneTimePassword": "secret",
+		"systemUUID": ""
+	}
+
+	# Create clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Get clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	clients = res["result"]
+
+	assert len(clients) == 2
+	assert clients[0]["id"].startswith("test-backend-rpc-host-")
+	assert clients[1]["id"].startswith("test-backend-rpc-host-")
+	assert clients[0]["oneTimePassword"] == "secret"
+	assert clients[1]["oneTimePassword"] == "secret"
+	assert clients[0]["systemUUID"] is None
+	assert clients[1]["systemUUID"] is None
+
+	client3 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-3.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924e",
+		"description": "description",
+		"oneTimePassword": "secret",
+		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47"
+	}
+
+	# Create client3
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client3]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Get clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client3["id"]]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	clients = res["result"]
+
+	assert len(clients) == 1
+	assert clients[0]["id"] == "test-backend-rpc-host-3.opsi.test"
+	assert clients[0]["systemUUID"] == "9f3f1c96-1821-413c-b850-0507a17c7e47"
+
+	client4 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-4.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924e",
+		"description": "description",
+		"oneTimePassword": "secret",
+		"systemUUID": None
+	}
+
+	# Create client4
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client4]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Get clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client4["id"]]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	clients = res["result"]
+
+	assert len(clients) == 1
+	assert clients[0]["id"] == "test-backend-rpc-host-4.opsi.test"
+	assert clients[0]["systemUUID"] is None
 
 
 def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument

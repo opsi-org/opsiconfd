@@ -770,7 +770,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 				# Abstact class
 				continue
 
-			if not set_null and data.get(attr) is None:
+			if attr == "systemUUID" and data.get(attr) == "":
+				data[attr] = None
+			elif not set_null and data.get(attr) is None:
 				continue
 
 			try:

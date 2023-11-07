@@ -498,7 +498,7 @@ class RPCHostMixin(Protocol):
 
 		def change_address(value: str) -> str:
 			new_value = value.replace(cur_server_id, new_server_id)
-			new_value = new_value.replace(cur_hostname, new_hostname)
+			new_value = new_value.replace(cur_hostname, new_hostname, 1)
 			logger.debug("Changed %s to %s", value, new_value)
 			return new_value
 

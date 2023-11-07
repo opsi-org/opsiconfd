@@ -26,13 +26,14 @@ from tests.utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-
 @pytest.fixture(autouse=True)
 def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
 	cursor = database_connection.cursor()
+	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
 	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-host%'")
 	database_connection.commit()
 	yield
+	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
 	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-host%'")
 	database_connection.commit()
 	cursor.close()
@@ -813,21 +814,7 @@ def test_host_check_duplicate_hardware_address(  # pylint: disable=invalid-name
 	assert "error" not in res
 
 
-@pytest.fixture()
-def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
-	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-%'")
-	database_connection.commit()
-	yield
-	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
-	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-%'")
-	database_connection.commit()
-	cursor.close()
+
 
 
 
@@ -931,6 +918,4 @@ def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Genera
 	assert depot["depotRemoteUrl"] == f"smb://{new_depot_id}:4447/opsi_depot"
 	assert depot["depotWebdavUrl"] == f"webdavs://{new_depot_id}:4447/depot"
 	# workbench url only contains hostname
-	assert depot["workbenchRemoteUrl"] == f"smb://{new_depot_id.split('.')[0]}:4447/opsi_workbench"
-
-
+	assert depot["workbenchRemoteUrl"] == f"smb://{new_depot_id.split('.', maxsplit=1)[0]}:4447/opsi_workbench"

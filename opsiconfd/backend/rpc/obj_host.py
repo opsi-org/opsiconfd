@@ -553,4 +553,3 @@ class RPCHostMixin(Protocol):
 		return [h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="depot")] + [
 			h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="client")
 		]
-

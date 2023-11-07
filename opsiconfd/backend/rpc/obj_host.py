@@ -498,7 +498,8 @@ class RPCHostMixin(Protocol):
 
 		def change_address(value: str) -> str:
 			new_value = value.replace(cur_server_id, new_server_id)
-			new_value = new_value.replace(cur_hostname, new_hostname, 1)
+			if value == new_value:
+				new_value = new_value.replace(cur_hostname, new_hostname, 1)
 			logger.debug("Changed %s to %s", value, new_value)
 			return new_value
 
@@ -552,3 +553,4 @@ class RPCHostMixin(Protocol):
 		return [h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="depot")] + [
 			h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="client")
 		]
+

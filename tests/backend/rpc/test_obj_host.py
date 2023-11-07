@@ -811,3 +811,126 @@ def test_host_check_duplicate_hardware_address(  # pylint: disable=invalid-name
 
 	res = test_client.post("/rpc", json=rpc1).json()
 	assert "error" not in res
+
+
+@pytest.fixture()
+def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
+	cursor = database_connection.cursor()
+	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
+	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-%'")
+	database_connection.commit()
+	yield
+	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
+	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-%'")
+	database_connection.commit()
+	cursor.close()
+
+
+
+def _create_clients_and_depot(
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+) -> tuple(list[dict[str, str], dict[str, str]]):  # type: ignore[valid-type]
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	clients = [
+		{
+			"type": "OpsiClient",
+			"id": "test-backend-rpc-host-1.opsi.test",
+			"opsiHostKey": "4587dec5913c501a28560d576768924e",
+			"description": "description",
+			"notes": "notes",
+		},
+		{
+			"type": "OpsiClient",
+			"id": "test-backend-rpc-host-2.opsi.test",
+			"opsiHostKey": "7dec5913c501a28545860d576768924a",
+			"description": "description",
+		},
+	]
+
+	depot = {
+		"type": "OpsiDepotserver",
+		"id": "opsi.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924f",
+		"description": "description",
+		"repositoryRemoteUrl": "smb://opsi.opsi.test:4447/repository",
+		"workbenchRemoteUrl": "smb://opsi:4447/opsi_workbench",
+		"depotRemoteUrl": "smb://opsi.opsi.test:4447/opsi_depot",
+		"depotWebdavUrl": "webdavs://opsi.opsi.test:4447/depot",
+
+	}
+
+	# Create clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[clients[0], clients[1], depot]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Assign client 2 to depot
+	client_to_depot = {"configId": "clientconfig.depot.id", "objectId": clients[1]["id"], "values": [depot["id"]]}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_create", "params": client_to_depot}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	print(res)
+
+	return (clients, depot)
+
+def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Generator) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	# create clients and depot. client 2 is assigned to depot
+	clients, depot = _create_clients_and_depot(test_client)
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "configState_getObjects",
+		"params": [[], {"objectId": [clients[0]["id"],clients[1]["id"]], "configId": "clientconfig.depot.id"}],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	print(res)
+	assert "error" not in res
+	assert res["result"][0]["values"][0] == depot["id"]
+
+
+	# renmame depot, new config state should exist, client 2 should use value from depot
+	new_depot_id = "opsi01.opsi.test"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_renameOpsiDepotserver", "params": [depot["id"], new_depot_id]}
+	res = test_client.post("/rpc", json=rpc).json()
+	print(res)
+	assert "error" not in res
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "configState_getObjects",
+		"params": [[], {"objectId": [clients[0]["id"],clients[1]["id"]], "configId": "clientconfig.depot.id"}],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	print(res)
+	assert "error" not in res
+	assert len(res["result"]) == 1
+	assert res["result"][0]["values"][0] == new_depot_id
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_getObjects",
+		"params": [[], {"id": new_depot_id}],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	print(res)
+
+	assert len(res["result"]) == 1
+	depot = res["result"][0]
+	assert depot["id"] == new_depot_id
+	assert depot["repositoryRemoteUrl"] == f"smb://{new_depot_id}:4447/repository"
+	assert depot["depotRemoteUrl"] == f"smb://{new_depot_id}:4447/opsi_depot"
+	assert depot["depotWebdavUrl"] == f"webdavs://{new_depot_id}:4447/depot"
+	# workbench url only contains hostname
+	assert depot["workbenchRemoteUrl"] == f"smb://{new_depot_id.split('.')[0]}:4447/opsi_workbench"
+
+

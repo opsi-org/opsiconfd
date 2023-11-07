@@ -878,7 +878,7 @@ def _create_clients_and_depot(
 
 	return (clients, depot)
 
-def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Generator) -> None:  # pylint: disable=redefined-outer-name
+def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Generator) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	# create clients and depot. client 2 is assigned to depot

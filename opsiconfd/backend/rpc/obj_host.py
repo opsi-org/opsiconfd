@@ -147,10 +147,10 @@ class RPCHostMixin(Protocol):
 		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def host_getIdents(  # pylint: disable=invalid-name
+	def host_getIdents(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		returnType: IdentType = "str",
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_idents(table="HOST", object_type=Host, ace=ace, ident_type=returnType, filter=filter)

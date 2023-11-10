@@ -94,10 +94,10 @@ class RPCLicenseOnClientMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_getIdents(  # pylint: disable=invalid-name
+	def licenseOnClient_getIdents(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		returnType: IdentType = "str",
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_idents(table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, ace=ace, ident_type=returnType, filter=filter)

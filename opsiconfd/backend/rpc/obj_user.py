@@ -82,19 +82,19 @@ class RPCUserMixin(Protocol):
 				self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
-	def user_getObjects(  # pylint: disable=invalid-name
+	def user_getObjects(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[User]:
 		ace = self._get_ace("user_getObjects")
 		return self._mysql.get_objects(table="USER", ace=ace, object_type=User, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def user_getIdents(  # pylint: disable=invalid-name
+	def user_getIdents(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		returnType: IdentType = "str",
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("user_getObjects")
 		return self._mysql.get_idents(table="USER", object_type=User, ace=ace, ident_type=returnType, filter=filter)

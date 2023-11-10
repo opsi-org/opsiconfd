@@ -86,10 +86,10 @@ class RPCProductOnClientMixin(Protocol):
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_getObjects(  # pylint: disable=invalid-name
+	def productOnClient_getObjects(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[ProductOnClient]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
@@ -97,10 +97,10 @@ class RPCProductOnClientMixin(Protocol):
 		)
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_getObjects", check_acl=False)
-	def productOnClient_getHashes(  # pylint: disable=invalid-name
+	def productOnClient_getHashes(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[dict]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
@@ -108,10 +108,10 @@ class RPCProductOnClientMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_getIdents(  # pylint: disable=invalid-name
+	def productOnClient_getIdents(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		returnType: IdentType = "str",
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_idents(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, ace=ace, ident_type=returnType, filter=filter)
@@ -172,10 +172,10 @@ class RPCProductOnClientMixin(Protocol):
 		return product_on_clients
 
 	@rpc_method(check_acl=False)
-	def productOnClient_getObjectsWithSequence(  # pylint: disable=invalid-name
+	def productOnClient_getObjectsWithSequence(  # pylint: disable=invalid-name,redefined-builtin
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
-		**filter: Any,  # pylint: disable=redefined-builtin
+		**filter: Any,
 	) -> list[ProductOnClient]:
 		"""
 		Like productOnClient_getObjects, but return objects in order and with attribute actionSequence set.

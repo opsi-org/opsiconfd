@@ -28,7 +28,9 @@ if TYPE_CHECKING:
 class RPCExtAdminTasksMixin(Protocol):
 	@rpc_method(deprecated=True, check_acl=False)
 	def setActionRequestWhereOutdated(  # pylint: disable=invalid-name
-		self: BackendProtocol, actionRequest: str, productId: str  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		actionRequest: str,
+		productId: str,  # pylint: disable=invalid-name
 	) -> set[str]:
 		"""
 		Set the specified `actionRequest` at every client that has not the
@@ -84,7 +86,6 @@ class RPCExtAdminTasksMixin(Protocol):
 						product_on_client.productVersion != product_on_depot.productVersion
 						or product_on_client.packageVersion != product_on_depot.packageVersion
 					):
-
 						logger.debug("Version difference at %s", product_on_client)
 						updated_clients.add(product_on_client.clientId)
 

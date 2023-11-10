@@ -56,14 +56,18 @@ class RPCAuditSoftwareMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftware_getObjects", check_acl=False)
 	def auditSoftware_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[AuditSoftware]:
 		ace = self._get_ace("auditSoftware_getObjects")
 		return self._mysql.get_objects(table="SOFTWARE", ace=ace, object_type=AuditSoftware, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
 	def auditSoftware_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("auditSoftware_getObjects")
 		return self._mysql.get_objects(
@@ -72,7 +76,9 @@ class RPCAuditSoftwareMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftware_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditSoftware_getObjects")
 		return self._mysql.get_idents(table="SOFTWARE", object_type=AuditSoftware, ace=ace, ident_type=returnType, filter=filter)

@@ -156,7 +156,6 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 
 @memory_profiler_router.post("/snapshot")
 async def memory_info() -> JSONResponse:
-
 	global MEMORY_TRACKER  # pylint: disable=global-statement
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
@@ -197,7 +196,6 @@ async def memory_info() -> JSONResponse:
 
 @memory_profiler_router.delete("/snapshot")
 async def delte_memory_snapshot() -> JSONResponse:
-
 	redis = await async_redis_client()
 	node = config.node_name
 
@@ -212,7 +210,6 @@ async def delte_memory_snapshot() -> JSONResponse:
 
 @memory_profiler_router.get("/diff")
 async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
-
 	global MEMORY_TRACKER  # pylint: disable=global-statement
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
@@ -254,7 +251,6 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 
 @memory_profiler_router.post("/classtracker")
 async def classtracker_snapshot(request: Request) -> JSONResponse:
-
 	request_body = await request.json()
 	class_name = request_body.get("class")
 	module_name = request_body.get("module")
@@ -287,7 +283,6 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 
 @memory_profiler_router.get("/classtracker/summary")
 async def classtracker_summary() -> JSONResponse:
-
 	global CLASS_TRACKER  # pylint: disable=global-statement
 
 	if not CLASS_TRACKER:
@@ -316,7 +311,6 @@ async def classtracker_summary() -> JSONResponse:
 
 @memory_profiler_router.delete("/classtracker")
 async def delte_class_tracker() -> JSONResponse:
-
 	global CLASS_TRACKER  # pylint: disable=global-statement
 	if CLASS_TRACKER:
 		CLASS_TRACKER.close()
@@ -327,7 +321,6 @@ async def delte_class_tracker() -> JSONResponse:
 
 
 def print_class_summary(cls_summary: list) -> None:
-
 	logger.essential("---- SUMMARY " + "-" * 66)
 	for snapshot in cls_summary:
 		logger.essential("%-35s %11s %12s %12s", snapshot.get("description"), "active", "sum", "average")

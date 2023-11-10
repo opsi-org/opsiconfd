@@ -30,16 +30,16 @@ class LDAPAuthentication(AuthenticationModule):
 
 		:param ldap_url: The ldap connection url.
 		:param bind_user: (optional) The simple bind is performed with this user.
-			The ``bind_user`` has to contain the placeholder ``{username}`` which will be
-			replaced by the username auth autenticating user.
-			The placeholder ``{base}`` will be replaced by the base dn.
-			For active directory ``{username}@your.realm`` should work.
-			For OpenLDAP a dn like ``uid={username},ou=Users,{base}`` should be used.
-			If ommitted the bind_user will be guessed.
+		        The ``bind_user`` has to contain the placeholder ``{username}`` which will be
+		        replaced by the username auth autenticating user.
+		        The placeholder ``{base}`` will be replaced by the base dn.
+		        For active directory ``{username}@your.realm`` should work.
+		        For OpenLDAP a dn like ``uid={username},ou=Users,{base}`` should be used.
+		        If ommitted the bind_user will be guessed.
 		:param group_filter: (optional) The filter which is used when searching groups.
 		Examples::
-			>>> active_directory_auth = LDAPAuthentication("ldaps://ad.company.de/dc=company,dc=de", "{username}@company.de")
-			>>> open_ldap_auth = LDAPAuthentication("ldap://ldap.company.de/dc=company,dc=de", "uid={username},dc=Users,{base}")
+		        >>> active_directory_auth = LDAPAuthentication("ldaps://ad.company.de/dc=company,dc=de", "{username}@company.de")
+		        >>> open_ldap_auth = LDAPAuthentication("ldap://ldap.company.de/dc=company,dc=de", "uid={username},dc=Users,{base}")
 		"""
 		super().__init__()
 		self._ldap_url = ldap_url

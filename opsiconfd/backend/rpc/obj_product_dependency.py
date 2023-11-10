@@ -465,13 +465,15 @@ class RPCProductDependencyMixin(Protocol):
 		return product_action_groups
 
 	def productDependency_bulkInsertObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency]  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		productDependencies: list[dict] | list[ProductDependency],  # pylint: disable=invalid-name
 	) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_DEPENDENCY", objs=productDependencies)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_insertObject(  # pylint: disable=invalid-name
-		self: BackendProtocol, productDependency: dict | ProductDependency  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		productDependency: dict | ProductDependency,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("productDependency_insertObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
@@ -479,7 +481,8 @@ class RPCProductDependencyMixin(Protocol):
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObject(  # pylint: disable=invalid-name
-		self: BackendProtocol, productDependency: dict | ProductDependency  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		productDependency: dict | ProductDependency,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("productDependency_updateObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
@@ -513,7 +516,9 @@ class RPCProductDependencyMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productDependency_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[ProductDependency]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
@@ -522,7 +527,9 @@ class RPCProductDependencyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="productDependency_getObjects", check_acl=False)
 	def productDependency_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
@@ -531,7 +538,9 @@ class RPCProductDependencyMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productDependency_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_idents(

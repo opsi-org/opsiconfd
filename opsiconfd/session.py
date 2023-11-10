@@ -340,9 +340,7 @@ class SessionMiddleware:
 			response = PlainTextResponse(status_code=status_code, content=error, headers=headers)
 		await response(scope, receive, send)
 
-	async def __call__(
-		self, scope: Scope, receive: Receive, send: Send
-	) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 		if scope["type"] == "lifespan":
 			return await self.app(scope, receive, send)
 

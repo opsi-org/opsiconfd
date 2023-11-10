@@ -154,9 +154,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
-	def _check_channel_access(
-		self, channel: str, operation: Literal["read", "write"]
-	) -> bool:  # pylint: disable=too-many-return-statements
+	def _check_channel_access(self, channel: str, operation: Literal["read", "write"]) -> bool:  # pylint: disable=too-many-return-statements
 		if operation not in ("read", "write"):
 			raise ValueError(f"Invalid channel operation {operation!r}")
 

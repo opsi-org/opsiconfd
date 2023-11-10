@@ -86,9 +86,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	max_cols = 300
 	idle_timeout = 600
 
-	def __init__(
-		self, terminal_open_request: TerminalOpenRequestMessage, sender: str, send_message: Callable
-	) -> None:  # pylint: disable=too-many-arguments
+	def __init__(self, terminal_open_request: TerminalOpenRequestMessage, sender: str, send_message: Callable) -> None:  # pylint: disable=too-many-arguments
 		self._terminal_open_request = terminal_open_request
 		self._sender = sender
 		self._send_message = send_message

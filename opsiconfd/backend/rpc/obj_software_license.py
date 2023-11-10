@@ -28,13 +28,15 @@ if TYPE_CHECKING:
 
 class RPCSoftwareLicenseMixin(Protocol):
 	def softwareLicense_bulkInsertObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, softwareLicenses: list[dict] | list[SoftwareLicense]  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		softwareLicenses: list[dict] | list[SoftwareLicense],  # pylint: disable=invalid-name
 	) -> None:
 		self._mysql.bulk_insert_objects(table="SOFTWARE_LICENSE", objs=softwareLicenses)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_insertObject(  # pylint: disable=invalid-name
-		self: BackendProtocol, softwareLicense: dict | SoftwareLicense  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		softwareLicense: dict | SoftwareLicense,  # pylint: disable=invalid-name
 	) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("softwareLicense_insertObject")
@@ -42,14 +44,16 @@ class RPCSoftwareLicenseMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_updateObject(  # pylint: disable=invalid-name
-		self: BackendProtocol, softwareLicense: dict | SoftwareLicense  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		softwareLicense: dict | SoftwareLicense,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("softwareLicense_updateObject")
 		self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense,  # pylint: disable=invalid-name
 	) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("softwareLicense_createObjects")
@@ -61,7 +65,8 @@ class RPCSoftwareLicenseMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("softwareLicense_updateObjects")
 		with self._mysql.session() as session:
@@ -72,14 +77,18 @@ class RPCSoftwareLicenseMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[SoftwareLicense]:
 		ace = self._get_ace("softwareLicense_getObjects")
 		return self._mysql.get_objects(table="SOFTWARE_LICENSE", ace=ace, object_type=SoftwareLicense, attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicense_getObjects", check_acl=False)
 	def softwareLicense_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("softwareLicense_getObjects")
 		return self._mysql.get_objects(
@@ -88,7 +97,9 @@ class RPCSoftwareLicenseMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("softwareLicense_getObjects")
 		return self._mysql.get_idents(table="SOFTWARE_LICENSE", object_type=SoftwareLicense, ace=ace, ident_type=returnType, filter=filter)

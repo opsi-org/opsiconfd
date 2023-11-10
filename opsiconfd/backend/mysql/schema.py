@@ -520,7 +520,9 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 	return indexes
 
 
-def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:  # pylint: disable=too-many-branches
+def create_index( # pylint: disable=too-many-branches
+	session: Session, database: str, table: str, index: str, columns: list[str], cleanup_function: Callable | None = None
+) -> None:
 	logger.debug("Create index: table=%r, index=%r, columns=%r", table, index, columns)
 	correct_indexes = []
 	wrong_indexes = []
@@ -554,6 +556,9 @@ def create_index(session: Session, database: str, table: str, index: str, column
 	if correct_indexes:
 		logger.debug("Keeping index %r", correct_indexes[0])
 		return
+
+	if cleanup_function:
+		cleanup_function(session=session)
 
 	key = ",".join([f"`{c}`" for c in columns])
 	if index == "PRIMARY":
@@ -757,12 +762,32 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
+
+		def remove_duplicate_system_uuids(session: Session) -> None:
+			result = session.execute(
+				"""
+				UPDATE HOST AS h1
+				SET h1.systemUUID = NULL
+				WHERE h1.systemUUID IN (
+					SELECT * FROM (
+						SELECT h2.systemUUID FROM HOST AS h2
+						WHERE h2.systemUUID IS NOT NULL
+						GROUP BY h2.systemUUID
+						HAVING COUNT(h2.systemUUID) > 1
+					) as x
+				);
+				"""
+			)
+			if result.rowcount > 0:
+				logger.notice("Removed %d duplicate systemUUID from HOST", result.rowcount)
+
 		create_index(
 			session=session,
 			database=mysql.database,
 			table="HOST",
 			index="UNIQUE",
 			columns=["systemUUID"],
+			cleanup_function=remove_duplicate_system_uuids
 		)
 
 		session.execute(

@@ -117,21 +117,27 @@ class RPCConfigMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def config_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[Config]:
 		ace = self._get_ace("config_getObjects")
 		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(deprecated=True, alternative_method="config_getObjects", check_acl=False)
 	def config_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("config_getObjects")
 		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def config_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("config_getObjects")
 		return self._mysql.get_idents("CONFIG", Config, ace=ace, ident_type=returnType, filter=filter)

@@ -25,12 +25,14 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 		self: BackendProtocol, softwareLicenseToLicensePools: list[SoftwareLicenseToLicensePool | dict[str, Any]]
 	) -> None:
 		self._mysql.bulk_insert_objects(
-			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", objs=softwareLicenseToLicensePools  # type: ignore[arg-type]
+			table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
+			objs=softwareLicenseToLicensePools,  # type: ignore[arg-type]
 		)
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_insertObject(  # pylint: disable=invalid-name
-		self: BackendProtocol, softwareLicenseToLicensePool: dict | SoftwareLicenseToLicensePool  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		softwareLicenseToLicensePool: dict | SoftwareLicenseToLicensePool,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_insertObject")
 		self._mysql.insert_object(
@@ -88,7 +90,9 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin,invalid-name
 	) -> list[SoftwareLicenseToLicensePool]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_objects(
@@ -101,7 +105,9 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicenseToLicensePool_getObjects", check_acl=False)
 	def softwareLicenseToLicensePool_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict[str, Any]]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_objects(
@@ -115,7 +121,9 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict[str, Any]] | list[list] | list[tuple]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_idents(

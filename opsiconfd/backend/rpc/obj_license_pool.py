@@ -121,21 +121,27 @@ class RPCLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licensePool_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[LicensePool]:
 		ace = self._get_ace("licensePool_getObjects")
 		return self._license_pool_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(deprecated=True, alternative_method="licensePool_getObjects", check_acl=False)
 	def licensePool_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("licensePool_getObjects")
 		return self._license_pool_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def licensePool_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("licensePool_getObjects")
 		if filter and "productIds" in filter:
@@ -153,7 +159,8 @@ class RPCLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licensePool_deleteObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		licensePools: list[dict] | list[LicensePool] | dict | LicensePool,  # pylint: disable=invalid-name
 	) -> None:
 		if not licensePools:
 			return

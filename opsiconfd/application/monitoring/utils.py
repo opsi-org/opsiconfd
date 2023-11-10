@@ -17,9 +17,7 @@ from redis.asyncio import StrictRedis
 from opsiconfd.config import config
 from opsiconfd.redis import decode_redis_result
 
-ERRORCODE_PATTERN = re.compile(
-	r"\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)"
-)  # pylint: disable=anomalous-backslash-in-string
+ERRORCODE_PATTERN = re.compile(r"\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)")  # pylint: disable=anomalous-backslash-in-string
 
 
 class State:  # pylint: disable=too-few-public-methods

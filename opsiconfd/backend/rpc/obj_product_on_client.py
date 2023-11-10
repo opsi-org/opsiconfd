@@ -87,7 +87,9 @@ class RPCProductOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnClient_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[ProductOnClient]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
@@ -96,7 +98,9 @@ class RPCProductOnClientMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_getObjects", check_acl=False)
 	def productOnClient_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
@@ -105,7 +109,9 @@ class RPCProductOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnClient_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_idents(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, ace=ace, ident_type=returnType, filter=filter)
@@ -167,7 +173,9 @@ class RPCProductOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnClient_getObjectsWithSequence(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[ProductOnClient]:
 		"""
 		Like productOnClient_getObjects, but return objects in order and with attribute actionSequence set.
@@ -238,11 +246,14 @@ class RPCProductOnClientMixin(Protocol):
 		action_groups: list[dict] = []
 		for group in self.get_product_action_groups(product_on_clients).get(clientId, []):
 			group.product_on_clients = [
-				poc.to_hash() for poc in group.product_on_clients if poc.actionRequest and poc.actionRequest != "none"  # type: ignore[misc]
+				poc.to_hash()
+				for poc in group.product_on_clients
+				if poc.actionRequest and poc.actionRequest != "none"  # type: ignore[misc]
 			]
 			if group.product_on_clients:
 				group.dependencies = {
-					product_id: [d.to_hash() for d in dep] for product_id, dep in group.dependencies.items()  # type: ignore[misc]
+					product_id: [d.to_hash() for d in dep]
+					for product_id, dep in group.dependencies.items()  # type: ignore[misc]
 				}
 				action_groups.append(group)  # type: ignore[arg-type]
 

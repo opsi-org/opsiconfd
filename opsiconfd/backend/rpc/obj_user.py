@@ -46,7 +46,8 @@ def is_local_user(username: str) -> bool:
 
 class RPCUserMixin(Protocol):
 	def user_bulkInsertObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, users: list[dict] | list[User]  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		users: list[dict] | list[User],  # pylint: disable=invalid-name
 	) -> None:
 		self._mysql.bulk_insert_objects(table="USER", objs=users)  # type: ignore[arg-type]
 
@@ -62,7 +63,8 @@ class RPCUserMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def user_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, users: list[dict] | list[User] | dict | User  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		users: list[dict] | list[User] | dict | User,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("user_createObjects")
 		with self._mysql.session() as session:
@@ -71,7 +73,8 @@ class RPCUserMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def user_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, users: list[dict] | list[User] | dict | User  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		users: list[dict] | list[User] | dict | User,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("user_updateObjects")
 		with self._mysql.session() as session:
@@ -80,14 +83,18 @@ class RPCUserMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def user_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[User]:
 		ace = self._get_ace("user_getObjects")
 		return self._mysql.get_objects(table="USER", ace=ace, object_type=User, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
 	def user_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("user_getObjects")
 		return self._mysql.get_idents(table="USER", object_type=User, ace=ace, ident_type=returnType, filter=filter)

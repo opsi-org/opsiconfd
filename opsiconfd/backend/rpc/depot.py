@@ -342,16 +342,16 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		Acquires a transfer slot for the specified depot and slot ID.
 
 		Args:
-			self (BackendProtocol): The backend protocol object.
-			depot (str): The depot for which to acquire the transfer slot.
-			client (str): The client for which to acquire the transfer slot
-			slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
+		        self (BackendProtocol): The backend protocol object.
+		        depot (str): The depot for which to acquire the transfer slot.
+		        client (str): The client for which to acquire the transfer slot
+		        slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
 
 		Returns:
-			TransferSlot: The acquired transfer slot.
+		        TransferSlot: The acquired transfer slot.
 
 		Raises:
-			BackendPermissionDeniedError: If access is denied.
+		        BackendPermissionDeniedError: If access is denied.
 		"""
 		session = contextvar_client_session.get()
 		if not session:
@@ -392,15 +392,15 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		Release a transfer slot for the specified depot, client and slot ID.
 
 		Args:
-			self (BackendProtocol): The backend protocol object.
-			depot (str): The depot for which to release the transfer slot.
-			client (str): The client for which to release the transfer slot
-			slot_id (str): The ID of the slot to release.
+		        self (BackendProtocol): The backend protocol object.
+		        depot (str): The depot for which to release the transfer slot.
+		        client (str): The client for which to release the transfer slot
+		        slot_id (str): The ID of the slot to release.
 		Returns:
-			None
+		        None
 
 		Raises:
-			BackendPermissionDeniedError: If access is denied.
+		        BackendPermissionDeniedError: If access is denied.
 		"""
 
 		session = contextvar_client_session.get()
@@ -416,10 +416,10 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		List all reserved TransferSlots of depot.
 
 		Args:
-			self (BackendProtocol): The backend protocol object.
-			depot (str): The depot for which to release the transfer slot.
+		        self (BackendProtocol): The backend protocol object.
+		        depot (str): The depot for which to release the transfer slot.
 		Returns:
-			list[TransferSlot]
+		        list[TransferSlot]
 		"""
 
 		slots = []
@@ -888,9 +888,7 @@ class DepotserverPackageManager:
 			allow_remove_used = True
 			try:
 				allow_remove_used = forceBool(
-					self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[
-						0
-					]  # pylint: disable=maybe-no-member
+					self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[0]  # pylint: disable=maybe-no-member
 				)
 			except IndexError:
 				pass
@@ -969,7 +967,8 @@ class DepotserverPackageManager:
 	def check_dependencies(self, opsi_package: OpsiPackage) -> None:
 		for dependency in opsi_package.package_dependencies:
 			product_on_depots = self.backend.productOnDepot_getObjects(
-				depotId=self._depot_id, productId=dependency.package  # pylint: disable=protected-access
+				depotId=self._depot_id,
+				productId=dependency.package,  # pylint: disable=protected-access
 			)
 			if not product_on_depots:
 				raise BackendUnaccomplishableError(f"Dependent package '{dependency.package}' not installed")

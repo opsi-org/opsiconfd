@@ -34,7 +34,6 @@ def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-bran
 	output: str | None = None,
 	encoding: str | None = None,
 ) -> JSONResponse:
-
 	state = State.OK
 	message = ""
 	host_ids = forceList(host_id)

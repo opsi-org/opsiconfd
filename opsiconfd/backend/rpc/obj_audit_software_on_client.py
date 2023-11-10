@@ -64,7 +64,9 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[AuditSoftwareOnClient]:
 		ace = self._get_ace("auditSoftwareOnClient_getObjects")
 		return self._mysql.get_objects(
@@ -82,7 +84,9 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditSoftwareOnClient_getObjects")
 		return self._mysql.get_idents(

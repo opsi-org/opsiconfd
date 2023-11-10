@@ -242,7 +242,7 @@ class DHCPDConfBlock(DHCPDConfComponent):
 			parameters[component.key] = component.value
 
 		if inherit and self.type != inherit and self.parent_block:
-			for (key, value) in self.parent_block.get_parameters_hash(inherit).items():
+			for key, value in self.parent_block.get_parameters_hash(inherit).items():
 				if key not in parameters:
 					parameters[key] = value
 		return parameters
@@ -406,7 +406,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 			if block.settings[1].lower() == hostname:
 				existing_host = block
 			else:
-				for (key, value) in block.get_parameters_hash().items():
+				for key, value in block.get_parameters_hash().items():
 					if key == "fixed-address" and str(value).lower() == fixed_address:
 						raise ValueError(f"Host '{block.settings[1]}' uses the same fixed address")
 					if key == "hardware" and str(value).lower() == f"ethernet {hardware_address}":
@@ -426,7 +426,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 			self.file_path,
 		)
 
-		for (key, value) in parameters.items():
+		for key, value in parameters.items():
 			parameters[key] = DHCPDConfParameter(-1, None, key, value).as_hash()[key]
 
 		# Default parent block is global
@@ -446,7 +446,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 			block_parameters = block.get_parameters_hash(inherit="global")
 			if block_parameters:
 				# Block has parameters set, check if they match the hosts parameters
-				for (key, value) in block_parameters.items():
+				for key, value in block_parameters.items():
 					if key not in parameters:
 						continue
 
@@ -466,7 +466,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		# Remove parameters which are already defined in parents
 		block_parameters = parent_block.get_parameters_hash(inherit="global")
 		if block_parameters:
-			for (key, value) in block_parameters.items():
+			for key, value in block_parameters.items():
 				if key in parameters and parameters[key] == value:
 					del parameters[key]
 
@@ -500,7 +500,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 			if block.settings[1] == hostname:
 				host_blocks.append(block)
 			else:
-				for (key, value) in block.get_parameters_hash().items():
+				for key, value in block.get_parameters_hash().items():
 					if key == "fixed-address" and value == hostname:
 						host_blocks.append(block)
 
@@ -524,7 +524,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 			if block.settings[1] == hostname:
 				host_blocks.append(block)
 			else:
-				for (key, value) in block.get_parameters_hash().items():
+				for key, value in block.get_parameters_hash().items():
 					if key == "fixed-address" and value == hostname:
 						host_blocks.append(block)
 					elif key == "hardware" and str(value).lower() == parameters.get("hardware"):
@@ -537,7 +537,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		assert host_block.parent_block
 		host_block.remove_components()
 
-		for (key, value) in parameters.items():
+		for key, value in parameters.items():
 			parameters[key] = DHCPDConfParameter(-1, None, key, value).as_hash()[key]
 
 		for key, value in host_block.parent_block.get_parameters_hash(inherit="global").items():
@@ -547,7 +547,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 			if parameters[key] == value:
 				del parameters[key]
 
-		for (key, value) in parameters.items():
+		for key, value in parameters.items():
 			host_block.add_component(DHCPDConfParameter(start_line=-1, parent_block=host_block, key=key, value=value))
 
 	def _get_new_data(self) -> bool:

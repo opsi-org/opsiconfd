@@ -35,9 +35,7 @@ if TYPE_CHECKING:
 OPSI_HARDWARE_CLASSES: list[dict[str, Any]] = []
 
 
-def inherit_from_super_classes(
-	classes: list[dict[str, Any]], _class: dict[str, Any], scname: str | None = None
-) -> None:  # pylint: disable=unused-private-member
+def inherit_from_super_classes(classes: list[dict[str, Any]], _class: dict[str, Any], scname: str | None = None) -> None:  # pylint: disable=unused-private-member
 	if not scname:  # pylint: disable=too-many-nested-blocks
 		for _scname in _class["Class"].get("Super", []):
 			inherit_from_super_classes(classes, _class, _scname)
@@ -324,9 +322,7 @@ class RPCAuditHardwareMixin(Protocol):
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[AuditHardware]:
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(
-			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
-		)  # type: ignore[return-value]
+		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(deprecated=True, alternative_method="auditHardware_getObjects", check_acl=False)
 	def auditHardware_getHashes(  # pylint: disable=redefined-builtin,invalid-name
@@ -337,7 +333,9 @@ class RPCAuditHardwareMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditHardware_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)

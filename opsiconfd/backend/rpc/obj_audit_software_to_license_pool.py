@@ -28,7 +28,8 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareToLicensePool_insertObject(  # pylint: disable=invalid-name
-		self: BackendProtocol, auditSoftwareToLicensePool: dict | AuditSoftwareToLicensePool  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		auditSoftwareToLicensePool: dict | AuditSoftwareToLicensePool,  # pylint: disable=invalid-name
 	) -> None:
 		ace = self._get_ace("auditSoftwareToLicensePool_insertObject")
 		self._mysql.insert_object(
@@ -80,7 +81,9 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareToLicensePool_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[AuditSoftwareToLicensePool]:
 		ace = self._get_ace("auditSoftwareToLicensePool_getObjects")
 		return self._mysql.get_objects(
@@ -89,7 +92,9 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareToLicensePool_getObjects", check_acl=False)
 	def auditSoftwareToLicensePool_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("auditSoftwareToLicensePool_getObjects")
 		return self._mysql.get_objects(
@@ -103,7 +108,9 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareToLicensePool_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditSoftwareToLicensePool_getObjects")
 		return self._mysql.get_idents(

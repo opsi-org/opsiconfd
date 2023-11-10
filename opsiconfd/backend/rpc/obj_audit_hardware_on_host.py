@@ -243,7 +243,9 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(

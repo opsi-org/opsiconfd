@@ -199,7 +199,6 @@ def get_system_info() -> dict:
 
 
 def get_diagnostic_data() -> dict[str, Any]:
-
 	data = {
 		"system": get_system_info(),
 		"processor": get_processor_info(),

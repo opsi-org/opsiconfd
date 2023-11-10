@@ -142,7 +142,6 @@ def rpc_method(
 	clear_cache: str | None = None,
 ) -> Callable:
 	def decorator(func: Callable) -> Callable:
-
 		if not func.__doc__:
 			if func.__name__.endswith("_insertObject"):
 				func.__doc__ = DOC_INSERT_OBJECT

@@ -273,11 +273,11 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 	def __init__(self, channels: dict[str, StreamIdT] | None = None) -> None:
 		"""
 		channels:
-			A dict of channel names to stream IDs, where
-			IDs indicate the last ID already seen.
-			Special IDs:
-			ID ">" means that we want to receive all undelivered messages.
-			ID "$" means that we only want new messages (added after reader was started).
+		        A dict of channel names to stream IDs, where
+		        IDs indicate the last ID already seen.
+		        Special IDs:
+		        ID ">" means that we want to receive all undelivered messages.
+		        ID "$" means that we only want new messages (added after reader was started).
 		"""
 		self._channels = channels or {}
 		self._streams: dict[bytes, StreamIdT] = {}
@@ -473,19 +473,19 @@ class ConsumerGroupMessageReader(MessageReader):
 	def __init__(self, consumer_group: str, consumer_name: str, channels: dict[str, StreamIdT] | None = None) -> None:
 		"""
 		consumer_group:
-			Name of a consumer group
+		        Name of a consumer group
 		consumer_name:
-			Name of the consumer as member of the consumer group
+		        Name of the consumer as member of the consumer group
 		channels:
-			A dict of channel names to stream IDs.
+		        A dict of channel names to stream IDs.
 
-			ID ">" means that we want to receive messages never delivered to other consumers so far.
-			Messages that have already been delivered but not ACKed will not be delivered again!
+		        ID ">" means that we want to receive messages never delivered to other consumers so far.
+		        Messages that have already been delivered but not ACKed will not be delivered again!
 
-			If the ID is any valid numerical ID, all pending messages (starting from the specified ID) will be delivered first.
-			Pending messages means messages that are intended for the specified consumer but were never acknowledged.
-			After delivering the pending messages, the reader will act as if ID ">" was passed.
-			This is different from the normal XACK behavior of redis.
+		        If the ID is any valid numerical ID, all pending messages (starting from the specified ID) will be delivered first.
+		        Pending messages means messages that are intended for the specified consumer but were never acknowledged.
+		        After delivering the pending messages, the reader will act as if ID ">" was passed.
+		        This is different from the normal XACK behavior of redis.
 		"""
 		super().__init__(channels)
 		self._consumer_group = consumer_group.encode("utf-8")
@@ -532,7 +532,11 @@ class ConsumerGroupMessageReader(MessageReader):
 
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		return await redis.xreadgroup(
-			self._consumer_group, self._consumer_name, streams=self._streams, block=1000, count=10  # type: ignore[arg-type]
+			self._consumer_group,
+			self._consumer_name,
+			streams=self._streams,
+			block=1000,
+			count=10,  # type: ignore[arg-type]
 		)
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:

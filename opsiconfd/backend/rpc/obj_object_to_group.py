@@ -60,14 +60,18 @@ class RPCObjectToGroupMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[ObjectToGroup]:
 		ace = self._get_ace("objectToGroup_getObjects")
 		return self._mysql.get_objects(table="OBJECT_TO_GROUP", ace=ace, object_type=ObjectToGroup, attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="objectToGroup_getObjects", check_acl=False)
 	def objectToGroup_getHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		attributes: list[str] | None = None,
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[dict]:
 		ace = self._get_ace("objectToGroup_getObjects")
 		return self._mysql.get_objects(
@@ -76,14 +80,17 @@ class RPCObjectToGroupMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_getIdents(  # pylint: disable=invalid-name
-		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
+		self: BackendProtocol,
+		returnType: IdentType = "str",
+		**filter: Any,  # pylint: disable=redefined-builtin
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("objectToGroup_getObjects")
 		return self._mysql.get_idents(table="OBJECT_TO_GROUP", object_type=ObjectToGroup, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_deleteObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup,  # pylint: disable=invalid-name
 	) -> None:
 		if not objectToGroups:
 			return

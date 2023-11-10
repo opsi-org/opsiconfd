@@ -520,7 +520,7 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 	return indexes
 
 
-def create_index( # pylint: disable=too-many-branches
+def create_index(  # pylint: disable=too-many-branches
 	session: Session, database: str, table: str, index: str, columns: list[str], cleanup_function: Callable | None = None
 ) -> None:
 	logger.debug("Create index: table=%r, index=%r, columns=%r", table, index, columns)
@@ -787,7 +787,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			table="HOST",
 			index="UNIQUE",
 			columns=["systemUUID"],
-			cleanup_function=remove_duplicate_system_uuids
+			cleanup_function=remove_duplicate_system_uuids,
 		)
 
 		session.execute(

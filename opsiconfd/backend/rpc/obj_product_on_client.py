@@ -246,14 +246,14 @@ class RPCProductOnClientMixin(Protocol):
 		action_groups: list[dict] = []
 		for group in self.get_product_action_groups(product_on_clients).get(clientId, []):
 			group.product_on_clients = [
-				poc.to_hash()
+				poc.to_hash()  # type: ignore[misc]
 				for poc in group.product_on_clients
-				if poc.actionRequest and poc.actionRequest != "none"  # type: ignore[misc]
+				if poc.actionRequest and poc.actionRequest != "none"
 			]
 			if group.product_on_clients:
 				group.dependencies = {
-					product_id: [d.to_hash() for d in dep]
-					for product_id, dep in group.dependencies.items()  # type: ignore[misc]
+					product_id: [d.to_hash() for d in dep]  # type: ignore[misc]
+					for product_id, dep in group.dependencies.items()
 				}
 				action_groups.append(group)  # type: ignore[arg-type]
 

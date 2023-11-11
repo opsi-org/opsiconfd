@@ -161,7 +161,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 						rich_print("[b]Restarting opsiconfd[/b]")
 						try:
 							subprocess.run(["systemctl", "--no-pager", "--lines", "0", "restart", "opsiconfd"], check=True)
-						except Exception as err:
+						except Exception as err:  # pylint: disable=broad-exception-caught
 							logger.error(err)
 				except FileNotFoundError:
 					logger.debug("systemctl not available")

@@ -67,10 +67,10 @@ class ActionGroup:
 	sort_log: list[str] = field(default_factory=list)
 
 	def sort(self) -> None:  # pylint: disable=too-many-branches
-		logger.debug("Sort actions by priority")
-		self.actions.sort(key=lambda a: a.priority, reverse=True)
+		logger.debug("Sort actions by priority and productId")
+		self.actions.sort(key=lambda a: (a.priority * -1, a.product_id))
 		prods = [f"{a.product_id}({a.priority})" for a in self.actions]
-		log = f"Ordered by priority: {','.join(prods)}"
+		log = f"Ordered by priority and productId: {','.join(prods)}"
 		logger.debug(log)
 		self.sort_log.append(log)
 

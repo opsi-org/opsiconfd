@@ -191,13 +191,20 @@ class RPCProductOnClientMixin(Protocol):
 			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
 		)
 		action_requests = {(poc.clientId, poc.productId): poc.actionRequest for poc in product_on_clients}
-		product_on_clients = self.productOnClient_generateSequence(product_on_clients)
-		for poc in product_on_clients:
-			if action_request := action_requests.get((poc.clientId, poc.productId)):
-				poc.actionRequest = action_request
-				if not poc.actionRequest or poc.actionRequest == "none":
-					poc.actionSequence = -1
-		return product_on_clients
+
+		ret_product_on_clients = []
+		for groups in self.get_product_action_groups(product_on_clients).values():
+			for idx, group in enumerate(groups):
+				for poc in group.product_on_clients:
+					if action_request := action_requests.get((poc.clientId, poc.productId)):
+						setattr(poc, "actionGroup", idx + 1)
+						# Keep actionRequest from database
+						poc.actionRequest = action_request or "none"
+						if poc.actionRequest == "none":
+							poc.actionSequence = -1
+						ret_product_on_clients.append(poc)
+
+		return ret_product_on_clients
 
 	@rpc_method(check_acl=False)
 	def productOnClient_generateSequence(  # pylint: disable=invalid-name

@@ -9,6 +9,7 @@ opsiconfd - setup
 """
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -154,6 +155,16 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				if configs and depot.id not in configs[0].defaultValues:
 					configs[0].defaultValues.append(depot.id)
 					service.jsonrpc("config_updateObjects", params=configs)
+
+				try:
+					if subprocess.run(["systemctl", "is-active", "--quiet", "opsiconfd"], check=False).returncode == 0:
+						rich_print("[b]Restarting opsiconfd[/b]")
+						try:
+							subprocess.run(["systemctl", "--no-pager", "--lines", "0", "restart", "opsiconfd"], check=True)
+						except Exception as err:
+							logger.error(err)
+				except FileNotFoundError:
+					logger.debug("systemctl not available")
 
 				return True
 			except KeyboardInterrupt:

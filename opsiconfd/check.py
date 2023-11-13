@@ -55,7 +55,7 @@ from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import ldap3_uri_to_str
 
-REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
+REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11/"
 OPSI_REPO_FILE = "https://opsipackages.43.opsi.org/stable/packages.msgpack.zstd"
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
@@ -137,7 +137,7 @@ def print_health_check_manual(console: Console) -> None:
 	Such a JSON file is especially useful for support requests.
 
 	* opsiconfd health-check
-	* [opsi-cli](https://docs.opsi.org/opsi-docs-de/4.2/manual/server/configuration-tools.html#opsi-manual-configuration-tools-opsi-cli-commands-support)
+	* [opsi-cli](https://docs.opsi.org/opsi-docs-en/4.3/server/components/commandline.html#server-components-opsi-cli-commands-support)
 	* JSONRPC method `service_healthCheck`
 
 
@@ -573,7 +573,7 @@ def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches
 	* opsipxeconfd
 
 	The check is carried out against the stable repository of uib
-	(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/).
+	(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11/).
 	Older versions are considered a warning and if one of the packages is not installed, an error is issued.
 	"""
 	result = CheckResult(

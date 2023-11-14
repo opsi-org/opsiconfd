@@ -1255,7 +1255,7 @@ function messagebusConnect() {
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,
-				data: utf8Encode.encode("'" + message.path + "'\033[D".repeat(message.path.length + 2))
+				data: utf8Encode.encode("'" + message.path + "'" + ("\033[D".repeat(message.path.length + 2)))
 			}
 			messagebusSend(dataMessage);
 		}

@@ -1239,8 +1239,8 @@ function messagebusConnect() {
 				}
 				else if (message.type == "terminal_close_event") {
 					console.log("Terminal closed");
-					mbTerminal.writeln("\r\n\033[1;37m> Terminal closed <\033[0m");
-					mbTerminal.write("\033[?25l"); // Make cursor invisible
+					mbTerminal.writeln("\r\n\x1b[1;37m> Terminal closed <\x1b[0m");
+					mbTerminal.write("\x1b[?25l"); // Make cursor invisible
 				}
 			}
 		}
@@ -1255,7 +1255,7 @@ function messagebusConnect() {
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,
-				data: utf8Encode.encode("'" + message.path + "'" + ("\033[D".repeat(message.path.length + 2)))
+				data: utf8Encode.encode("'" + message.path + "'" + ("\x1b[D".repeat(message.path.length + 2)))
 			}
 			messagebusSend(dataMessage);
 		}
@@ -1706,9 +1706,11 @@ function toggleFullscreenTerminal(elementId, term) {
 	var elem = document.getElementById(elementId);
 	if (elem.getAttribute('fullscreenchangelistener') !== 'true') {
 		elem.addEventListener('fullscreenchange', (event) => {
-			setTimeout(function () {
-				term.fitAddon.fit();
-			}, 250);
+			if (term) {
+				setTimeout(function () {
+					term.fitAddon.fit();
+				}, 250);
+			}
 		});
 		elem.setAttribute('fullscreenchangelistener', 'true');
 	}

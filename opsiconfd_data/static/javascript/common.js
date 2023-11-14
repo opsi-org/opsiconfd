@@ -1,9 +1,9 @@
-var BASE_CONFIGED_DOWNLOAD_URL = "https://download.uib.de/4.2/stable/misc";
+var BASE_CONFIGED_DOWNLOAD_URL = "https://tools.43.opsi.org/stable";
 var CONFIGED_DOWNLOAD_LINKS = {
 	"Windows": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-windows.exe`,
 	"UNIX": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-linux.run`,
 	"Linux": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-linux.run`,
-	"MacOS": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-macos.sh`
+	"MacOS": `${BASE_CONFIGED_DOWNLOAD_URL}/opsi-configed-macos`
 }
 
 function getOS() {

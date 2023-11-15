@@ -75,7 +75,7 @@ def setup_main() -> None:
 	log_config()
 	if config.delete_locks:
 		delete_locks()
-	setup(full=True)
+	setup(explicit=True)
 
 
 def log_viewer_main() -> None:
@@ -348,7 +348,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 		)
 		log_config()
 
-		setup(full=bool(config.setup))
+		setup(explicit=bool(config.setup))
 
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)

@@ -106,7 +106,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	except Exception:  # pylint: disable=broad-except
 		pass
 	print("Setup database")
-	setup_mysql(full=True)
+	setup_mysql(explicit=True)
 	print("Setup backend")
 	setup_backend()
 

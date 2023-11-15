@@ -133,7 +133,7 @@ def test_setup_skip_ssl() -> None:
 def test_setup_skip_users_and_files() -> None:
 	with mock_all() as funcs:
 		with get_config({"skip_setup": ["users", "files"]}):
-			opsiconfd_setup(full=True)
+			opsiconfd_setup(explicit=True)
 			funcs["po_setup_users_and_groups"].assert_not_called()
 			funcs["setup_users_and_groups"].assert_not_called()
 			funcs["setup_files"].assert_not_called()
@@ -142,8 +142,8 @@ def test_setup_skip_users_and_files() -> None:
 
 def test_setup_full() -> None:
 	with mock_all() as funcs:
-		opsiconfd_setup(full=False)
+		opsiconfd_setup(explicit=False)
 		funcs["setup_systemd"].assert_not_called()
 	with mock_all() as funcs:
-		opsiconfd_setup(full=True)
+		opsiconfd_setup(explicit=True)
 		funcs["setup_systemd"].assert_called()

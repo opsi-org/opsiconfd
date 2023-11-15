@@ -48,6 +48,15 @@ from opsiconfd.setup.system import setup_limits, setup_systemd, setup_users_and_
 from opsiconfd.ssl import setup_ssl
 
 
+def restart_opsiconfd_if_running() -> None:
+	try:
+		if subprocess.run(["systemctl", "is-active", "--quiet", "opsiconfd"], check=False).returncode == 0:
+			rich_print("[b]Restarting opsiconfd[/b]")
+			subprocess.run("systemctl --no-pager --lines 0 restart opsiconfd &", shell=True, check=False)
+	except FileNotFoundError:
+		logger.debug("systemctl not available")
+
+
 def setup_redis() -> None:
 	# Delete obsolete keys
 	for delete_key in ("status",):
@@ -156,16 +165,6 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 					configs[0].defaultValues.append(depot.id)
 					service.jsonrpc("config_updateObjects", params=configs)
 
-				try:
-					if subprocess.run(["systemctl", "is-active", "--quiet", "opsiconfd"], check=False).returncode == 0:
-						rich_print("[b]Restarting opsiconfd[/b]")
-						try:
-							subprocess.run(["systemctl", "--no-pager", "--lines", "0", "restart", "opsiconfd"], check=True)
-						except Exception as err:  # pylint: disable=broad-exception-caught
-							logger.error(err)
-				except FileNotFoundError:
-					logger.debug("systemctl not available")
-
 				return True
 			except KeyboardInterrupt:
 				print("")
@@ -176,11 +175,14 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 		service.disconnect()
 
 
-def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-many-statements
+def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,too-many-statements
+	"""
+	explicit: called as "opsiconfd setup"?
+	"""
 	logger.notice("Running opsiconfd setup")
 	register_depot = getattr(config, "register_depot", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
-	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and full
+	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and explicit
 	force_server_id = None
 	rename_server = getattr(config, "rename_server", False)
 	if rename_server:
@@ -215,7 +217,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	backend_available = True
 	if opsi_config.get("host", "server-role") == "configserver" or configure_mysql:
 		try:
-			setup_mysql(interactive=interactive, full=full, force=configure_mysql)
+			setup_mysql(interactive=interactive, explicit=explicit, force=configure_mysql)
 			opsi_config.set("host", "server-role", "configserver", persistent=True)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
@@ -226,7 +228,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 				"Failed to setup MySQL: %s\nPlease use `opsiconfd setup --configure-mysql` to configure the MySQL connection manually.", err
 			)
 			backend_available = False
-			if not full:
+			if not explicit:
 				raise
 
 		if configure_mysql:
@@ -250,7 +252,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 	if "limits" not in config.skip_setup:
 		setup_limits()
 
-	if full:
+	if explicit:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
@@ -315,3 +317,6 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches,too-m
 			setup_sudoers()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to setup sudoers: %s", err, exc_info=True)
+
+	if explicit and (register_depot or rename_server):
+		restart_opsiconfd_if_running()

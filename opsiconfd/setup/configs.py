@@ -59,14 +59,31 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	add_config_states: list[ConfigState] = []
 
 	conf = configs.get("clientconfig.configserver.url")
-	if not conf or not conf.possibleValues or not conf.possibleValues:
+	if not conf or config.external_url not in conf.defaultValues or config.external_url not in conf.possibleValues:
+		possible_values = []
+		if conf and conf.possibleValues:
+			possible_values = conf.possibleValues
+
+		default_values = []
+		if conf and conf.defaultValues:
+			default_values = conf.defaultValues
+
+		if not possible_values:
+			possible_values = [config.external_url]
+			default_values = [config.external_url]
+
+		if config.external_url not in possible_values:
+			possible_values.insert(0, config.external_url)
+			if not default_values:
+				default_values = [config.external_url]
+
 		logger.info("Creating config 'clientconfig.configserver.url'")
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.configserver.url",
 				description="URL(s) of opsi config service(s) to use",
-				possibleValues=[config.external_url],
-				defaultValues=[config.external_url],
+				possibleValues=possible_values,
+				defaultValues=default_values,
 				editable=True,
 				multiValue=True,
 			)

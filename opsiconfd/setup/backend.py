@@ -137,7 +137,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 		mysql_root = MySQLConnection()
 
 
-def setup_mysql(interactive: bool = False, full: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
+def setup_mysql(interactive: bool = False, explicit: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
 	setup_mysql_connection(interactive=interactive, force=force)
 
 	mysql = MySQLConnection()
@@ -156,7 +156,7 @@ def setup_mysql(interactive: bool = False, full: bool = False, force: bool = Fal
 	if interactive and force:
 		rich_print("[b]Updating MySQL database[/b]")
 	try:
-		update_database(mysql, force=full)
+		update_database(mysql, force=explicit)
 	except Exception as err:
 		if interactive and force:
 			rich_print(f"[b][red]Failed to update MySQL database: {err}[/red][/b]")

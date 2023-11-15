@@ -140,7 +140,7 @@ def test_setup_skip_users_and_files() -> None:
 			funcs["setup_ssl"].assert_called()
 
 
-def test_setup_full() -> None:
+def test_setup_explicit() -> None:
 	with mock_all() as funcs:
 		opsiconfd_setup(explicit=False)
 		funcs["setup_systemd"].assert_not_called()

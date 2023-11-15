@@ -36,7 +36,7 @@ def test_setup() -> None:
 	with patch("opsiconfd.main.setup") as mock_setup:
 		with get_config({"action": "setup"}):
 			main()
-			mock_setup.assert_called_once_with(full=True)
+			mock_setup.assert_called_once_with(explicit=True)
 
 
 def test_log_viewer() -> None:

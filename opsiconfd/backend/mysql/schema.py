@@ -869,6 +869,14 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			columns=["productId", "productType", "productVersion", "packageVersion", "depotId"],
 		)
 		create_index(session=session, database=mysql.database, table="PRODUCT_ON_DEPOT", index="UNIQUE", columns=["productId", "depotId"])
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(table="PRODUCT_ON_DEPOT", ref_table="PRODUCT", f_keys=["productId"], ref_keys=["productId"]),
+			cleanup_function=remove_orphans_product_on_depot,
+		)
+
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
@@ -970,6 +978,19 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 			table="LICENSE_ON_CLIENT",
 			index="PRIMARY",
 			columns=["softwareLicenseId", "licensePoolId", "clientId"],
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
+				table="LICENSE_ON_CLIENT",
+				ref_table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
+				f_keys=["softwareLicenseId", "licensePoolId"],
+				update_rule="RESTRICT",
+				delete_rule="RESTRICT",
+			),
+			cleanup_function=remove_orphans_config_value,
 		)
 
 		if "object_to_group_id" in mysql.tables["OBJECT_TO_GROUP"]:
@@ -1171,6 +1192,20 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 				""",
 				params={"version": mysql.schema_version},
 			)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
+				table="SOFTWARE_LICENSE",
+				ref_table="LICENSE_CONTRACT",
+				f_keys=["licenseContractId"],
+				ref_keys=["licenseContractId"],
+				update_rule="RESTRICT",
+				delete_rule="RESTRICT",
+			),
+			cleanup_function=software_license_set_missing_hosts_to_null,
+		)
 
 		create_foreign_key(
 			session=session,

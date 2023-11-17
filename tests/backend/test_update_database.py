@@ -14,12 +14,10 @@ from typing import Any, Generator
 import pytest
 
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.backend.mysql.schema import create_audit_hardware_tables, create_database, drop_database, update_database
-from opsiconfd.config import get_configserver_id
+from opsiconfd.backend.mysql.schema import update_database
 from opsiconfd.setup.backend import setup_backend, setup_mysql
 from tests.utils import (  # pylint: disable=unused-import
 	Connection,
-	database_connection,
 )
 
 CREATE_TABLES_SQL = """
@@ -389,7 +387,7 @@ GET_CONSTRAINTS = """
 
 
 @pytest.fixture(autouse=True)
-def setup_and_cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
+def setup_and_cleanup_database() -> Generator[None, None, None]:
 	with open("tests/data/opsi-config/backends/mysql.conf", mode="r", encoding="utf-8") as conf:
 		_globals: dict[str, Any] = {}
 		exec(conf.read(), _globals)  # pylint: disable=exec-used
@@ -415,7 +413,7 @@ def setup_and_cleanup_database(database_connection: Connection) -> Generator[Non
 	setup_backend()
 
 
-def test_update_databaset(database_connection: Connection) -> None:
+def test_update_databaset() -> None:
 	mysql = MySQLConnection()
 	with mysql.connection():
 		with mysql.session() as session:

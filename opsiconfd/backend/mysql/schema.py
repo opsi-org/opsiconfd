@@ -990,7 +990,6 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 				update_rule="RESTRICT",
 				delete_rule="RESTRICT",
 			),
-			cleanup_function=remove_orphans_config_value,
 		)
 
 		if "object_to_group_id" in mysql.tables["OBJECT_TO_GROUP"]:

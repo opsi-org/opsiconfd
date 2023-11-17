@@ -152,6 +152,19 @@ def remove_orphans_windows_software_id_to_product(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from WINDOWS_SOFTWARE_ID_TO_PRODUCT", result.rowcount)
 
 
+def remove_orphans_license_on_client_to_software_license_to_license_pool(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE loc.* FROM LICENSE_ON_CLIENT AS loc
+		LEFT JOIN SOFTWARE_LICENSE_TO_LICENSE_POOL AS sltlp
+		ON loc.softwareLicenseId = sltlp.softwareLicenseId AND loc.licensePoolId = sltlp.licensePoolId
+		WHERE sltlp.softwareLicenseId IS NULL OR sltlp.licensePoolId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from LICENSE_ON_CLIENT", result.rowcount)
+
+
 def remove_orphans_license_on_client_to_host(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -162,7 +175,7 @@ def remove_orphans_license_on_client_to_host(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Removed %d orphaned entries from WINDOWS_SOFTWARE_ID_TO_PRODUCT", result.rowcount)
+		logger.notice("Removed %d orphaned entries from LICENSE_ON_CLIENT", result.rowcount)
 
 
 def remove_orphans_product_id_to_license_pool(session: Session) -> None:

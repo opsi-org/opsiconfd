@@ -16,9 +16,7 @@ import pytest
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.schema import update_database
 from opsiconfd.setup.backend import setup_backend, setup_mysql
-from tests.utils import (  # pylint: disable=unused-import
-	Connection,
-)
+from tests.utils import Connection, database_connection  # pylint: disable=unused-import
 
 CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS `CONFIG` (
@@ -413,19 +411,20 @@ def setup_and_cleanup_database() -> Generator[None, None, None]:
 	setup_backend()
 
 
-def test_update_databaset() -> None:
-	mysql = MySQLConnection()
-	with mysql.connection():
-		with mysql.session() as session:
-			res = session.execute(GET_CONSTRAINTS).fetchall()
-			assert len(res) < 50
+def test_update_databaset(database_connection: Connection) -> None:
+	database_connection.autocommit(True)
+	cursor = database_connection.cursor()
+	cursor.execute(GET_CONSTRAINTS)
+	res = cursor.fetchall()
+	assert len(res) < 50
 
 	mysql = MySQLConnection()
 	mysql.connect()
 	update_database(mysql)
 
-	mysql = MySQLConnection()
-	with mysql.connection():
-		with mysql.session() as session:
-			res = session.execute(GET_CONSTRAINTS).fetchall()
-			assert len(res) == 50
+	# mysql = MySQLConnection()
+	# with mysql.connection():
+	# 	with mysql.session() as session:
+	cursor.execute(GET_CONSTRAINTS)
+	res = cursor.fetchall()
+	assert len(res) == 50

@@ -411,7 +411,7 @@ def setup_and_cleanup_database() -> Generator[None, None, None]:
 	setup_backend()
 
 
-def test_update_databaset(database_connection: Connection) -> None:
+def test_update_databaset(database_connection: Connection) -> None:  # pylint: disable=redefined-outer-name
 	database_connection.autocommit(True)
 	cursor = database_connection.cursor()
 	cursor.execute(GET_CONSTRAINTS)
@@ -422,9 +422,6 @@ def test_update_databaset(database_connection: Connection) -> None:
 	mysql.connect()
 	update_database(mysql)
 
-	# mysql = MySQLConnection()
-	# with mysql.connection():
-	# 	with mysql.session() as session:
 	cursor.execute(GET_CONSTRAINTS)
 	res = cursor.fetchall()
 	assert len(res) == 50

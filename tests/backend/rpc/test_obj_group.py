@@ -8,21 +8,16 @@
 test opsiconfd.backend groups
 """
 
-from pathlib import Path
 from typing import Generator
-from uuid import uuid4
 
 import pytest
 
-from opsiconfd.backend.rpc.main import ProtectedBackend
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,
 	OpsiconfdTestClient,
-	clean_redis,
 	database_connection,
-	get_config,
 	test_client,
 )
 

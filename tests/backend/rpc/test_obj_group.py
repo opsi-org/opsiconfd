@@ -63,11 +63,11 @@ def test_group_insertObject(  # pylint: disable=invalid-name,disable=redefined-o
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "group_getObjects", "params": [None, {"id": group1["id"]}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-	client = res["result"][0]
+	group = res["result"][0]
 	for attr, val in group1.items():
-		assert val == client[attr]
+		assert val == group[attr]
 
-	# Update client 1 with null values
+	# Update group 1 with null values
 	group1["description"] = "new"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "group_insertObject", "params": [group1]}
 	res = test_client.post("/rpc", json=rpc).json()
@@ -77,9 +77,9 @@ def test_group_insertObject(  # pylint: disable=invalid-name,disable=redefined-o
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "group_getObjects", "params": [None, {"id": group1["id"]}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-	client = res["result"][0]
+	group = res["result"][0]
 	for attr, val in group1.items():
-		assert val == group1[attr]
+		assert val == group[attr]
 
 
 def test_group_updateObject(  # pylint: disable=invalid-name,redefined-outer-name

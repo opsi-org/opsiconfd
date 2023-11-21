@@ -39,7 +39,7 @@ _opsipxeconfd_connection_threads_lock: Lock = Lock()
 
 
 class OpsiPXEConfdConnection:  # pylint: disable=too-few-public-methods
-	def __init__(self, socket_path: str, timeout: int = 10) -> None:
+	def __init__(self, socket_path: str, timeout: int = 60) -> None:
 		self._socket_path = socket_path
 		self._timeout = int(timeout)
 

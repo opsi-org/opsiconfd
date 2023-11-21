@@ -113,17 +113,17 @@ def test_check_run_as_user() -> None:
 			group.gr_gid = 103
 		return group
 
-	with mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
-		with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
-			"opsiconfd.check.grp.getgrnam", mock_getgrnam
+	with mock.patch("opsiconfd.check.config.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
+		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
 			result = check_run_as_user()
 
 			pprint.pprint(result)
 			assert result.check_status == CheckStatus.OK
 
-		with mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
-			"opsiconfd.check.grp.getgrnam", mock_getgrnam
+		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
 			mock_user.pw_dir = "/wrong/home"
 			result = check_run_as_user()
@@ -131,9 +131,9 @@ def test_check_run_as_user() -> None:
 			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
 
 	with (
-		mock.patch("opsiconfd.check.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))),
-		mock.patch("opsiconfd.check.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
-		mock.patch("opsiconfd.check.grp.getgrnam", mock_getgrnam),
+		mock.patch("opsiconfd.check.config.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))),
+		mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
+		mock.patch("opsiconfd.check.config.grp.getgrnam", mock_getgrnam),
 	):
 		result = check_run_as_user()
 		assert result.check_status == CheckStatus.ERROR
@@ -223,7 +223,7 @@ def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 
 def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 	with mock.patch(
-		"opsiconfd.check.MySQLConnection.connect",
+		"opsiconfd.check.mysql.MySQLConnection.connect",
 		side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'),
 	):
 		console = Console(log_time=False, force_terminal=False, width=1000)
@@ -269,8 +269,8 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 		stdout = "\n".join(dpkg_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsiconfd.check.system.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
+		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
 		result = check_system_packages()
@@ -297,8 +297,8 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 	Proc.stdout = "\n".join(dpkg_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsiconfd.check.system.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
+		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
 		result = check_system_packages()
@@ -334,8 +334,8 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		stdout = "\n".join(zypper_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsiconfd.check.system.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
+		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"opensuse"})),
 	):
 		result = check_system_packages()
@@ -364,8 +364,8 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 		stdout = "\n".join(yum_lines) + "\n"
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
-		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsiconfd.check.system.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
+		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"rhel"})),
 	):
 		result = check_system_packages()
@@ -475,7 +475,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 13
+	assert len(results) == 14
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status

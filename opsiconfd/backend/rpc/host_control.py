@@ -144,7 +144,7 @@ class ConnectionThread(Thread):  # pylint: disable=too-many-instance-attributes
 		self.ended = time.time()
 
 
-class RPCHostControlMixin(Protocol):
+class RPCHostControlMixin(Protocol):  # pylint: too-many-public-methods
 	_host_control_opsiclientd_port: int = 4441
 	_host_control_host_rpc_timeout: int = 15
 	_host_control_host_reachable_timeout: int = 3

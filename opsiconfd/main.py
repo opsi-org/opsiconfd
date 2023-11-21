@@ -32,6 +32,7 @@ from rich.prompt import Prompt
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
 from opsiconfd.backup import create_backup, read_backup_file_data, restore_backup
+from opsiconfd.check.cli import console_health_check
 from opsiconfd.config import (
 	GC_THRESHOLDS,
 	config,
@@ -51,8 +52,6 @@ from opsiconfd.redis import delete_recursively, redis_client
 from opsiconfd.setup import setup
 from opsiconfd.setup.backend import setup_mysql
 from opsiconfd.utils import get_manager_pid, log_config
-
-from .check import console_health_check
 
 REDIS_CONECTION_TIMEOUT = 30
 

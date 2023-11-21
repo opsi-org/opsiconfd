@@ -17,7 +17,7 @@ from opsiconfd.auth.role import Role
 class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-public-methods
 	name: str
 
-	def __init__(  # pylint: disable=too-many-arguments
+	def __init__(  # pylint: disable=too-many-arguments,too-many-locals
 		self,
 		name: str,
 		role: str = "",

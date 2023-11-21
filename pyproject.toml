@@ -28,7 +28,7 @@ follow_imports = "silent"
 
 [tool.ruff]
 line-length = 140
-ignore = [ "F401", "E402", "F811",]
+ignore = [ "F401", "E402", "F811"]
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"
@@ -67,8 +67,8 @@ websockets = "^12.0"
 wsgidav = "^4.3"
 yappi = "^1.4"
 
-[tool.ruff.per-file-ignores]
-"opsiconfd/check.py" = [ "E101", "E501",]
+#[tool.ruff.per-file-ignores]
+#"opsiconfd/check.py" = [ "E101", "E501",]
 
 [tool.ruff.format]
 indent-style = "tab"

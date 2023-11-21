@@ -130,7 +130,7 @@ def get_method_interface(  # pylint: disable=too-many-locals
 	)
 
 
-def rpc_method(
+def rpc_method(  # pylint:disable=too-many-arguments
 	func: Callable | None = None,
 	/,
 	*,

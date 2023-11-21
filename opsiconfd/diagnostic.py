@@ -20,7 +20,8 @@ import psutil
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check import get_disk_mountpoints, get_installed_packages, health_check
+from opsiconfd.check import health_check
+from opsiconfd.check.system import get_disk_mountpoints, get_installed_packages
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import running_in_docker

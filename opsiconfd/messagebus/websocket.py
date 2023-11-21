@@ -19,6 +19,8 @@ import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
 from opsicommon.messagebus import (  # type: ignore[import]
+	CONNECTION_SESSION_CHANNEL,
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionOperation,
 	ChannelSubscriptionRequestMessage,
@@ -204,9 +206,9 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 		for idx, channel in enumerate(channels):
 			channel = channel.strip()
-			if channel == "@":
+			if channel == CONNECTION_USER_CHANNEL:
 				channel = self._user_channel
-			elif channel == "$":
+			elif channel == CONNECTION_SESSION_CHANNEL:
 				channel = self._session_channel
 			channels[idx] = channel
 
@@ -335,14 +337,14 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			msg_dict["sender"] = self._messagebus_user_id
 
 			message = Message.from_dict(msg_dict)
-			if not message.back_channel or message.back_channel == "$":
+			if not message.back_channel or message.back_channel == CONNECTION_SESSION_CHANNEL:
 				message.back_channel = self._session_channel
-			elif message.back_channel == "@":
+			elif message.back_channel == CONNECTION_USER_CHANNEL:
 				message.back_channel = self._user_channel
 
-			if message.channel == "$":
+			if message.channel == CONNECTION_SESSION_CHANNEL:
 				message.channel = self._session_channel
-			elif message.channel == "@":
+			elif message.channel == CONNECTION_USER_CHANNEL:
 				message.channel = self._user_channel
 
 			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):

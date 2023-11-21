@@ -21,6 +21,7 @@ from typing import Callable
 
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.messagebus import (  # type: ignore[import]
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
@@ -263,7 +264,9 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 	channel = f"{get_messagebus_worker_id()}:terminal"
 
 	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
-	subscription_message = ChannelSubscriptionRequestMessage(sender="@", channel="service:messagebus", channels=[channel], operation="add")
+	subscription_message = ChannelSubscriptionRequestMessage(
+		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[channel], operation="add"
+	)
 	await service_client.messagebus.async_send_message(subscription_message)
 
 	message_queue: Queue[
@@ -348,7 +351,7 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 	depot_id = get_depotserver_id()
 	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
 	message = ChannelSubscriptionRequestMessage(
-		sender="@", channel="service:messagebus", channels=[f"service:depot:{depot_id}:terminal"], operation="set"
+		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[f"service:depot:{depot_id}:terminal"], operation="set"
 	)
 	await service_client.messagebus.async_send_message(message)
 

@@ -29,6 +29,7 @@ from fastapi.requests import Request
 from fastapi.responses import Response
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.messagebus import (  # type: ignore[import]
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
@@ -603,7 +604,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 	depot_id = get_depotserver_id()
 	service_client = await run_in_threadpool(get_service_client, "messagebus jsonrpc")
 	message = ChannelSubscriptionRequestMessage(
-		sender="@", channel="service:messagebus", channels=[f"service:depot:{depot_id}:jsonrpc"], operation="set"
+		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[f"service:depot:{depot_id}:jsonrpc"], operation="set"
 	)
 	await run_in_threadpool(service_client.messagebus.send_message, message)
 
@@ -630,7 +631,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 			result = await process_rpc_error(err)
 
 		response = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-			sender="@",
+			sender=CONNECTION_USER_CHANNEL,
 			channel=request.back_channel or request.sender,
 			ref_id=request.id,
 			rpc_id=str(result.id),

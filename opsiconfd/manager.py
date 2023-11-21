@@ -21,6 +21,7 @@ from typing import Optional
 import psutil
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
 from opsicommon.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	Message,
 	TraceRequestMessage,
@@ -274,7 +275,7 @@ class DepotserverManagerMessagebusListener(MessagebusListener):
 		logger.debug("Message received: %s", message)
 		if isinstance(message, TraceRequestMessage):
 			response = TraceResponseMessage(
-				sender="@",
+				sender=CONNECTION_USER_CHANNEL,
 				channel=message.back_channel or message.sender,
 				ref_id=message.id,
 				req_trace=message.trace,

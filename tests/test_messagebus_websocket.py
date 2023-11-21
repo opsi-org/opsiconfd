@@ -14,6 +14,8 @@ from uuid import uuid4
 
 import pytest
 from opsicommon.messagebus import (  # type: ignore[import]
+	CONNECTION_SESSION_CHANNEL,
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
@@ -60,7 +62,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				reader.wait_for_message()
 				next(reader.get_raw_messages())
 				jsonrpc_request_message = JSONRPCRequestMessage(
-					sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
+					sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 				)
 				data = jsonrpc_request_message.to_msgpack()
 				if compression:
@@ -98,22 +100,24 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			assert user_channel == f"user:{ADMIN_USER}"
 			assert session_channel
 
-			message = Message(type="test", sender="@", channel=session_channel, id="1")
+			message = Message(
+				type="test", sender=CONNECTION_USER_CHANNEL, channel=session_channel, id="00000000-0000-4000-8000-000000000001"
+			)
 			websocket.send_bytes(message.to_msgpack())
-			message = Message(type="test", sender="@", channel=user_channel, id="2")
+			message = Message(type="test", sender=CONNECTION_USER_CHANNEL, channel=user_channel, id="00000000-0000-4000-8000-000000000002")
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=2)
 			messages = [Message.from_msgpack(msg) for msg in list(reader.get_raw_messages())]
 			assert len(messages) == 2
 
-			assert sorted([msg.id for msg in messages]) == ["1", "2"]
+			assert sorted([msg.id for msg in messages]) == ["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"]
 
 			# Subscribe for 2 new session channels
 			other_channel1 = "session:11111111-1111-1111-1111-111111111111"
 			other_channel2 = "session:22222222-2222-2222-2222-222222222222"
 			message = ChannelSubscriptionRequestMessage(
-				sender="@", channel="service:messagebus", channels=[other_channel1, other_channel2], operation="add"
+				sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[other_channel1, other_channel2], operation="add"
 			)
 			websocket.send_bytes(message.to_msgpack())
 
@@ -127,19 +131,30 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			assert other_channel1 in message.subscribed_channels
 			assert other_channel2 in message.subscribed_channels
 
-			message = Message(type="test", sender="@", channel=session_channel, id="3")
+			message = Message(
+				type="test", sender=CONNECTION_USER_CHANNEL, channel=session_channel, id="00000000-0000-4000-8000-000000000003"
+			)
 			websocket.send_bytes(message.to_msgpack())
-			message = Message(type="test", sender="@", channel=user_channel, id="4")
+			message = Message(type="test", sender=CONNECTION_USER_CHANNEL, channel=user_channel, id="00000000-0000-4000-8000-000000000004")
 			websocket.send_bytes(message.to_msgpack())
-			message = Message(type="test", sender="@", channel=other_channel1, id="5")
+			message = Message(
+				type="test", sender=CONNECTION_USER_CHANNEL, channel=other_channel1, id="00000000-0000-4000-8000-000000000005"
+			)
 			websocket.send_bytes(message.to_msgpack())
-			message = Message(type="test", sender="@", channel=other_channel2, id="6")
+			message = Message(
+				type="test", sender=CONNECTION_USER_CHANNEL, channel=other_channel2, id="00000000-0000-4000-8000-000000000006"
+			)
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=4)
 			messages = [Message.from_msgpack(msg) for msg in list(reader.get_raw_messages())]
 			assert len(messages) == 4
-			assert sorted([msg.id for msg in messages]) == ["3", "4", "5", "6"]
+			assert sorted([msg.id for msg in messages]) == [
+				"00000000-0000-4000-8000-000000000003",
+				"00000000-0000-4000-8000-000000000004",
+				"00000000-0000-4000-8000-000000000005",
+				"00000000-0000-4000-8000-000000000006",
+			]
 
 
 def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals,redefined-outer-name
@@ -168,7 +183,9 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 
 					sleep(1)
 					assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"2"
-					message = Message(type="test_multi_client", sender="@", channel=channel, id="1")
+					message = Message(
+						type="test_multi_client", sender=CONNECTION_USER_CHANNEL, channel=channel, id="00000000-0000-4000-8000-000000000001"
+					)
 					websocket1.send_bytes(message.to_msgpack())
 					for reader in (reader1, reader2):
 						reader.wait_for_message(count=1)
@@ -176,7 +193,7 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 						# print(messages)
 						assert len(messages) == 1
 						assert messages[0]["type"] == "test_multi_client"
-						assert messages[0]["id"] == "1"
+						assert messages[0]["id"] == "00000000-0000-4000-8000-000000000001"
 
 					sleep(1)
 					# print(list(reader2.get_messages()))
@@ -192,14 +209,19 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 							sleep(1)
 							sleep(1)
 							assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"3"
-							message = Message(type="test_multi_client", sender="@", channel=channel, id="2")
+							message = Message(
+								type="test_multi_client",
+								sender=CONNECTION_USER_CHANNEL,
+								channel=channel,
+								id="00000000-0000-4000-8000-000000000002",
+							)
 							websocket1.send_bytes(message.to_msgpack())
 							for reader in (reader1, reader2, reader3):
 								reader.wait_for_message(count=1)
 								messages = list(reader.get_messages())
 								assert len(messages) == 1
 								assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
-								assert messages[0]["id"] == "2"  # type: ignore[call-overload]
+								assert messages[0]["id"] == "00000000-0000-4000-8000-000000000002"  # type: ignore[call-overload]
 
 					sleep(1)
 					assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"2"
@@ -227,7 +249,7 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 				assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
 
 				message = ChannelSubscriptionRequestMessage(
-					sender="@", channel="service:messagebus", channels=["service:config:jsonrpc"], operation="add"
+					sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=["service:config:jsonrpc"], operation="add"
 				)
 				websocket.send_bytes(message.to_msgpack())
 
@@ -239,7 +261,7 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 			count = 50
 			for rpc_id in range(count):
 				jsonrpc_request_message = JSONRPCRequestMessage(
-					sender="@", channel="service:config:jsonrpc", rpc_id=str(rpc_id), method="accessControl_userIsAdmin"
+					sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id=str(rpc_id), method="accessControl_userIsAdmin"
 				)
 				websocket.send_bytes(jsonrpc_request_message.to_msgpack())
 
@@ -287,19 +309,23 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 					reader.wait_for_message(count=1)
 					assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
 					jsonrpc_request_message1 = JSONRPCRequestMessage(
-						sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
+						sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 					)
 					websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
 					jsonrpc_request_message2 = JSONRPCRequestMessage(
-						sender="@", channel="service:config:jsonrpc", rpc_id="2", method="config_create", params=("test", "descr")
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="2",
+						method="config_create",
+						params=("test", "descr"),
 					)
 					websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
 					jsonrpc_request_message3 = JSONRPCRequestMessage(
-						sender="@", channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
+						sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
 					)
 					websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
 					jsonrpc_request_message4 = JSONRPCRequestMessage(
-						sender="@",
+						sender=CONNECTION_USER_CHANNEL,
 						channel="service:config:jsonrpc",
 						rpc_id="4",
 						method="hostControl_start",
@@ -356,7 +382,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 
 				terminal_id = str(uuid4())
 				terminal_open_request = TerminalOpenRequestMessage(
-					sender="@", channel="service:config:terminal", terminal_id=terminal_id, rows=20, cols=100
+					sender=CONNECTION_USER_CHANNEL, channel="service:config:terminal", terminal_id=terminal_id, rows=20, cols=100
 				)
 				websocket.send_bytes(terminal_open_request.to_msgpack())
 
@@ -380,7 +406,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				assert responses[1].terminal_id == terminal_id
 				assert responses[1].data
 				terminal_data_write = TerminalDataWriteMessage(
-					sender="@", channel=back_channel, terminal_id=terminal_id, data=b"echo test\r"
+					sender=CONNECTION_USER_CHANNEL, channel=back_channel, terminal_id=terminal_id, data=b"echo test\r"
 				)
 				websocket.send_bytes(terminal_data_write.to_msgpack())
 				reader.wait_for_message(count=1)
@@ -394,7 +420,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				assert responses[0].terminal_id == terminal_id
 				assert "echo test\r\n" in responses[0].data.decode("utf-8")
 				terminal_resize_request = TerminalResizeRequestMessage(
-					sender="@", channel=back_channel, terminal_id=terminal_id, rows=10, cols=20
+					sender=CONNECTION_USER_CHANNEL, channel=back_channel, terminal_id=terminal_id, rows=10, cols=20
 				)
 				websocket.send_bytes(terminal_resize_request.to_msgpack())
 
@@ -421,7 +447,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			next(reader.get_messages())
 
 			payload = randbytes(16 * 1024)
-			message1 = TraceRequestMessage(sender="@", channel="$", payload=payload, trace={})
+			message1 = TraceRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=CONNECTION_SESSION_CHANNEL, payload=payload, trace={})
 			assert round(message1.created / 1000) == round(time())
 			message1.trace["sender_ws_send"] = int(time() * 1000)
 			websocket.send_bytes(message1.to_msgpack())
@@ -432,8 +458,8 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			assert message2.created == message1.created
 
 			message3 = TraceResponseMessage(
-				sender="@",
-				channel="$",
+				sender=CONNECTION_USER_CHANNEL,
+				channel=CONNECTION_SESSION_CHANNEL,
 				ref_id=message2.id,
 				req_trace=message2.trace,
 				trace={"sender_ws_send": timestamp()},
@@ -473,7 +499,7 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	with test_client.websocket_connect("/messagebus/v1") as websocket:
 		with WebSocketMessageReader(websocket) as reader:
 			message = ChannelSubscriptionRequestMessage(
-				sender="@", channel="service:messagebus", channels=["event:config_created"], operation="add"
+				sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=["event:config_created"], operation="add"
 			)
 			websocket.send_bytes(message.to_msgpack())
 			reader.wait_for_message(count=2)

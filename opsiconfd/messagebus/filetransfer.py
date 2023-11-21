@@ -18,6 +18,7 @@ from typing import Callable
 from opsicommon.messagebus import (  # type: ignore[import]
 	Error,
 	FileChunkMessage,
+	FileErrorMessage,
 	FileUploadRequestMessage,
 	FileUploadResultMessage,
 	Message,
@@ -83,13 +84,13 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 		return self._file_upload_request.back_channel or self._file_upload_request.sender
 
 	async def _error(self, error: str, message: Message | None = None) -> None:
-		upload_result = FileUploadResultMessage(
+		upload_result = FileErrorMessage(
 			sender=self._sender,
 			channel=self.back_channel(message),
 			ref_id=message.id if message else None,
 			file_id=self.file_id,
 			error=Error(
-				code=0,
+				code=None,
 				message=error,
 				details=None,
 			),
@@ -158,13 +159,13 @@ async def process_message(
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning(err, exc_info=True)
 
-		upload_result = FileUploadResultMessage(
+		upload_result = FileErrorMessage(
 			sender=get_messagebus_worker_id(),
-			channel=message.back_channel or message.sender,
+			channel=message.response_channel,
 			ref_id=message.id,
 			file_id=message.file_id,
 			error=Error(
-				code=0,
+				code=None,
 				message=str(err),
 				details=None,
 			),

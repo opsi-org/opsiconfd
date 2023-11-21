@@ -242,7 +242,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			for channel in channels:
 				if not self._check_channel_access(channel, "read"):
 					subsciption_event.error = Error(
-						code=0,
+						code=None,
 						message=f"Write access to channel {channel!r} denied",
 						details=None,
 					)
@@ -368,7 +368,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					channel=self._session_channel,
 					ref_id=message_id,
 					error=Error(
-						code=0,
+						code=None,
 						message=str(err),
 						details=str(traceback.format_exc()) if self.scope["session"].is_admin else None,
 					),

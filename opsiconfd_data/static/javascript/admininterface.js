@@ -1259,9 +1259,12 @@ function messagebusConnect() {
 			}
 			messagebusSend(dataMessage);
 		}
-		else if (message.type == "general_error") {
+		else if (message.type == "general_error" || message.type == "file_error") {
 			console.error(message.error);
 			showNotifcation(message.error.message + "\n" + message.error.details, "", "error", 10);
+			if (message.type == "general_error" || message.type == "file_error") {
+				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
+			}
 		}
 
 		if (

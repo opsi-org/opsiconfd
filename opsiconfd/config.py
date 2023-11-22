@@ -1109,7 +1109,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		self._parser.add(
 			"--addon-dirs",
 			nargs="+",
-			env_var="OPSI_ADDON_DIRS",
+			env_var="OPSICONFD_ADDON_DIRS",
 			default=["/usr/lib/opsiconfd/addons", VAR_ADDON_DIR],
 			help=self._help("expert", "A list of addon directories"),
 		)

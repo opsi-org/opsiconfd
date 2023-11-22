@@ -766,7 +766,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			if attr in ident_attrs:
 				where.append(f"`{column.column}` = :{attr}")
 
-			if attr == "type" and data[attr] in ("Host", "Config", "Product", "Group"):
+			if attr == "type" and data[attr] in ("Host", "Config", "Product", "Group", "ProductProperty"):
 				# Abstact class
 				continue
 

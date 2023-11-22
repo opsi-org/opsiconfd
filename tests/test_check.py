@@ -14,6 +14,7 @@ import pprint
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable
 from unittest import mock
 from warnings import catch_warnings, simplefilter
@@ -43,6 +44,7 @@ from opsiconfd.check import (
 	check_product_on_depots,
 	check_redis,
 	check_run_as_user,
+	check_ssl,
 	check_system_packages,
 	health_check,
 )
@@ -51,6 +53,15 @@ from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.opsipackages import get_available_product_versions
 from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
+from opsiconfd.ssl import (
+	create_ca,
+	create_local_server_cert,
+	get_ca_subject,
+	store_ca_cert,
+	store_ca_key,
+	store_local_server_cert,
+	store_local_server_key,
+)
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -475,7 +486,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 14
+	assert len(results) == 15
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status
@@ -587,3 +598,77 @@ def test_check_ldap_connection() -> None:
 	result = check_ldap_connection()
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "LDAP authentication is not configured."
+
+
+def test_check_ssl(tmpdir: Path) -> None:  # pylint: disable=too-many-statements
+	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
+	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	ssl_server_cert = tmpdir / "opsi-server-cert.pem"
+	ssl_server_key = tmpdir / "opsi-server-key.pem"
+
+	with get_config(
+		{
+			"ssl_ca_cert": str(ssl_ca_cert),
+			"ssl_ca_key": str(ssl_ca_key),
+			"ssl_server_cert": str(ssl_server_cert),
+			"ssl_server_key": str(ssl_server_key),
+		}
+	):
+		# CA key, CA cert, server key, server cert file missing
+		result = check_ssl()
+		assert result.check_status == CheckStatus.ERROR
+		assert result.message == "Some SSL issues where found."
+		assert result.partial_results[0].message.startswith("A problem was found with the opsi CA certificate")
+		assert result.partial_results[2].message.startswith("A problem was found with the opsi CA key")
+		assert result.partial_results[3].message.startswith("A problem was found with the server certificate")
+		assert result.partial_results[4].message.startswith("A problem was found with the server key")
+
+		ca_subject = get_ca_subject()
+
+		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_valid_days + 10)
+		store_ca_key(ca_key)
+		store_ca_cert(ca_crt)
+
+		(srv_crt, srv_key) = create_local_server_cert(renew=False)
+		store_local_server_cert(srv_crt)
+		store_local_server_key(srv_key)
+
+		result = check_ssl()
+		assert result.check_status == CheckStatus.OK
+		assert result.message == "No SSL issues found."
+		assert (
+			result.partial_results[0].message
+			== f"The opsi CA certificate is OK and will expire in {config.ssl_ca_cert_valid_days + 9} days."
+		)
+		assert result.partial_results[1].check_status == CheckStatus.OK
+		assert result.partial_results[1].message == "The opsi CA is not a intermediate CA"
+		assert result.partial_results[2].message == "The opsi CA key is OK."
+
+		with mock.patch(
+			"opsiconfd.check.ssl.get_ca_subject",
+			lambda: {
+				"C": "DE",
+				"ST": "RP",
+				"L": "MAINZ",
+				"O": "uib",
+				"OU": "opsi@new.domain",
+				"CN": config.ssl_ca_subject_cn,
+				"emailAddress": "opsi@new.domain",
+			},
+		):
+			result = check_ssl()
+			assert result.check_status == CheckStatus.WARNING
+			assert result.partial_results[0].message.startswith("The subject of the CA has changed from")
+
+		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_renew_days - 10)
+		store_ca_key(ca_key)
+		store_ca_cert(ca_crt)
+		result = check_ssl()
+
+		assert result.check_status == CheckStatus.ERROR
+		assert (
+			result.partial_results[0].message
+			== f"The opsi CA certificate is OK but will expire in {config.ssl_ca_cert_renew_days - 11} days."
+		)
+		assert result.partial_results[4].check_status == CheckStatus.ERROR
+		assert result.partial_results[4].message == "Failed to verify server cert with opsi CA."

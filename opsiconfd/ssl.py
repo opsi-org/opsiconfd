@@ -98,6 +98,52 @@ def setup_ssl_file_permissions() -> None:
 		set_rights(permission.path)
 
 
+def get_not_before_and_not_after(cert: X509) -> tuple[datetime.datetime | None, int | None, datetime.datetime | None, int | None]:
+	dt_not_before = None
+	not_before_days = None
+	dt_not_after = None
+	not_after_days = None
+	if not_before := cert.get_notBefore():
+		dt_not_before = datetime.datetime.strptime(not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
+		not_before_days = (dt_not_before - datetime.datetime.now()).days
+
+	if not_after := cert.get_notAfter():
+		dt_not_after = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
+		not_after_days = (dt_not_after - datetime.datetime.now()).days
+
+	return (dt_not_before, not_before_days, dt_not_after, not_after_days)
+
+
+def get_cert_info(cert: X509, renew_days: int) -> dict[str, Any]:
+	alt_names = ""
+	for idx in range(0, cert.get_extension_count()):
+		if cert.get_extension(idx).get_short_name() == b"subjectAltName":
+			alt_names = str(cert.get_extension(idx))
+
+	dt_not_before, _not_before_days, dt_not_after, not_after_days = get_not_before_and_not_after(cert)
+
+	return {
+		"issuer": cert.get_issuer(),
+		"subject": cert.get_subject(),
+		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)).upper(),
+		"fingerprint_sha1": cert.digest("sha1").decode("ascii"),
+		"fingerprint_sha256": cert.digest("sha256").decode("ascii"),
+		"not_before": dt_not_before,
+		"not_after": dt_not_after,
+		"expires_in_days": not_after_days,
+		"renewal_in_days": (not_after_days or 0) - renew_days,
+		"alt_names": alt_names,
+	}
+
+
+def get_ca_cert_info() -> dict[str, Any]:
+	return get_cert_info(load_ca_cert(), config.ssl_ca_cert_renew_days)
+
+
+def get_server_cert_info() -> dict[str, Any]:
+	return get_cert_info(load_local_server_cert(), config.ssl_server_cert_renew_days)
+
+
 def store_key(key_file: str | Path, passphrase: str, key: PKey) -> None:
 	if not isinstance(key_file, Path):
 		key_file = Path(key_file)
@@ -284,14 +330,11 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 			logger.warning("CA cert does not match CA key, creating new CA cert")
 			renew = True
 		else:
-			not_after = ca_crt.get_notAfter()
-			if not_after:
-				enddate = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
-				diff = (enddate - datetime.datetime.now()).days
-
-				logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, diff)
-				if diff <= config.ssl_ca_cert_renew_days:
-					logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, diff)
+			not_after_days = get_not_before_and_not_after(ca_crt)[3]
+			if not_after_days:
+				logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, not_after_days)
+				if not_after_days <= config.ssl_ca_cert_renew_days:
+					logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, not_after_days)
 					renew = True
 
 	if create or renew:
@@ -305,7 +348,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 
 		if current_ca_subject and ca_subject != current_ca_subject:
 			logger.warning(
-				"The subject of the CA has change from %r to %r."
+				"The subject of the CA has changed from %r to %r."
 				" If this change is intended, please delete"
 				" the current CA certificate '%s' and restart opsiconfd."
 				" Caution, clients that trust an opsi CA with the previous subject"
@@ -377,22 +420,36 @@ def validate_cert(cert: X509, ca_cert: X509 | None = None) -> None:
 	store_ctx.verify_certificate()
 
 	if ca_cert:
-		ca_cert_not_before = ca_cert.get_notBefore()
-		cert_not_before = cert.get_notBefore()
-		if ca_cert_not_before and cert_not_before:
-			dt_ca_cert_not_before = datetime.datetime.strptime(ca_cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
-			dt_cert_not_before = datetime.datetime.strptime(cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
-			if dt_ca_cert_not_before > dt_cert_not_before:
-				raise X509StoreContextError(  # type: ignore[call-arg]
-					message=f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}",
-					errors=[],
-					certificate=ca_cert,
-				)
+		dt_ca_cert_not_before = get_not_before_and_not_after(ca_cert)[0]
+		dt_cert_not_before = get_not_before_and_not_after(cert)[0]
+		if dt_ca_cert_not_before and dt_cert_not_before and dt_ca_cert_not_before > dt_cert_not_before:
+			raise X509StoreContextError(  # type: ignore[call-arg]
+				message=f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}",
+				errors=[],
+				certificate=ca_cert,
+			)
 
 
 def opsi_ca_is_self_signed(ca_cert: X509 | None = None) -> bool:
 	ca_cert = ca_cert or load_ca_cert()
 	return ca_cert.get_issuer().CN == ca_cert.get_subject().CN
+
+
+def check_intermediate_ca(ca_cert: X509) -> bool:
+	if opsi_ca_is_self_signed():
+		return False
+
+	# opsi CA is not self-signed. opsi CA is an intermediate CA.
+	try:
+		validate_cert(ca_cert)
+	except X509StoreContextError as err:
+		issuer_subject = str(ca_cert.get_issuer()).split("'")[1]
+		raise RuntimeError(
+			f"Opsi CA is an intermediate CA, issuer is {issuer_subject!r}, {err}. "
+			f"Make sure issuer certficate is in {config.ssl_trusted_certs!r} "
+			"or specify a certificate database containing the issuer certificate via --ssl-trusted-certs."
+		) from err
+	return True
 
 
 def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
@@ -405,17 +462,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
 
 	ca_cert = load_ca_cert()
-	if not opsi_ca_is_self_signed():
-		# opsi CA is not self-signed. opsi CA is an intermediate CA.
-		try:
-			validate_cert(ca_cert)
-		except X509StoreContextError as err:
-			issuer_subject = str(ca_cert.get_issuer()).split("'")[1]
-			raise RuntimeError(
-				f"Opsi CA is an intermediate CA, issuer is {issuer_subject!r}, {err}. "
-				f"Make sure issuer certficate is in {config.ssl_trusted_certs!r} "
-				"or specify a certificate database containing the issuer certificate via --ssl-trusted-certs."
-			) from err
+	check_intermediate_ca(ca_cert)
 
 	create = force_new
 
@@ -466,14 +513,11 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 			create = True
 
 	if not create and srv_crt:
-		not_after = srv_crt.get_notAfter()
-		if not_after:
-			enddate = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
-			diff = (enddate - datetime.datetime.now()).days
-
-			logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
-			if diff <= config.ssl_server_cert_renew_days:
-				logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, diff)
+		not_after_days = get_not_before_and_not_after(srv_crt)[3]
+		if not_after_days:
+			logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, not_after_days)
+			if not_after_days <= config.ssl_server_cert_renew_days:
+				logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, not_after_days)
 				create = True
 
 	if not create and srv_crt:
@@ -552,41 +596,3 @@ def setup_ssl() -> None:
 		# Read CA key as root to fill key cache
 		# so run_as_user can use key from cache
 		load_ca_key()
-
-
-def get_cert_info(cert: X509, renew_days: int) -> dict[str, Any]:
-	alt_names = ""
-	for idx in range(0, cert.get_extension_count()):
-		if cert.get_extension(idx).get_short_name() == b"subjectAltName":
-			alt_names = str(cert.get_extension(idx))
-
-	dt_not_before = None
-	dt_not_after = None
-	expires_in_days = 0
-	not_before = cert.get_notBefore()
-	not_after = cert.get_notAfter()
-	if not_before and not_after:
-		dt_not_before = datetime.datetime.strptime(not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
-		dt_not_after = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
-		expires_in_days = (dt_not_after - datetime.datetime.now()).days
-
-	return {
-		"issuer": cert.get_issuer(),
-		"subject": cert.get_subject(),
-		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)).upper(),
-		"fingerprint_sha1": cert.digest("sha1").decode("ascii"),
-		"fingerprint_sha256": cert.digest("sha256").decode("ascii"),
-		"not_before": dt_not_before,
-		"not_after": dt_not_after,
-		"expires_in_days": expires_in_days,
-		"renewal_in_days": expires_in_days - renew_days,
-		"alt_names": alt_names,
-	}
-
-
-def get_ca_cert_info() -> dict[str, Any]:
-	return get_cert_info(load_ca_cert(), config.ssl_ca_cert_renew_days)
-
-
-def get_server_cert_info() -> dict[str, Any]:
-	return get_cert_info(load_local_server_cert(), config.ssl_server_cert_renew_days)

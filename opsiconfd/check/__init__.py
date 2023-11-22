@@ -19,11 +19,13 @@ from opsiconfd.check.mysql import check_mysql
 from opsiconfd.check.opsilicense import check_opsi_licenses
 from opsiconfd.check.opsipackages import check_product_on_clients, check_product_on_depots
 from opsiconfd.check.redis import check_redis
+from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages
 
 CHECKS = [
 	check_opsi_config,
 	check_opsiconfd_config,
+	check_ssl,
 	check_redis,
 	check_mysql,
 	check_run_as_user,

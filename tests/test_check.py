@@ -641,7 +641,7 @@ def test_check_ssl(tmpdir: Path) -> None:  # pylint: disable=too-many-statements
 			== f"The opsi CA certificate is OK and will expire in {config.ssl_ca_cert_valid_days + 9} days."
 		)
 		assert result.partial_results[1].check_status == CheckStatus.OK
-		assert result.partial_results[1].message == "The opsi CA is not a intermediate CA"
+		assert result.partial_results[1].message == "The opsi CA is not a intermediate CA."
 		assert result.partial_results[2].message == "The opsi CA key is OK."
 
 		with mock.patch(

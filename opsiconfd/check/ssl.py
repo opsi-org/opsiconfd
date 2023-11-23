@@ -80,10 +80,10 @@ def check_ssl() -> CheckResult:
 				check_id="ssl:intermediate_ca",
 				check_name="opsi CA as intermediate CA",
 				check_status=CheckStatus.OK,
-				message="The opsi CA is not a intermediate CA",
+				message="The opsi CA is not a intermediate CA.",
 			)
 			if ca_cert and not opsi_ca_is_self_signed():
-				partial_result.message = "The opsi CA is a functional intermediate CA"
+				partial_result.message = "The opsi CA is a functional intermediate CA."
 				try:
 					check_intermediate_ca(ca_cert)
 				except Exception as err:  # pylint: disable=broad-except

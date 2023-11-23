@@ -34,12 +34,12 @@ from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # 
 		(OPSI_CLIENT_INACTIVE_AFTER + 1000, 1, 1, 4),
 	],
 )
-def test_get_client_info(  # pylint: disable=too-many-locals
+def test_get_client_info(  # pylint: disable=too-many-locals,redefined-outer-name
 	backend: UnprotectedBackend,
 	last_seen_days: int,
 	macos: int,
 	linux: int,
-	windows: int,  # pylint: disable=redefined-outer-name
+	windows: int,
 ) -> None:
 	hosts = backend.host_getIdents(type="OpsiClient")
 	assert len(hosts) == 0
@@ -291,11 +291,13 @@ def test_log_read(  # pylint: disable=redefined-outer-name,too-many-statements
 		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=9) == "line1\n"
 
 
-def test_backend_getLicensingInfo(backend: UnprotectedBackend, tmp_path: Path) -> None:  # pylint: disable=invalid-name
+def test_backend_getLicensingInfo(  # pylint: disable=invalid-name,redefined-outer-name
+	backend: UnprotectedBackend, tmp_path: Path
+) -> None:
 	modules_file = tmp_path / "modules"
 	pool = get_default_opsi_license_pool()
 
-	def mock_get_default_opsi_license_pool(
+	def mock_get_default_opsi_license_pool(  # pylint: disable=unused-argument
 		license_file_path: str | None = None,
 		modules_file_path: str | None = None,
 		client_info: dict | Callable | None = None,

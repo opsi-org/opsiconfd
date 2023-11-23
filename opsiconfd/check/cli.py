@@ -94,6 +94,7 @@ def process_check_result(  # pylint: disable=too-many-branches
 	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
 
 	if status == CheckStatus.OK and not detailed:
+		console.print("")
 		return
 	if result.upgrade_issue:
 		console.print("")

@@ -456,7 +456,6 @@ class WebSocketMessageReader(Thread):
 			pass
 
 	def wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
-		self.purge_messages()
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:

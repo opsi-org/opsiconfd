@@ -435,19 +435,29 @@ class WebSocketMessageReader(Thread):
 			if data["type"] == "websocket.close":
 				break
 			if data["type"] == "websocket.send":
-				msg = data["bytes"]
-				# print(f"WebSocketMessageReader received message: >>>{msg}<<<")
+				raw = data["bytes"]
 				if self.decode:
-					msg = msgpack.loads(msg)
+					msg = msgpack.loads(raw)
+				else:
+					msg = raw
 				self.messages.put(msg)
-				print(f"WebSocketMessageReader received message (size: {len(msg)}), qsize: {self.messages.qsize()}")
+				print(f"WebSocketMessageReader received message (size: {len(raw)}, raw: {raw[:32]}...), qsize: {self.messages.qsize()}")
 
 	def stop(self) -> None:
 		self.should_stop = True
 		self.websocket._send_queue.put("")  # pylint: disable=protected-access
 		self.join(3)
 
+	def purge_messages(self) -> None:
+		try:
+			while True:
+				self.messages.get_nowait()
+		except Empty:
+			pass
+
 	def wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
+		self.purge_messages()
+		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:
 			if self.messages.qsize() >= count:

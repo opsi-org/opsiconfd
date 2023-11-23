@@ -13,11 +13,11 @@ import pwd
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from unittest.mock import patch
 
 import pytest
-from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER
+from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicensePool, get_default_opsi_license_pool
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
 from opsiconfd.utils import blowfish_encrypt
@@ -35,7 +35,11 @@ from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # 
 	],
 )
 def test_get_client_info(  # pylint: disable=too-many-locals
-	backend: UnprotectedBackend, last_seen_days: int, macos: int, linux: int, windows: int  # pylint: disable=redefined-outer-name
+	backend: UnprotectedBackend,
+	last_seen_days: int,
+	macos: int,
+	linux: int,
+	windows: int,  # pylint: disable=redefined-outer-name
 ) -> None:
 	hosts = backend.host_getIdents(type="OpsiClient")
 	assert len(hosts) == 0
@@ -205,7 +209,7 @@ def test_log_write(  # pylint: disable=redefined-outer-name,too-many-statements
 	backend: UnprotectedBackend, tmp_path: Path, log_type: str
 ) -> None:
 	data = "line1\nline2\nüöß\n"
-	with (patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)), get_config({"keep_rotated_logs": 2})):
+	with patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)), get_config({"keep_rotated_logs": 2}):
 		client = OpsiClient(id="test-backend-rpc-general.opsi.org")
 		backend.host_createObjects([client])
 
@@ -285,3 +289,35 @@ def test_log_read(  # pylint: disable=redefined-outer-name,too-many-statements
 		assert backend.log_read(logType=log_type, objectId=client.id) == data
 		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=3) == "lin"
 		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=9) == "line1\n"
+
+
+def test_backend_getLicensingInfo(backend: UnprotectedBackend, tmp_path: Path) -> None:  # pylint: disable=invalid-name
+	modules_file = tmp_path / "modules"
+	pool = get_default_opsi_license_pool()
+
+	def mock_get_default_opsi_license_pool(
+		license_file_path: str | None = None,
+		modules_file_path: str | None = None,
+		client_info: dict | Callable | None = None,
+		client_limit_warning_percent: int | None = 95,
+		client_limit_warning_absolute: int | None = 5,
+	) -> OpsiLicensePool:
+		return pool
+
+	with patch("opsicommon.license.get_default_opsi_license_pool", mock_get_default_opsi_license_pool):
+		lic_info = backend.backend_getLicensingInfo(licenses=True, legacy_modules=True, dates=True, allow_cache=False)
+		assert lic_info["client_numbers"]
+		assert lic_info["known_modules"]
+		assert lic_info["obsolete_modules"]
+		assert lic_info["available_modules"]
+
+		pool.modules_file_path = str(modules_file)
+
+		backend.backend_getLicensingInfo(allow_cache=False)
+
+		modules_file.touch()
+		backend.backend_getLicensingInfo(allow_cache=False)
+
+		modules_file.unlink()
+		modules_file.mkdir()
+		backend.backend_getLicensingInfo(allow_cache=False)

@@ -12,6 +12,7 @@ import os
 from typing import Optional
 
 import wsgidav.fs_dav_provider  # type: ignore[import]
+from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI
 from fastapi.routing import Mount
 from wsgidav import util  # type: ignore[import]
@@ -35,7 +36,6 @@ from opsiconfd.config import (
 	get_depotserver_id,
 )
 from opsiconfd.logging import logger
-from opsiconfd.wsgi import WSGIMiddleware
 
 BLOCK_SIZE = 64 * 1024
 

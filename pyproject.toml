@@ -66,6 +66,7 @@ uvloop = "^0.19"
 websockets = "^12.0"
 wsgidav = "^4.3"
 yappi = "^1.4"
+a2wsgi = "^1.8"
 
 [tool.ruff.format]
 indent-style = "tab"

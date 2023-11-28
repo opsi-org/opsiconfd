@@ -608,21 +608,24 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 		refs = keys
 	res = session.execute(
 		"""
-		SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, GROUP_CONCAT(`t1`.`COLUMN_NAME`) AS COLUMN_NAMES, `t2`.`UPDATE_RULE`, `t2`.`DELETE_RULE`
+		SELECT `t1`.`CONSTRAINT_NAME`, GROUP_CONCAT(`t1`.`COLUMN_NAME`) AS COLUMN_NAMES, `t2`.`UPDATE_RULE`, `t2`.`DELETE_RULE`
 		FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
 		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
 		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
 		WHERE `t1`.`TABLE_SCHEMA` LIKE :database AND `t1`.`TABLE_NAME` LIKE :table
 		AND `t1`.`REFERENCED_TABLE_NAME` LIKE :ref_table
+		GROUP BY `CONSTRAINT_NAME`
 		""",
 		params={"database": database, "table": foreign_key.table, "ref_table": foreign_key.ref_table},
 	).fetchone()
 	if (
 		not res
-		or sorted(res[1].split(",")) != sorted(foreign_key.f_keys)
+		or sorted((res[1] or "").split(",")) != sorted(foreign_key.f_keys)
 		or res[2] != foreign_key.update_rule
 		or res[3] != foreign_key.delete_rule
 	):
+		print("=====================================")
+		print(res)
 		if res:
 			logger.info("Removing foreign key to %s on table %s", foreign_key.ref_table, foreign_key.table)
 			session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY {res[0]}")

@@ -38,9 +38,9 @@ async def register_opsi_services() -> None:  # pylint: disable=too-many-branches
 			iface = netifaces.interfaces()[0]  # pylint: disable=c-extension-no-member
 			for _iface in netifaces.interfaces():  # pylint: disable=c-extension-no-member
 				for addr_type in (netifaces.AF_INET, netifaces.AF_INET6):  # pylint: disable=c-extension-no-member
-					for addr in netifaces.ifaddresses(_iface).get(  # pylint: disable=c-extension-no-member
+					for addr in netifaces.ifaddresses(_iface).get(  # type: ignore
 						addr_type, []
-					):  # pylint: disable=c-extension-no-member
+					):
 						try:
 							if if_address == ipaddress.ip_address(addr["addr"]):
 								iface = _iface

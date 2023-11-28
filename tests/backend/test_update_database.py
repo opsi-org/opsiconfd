@@ -212,8 +212,8 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	KEY `productId-productVersion-packageVersion` (`productId`,`productVersion`,`packageVersion`),
 	KEY `depotId` (`depotId`),
 	KEY `index_product_on_depot_productType` (`productType`),
-	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`)
-		REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
+	FOREIGN KEY (`productId`)
+		REFERENCES `PRODUCT` (`productId`)
 		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -411,7 +411,7 @@ def setup_and_cleanup_database() -> Generator[None, None, None]:
 	setup_backend()
 
 
-def test_update_databaset(database_connection: Connection) -> None:  # pylint: disable=redefined-outer-name
+def test_update_database(database_connection: Connection) -> None:  # pylint: disable=redefined-outer-name
 	database_connection.autocommit(True)
 	cursor = database_connection.cursor()
 	cursor.execute(GET_CONSTRAINTS)

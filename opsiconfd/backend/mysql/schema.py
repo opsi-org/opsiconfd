@@ -624,8 +624,6 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 		or res[2] != foreign_key.update_rule
 		or res[3] != foreign_key.delete_rule
 	):
-		print("=====================================")
-		print(res)
 		if res:
 			logger.info("Removing foreign key to %s on table %s", foreign_key.ref_table, foreign_key.table)
 			session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY {res[0]}")

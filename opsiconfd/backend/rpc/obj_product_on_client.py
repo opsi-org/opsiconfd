@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 from opsicommon.objects import ProductOnClient
 from opsicommon.types import forceObjectClass, forceObjectClassList
 
+from opsiconfd.config import config
+
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -193,7 +195,8 @@ class RPCProductOnClientMixin(Protocol):
 		action_requests = {(poc.clientId, poc.productId): poc.actionRequest for poc in product_on_clients}
 
 		ret_product_on_clients = []
-		for groups in self.get_product_action_groups(product_on_clients).values():
+		debug_log = "poc_seq" if "prod-dep-log" in config.debug_options else None
+		for groups in self.get_product_action_groups(product_on_clients, debug_log=debug_log).values():
 			for idx, group in enumerate(groups):
 				for poc in group.product_on_clients:
 					if action_request := action_requests.get((poc.clientId, poc.productId)):

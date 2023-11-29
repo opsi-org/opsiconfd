@@ -66,6 +66,7 @@ OPSICONFD_HOME = "/var/lib/opsiconfd/home"
 PUBLIC_DIR = "/var/lib/opsi/public"
 REPOSITORY_DIR = "/var/lib/opsi/repository"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
+PROD_DEP_DEBUG_DIR = "/tmp/opsiconfd-prod-dep-debug"
 SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
 SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
@@ -1072,9 +1073,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			default=None,
 			help=self._help(
 				"expert",
-				"A list of debug options (possible options are: asyncio, rpc-log, rpc-error-log).",
+				"A list of debug options (possible options are: asyncio, rpc-log, rpc-error-log, prod-dep-log).",
 			),
-			choices=("asyncio", "rpc-log", "rpc-error-log"),
+			choices=("asyncio", "rpc-log", "rpc-error-log", "prod-dep-log"),
 		)
 		self._parser.add(
 			"--profiler",

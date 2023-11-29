@@ -9,10 +9,16 @@ opsiconfd.backend.rpc.product_dependency
 """
 from __future__ import annotations
 
+import os
+import re
+import tempfile
+import time
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+import msgspec
 from opsicommon.exceptions import OpsiError
 from opsicommon.logging.constants import TRACE  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]
@@ -21,12 +27,14 @@ from opsicommon.objects import (  # type: ignore[import]
 	ProductDependency,
 	ProductOnClient,
 	ProductOnDepot,
+	serialize,
 )
 from opsicommon.types import (  # type: ignore[import]
 	forceList,
 	forceObjectClass,
 )
 
+from opsiconfd.config import PROD_DEP_DEBUG_DIR
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -57,6 +65,12 @@ class ProductActionGroup:
 		logger.log(level, "=> Product action group (prio %r)", self.priority)
 		for product_on_clients in self.product_on_clients:
 			logger.log(level, "   -> %s: %s", product_on_clients.productId, product_on_clients.actionRequest)
+
+	def serialize(self) -> dict[str, Any]:
+		ser = asdict(self)
+		ser["product_on_clients"] = serialize(ser["product_on_clients"])
+		ser["dependencies"] = serialize(ser["dependencies"], deep=True)
+		return ser
 
 
 @dataclass
@@ -151,7 +165,11 @@ class Action:
 
 class RPCProductDependencyMixin(Protocol):
 	def get_product_action_groups(  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
-		self: BackendProtocol, product_on_clients: list[ProductOnClient], *, ignore_unavailable_products: bool = True
+		self: BackendProtocol,
+		product_on_clients: list[ProductOnClient],
+		*,
+		ignore_unavailable_products: bool = True,
+		debug_log: str | None = None,
 	) -> dict[str, list[ProductActionGroup]]:
 		product_cache: dict[tuple[str, str, str], Product] = {}
 		product_on_depot_cache: dict[tuple[str, str], ProductOnDepot] = {}
@@ -462,7 +480,21 @@ class RPCProductDependencyMixin(Protocol):
 				product_action_groups[client_id].append(group)
 				group.log()
 
+			if debug_log:
+				self._write_debug_log(debug_log, client_id, product_action_groups[client_id])
+
 		return product_action_groups
+
+	def _write_debug_log(self, prefix: str, client_id: str, product_action_groups: list[ProductActionGroup]) -> None:
+		debug_dir = Path(PROD_DEP_DEBUG_DIR)
+		debug_dir.mkdir(parents=True, exist_ok=True)
+		now = int(time.time() * 1_000_000)
+		prefix = f"{prefix}-" if prefix else ""
+		prefix = re.sub(r"[\s\./]", "_", f"{prefix}{client_id}-{now}-")
+		with tempfile.NamedTemporaryFile(delete=False, dir=PROD_DEP_DEBUG_DIR, prefix=prefix, suffix=".log") as log_file:
+			logger.notice("Writing product action group debug log to: %s", log_file.name)
+			log_file.write(msgspec.json.encode([g.serialize() for g in product_action_groups]))  # pylint: disable=no-member
+			os.chmod(log_file.name, 0o666)
 
 	def productDependency_bulkInsertObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol,

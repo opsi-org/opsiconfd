@@ -339,7 +339,14 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			session.execute(f"LOCK TABLES {', '.join(qlock)}")
 			yield
 		finally:
-			session.execute("UNLOCK TABLES")
+			try:
+				session.execute("UNLOCK TABLES")
+			except OperationalError as err:
+				if "was not locked" in str(err):
+					# MySQLdb.OperationalError (1100, "Table 'xy' was not locked with LOCK TABLES")
+					logger.error(err, exc_info=True)
+				else:
+					raise
 
 	def read_tables(self) -> None:
 		with self.session() as session:

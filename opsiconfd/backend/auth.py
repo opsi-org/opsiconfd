@@ -40,13 +40,14 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 	if not isinstance(acl_file, Path):
 		acl_file = Path(acl_file)
 
-	for line in acl_file.read_text(encoding="utf-8").split("\n"):  # pylint: disable=too-many-nested-blocks
+	for idx, line in enumerate(acl_file.read_text(encoding="utf-8").split("\n")):  # pylint: disable=too-many-nested-blocks
+		position_text = f"at line {idx + 1} in acl file '{acl_file}'"
 		line = line.strip()
 		if not line or line.startswith("#"):
 			continue
 		match = acl_entry_regex.search(line)
 		if not match:
-			raise ValueError(f"Bad formatted line '{line}' in acl file '{config.acl_file}'")
+			raise ValueError(f"Bad formatted line '{line}' {position_text}")
 		method_re = re.compile(match.group(1).strip())
 		for entry in match.group(2).split(";"):
 			entry = str(entry).strip()
@@ -55,7 +56,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 			if entry.find("(") != -1:
 				(ace_type, ace_type_params) = entry.split("(", 1)
 				if ace_type_params[-1] != ")":
-					raise ValueError(f"Bad formatted acl entry '{entry}': trailing ')' missing")
+					raise ValueError(f"Bad formatted acl entry '{entry}': trailing ')' missing {position_text}")
 				ace_type = ace_type.strip()
 				ace_type_params = ace_type_params[:-1]
 
@@ -63,12 +64,12 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 				# Ignore empty string
 				continue
 			if ace_type not in ("all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"):
-				raise ValueError(f"Unhandled acl type: '{ace_type}'")
+				raise ValueError(f"Unhandled acl type: '{ace_type}' {position_text}")
 
 			ace = RPCACE(method_re=method_re, type=ace_type)  # type: ignore[arg-type]
 			if not ace_type_params:
 				if ace_type in ("sys_group", "sys_user"):
-					raise ValueError(f"Bad formatted acl type '{ace_type}': no params given")
+					raise ValueError(f"Bad formatted acl type '{ace_type}': no params given {position_text}")
 				acl.append(ace)
 				continue
 
@@ -79,11 +80,11 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 			for idx, char in enumerate(ace_type_params):
 				if char == "(":
 					if in_ace_type_param_values:
-						raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")
+						raise ValueError(f"Bad formatted acl type params '{ace_type_params}' {position_text}")
 					in_ace_type_param_values = True
 				elif char == ")":
 					if not in_ace_type_param_values or not ace_type_param:
-						raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")
+						raise ValueError(f"Bad formatted acl type params '{ace_type_params}' {position_text}")
 					in_ace_type_param_values = False
 				elif char != "," or idx == len(ace_type_params) - 1:
 					if in_ace_type_param_values:
@@ -94,7 +95,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 				if char == "," or idx == len(ace_type_params) - 1:
 					if in_ace_type_param_values:
 						if idx == len(ace_type_params) - 1:
-							raise ValueError(f"Bad formatted acl type params '{ace_type_params}'")
+							raise ValueError(f"Bad formatted acl type params '{ace_type_params}' {position_text}")
 						ace_type_param_values.append("")
 					else:
 						ace_type_param = ace_type_param.strip()
@@ -114,7 +115,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 								val = val.replace("{fileadmingroup}", opsi_config.get("groups", "fileadmingroup"))
 							ids.append(val)
 						else:
-							raise ValueError(f"Unhandled acl type param '{ace_type_param}' for acl type '{ace_type}'")
+							raise ValueError(f"Unhandled acl type param '{ace_type_param}' for acl type '{ace_type}' {position_text}")
 						ace_type_param = ""
 						ace_type_param_values = [""]
 			if ids:

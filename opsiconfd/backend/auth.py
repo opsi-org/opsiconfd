@@ -59,6 +59,9 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 				ace_type = ace_type.strip()
 				ace_type_params = ace_type_params[:-1]
 
+			if not ace_type:
+				# Ignore empty string
+				continue
 			if ace_type not in ("all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"):
 				raise ValueError(f"Unhandled acl type: '{ace_type}'")
 

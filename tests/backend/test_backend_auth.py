@@ -23,7 +23,7 @@ def test_read_acl_file(tmp_path: Path) -> None:  # pylint: disable=too-many-stat
 		"log_.*             : sys_user(admin1,admin2,attributes(attr1,attr2)); opsi_depotserver; self\n"
 		"host_get.*         : sys_group(admingrp1,attributes(!attr1,!attr2)); opsi_depotserver; self;"
 		"                     opsi_client(attributes(!opsiHostKey, !notes))\n"
-		".*                 : sys_group(admingrp1); opsi_depotserver\n"
+		".*                 : sys_group(admingrp1); opsi_depotserver;;;;;;;;\n"  # Allow empty statement
 	)
 	acl_file.write_text(data=data, encoding="utf-8")
 	acl = read_acl_file(str(acl_file))

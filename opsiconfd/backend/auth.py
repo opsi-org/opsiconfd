@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Optional
 
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import opsi_config
 
 
 @dataclass(frozen=True, kw_only=True)

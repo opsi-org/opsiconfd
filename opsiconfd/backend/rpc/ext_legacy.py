@@ -1115,7 +1115,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				action_result = "none"
 				installationStatus = "unknown"
 
-		if (actionRequest and actionRequest != "none") or installationStatus:
+		if installationStatus == "installed":
 			if not productVersion:
 				productVersion = product_on_depots[0].productVersion
 			if not packageVersion:

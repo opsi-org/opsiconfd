@@ -73,6 +73,7 @@ from .utils import (  # pylint: disable=unused-import
 	sync_clean_redis,
 	sync_redis_client,
 	test_client,
+	ACL_CONF_41
 )
 
 DEPRECATED_METHOD = "getClientIds_list"
@@ -158,13 +159,15 @@ def test_check_run_as_user() -> None:
 		)
 
 
-def test_check_opsiconfd_config() -> None:
-	with get_config({"log_level_stderr": 9, "debug_options": ["rpc-log", "asyncio"]}):
+def test_check_opsiconfd_config(tmp_path: Path) -> None:
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(ACL_CONF_41, encoding="utf-8")
+	with get_config({"log_level_stderr": 9, "debug_options": ["rpc-log", "asyncio"], "acl_file": str(acl_file)}):
 		result = check_opsiconfd_config()
 		# print(result)
 		ids_found = 0
 		assert result.check_status == CheckStatus.ERROR
-		assert result.message == "2 issues found in the configuration."
+		assert result.message == "3 issues found in the configuration."
 		for partial_result in result.partial_results:
 			assert partial_result.check_id.startswith("opsiconfd_config:")
 			if partial_result.check_id == "opsiconfd_config:log-level-stderr":
@@ -180,7 +183,11 @@ def test_check_opsiconfd_config() -> None:
 					"value": ["rpc-log", "asyncio"],
 				}
 				ids_found += 1
-		assert ids_found == 2
+			elif partial_result.check_id == "opsiconfd_config:acl-self-for-all":
+				ids_found += 1
+				assert partial_result.check_status == CheckStatus.ERROR
+				assert partial_result.message == "'self' is allowed for '.*'."
+		assert ids_found == 3
 
 
 def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

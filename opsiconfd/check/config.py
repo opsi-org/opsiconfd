@@ -12,6 +12,7 @@ from __future__ import annotations
 import grp
 import os
 import pwd
+import re
 from typing import Any
 
 from opsicommon.logging.constants import (
@@ -22,6 +23,7 @@ from opsicommon.logging.constants import (
 )
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.backend.auth import read_acl_file
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 from opsiconfd.logging import logger
@@ -100,6 +102,8 @@ def check_opsiconfd_config() -> CheckResult:
 	  * The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
 	* `run-as-user`
 	  * Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
+	* `acl-self-for-all`
+	  * Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
 
 	"""
 	result = CheckResult(
@@ -162,6 +166,23 @@ def check_opsiconfd_config() -> CheckResult:
 		if config.run_as_user == "root":
 			issues += 1
 			partial_result.check_status = CheckStatus.ERROR
+		result.add_partial_result(partial_result)
+
+		partial_result = PartialCheckResult(
+			check_id="opsiconfd_config:acl-self-for-all",
+			check_name="Do acls allow self for .*",
+			message="'self' is not allowed for '.*'.",
+			details={},
+		)
+		fallback_acl = re.compile(".*")
+		for acl in read_acl_file(config.acl_file):
+			if not acl.method_re == fallback_acl:
+				continue
+			if acl.type == "self":
+				issues += 1
+				partial_result.message = "'self' is allowed for '.*'."
+				partial_result.check_status = CheckStatus.ERROR
+				break
 		result.add_partial_result(partial_result)
 
 		if issues > 0:

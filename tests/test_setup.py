@@ -16,9 +16,10 @@ from typing import Generator
 from unittest.mock import patch
 
 from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_systemd
+from opsiconfd.setup.files import migrate_acl_conf_if_default
 from opsiconfd.setup import setup as opsiconfd_setup
 
-from .utils import get_config
+from .utils import get_config, ACL_CONF_41
 
 
 def test_setup_limits() -> None:
@@ -147,3 +148,12 @@ def test_setup_explicit() -> None:
 	with mock_all() as funcs:
 		opsiconfd_setup(explicit=True)
 		funcs["setup_systemd"].assert_called()
+
+
+def test_migrate_acl_conf_if_default(tmp_path: Path) -> None:
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(ACL_CONF_41, encoding="utf-8")
+	acl_conf_43 = Path("opsiconfd_data/etc/backendManager/acl.conf").read_text(encoding="utf-8")
+	with get_config({"acl_file": str(acl_file)}):
+		migrate_acl_conf_if_default()
+	assert acl_file.read_text(encoding="utf-8") == acl_conf_43

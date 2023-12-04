@@ -16,9 +16,60 @@ from typing import Generator
 from unittest.mock import patch
 
 from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_systemd
+from opsiconfd.setup.files import migrate_acl_conf_if_default
 from opsiconfd.setup import setup as opsiconfd_setup
 
 from .utils import get_config
+
+ACL_CONF_41 = """# -*- coding: utf-8 -*-
+#
+# = = = = = = = = = = = = = = = = = = = =
+# =      backend acl configuration      =
+# = = = = = = = = = = = = = = = = = = = =
+#
+# This file configures access control to protected backend methods.
+# Entries has to follow the form:
+# <regular expression to match method name(s)> : <semicolon separated list of acl entries>
+#
+# acl enrties are specified like:
+# <entry type>[(<comma separated list of names/ids>[,attributes(<comma separated list of allowed/denied attributes>)])]
+#
+# For every method the first entry which allows (partial) access is decisive.
+#
+# Possible types of entries are:
+#    all                : everyone
+#    sys_user           : a system user
+#    sys_group          : a system group
+#    opsi_depotserver   : an opsi depot server
+#    opsi_client        : an opsi client
+#    self               : the object to be read or written
+#
+# Examples:
+#    host_getObjects : self
+#       allow clients to read their own host objects
+#    host_deleteObjects : sys_user(admin,opsiadmin),sys_group(opsiadmins)
+#       allow system users "admin", "opsiadmin" and members of system group "opsiadmins" to delete hosts
+#    product_.* : opsi_client(client1.uib.local),opsi_depotserver
+#       allow access to product objects to opsi client "client1.uib.local" and all opsi depot servers
+#    host_getObjects : sys_user(user1,attributes(id,description,notes))
+#       allow partial access to host objects to system user "user1". "user1" is allowed to read object attributes "id", "description", "notes"
+#    host_getObjects : sys_group(group1,attributes(!opsiHostKey))
+#       allow partial access to host objects to members of system group "group1". Members are allowed to read all object attributes except "opsiHostKey"
+
+backend_deleteBase     : sys_group(opsiadmin)
+backend_.*             : all
+hostControl.*          : sys_group(opsiadmin); opsi_depotserver
+host_get.*             : sys_group(opsiadmin); opsi_depotserver; self; opsi_client(attributes(!opsiHostKey,!description,!lastSeen,!notes,!hardwareAddress,!inventoryNumber))
+auditSoftware_delete.* : sys_group(opsiadmin); opsi_depotserver
+auditSoftware_.*       : sys_group(opsiadmin); opsi_depotserver; opsi_client
+auditHardware_delete.* : sys_group(opsiadmin); opsi_depotserver
+auditHardware_.*       : sys_group(opsiadmin); opsi_depotserver; opsi_client
+user_setCredentials    : sys_group(opsiadmin); opsi_depotserver
+user_getCredentials    : opsi_depotserver; opsi_client
+.*_get.*               : sys_group(opsiadmin); opsi_depotserver; opsi_client
+get(Raw){0,1}Data      : sys_group(opsiadmin); opsi_depotserver
+.*                     : sys_group(opsiadmin); opsi_depotserver; self
+"""
 
 
 def test_setup_limits() -> None:
@@ -147,3 +198,12 @@ def test_setup_explicit() -> None:
 	with mock_all() as funcs:
 		opsiconfd_setup(explicit=True)
 		funcs["setup_systemd"].assert_called()
+
+
+def test_migrate_acl_conf_if_default(tmp_path: Path) -> None:
+	acl_file = tmp_path / "acl.conf"
+	acl_file.write_text(ACL_CONF_41)
+	acl_conf_43 = Path("opsiconfd_data/etc/backendManager/acl.conf").read_text(encoding="utf-8")
+	with get_config({"acl_file": str(acl_file)}):
+		migrate_acl_conf_if_default()
+	assert acl_file.read_text(encoding="utf-8") == acl_conf_43

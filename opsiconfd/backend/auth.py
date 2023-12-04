@@ -9,10 +9,12 @@ auth
 """
 
 import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Optional
 
+from opsiconfd.logging import logger
 from opsiconfd.config import opsi_config
 
 
@@ -126,3 +128,14 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 			else:
 				acl.append(ace)
 	return acl
+
+
+def write_default_acl_conf(path: Path) -> None:
+	source = Path("/usr/lib/opsiconfd/opsiconfd_data/etc/opsi/backendManager/acl.conf")
+	if not source.exists():
+		source = Path("opsiconfd_data/etc/backendManager/acl.conf")  # Test scenario
+		if not source.exists():
+			logger.error("Failed to write default acl.conf. File not found")
+			return
+	logger.notice("Copying default acl.conf to '%s'", path)
+	shutil.copy2(source, path)

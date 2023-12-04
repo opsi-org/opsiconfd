@@ -39,7 +39,9 @@ from opsiconfd.config import (
 )
 from opsiconfd.dhcpd import get_dhcpd_conf_location
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_file_md5sum
 from opsiconfd.ssl import setup_ssl_file_permissions
+from opsiconfd.backend.auth import write_default_acl_conf
 
 EXTENDER_FILES = (
 	"10_opsi.conf",
@@ -104,6 +106,17 @@ def cleanup_audit_hardware_config_locales_dir() -> None:
 			file.unlink()
 
 
+def migrate_acl_conf_if_default() -> None:
+	"""
+	If acl.conf is the default 4.1 or 4.2 configuration,
+	replace it with the 4.3 default.
+	"""
+	md5sum = get_file_md5sum(config.acl_file)
+	print("MD5-Sum:", md5sum)
+	if md5sum in ("1b2ea82ff5d3acfd16a25bd4567ed39f", "74a0dbc5320fa0a80f8f6edb0d43a7e7"):  # 4.2, 4.1
+		write_default_acl_conf(Path(config.acl_file))
+
+
 def setup_files() -> None:
 	for _dir in _get_default_dirs():
 		if not os.path.isdir(_dir) and not os.path.islink(_dir):
@@ -111,6 +124,7 @@ def setup_files() -> None:
 			set_rights(_dir)
 	move_exender_files()
 	cleanup_audit_hardware_config_locales_dir()
+	migrate_acl_conf_if_default()
 
 
 def setup_file_permissions() -> None:

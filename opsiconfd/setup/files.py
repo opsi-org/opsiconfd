@@ -108,12 +108,11 @@ def cleanup_audit_hardware_config_locales_dir() -> None:
 
 def migrate_acl_conf_if_default() -> None:
 	"""
-	If acl.conf is the default 4.1 or 4.2 configuration,
-	replace it with the 4.3 default.
+	If acl.conf is the default 4.1 configuration,
+	replace it with the 4.3 (and 4.2) default.
 	"""
 	md5sum = get_file_md5sum(config.acl_file)
-	print("MD5-Sum:", md5sum)
-	if md5sum in ("1b2ea82ff5d3acfd16a25bd4567ed39f", "74a0dbc5320fa0a80f8f6edb0d43a7e7"):  # 4.2, 4.1
+	if md5sum in ("74a0dbc5320fa0a80f8f6edb0d43a7e7", ):  # 4.1 default
 		write_default_acl_conf(Path(config.acl_file))
 
 

@@ -103,7 +103,7 @@ def check_opsiconfd_config() -> CheckResult:
 	* `run-as-user`
 	  * Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
 	* `acl-self-for-all`
-	  * Enabling `self` for `.*` results in an error, als some objects do not have an attribute corresponding to a host.
+	  * Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
 
 	"""
 	result = CheckResult(

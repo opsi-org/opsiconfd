@@ -134,12 +134,12 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				else:
 					depot.description = Prompt.ask("Enter a description for the depot", default=depot.description, show_default=True) or ""
 				depot.depotLocalUrl = f"file://{DEPOT_DIR}"
-				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb:///{FQDN}/opsi_depot"
-				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs:///{FQDN}:4447/depot"
+				depot.depotRemoteUrl = depot.depotRemoteUrl or f"smb://{FQDN}/opsi_depot"
+				depot.depotWebdavUrl = depot.depotWebdavUrl or f"webdavs://{FQDN}:4447/depot"
 				depot.repositoryLocalUrl = f"file://{REPOSITORY_DIR}"
-				depot.repositoryRemoteUrl = depot.repositoryRemoteUrl or f"webdavs:///{FQDN}:4447/repository"
+				depot.repositoryRemoteUrl = depot.repositoryRemoteUrl or f"webdavs://{FQDN}:4447/repository"
 				depot.workbenchLocalUrl = f"file://{WORKBENCH_DIR}"
-				depot.workbenchRemoteUrl = depot.workbenchRemoteUrl or f"smb:///{FQDN}/opsi_workbench"
+				depot.workbenchRemoteUrl = depot.workbenchRemoteUrl or f"smb://{FQDN}/opsi_workbench"
 				try:
 					depot.systemUUID = str(UUID(Path("/sys/class/dmi/id/product_uuid").read_text(encoding="ascii").strip()))
 				except Exception as err:  # pylint: disable=broad-except

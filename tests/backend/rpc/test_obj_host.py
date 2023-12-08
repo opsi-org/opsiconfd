@@ -26,6 +26,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
+
 @pytest.fixture(autouse=True)
 def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
 	cursor = database_connection.cursor()
@@ -229,18 +230,16 @@ def test_host_updateObject_systemUUID(  # pylint: disable=invalid-name,redefined
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
-		""
-		"description": "description",
+		"" "description": "description",
 		"notes": "notes",
 		"oneTimePassword": "secret",
-		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47"
+		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47",
 	}
 
 	# Create client 1
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-
 
 	# Update client 1
 	client1["description"] = "new"
@@ -287,6 +286,84 @@ def test_host_updateObject_systemUUID(  # pylint: disable=invalid-name,redefined
 	assert "error" not in res
 	client = res["result"][0]
 	assert client["systemUUID"] == "9f3f1c96-1821-413c-b850-0507a17c7e47"
+
+
+def test_host_updateObject_ip_mac(  # pylint: disable=invalid-name,redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		"ipAddress": "192.168.36.1",
+		"hardwareAddress": "aa:ff:ee:aa:ff:ee",
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47",
+	}
+
+	# Create client 1
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Update client 1
+	client1["description"] = "new"
+	client1["oneTimePassword"] = None  # type: ignore[assignment]
+	client1["hardwareAddress"] = ""
+	client1["ipAddress"] = ""
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# oneTimePassword should not be update because it is null
+	# notes should not be update because not passed
+	# hardwareAddress should be null
+	# ipAddress should be null
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
+	assert client["description"] == client1["description"]
+	assert client["notes"] == "notes"
+	assert client["oneTimePassword"] == "secret"
+	assert client["hardwareAddress"] is None
+	assert client["ipAddress"] is None
+
+	# Update client 1
+	client1["ipAddress"] = "192.168.36.1"
+	client1["hardwareAddress"] = "aa:ff:ee:aa:ff:ee"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# ipAddress should be "192.168.36.1"
+	# hardwareAddress should be "aa:ff:ee:aa:ff:ee"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
+	assert client["ipAddress"] == "192.168.36.1"
+	assert client["hardwareAddress"] == "aa:ff:ee:aa:ff:ee"
+
+	# Update client 1
+	client1["hardwareAddress"] = None  # type: ignore[assignment]
+	client1["ipAddress"] = None  # type: ignore[assignment]
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# ipAddress should be "192.168.36.1"
+	# hardwareAddress should be "aa:ff:ee:aa:ff:ee"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
+	assert client["ipAddress"] == "192.168.36.1"
+	assert client["hardwareAddress"] == "aa:ff:ee:aa:ff:ee"
 
 
 def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
@@ -393,7 +470,7 @@ def test_host_createObjects_with_systemUUID(  # pylint: disable=invalid-name,too
 		"description": "description",
 		"notes": "notes",
 		"oneTimePassword": "secret",
-		"systemUUID": ""
+		"systemUUID": "",
 	}
 	client2 = {
 		"type": "OpsiClient",
@@ -401,7 +478,7 @@ def test_host_createObjects_with_systemUUID(  # pylint: disable=invalid-name,too
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
 		"description": "description",
 		"oneTimePassword": "secret",
-		"systemUUID": ""
+		"systemUUID": "",
 	}
 
 	# Create clients
@@ -429,7 +506,7 @@ def test_host_createObjects_with_systemUUID(  # pylint: disable=invalid-name,too
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
 		"description": "description",
 		"oneTimePassword": "secret",
-		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47"
+		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47",
 	}
 
 	# Create client3
@@ -453,7 +530,7 @@ def test_host_createObjects_with_systemUUID(  # pylint: disable=invalid-name,too
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
 		"description": "description",
 		"oneTimePassword": "secret",
-		"systemUUID": None
+		"systemUUID": None,
 	}
 
 	# Create client4
@@ -814,10 +891,6 @@ def test_host_check_duplicate_hardware_address(  # pylint: disable=invalid-name
 	assert "error" not in res
 
 
-
-
-
-
 def _create_clients_and_depot(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> tuple(list[dict[str, str], dict[str, str]]):  # type: ignore[valid-type]
@@ -848,7 +921,6 @@ def _create_clients_and_depot(
 		"workbenchRemoteUrl": "smb://opsi:4447/opsi_workbench",
 		"depotRemoteUrl": "smb://opsi.opsi.test:4447/opsi_depot",
 		"depotWebdavUrl": "webdavs://opsi.opsi.test:4447/depot",
-
 	}
 
 	# Create clients
@@ -865,6 +937,7 @@ def _create_clients_and_depot(
 
 	return (clients, depot)
 
+
 def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Generator) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -875,13 +948,12 @@ def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Genera
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "configState_getObjects",
-		"params": [[], {"objectId": [clients[0]["id"],clients[1]["id"]], "configId": "clientconfig.depot.id"}],
+		"params": [[], {"objectId": [clients[0]["id"], clients[1]["id"]], "configId": "clientconfig.depot.id"}],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
 	print(res)
 	assert "error" not in res
 	assert res["result"][0]["values"][0] == depot["id"]
-
 
 	# renmame depot, new config state should exist, client 2 should use value from depot
 	new_depot_id = "opsi01.opsi.test"
@@ -894,7 +966,7 @@ def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Genera
 		"jsonrpc": "2.0",
 		"id": 1,
 		"method": "configState_getObjects",
-		"params": [[], {"objectId": [clients[0]["id"],clients[1]["id"]], "configId": "clientconfig.depot.id"}],
+		"params": [[], {"objectId": [clients[0]["id"], clients[1]["id"]], "configId": "clientconfig.depot.id"}],
 	}
 	res = test_client.post("/rpc", json=rpc).json()
 	print(res)

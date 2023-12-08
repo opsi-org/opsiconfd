@@ -1206,9 +1206,9 @@ def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:
 	return (product_dependency1, product_dependency2)
 
 
-def check_products_dependencies(
+def check_products_dependencies(  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,
-	product_dependencies: list,  # pylint: disable=redefined-outer-name,unused-argument
+	product_dependencies: list,
 ) -> None:
 	for product_dependency in product_dependencies:
 		rpc = {

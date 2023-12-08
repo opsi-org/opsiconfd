@@ -73,9 +73,9 @@ def create_test_product_property_states(test_client: OpsiconfdTestClient) -> tup
 	return (product_property_state1, product_property_state2)
 
 
-def check_products_property_states(
+def check_products_property_states(  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,
-	product_property_states: list,  # pylint: disable=redefined-outer-name,unused-argument
+	product_property_states: list,
 ) -> None:
 	for product_property_state in product_property_states:
 		rpc = {

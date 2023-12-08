@@ -64,9 +64,9 @@ def create_test_product_properties(test_client: OpsiconfdTestClient) -> tuple:  
 	return (product_property1, product_property2)
 
 
-def check_products_properties(
+def check_products_properties(  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,
-	product_properties: list,  # pylint: disable=redefined-outer-name,unused-argument
+	product_properties: list,
 ) -> None:
 	for product_property in product_properties:
 		rpc = {

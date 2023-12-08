@@ -65,7 +65,6 @@ pyinstaller-poetry:
       dst: opsiconfd_data
   dirname: opsiconfd
   after_script: |
-    find dist/opsiconfd -name "libcrypto.so.1.1" -delete
     find dist/opsiconfd -iname "*.c" -delete
     find dist/opsiconfd -iname "*.h" -delete
     find dist/opsiconfd -iname "*.so" -exec chmod -x "{}" \;

@@ -55,6 +55,8 @@ def _auto_correct_depot_urls(backend: UnprotectedBackend) -> None:
 		changed = False
 		for attribute in ("depotRemoteUrl", "depotWebdavUrl", "repositoryRemoteUrl", "workbenchRemoteUrl"):
 			value: str = getattr(depot, attribute)
+			if not value:
+				continue
 			if ":///" in value:
 				setattr(depot, attribute, value.replace(":///", "://", 1))
 				changed = True

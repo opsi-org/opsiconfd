@@ -8,8 +8,11 @@
 opsiconfd - setup
 """
 
+from __future__ import annotations
+
 import re
 from subprocess import run
+from typing import TYPE_CHECKING
 
 from opsicommon.license import (
 	OPSI_FREE_MODULE_IDS,
@@ -25,6 +28,9 @@ from opsicommon.objects import (  # type: ignore[import]
 from opsiconfd.config import config, get_configserver_id, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import running_in_docker
+
+if TYPE_CHECKING:
+	from opsiconfd.backend import UnprotectedBackend
 
 
 def _get_windows_domain() -> str | None:
@@ -42,6 +48,20 @@ def _get_windows_domain() -> str | None:
 	return None
 
 
+def _auto_correct_depot_urls(backend: UnprotectedBackend) -> None:
+	# Auto-correct URLs
+	depots = backend.host_getObjects(type="OpsiDepotserver")
+	for depot in depots:
+		changed = False
+		for attribute in ("depotRemoteUrl", "depotWebdavUrl", "repositoryRemoteUrl", "workbenchRemoteUrl"):
+			value: str = getattr(depot, attribute)
+			if ":///" in value:
+				setattr(depot, attribute, value.replace(":///", "://", 1))
+				changed = True
+		if changed:
+			backend.host_updateObject(depot)
+
+
 def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-branches
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
@@ -57,6 +77,8 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 
 	add_configs: list[BoolConfig | UnicodeConfig] = []
 	add_config_states: list[ConfigState] = []
+
+	_auto_correct_depot_urls(backend)
 
 	conf = configs.get("clientconfig.configserver.url")
 	if not conf or config.external_url not in conf.defaultValues or config.external_url not in conf.possibleValues:

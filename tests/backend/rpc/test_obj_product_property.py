@@ -8,6 +8,8 @@
 test opsiconfd.backend.rpc.obj_product_property
 """
 
+import pytest
+
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -24,7 +26,6 @@ from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_product_properties(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
-
 	product1, product2 = create_test_products(test_client)
 
 	product_property1 = {
@@ -64,7 +65,8 @@ def create_test_product_properties(test_client: OpsiconfdTestClient) -> tuple:  
 
 
 def check_products_properties(
-	test_client: OpsiconfdTestClient, product_properties: list  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
+	product_properties: list,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	for product_property in product_properties:
 		rpc = {
@@ -298,6 +300,7 @@ def test_product_property_updateObject(  # pylint: disable=invalid-name
 			assert product_property[attr] == val
 
 
+@pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
 def test_product_property_getHashes(  # pylint: disable=invalid-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:

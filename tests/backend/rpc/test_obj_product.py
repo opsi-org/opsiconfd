@@ -7,6 +7,7 @@
 """
 test opsiconfd.backend.rpc.obj_product
 """
+import pytest
 
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -23,7 +24,6 @@ from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_products(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
-
 	product1 = {
 		"name": "test-backend-rpc-product-1",
 		"licenseRequired": False,
@@ -241,6 +241,7 @@ def test_product_delete(  # pylint: disable=invalid-name
 	assert len(res["result"]) == 0
 
 
+@pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
 def test_product_get_hashes(  # pylint: disable=invalid-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:

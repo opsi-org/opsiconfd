@@ -388,6 +388,7 @@ def test_product_on_client_delete(  # pylint: disable=invalid-name
 	assert len(res["result"]) == 0
 
 
+@pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
 def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:

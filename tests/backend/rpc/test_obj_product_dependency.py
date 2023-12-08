@@ -1207,7 +1207,8 @@ def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:
 
 
 def check_products_dependencies(
-	test_client: OpsiconfdTestClient, product_dependencies: list  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
+	product_dependencies: list,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	for product_dependency in product_dependencies:
 		rpc = {
@@ -1435,6 +1436,7 @@ def test_product_dependency_updateObject(  # pylint: disable=invalid-name
 				assert product_dependency[attr] == val
 
 
+@pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
 def test_product_dependency_getHashes(  # pylint: disable=invalid-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:

@@ -12,6 +12,7 @@ import os
 from typing import Optional
 
 import wsgidav.fs_dav_provider  # type: ignore[import]
+from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI
 from fastapi.routing import Mount
 from wsgidav import util  # type: ignore[import]
@@ -35,7 +36,6 @@ from opsiconfd.config import (
 	get_depotserver_id,
 )
 from opsiconfd.logging import logger
-from opsiconfd.wsgi import WSGIMiddleware
 
 BLOCK_SIZE = 64 * 1024
 
@@ -130,7 +130,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	app_config_template = {
 		"simple_dc": {"user_mapping": {"*": True}},  # Anonymous access
 		"hotfixes": {
-			"re_encode_path_info": False,  # Encoding is done in opsiconfd.wsgi
+			"re_encode_path_info": True,
 		},
 		"http_authenticator": {
 			"domain_controller": None,

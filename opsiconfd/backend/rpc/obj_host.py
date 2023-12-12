@@ -470,8 +470,11 @@ class RPCHostMixin(Protocol):
 			self.productProperty_updateObjects(modified_product_properties)
 
 		logger.info("Processing ProductPropertyStates...")
+		delete_product_property_states = []
 		product_property_states = []
 		for product_property_state in self.productPropertyState_getObjects(objectId=cur_server_id):
+			delete_product_property_states.append(product_property_state)
+			product_property_state = product_property_state.clone()
 			product_property_state.setObjectId(new_server_id)
 			replace_server_id(product_property_state.values)
 			product_property_states.append(product_property_state)
@@ -490,7 +493,10 @@ class RPCHostMixin(Protocol):
 
 		logger.info("Processing ConfigStates...")
 		config_states = []
+		delete_config_states = []
 		for config_state in self.configState_getObjects(objectId=cur_server_id):
+			delete_config_states.append(config_state)
+			config_state = config_state.clone()
 			config_state.setObjectId(new_server_id)
 			replace_server_id(config_state.values)
 			config_states.append(config_state)
@@ -528,9 +534,12 @@ class RPCHostMixin(Protocol):
 			self.productOnDepot_createObjects(product_on_depots)
 		if product_property_states:
 			logger.info("Updating ProductPropertyStates...")
+			self.productPropertyState_deleteObjects(delete_product_property_states)
 			self.productPropertyState_createObjects(product_property_states)
 		if config_states:
 			logger.info("Updating ConfigStates...")
+			if delete_config_states:
+				self.configState_deleteObjects(delete_config_states)
 			self.configState_createObjects(config_states)
 
 		logger.info("Deleting old depot %s", old_depot)

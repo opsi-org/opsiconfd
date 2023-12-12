@@ -114,7 +114,6 @@ def get_config_files() -> dict[str, Path]:
 		"ssh_commands_default": Path(SSH_COMMANDS_DEFAULT_FILE),
 		"dhcpd_conf": backend_config_dir / "dhcpd.conf",
 		"hostcontrol_conf": backend_config_dir / "hostcontrol.conf",
-		"jsonrpc_conf": backend_config_dir / "jsonrpc.conf",
 		"mysql_conf": backend_config_dir / "mysql.conf",
 		"opsipxeconfd_conf": backend_config_dir / "opsipxeconfd.conf",
 		"acl_conf": Path(config.acl_file),

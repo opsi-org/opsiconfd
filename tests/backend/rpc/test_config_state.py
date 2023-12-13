@@ -13,8 +13,6 @@ from typing import Any, Generator
 import pytest
 from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver
 
-from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.backend.mysql.cleanup import remove_orphans_config_state
 from opsiconfd.config import get_configserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

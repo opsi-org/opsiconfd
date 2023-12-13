@@ -15,7 +15,6 @@ from opsicommon.objects import (
 	LocalbootProduct,
 	OpsiClient,
 	OpsiDepotserver,
-	ProductDependency,
 	ProductOnClient,
 	ProductOnDepot,
 )
@@ -63,7 +62,7 @@ def test_fix_urls(backend: UnprotectedBackend) -> None:  # pylint: disable=too-m
 	assert depot_corrected.workbenchRemoteUrl == "webdavs://test-depot-1.opsi.org:4447/workbench"
 
 
-def test_cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
+def test_cleanup_product_on_clients(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	depot1 = OpsiDepotserver(id="test-cleanup-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-cleanup-host-1.opsi.test")
 	product1 = LocalbootProduct(

@@ -44,6 +44,33 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
 
+def auto_fill_depotserver_urls(depot: OpsiDepotserver) -> bool:
+	address = depot.id
+	changed = False
+	if not depot.depotLocalUrl:
+		depot.setDepotLocalUrl("file:///var/lib/opsi/depot")
+		changed = True
+	if not depot.depotRemoteUrl:
+		depot.setDepotRemoteUrl(f"smb://{address}/opsi_depot")
+		changed = True
+	if not depot.depotWebdavUrl:
+		depot.setDepotWebdavUrl(f"webdavs://{address}:4447/depot")
+		changed = True
+	if not depot.repositoryLocalUrl:
+		depot.setRepositoryLocalUrl("file:///var/lib/opsi/repository")
+		changed = True
+	if not depot.repositoryRemoteUrl:
+		depot.setRepositoryRemoteUrl(f"smb://{address}/opsi_repository")
+		changed = True
+	if not depot.workbenchLocalUrl:
+		depot.setWorkbenchLocalUrl("file:///var/lib/opsi/workbench")
+		changed = True
+	if not depot.workbenchRemoteUrl:
+		depot.setWorkbenchRemoteUrl(f"smb://{address}/opsi_workbench")
+		changed = True
+	return changed
+
+
 class RPCHostMixin(Protocol):
 	def _host_check_duplicate_hardware_address(self: BackendProtocol, host: Host) -> None:
 		if not self._mysql.unique_hardware_addresses or not host.hardwareAddress or host.hardwareAddress.startswith("00:00:00"):

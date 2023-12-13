@@ -25,6 +25,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	UnicodeConfig,
 )
 
+from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import config, get_configserver_id, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import running_in_docker
@@ -49,10 +50,10 @@ def _get_windows_domain() -> str | None:
 
 
 def _auto_correct_depot_urls(backend: UnprotectedBackend) -> None:
-	# Auto-correct URLs
+	# Auto-fill and correct URLs
 	depots = backend.host_getObjects(type="OpsiDepotserver")
 	for depot in depots:
-		changed = False
+		changed = auto_fill_depotserver_urls(depot)
 		for attribute in ("depotRemoteUrl", "depotWebdavUrl", "repositoryRemoteUrl", "workbenchRemoteUrl"):
 			value: str = getattr(depot, attribute)
 			if not value:

@@ -13,8 +13,10 @@ from typing import Generator
 from uuid import uuid4
 
 import pytest
+from opsicommon.objects import OpsiDepotserver
 
 from opsiconfd.backend.rpc.main import ProtectedBackend
+from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -59,6 +61,20 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 	finally:
 		# Restore original ACL
 		backend._read_acl_file()  # pylint: disable=protected-access
+
+
+def test_auto_fill_depotserver_url() -> None:
+	depot = OpsiDepotserver(id="depot.opsi.test", workbenchRemoteUrl="smb://172.16.1.1/opsi_workbench")
+	assert auto_fill_depotserver_urls(depot)
+	assert depot.depotLocalUrl == "file:///var/lib/opsi/depot"
+	assert depot.depotRemoteUrl == "smb://depot.opsi.test/opsi_depot"
+	assert depot.depotWebdavUrl == "webdavs://depot.opsi.test:4447/depot"
+	assert depot.repositoryLocalUrl == "file:///var/lib/opsi/repository"
+	assert depot.repositoryRemoteUrl == "smb://depot.opsi.test/opsi_repository"
+	assert depot.workbenchLocalUrl == "file:///var/lib/opsi/workbench"
+	assert depot.workbenchRemoteUrl == "smb://172.16.1.1/opsi_workbench"
+	# assert no changes
+	assert not auto_fill_depotserver_urls(depot)
 
 
 def test_host_insertObject(  # pylint: disable=invalid-name,disable=redefined-outer-name,unused-argument

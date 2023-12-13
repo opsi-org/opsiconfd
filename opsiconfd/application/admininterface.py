@@ -25,6 +25,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from opsicommon import __version__ as python_opsi_common_version
 from opsicommon.license import OpsiLicenseFile
+from opsicommon.objects import OpsiDepotserver
 from opsicommon.system.info import linux_distro_id_like_contains
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
@@ -35,6 +36,7 @@ from opsiconfd.application import AppState
 from opsiconfd.application.memoryprofiler import memory_profiler_router
 from opsiconfd.application.metrics import create_grafana_datasource
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
+from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import FQDN, VAR_ADDON_DIR, config
 from opsiconfd.grafana import (
 	GRAFANA_DASHBOARD_UID,
@@ -269,7 +271,10 @@ async def create_depot(request: Request) -> RESTResponse:
 	backend = get_unprotected_backend()
 	if backend.host_getIdents(id=depot_id):
 		raise ValueError("Depot already exists")
-	backend.host_createOpsiDepotserver(id=depot_id, description=request_body.get("description"))
+
+	depot = OpsiDepotserver(id=depot_id, description=request_body.get("description"))
+	auto_fill_depotserver_urls(depot)
+	backend.host_createOpsiDepotserver(depot)
 	return RESTResponse("ok")
 
 

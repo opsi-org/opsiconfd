@@ -7,7 +7,7 @@
 """
 test opsiconfd.backend.mysql
 """
-
+# pylint: disable=too-many-lines
 from pathlib import Path
 from typing import Generator
 from uuid import uuid4

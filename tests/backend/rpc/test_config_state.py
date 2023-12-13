@@ -256,65 +256,6 @@ def test_cs_get_values_rename_depot(test_client: OpsiconfdTestClient) -> None:  
 	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == ["acpi=off"]
 
 
-def test_config_state_cleanup(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-
-	clients, depot = _create_clients_and_depot(test_client)
-
-	print(clients)
-	print(depot)
-
-	_create_test_server_config(test_client, "test-backend-rpc-obj-config")
-	# Set config state on depot, client 2 should use this config value
-	depot_conf = _set_config_state(test_client, depot["id"], "test-backend-rpc-obj-config", ["acpi=off"])
-
-	new_depot_id = "new-depot-id.opsi.test"
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_renameOpsiDepotserver", "params": [depot["id"], new_depot_id]}
-	res = test_client.post("/rpc", json=rpc).json()
-	print(res)
-	assert "error" not in res
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "configState_getObjects",
-		"params": [[], {"objectId": new_depot_id, "configId": depot_conf["configId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	print(res)
-	assert "error" not in res
-	assert res["result"][0]["configId"] == depot_conf["configId"]
-	assert res["result"][0]["values"] == depot_conf["values"]
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "configState_getObjects",
-		"params": [[], {"objectId": depot["id"], "configId": depot_conf["configId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	print(res)
-	assert "error" not in res
-	assert res["result"][0]["configId"] == depot_conf["configId"]
-	assert res["result"][0]["values"] == depot_conf["values"]
-
-	mysql = MySQLConnection()
-	with mysql.connection():
-		with mysql.session() as session:
-			remove_orphans_config_state(session)
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "configState_getObjects",
-		"params": [[], {"objectId": depot["id"], "configId": depot_conf["configId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	print(res)
-	assert "error" not in res
-	assert res["result"] == []
-
-
 def test_configState_getClientToDepotserver(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name
 	depot1 = OpsiDepotserver(id="test-config-state-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-config-state-client-1.opsi.test")

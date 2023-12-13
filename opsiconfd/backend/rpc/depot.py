@@ -893,39 +893,45 @@ class DepotserverPackageManager:
 			except IndexError:
 				pass
 
-			if not allow_remove_used:
-				client_ids = [
-					clientToDepot["clientId"]
-					for clientToDepot in self.backend.configState_getClientToDepotserver(depotIds=[self._depot_id])
-				]
-				if client_ids:
-					product_on_clients = self.backend.productOnClient_getObjects(productId=product_id, clientId=client_ids)
-					if product_on_clients:
-						installed = 0
-						action_requests = 0
-						for poc in product_on_clients:
-							if poc.installationStatus == "installed":
-								installed += 1
-							if poc.actionRequest and poc.actionRequest != "none":
-								action_requests += 1
-						if installed > 0 or action_requests > 0:
-							logger.notice(
-								"Product '%s' currently installed on %d clients, action requests set on %d clients",
-								product_id,
-								installed,
-								action_requests,
+			client_ids = [
+				clientToDepot["clientId"] for clientToDepot in self.backend.configState_getClientToDepotserver(depotIds=[self._depot_id])
+			]
+			if client_ids:
+				product_on_clients = self.backend.productOnClient_getObjects(productId=product_id, clientId=client_ids)
+				if product_on_clients:
+					update_product_on_clients = []
+					installed = 0
+					action_requests = 0
+					for poc in product_on_clients:
+						if poc.installationStatus == "installed":
+							installed += 1
+						if poc.actionRequest and poc.actionRequest != "none":
+							action_requests += 1
+							if allow_remove_used:
+								poc.setActionRequest("none")
+								update_product_on_clients.append(poc)
+
+					if update_product_on_clients:
+						self.backend.productOnClient_updateObjects(update_product_on_clients)
+
+					if not allow_remove_used and (installed > 0 or action_requests > 0):
+						logger.notice(
+							"Product '%s' currently installed on %d clients, action requests set on %d clients",
+							product_id,
+							installed,
+							action_requests,
+						)
+						if not force:
+							raise BackendReferentialIntegrityError(
+								f"Product '{product_id}' currently installed on {installed} clients "
+								f"action requests set on {action_requests} clients, use argument 'force' to ignore"
 							)
-							if not force:
-								raise BackendReferentialIntegrityError(
-									f"Product '{product_id}' currently installed on {installed} clients "
-									f"action requests set on {action_requests} clients, use argument 'force' to ignore"
-								)
-							logger.warning(
-								"Uninstall of product '%s' forced which is installed on %d clients, action requests set on %d clients",
-								product_id,
-								installed,
-								action_requests,
-							)
+						logger.warning(
+							"Uninstall of product '%s' forced which is installed on %d clients, action requests set on %d clients",
+							product_id,
+							installed,
+							action_requests,
+						)
 
 			product_on_depots = self.backend.productOnDepot_getObjects(depotId=self._depot_id, productId=product_id)
 			try:

@@ -11,6 +11,7 @@ opsiconfd - setup
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from subprocess import run
 from typing import TYPE_CHECKING
 
@@ -65,6 +66,34 @@ def _auto_correct_depot_urls(backend: UnprotectedBackend) -> None:
 			backend.host_updateObject(depot)
 
 
+def _cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
+	clients_on_depot = defaultdict(list)
+	for entry in backend.configState_getClientToDepotserver(masterOnly=True):
+		clients_on_depot[entry["depotId"]].append(entry["clientId"])
+
+	all_product_ids = set(p["id"] for p in backend.product_getIdents(returnType="dict"))
+	for depot_id, client_ids in clients_on_depot.items():
+		if not client_ids:
+			continue
+		installed_product_ids = set(p["productId"] for p in backend.productOnDepot_getIdents(returnType="dict", depotId=depot_id))
+		unavailable_product_ids = all_product_ids - installed_product_ids
+		if not unavailable_product_ids:
+			continue
+		# Get all productOnClients with action set for unavailable product
+		pocs = backend.productOnClient_getObjects(
+			productId=list(unavailable_product_ids),
+			clientId=client_ids,
+			actionRequest=["setup", "uninstall", "update", "once", "always", "custom"],
+		)
+		if not pocs:
+			continue
+		for poc in pocs:
+			poc.setActionRequest("none")
+
+		logger.info("Setting action request of %d productOnClients to 'none' for unavailable product", len(pocs))
+		backend.productOnClient_updateObjects(pocs)
+
+
 def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-branches
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
@@ -82,6 +111,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	add_config_states: list[ConfigState] = []
 
 	_auto_correct_depot_urls(backend)
+	_cleanup_product_on_clients(backend)
 
 	conf = configs.get("clientconfig.configserver.url")
 	if not conf or config.external_url not in conf.defaultValues or config.external_url not in conf.possibleValues:

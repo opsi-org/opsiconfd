@@ -776,3 +776,96 @@ def test_setProductActionRequestWithDependencies(  # pylint: disable=invalid-nam
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "setProductActionRequestWithDependencies", "params": [product1["id"], client_id, "setup"]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
+
+
+def test_productOnClients_removed_product(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	depot1 = OpsiDepotserver(id="test-backend-rpc-depot-1.opsi.test")
+	client1 = OpsiClient(id="test-backend-rpc-host-1.opsi.test")
+	product1 = LocalbootProduct(
+		id="test-backend-rpc-product1",
+		productVersion="1",
+		packageVersion="1",
+		priority=100,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+		alwaysScript="always.opsiscript",
+		onceScript="once.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="test-backend-rpc-product2",
+		productVersion="1",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+		alwaysScript="always.opsiscript",
+		onceScript="once.opsiscript",
+	)
+	product_on_depot1 = ProductOnDepot(
+		productId=product1.id,
+		productType=product1.getType(),
+		productVersion=product1.productVersion,
+		packageVersion=product1.packageVersion,
+		depotId=depot1.id,
+	)
+	product_on_client1 = ProductOnClient(
+		productId=product1.id,
+		productType=product1.getType(),
+		productVersion=product1.productVersion,
+		packageVersion=product1.packageVersion,
+		clientId=client1.id,
+		installationStatus="installed",
+		actionRequest="setup",
+	)
+	product_on_client2 = ProductOnClient(
+		productId=product2.id,
+		productType=product2.getType(),
+		productVersion=product2.productVersion,
+		packageVersion=product2.packageVersion,
+		clientId=client1.id,
+		installationStatus="installed",
+		actionRequest="setup",
+	)
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client1.id, values=[depot1.id])
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[depot1.to_hash(), client1.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_createObjects", "params": [[config_state.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product1.to_hash(), product2.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_createObjects", "params": [[product_on_depot1.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnClient_createObjects",
+		"params": [[product_on_client1.to_hash(), product_on_client2.to_hash()]],
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# product2 is not installed on depot, actionRequest must not be returned
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjectsWithSequence", "params": [[], {"clientId": client1.id}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert len(res["result"]) == 1
+	assert res["result"][0]["productId"] == product1.id
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjectsWithSequence", "params": [[], {"clientId": client1.id}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert len(res["result"]) == 1
+	assert res["result"][0]["productId"] == product1.id

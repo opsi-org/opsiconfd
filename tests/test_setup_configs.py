@@ -10,9 +10,17 @@ setup tests
 
 from unittest.mock import PropertyMock, patch
 
-from opsicommon.objects import OpsiDepotserver
+from opsicommon.objects import (
+	ConfigState,
+	LocalbootProduct,
+	OpsiClient,
+	OpsiDepotserver,
+	ProductDependency,
+	ProductOnClient,
+	ProductOnDepot,
+)
 
-from opsiconfd.setup.configs import _auto_correct_depot_urls, _get_windows_domain
+from opsiconfd.setup.configs import _auto_correct_depot_urls, _cleanup_product_on_clients, _get_windows_domain
 from tests.utils import UnprotectedBackend, backend, clean_mysql  # pylint: disable=unused-import
 
 
@@ -53,3 +61,72 @@ def test_fix_urls(backend: UnprotectedBackend) -> None:  # pylint: disable=too-m
 	assert depot_corrected.repositoryRemoteUrl == "webdavs://test-depot-1.opsi.org:4447/repository"
 	assert depot_corrected.workbenchLocalUrl == "file:///var/lib/opsi/workbench"
 	assert depot_corrected.workbenchRemoteUrl == "webdavs://test-depot-1.opsi.org:4447/workbench"
+
+
+def test_cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
+	depot1 = OpsiDepotserver(id="test-cleanup-depot-1.opsi.test")
+	client1 = OpsiClient(id="test-cleanup-host-1.opsi.test")
+	product1 = LocalbootProduct(
+		id="test-cleanup-product1",
+		productVersion="1",
+		packageVersion="1",
+		priority=100,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+		alwaysScript="always.opsiscript",
+		onceScript="once.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="test-cleanup-product2",
+		productVersion="1",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+		alwaysScript="always.opsiscript",
+		onceScript="once.opsiscript",
+	)
+	product_on_depot1 = ProductOnDepot(
+		productId=product1.id,
+		productType=product1.getType(),
+		productVersion=product1.productVersion,
+		packageVersion=product1.packageVersion,
+		depotId=depot1.id,
+	)
+	product_on_client1 = ProductOnClient(
+		productId=product1.id,
+		productType=product1.getType(),
+		productVersion=product1.productVersion,
+		packageVersion=product1.packageVersion,
+		clientId=client1.id,
+		installationStatus="installed",
+		actionRequest="setup",
+	)
+	product_on_client2 = ProductOnClient(
+		productId=product2.id,
+		productType=product2.getType(),
+		productVersion=product2.productVersion,
+		packageVersion=product2.packageVersion,
+		clientId=client1.id,
+		installationStatus="installed",
+		actionRequest="setup",
+	)
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client1.id, values=[depot1.id])
+
+	backend.host_createObjects([depot1, client1])
+	backend.configState_createObjects([config_state])
+	backend.product_createObjects([product1, product2])
+	backend.productOnDepot_createObjects([product_on_depot1])
+	backend.productOnClient_createObjects([product_on_client1, product_on_client2])
+
+	# product2 is not installed on depot, actionRequest must be set to "none"
+	_cleanup_product_on_clients(backend)
+
+	pocs = backend.productOnClient_getObjects(clientId=client1.id)
+	assert len(pocs) == 2
+	for poc in pocs:
+		assert poc.productId in (product1.id, product2.id)
+		if poc.productId == product1.id:
+			assert poc.actionRequest == "setup"
+		elif poc.productId == product2.id:
+			assert poc.actionRequest == "none"

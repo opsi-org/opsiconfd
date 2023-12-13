@@ -63,7 +63,8 @@ def _auto_correct_depot_urls(backend: UnprotectedBackend) -> None:
 				setattr(depot, attribute, value.replace(":///", "://", 1))
 				changed = True
 		if changed:
-			backend.host_updateObject(depot)
+			with backend.events_disabled():
+				backend.host_updateObject(depot)
 
 
 def _cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
@@ -91,7 +92,8 @@ def _cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
 			poc.setActionRequest("none")
 
 		logger.info("Setting action request of %d productOnClients to 'none' for unavailable product", len(pocs))
-		backend.productOnClient_updateObjects(pocs)
+		with backend.events_disabled():
+			backend.productOnClient_updateObjects(pocs)
 
 
 def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-branches

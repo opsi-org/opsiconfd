@@ -181,6 +181,9 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 			json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()},  # type: ignore[attr-defined]
 		)
 		assert res.status_code == 200
+		# test session session.authenticated is true
+		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
+		assert "login?redirect" not in str(res.url)
 
 	with get_config({"multi_factor_auth": "inactive"}):
 		test_client.reset_cookies()
@@ -193,6 +196,9 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 
 		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 401
+		# test session session.authenticated is still false
+		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
+		assert "login?redirect" in str(res.url)
 
 	with get_config({"multi_factor_auth": "inactive"}):
 		test_client.reset_cookies()

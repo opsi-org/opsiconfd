@@ -1117,8 +1117,6 @@ async def _authenticate(  # pylint: disable=unused-argument,too-many-branches,to
 					secret_filter.add_secrets(session.password)
 					mfa_otp = match.group(2)
 
-		await authenticate_user_auth_module(scope=scope)
-
 		backend = get_unprotected_backend()
 		now = timestamp()
 		users = await backend.async_call("user_getObjects", id=session.username)
@@ -1138,6 +1136,8 @@ async def _authenticate(  # pylint: disable=unused-argument,too-many-branches,to
 				if not totp.verify(mfa_otp):
 					raise BackendAuthenticationError("Incorrect one-time password")
 				logger.info("OTP MFA successful")
+
+		await authenticate_user_auth_module(scope=scope)
 
 		user.lastLogin = now
 		await backend.async_call("user_updateObject", user=user)

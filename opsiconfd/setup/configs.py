@@ -291,6 +291,36 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			)
 		)
 
+	if "opsiclientd.event_timer.active" not in config_ids:
+		logger.info("Creating config 'opsiclientd.event_timer.active'")
+		add_configs.append(
+			BoolConfig(
+				id="opsiclientd.event_timer.active",
+				description="Periodically request cache update from configserver",
+				defaultValues=[False],
+			)
+		)
+
+	if "opsiclientd.event_gui_startup.active" not in config_ids:
+		logger.info("Creating config 'opsiclientd.event_gui_startup.active'")
+		add_configs.append(
+			BoolConfig(
+				id="opsiclientd.event_gui_startup.active",
+				description="Run gui_startup event at system start",
+				defaultValues=[True],
+			)
+		)
+
+	if "opsiclientd.event_gui_startup{user_logged_in}.active" not in config_ids:
+		logger.info("Creating config 'opsiclientd.event_gui_startup{user_logged_in}.active'")
+		add_configs.append(
+			BoolConfig(
+				id="opsiclientd.event_gui_startup{user_logged_in}.active",
+				description="Run gui_startup event at opsiclientd start if a user is logged in",
+				defaultValues=[True],
+			)
+		)
+
 	if "opsiclientd.config_service.permanent_connection" not in config_ids:
 		logger.info("Creating config 'opsiclientd.config_service.permanent_connection'")
 		add_configs.append(

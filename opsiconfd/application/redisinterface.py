@@ -45,7 +45,7 @@ async def get_redis_stats() -> RESTResponse:  # pylint: disable=too-many-locals
 		redis_info = await async_get_redis_info(redis)
 		return RESTResponse(redis_info)
 	except Exception as err:  # pylint: disable=broad-except
-		logger.error("Error while reading redis data: %s", err)
+		logger.error("Error while reading redis data: %s", err, exc_info=True)
 		return RESTErrorResponse(details=err, message="Error while reading redis data")
 
 

@@ -362,7 +362,40 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:  # pylint:
 			# Wrong key type
 			pass
 
-	redis_info = decode_redis_result(await client.execute_command("INFO"))  # type: ignore[no-untyped-call]
+	def decode_value(key: str, value: Any) -> Any:
+		if isinstance(value, dict):
+			return {k: decode_value(k, v) for k, v in value.items()}
+		if not isinstance(value, str):
+			return value
+		if key == "ver" or "version" in key:
+			# Do not convert to number
+			return value
+		if "=" in value:
+			return decode_value(key, dict(v.split("=") for v in value.split(",")))
+		try:
+			if "." in value:
+				return float(value)
+			else:
+				return int(value)
+		except ValueError:
+			pass
+		return value
+
+	redis_info: dict[str, dict[str, Any]] = {}
+	section = None
+	for line in decode_redis_result(await client.execute_command("INFO ALL")).split("\n"):  # type: ignore[no-untyped-call]
+		line = line.strip()
+		if not line:
+			continue
+		if line.startswith("#"):
+			section = line[1:].strip()
+			redis_info[section] = {}
+			continue
+		assert section
+		key, value = line.split(":", 1)
+		value = decode_value(key, value)
+		redis_info[section][key] = value
+
 	redis_info["key_info"] = {
 		key_type: {"keys": len(info["keys"]), "memory": info["memory"], "entries": info["entries"]}  # type: ignore[arg-type]
 		for key_type, info in key_info.items()

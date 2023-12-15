@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Protocol
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.objects import ProductProperty
 from opsicommon.package.wim import wim_info
-from opsicommon.types import forceList, forceProductId
+from opsicommon.types import forceList, forceObjectClass, forceProductId
 
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.logging import logger
@@ -81,7 +81,8 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 			logger.info("No default values found, setting first imagename as default")
 			product_property.defaultValues = [image_names[0]]
 
-		self.productProperty_updateObject(product_property)
+		product_property = forceObjectClass(product_property, ProductProperty)
+		self._product_property_insert_object(product_property=product_property, ace=[], create=False, set_null=False)
 		logger.notice("Wrote imagenames to property 'imagename' of product %r.", product_id)
 
 		if not languages:
@@ -101,7 +102,8 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 			logger.debug(
 				"%r possibleValues=%r, defaultValues=%r", product_property, product_property.possibleValues, product_property.defaultValues
 			)
-			self.productProperty_updateObject(product_property)
+			product_property = forceObjectClass(product_property, ProductProperty)
+			self._product_property_insert_object(product_property=product_property, ace=[], create=False, set_null=False)
 			logger.notice("Wrote languages to property %r of product %r.", product_property.propertyId, product_property.productId)
 
 	@rpc_method(check_acl=False)

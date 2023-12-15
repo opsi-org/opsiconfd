@@ -12,8 +12,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, List, Literal, Protocol
 
-from opsicommon.objects import ProductProperty  # type: ignore[import]
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.objects import ProductProperty
+from opsicommon.types import forceList, forceObjectClass
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_product_property_state

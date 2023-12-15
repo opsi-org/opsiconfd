@@ -77,6 +77,7 @@ def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: st
 	cols = cols or 120
 	sp_env = os.environ.copy()
 	sp_env.update({"TERM": "xterm-256color"})
+	logger.info("Starting new pty with shell %r, rows %r, cols %r, cwd %r", shell, rows, cols, cwd)
 	return spawn(shell, dimensions=(rows, cols), env=sp_env, cwd=cwd)
 
 
@@ -93,19 +94,27 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		self._send_message = send_message
 		self._last_usage = time()
 		self._loop = get_running_loop()
-
-		self.set_size(terminal_open_request.rows, terminal_open_request.cols, False)
-
-		cwd = getpwuid(getuid()).pw_dir
-		self._pty = start_pty(
-			shell=self._terminal_open_request.shell or config.admin_interface_terminal_shell, rows=self.rows, cols=self.cols, cwd=cwd
-		)
-		self._pty_reader_task = self._loop.create_task(self._pty_reader())
+		self._cwd = getpwuid(getuid()).pw_dir
+		self._pty: spawn | None = None
 		self._closing = False
+		self.set_size(terminal_open_request.rows, terminal_open_request.cols, False)
+		self._loop.create_task(self.start())
 
 	@property
 	def terminal_id(self) -> str:
 		return self._terminal_open_request.terminal_id
+
+	async def start(self) -> None:
+		self._pty = await self._loop.run_in_executor(
+			None,
+			start_pty,
+			self._terminal_open_request.shell or config.admin_interface_terminal_shell,
+			self.rows,
+			self.cols,
+			self._cwd,
+		)
+		logger.debug("pty started")
+		self._pty_reader_task = self._loop.create_task(self._pty_reader())
 
 	def back_channel(self, message: Message | None = None) -> str:
 		if message and message.back_channel:

@@ -971,6 +971,18 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help("opsiconfd", "Minimum opsi-configed version allowed to connect."),
 		)
 		self._parser.add(
+			"--collect-metrics",
+			env_var="OPSICONFD_COLLECT_METRICS",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"opsiconfd",
+				"Collect metrics and write them to redis.",
+			),
+		)
+		self._parser.add(
 			"--skip-setup",
 			nargs="+",
 			env_var="OPSICONFD_SKIP_SETUP",

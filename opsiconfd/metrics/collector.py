@@ -39,6 +39,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		self._metrics: dict[str, Metric] = {m.id: m for m in MetricsRegistry().get_metrics(self._metric_type)}
 		self._values: dict[str, dict[int, Any]] = {metric_id: {} for metric_id in self._metrics}
 		self._missing_metric_ids: list[str] = []
+		self._enabled = config.collect_metrics
 
 	def stop(self) -> None:
 		self._should_stop = True
@@ -110,11 +111,12 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 
 	async def main_loop(self) -> None:
 		while True:
-			try:
-				await self._fetch_values()
-				await self._write_values_to_redis()
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error(err, exc_info=True)
+			if self._enabled:
+				try:
+					await self._fetch_values()
+					await self._write_values_to_redis()
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error(err, exc_info=True)
 			for _ in range(self._interval):
 				if self._should_stop:
 					return

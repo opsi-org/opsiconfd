@@ -291,16 +291,6 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			)
 		)
 
-	if "opsiclientd.event_net_connection.active" not in config_ids:
-		logger.info("Creating config 'opsiclientd.event_net_connection.active'")
-		add_configs.append(
-			BoolConfig(
-				id="opsiclientd.event_net_connection.active",
-				description="Trigger net_connection event if certain network interface is up",
-				defaultValues=[False],
-			)
-		)
-
 	if "opsiclientd.event_timer.active" not in config_ids:
 		logger.info("Creating config 'opsiclientd.event_timer.active'")
 		add_configs.append(

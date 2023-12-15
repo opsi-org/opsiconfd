@@ -388,7 +388,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:  # pylint:
 		if not line:
 			continue
 		if line.startswith("#"):
-			section = line[1:].strip()
+			section = line[1:].strip().lower()
 			redis_info[section] = {}
 			continue
 		assert section

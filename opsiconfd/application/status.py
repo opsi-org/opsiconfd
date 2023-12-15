@@ -42,7 +42,7 @@ async def status_overview() -> PlainTextResponse:
 		redis = await async_redis_client(timeout=3)
 		await redis.ping()
 		redis_info = await async_get_redis_info(redis)
-		redis_mem_total = redis_info["used_memory"]
+		redis_mem_total = redis_info["memory"]["used_memory"]
 		for key_type in redis_info["key_info"]:
 			redis_mem += redis_info["key_info"][key_type]["memory"]
 		redis_status = "ok"

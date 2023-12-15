@@ -119,15 +119,17 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	def back_channel(self, message: Message | None = None) -> str:
 		if message and message.back_channel:
 			return message.back_channel
-		return self._terminal_open_request.back_channel or self._terminal_open_request.sender
+		return self._terminal_open_request.response_channel
 
 	def set_size(self, rows: int | None = None, cols: int | None = None, pty_set_size: bool = True) -> None:
 		self.rows = min(max(1, int(rows or self.default_rows)), self.max_rows)
 		self.cols = min(max(1, int(cols or self.default_cols)), self.max_cols)
-		if pty_set_size:
+		if pty_set_size and self._pty:
 			self._pty.setwinsize(self.rows, self.cols)
 
 	def get_cwd(self) -> Path | None:
+		if not self._pty:
+			return None
 		try:
 			proc = Process(self._pty.pid)
 		except (NoSuchProcess, ValueError):
@@ -169,7 +171,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	async def process_message(self, message: TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalCloseRequestMessage) -> None:
 		if isinstance(message, TerminalDataWriteMessage):
 			# Do not wait for completion to minimize rtt
-			if not self._closing:
+			if not self._closing and self._pty:
 				self._loop.run_in_executor(None, self._pty.write, message.data)
 		elif isinstance(message, TerminalResizeRequestMessage):
 			self.set_size(message.rows, message.cols)

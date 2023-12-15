@@ -403,7 +403,11 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 							context_data = message[1].get(b"context")
 							if context_data:
 								context = self._context_decoder.decode(context_data)
-							msg = Message.from_msgpack(message[1][b"message"])
+							message_data = message[1].get(b"message")
+							if not message_data:
+								logger.warning("Received malformed message from redis: %r", message)
+								continue
+							msg = Message.from_msgpack(message_data)
 							_logger.debug("Message from redis: %r", msg)
 							if msg.expires and msg.expires <= now_ts:
 								_logger.debug("Message is expired (%r <= %r)", msg.expires, now_ts)

@@ -133,12 +133,12 @@ class RPCExtSSHCommandsMixin(Protocol):
 	def SSHCommand_getObject(self: BackendProtocol, menuText: str) -> Optional[dict[str, Any]]:  # pylint: disable=invalid-name
 		for command in self._read_ssh_commands_files().values():
 			if command.menuText == menuText:
-				return command.dict()
+				return command.model_dump()
 		return None
 
 	@rpc_method
 	def SSHCommand_getObjects(self: BackendProtocol) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
-		return [c.dict() for c in self._read_ssh_commands_files().values()]
+		return [c.model_dump() for c in self._read_ssh_commands_files().values()]
 
 	@rpc_method
 	def SSHCommand_createObjects(self: BackendProtocol, commandList: list[dict[str, Any]]) -> None:  # pylint: disable=invalid-name

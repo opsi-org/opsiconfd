@@ -296,7 +296,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 		add_configs.append(
 			BoolConfig(
 				id="opsiclientd.event_timer.active",
-				description="Periodically request cache update from configserver",
+				description="Activate opsiclientd timer event",
 				defaultValues=[False],
 			)
 		)

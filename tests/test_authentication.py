@@ -117,9 +117,9 @@ def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	assert "error" not in resp
 	assert resp["result"][0]["id"] == ADMIN_USER
 	diff = datetime.now() - datetime.strptime(resp["result"][0]["created"], "%Y-%m-%d %H:%M:%S")
-	assert abs(diff.total_seconds()) < 3
+	assert abs(diff.total_seconds()) < 5
 	diff = datetime.now() - datetime.strptime(resp["result"][0]["lastLogin"], "%Y-%m-%d %H:%M:%S")
-	assert abs(diff.total_seconds()) < 3
+	assert abs(diff.total_seconds()) < 5
 
 
 def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

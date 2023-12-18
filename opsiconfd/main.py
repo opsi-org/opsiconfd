@@ -349,6 +349,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 
 		setup(explicit=bool(config.setup))
 
+		os.chdir("/tmp")
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)
 			try:

@@ -319,7 +319,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		if self._sub_command:
 			self._config.action = self._sub_command
 
-		opsi_config.config_file = self._config.opsi_config
+		opsi_config.config_file = os.path.abspath(self._config.opsi_config)
 
 		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))
 

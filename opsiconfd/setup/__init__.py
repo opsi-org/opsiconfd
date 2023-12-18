@@ -59,7 +59,13 @@ def restart_opsiconfd_if_running() -> None:
 
 def setup_redis() -> None:
 	# Delete obsolete keys
-	for delete_key in ("status",):
+	for delete_key in (
+		"status",
+		f"{config.redis_key('stats')}:client:failed_auth",
+		f"{config.redis_key('stats')}:client:num_http_request",
+		f"{config.redis_key('stats')}:client:sum_http_request",
+		f"{config.redis_key('stats')}:client:sum_http_request_number",
+	):
 		delete_recursively(delete_key)
 
 

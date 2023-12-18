@@ -64,6 +64,7 @@ from opsiconfd.ssl import (
 )
 
 from .utils import (  # pylint: disable=unused-import
+	ACL_CONF_41,
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -73,7 +74,6 @@ from .utils import (  # pylint: disable=unused-import
 	sync_clean_redis,
 	sync_redis_client,
 	test_client,
-	ACL_CONF_41
 )
 
 DEPRECATED_METHOD = "getClientIds_list"
@@ -150,13 +150,12 @@ def test_check_run_as_user() -> None:
 		result = check_run_as_user()
 		assert result.check_status == CheckStatus.ERROR
 		assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
-		assert (
-			result.partial_results[2].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
-		)
-		assert (
-			result.partial_results[3].message
-			== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
-		)
+		assert result.partial_results[
+			2
+		].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
+		assert result.partial_results[
+			3
+		].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
 
 
 def test_check_opsiconfd_config(tmp_path: Path) -> None:
@@ -214,19 +213,33 @@ def test_check_redis() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	result = check_redis()
 	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
-	assert "Redis is running and RedisTimeSeries is loaded." in captured_output
+	assert "No Redis issues found." in captured_output
+	assert "Connection to Redis is working." in captured_output
+	assert "RedisTimeSeries version " in captured_output
+	assert "Redis memory usage is OK" in captured_output
 	assert result.check_status == "ok"
 
 
 def test_check_redis_error() -> None:
+	console = Console(log_time=False, force_terminal=False, width=1000)
+
 	with mock.patch("opsiconfd.redis.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
-		console = Console(log_time=False, force_terminal=False, width=1000)
 		result = check_redis()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		assert "Cannot connect to Redis" in captured_output
 		assert result.check_status == "error"
 		assert result.message == "Cannot connect to Redis: Redis test error"
+
+	with mock.patch("opsiconfd.check.redis.MEMORY_USAGE_WARN", 1):
+		result = check_redis()
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
+		assert "WARNING - Redis memory usage is high" in captured_output
+
+	with mock.patch("opsiconfd.check.redis.MEMORY_USAGE_ERR", 1):
+		result = check_redis()
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
+		assert "ERROR - Redis memory usage is too high" in captured_output
 
 
 def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name

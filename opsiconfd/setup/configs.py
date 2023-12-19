@@ -334,6 +334,19 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 			)
 		)
 
+	if "opsiclientd.global.max_log_transfer_size" not in config_ids:
+		logger.info("Creating config 'opsiclientd.global.max_log_transfer_size'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsiclientd.global.max_log_transfer_size",
+				description="Maximum size of opsiclientd log to transfer to the server in MB",
+				possibleValues=["0.25", "0.5", "1", "2", "3", "4", "5"],
+				defaultValues=["1"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
 	if "opsi-linux-bootimage.append" not in config_ids:
 		logger.info("Creating config 'opsi-linux-bootimage.append'")
 		add_configs.append(

@@ -139,6 +139,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		self._connection_pool_max_overflow = 10
 		self._connection_pool_timeout = 30
 		self._connection_pool_recycling_seconds = -1
+
 		self.unique_hardware_addresses = True
 
 		self._Session: scoped_session | None = lambda: None  # pylint: disable=invalid-name
@@ -230,9 +231,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			);
 			SET SESSION group_concat_max_len = 1000000;
 			SET SESSION lock_wait_timeout = 60;
+			SET SESSION group_concat_max_len = 1000000;
+			SET GLOBAL max_allowed_packet = 256000000;
 		"""
 		)
-		conn.execute("SET SESSION group_concat_max_len = 1000000;")
 		# conn.execute("SHOW VARIABLES LIKE 'sql_mode';").fetchone()
 
 	def _init_connection(self) -> None:

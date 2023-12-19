@@ -112,7 +112,10 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	add_configs: list[BoolConfig | UnicodeConfig] = []
 	add_config_states: list[ConfigState] = []
 
-	_auto_correct_depot_urls(backend)
+	try:
+		_auto_correct_depot_urls(backend)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to auto-correct depot URLs: %s", err)
 	_cleanup_product_on_clients(backend)
 
 	conf = configs.get("clientconfig.configserver.url")

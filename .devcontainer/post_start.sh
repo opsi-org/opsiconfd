@@ -6,8 +6,8 @@ echo "* Fetch a test license"
 sudo mkdir -p /etc/opsi/licenses
 sudo wget --header="Authorization: Bearer ${OPSILICSRV_TOKEN}" "https://opsi-license-server.uib.gmbh/api/v1/licenses/test?usage=opsiconfd-dev-container" -O /etc/opsi/licenses/test.opsilic || true
 
-echo "* Upgrade opsi-dev-tool"
-sudo opsi-dev-tool --self-upgrade || true
+echo "* Upgrade opsi-dev-cli"
+sudo opsi-dev-cli self upgrade --system || true
 
 echo "* Start services"
 sudo supervisorctl status redis-server | grep RUNNING >/dev/null || sudo supervisorctl start redis-server

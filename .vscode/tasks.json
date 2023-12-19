@@ -46,7 +46,7 @@
 		{
 			"label": "PyInstaller build",
 			"type": "shell",
-			"command": "sudo poetry run opsi-dev-cli -l debug pyinstaller build",
+			"command": "sudo poetry run opsi-dev-cli -l debug pyinstaller build --skip-transifex",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"

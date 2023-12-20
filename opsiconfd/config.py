@@ -95,8 +95,9 @@ def configure_warnings() -> None:
 	)
 	warnings.filterwarnings("ignore", category=ResourceWarning, module="asyncio.runners", message="unclosed resource")
 	if getattr(sys, "frozen", False):
-		# Disable resource warnings if frozen
+		# Disable warnings if frozen
 		warnings.simplefilter("ignore", ResourceWarning)
+		warnings.simplefilter("ignore", DeprecationWarning)
 
 
 if running_in_docker():

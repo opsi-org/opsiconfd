@@ -1015,6 +1015,64 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			],
 		)
 		self._parser.add(
+			"--checks",
+			nargs="+",
+			env_var="OPSICONFD_CHECKS",
+			default=None,
+			help=self._help(
+				("opsiconfd", "health-check"),
+				"A list of checks to perform. If None all checks are executed. "
+				"(checks: opsi_config, ssl, redis, mysql, run_as_user, opsi_licenses, "
+				"distro_eol, system_packages, disk_usage, depotservers, product_on_depots, "
+				"product_on_clients, deprecated_calls, ldap_connection).",
+			),
+			choices=[
+				"opsi_config",
+				"ssl",
+				"redis",
+				"mysql",
+				"run_as_user",
+				"opsi_licenses",
+				"distro_eol",
+				"system_packages",
+				"disk_usage",
+				"depotservers",
+				"product_on_depots",
+				"product_on_clients",
+				"deprecated_calls",
+				"ldap_connection",
+			],
+		)
+		self._parser.add(
+			"--skip-checks",
+			nargs="+",
+			env_var="OPSICONFD_SKIP_CHECKS",
+			default=None,
+			help=self._help(
+				("opsiconfd", "health-check"),
+				"A list of checks to skip "
+				"(checks: opsi_config, ssl, redis, mysql, run_as_user, opsi_licenses, "
+				"distro_eol, system_packages, disk_usage, depotservers, product_on_depots, "
+				"product_on_clients, deprecated_calls, ldap_connection).",
+			),
+			choices=[
+				"opsi_config",
+				"ssl",
+				"redis",
+				"mysql",
+				"run_as_user",
+				"opsi_licenses",
+				"distro_eol",
+				"system_packages",
+				"disk_usage",
+				"depotservers",
+				"product_on_depots",
+				"product_on_clients",
+				"deprecated_calls",
+				"ldap_connection",
+			],
+		)
+		self._parser.add(
 			"--redis-internal-url",
 			env_var="OPSICONFD_REDIS_INTERNAL_URL",
 			default="redis://localhost",

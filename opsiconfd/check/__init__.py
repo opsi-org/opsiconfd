@@ -21,26 +21,30 @@ from opsiconfd.check.opsipackages import check_product_on_clients, check_product
 from opsiconfd.check.redis import check_redis
 from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages
+from opsiconfd.config import config
 
-CHECKS = [
-	check_opsi_config,
-	check_opsiconfd_config,
-	check_ssl,
-	check_redis,
-	check_mysql,
-	check_run_as_user,
-	check_opsi_licenses,
-	check_distro_eol,
-	check_system_packages,
-	check_disk_usage,
-	check_depotservers,
-	check_product_on_depots,
-	check_product_on_clients,
-	check_deprecated_calls,
-	check_ldap_connection,
-]
+CHECKS = {
+	"opsi_config": check_opsi_config,
+	"ssl": check_ssl,
+	"redis": check_redis,
+	"mysql": check_mysql,
+	"run_as_user": check_run_as_user,
+	"opsi_licenses": check_opsi_licenses,
+	"distro_eol": check_distro_eol,
+	"system_packages": check_system_packages,
+	"disk_usage": check_disk_usage,
+	"depotservers": check_depotservers,
+	"product_on_depots": check_product_on_depots,
+	"product_on_clients": check_product_on_clients,
+	"deprecated_calls": check_deprecated_calls,
+	"ldap_connection": check_ldap_connection,
+}
 
 
 def health_check() -> Iterator[CheckResult]:
-	for check in CHECKS:
+	for check_id, check in CHECKS.items():
+		if config.checks and check_id not in config.checks:
+			continue
+		if config.skip_checks and check_id in config.skip_checks:
+			continue
 		yield check()

@@ -24,7 +24,7 @@ import uvloop
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 from opsicommon.types import forceHostId  # type: ignore[import]
-from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
+from opsicommon.utils import patch_popen  # type: ignore[import]
 from rich.console import Console
 from rich.progress import Progress
 from rich.prompt import Prompt
@@ -389,7 +389,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 
 
 def main() -> None:  # pylint: disable=too-many-return-statements
-	monkeypatch_subprocess_for_frozen()
+	patch_popen()
 	configure_warnings()
 
 	if config.version:

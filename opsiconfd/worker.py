@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Optional
 
 from opsicommon.utils import (
 	ip_address_in_network,
-	monkeypatch_subprocess_for_frozen,  # type: ignore[import]
+	patch_popen,  # type: ignore[import]
 )
 from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
@@ -201,7 +201,7 @@ class Worker(WorkerInfo, UvicornServer):
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		logger.notice("%s started", self)
 
-		monkeypatch_subprocess_for_frozen()
+		patch_popen()
 		configure_warnings()
 
 		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)

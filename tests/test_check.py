@@ -247,9 +247,9 @@ def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 	result = check_mysql()
 	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
-	assert "Connection to MySQL is working." in captured_output
+	assert "No MySQL issues found." in captured_output
 	assert result.check_status == "ok"
-	assert result.message == "Connection to MySQL is working."
+	assert result.message == "No MySQL issues found."
 
 
 def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name

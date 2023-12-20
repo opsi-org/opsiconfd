@@ -231,10 +231,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			);
 			SET SESSION group_concat_max_len = 1000000;
 			SET SESSION lock_wait_timeout = 60;
-			SET GLOBAL max_allowed_packet = 256000000;
 		"""
 		)
-		# conn.execute("SHOW VARIABLES LIKE 'sql_mode';").fetchone()
+		try:
+			conn.execute("SET GLOBAL max_allowed_packet = 256000000")
+		except Exception as err:
+			logger.debug(err)
 
 	def _init_connection(self) -> None:
 		password = quote(self.password)
@@ -283,12 +285,16 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 					logger.error(error)
 					raise RuntimeError(error)
 
+		with self.session() as session:
 			# If you change a global system variable, the value is remembered and used for new connections until the server restarts.
 			# The change is visible to any client that accesses that global variable.
 			# However, the change affects the corresponding session variable only for clients that connect after the change.
 			# The global variable change does not affect the session variable for any client that is currently connected
 			# (not even that of the client that issues the SET GLOBAL statement).
-			session.execute("SET GLOBAL max_allowed_packet = 256000000")
+			try:
+				session.execute("SET GLOBAL max_allowed_packet = 256000000")
+			except Exception as err:
+				logger.debug(err)
 
 	@contextmanager
 	def connection(self) -> Generator[None, None, None]:

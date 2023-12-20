@@ -231,6 +231,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			);
 			SET SESSION group_concat_max_len = 1000000;
 			SET SESSION lock_wait_timeout = 60;
+			SET GLOBAL max_allowed_packet = 256000000;
 		"""
 		)
 		# conn.execute("SHOW VARIABLES LIKE 'sql_mode';").fetchone()

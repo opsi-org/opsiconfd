@@ -235,7 +235,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		)
 		try:
 			conn.execute("SET GLOBAL max_allowed_packet = 256000000")
-		except Exception as err:
+		except Exception as err:  # pylint: disable=broad-except
 			logger.debug(err)
 
 	def _init_connection(self) -> None:
@@ -293,7 +293,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			# (not even that of the client that issues the SET GLOBAL statement).
 			try:
 				session.execute("SET GLOBAL max_allowed_packet = 256000000")
-			except Exception as err:
+			except Exception as err:  # pylint: disable=broad-except
 				logger.debug(err)
 
 	@contextmanager

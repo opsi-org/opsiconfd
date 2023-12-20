@@ -697,3 +697,13 @@ def test_check_ssl(tmpdir: Path) -> None:  # pylint: disable=too-many-statements
 		)
 		assert result.partial_results[4].check_status == CheckStatus.ERROR
 		assert result.partial_results[4].message == "Failed to verify server cert with opsi CA."
+
+
+def test_checks_and_skip_checks() -> None:  # pylint: disable=too-many-statements
+	with get_config({"checks": ["redis", "mysql", "ssl"]}):
+		list_of_checks = list(health_check())
+		assert len(list_of_checks) == 3
+
+	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
+		list_of_checks = list(health_check())
+		assert len(list_of_checks) == 12

@@ -25,6 +25,7 @@ from opsiconfd.config import config
 
 CHECKS = {
 	"opsi_config": check_opsi_config,
+	"opsiconfd_config": check_opsiconfd_config,
 	"ssl": check_ssl,
 	"redis": check_redis,
 	"mysql": check_mysql,
@@ -42,7 +43,10 @@ CHECKS = {
 
 
 def health_check() -> Iterator[CheckResult]:
+	print(config.checks)
+	print(config.skip_checks)
 	for check_id, check in CHECKS.items():
+		print(check_id)
 		if config.checks and check_id not in config.checks:
 			continue
 		if config.skip_checks and check_id in config.skip_checks:

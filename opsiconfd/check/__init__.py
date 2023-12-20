@@ -43,10 +43,7 @@ CHECKS = {
 
 
 def health_check() -> Iterator[CheckResult]:
-	print(config.checks)
-	print(config.skip_checks)
 	for check_id, check in CHECKS.items():
-		print(check_id)
 		if config.checks and check_id not in config.checks:
 			continue
 		if config.skip_checks and check_id in config.skip_checks:

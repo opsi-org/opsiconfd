@@ -1022,12 +1022,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help(
 				("opsiconfd", "health-check"),
 				"A list of checks to perform. If None all checks are executed. "
-				"(checks: opsi_config, ssl, redis, mysql, run_as_user, opsi_licenses, "
+				"(checks: opsi_config, opsiconfd_config, ssl, redis, mysql, run_as_user, opsi_licenses, "
 				"distro_eol, system_packages, disk_usage, depotservers, product_on_depots, "
 				"product_on_clients, deprecated_calls, ldap_connection).",
 			),
 			choices=[
 				"opsi_config",
+				"opsiconfd_config",
 				"ssl",
 				"redis",
 				"mysql",
@@ -1051,12 +1052,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help(
 				("opsiconfd", "health-check"),
 				"A list of checks to skip "
-				"(checks: opsi_config, ssl, redis, mysql, run_as_user, opsi_licenses, "
+				"(checks: opsi_config, opsiconfd_config, ssl, redis, mysql, run_as_user, opsi_licenses, "
 				"distro_eol, system_packages, disk_usage, depotservers, product_on_depots, "
 				"product_on_clients, deprecated_calls, ldap_connection).",
 			),
 			choices=[
 				"opsi_config",
+				"opsiconfd_config",
 				"ssl",
 				"redis",
 				"mysql",

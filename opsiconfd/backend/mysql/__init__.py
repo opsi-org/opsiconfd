@@ -60,6 +60,8 @@ from .schema import create_database
 if TYPE_CHECKING:
 	from ..rpc.protocol import IdentType
 
+MAX_ALLOWED_PACKET = 256_000_000
+
 
 @dataclass(slots=True)
 class ColumnInfo:
@@ -234,7 +236,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		"""
 		)
 		try:
-			conn.execute("SET GLOBAL max_allowed_packet = 256000000")
+			conn.execute(f"SET GLOBAL max_allowed_packet = {MAX_ALLOWED_PACKET}")
 		except Exception as err:  # pylint: disable=broad-except
 			logger.debug(err)
 
@@ -292,7 +294,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			# The global variable change does not affect the session variable for any client that is currently connected
 			# (not even that of the client that issues the SET GLOBAL statement).
 			try:
-				session.execute("SET GLOBAL max_allowed_packet = 256000000")
+				session.execute(f"SET GLOBAL max_allowed_packet = {MAX_ALLOWED_PACKET}")
 			except Exception as err:  # pylint: disable=broad-except
 				logger.debug(err)
 

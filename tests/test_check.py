@@ -265,6 +265,11 @@ def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 		assert result.check_status == "error"
 		assert result.message == '2005 - "Unknown MySQL server host bla (-3)"'
 
+	with mock.patch("opsiconfd.check.mysql.MAX_ALLOWED_PACKET", 1_000_000_000):
+		result = check_mysql()
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
+		assert "ERROR - Configured max_allowed_packet=256000000 is too small (should be at least 1000000000)" in captured_output
+
 
 def test_get_repo_versions() -> None:
 	result = get_repo_versions()

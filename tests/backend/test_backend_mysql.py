@@ -14,7 +14,7 @@ from pathlib import Path
 from opsicommon.objects import ConfigState
 
 from opsiconfd.backend.auth import RPCACE
-from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
 from tests.utils import UnprotectedBackend, backend, get_config  # pylint: disable=unused-import
 
 
@@ -131,6 +131,12 @@ def test_get_columns() -> None:  # pylint: disable=too-many-branches
 
 
 def test_max_allowed_packet(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+	con = MySQLConnection()
+	with con.connection():
+		with con.session() as session:
+			res = session.execute("SELECT @@GLOBAL.max_allowed_packet").fetchone()[0]
+			assert res == MAX_ALLOWED_PACKET
+
 	config_id = "opsiclientd.config_service.permanent_connection"
 	client_ids = [f"client{i}.opsi.org" for i in range(1, 10000)]
 	config_states = [ConfigState(configId=config_id, objectId=client_id) for client_id in client_ids]

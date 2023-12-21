@@ -20,7 +20,7 @@ import psutil
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check import health_check
+from opsiconfd.check.main import health_check
 from opsiconfd.check.system import get_disk_mountpoints, get_installed_packages
 from opsiconfd.config import config
 from opsiconfd.logging import logger

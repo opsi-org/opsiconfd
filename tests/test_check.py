@@ -31,7 +31,9 @@ from opsicommon.objects import (
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
-from opsiconfd.check import (
+from opsiconfd.check.cli import process_check_result
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
+from opsiconfd.check.main import (
 	check_depotservers,
 	check_deprecated_calls,
 	check_disk_usage,
@@ -48,8 +50,6 @@ from opsiconfd.check import (
 	check_system_packages,
 	health_check,
 )
-from opsiconfd.check.cli import process_check_result
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.opsipackages import get_available_product_versions
 from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config

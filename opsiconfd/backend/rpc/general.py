@@ -41,7 +41,7 @@ from opsiconfd import __version__, contextvar_client_address, contextvar_client_
 from opsiconfd.application import AppState
 from opsiconfd.application.filetransfer import delete_file, prepare_file
 from opsiconfd.backup import create_backup, restore_backup
-from opsiconfd.check import CheckResult, health_check
+from opsiconfd.check.main import CheckResult, health_check
 from opsiconfd.config import (
 	FILE_TRANSFER_STORAGE_DIR,
 	FQDN,

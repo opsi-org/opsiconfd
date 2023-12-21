@@ -34,6 +34,8 @@ from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
+from opsiconfd.check.const import CHECKS
+
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
@@ -1013,6 +1015,30 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				"dhcpd",
 				"sudoers",
 			],
+		)
+
+		self._parser.add(
+			"--checks",
+			nargs="+",
+			env_var="OPSICONFD_CHECKS",
+			default=None,
+			help=self._help(
+				("opsiconfd", "health-check"),
+				"A list of checks to perform. If not set, all checks are executed. " f"(checks: all, { ', '.join(CHECKS) }).",
+			),
+			choices=CHECKS,
+		)
+
+		self._parser.add(
+			"--skip-checks",
+			nargs="+",
+			env_var="OPSICONFD_SKIP_CHECKS",
+			default=None,
+			help=self._help(
+				("opsiconfd", "health-check"),
+				f"A list of checks to skip (checks: { ', '.join(CHECKS) }).",
+			),
+			choices=CHECKS,
 		)
 		self._parser.add(
 			"--redis-internal-url",

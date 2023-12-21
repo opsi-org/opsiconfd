@@ -31,7 +31,9 @@ from opsicommon.objects import (
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
-from opsiconfd.check import (
+from opsiconfd.check.cli import process_check_result
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
+from opsiconfd.check.main import (
 	check_depotservers,
 	check_deprecated_calls,
 	check_disk_usage,
@@ -48,8 +50,6 @@ from opsiconfd.check import (
 	check_system_packages,
 	health_check,
 )
-from opsiconfd.check.cli import process_check_result
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.opsipackages import get_available_product_versions
 from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
@@ -247,9 +247,9 @@ def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 	result = check_mysql()
 	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
-	assert "Connection to MySQL is working." in captured_output
+	assert "No MySQL issues found." in captured_output
 	assert result.check_status == "ok"
-	assert result.message == "Connection to MySQL is working."
+	assert result.message == "No MySQL issues found."
 
 
 def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
@@ -697,3 +697,13 @@ def test_check_ssl(tmpdir: Path) -> None:  # pylint: disable=too-many-statements
 		)
 		assert result.partial_results[4].check_status == CheckStatus.ERROR
 		assert result.partial_results[4].message == "Failed to verify server cert with opsi CA."
+
+
+def test_checks_and_skip_checks() -> None:
+	with get_config({"checks": ["redis", "mysql", "ssl"]}):
+		list_of_checks = list(health_check())
+		assert len(list_of_checks) == 3
+
+	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
+		list_of_checks = list(health_check())
+		assert len(list_of_checks) == 12

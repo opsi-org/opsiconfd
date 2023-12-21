@@ -15,11 +15,11 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
 
-from opsiconfd.check import (
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
+from opsiconfd.check.main import (
 	CHECKS,
 	health_check,
 )
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.config import config
 
 STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", CheckStatus.ERROR: "bold red"}

@@ -1093,7 +1093,15 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		productActionProgress = productActionProgress or None
 		action_result = None
 
-		depot_id = self.getDepotId(clientId=objectId)
+		client_id = forceHostId(objectId)
+		depot_id = None
+		for client_to_depotserver in self.configState_getClientToDepotserver(clientIds=[client_id]):
+			if client_to_depotserver["clientId"] == client_id:
+				depot_id = client_to_depotserver["depotId"]
+
+		if not depot_id:
+			raise BackendConfigurationError(f"Client {client_id!r} not found")
+
 		product_on_depots = self.productOnDepot_getObjects(depotId=depot_id, productId=productId)
 		if not product_on_depots:
 			raise BackendMissingDataError(f"Product {productId!r} not found on depot {depot_id!r}")

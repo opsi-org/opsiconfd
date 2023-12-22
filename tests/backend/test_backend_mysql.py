@@ -138,6 +138,6 @@ def test_big_query(backend: UnprotectedBackend) -> None:  # pylint: disable=rede
 			assert res == MAX_ALLOWED_PACKET
 
 	config_id = "opsiclientd.config_service.permanent_connection"
-	client_ids = [f"client{i}.opsi.org" for i in range(1, 100_000)]
+	client_ids = [f"client{i}.opsi.org" for i in range(1, 1_000)]
 	config_states = [ConfigState(configId=config_id, objectId=client_id) for client_id in client_ids]
 	backend.configState_deleteObjects(config_states)

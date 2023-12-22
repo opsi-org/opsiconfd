@@ -17,7 +17,7 @@ from functools import lru_cache
 from inspect import signature
 from json import JSONDecodeError, dumps, loads
 from pathlib import Path
-from time import sleep, time
+from time import sleep
 from typing import (
 	TYPE_CHECKING,
 	Any,
@@ -60,8 +60,6 @@ from .schema import create_database
 if TYPE_CHECKING:
 	from ..rpc.protocol import IdentType
 
-MAX_ALLOWED_PACKET = 256_000_000
-
 
 @dataclass(slots=True)
 class ColumnInfo:
@@ -77,8 +75,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
 		retry_wait = 0.01
-		start = time()
-		with server_timing("database"):
+		with server_timing("database") as timing:
 			while True:
 				attempt += 1
 				try:
@@ -87,39 +84,14 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						"Statement %r with params %r took %0.4f ms",
 						statement,
 						params,
-						time() - start,
+						timing["database"],
 					)
 					return result
 				except DatabaseError as err:
 					logger.trace(
-						"Failed (after %0.4f) statement %r (attempt: %d) with params %r: %s",
-						time() - start,
-						statement,
-						attempt,
-						params,
-						err.__cause__,
-						exc_info=True,
+						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True
 					)
-					if attempt >= self.execute_attempts:
-						logger.devel("Reraise")
-						raise
-					str_err = str(err).lower()
-					if "server has gone away" in str_err:
-						logger.devel("Server has gone away, reconnecting: %d", attempt)
-						try:
-							connection = self.connection()
-							connection.invalidate()
-							trans = connection.get_transaction()
-							if trans:
-								trans.rollback()
-							connection.cursor = connection.connection.cursor()
-
-						except Exception as err2:  # pylint: disable=broad-except
-							logger.devel(err2, exc_info=True)
-							raise
-					elif "deadlock" in str_err:
-						pass
-					else:
+					if attempt >= self.execute_attempts or "deadlock" not in str(err).lower():
 						raise
 					sleep(retry_wait)
 
@@ -259,12 +231,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			);
 			SET SESSION group_concat_max_len = 1000000;
 			SET SESSION lock_wait_timeout = 60;
+			SET GLOBAL max_allowed_packet = 256000000;
 		"""
 		)
-		try:
-			conn.execute(f"SET GLOBAL max_allowed_packet = {MAX_ALLOWED_PACKET}")
-		except Exception as err:  # pylint: disable=broad-except
-			logger.debug(err)
+		# conn.execute("SHOW VARIABLES LIKE 'sql_mode';").fetchone()
 
 	def _init_connection(self) -> None:
 		password = quote(self.password)
@@ -313,17 +283,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 					logger.error(error)
 					raise RuntimeError(error)
 
-		with self.session() as session:
-			# If you change a global system variable, the value is remembered and used for new connections until the server restarts.
-			# The change is visible to any client that accesses that global variable.
-			# However, the change affects the corresponding session variable only for clients that connect after the change.
-			# The global variable change does not affect the session variable for any client that is currently connected
-			# (not even that of the client that issues the SET GLOBAL statement).
-			try:
-				session.execute(f"SET GLOBAL max_allowed_packet = {MAX_ALLOWED_PACKET}")
-			except Exception as err:  # pylint: disable=broad-except
-				logger.debug(err)
-
 	@contextmanager
 	def connection(self) -> Generator[None, None, None]:
 		self.connect()
@@ -364,8 +323,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			if commit:
 				session.commit()
 		except Exception:  # pylint: disable=broad-except
-			if session.is_active:
-				session.rollback()
+			session.rollback()
 			raise
 		finally:
 			self._Session.remove()  # pylint: disable=no-member

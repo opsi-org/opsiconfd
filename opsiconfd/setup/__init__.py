@@ -188,7 +188,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 	"""
 	logger.notice("Running opsiconfd setup")
 	register_depot = getattr(config, "register_depot", False)
-	user = getattr(config, "user", None)
+	set_depot_user_password = getattr(config, "set_depot_user_password", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
 	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and explicit
 	force_server_id = None
@@ -209,22 +209,20 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 		if not setup_depotserver(unattended_configuration):
 			return
 
-	if user:
-		set_password = getattr(config, "set_password", False)
-		if not set_password:
-			rich_print(f"Nothing to do... Use e.g. '--password' to change the password for the user '{user}'")
-			return
-		# Only allow editing settings for the default depot user
-		if user != opsi_config.get("depot_user", "username"):
-			logger.warning("Only settings for the depot user can be edited. User was set to %s", user)
-			return
-		password = Prompt.ask("Enter the password for the user", password=True, show_default=False, default=None)
+	if set_depot_user_password:
+		password = Prompt.ask(
+			f"Enter the password for the user '{opsi_config.get('depot_user', 'username')}'",
+			password=True,
+			show_default=False,
+			default=None,
+		)
 		if not password:
 			logger.error("Can not use empty password!")
 			return
 		backend = get_unprotected_backend()
-		backend.user_setCredentials(user, password)
-		rich_print(f"Password for user {user} set.")
+
+		backend.user_setCredentials(opsi_config.get("depot_user", "username"), password)
+		rich_print(f"Password for user {opsi_config.get("depot_user", "username")} set.")
 
 	if opsi_config.get("host", "server-role") == "depotserver":
 		for attempt in range(1, 6):

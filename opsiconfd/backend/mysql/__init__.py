@@ -78,7 +78,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 		attempt = 0
 		retry_wait = 0.01
 		start = time()
-		with server_timing("database") as timing:
+		with server_timing("database"):
 			while True:
 				attempt += 1
 				try:
@@ -87,12 +87,12 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						"Statement %r with params %r took %0.4f ms",
 						statement,
 						params,
-						timing["database"],
+						time() - start,
 					)
 					return result
 				except (DatabaseError, OperationalError) as err:
 					logger.trace(
-						"Failed (after %0.3f) statement %r (attempt: %d) with params %r: %s",
+						"Failed (after %0.4f) statement %r (attempt: %d) with params %r: %s",
 						time() - start,
 						statement,
 						attempt,

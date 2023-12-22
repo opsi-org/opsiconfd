@@ -215,9 +215,9 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 			rich_print(f"Nothing to do... Use e.g. '--password' to change the password for the user '{user}'")
 			return
 		# Only allow editing settings for the default depot user
-		if user != getattr(config, "DEFAULT_DEPOT_USER", "pcpatch"):
-			rich_print(f"Only settings for the user {getattr(config, 'DEFAULT_DEPOT_USER', 'pcpatch')} can be edited.")
-			logger.warning("Only settings for the user pcpatch can be edited. User was set to %s", user)
+		if user != opsi_config.get("depot_user", "username"):
+			logger.warning("Only settings for the depot user can be edited. User was set to %s", user)
+			return
 		password = Prompt.ask("Enter the password for the user", password=True, show_default=False, default=None)
 		if not password:
 			logger.error("Can not use empty password!")

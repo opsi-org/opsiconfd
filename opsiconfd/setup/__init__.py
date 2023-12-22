@@ -25,7 +25,7 @@ from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
-from opsiconfd.backend import new_service_client
+from opsiconfd.backend import get_unprotected_backend, new_service_client
 from opsiconfd.config import (
 	DEPOT_DIR,
 	FQDN,
@@ -187,6 +187,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 	"""
 	logger.notice("Running opsiconfd setup")
 	register_depot = getattr(config, "register_depot", False)
+	set_depot_user_password = getattr(config, "set_depot_user_password", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
 	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and explicit
 	force_server_id = None
@@ -206,6 +207,21 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 
 		if not setup_depotserver(unattended_configuration):
 			return
+
+	if set_depot_user_password:
+		if isinstance(set_depot_user_password, str):
+			password = set_depot_user_password
+		else:
+			password = Prompt.ask(
+				f"Enter the password for the user '{opsi_config.get('depot_user', 'username')}'", password=True, show_default=False
+			)
+		if not password:
+			logger.error("Can not use empty password!")
+			return
+		backend = get_unprotected_backend()
+
+		backend.user_setCredentials(opsi_config.get("depot_user", "username"), password)
+		rich_print(f"Password for user {opsi_config.get('depot_user', 'username')} set.")
 
 	if opsi_config.get("host", "server-role") == "depotserver":
 		for attempt in range(1, 6):

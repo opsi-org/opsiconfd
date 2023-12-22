@@ -120,7 +120,7 @@ test:perftest:
     - name: mysql:latest
       command:
         - --max_connections=1000
-        - --max_allowed_packet=256M
+        - --max_allowed_packet=1000M
         - --default-authentication-plugin=mysql_native_password
     - name: redislabs/redistimeseries:latest
       alias: redis
@@ -139,7 +139,7 @@ test:pylint-pytest:
     - name: mysql:latest
       command:
         - --max_connections=1000
-        - --max_allowed_packet=256M
+        - --max_allowed_packet=1000M
         - --default-authentication-plugin=mysql_native_password
     - name: redislabs/redistimeseries:latest
       alias: redis

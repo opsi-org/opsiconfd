@@ -101,9 +101,11 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						exc_info=True,
 					)
 					if attempt >= self.execute_attempts:
+						logger.devel("Reraise")
 						raise
 					str_err = str(err).lower()
 					if "server has gone away" in str_err:
+						logger.devel("Server has gone away, reconnecting: %d", attempt)
 						connection = self.connection()
 						# connection.invalidate()
 						trans = connection.get_transaction()

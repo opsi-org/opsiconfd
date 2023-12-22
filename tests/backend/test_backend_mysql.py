@@ -10,7 +10,9 @@ test opsiconfd.backend.mysql
 
 import re
 from pathlib import Path
+from unittest.mock import patch
 
+from MySQLdb.connections import Connection
 from opsicommon.objects import ConfigState
 
 from opsiconfd.backend.auth import RPCACE
@@ -130,7 +132,7 @@ def test_get_columns() -> None:  # pylint: disable=too-many-branches
 				assert info.select is None
 
 
-def test_max_allowed_packet(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_big_query(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	con = MySQLConnection()
 	with con.connection():
 		with con.session() as session:
@@ -138,6 +140,21 @@ def test_max_allowed_packet(backend: UnprotectedBackend) -> None:  # pylint: dis
 			assert res == MAX_ALLOWED_PACKET
 
 	config_id = "opsiclientd.config_service.permanent_connection"
-	client_ids = [f"client{i}.opsi.org" for i in range(1, 10000)]
+	client_ids = [f"client{i}.opsi.org" for i in range(1, 100_000)]
 	config_states = [ConfigState(configId=config_id, objectId=client_id) for client_id in client_ids]
-	backend.configState_deleteObjects(config_states)
+
+	orig_query = Connection.query
+	query_len = []
+
+	def query(self: Connection, query: bytearray | bytes) -> None:
+		nonlocal query_len
+		if isinstance(query, bytearray):
+			query = bytes(query)
+
+		query_len.append(len(query))
+		return orig_query(self, query)
+
+	with patch("MySQLdb.connections.Connection.query", query):
+		backend.configState_deleteObjects(config_states)
+
+	assert query_len[-1] > 10_000_000

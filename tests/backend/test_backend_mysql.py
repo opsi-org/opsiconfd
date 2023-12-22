@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from unittest.mock import patch
 
-from MySQLdb.connections import Connection
+from MySQLdb.connections import Connection  # type: ignore
 from opsicommon.objects import ConfigState
 
 from opsiconfd.backend.auth import RPCACE

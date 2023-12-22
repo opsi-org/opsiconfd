@@ -106,11 +106,15 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 					str_err = str(err).lower()
 					if "server has gone away" in str_err:
 						logger.devel("Server has gone away, reconnecting: %d", attempt)
-						connection = self.connection()
-						# connection.invalidate()
-						trans = connection.get_transaction()
-						if trans:
-							trans.rollback()
+						try:
+							connection = self.connection()
+							# connection.invalidate()
+							trans = connection.get_transaction()
+							if trans:
+								trans.rollback()
+						except Exception as err2:  # pylint: disable=broad-except
+							logger.devel(err2, exc_info=True)
+							raise
 					elif "deadlock" in str_err:
 						pass
 					else:

@@ -108,10 +108,12 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						logger.devel("Server has gone away, reconnecting: %d", attempt)
 						try:
 							connection = self.connection()
-							# connection.invalidate()
+							connection.invalidate()
 							trans = connection.get_transaction()
 							if trans:
 								trans.rollback()
+							connection.cursor = connection.connection.cursor()
+
 						except Exception as err2:  # pylint: disable=broad-except
 							logger.devel(err2, exc_info=True)
 							raise

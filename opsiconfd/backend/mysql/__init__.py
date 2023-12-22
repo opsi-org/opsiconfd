@@ -104,7 +104,11 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						raise
 					str_err = str(err).lower()
 					if "server has gone away" in str_err:
-						self.connection().invalidate()
+						connection = self.connection()
+						connection.invalidate()
+						trans = connection.get_transaction()
+						if trans:
+							trans.rollback()
 					elif "deadlock" in str_err:
 						pass
 					else:

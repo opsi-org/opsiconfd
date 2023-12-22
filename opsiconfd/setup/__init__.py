@@ -221,7 +221,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 		backend = get_unprotected_backend()
 
 		backend.user_setCredentials(opsi_config.get("depot_user", "username"), password)
-		rich_print(f"Password for user {opsi_config.get("depot_user", "username")} set.")
+		rich_print(f"Password for user {opsi_config.get('depot_user', 'username')} set.")
 
 	if opsi_config.get("host", "server-role") == "depotserver":
 		for attempt in range(1, 6):

@@ -209,12 +209,12 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 			return
 
 	if set_depot_user_password:
-		password = Prompt.ask(
-			f"Enter the password for the user '{opsi_config.get('depot_user', 'username')}'",
-			password=True,
-			show_default=False,
-			default=None,
-		)
+		if isinstance(set_depot_user_password, str):
+			password = set_depot_user_password
+		else:
+			password = Prompt.ask(
+				f"Enter the password for the user '{opsi_config.get('depot_user', 'username')}'", password=True, show_default=False
+			)
 		if not password:
 			logger.error("Can not use empty password!")
 			return

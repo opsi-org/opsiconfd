@@ -1268,11 +1268,14 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				const=True,
 				type=str,
 				default=False,
-				help=self._help("setup", 'Pass unattended config for --register-depot as \'{"key":"value"}\''),
+				help=self._help("setup", 'Pass unattended config for --register-depot  as \'{"key":"value"}\''),
 			)
 			self._parser.add(
 				"--set-depot-user-password",
-				action="store_true",
+				nargs="?",
+				const=True,
+				type=str,
+				default=None,
 				help=self._help("setup", "Set password for user."),
 			)
 			self._parser.add(

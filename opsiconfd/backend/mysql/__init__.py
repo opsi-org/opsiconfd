@@ -235,10 +235,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			SET SESSION lock_wait_timeout = 60;
 		"""
 		)
-		try:
-			conn.execute(f"SET GLOBAL max_allowed_packet = {MAX_ALLOWED_PACKET}")
-		except Exception as err:  # pylint: disable=broad-except
-			logger.debug(err)
 
 	def _init_connection(self) -> None:
 		password = quote(self.password)

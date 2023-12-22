@@ -14,8 +14,8 @@ from pathlib import Path
 from opsicommon.objects import ConfigState
 
 from opsiconfd.backend.auth import RPCACE
-from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
-from tests.utils import UnprotectedBackend, backend, get_config  # pylint: disable=unused-import
+from opsiconfd.backend.mysql import MySQLConnection
+from tests.utils import backend, get_config  # pylint: disable=unused-import
 
 
 def test_config(tmp_path: Path) -> None:

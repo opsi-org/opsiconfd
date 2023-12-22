@@ -91,7 +91,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 					)
 					return result
 				except OperationalError as err:
-					logger.error("%s after %0.3f", err, time() - start)
+					logger.error("(after %0.3f) %s", time() - start, err)
 					raise
 				except DatabaseError as err:
 					logger.trace(

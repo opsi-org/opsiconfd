@@ -90,14 +90,21 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						timing["database"],
 					)
 					return result
-				except OperationalError as err:
-					logger.error("(after %0.3f) %s", time() - start, err)
-					raise
-				except DatabaseError as err:
+				except (DatabaseError, OperationalError) as err:
 					logger.trace(
-						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True
+						"Failed (after %0.3f) statement %r (attempt: %d) with params %r: %s",
+						time() - start,
+						statement,
+						attempt,
+						params,
+						err.__cause__,
+						exc_info=True,
 					)
-					if attempt >= self.execute_attempts or "deadlock" not in str(err).lower():
+					if attempt >= self.execute_attempts:
+						raise
+					if isinstance(err, DatabaseError) and "deadlock" not in str(err).lower():
+						raise
+					if isinstance(err, OperationalError) and "server has gone away" not in str(err).lower():
 						raise
 					sleep(retry_wait)
 

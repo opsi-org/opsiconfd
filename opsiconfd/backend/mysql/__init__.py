@@ -17,7 +17,7 @@ from functools import lru_cache
 from inspect import signature
 from json import JSONDecodeError, dumps, loads
 from pathlib import Path
-from time import sleep
+from time import sleep, time
 from typing import (
 	TYPE_CHECKING,
 	Any,
@@ -77,6 +77,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
 		retry_wait = 0.01
+		start = time()
 		with server_timing("database") as timing:
 			while True:
 				attempt += 1
@@ -89,6 +90,9 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						timing["database"],
 					)
 					return result
+				except OperationalError as err:
+					logger.error("%s after %0.3f", err, time() - start)
+					raise
 				except DatabaseError as err:
 					logger.trace(
 						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True

@@ -1271,6 +1271,19 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				help=self._help("setup", 'Pass unattended config for --register-depot as \'{"key":"value"}\''),
 			)
 			self._parser.add(
+				"--user",
+				nargs="?",
+				const=True,
+				type=str,
+				default=None,
+				help=self._help("setup", "Configure user settings."),
+			)
+			self._parser.add(
+				"--set-password",
+				action="store_true",
+				help=self._help("setup", "Set password for user."),
+			)
+			self._parser.add(
 				"--rename-server",
 				metavar="NEW_SERVER_ID",
 				nargs="?",

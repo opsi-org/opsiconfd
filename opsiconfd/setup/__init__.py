@@ -20,12 +20,13 @@ from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
 from opsicommon.server.setup import setup_users_and_groups as po_setup_users_and_groups  # type: ignore[import]
+from opsicommon.system.info import is_ucs
 from opsicommon.types import forceHostId
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
-from opsiconfd.backend import new_service_client
+from opsiconfd.backend import get_unprotected_backend, new_service_client
 from opsiconfd.config import (
 	DEPOT_DIR,
 	FQDN,
@@ -187,6 +188,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 	"""
 	logger.notice("Running opsiconfd setup")
 	register_depot = getattr(config, "register_depot", False)
+	user = getattr(config, "user", None)
 	configure_mysql = getattr(config, "configure_mysql", False)
 	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and explicit
 	force_server_id = None
@@ -206,6 +208,23 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 
 		if not setup_depotserver(unattended_configuration):
 			return
+
+	if user:
+		set_password = getattr(config, "set_password", False)
+		if not set_password:
+			rich_print(f"Nothing to do... Use e.g. '--password' to change the password for the user '{user}'")
+			return
+		# Only allow editing settings for the default depot user
+		if user != getattr(config, "DEFAULT_DEPOT_USER", "pcpatch"):
+			rich_print(f"Only settings for the user {getattr(config, 'DEFAULT_DEPOT_USER', 'pcpatch')} can be edited.")
+			logger.warning("Only settings for the user pcpatch can be edited. User was set to %s", user)
+		password = Prompt.ask("Enter the password for the user", password=True, show_default=False, default=None)
+		if not password:
+			logger.error("Can not use empty password!")
+			return
+		backend = get_unprotected_backend()
+		backend.user_setCredentials(user, password)
+		rich_print(f"Password for user {user} set.")
 
 	if opsi_config.get("host", "server-role") == "depotserver":
 		for attempt in range(1, 6):

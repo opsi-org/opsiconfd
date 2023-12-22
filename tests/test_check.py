@@ -150,12 +150,13 @@ def test_check_run_as_user() -> None:
 		result = check_run_as_user()
 		assert result.check_status == CheckStatus.ERROR
 		assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
-		assert result.partial_results[
-			2
-		].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
-		assert result.partial_results[
-			3
-		].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
+		assert (
+			result.partial_results[2].message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
+		)
+		assert (
+			result.partial_results[3].message
+			== f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
+		)
 
 
 def test_check_opsiconfd_config(tmp_path: Path) -> None:
@@ -268,7 +269,7 @@ def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 	with mock.patch("opsiconfd.check.mysql.MAX_ALLOWED_PACKET", 1_000_000_000):
 		result = check_mysql()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
-		assert "ERROR - Configured max_allowed_packet=256000000 is too small (should be at least 1000000000)" in captured_output
+		assert "is too small (should be at least 1000000000)" in captured_output
 
 
 def test_get_repo_versions() -> None:

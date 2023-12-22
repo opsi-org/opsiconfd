@@ -94,7 +94,11 @@ stages:
   echo "---------------------------------------"
   echo "Run opsiconfd-backend-perftest"
   echo "---------------------------------------"
-  poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 > /tmp/perftest-result
+  poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 > /tmp/perftest-result || (
+    echo "opsiconfd-backend-perftest.py failed"
+    cat /tmp/opsiconfd.log
+    exit 1
+  )
   cat /tmp/perftest-result
   echo "$(grep real= /tmp/perftest-result | cut -d '=' -f2)<30000" | bc > /tmp/bc-result
   [ $(cat /tmp/bc-result) = "1" ] || ( echo 'Required time >= 30 s' >&2; exit 1 )
@@ -120,7 +124,7 @@ test:perftest:
     - name: mysql:latest
       command:
         - --max_connections=1000
-        - --max_allowed_packet=1000M
+        - --max_allowed_packet=256M
         - --default-authentication-plugin=mysql_native_password
     - name: redislabs/redistimeseries:latest
       alias: redis
@@ -139,7 +143,7 @@ test:pylint-pytest:
     - name: mysql:latest
       command:
         - --max_connections=1000
-        - --max_allowed_packet=1000M
+        - --max_allowed_packet=256M
         - --default-authentication-plugin=mysql_native_password
     - name: redislabs/redistimeseries:latest
       alias: redis

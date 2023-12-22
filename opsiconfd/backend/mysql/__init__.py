@@ -356,7 +356,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			if commit:
 				session.commit()
 		except Exception:  # pylint: disable=broad-except
-			session.rollback()
+			if session.is_active:
+				session.rollback()
 			raise
 		finally:
 			self._Session.remove()  # pylint: disable=no-member

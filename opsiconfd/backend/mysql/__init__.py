@@ -90,8 +90,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						time() - start,
 					)
 					return result
-				except (DatabaseError, OperationalError) as err:
-					logger.devel("%r || %r || %r || %r", err.__class__, attempt, self.execute_attempts, isinstance(err, OperationalError))
+				except DatabaseError as err:
 					logger.trace(
 						"Failed (after %0.4f) statement %r (attempt: %d) with params %r: %s",
 						time() - start,
@@ -101,20 +100,15 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						err.__cause__,
 						exc_info=True,
 					)
-					logger.devel("Attempt")
 					if attempt >= self.execute_attempts:
 						raise
-					logger.devel("DatabaseError")
-					if isinstance(err, DatabaseError) and "deadlock" not in str(err).lower():
-						raise
-					logger.devel("OperationalError")
-					if isinstance(err, OperationalError):
-						logger.devel("OperationalError || %r || %r", "server has gone away" not in str(err).lower(), str(err))
-						if "server has gone away" not in str(err).lower():
-							raise
-						logger.devel("server has gone away, invalidate and retry")
+					str_err = str(err).lower()
+					if "server has gone away" in str_err:
 						self.connection().invalidate()
-						retry_wait = 1.0
+					elif "deadlock" in str_err:
+						pass
+					else:
+						raise
 					sleep(retry_wait)
 
 

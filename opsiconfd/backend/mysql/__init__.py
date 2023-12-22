@@ -104,8 +104,10 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						raise
 					if isinstance(err, DatabaseError) and "deadlock" not in str(err).lower():
 						raise
-					if isinstance(err, OperationalError) and "server has gone away" not in str(err).lower():
-						raise
+					if isinstance(err, OperationalError):
+						if not "server has gone away" not in str(err).lower():
+							raise
+						self.connection().invalidate()
 					sleep(retry_wait)
 
 

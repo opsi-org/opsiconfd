@@ -107,7 +107,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 					if isinstance(err, OperationalError):
 						if "server has gone away" not in str(err).lower():
 							raise
-						print("server has gone away, invalidate and retry")
+						logger.devel("server has gone away, invalidate and retry")
 						self.connection().invalidate()
 						retry_wait = 1.0
 					sleep(retry_wait)

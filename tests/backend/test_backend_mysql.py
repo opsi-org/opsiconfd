@@ -11,8 +11,6 @@ test opsiconfd.backend.mysql
 import re
 from pathlib import Path
 
-from opsicommon.objects import ConfigState
-
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
 from tests.utils import backend, get_config  # pylint: disable=unused-import

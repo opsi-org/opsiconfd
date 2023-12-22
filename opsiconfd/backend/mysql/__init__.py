@@ -91,6 +91,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 					)
 					return result
 				except (DatabaseError, OperationalError) as err:
+					logger.devel("%r || %r || %r", err.__class__, attempt, self.execute_attempts)
 					logger.trace(
 						"Failed (after %0.4f) statement %r (attempt: %d) with params %r: %s",
 						time() - start,

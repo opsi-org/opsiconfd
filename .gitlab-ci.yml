@@ -1,4 +1,4 @@
-image: docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.10
+image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.10
 
 stages:
   - test

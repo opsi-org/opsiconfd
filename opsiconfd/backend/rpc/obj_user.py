@@ -308,13 +308,13 @@ class RPCUserMixin(Protocol):
 
 				escaped_password = password.replace("'", "\\'")
 				cmd = [
-					"univention-admin",
+					"udm",
 					"users/user",
 					"modify",
 					"--dn",
 					user_dn,
 					"--set",
-					f"password='{escaped_password}'",
+					f"password={escaped_password}",
 					"--set",
 					"overridePWLength=1",
 					"--set",

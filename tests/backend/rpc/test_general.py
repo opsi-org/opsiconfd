@@ -188,7 +188,7 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 			"ucr get server/role",
 			"univention-admin users/user list --filter (uid=pcpatch)",
 			"univention-admin users/user modify --dn cn=pcpatch,dc=x,dc=y"
-			" --set password='password' --set overridePWLength=1 --set overridePWHistory=1",
+			" --set password=password --set overridePWLength=1 --set overridePWHistory=1",
 		]
 
 		proc.test_input = {}

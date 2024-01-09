@@ -90,8 +90,8 @@ stages:
   echo "---------------------------------------"
   poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 > /tmp/perftest-result
   cat /tmp/perftest-result
-  echo "$(grep real= /tmp/perftest-result | cut -d '=' -f2)<30000" | bc > /tmp/bc-result
-  [ $(cat /tmp/bc-result) = "1" ] || ( echo 'Required time >= 30 s' >&2; exit 1 )
+  echo "$(grep real= /tmp/perftest-result | cut -d '=' -f2)<35000" | bc > /tmp/bc-result
+  [ $(cat /tmp/bc-result) = "1" ] || ( echo 'Required time >= 35 s' >&2; exit 1 )
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log

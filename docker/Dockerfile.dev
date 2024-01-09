@@ -1,5 +1,5 @@
 # FROM python:3.7-buster as opsiconfd_development_build
-FROM docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.10 as opsiconfd_development_build_42
+FROM docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.10 as opsiconfd_development_build_42
 
 ARG DOCKER_ENV
 ARG USER

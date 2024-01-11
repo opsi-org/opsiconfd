@@ -121,7 +121,9 @@ package:
       cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
     elif [[ "$dist" =~ "SUSE Linux Enterprise Server 15 SP2" ]]; then
       # /usr/lib/opsiconfd/libssl.so.1.1: symbol EVP_idea_cbc, version OPENSSL_1_1_0 not defined in file libcrypto.so.1.1
+      # ImportError: /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1' not found (required by /usr/lib/opsiconfd/libssl.so.1.1)
       cp /usr/lib64/libssl.so.1.1 /usr/lib/opsiconfd/libssl.so.1.1
+      cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
     fi
 
     # Use pam_unix.so from system

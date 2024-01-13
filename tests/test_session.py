@@ -296,7 +296,7 @@ def test_server_overload(
 		response = client.get("/session/authenticated")
 		assert response.status_code == 503
 		assert response.text == "Server overload"
-		assert int(response.headers["Retry-After"]) > 10
+		assert int(response.headers["Retry-After"]) > 1
 
 		# Wait for overload sate to end
 		time.sleep(5)

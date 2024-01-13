@@ -14,7 +14,7 @@ from threading import Event, Thread
 from typing import Generator
 
 import pytest
-from fastapi import FastAPI, HTTPException, status
+from fastapi import status
 from msgspec import msgpack
 
 from opsiconfd.application import (
@@ -134,13 +134,9 @@ def test_maintenance(
 		with test_client.websocket_connect("/messagebus/v1") as websocket:
 			assert websocket
 			data = websocket.receive()
-			print(data)
-			time.sleep(1)
-			data = websocket.receive()
-			print(data)
-			# assert data["type"] == "websocket.close"
-			# assert data["code"] == status.WS_1013_TRY_AGAIN_LATER
-			# assert data["reason"] == "pytest\nRetry-After: 11"
+			assert data["type"] == "websocket.close"
+			assert data["code"] == status.WS_1013_TRY_AGAIN_LATER
+			assert data["reason"] == "pytest\nRetry-After: 11"
 
 		app.set_app_state(NormalState())
 		time.sleep(1)

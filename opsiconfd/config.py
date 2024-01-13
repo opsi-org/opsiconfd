@@ -254,7 +254,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		self._sub_command = None
 		self._config = configargparse.Namespace()
 		self._config.config_file = DEFAULT_CONFIG_FILE
-		self.jinja_templates = Jinja2Templates(directory="")
+		self.jinja_templates = Jinja2Templates(directory=".")
 
 		self._set_args()
 

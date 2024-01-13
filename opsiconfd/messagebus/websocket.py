@@ -41,7 +41,6 @@ from starlette.status import (
 )
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketState
-from websockets import ConnectionClosedError
 from websockets.exceptions import ConnectionClosedOK
 
 from opsiconfd.logging import get_logger
@@ -129,8 +128,6 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			statistics.messages_sent += 1
 		except ConnectionClosedOK:
 			pass
-		except ConnectionClosedError as err:
-			logger.error("Messagebus connection closed with error: %s", err, exc_info=True)
 
 	async def manager_task(self, websocket: WebSocket) -> None:
 		try:

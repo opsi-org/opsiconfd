@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import random
 import re
 import time
 import uuid
@@ -43,6 +44,7 @@ from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
+from websockets import ConnectionClosedError
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.addon import AddonManager
@@ -133,6 +135,21 @@ class SessionMiddleware:
 	def __init__(self, app: FastAPI, public_path: list[str] | None = None) -> None:
 		self.app = app
 		self._public_path = public_path or []
+		self._overload_until = 0.0
+
+	def set_overload(self, duration: float = 30.0) -> None:
+		self._overload_until = time.time() + duration
+		logger.warning("Server overload set until %r", self._overload_until)
+
+	def check_overload(self) -> float:
+		if self._overload_until <= 0:
+			return 0.0
+		time_left = self._overload_until - time.time()
+		if time_left <= 0:
+			self._overload_until = 0.0
+			logger.notice("Server overload reset")
+			return 0.0
+		return time_left
 
 	@staticmethod
 	def get_session_id_from_headers(headers: Headers) -> Optional[str]:
@@ -153,6 +170,14 @@ class SessionMiddleware:
 	async def handle_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		self, connection: HTTPConnection, receive: Receive, send: Send
 	) -> None:
+		overload_time_left = self.check_overload()
+		if overload_time_left and connection.scope["client"][0] not in ("127.0.0.1", "::1"):
+			retry_after = int(overload_time_left + random.randint(10, 300))
+			raise HTTPException(
+				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+				detail="Server overload",
+				headers={"Retry-After": str(retry_after)},
+			)
 		if isinstance(opsiconfd_app.app_state, MaintenanceState):
 			client_in_exceptions = False
 			for network in opsiconfd_app.app_state.address_exceptions or []:
@@ -290,6 +315,12 @@ class SessionMiddleware:
 		headers = headers or {}
 
 		if scope["type"] == "websocket":
+			if isinstance(err, ConnectionClosedError):
+				logger.error("Websocket connection closed with error: %s", err)
+				logger.debug("Websocket connection closed with error: %s", err, exc_info=True)
+				self.set_overload()
+				return
+
 			# Uvicorn (0.20.0) always closes websockets with code 403
 			# There is currently no way to send a custom status code or headers
 			websocket_close_code = status.WS_1008_POLICY_VIOLATION
@@ -301,10 +332,6 @@ class SessionMiddleware:
 				reason = f"{reason[:100]}\nRetry-After: {headers.get('Retry-After')}"
 			# reason max length 123 bytes
 			logger.debug("Closing websocket with code=%r and reason=%r", websocket_close_code, reason)
-			if True:
-				response = Response(status_code=status_code, content=error, headers=headers)
-				return await response(scope, receive, send)
-
 			try:
 				# Need to open (accept) websocket before close
 				await send({"type": "websocket.accept"})

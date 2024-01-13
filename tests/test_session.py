@@ -8,19 +8,25 @@
 session tests
 """
 
+import time
 import uuid
 from asyncio import sleep
+from unittest.mock import patch
 
 import pytest
 from starlette.datastructures import Headers
 
-from opsiconfd.session import OPSISession, SessionManager
+from opsiconfd.session import FastAPI, OPSISession, SessionManager, SessionMiddleware
 from opsiconfd.utils import asyncio_create_task, utc_time_timestamp
 
 from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
 	async_redis_client,
 	clean_redis,
 	get_config,
+	test_client,
 )
 
 
@@ -260,3 +266,41 @@ async def test_session_manager_concurrent() -> None:
 
 		await manager1.stop(wait=True)
 		await manager2.stop(wait=True)
+
+
+def test_server_overload(
+	test_client: OpsiconfdTestClient,
+) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	session_middleware = None
+
+	class MockSessionMiddleware(SessionMiddleware):
+		def __init__(self, app: FastAPI, public_path: list[str] | None = None) -> None:
+			SessionMiddleware.__init__(self, app, public_path)
+			nonlocal session_middleware
+			session_middleware = self
+
+	with patch("opsiconfd.application.main.SessionMiddleware", MockSessionMiddleware):
+		with test_client as client:
+			assert isinstance(session_middleware, MockSessionMiddleware)
+			response = client.get("/session/authenticated")
+			assert response.status_code == 200
+
+			# Set overload state for 5 seconds
+			session_middleware.set_overload(5)
+
+			# Localhost is not affected by overload
+			response = client.get("/session/authenticated")
+			assert response.status_code == 200
+
+			# Set client address to be affected by overload
+			test_client.set_client_address("4.3.2.1", 12345)
+			response = client.get("/session/authenticated")
+			assert response.status_code == 503
+			assert response.text == "Server overload"
+			assert int(response.headers["Retry-After"]) > 10
+
+			# Wait for overload sate to end
+			time.sleep(5)
+			response = client.get("/session/authenticated")
+			assert response.status_code == 200

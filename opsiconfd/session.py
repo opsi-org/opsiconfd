@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import random
 import re
 import time
 import uuid
@@ -172,7 +171,7 @@ class SessionMiddleware:
 	) -> None:
 		overload_time_left = self.check_overload()
 		if overload_time_left and connection.scope["client"][0] not in ("127.0.0.1", "::1"):
-			retry_after = int(overload_time_left + random.randint(10, 300))
+			retry_after = int(overload_time_left)
 			raise HTTPException(
 				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
 				detail="Server overload",

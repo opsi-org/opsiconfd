@@ -89,7 +89,8 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 						timing["database"],
 					)
 					return result
-				except (DatabaseError, OperationalError) as err:
+				except DatabaseError as err:
+					logger.warning("Failed statement, attempt %d: %s", attempt, err)
 					logger.trace(
 						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True
 					)

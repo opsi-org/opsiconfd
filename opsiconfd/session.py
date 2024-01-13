@@ -321,7 +321,7 @@ class SessionMiddleware:
 				now = time.time()
 				self._websocket_close_errors_ts = [t for t in self._websocket_close_errors_ts if t > now - 60]
 				self._websocket_close_errors_ts.append(now)
-				if len(self._websocket_close_errors_ts) > 5:
+				if len(self._websocket_close_errors_ts) >= 10:
 					self.set_overload()
 					self._websocket_close_errors_ts = []
 				return

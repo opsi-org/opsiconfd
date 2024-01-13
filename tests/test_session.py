@@ -11,12 +11,12 @@ session tests
 import time
 import uuid
 from asyncio import sleep
-from unittest.mock import patch
 
 import pytest
 from starlette.datastructures import Headers
 
-from opsiconfd.session import FastAPI, OPSISession, SessionManager, SessionMiddleware
+from opsiconfd.application import app
+from opsiconfd.session import OPSISession, SessionManager, SessionMiddleware
 from opsiconfd.utils import asyncio_create_task, utc_time_timestamp
 
 from .utils import (  # pylint: disable=unused-import
@@ -272,40 +272,33 @@ def test_server_overload(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	session_middleware = None
+	with test_client as client:
+		session_middleware = None
+		middleware = app.middleware_stack
+		while True:
+			middleware = getattr(middleware, "app")
+			if isinstance(middleware, SessionMiddleware):
+				session_middleware = middleware
+				break
 
-	class MockSessionMiddleware(SessionMiddleware):
-		def __init__(self, app: FastAPI, public_path: list[str] | None = None) -> None:
-			SessionMiddleware.__init__(self, app, public_path)
-			nonlocal session_middleware
-			session_middleware = self
+		response = client.get("/session/authenticated")
+		assert response.status_code == 200
 
-	with patch("opsiconfd.application.main.SessionMiddleware", MockSessionMiddleware):
-		with test_client as client:
-			for _ in range(4):
-				if isinstance(session_middleware, MockSessionMiddleware):
-					break
-				time.sleep(1)
-			assert isinstance(session_middleware, MockSessionMiddleware)
+		# Set overload state for 5 seconds
+		session_middleware.set_overload(5)
 
-			response = client.get("/session/authenticated")
-			assert response.status_code == 200
+		# Localhost is not affected by overload
+		response = client.get("/session/authenticated")
+		assert response.status_code == 200
 
-			# Set overload state for 5 seconds
-			session_middleware.set_overload(5)
+		# Set client address to be affected by overload
+		test_client.set_client_address("4.3.2.1", 12345)
+		response = client.get("/session/authenticated")
+		assert response.status_code == 503
+		assert response.text == "Server overload"
+		assert int(response.headers["Retry-After"]) > 10
 
-			# Localhost is not affected by overload
-			response = client.get("/session/authenticated")
-			assert response.status_code == 200
-
-			# Set client address to be affected by overload
-			test_client.set_client_address("4.3.2.1", 12345)
-			response = client.get("/session/authenticated")
-			assert response.status_code == 503
-			assert response.text == "Server overload"
-			assert int(response.headers["Retry-After"]) > 10
-
-			# Wait for overload sate to end
-			time.sleep(5)
-			response = client.get("/session/authenticated")
-			assert response.status_code == 200
+		# Wait for overload sate to end
+		time.sleep(5)
+		response = client.get("/session/authenticated")
+		assert response.status_code == 200

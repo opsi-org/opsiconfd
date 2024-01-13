@@ -135,6 +135,7 @@ class SessionMiddleware:
 		self.app = app
 		self._public_path = public_path or []
 		self._overload_until = 0.0
+		self._websocket_close_errors_ts: list[float] = []
 
 	def set_overload(self, duration: float = 30.0) -> None:
 		self._overload_until = time.time() + duration
@@ -317,7 +318,12 @@ class SessionMiddleware:
 			if isinstance(err, ConnectionClosedError):
 				logger.error("Websocket connection closed with error: %s", err)
 				logger.debug("Websocket connection closed with error: %s", err, exc_info=True)
-				self.set_overload()
+				now = time.time()
+				self._websocket_close_errors_ts = [t for t in self._websocket_close_errors_ts if t > now - 60]
+				self._websocket_close_errors_ts.append(now)
+				if len(self._websocket_close_errors_ts) > 5:
+					self.set_overload()
+					self._websocket_close_errors_ts = []
 				return
 
 			# Uvicorn (0.20.0) always closes websockets with code 403

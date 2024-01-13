@@ -445,7 +445,7 @@ class WebSocketMessageReader(Thread):
 
 	def stop(self) -> None:
 		self.should_stop = True
-		self.websocket._send_queue.put("")  # pylint: disable=protected-access
+		self.websocket._send_queue.put({})  # pylint: disable=protected-access
 		self.join(3)
 
 	def purge_messages(self) -> None:

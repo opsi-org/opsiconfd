@@ -14,6 +14,7 @@ from threading import Event, Thread
 from typing import Generator
 
 import pytest
+from fastapi import FastAPI, HTTPException, status
 from msgspec import msgpack
 
 from opsiconfd.application import (
@@ -101,7 +102,8 @@ def test_app_state_from_dict() -> None:
 
 
 def test_maintenance(
-	test_client: OpsiconfdTestClient, app_state_reader: AppStateReaderThread  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
+	app_state_reader: AppStateReaderThread,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	initalized_event = Event()
@@ -118,6 +120,9 @@ def test_maintenance(
 		assert response.status_code == 200
 		with test_client.websocket_connect("/messagebus/v1") as websocket:
 			assert websocket
+			data = websocket.receive()
+			assert data["type"] == "websocket.send"
+			assert b"channel_subscription_event" in data["bytes"]
 
 		app.set_app_state(MaintenanceState(address_exceptions=[], retry_after=11, message="pytest"))
 		time.sleep(1)
@@ -126,13 +131,16 @@ def test_maintenance(
 		assert response.headers["Retry-After"] == "11"
 		assert response.text == "pytest"
 
-		# with pytest.raises(WebSocketDisconnect) as excinfo:
-		# 	with test_client.websocket_connect("/messagebus/v1") as websocket:
-		# 		websocket.send(b"test")
-		# 		websocket.receive()
-		# 		pass
-		# assert excinfo.value.code == 1013
-		# assert excinfo.value.reason == "pytest\nRetry-After: 11"
+		with test_client.websocket_connect("/messagebus/v1") as websocket:
+			assert websocket
+			data = websocket.receive()
+			print(data)
+			time.sleep(1)
+			data = websocket.receive()
+			print(data)
+			# assert data["type"] == "websocket.close"
+			# assert data["code"] == status.WS_1013_TRY_AGAIN_LATER
+			# assert data["reason"] == "pytest\nRetry-After: 11"
 
 		app.set_app_state(NormalState())
 		time.sleep(1)

@@ -301,6 +301,10 @@ class SessionMiddleware:
 				reason = f"{reason[:100]}\nRetry-After: {headers.get('Retry-After')}"
 			# reason max length 123 bytes
 			logger.debug("Closing websocket with code=%r and reason=%r", websocket_close_code, reason)
+			if True:
+				response = Response(status_code=status_code, content=error, headers=headers)
+				return await response(scope, receive, send)
+
 			try:
 				# Need to open (accept) websocket before close
 				await send({"type": "websocket.accept"})

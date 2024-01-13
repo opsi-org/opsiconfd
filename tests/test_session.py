@@ -282,7 +282,12 @@ def test_server_overload(
 
 	with patch("opsiconfd.application.main.SessionMiddleware", MockSessionMiddleware):
 		with test_client as client:
+			for _ in range(4):
+				if isinstance(session_middleware, MockSessionMiddleware):
+					break
+				time.sleep(1)
 			assert isinstance(session_middleware, MockSessionMiddleware)
+
 			response = client.get("/session/authenticated")
 			assert response.status_code == 200
 

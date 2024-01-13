@@ -76,6 +76,15 @@ def test_connect() -> None:
 			assert session.execute("SELECT 999").fetchone()[0] == 999
 
 
+def exclude_test_big_query() -> None:
+	con = MySQLConnection()
+	with con.connection():
+		with con.session() as session:
+			where = " OR ".join("10000 = 10000" for i in range(1000000))
+			query = f"SELECT * FROM HOST WHERE {where}"
+			assert session.execute(query).fetchone()[0]
+
+
 def test_get_columns() -> None:  # pylint: disable=too-many-branches
 	allowed_attributes = {"id", "type", "description"}
 	client_id = "client1.opsi.org"

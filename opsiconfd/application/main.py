@@ -78,7 +78,7 @@ async def index_head() -> Response:
 @app.get("/login")
 async def login_index(request: Request) -> Response:
 	context = {"request": request, "multi_factor_auth": config.multi_factor_auth}
-	return config.jinja_templates.TemplateResponse("login.html", context)
+	return config.jinja_templates.TemplateResponse(request=request, name="login.html", context=context)
 
 
 @app.get("/favicon.ico")

@@ -85,7 +85,7 @@ async def welcome_interface_index(request: Request) -> Response:
 		"webgui": webgui,
 		"welcome_page": welcome_page,
 	}
-	return config.jinja_templates.TemplateResponse("welcome.html", context)
+	return config.jinja_templates.TemplateResponse(request=request, name="welcome.html", context=context)
 
 
 @welcome_interface_router.post("/deactivate")
@@ -125,7 +125,7 @@ async def admin_interface_index(request: Request) -> Response:
 		"multi_factor_auth": config.multi_factor_auth,
 	}
 
-	return config.jinja_templates.TemplateResponse("admininterface.html", context)
+	return config.jinja_templates.TemplateResponse(request=request, name="admininterface.html", context=context)
 
 
 @admin_interface_router.get("/app-state")

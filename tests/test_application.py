@@ -102,7 +102,7 @@ def test_app_state_from_dict() -> None:
 
 
 def test_maintenance(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 	app_state_reader: AppStateReaderThread,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)

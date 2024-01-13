@@ -269,8 +269,8 @@ async def test_session_manager_concurrent() -> None:
 
 
 def test_server_overload(
-	test_client: OpsiconfdTestClient,
-) -> None:  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	session_middleware = None
 

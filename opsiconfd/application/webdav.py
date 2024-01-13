@@ -224,7 +224,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True}
 		)
 		app_config["mount_path"] = f"/{name}"
-		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))
+		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))  # type: ignore[arg-type]
 
 	# Virtual filesystem /dav
 	app_config = app_config_template.copy()
@@ -237,4 +237,4 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
 	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
 	app_config["mount_path"] = "/dav"
-	app.routes.append(Mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config))))
+	app.routes.append(Mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config))))  # type: ignore[arg-type]

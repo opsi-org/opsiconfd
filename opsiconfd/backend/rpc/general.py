@@ -304,7 +304,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 					SUM(c.`active` AND NOT c.macos AND NOT c.linux) AS windows
 				FROM (
 					SELECT
-						IFNULL(DATEDIFF(NOW(), h.lastSeen) < 365, 0) AS `active`,
+						IFNULL(DATEDIFF(NOW(), h.lastSeen) < :inactive_after, 0) AS `active`,
 						(m.productId IS NOT NULL) AS macos,
 						(l.productId IS NOT NULL) AS linux
 					FROM HOST AS h
@@ -313,7 +313,8 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 					LEFT JOIN PRODUCT_ON_CLIENT AS l
 					ON l.clientId = h.hostId AND l.productId = "opsi-linux-client-agent" AND l.installationStatus = "installed"
 				) AS c
-			"""
+			""",
+				params={"inactive_after": OPSI_CLIENT_INACTIVE_AFTER},
 			).fetchone()
 			if res:
 				result.update({k: int(v or 0) for k, v in dict(res).items()})

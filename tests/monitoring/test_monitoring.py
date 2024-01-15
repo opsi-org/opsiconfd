@@ -25,6 +25,7 @@ from opsiconfd.application.monitoring.check_plugin_on_client import (
 from opsiconfd.application.monitoring.check_short_product_status import (
 	check_short_product_status,
 )
+from OPSI.Backend.MySQL import retry_on_deadlock
 from tests.utils import (  # pylint: disable=unused-import
 	backend,
 	clean_redis,
@@ -123,11 +124,15 @@ test_data = [
 def create_check_data(test_client, config, database_connection):  # pylint: disable=redefined-outer-name
 	mysql = database_connection
 	mysql.autocommit(True)
-
 	now = datetime.now()
 
+	@retry_on_deadlock
+	def execute(cursor, *args, **kwargs):
+		return cursor.execute(*args, **kwargs)
+
 	cursor = mysql.cursor()
-	cursor.execute(
+
+	execute(cursor,
 		(
 			"DELETE FROM PRODUCT_ON_DEPOT;"
 			"DELETE FROM PRODUCT_ON_CLIENT;"
@@ -144,28 +149,28 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 
 	# Product
 	for i in range(5):
-		cursor.execute(
+		execute(cursor,
 			f"INSERT INTO HOST (hostId, `type`, created, lastSeen, hardwareAddress, `description`, notes, inventoryNumber) "
 			f'VALUES ("pytest-client-{i}.uib.local", "OpsiClient", "{now}", "{now}", "af:fe:af:fe:af:f{i}", '
 			f'"description client{i}", "notes client{i}", "{i}");'
 		)
-		cursor.execute(
+		execute(cursor,
 			"INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority, setupScript, uninstallScript) VALUES "
 			f'("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i}, "setup.opsiscript", "uninstall.opsiscript");'
 		)
-		cursor.execute(
+		execute(cursor,
 			f"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
 			f'("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");'
 		)
 
-	cursor.execute(
+	execute(cursor,
 		"INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) VALUES  "
 		'("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60),'
 		'("pytest-prod-4", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 4 version 2", 60);'
 	)
 
 	# Host
-	cursor.execute(
+	execute(cursor,
 		"INSERT INTO HOST (hostId, type, created, lastSeen) VALUES "
 		f'("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}"),'
 		f'("pytest-lost-client-fp.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}"),'
@@ -176,7 +181,7 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 	create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot2.uib.gmbh")
 
 	# Product on client
-	cursor.execute(
+	execute(cursor,
 		"INSERT INTO PRODUCT_ON_CLIENT "
 		"(productId, clientId, productType, installationStatus, actionRequest, actionResult, "
 		" productVersion, packageVersion, modificationTime) VALUES "
@@ -192,7 +197,7 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 	)
 
 	# Product on depot
-	cursor.execute(
+	execute(cursor,
 		"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
 		'("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
 		'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
@@ -205,10 +210,10 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 	)
 
 	# Product Group
-	cursor.execute(
+	execute(cursor,
 		"INSERT INTO `GROUP` (type, groupId) VALUES " '("ProductGroup", "pytest-group-1"),' '("ProductGroup", "pytest-group-2");'
 	)
-	cursor.execute(
+	execute(cursor,
 		"INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) VALUES "
 		'("ProductGroup", "pytest-group-1", "pytest-prod-0"),'
 		'("ProductGroup", "pytest-group-1", "pytest-prod-1"),'
@@ -218,7 +223,7 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 	)
 
 	# Clients to Depots
-	cursor.execute(
+	execute(cursor,
 		"INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) VALUES "
 		'("clientconfig.depot.id", "pytest-client-1.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
 		'("clientconfig.depot.id", "pytest-client-2.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
@@ -231,7 +236,7 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 	yield
 
 	cursor = mysql.cursor()
-	# cursor.execute(
+	# execute(cursor,
 	# 	(
 	# 		'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
 	# 		'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
@@ -242,7 +247,7 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 	# 		'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
 	# 	)
 	# )
-	cursor.execute(
+	execute(cursor,
 		"DELETE FROM PRODUCT_ON_DEPOT;"
 		"DELETE FROM PRODUCT_ON_CLIENT;"
 		"DELETE FROM PRODUCT_PROPERTY_VALUE;"

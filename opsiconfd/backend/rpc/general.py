@@ -292,28 +292,32 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	def _get_client_info(self: BackendProtocol) -> dict[str, int]:
 		logger.info("%s fetching client info", self)
-		now = datetime.now()
-		inactive = 0
-		client_ids = []
-		for host in self.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient"):
-			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < OPSI_CLIENT_INACTIVE_AFTER:
-				client_ids.append(host.id)
-			else:
-				inactive += 1
-		macos = 0
-		linux = 0
-		if client_ids:
-			macos = len(
-				self.productOnClient_getObjects(
-					attributes=["clientId"], installationStatus="installed", productId="opsi-mac-client-agent", clientId=client_ids
-				)
-			)
-			linux = len(
-				self.productOnClient_getObjects(
-					attributes=["clientId"], installationStatus="installed", productId="opsi-linux-client-agent", clientId=client_ids
-				)
-			)
-		return {"macos": macos, "linux": linux, "windows": len(client_ids) - macos - linux, "inactive": inactive}
+
+		result = {"macos": 0, "linux": 0, "windows": 0, "inactive": 0}
+		with self._mysql.session() as session:
+			res = session.execute(
+				"""
+				SELECT
+					SUM(NOT c.`active`) AS `inactive`,
+					SUM(c.`active` AND c.macos) AS macos,
+					SUM(c.`active` AND c.linux) AS linux,
+					SUM(c.`active` AND NOT c.macos AND NOT c.linux) AS windows
+				FROM (
+					SELECT
+						IFNULL(DATEDIFF(NOW(), h.lastSeen) < 365, 0) AS `active`,
+						(m.productId IS NOT NULL) AS macos,
+						(l.productId IS NOT NULL) AS linux
+					FROM HOST AS h
+					LEFT JOIN PRODUCT_ON_CLIENT AS m
+					ON m.clientId = h.hostId AND m.productId = "opsi-mac-client-agent" AND m.installationStatus = "installed"
+					LEFT JOIN PRODUCT_ON_CLIENT AS l
+					ON l.clientId = h.hostId AND l.productId = "opsi-linux-client-agent" AND l.installationStatus = "installed"
+				) AS c
+			"""
+			).fetchone()
+			if res:
+				result.update({k: int(v or 0) for k, v in dict(res).items()})
+		return result
 
 	@lru_cache(maxsize=10)
 	def _get_licensing_info(

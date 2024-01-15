@@ -1139,6 +1139,24 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help("expert", "Number of thread pool workers for asyncio."),
 		)
 		self._parser.add(
+			"--websocket-queue-size",
+			env_var="OPSICONFD_WEBSOCKET_QUEUE_SIZE",
+			type=int,
+			default=10,
+			help=self._help("expert", "Maximum number of incoming messages in websockets receive buffer."),
+		)
+		# https://www.getpagespeed.com/server-setup/nginx/maximizing-nginx-performance-a-comprehensive-guide-to-tuning-the-backlog-and-net-core-somaxconn-parameters
+		self._parser.add(
+			"--socket-backlog",
+			env_var="OPSICONFD_SOCKET_BACKLOG",
+			type=int,
+			default=4096,
+			help=self._help(
+				"expert",
+				"Limit for the queue of incoming connections (SOMAXCONN).",
+			),
+		)
+		self._parser.add(
 			"--log-slow-async-callbacks",
 			env_var="OPSICONFD_LOG_SLOW_ASYNC_CALLBACKS",
 			type=float,

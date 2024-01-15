@@ -74,9 +74,11 @@ def uvicorn_config() -> Config:
 		"date_header": False,
 		"server_header": False,
 		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"], ["X-opsi-server-role", opsi_config.get("host", "server-role")]],
-		"ws_max_queue": 500,
+		"ws_max_queue": config.websocket_queue_size,
 		"ws_ping_interval": 15,
 		"ws_ping_timeout": 10,
+		# https://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html
+		"backlog": config.socket_backlog,
 	}
 
 	if config.ssl_server_key and config.ssl_server_cert:

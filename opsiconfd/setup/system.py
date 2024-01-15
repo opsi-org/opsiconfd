@@ -43,6 +43,14 @@ def setup_limits() -> None:
 			logger.warning("Failed to set RLIMIT_NOFILE: %s", err)
 	logger.info("Maximum number of open file descriptors: %s", soft_limit)
 
+	proc_somaxconn = "/proc/sys/net/core/somaxconn"
+	with open(proc_somaxconn, "r") as file:
+		somaxconn = int(file.read().strip())
+	if somaxconn < config.socket_backlog:
+		logger.info("Setting %s to %s", proc_somaxconn, config.socket_backlog)
+		with open(proc_somaxconn, "w") as file:
+			file.write(str(config.socket_backlog))
+
 
 def setup_users_and_groups() -> None:
 	logger.info("Setup users and groups")

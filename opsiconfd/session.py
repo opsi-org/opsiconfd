@@ -318,12 +318,12 @@ class SessionMiddleware:
 			if isinstance(err, ConnectionClosedError):
 				logger.error("Websocket connection closed with error: %s", err)
 				logger.debug("Websocket connection closed with error: %s", err, exc_info=True)
-				now = time.time()
-				self._websocket_close_errors_ts = [t for t in self._websocket_close_errors_ts if t > now - 60]
-				self._websocket_close_errors_ts.append(now)
-				if len(self._websocket_close_errors_ts) >= 10:
-					self.set_overload()
-					self._websocket_close_errors_ts = []
+				# now = time.time()
+				# self._websocket_close_errors_ts = [t for t in self._websocket_close_errors_ts if t > now - 60]
+				# self._websocket_close_errors_ts.append(now)
+				# if len(self._websocket_close_errors_ts) >= 10:
+				# self.set_overload()
+				# self._websocket_close_errors_ts = []
 				return
 
 			# Uvicorn (0.20.0) always closes websockets with code 403

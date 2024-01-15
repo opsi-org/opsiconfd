@@ -44,11 +44,11 @@ def setup_limits() -> None:
 	logger.info("Maximum number of open file descriptors: %s", soft_limit)
 
 	proc_somaxconn = "/proc/sys/net/core/somaxconn"
-	with open(proc_somaxconn, "r") as file:
+	with open(proc_somaxconn, "r", encoding="ascii") as file:
 		somaxconn = int(file.read().strip())
 	if somaxconn < config.socket_backlog:
 		logger.info("Setting %s to %s", proc_somaxconn, config.socket_backlog)
-		with open(proc_somaxconn, "w") as file:
+		with open(proc_somaxconn, "w", encoding="ascii") as file:
 			file.write(str(config.socket_backlog))
 
 

@@ -1142,7 +1142,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--websocket-queue-size",
 			env_var="OPSICONFD_WEBSOCKET_QUEUE_SIZE",
 			type=int,
-			default=10,
+			default=32,
 			help=self._help("expert", "Maximum number of incoming messages in websockets receive buffer."),
 		)
 		# https://www.getpagespeed.com/server-setup/nginx/maximizing-nginx-performance-a-comprehensive-guide-to-tuning-the-backlog-and-net-core-somaxconn-parameters

@@ -9,10 +9,10 @@ test application redis interface
 """
 
 import time
-from socket import getfqdn
 
 from fastapi import status
 
+from opsiconfd.config import get_configserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -41,7 +41,7 @@ def test_redis_stats(test_client: OpsiconfdTestClient) -> None:  # pylint: disab
 def test_clear_rpc_cache(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(10)
 	depot_id = "test-depot.uib.local"
-	configserver = getfqdn()
+	configserver = get_configserver_id()
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	with (

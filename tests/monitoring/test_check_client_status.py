@@ -9,11 +9,11 @@ test application check client status
 """
 
 import json
-from socket import getfqdn
 
 from fastapi import status
 
 from opsiconfd.application.monitoring.check_client_status import check_client_status
+from opsiconfd.config import get_configserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	UnprotectedBackend,
@@ -27,7 +27,6 @@ from tests.utils import (  # pylint: disable=unused-import
 
 
 def test_check_client_status(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-
 	client_id = "test-client0815.uib.local"
 
 	# check client that does not exists -> result sould be UNKNOWN
@@ -49,7 +48,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 		products = get_dummy_products(3)
 		product_ids = [p["id"] for p in products]
 		with (
-			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			products_jsonrpc(test_client, "", products, depots=[get_configserver_id()]),
 			poc_jsonrpc(test_client, "", client_id, product_ids[0], install_state="installed"),
 		):
 			result = check_client_status(backend, client_id=client_id)
@@ -60,7 +59,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 				f"OK: opsi-client {client_id} has been seen today. No failed products and no actions set for client"
 			)
 		with (
-			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			products_jsonrpc(test_client, "", products, depots=[get_configserver_id()]),
 			poc_jsonrpc(test_client, "", client_id, product_ids[0], action_request="setup"),
 		):
 			result = check_client_status(backend, client_id=client_id)
@@ -72,7 +71,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 				f"WARNING: opsi-client {client_id} has been seen today. Actions set for products: 'dummy-prod-0 (setup)'."
 			)
 		with (
-			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			products_jsonrpc(test_client, "", products, depots=[get_configserver_id()]),
 			poc_jsonrpc(test_client, "", client_id, product_ids[0], action_result="failed"),
 		):
 			result = check_client_status(backend, client_id=client_id)
@@ -84,7 +83,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 				f"CRITICAL: opsi-client {client_id} has been seen today. Products: 'dummy-prod-0' are in failed state. "
 			)
 		with (
-			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			products_jsonrpc(test_client, "", products, depots=[get_configserver_id()]),
 			poc_jsonrpc(test_client, "", client_id, product_ids[0], action_request="setup"),
 			poc_jsonrpc(test_client, "", client_id, product_ids[1], action_result="failed"),
 			poc_jsonrpc(test_client, "", client_id, product_ids[2], action_result="failed"),

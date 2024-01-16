@@ -406,10 +406,11 @@ def backend() -> UnprotectedBackend:
 
 
 class WebSocketMessageReader(Thread):
-	def __init__(self, websocket: WebSocketTestSession, decode: bool = True) -> None:
+	def __init__(self, websocket: WebSocketTestSession, decode: bool = True, print_raw_data: int = 32) -> None:
 		super().__init__()
 		self.decode = decode
 		self.daemon = True
+		self.print_raw_data = print_raw_data
 		self.websocket = websocket
 		self.messages: Queue[dict[str, Any] | bytes] = Queue()
 		self.should_stop = False
@@ -441,7 +442,10 @@ class WebSocketMessageReader(Thread):
 				else:
 					msg = raw
 				self.messages.put(msg)
-				print(f"WebSocketMessageReader received message (size: {len(raw)}, raw: {raw[:32]}...), qsize: {self.messages.qsize()}")
+				if self.print_raw_data:
+					print(
+						f"WebSocketMessageReader received message (size: {len(raw)}, raw: {raw[:self.print_raw_data]}...), qsize: {self.messages.qsize()}"
+					)
 
 	def stop(self) -> None:
 		self.should_stop = True
@@ -455,15 +459,20 @@ class WebSocketMessageReader(Thread):
 		except Empty:
 			pass
 
-	def wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
+	def wait_for_message(self, count: int = 1, timeout: float = 5.0, error_on_timeout: bool = True) -> None:
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:
 			if self.messages.qsize() >= count:
 				return
 			if time.time() - start >= timeout:
-				messages = list(self.get_messages())
-				raise RuntimeError(f"Timed out while waiting for messages (got {len(messages)}, expected {count})\nMessages: {messages}")
+				if error_on_timeout:
+					messages = list(self.get_messages())
+					raise RuntimeError(
+						f"Timed out while waiting for messages (got {len(messages)}, expected {count})\nMessages: {messages}"
+					)
+				print(f"Timed out while waiting for messages (got {self.messages.qsize()}, expected {count} max)")
+				return
 			time.sleep(0.1)
 
 	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:

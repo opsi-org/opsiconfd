@@ -8,6 +8,7 @@
 opsiconfd.messagebus tests
 """
 
+import random
 from random import randbytes
 from time import sleep, time
 from uuid import uuid4
@@ -238,9 +239,9 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 		test_client.websocket_connect("/messagebus/v1") as websocket3,
 	):
 		with (
-			WebSocketMessageReader(websocket1) as reader1,
-			WebSocketMessageReader(websocket2) as reader2,
-			WebSocketMessageReader(websocket3) as reader3,
+			WebSocketMessageReader(websocket1, print_raw_data=256) as reader1,
+			WebSocketMessageReader(websocket2, print_raw_data=256) as reader2,
+			WebSocketMessageReader(websocket3, print_raw_data=256) as reader3,
 		):
 			for reader, websocket in ((reader1, websocket1), (reader2, websocket2), (reader3, websocket3)):
 				reader.wait_for_message(count=1)
@@ -258,21 +259,26 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 				assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
 				assert len(messages[0]["subscribed_channels"]) == 3  # type: ignore[call-overload]
 
+			print("Initialization completed, sending messages")
+
 			count = 50
 			for rpc_id in range(count):
 				jsonrpc_request_message = JSONRPCRequestMessage(
 					sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id=str(rpc_id), method="accessControl_userIsAdmin"
 				)
+				websocket = random.choice((websocket1, websocket2, websocket3))
 				websocket.send_bytes(jsonrpc_request_message.to_msgpack())
 
-			sleep(5)
+			print("Receiving messages")
 			all_messages = []
 			for reader, websocket in ((reader1, websocket1), (reader2, websocket2), (reader3, websocket3)):
-				reader.wait_for_message(count=1)
+				reader.wait_for_message(count=50, timeout=5.0, error_on_timeout=False)
 				messages = list(reader.get_messages())
+				# Every reader should get some messages
 				assert len(messages) > 0
 				all_messages.extend(messages)
 
+			# Sum of all messages should be count
 			assert len(all_messages) == count
 
 	with (

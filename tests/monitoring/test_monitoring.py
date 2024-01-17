@@ -17,7 +17,7 @@ from unittest import mock
 
 import pytest
 
-from OPSI.Backend.MySQL import retry_on_deadlock
+from OPSI.Backend.MySQL import retry_mysql
 
 from opsiconfd.application.monitoring.check_locked_products import check_locked_products
 from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
@@ -128,7 +128,7 @@ def create_check_data(test_client, config, database_connection):  # pylint: disa
 	mysql.autocommit(True)
 	now = datetime.now()
 
-	@retry_on_deadlock
+	@retry_mysql
 	def execute(
 		cursor, *args, **kwargs):
 		return cursor.execute(*args, **kwargs)

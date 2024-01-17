@@ -89,9 +89,6 @@ package:
     mkdir -p ${DST}/rootfs/usr/share/opsiconfd
     mkdir -p ${DST}/rootfs/var/log/opsi/opsiconfd
     mkdir -p ${DST}/systemd_units
-    if [ -d ${pyi_src}/opsiconfd ]; then
-      cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
-    fi;
     if [ -d ${pyi_src}/opsiconfd-amd64 ]; then
       mkdir -p ${DST}/rootfs-amd64/usr/lib
       cp -a ${pyi_src}/opsiconfd-amd64 ${DST}/rootfs-amd64/usr/lib/opsiconfd
@@ -129,7 +126,7 @@ package:
     # Use pam_unix.so from system
     # Authentication failure (auth_type=auth-module)...
     # ARM64: ubuntu: /usr/lib/aarch64-linux-gnu, debian: /lib/aarch64-linux-gnu
-    for libdir in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /lib64  /usr/lib/aarch64-linux-gnu /lib/aarch64-linux-gnu; do
+    for libdir in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /lib64 /usr/lib/aarch64-linux-gnu /lib/aarch64-linux-gnu; do
       [ -e ${libdir}/libpam.so.0 ] && cp ${libdir}/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
     done
 

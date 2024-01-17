@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from string import ascii_letters
 from threading import Event, Lock, Thread
-from typing import Type
+from typing import Generator, Type
 from unittest.mock import patch
 
 import psutil
@@ -274,7 +274,7 @@ def test_webdav_memory_consumption(test_client: OpsiconfdTestClient) -> None:  #
 		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 		filename = "test_data.bin"
 
-		def get_data() -> bytes:
+		def get_data() -> Generator[bytes, None, None]:
 			chunks = int(size / chunk_size)
 			for _ in range(chunks):
 				time.sleep(10.0 / chunks)

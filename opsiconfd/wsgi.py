@@ -81,7 +81,7 @@ def build_environ(scope: Scope) -> dict:
 		script_name = unicode_to_wsgi(script_name_environ_var)
 
 	environ = {
-		"asgi.scope": scope,  # type: ignore a2wsgi
+		"asgi.scope": scope,
 		"REQUEST_METHOD": scope["method"],
 		"SCRIPT_NAME": script_name,
 		"PATH_INFO": path_info,

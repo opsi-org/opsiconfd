@@ -7,15 +7,18 @@
 """
 webdav tests
 """
-
+import gc
 import os
 import random
 import shutil
+import time
 from pathlib import Path
 from string import ascii_letters
+from threading import Event, Lock, Thread
 from typing import Type
 from unittest.mock import patch
 
+import psutil
 import pytest
 
 from opsiconfd.application.main import app
@@ -228,3 +231,92 @@ def test_webdav_setup_exception(backend: UnprotectedBackend) -> None:  # pylint:
 			host.setRepositoryLocalUrl(repo_url)
 			host.setDepotLocalUrl(depot_url)
 			host.setWorkbenchLocalUrl(workbench_url)
+
+
+class MemoryUsageWatcher(Thread):
+	def __init__(self) -> None:
+		super().__init__(daemon=True)
+		self.process = psutil.Process()
+		self.stop = Event()
+		self.lock = Lock()
+		self.memory_usage: list[int] = []
+
+	def avg_mem(self) -> float:
+		with self.lock:
+			return sum(self.memory_usage) / len(self.memory_usage)
+
+	def max_mem(self) -> float:
+		with self.lock:
+			return max(self.memory_usage)
+
+	def cur_mem(self) -> float:
+		with self.lock:
+			return self.memory_usage[-1]
+
+	def clear(self) -> None:
+		with self.lock:
+			self.memory_usage = []
+
+	def run(self) -> None:
+		while not self.stop.wait(0.1):
+			with self.lock:
+				self.memory_usage.append(self.process.memory_info().rss)
+
+
+def test_webdav_memory_consumption(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	mem_watch = MemoryUsageWatcher()
+	mem_watch.start()
+	try:
+		size = 100_000_000
+		chunk_size = 100_000
+
+		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
+		filename = "test_data.bin"
+
+		def get_data() -> bytes:
+			chunks = int(size / chunk_size)
+			for _ in range(chunks):
+				time.sleep(10.0 / chunks)
+				yield b"d" * chunk_size
+
+		gc.collect()
+		time.sleep(1)
+		mem_watch.clear()
+		time.sleep(1)
+		cur_mem = mem_watch.cur_mem()
+
+		url = f"/repository/{filename}"
+		res = test_client.put(url=url, headers=headers, content=get_data())
+		res.raise_for_status()
+		max_mem = mem_watch.max_mem()
+		usage_max_upload = max_mem - cur_mem
+
+		assert os.path.exists(os.path.join("/var/lib/opsi/repository", filename))
+
+		gc.collect()
+		time.sleep(1)
+		mem_watch.clear()
+		time.sleep(1)
+		cur_mem = mem_watch.cur_mem()
+
+		with test_client.stream(method="GET", url=url) as res:
+			chunks = int(size / chunk_size)
+			for _ in res.iter_raw(chunk_size=chunk_size):
+				time.sleep(10.0 / chunks)
+
+		res.raise_for_status()
+
+		max_mem = mem_watch.max_mem()
+		usage_max_download = max_mem - cur_mem
+
+		res = test_client.delete(url=url)
+		res.raise_for_status()
+
+		print(f"Max memory usage upload: {usage_max_upload / 1_000_000:.2f} MB")
+		print(f"Max memory usage download: {usage_max_download / 1_000_000:.2f} MB")
+
+		assert usage_max_upload < size * 1.5
+		assert usage_max_download < size * 2.5
+	finally:
+		mem_watch.stop.set()

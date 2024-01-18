@@ -36,25 +36,25 @@ def test_start_pty_params(tmp_path: Path) -> None:
 	env = {"TEST": "test"}
 	pty = start_pty(shell="/bin/bash", rows=rows, cols=cols, cwd=str_path, env=env)
 	time.sleep(2)
-	data = pty.read_nonblocking(size=4096, timeout=3).decode("utf-8")
+	data = pty.read_nonblocking(size=4096, timeout=3)
 	print("read:", data)
-	lines = data.split("\r\n")
+	lines = data.decode("utf-8").split("\r\n")
 
 	pty.write("pwd\r\n".encode("utf-8"))
 	pty.flush()
 	time.sleep(2)
-	data = pty.read_nonblocking(size=4096, timeout=3).decode("utf-8")
+	data = pty.read_nonblocking(size=4096, timeout=3)
 	print("read:", data)
-	lines = data.split("\r\n")
+	lines = data.decode("utf-8").split("\r\n")
 	assert lines[0] == "pwd"
 	assert lines[1] == str_path
 
 	pty.write("env\r\n".encode("utf-8"))
 	pty.flush()
 	time.sleep(2)
-	data = pty.read_nonblocking(size=4096, timeout=3).decode("utf-8")
+	data = pty.read_nonblocking(size=4096, timeout=3)
 	print("read:", data)
-	lines = data.split("\r\n")
+	lines = data.decode("utf-8").split("\r\n")
 	assert lines[0] == "env"
 	assert "TEST=test" in lines
 	assert "TERM=xterm-256color" in lines
@@ -62,9 +62,9 @@ def test_start_pty_params(tmp_path: Path) -> None:
 	pty.write("stty size\r\n".encode("utf-8"))
 	pty.flush()
 	time.sleep(2)
-	data = pty.read_nonblocking(size=4096, timeout=3).decode("utf-8")
+	data = pty.read_nonblocking(size=4096, timeout=3)
 	print("read:", data)
-	lines = data.split("\r\n")
+	lines = data.decode("utf-8").split("\r\n")
 	assert lines[0] == "stty size"
 	assert lines[1] == f"{rows} {cols}"
 

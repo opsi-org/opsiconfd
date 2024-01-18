@@ -385,7 +385,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
-			with WebSocketMessageReader(websocket) as reader:
+			with WebSocketMessageReader(websocket, print_raw_data=500) as reader:
 				reader.wait_for_message(count=1)
 				message = Message.from_dict(next(reader.get_messages()))
 				assert isinstance(message, ChannelSubscriptionEventMessage)
@@ -397,42 +397,45 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				websocket.send_bytes(terminal_open_request.to_msgpack())
 
 				reader.wait_for_message(count=2)
-				sleep(1)
 				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 				assert isinstance(responses[0], TerminalOpenEventMessage)
 				assert responses[0].rows
 				assert responses[0].cols
 				assert responses[0].terminal_id == terminal_id
-
+				assert responses[0].back_channel
 				back_channel = responses[0].back_channel
-				assert back_channel
 
 				assert isinstance(responses[1], TerminalDataReadMessage)
 				assert responses[1].terminal_id == terminal_id
 				assert responses[1].data
+
 				terminal_data_write = TerminalDataWriteMessage(
 					sender=CONNECTION_USER_CHANNEL, channel=back_channel, terminal_id=terminal_id, data=b"echo test\r"
 				)
 				websocket.send_bytes(terminal_data_write.to_msgpack())
+
 				reader.wait_for_message(count=1)
-				sleep(1)
 				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 				assert isinstance(responses[0], TerminalDataReadMessage)
 				assert responses[0].terminal_id == terminal_id
 				assert "echo test\r\n" in responses[0].data.decode("utf-8")
+
 				terminal_resize_request = TerminalResizeRequestMessage(
 					sender=CONNECTION_USER_CHANNEL, channel=back_channel, terminal_id=terminal_id, rows=10, cols=160
 				)
 				websocket.send_bytes(terminal_resize_request.to_msgpack())
 
-				reader.wait_for_message(count=1)
-				sleep(1)
+				reader.wait_for_message(count=2)
 				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-				assert responses[0].type == MessageType.TERMINAL_RESIZE_EVENT
-				assert isinstance(responses[0], TerminalResizeEventMessage)
-				assert responses[0].terminal_id == terminal_id
-				assert responses[0].rows == 10
-				assert responses[0].cols == 160
+
+				resize_message = [msg for msg in responses if isinstance(msg, TerminalResizeEventMessage)][0]
+				data_message = [msg for msg in responses if isinstance(msg, TerminalDataReadMessage)][0]
+
+				assert resize_message.terminal_id == terminal_id
+				assert resize_message.rows == 10
+				assert resize_message.cols == 160
+
+				assert data_message.terminal_id == terminal_id
 
 
 def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

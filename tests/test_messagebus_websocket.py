@@ -395,7 +395,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 
 				terminal_id = str(uuid4())
 				terminal_open_request = TerminalOpenRequestMessage(
-					sender=CONNECTION_USER_CHANNEL, channel="service:config:terminal", terminal_id=terminal_id, rows=20, cols=100
+					sender=CONNECTION_USER_CHANNEL, channel="service:config:terminal", terminal_id=terminal_id, rows=20, cols=150
 				)
 				websocket.send_bytes(terminal_open_request.to_msgpack())
 
@@ -433,7 +433,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				assert responses[0].terminal_id == terminal_id
 				assert "echo test\r\n" in responses[0].data.decode("utf-8")
 				terminal_resize_request = TerminalResizeRequestMessage(
-					sender=CONNECTION_USER_CHANNEL, channel=back_channel, terminal_id=terminal_id, rows=10, cols=20
+					sender=CONNECTION_USER_CHANNEL, channel=back_channel, terminal_id=terminal_id, rows=10, cols=160
 				)
 				websocket.send_bytes(terminal_resize_request.to_msgpack())
 
@@ -448,7 +448,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				assert isinstance(responses[0], TerminalResizeEventMessage)
 				assert responses[0].terminal_id == terminal_id
 				assert responses[0].rows == 10
-				assert responses[0].cols == 20
+				assert responses[0].cols == 160
 
 
 def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

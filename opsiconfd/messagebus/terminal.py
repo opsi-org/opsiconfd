@@ -11,7 +11,7 @@ application.teminal
 from __future__ import annotations
 
 import os
-from asyncio import get_running_loop
+from asyncio import Task, get_running_loop
 from os import getuid
 from pathlib import Path
 from pwd import getpwuid
@@ -24,6 +24,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	Error,
 	FileChunkMessage,
 	FileUploadRequestMessage,
 	Message,
@@ -31,13 +32,14 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TerminalCloseRequestMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
+	TerminalErrorMessage,
 	TerminalOpenEventMessage,
 	TerminalOpenRequestMessage,
 	TerminalResizeEventMessage,
 	TerminalResizeRequestMessage,
 )
 from pexpect import spawn  # type: ignore[import]
-from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
+from pexpect.exceptions import EOF, TIMEOUT, ExceptionPexpect  # type: ignore[import]
 from psutil import AccessDenied, NoSuchProcess, Process
 from starlette.concurrency import run_in_threadpool
 
@@ -72,13 +74,19 @@ async def async_terminal_shutdown() -> None:
 		await terminal_instance_reader.stop()
 
 
-def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None) -> spawn:
+def start_pty(
+	shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None, env: dict[str, str] | None = None
+) -> spawn:
 	rows = rows or 30
 	cols = cols or 120
-	sp_env = os.environ.copy()
-	sp_env.update({"TERM": "xterm-256color"})
+	if env is None:
+		env = os.environ.copy()
+	env.update({"TERM": "xterm-256color"})
 	logger.info("Starting new pty with shell %r, rows %r, cols %r, cwd %r", shell, rows, cols, cwd)
-	return spawn(shell, dimensions=(rows, cols), env=sp_env, cwd=cwd)
+	try:
+		return spawn(shell, dimensions=(rows, cols), env=env, cwd=cwd)
+	except ExceptionPexpect as err:
+		raise RuntimeError(f"Failed to start pty with shell {shell!r}: {err}") from err
 
 
 class Terminal:  # pylint: disable=too-many-instance-attributes
@@ -97,8 +105,8 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		self._cwd = getpwuid(getuid()).pw_dir
 		self._pty: spawn | None = None
 		self._closing = False
-		self.set_size(terminal_open_request.rows, terminal_open_request.cols, False)
-		self._loop.create_task(self.start())
+		self._pty_reader_task: Task | None = None
+		self._set_size(terminal_open_request.rows, terminal_open_request.cols)
 
 	@property
 	def terminal_id(self) -> str:
@@ -114,6 +122,8 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			self._cwd,
 		)
 		logger.debug("pty started")
+
+	async def start_reader(self) -> None:
 		self._pty_reader_task = self._loop.create_task(self._pty_reader())
 
 	def back_channel(self, message: Message | None = None) -> str:
@@ -121,11 +131,14 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			return message.back_channel
 		return self._terminal_open_request.response_channel
 
-	def set_size(self, rows: int | None = None, cols: int | None = None, pty_set_size: bool = True) -> None:
+	def _set_size(self, rows: int | None = None, cols: int | None = None) -> None:
 		self.rows = min(max(1, int(rows or self.default_rows)), self.max_rows)
 		self.cols = min(max(1, int(cols or self.default_cols)), self.max_cols)
-		if pty_set_size and self._pty:
-			self._pty.setwinsize(self.rows, self.cols)
+
+	async def set_size(self, rows: int | None = None, cols: int | None = None) -> None:
+		self._set_size(rows, cols)
+		if self._pty:
+			await self._loop.run_in_executor(None, self._pty.setwinsize, self.rows, self.cols)
 
 	def get_cwd(self) -> Path | None:
 		if not self._pty:
@@ -168,13 +181,18 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			logger.error(err, exc_info=True)
 			await self.close()
 
+	def _pty_write(self, data: bytes) -> None:
+		if self._closing or not self._pty:
+			return
+		self._pty.write(data)
+		self._pty.flush()
+
 	async def process_message(self, message: TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalCloseRequestMessage) -> None:
 		if isinstance(message, TerminalDataWriteMessage):
 			# Do not wait for completion to minimize rtt
-			if not self._closing and self._pty:
-				self._loop.run_in_executor(None, self._pty.write, message.data)
+			self._loop.run_in_executor(None, self._pty_write, message.data)
 		elif isinstance(message, TerminalResizeRequestMessage):
-			self.set_size(message.rows, message.cols)
+			await self.set_size(message.rows, message.cols)
 			res_message = TerminalResizeEventMessage(
 				sender=self._sender,
 				channel=self.back_channel(message),
@@ -189,19 +207,20 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		else:
 			logger.warning("Received invalid message type %r", message.type)
 
-	async def close(self, message: TerminalCloseRequestMessage | None = None) -> None:
+	async def close(self, message: TerminalCloseRequestMessage | None = None, send_close_event: bool = True) -> None:
 		if self._closing:
 			return
 		logger.info("Close terminal")
 		self._closing = True
 		try:
-			res_message = TerminalCloseEventMessage(
-				sender=self._sender,
-				channel=self.back_channel(message),
-				ref_id=message.id if message else None,
-				terminal_id=self.terminal_id,
-			)
-			await self._send_message(res_message)
+			if send_close_event:
+				res_message = TerminalCloseEventMessage(
+					sender=self._sender,
+					channel=self.back_channel(message),
+					ref_id=message.id if message else None,
+					terminal_id=self.terminal_id,
+				)
+				await self._send_message(res_message)
 			if self.terminal_id in terminals:
 				del terminals[self.terminal_id]
 			if self._pty:
@@ -217,16 +236,24 @@ async def _process_message(
 	send_message: Callable,
 ) -> None:
 	terminal = terminals.get(message.terminal_id)
+	create_new = False
 
 	try:
 		if isinstance(message, TerminalOpenRequestMessage):
-			if not terminal:
+			create_new = not terminal
+			if create_new:
 				terminal = Terminal(terminal_open_request=message, sender=get_messagebus_worker_id(), send_message=send_message)
 				terminals[message.terminal_id] = terminal
 			else:
+				assert isinstance(terminal, Terminal)
 				# Resize to redraw screen
-				terminal.set_size(terminal.rows - 1, terminal.cols)
-				terminal.set_size(terminal.rows, terminal.cols)
+				if message.rows == terminal.rows and message.cols == terminal.cols:
+					await terminal.set_size(message.rows - 1, message.cols)
+				await terminal.set_size(message.rows, message.cols)
+
+			if create_new:
+				await terminal.start()
+
 			open_event = TerminalOpenEventMessage(
 				sender=get_messagebus_worker_id(),
 				channel=terminal.back_channel(message),
@@ -237,19 +264,27 @@ async def _process_message(
 				cols=terminal.cols,
 			)
 			await send_message(open_event)
+
+			if create_new:
+				await terminal.start_reader()
 		elif terminal:
 			await terminal.process_message(message)
 		else:
 			raise RuntimeError("Invalid terminal id")
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning(err, exc_info=True)
+		terminal_error = TerminalErrorMessage(
+			sender=get_messagebus_worker_id(),
+			channel=message.back_channel or message.sender,
+			terminal_id=message.terminal_id,
+			error=Error(message=f"Failed to create new terminal: {err}" if create_new else f"Terminal error: {err}"),
+		)
+		await send_message(terminal_error)
 		if terminal:
-			await terminal.close()
-		else:
-			close_event = TerminalCloseEventMessage(
-				sender=get_messagebus_worker_id(), channel=message.back_channel or message.sender, terminal_id=message.terminal_id
-			)
-			await send_message(close_event)
+			# Sending close event for backwards compatibility
+			# TerminalErrorEventMessage was introduced in 2024-01
+			await terminal.close(send_close_event=True)
+			# await terminal.close(send_close_event=not create_new)
 
 
 async def messagebus_terminal_instance_worker_configserver() -> None:

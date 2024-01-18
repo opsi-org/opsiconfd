@@ -42,6 +42,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	Config,
 	OpsiconfdTestClient,
+	Redis,
 	WebSocketMessageReader,
 	clean_mysql,
 	clean_redis,
@@ -165,6 +166,18 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	channel = f"host:{host_id}"
+
+	def wait_for_reader_count(redis: Redis, channel: str, count: int, timeout: int = 5) -> None:
+		print(f"Wait for reader count: {count}, timeout: {timeout}")
+		reader_count = 0
+		for _ in range(timeout):
+			reader_count = int(redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") or 0)
+			print("Reader count:", reader_count)
+			if reader_count == count:
+				return
+			sleep(1)
+		raise RuntimeError(f"Timeout while waiting for reader count {count}")
+
 	with sync_redis_client() as redis:
 		assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") is None
 
@@ -182,8 +195,7 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 						assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
 						assert channel in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
-					sleep(1)
-					assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"2"
+					wait_for_reader_count(redis, channel, 2)
 					message = Message(
 						type="test_multi_client", sender=CONNECTION_USER_CHANNEL, channel=channel, id="00000000-0000-4000-8000-000000000001"
 					)
@@ -206,10 +218,7 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 							assert len(messages[0]["subscribed_channels"]) == 2
 							assert channel in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
-							sleep(1)
-							sleep(1)
-							sleep(1)
-							assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"3"
+							wait_for_reader_count(redis, channel, 3)
 							message = Message(
 								type="test_multi_client",
 								sender=CONNECTION_USER_CHANNEL,
@@ -224,11 +233,9 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 								assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
 								assert messages[0]["id"] == "00000000-0000-4000-8000-000000000002"  # type: ignore[call-overload]
 
-					sleep(1)
-					assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"2"
+					wait_for_reader_count(redis, channel, 2)
 
-			sleep(1)
-			assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"0"
+			wait_for_reader_count(redis, channel, 0)
 
 
 def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

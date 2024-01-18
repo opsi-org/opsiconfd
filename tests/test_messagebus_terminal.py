@@ -31,7 +31,7 @@ from opsiconfd.messagebus.terminal import Terminal, _process_message, start_pty,
 
 def test_start_pty_params(tmp_path: Path) -> None:
 	str_path = str(tmp_path)
-	cols = 100
+	cols = 150
 	rows = 20
 	env = {"TEST": "test"}
 	pty = start_pty(shell="/bin/bash", rows=rows, cols=cols, cwd=str_path, env=env)
@@ -75,7 +75,7 @@ def test_start_pty_fail() -> None:
 
 
 async def test_terminal_params() -> None:
-	cols = 90
+	cols = 150
 	rows = 25
 	terminal_id = str(uuid.uuid4())
 	sender = "service_worker:pytest:1"
@@ -131,7 +131,7 @@ async def test_terminal_params() -> None:
 	assert lines[0] == f"{rows} {cols}"
 
 	# Reopen terminal
-	cols = 80
+	cols = 160
 	rows = 30
 	messages = []
 	terminal_open_request = TerminalOpenRequestMessage(

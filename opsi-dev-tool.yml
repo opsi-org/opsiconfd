@@ -100,9 +100,6 @@ package:
     mkdir -p ${DST}/rootfs/var/log/opsi/userlogin
 
     mkdir -p ${DST}/systemd_units
-    if [ -d ${pyi_src}/opsiconfd ]; then
-      cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
-    fi;
     if [ -d ${pyi_src}/opsiconfd-amd64 ]; then
       mkdir -p ${DST}/rootfs-amd64/usr/lib
       mkdir -p ${DST}/rootfs-amd64/etc/opsi

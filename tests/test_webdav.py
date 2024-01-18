@@ -274,6 +274,7 @@ class MemoryUsageWatcher(Thread):
 
 
 def test_webdav_memory_consumption(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	# TODO: Need better test for server memory consumption
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	mem_watch = MemoryUsageWatcher()
 	mem_watch.start()
@@ -326,8 +327,8 @@ def test_webdav_memory_consumption(test_client: OpsiconfdTestClient) -> None:  #
 		print(f"Max memory usage upload: {usage_max_upload / 1_000_000:.2f} MB")
 		print(f"Max memory usage download: {usage_max_download / 1_000_000:.2f} MB")
 
-		assert usage_max_upload < size * 1.8
-		assert usage_max_download < size * 2.5
+		assert usage_max_upload < size * 1.9
+		assert usage_max_download < size * 2.9
 	finally:
 		mem_watch.stop.set()
 

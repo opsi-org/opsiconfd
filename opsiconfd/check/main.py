@@ -10,6 +10,9 @@ health check
 
 from typing import Iterator
 
+from rich.console import Console
+from rich.markdown import Markdown
+
 from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.common import CheckResult
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user

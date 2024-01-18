@@ -348,10 +348,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 
 					reader.wait_for_message(count=4, timeout=10.0)
 
-					responses = sorted(
-						[Message.from_dict(msg) for msg in reader.get_messages()],
-						key=lambda m: getattr(m, "rpc_id", ""),  # type: ignore[arg-type,attr-defined]
-					)
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 					# for res in responses:
 					# 	print(res.to_dict())
 
@@ -401,12 +398,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 
 				reader.wait_for_message(count=2)
 				sleep(1)
-				responses = sorted(
-					# type: ignore[arg-type,attr-defined]
-					[Message.from_dict(msg) for msg in reader.get_messages()],
-					key=lambda m: m.created,
-				)
-
+				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 				assert isinstance(responses[0], TerminalOpenEventMessage)
 				assert responses[0].rows
 				assert responses[0].cols
@@ -424,11 +416,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				websocket.send_bytes(terminal_data_write.to_msgpack())
 				reader.wait_for_message(count=1)
 				sleep(1)
-				responses = sorted(
-					# type: ignore[arg-type,attr-defined]
-					[Message.from_dict(msg) for msg in reader.get_messages()],
-					key=lambda m: m.created,
-				)
+				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 				assert isinstance(responses[0], TerminalDataReadMessage)
 				assert responses[0].terminal_id == terminal_id
 				assert "echo test\r\n" in responses[0].data.decode("utf-8")
@@ -439,11 +427,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 
 				reader.wait_for_message(count=1)
 				sleep(1)
-				responses = sorted(
-					# type: ignore[arg-type,attr-defined]
-					[Message.from_dict(msg) for msg in reader.get_messages()],
-					key=lambda m: m.created,
-				)
+				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 				assert responses[0].type == MessageType.TERMINAL_RESIZE_EVENT
 				assert isinstance(responses[0], TerminalResizeEventMessage)
 				assert responses[0].terminal_id == terminal_id

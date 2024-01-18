@@ -22,7 +22,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
-	MessageType,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
 	TerminalOpenEventMessage,

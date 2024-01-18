@@ -101,7 +101,7 @@ def test_check_server_cert(manager: Manager, cert_changed: bool) -> None:  # pyl
 
 
 def test_worker_manager_and_workers() -> None:
-	def wait_for_workers_running(self: WorkerManager, count: int, timeout: int = 10) -> None:
+	def wait_for_workers_running(worker_manager: WorkerManager, count: int, timeout: int = 10) -> None:
 		for _ in range(timeout):
 			if len(worker_manager.workers) == count:
 				num_running = 0

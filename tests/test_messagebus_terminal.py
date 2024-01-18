@@ -72,7 +72,7 @@ async def test_terminal_params() -> None:
 	terminal_id = str(uuid.uuid4())
 	sender = "service_worker:pytest:1"
 
-	assert terminals == {}
+	assert not terminals
 	messages: list[Message] = []
 
 	async def send_message(message: Message) -> None:

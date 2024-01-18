@@ -15,11 +15,21 @@ import time
 from pathlib import Path
 from string import ascii_letters
 from threading import Event, Lock, Thread
-from typing import Generator, Type
+from typing import BinaryIO, Generator, Type
 from unittest.mock import patch
 
 import psutil
 import pytest
+from pyzsync import (
+	CaseInsensitiveDict,
+	HTTPPatcher,
+	Patcher,
+	PatchInstruction,
+	create_zsync_file,
+	get_patch_instructions,
+	patch_file,
+	read_zsync_file,
+)
 
 from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
@@ -320,3 +330,56 @@ def test_webdav_memory_consumption(test_client: OpsiconfdTestClient) -> None:  #
 		assert usage_max_download < size * 2.5
 	finally:
 		mem_watch.stop.set()
+
+
+def test_repository_zsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # pylint: disable=too-many-locals,redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	class TestHTTPPatcher(HTTPPatcher):
+		test_client: OpsiconfdTestClient
+
+		def _send_request(self) -> tuple[int, CaseInsensitiveDict]:
+			self._response = self.test_client.request("GET", self._url.path, headers=self._headers)
+			return self._response.status_code, CaseInsensitiveDict(dict(self._response.headers))
+
+		def _read_response_data(self, size: int | None = None) -> bytes:
+			if not size:
+				size = len(self._response._content)  # pylint: disable=protected-access
+			data = self._response._content[:size]  # pylint: disable=protected-access
+			self._response._content = self._response._content[size:]  # pylint: disable=protected-access
+			return data
+
+	remote_file = Path("/var/lib/opsi/repository/remote")
+	remote_zsync_file = Path("/var/lib/opsi/repository/remote.zsync")
+	local_file = tmp_path / "local"
+	local_file_bak = tmp_path / "local.bak"
+
+	block_count = 10
+	block_size = 2048
+	with open(remote_file, "wb") as rfile, open(local_file, "wb") as lfile:
+		for block_id in range(block_count):
+			block_data = random.randbytes(int(block_size / 2) if block_id == block_count - 1 else block_size)
+			rfile.write(block_data)
+			if block_id in (1, 2, 3, 7):
+				lfile.write(block_data)
+
+	shutil.copy(local_file, local_file_bak)
+	create_zsync_file(remote_file, remote_zsync_file, legacy_mode=False)
+	zsync_info = read_zsync_file(remote_zsync_file)
+	zsync_info.seq_matches = 1
+	instructions = get_patch_instructions(zsync_info, local_file)
+
+	http_patcher: HTTPPatcher | None = None
+
+	def patcher_factory(instructions: list[PatchInstruction], target_file: BinaryIO) -> Patcher:
+		nonlocal http_patcher
+		http_patcher = TestHTTPPatcher(
+			instructions=instructions, target_file=target_file, url="https://localhost:4447/repository/remote", max_ranges_per_request=1
+		)
+		http_patcher.test_client = test_client
+		return http_patcher
+
+	sha256 = patch_file(local_file, instructions, patcher_factory, return_hash="sha256")
+	assert remote_file.stat().st_size == local_file.stat().st_size
+	assert sha256 == zsync_info.sha256
+	assert remote_file.read_bytes() == local_file.read_bytes()

@@ -42,7 +42,7 @@ from opsiconfd.metrics.collector import ManagerMetricsCollector
 from opsiconfd.redis import async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_server_cert
 from opsiconfd.utils import Singleton, asyncio_create_task, log_config
-from opsiconfd.worker import Worker, WorkerInfo
+from opsiconfd.worker import Worker, WorkerInfo, WorkerState
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
 
 
@@ -55,6 +55,8 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		self.worker_restart_time = 0
 		self.worker_restart_mem = config.restart_worker_mem * 1000000
 		self.worker_restart_mem_interval = 3600
+		self.worker_check_interval = 10.0
+		self.worker_restart_gap = 5.0
 		self.restart_vanished_workers = True
 		self.worker_update_lock = Lock()
 		self.should_restart_workers = False
@@ -107,15 +109,42 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		self.check_modules()
 		self.bind_socket()
 		self.adjust_worker_count()
+		# Wait for all worker processes to start
+		timeout = time.time() + 10
+		while True:
+			all_running = True
+			with self.worker_update_lock:
+				for worker in self.get_workers():
+					if worker.process and worker.process.is_alive():
+						worker.worker_state = WorkerState.RUNNING
+					else:
+						all_running = False
+			if all_running:
+				break
+
+			if time.time() >= timeout:
+				failed_workers = [
+					w for w in self.get_workers() if w.worker_state != WorkerState.RUNNING or (w.process and not w.process.is_alive())
+				]
+				logger.critical("Failed to start workers: %r", failed_workers)
+				self.stop(force=True)
+
+			if time.time() >= timeout or self.should_stop.wait(1.0):
+				while self.workers:
+					time.sleep(0.1)
+				return
+
+		self.startup = False
+
 		while not self.should_stop.is_set():
-			self.should_stop.wait(10.0)
 			auto_restart = []
 			with self.worker_update_lock:
 				for worker in self.get_workers():
 					if self.should_restart_workers:
 						auto_restart.append(worker)
-
 					elif worker.process and worker.process.is_alive():
+						# Worker is running
+						worker.worker_state = WorkerState.RUNNING
 						if self.worker_restart_time > 0:
 							alive = time.time() - worker.create_time
 							if alive >= self.worker_restart_time:
@@ -139,16 +168,9 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 									auto_restart.append(worker)
 							elif hasattr(worker, "max_mem_exceeded_since"):
 								delattr(worker, "max_mem_exceeded_since")
-
-					elif not getattr(worker, "marked_as_vanished", False):
-						# Worker crashed / killed
-						if self.startup:
-							logger.critical("Failed to start %s", worker)
-							self.stop(force=True)
-							break
-
+					elif worker.worker_state == WorkerState.RUNNING:
 						logger.warning("%s vanished", worker)
-						setattr(worker, "marked_as_vanished", True)
+						worker.worker_state = WorkerState.VANISHED
 						if self.restart_vanished_workers:
 							auto_restart.append(worker)
 
@@ -156,12 +178,12 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 				if self.should_stop.is_set():
 					break
 				self.restart_worker(worker)
-				self.should_stop.wait(5.0)
+				self.should_stop.wait(self.worker_restart_gap)
 
 			self.update_worker_state()
 
-			self.startup = False
 			self.should_restart_workers = False
+			self.should_stop.wait(self.worker_check_interval)
 
 		while self.workers:
 			time.sleep(0.1)
@@ -195,6 +217,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 			worker_num = worker_nums[-1] + 1 if worker_nums else 1
 			worker = Worker(self.node_name, worker_num)
 
+		worker.worker_state = WorkerState.STARTING
 		worker.start_server_process([self.socket])
 
 		logger.info("New %s started", worker)
@@ -204,6 +227,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		if not isinstance(workers, list):
 			workers = [workers]
 		for worker in workers:
+			worker.worker_state = WorkerState.STOPPING
 			if worker.process and worker.process.is_alive():
 				logger.notice("Stopping %s (force=%s)", worker, force)
 				worker.process.terminate()
@@ -219,6 +243,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 				diff = time.time() - start_time
 				for worker in workers:
 					if not worker.process or not worker.process.is_alive():
+						worker.worker_state = WorkerState.STOPPED
 						worker.pid = 0
 						continue
 					any_alive = True

@@ -18,6 +18,7 @@ import socket
 import time
 from asyncio import sleep as asyncio_sleep
 from concurrent.futures import ThreadPoolExecutor
+from enum import StrEnum
 from logging import DEBUG
 from multiprocessing.context import SpawnProcess
 from signal import SIGHUP
@@ -94,6 +95,15 @@ def uvicorn_config() -> Config:
 	return Config("opsiconfd.application:app", **options)
 
 
+class WorkerState(StrEnum):
+	INIT = "init"
+	STARTING = "starting"
+	RUNNING = "running"
+	VANISHED = "vanished"
+	STOPPING = "stopping"
+	STOPPED = "stopped"
+
+
 class WorkerInfo:  # pylint: disable = too-few-public-methods
 	def __init__(  # pylint: disable = too-many-arguments
 		self, node_name: str, worker_num: int, create_time: float = 0.0, pid: int = 0, app_state: str = ""
@@ -101,6 +111,7 @@ class WorkerInfo:  # pylint: disable = too-few-public-methods
 		self.node_name = node_name
 		self.worker_num = worker_num
 		self.create_time = create_time
+		self.worker_state = WorkerState.INIT
 		self.pid = pid
 		self.app_state = app_state
 		self.redis_state_key_expire = 60

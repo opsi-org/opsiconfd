@@ -10,6 +10,7 @@ Test opsiconfd.manager
 """
 
 import asyncio
+import os
 import signal
 import threading
 import time
@@ -19,7 +20,7 @@ from unittest.mock import patch
 import psutil
 import pytest
 
-from opsiconfd.manager import Manager, WorkerManager
+from opsiconfd.manager import Manager, WorkerManager, WorkerState
 
 from .utils import (  # pylint: disable=unused-import
 	UnprotectedBackend,
@@ -84,7 +85,6 @@ def test_manager_signals(manager: Manager) -> None:  # pylint: disable=redefined
 
 @pytest.mark.parametrize("cert_changed", (False, True))
 def test_check_server_cert(manager: Manager, cert_changed: bool) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-
 	test_restarted = False
 
 	def restart_workers(self: WorkerManager) -> None:  # pylint: disable=unused-argument
@@ -101,33 +101,82 @@ def test_check_server_cert(manager: Manager, cert_changed: bool) -> None:  # pyl
 
 
 def test_worker_manager_and_workers() -> None:
-	with get_config({"port": 4444, "workers": 1, "log_mode": "local"}):
+	def wait_for_workers_running(self: WorkerManager, count: int, timeout: int = 10) -> None:
+		for _ in range(timeout):
+			if len(worker_manager.workers) == count:
+				num_running = 0
+				for worker in worker_manager.workers.values():
+					if worker.worker_state == WorkerState.RUNNING:
+						try:
+							proc = psutil.Process(worker.pid)
+						except psutil.NoSuchProcess:
+							continue
+						if proc.is_running():
+							num_running += 1
+				if num_running == count:
+					return
+			time.sleep(1)
+		raise RuntimeError("Timed out while waiting for workers")
+
+	with get_config({"port": 4444, "workers": 2, "log_mode": "local"}):
 		worker_manager = WorkerManager()
-		worker_manager_thread = threading.Thread(target=worker_manager.run)
+		worker_manager.worker_restart_gap = 0.0
+		worker_manager.worker_check_interval = 2.0
+		worker_manager_thread = threading.Thread(target=worker_manager.run, daemon=True)
 		worker_manager_thread.start()
+		try:
+			wait_for_workers_running(worker_manager, count=2)
 
-		time.sleep(3)
+			# Asser startup phase set to completed
+			assert not worker_manager.startup
 
-		assert len(worker_manager.workers) == 1
-		assert list(worker_manager.workers.values())[0].worker_num == 1
-		proc = psutil.Process(list(worker_manager.workers.values())[0].pid)
-		assert proc.is_running()
+			assert worker_manager.workers[f"{worker_manager.node_name}:1"].worker_num == 1
+			assert worker_manager.workers[f"{worker_manager.node_name}:2"].worker_num == 2
+			pid1 = worker_manager.workers[f"{worker_manager.node_name}:1"].pid
+			pid2 = worker_manager.workers[f"{worker_manager.node_name}:2"].pid
+			proc1 = psutil.Process(pid1)
+			proc2 = psutil.Process(pid2)
+			assert proc1.is_running()
+			assert proc2.is_running()
 
-		worker_pid = list(worker_manager.workers.values())[0].pid
-		worker_manager.restart_workers(wait=True)
+			# Kill worker process
+			os.kill(pid1, signal.SIGKILL)
+			for _ in range(10):
+				if not proc1.is_running():
+					break
+				time.sleep(1)
 
-		assert len(list(worker_manager.workers.values())) == 1
-		assert list(worker_manager.workers.values())[0].worker_num == 1
-		proc = psutil.Process(list(worker_manager.workers.values())[0].pid)
-		assert proc.is_running()
+			assert not proc1.is_running()
+			assert proc2.is_running()
 
-		assert list(worker_manager.workers.values())[0].pid != 0
-		assert worker_pid != list(worker_manager.workers.values())[0].pid
+			# Assert that worker process is restarted with new pid
+			wait_for_workers_running(worker_manager, count=2)
+			assert worker_manager.workers[f"{worker_manager.node_name}:1"].pid != pid1
+			assert worker_manager.workers[f"{worker_manager.node_name}:2"].pid == pid2
+			pid1 = worker_manager.workers[f"{worker_manager.node_name}:1"].pid
+			pid2 = worker_manager.workers[f"{worker_manager.node_name}:2"].pid
+			proc1 = psutil.Process(pid1)
+			proc2 = psutil.Process(pid2)
+			assert proc1.is_running()
+			assert proc2.is_running()
 
-		time.sleep(1)
+			# Restart workers
+			worker_manager.restart_workers(wait=True)
+			for _ in range(10):
+				if not proc1.is_running() and not proc2.is_running():
+					break
+				time.sleep(1)
+			assert not proc1.is_running()
+			assert not proc2.is_running()
 
-		worker_manager.stop()
-		worker_manager_thread.join()
+			# Assert that worker processes are restarted with new pid
+			wait_for_workers_running(worker_manager, count=2)
+			assert worker_manager.workers[f"{worker_manager.node_name}:1"].pid != pid1
+			assert worker_manager.workers[f"{worker_manager.node_name}:2"].pid != pid2
+
+		finally:
+			worker_manager.stop()
+			worker_manager_thread.join()
 
 
 def test_check_modules(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name

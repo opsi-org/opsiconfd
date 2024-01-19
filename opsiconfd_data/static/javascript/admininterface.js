@@ -1242,6 +1242,14 @@ function messagebusConnect() {
 					mbTerminal.writeln("\r\n\x1b[1;37m> Terminal closed <\x1b[0m");
 					mbTerminal.write("\x1b[?25l"); // Make cursor invisible
 				}
+				else if (message.type == "terminal_error") {
+					console.error("Terminal error", message);
+					let notificationText = message.error.message;
+					if (message.error.details) {
+						notificationText += "\n" + message.error.details;
+					}
+					showNotifcation(notificationText, "", "error", 10);
+				}
 			}
 		}
 		else if (message.type == "file_upload_result") {

@@ -174,6 +174,7 @@ async def test_grafana_query_start_end(
 	res = test_client.post("/metrics/grafana/query", json=query)
 	assert res.status_code == 200
 	data = res.json()
+	print(data[0]["datapoints"])
 	num_values = len(data[0]["datapoints"])
 	expected_values = seconds / 60
 
@@ -200,6 +201,7 @@ async def test_grafana_query_start_end(
 	res = test_client.post("/metrics/grafana/query", json=query)
 	assert res.status_code == 200
 	data = res.json()
+	print(data[0]["datapoints"])
 	num_values = len(data[0]["datapoints"])
 	expected_values = seconds / 60
 

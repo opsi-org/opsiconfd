@@ -147,7 +147,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					# ACK message (set last-delivered-id)
 					# create_task(reader.ack_message(redis_id))
 					await reader.ack_message(message.channel, redis_id)
-		except (StopAsyncIteration, ConnectionClosedOK):
+		except StopAsyncIteration:
 			pass
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)

@@ -202,7 +202,7 @@ class Worker(WorkerInfo, UvicornServer):
 
 	async def redis_disconnect_task(self) -> None:
 		while not self.should_exit:
-			for _ in range(60):
+			for _ in range(1):
 				if self.should_exit:
 					return
 				await asyncio_sleep(1)
@@ -261,7 +261,9 @@ class Worker(WorkerInfo, UvicornServer):
 
 		app.register_app_state_handler(self.on_app_state_change)
 		asyncio_create_task(self.memory_cleanup_task())
-		asyncio_create_task(self.redis_disconnect_task())
+		# Disabling for now because it sometimes causes errors like:
+		# RuntimeError: unable to perform operation on <TCPTransport closed=True reading=False 0x555b11618060>; the handler is closed
+		# asyncio_create_task(self.redis_disconnect_task())
 		asyncio_create_task(self.metrics_collector.main_loop())
 		asyncio_create_task(self.state_refresh_task())
 

@@ -99,6 +99,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			"--keep-connection", action="store_true", help="Keep client connection until all clients have sent all events"
 		)
 		arg_parser.add_argument("--start-gap", action="store", type=int, help="Gap in milliseconds between client startup", default=0)
+		arg_parser.add_argument("--verbose", action="store_true", help="Verbose output")
 		self.args = arg_parser.parse_args()
 		url = urlparse(self.args.server)
 		base_url = f"{url.scheme or 'https'}://{url.hostname}:{url.port or 4447}"
@@ -109,17 +110,20 @@ class TestManager:  # pylint: disable=too-few-public-methods
 
 	def add_client_completed(self) -> None:
 		self.clients_completed += 1
-		print(f"!{self.clients_completed}")
+		if self.args.verbose:
+			print(f"!{self.clients_completed}")
 		if self.clients_completed == self.args.clients:
 			self.all_completed.set()
 
 	def add_client_connected(self) -> None:
 		self.clients_connected += 1
-		print(f"+{self.clients_connected}")
+		if self.args.verbose:
+			print(f"+{self.clients_connected}")
 
 	def remove_client_connected(self) -> None:
 		self.clients_connected -= 1
-		print(f"-{self.clients_connected}")
+		if self.args.verbose:
+			print(f"-{self.clients_connected}")
 
 	async def main(self) -> None:
 		test_clients = [

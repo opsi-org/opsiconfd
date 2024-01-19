@@ -41,6 +41,7 @@ from starlette.status import (
 )
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketState
+from wsproto.utilities import LocalProtocolError
 
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
@@ -122,8 +123,12 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			return
 
 		logger.debug("Message to websocket: %r", message)
-		await websocket.send_bytes(data)
-		statistics.messages_sent += 1
+		try:
+			await websocket.send_bytes(data)
+			statistics.messages_sent += 1
+		except LocalProtocolError as err:
+			# Websocket propably closed
+			logger.debug("Failed to send message to websocket: %s", err)
 
 	async def manager_task(self, websocket: WebSocket) -> None:
 		try:

@@ -433,7 +433,10 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 			if refresh_ok and not session.expired and session.client_addr == client_addr:
 				await session.update_last_used()
 			else:
-				del self.sessions[session_id]
+				try:
+					del self.sessions[session_id]
+				except KeyError:
+					pass
 				session_id = None
 				session = None
 

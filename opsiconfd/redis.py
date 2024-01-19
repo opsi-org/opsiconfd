@@ -45,6 +45,23 @@ def get_redis_connections() -> list[Connection | AsyncConnection]:
 	return connections
 
 
+async def _async_pool_disconnect_connections(inuse_connections: bool = False) -> None:
+	async with async_redis_pool_lock:
+		for pool in async_redis_connection_pool.values():
+			await pool.disconnect(inuse_connections)
+
+
+def _sync_pool_disconnect_connections(inuse_connections: bool = False) -> None:
+	with redis_pool_lock:
+		for pool in redis_connection_pool.values():
+			pool.disconnect(inuse_connections)
+
+
+async def pool_disconnect_connections(inuse_connections: bool = False) -> None:
+	await _async_pool_disconnect_connections(inuse_connections)
+	asyncio.get_running_loop().run_in_executor(None, _sync_pool_disconnect_connections, inuse_connections)
+
+
 def decode_redis_result(_obj: Any) -> Any:
 	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")

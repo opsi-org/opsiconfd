@@ -14,12 +14,8 @@ from typing import Any
 import pytest
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, Message  # type: ignore[import]
 
-from opsiconfd.messagebus.redis import (
-	MAX_STREAM_LENGTH,
-	ConsumerGroupMessageReader,
-	MessageReader,
-	send_message,
-)
+from opsiconfd.messagebus.redis import MAX_STREAM_LENGTH, ConsumerGroupMessageReader, MessageReader, send_message
+from opsiconfd.redis import get_redis_connections
 
 from .utils import (  # pylint: disable=unused-import
 	Config,
@@ -30,7 +26,31 @@ from .utils import (  # pylint: disable=unused-import
 
 
 @pytest.mark.asyncio
+async def test_message_reader_redis_connection(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+	connections = get_redis_connections()
+	channel = "host:test-channel"
+
+	async def reader_task(reader: MessageReader) -> None:
+		async for redis_id, message, context in reader.get_messages():
+			pass
+
+	reader = MessageReader(channels={channel: ">"})
+	_reader_task = asyncio.create_task(reader_task(reader))
+	await send_message(
+		Message(id="00000000-0000-4000-8000-000000000001", type="test", sender="*", channel=channel), context=b"context_data1"
+	)
+	await asyncio.sleep(2)
+	# reader_task.cancel()
+	await reader.stop(wait=True)
+
+	# All redis connections should be closed
+	assert connections == get_redis_connections()
+
+
+@pytest.mark.asyncio
 async def test_message_reader_user_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+	connections = get_redis_connections()
+
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: list[tuple[str, Message, bytes]] = []
@@ -68,8 +88,8 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 
 		# Wait until readers have read all messages
 		await asyncio.sleep(2)
-		_reader_task1.cancel()
-		_reader_task2.cancel()
+		await reader1.stop(wait=True)
+		await reader2.stop(wait=True)
 
 		# Both readers should have received all messages
 		for reader in reader1, reader2:
@@ -108,7 +128,7 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 			await reader1.ack_message(channel, received[0])
 		last_acked_redis_id = reader1.received[5][0]
 
-		_reader_task1.cancel()
+		await reader1.stop(wait=True)
 
 		# last-delivered-id has to be the redis ID of the last ACKed message
 		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "last-delivered-id")
@@ -134,12 +154,15 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 		)
 		await asyncio.sleep(2)
 
-		_reader_task1.cancel()
-		_reader_task2.cancel()
+		await reader1.stop(wait=True)
+		await reader2.stop(wait=True)
 
 		# Both readers should have received all messages since last ACKed message
 		for reader in reader1, reader2:
 			assert len(reader.received) == 2
+
+	# All redis connections should be closed
+	assert connections == get_redis_connections()
 
 
 @pytest.mark.asyncio

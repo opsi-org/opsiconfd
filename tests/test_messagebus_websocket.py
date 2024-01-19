@@ -34,6 +34,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 )
 from opsicommon.objects import UnicodeConfig
 
+from opsiconfd.redis import get_redis_connections
 from opsiconfd.utils import compress_data, decompress_data
 
 from .utils import (  # pylint: disable=unused-import
@@ -84,6 +85,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 
 def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	connections = get_redis_connections()
 	with test_client.websocket_connect("/messagebus/v1") as websocket:
 		with WebSocketMessageReader(websocket, decode=False) as reader:
 			reader.wait_for_message(count=1)
@@ -156,6 +158,8 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 				"00000000-0000-4000-8000-000000000005",
 				"00000000-0000-4000-8000-000000000006",
 			]
+	# All redis connections should be closed
+	assert connections == get_redis_connections()
 
 
 def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals,redefined-outer-name

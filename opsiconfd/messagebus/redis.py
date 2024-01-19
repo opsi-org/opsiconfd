@@ -205,29 +205,9 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 		return
 
 	try:
-		async with redis.pipeline(transaction=True) as pipe:
-			attempt = 0
-			while True:
-				attempt += 1
-				try:
-					await pipe.watch(state_key)  # type: ignore[attr-defined]
-					val = await pipe.hget(state_key, "websocket_count")  # type: ignore[attr-defined]
-					val = max(0, int(val or 0)) + increment
-					pipe.multi()  # type: ignore[attr-defined]
-					pipe.hset(state_key, "websocket_count", val)  # type: ignore[attr-defined]
-					await pipe.execute()  # type: ignore[attr-defined]
-					break
-				except WatchError:
-					pass
-				except Exception as err:  # pylint: disable=broad-except
-					logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)
-					break
-				if attempt >= 10:
-					logger.error("Failed to update messagebus websocket count after %d attempts", attempt)
-					break
-				await sleep(random.randint(1, 500) / 1000)
-	except CancelledError:
-		pass
+		await redis.hincrby(state_key, "websocket_count", increment)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)
 
 
 async def get_websocket_connected_users(

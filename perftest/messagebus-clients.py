@@ -75,7 +75,9 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 			for _ in range(self.test_manager.args.events):
 				await self.send_message(EventMessage(sender="@", event="test", channel="event:test", data={"test": "testdata"}))
 				await sleep(1)
-			await sleep(5)
+			self.test_manager.add_client_completed()
+			if self.test_manager.args.keep_connection:
+				await self.test_manager.all_completed.wait()
 		finally:
 			self.should_exit = True
 			if self.websocket:
@@ -93,20 +95,31 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		arg_parser.add_argument("--password", action="store", type=str, help="Auth password", default="adminuser")
 		arg_parser.add_argument("--clients", action="store", type=int, help="Number of clients", default=1)
 		arg_parser.add_argument("--events", action="store", type=int, help="Number of event messages to send per client", default=10)
+		arg_parser.add_argument(
+			"--keep-connection", action="store_true", help="Keep client connection until all clients have sent all events"
+		)
 		arg_parser.add_argument("--start-gap", action="store", type=int, help="Gap in milliseconds between client startup", default=0)
 		self.args = arg_parser.parse_args()
 		url = urlparse(self.args.server)
 		base_url = f"{url.scheme or 'https'}://{url.hostname}:{url.port or 4447}"
 		self.args.messagebus_url = f"{base_url}/messagebus/v1"
 		self.clients_connected = 0
+		self.clients_completed = 0
+		self.all_completed = asyncio.Event()
+
+	def add_client_completed(self) -> None:
+		self.clients_completed += 1
+		print(f"!{self.clients_completed}")
+		if self.clients_completed == self.args.clients:
+			self.all_completed.set()
 
 	def add_client_connected(self) -> None:
 		self.clients_connected += 1
-		print(self.clients_connected)
+		print(f"+{self.clients_connected}")
 
 	def remove_client_connected(self) -> None:
 		self.clients_connected -= 1
-		print(self.clients_connected)
+		print(f"-{self.clients_connected}")
 
 	async def main(self) -> None:
 		test_clients = [

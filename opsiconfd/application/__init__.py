@@ -222,8 +222,7 @@ class OpsiconfdApp(FastAPI):
 	def store_app_state_in_redis(self, app_state: AppState) -> None:
 		state_dict = app_state.to_dict()
 		logger.debug("Store app state: %s", state_dict)
-		with redis_client() as redis:
-			redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
+		redis_client().set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
 	async def send_app_state_changed_event(self, old_state: AppState, state: AppState) -> None:
 		from opsiconfd.messagebus import (  # pylint: disable=import-outside-toplevel

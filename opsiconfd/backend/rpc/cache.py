@@ -29,18 +29,16 @@ def redis_key_for_params(cache_name: str, *args: Any, **kwargs: Any) -> str:
 
 def rpc_cache_store(cache_name: str, result: Any, *args: Any, **kwargs: Any) -> None:
 	redis_key = redis_key_for_params(cache_name, *args, **kwargs)
-	with redis_client() as redis:
-		logger.debug("RPC cache store: %s", redis_key)
-		redis.set(redis_key, encode(result), ex=CACHE_EXPIRATION)
+	logger.debug("RPC cache store: %s", redis_key)
+	redis_client().set(redis_key, encode(result), ex=CACHE_EXPIRATION)
 
 
 def rpc_cache_load(cache_name: str, *args: Any, **kwargs: Any) -> Any:
 	redis_key = redis_key_for_params(cache_name, *args, **kwargs)
-	with redis_client() as redis:
-		msgpack_data = redis.get(redis_key)
-		if msgpack_data:
-			logger.debug("RPC cache hit: %s", redis_key)
-			return decode(msgpack_data)
+	msgpack_data = redis_client().get(redis_key)
+	if msgpack_data:
+		logger.debug("RPC cache hit: %s", redis_key)
+		return decode(msgpack_data)
 	logger.debug("RPC cache miss: %s", redis_key)
 	return None
 
@@ -55,10 +53,9 @@ def rpc_cache_clear(cache_name: str | None = None) -> Any:
 def rpc_cache_info() -> dict[str, int]:
 	info: dict[str, int] = defaultdict(int)
 	prefix = f"{config.redis_key('rpccache')}:"
-	with redis_client() as redis:
-		for key in redis.scan_iter(f"{prefix}*"):
-			rel = key.decode("utf-8").removeprefix(prefix)
-			if ":" in rel:
-				cache_name, _ = rel.split(":", 1)
-				info[cache_name] += 1
+	for key in redis_client().scan_iter(f"{prefix}*"):
+		rel = key.decode("utf-8").removeprefix(prefix)
+		if ":" in rel:
+			cache_name, _ = rel.split(":", 1)
+			info[cache_name] += 1
 	return info

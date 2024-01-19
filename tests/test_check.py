@@ -245,12 +245,13 @@ def test_check_redis_error() -> None:
 
 def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False, force_terminal=False, width=1000)
-	result = check_mysql()
-	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
+	with mock.patch("opsiconfd.check.mysql.MAX_ALLOWED_PACKET", 1):
+		result = check_mysql()
+		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
-	assert "No MySQL issues found." in captured_output
-	assert result.check_status == "ok"
-	assert result.message == "No MySQL issues found."
+		assert "No MySQL issues found." in captured_output
+		assert result.check_status == "ok"
+		assert result.message == "No MySQL issues found."
 
 
 def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name

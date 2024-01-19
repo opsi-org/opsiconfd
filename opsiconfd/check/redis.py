@@ -31,47 +31,47 @@ def check_redis() -> CheckResult:
 		message="No Redis issues found.",
 	)
 	with exc_to_result(result):
-		with redis_client(timeout=5, test_connection=True) as redis:
-			result.add_partial_result(
-				PartialCheckResult(
-					check_id="redis:connection",
-					check_name="Redis connection",
-					check_status=CheckStatus.OK,
-					message="Connection to Redis is working.",
-				)
-			)
-
-			partial_result = PartialCheckResult(
-				check_id="redis:timeseries",
-				check_name="RedisTimeSeries module",
-				check_status=CheckStatus.ERROR,
-				message="RedisTimeSeries not loaded.",
-			)
-
-			redis_info = decode_redis_result(redis.execute_command("INFO"))
-			logger.debug("Redis info: %s", redis_info)
-			for module in redis_info["modules"]:
-				if module["name"] == "timeseries":
-					partial_result.check_status = CheckStatus.OK
-					partial_result.message = f"RedisTimeSeries version {module['ver']!r} is loaded."
-					partial_result.details = {"version": module["ver"]}
-				result.add_partial_result(partial_result)
-
-			partial_result = PartialCheckResult(
-				check_id="redis:memory_usage",
-				check_name="Redis memory usage",
+		redis = redis_client(timeout=5, test_connection=True)
+		result.add_partial_result(
+			PartialCheckResult(
+				check_id="redis:connection",
+				check_name="Redis connection",
 				check_status=CheckStatus.OK,
+				message="Connection to Redis is working.",
 			)
-			info = redis.execute_command("INFO")
-			if info["used_memory"] >= MEMORY_USAGE_ERR:
-				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = f"Redis memory usage is too high: {info['used_memory_human']}"
-			elif info["used_memory"] >= MEMORY_USAGE_WARN:
-				partial_result.check_status = CheckStatus.WARNING
-				partial_result.message = f"Redis memory usage is high: {info['used_memory_human']}"
-			else:
-				partial_result.message = f"Redis memory usage is OK: {info['used_memory_human']}"
+		)
+
+		partial_result = PartialCheckResult(
+			check_id="redis:timeseries",
+			check_name="RedisTimeSeries module",
+			check_status=CheckStatus.ERROR,
+			message="RedisTimeSeries not loaded.",
+		)
+
+		redis_info = decode_redis_result(redis.execute_command("INFO"))
+		logger.debug("Redis info: %s", redis_info)
+		for module in redis_info["modules"]:
+			if module["name"] == "timeseries":
+				partial_result.check_status = CheckStatus.OK
+				partial_result.message = f"RedisTimeSeries version {module['ver']!r} is loaded."
+				partial_result.details = {"version": module["ver"]}
 			result.add_partial_result(partial_result)
+
+		partial_result = PartialCheckResult(
+			check_id="redis:memory_usage",
+			check_name="Redis memory usage",
+			check_status=CheckStatus.OK,
+		)
+		info = redis.execute_command("INFO")
+		if info["used_memory"] >= MEMORY_USAGE_ERR:
+			partial_result.check_status = CheckStatus.ERROR
+			partial_result.message = f"Redis memory usage is too high: {info['used_memory_human']}"
+		elif info["used_memory"] >= MEMORY_USAGE_WARN:
+			partial_result.check_status = CheckStatus.WARNING
+			partial_result.message = f"Redis memory usage is high: {info['used_memory_human']}"
+		else:
+			partial_result.message = f"Redis memory usage is OK: {info['used_memory_human']}"
+		result.add_partial_result(partial_result)
 
 		if result.check_status != CheckStatus.OK:
 			result.message = "Some issues found with Redis."

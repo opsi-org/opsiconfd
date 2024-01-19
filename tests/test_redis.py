@@ -11,6 +11,7 @@ redis tests
 import asyncio
 import time
 from random import randbytes
+from threading import Thread
 from unittest.mock import patch
 
 import pytest
@@ -20,14 +21,15 @@ from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
 	AsyncRedis,
+	Connection,
+	Redis,
 	async_delete_recursively,
 	async_redis_client,
-	async_redis_connection_pool,
 	async_redis_lock,
 	delete_recursively,
 	dump,
+	get_redis_connections,
 	redis_client,
-	redis_connection_pool,
 	redis_lock,
 	restore,
 )
@@ -35,15 +37,39 @@ from opsiconfd.redis import (
 from .utils import Config, config  # pylint: disable=unused-import
 
 
+def test_get_redis_connections(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	key = config.redis_key("test_get_redis_connections")
+	connections = get_redis_connections()
+
+	client1 = redis_client()
+	client2 = redis_client()
+
+	def reader(client: Redis) -> None:
+		client.xread(streams={key: "0"}, block=2000, count=1)
+
+	Thread(target=reader, args=[client1], daemon=True).start()
+	Thread(target=reader, args=[client2], daemon=True).start()
+
+	new_connections = [c for c in get_redis_connections() if c not in connections]
+	assert len(new_connections) == 2
+	for con in new_connections:
+		assert isinstance(con, Connection)
+
+	time.sleep(3)
+	new_connections = [c for c in get_redis_connections() if c not in connections]
+	assert len(new_connections) == 0
+
+
 @pytest.mark.asyncio
-async def test_async_redis_pool() -> None:
+async def test_async_redis_pool(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	base_key = config.redis_key()
 	num_connections = 1000
-	redis = await async_redis_client()
-	pool = list(async_redis_connection_pool.values())[0]
+	pool = (await async_redis_client()).connection_pool
 	coroutines = []
 	for _ in range(num_connections):
 		redis = await async_redis_client()
-		coroutines.append(redis.get("opsiconfd"))
+		assert redis.connection_pool is pool
+		coroutines.append(redis.get(base_key))
 
 	assert len(await asyncio.gather(*coroutines)) == num_connections
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
@@ -58,22 +84,15 @@ async def test_async_redis_pool() -> None:
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
 
-@pytest.mark.asyncio
-async def test_async_redis_pipeline(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	redis = await async_redis_client()
-	async with redis.pipeline() as pipe:
-		pipe.scan_iter(f"{config.redis_key()}:*")  # type: ignore[attr-defined]
-		await pipe.execute()  # type: ignore[attr-defined]
-
-
-def test_sync_redis_pool() -> None:
+def test_sync_redis_pool(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	base_key = config.redis_key()
 	num_connections = 1000
-	with redis_client() as redis:
-		pool = list(redis_connection_pool.values())[0]
+	pool = redis_client().connection_pool
 
 	for _ in range(num_connections):
-		with redis_client() as redis:
-			redis.get("opsiconfd")
+		redis = redis_client()
+		assert redis.connection_pool is pool
+		redis.get(base_key)
 
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
@@ -86,6 +105,42 @@ def test_sync_redis_pool() -> None:
 	for con in connections:
 		pool.release(con)
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+async def test_async_redis_client(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	base_key = config.redis_key()
+	num_connections = 10
+	pool = (await async_redis_client()).connection_pool
+	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
+	for _ in range(num_connections):
+		client = await async_redis_client()
+		assert client.connection_pool is pool
+		await client.get(base_key)
+		# Connection is released automatically
+		assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
+
+
+def test_sync_redis_client(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	base_key = config.redis_key()
+	num_connections = 10
+	redis_client()
+	pool = redis_client().connection_pool
+	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
+	for _ in range(num_connections):
+		client = redis_client()
+		assert client.connection_pool is pool
+		client.get(base_key)
+		# Connection is released automatically
+		assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+async def test_async_redis_pipeline(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	redis = await async_redis_client()
+	async with redis.pipeline() as pipe:
+		pipe.scan_iter(f"{config.redis_key()}:*")  # type: ignore[attr-defined]
+		await pipe.execute()  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio
@@ -114,46 +169,46 @@ async def test_async_delete_recursively(config: Config, piped: bool) -> None:  #
 	(False, True),
 )
 def test_delete_recursively(config: Config, piped: bool) -> None:  # pylint: disable=redefined-outer-name
-	with redis_client() as client:
-		base_key = config.redis_key("delete_recursively")
-		for idx in range(10):
-			for idx2 in range(5):
-				client.set(f"{base_key}:{idx}:{idx2}", b"test")
+	client = redis_client()
+	base_key = config.redis_key("delete_recursively")
+	for idx in range(10):
+		for idx2 in range(5):
+			client.set(f"{base_key}:{idx}:{idx2}", b"test")
 
-		keys = list(client.scan_iter(f"{base_key}:*"))
-		assert len(keys) == 50
+	keys = list(client.scan_iter(f"{base_key}:*"))
+	assert len(keys) == 50
 
-		delete_recursively(base_key, piped=piped)
+	delete_recursively(base_key, piped=piped)
 
-		keys = list(client.scan_iter(f"{base_key}:*"))
-		assert len(keys) == 0
+	keys = list(client.scan_iter(f"{base_key}:*"))
+	assert len(keys) == 0
 
 
 def test_redis_lock(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	lock_name = "test-lock"
 	redis_key = f"{config.redis_key('locks')}:{lock_name}"
 
-	with redis_client() as client:
-		assert not client.get(redis_key)
+	client = redis_client()
+	assert not client.get(redis_key)
 
+	with redis_lock(lock_name, acquire_timeout=1.0):
+		# Lock acquired
+		assert client.get(redis_key)
+		with pytest.raises(TimeoutError):
+			# Lock cannot be acquired twice => TimeoutError
+			with redis_lock(lock_name, acquire_timeout=2.0):
+				time.sleep(3.0)
+
+	assert not client.get(redis_key)
+
+	with redis_lock(lock_name, acquire_timeout=1.0, lock_timeout=2.0):
+		# Lock acquired, lock will be auto removed from redis after 2 seconds
+		time.sleep(3.0)
+		assert not client.get(redis_key)
 		with redis_lock(lock_name, acquire_timeout=1.0):
-			# Lock acquired
-			assert client.get(redis_key)
-			with pytest.raises(TimeoutError):
-				# Lock cannot be acquired twice => TimeoutError
-				with redis_lock(lock_name, acquire_timeout=2.0):
-					time.sleep(3.0)
+			time.sleep(1.0)
 
-		assert not client.get(redis_key)
-
-		with redis_lock(lock_name, acquire_timeout=1.0, lock_timeout=2.0):
-			# Lock acquired, lock will be auto removed from redis after 2 seconds
-			time.sleep(3.0)
-			assert not client.get(redis_key)
-			with redis_lock(lock_name, acquire_timeout=1.0):
-				time.sleep(1.0)
-
-		assert not client.get(redis_key)
+	assert not client.get(redis_key)
 
 
 @pytest.mark.asyncio

@@ -24,7 +24,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from redis.asyncio import StrictRedis
-from redis.exceptions import ResponseError, WatchError
+from redis.exceptions import ResponseError
 from redis.typing import StreamIdT
 
 from opsiconfd.backend import get_unprotected_backend
@@ -150,13 +150,12 @@ async def send_message(message: Message, context: Any = None) -> None:
 def sync_send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
-	with redis_client() as redis:
-		redis.xadd(
-			f"{config.redis_key('messagebus')}:channels:{message.channel}",
-			maxlen=MAX_STREAM_LENGTH,
-			approximate=True,
-			fields=fields,  # type: ignore[arg-type]
-		)
+	redis_client().xadd(
+		f"{config.redis_key('messagebus')}:channels:{message.channel}",
+		maxlen=MAX_STREAM_LENGTH,
+		approximate=True,
+		fields=fields,  # type: ignore[arg-type]
+	)
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
@@ -205,29 +204,9 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 		return
 
 	try:
-		async with redis.pipeline(transaction=True) as pipe:
-			attempt = 0
-			while True:
-				attempt += 1
-				try:
-					await pipe.watch(state_key)  # type: ignore[attr-defined]
-					val = await pipe.hget(state_key, "websocket_count")  # type: ignore[attr-defined]
-					val = max(0, int(val or 0)) + increment
-					pipe.multi()  # type: ignore[attr-defined]
-					pipe.hset(state_key, "websocket_count", val)  # type: ignore[attr-defined]
-					await pipe.execute()  # type: ignore[attr-defined]
-					break
-				except WatchError:
-					pass
-				except Exception as err:  # pylint: disable=broad-except
-					logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)
-					break
-				if attempt >= 10:
-					logger.error("Failed to update messagebus websocket count after %d attempts", attempt)
-					break
-				await sleep(0.1)
-	except CancelledError:
-		pass
+		await redis.hincrby(state_key, "websocket_count", increment)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)
 
 
 async def get_websocket_connected_users(

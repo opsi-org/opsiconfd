@@ -21,10 +21,10 @@ import subprocess
 import uuid
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
-from enum import StrEnum
 
 from opsicommon.exceptions import (
 	BackendBadValueError,
@@ -373,11 +373,11 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 
 		slot = TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type, retry_after=None)
 		if slot_id:
-			with redis_client() as redis:
-				res = decode_redis_result(redis.get(slot.redis_key))
-				if res:
-					redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
-					return slot
+			redis = redis_client()
+			res = decode_redis_result(redis.get(slot.redis_key))
+			if res:
+				redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
+				return slot
 
 		max_slots = TRANSFER_SLOT_MAX
 		# IDEA: differentiate between types? total max and single max per type?
@@ -392,14 +392,14 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 					TRANSFER_SLOT_MAX,
 				)
 
-		with redis_client() as redis:
-			depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:*"))))
-			if depot_slots >= max_slots:
-				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
-				return TransferSlot(retry_after=retry_after)
+		redis = redis_client()
+		depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:*"))))
+		if depot_slots >= max_slots:
+			retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
+			return TransferSlot(retry_after=retry_after)
 
-			redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
-			return slot
+		redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
+		return slot
 
 	@rpc_method(check_acl=False)
 	def depot_releaseTransferSlot(  # pylint: disable=invalid-name
@@ -430,8 +430,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 
-		with redis_client() as redis:
-			redis.unlink(TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type).redis_key)
+		redis_client().unlink(TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type).redis_key)
 
 	@rpc_method
 	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:  # pylint: disable=invalid-name
@@ -447,12 +446,11 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 
 		slots = []
 
-		with redis_client() as redis:
-			slot_keys = redis.scan_iter(f"{config.redis_key('slot')}:{depot}:*")
-			for slot_key in slot_keys:
-				slot = TransferSlot.from_redis_key(slot_key.decode())
-				if slot:
-					slots.append(slot)
+		slot_keys = redis_client().scan_iter(f"{config.redis_key('slot')}:{depot}:*")
+		for slot_key in slot_keys:
+			slot = TransferSlot.from_redis_key(slot_key.decode())
+			if slot:
+				slots.append(slot)
 
 		return slots
 

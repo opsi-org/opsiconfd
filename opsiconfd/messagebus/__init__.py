@@ -127,6 +127,7 @@ def check_channel_name(channel: str) -> str:  # pylint: disable=too-many-return-
 	if channel.startswith("event:"):
 		parts = channel.split(":")
 		if len(parts) == 2 and parts[-1] in (
+			"test",
 			"app_state_changed",
 			"config_created",
 			"config_updated",

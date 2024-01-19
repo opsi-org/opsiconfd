@@ -308,6 +308,10 @@ class SessionMiddleware:
 			headers = err.headers  # pylint: disable=no-member
 			error = err.detail
 
+		elif isinstance(err, ConnectionClosedError):
+			logger.error("Websocket connection closed with error: %s", err)
+			return
+
 		else:
 			logger.error(err, exc_info=True)
 			error = str(err)
@@ -315,17 +319,6 @@ class SessionMiddleware:
 		headers = headers or {}
 
 		if scope["type"] == "websocket":
-			if isinstance(err, ConnectionClosedError):
-				logger.error("Websocket connection closed with error: %s", err)
-				logger.debug("Websocket connection closed with error: %s", err, exc_info=True)
-				# now = time.time()
-				# self._websocket_close_errors_ts = [t for t in self._websocket_close_errors_ts if t > now - 60]
-				# self._websocket_close_errors_ts.append(now)
-				# if len(self._websocket_close_errors_ts) >= 10:
-				# self.set_overload()
-				# self._websocket_close_errors_ts = []
-				return
-
 			# Uvicorn (0.20.0) always closes websockets with code 403
 			# There is currently no way to send a custom status code or headers
 			websocket_close_code = status.WS_1008_POLICY_VIOLATION
@@ -725,23 +718,23 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 
 		session_count = 0
 		try:
-			with redis_client() as redis:
-				now = utc_time_timestamp()
-				session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
-				for redis_key in redis.scan_iter(session_key):
-					validity = 0
-					try:
-						max_age = redis.hget(redis_key, b"max_age")
-						if max_age:
-							last_used = redis.hget(redis_key, b"last_used")
-							if last_used:
-								validity = int(int(max_age) - (now - int(last_used)))
-					except Exception as err:  # pylint: disable=broad-except
-						logger.debug(err)
-					if validity > 0:
-						session_count += 1
-					else:
-						redis.delete(redis_key)
+			redis = redis_client()
+			now = utc_time_timestamp()
+			session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
+			for redis_key in redis.scan_iter(session_key):
+				validity = 0
+				try:
+					max_age = redis.hget(redis_key, b"max_age")
+					if max_age:
+						last_used = redis.hget(redis_key, b"last_used")
+						if last_used:
+							validity = int(int(max_age) - (now - int(last_used)))
+				except Exception as err:  # pylint: disable=broad-except
+					logger.debug(err)
+				if validity > 0:
+					session_count += 1
+				else:
+					redis.delete(redis_key)
 
 			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:  # pylint: disable=chained-comparison
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}"
@@ -867,11 +860,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		return int(utc_time_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
 
 	def _refresh(self) -> bool:
-		with redis_client() as redis:
-			version = redis.hget(self.redis_key, b"version")
-			if not version:
-				# Deleted
-				return False
+		version = redis_client().hget(self.redis_key, b"version")
+		if not version:
+			# Deleted
+			return False
 		version_str = version.decode("utf-8")
 		if version_str == self.version:
 			logger.debug("Version %s unchanged, cache up-to-date", self.version)
@@ -886,11 +878,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 	def _load(self) -> bool:
 		logger.debug("Load session")
 		data = {}
-		with redis_client() as redis:
-			try:
-				data = self.deserialize(redis.hgetall(self.redis_key))
-			except Exception as err:  # pylint: disable=broad-except
-				logger.warning("Failed to load session: %s (%s / %s)", err, self.client_addr, self.user_agent)
+		try:
+			data = self.deserialize(redis_client().hgetall(self.redis_key))
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning("Failed to load session: %s (%s / %s)", err, self.client_addr, self.user_agent)
 
 		if not data:
 			return False
@@ -921,15 +912,15 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		self.last_stored = int(utc_time_timestamp())
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
-		with redis_client() as redis:
-			data = self.serialize()
-			if modifications_only and redis.exists(self.redis_key):
-				data = {a: v for a, v in data.items() if a in self._modifications}
-			if data:
-				with redis.pipeline() as pipe:
-					pipe.hset(self.redis_key, mapping=data)  # type: ignore
-					pipe.expire(self.redis_key, self._redis_expiration_seconds)
-					pipe.execute()
+		redis = redis_client()
+		data = self.serialize()
+		if modifications_only and redis.exists(self.redis_key):
+			data = {a: v for a, v in data.items() if a in self._modifications}
+		if data:
+			with redis.pipeline() as pipe:
+				pipe.hset(self.redis_key, mapping=data)  # type: ignore
+				pipe.expire(self.redis_key, self._redis_expiration_seconds)
+				pipe.execute()
 
 		self._modifications = {}
 
@@ -943,13 +934,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 
 	def sync_delete(self) -> None:
 		logger.debug("Delete session")
-		with redis_client() as redis:
-			for _ in range(10):
-				redis.delete(self.redis_key)
-				time_sleep(0.01)
-				# Be sure to delete key
-				if not redis.exists(self.redis_key):
-					break
+		redis = redis_client()
+		for _ in range(10):
+			redis.delete(self.redis_key)
+			time_sleep(0.01)
+			# Be sure to delete key
+			if not redis.exists(self.redis_key):
+				break
 		self.deleted = True
 
 	async def delete(self) -> None:

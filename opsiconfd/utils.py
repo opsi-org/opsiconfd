@@ -370,7 +370,7 @@ def _asyncio_remove_task(task: asyncio.Task) -> None:
 		background_tasks.discard(task)
 
 
-def asyncio_create_task(coro: Coroutine, loop: asyncio.AbstractEventLoop | None = None) -> None:
+def asyncio_create_task(coro: Coroutine, loop: asyncio.AbstractEventLoop | None = None) -> asyncio.Task:
 	if loop:
 		task = loop.create_task(coro)
 	else:
@@ -378,6 +378,7 @@ def asyncio_create_task(coro: Coroutine, loop: asyncio.AbstractEventLoop | None 
 	with background_tasks_lock:
 		background_tasks.add(task)
 	task.add_done_callback(_asyncio_remove_task)
+	return task
 
 
 @dataclass(slots=True, kw_only=True)

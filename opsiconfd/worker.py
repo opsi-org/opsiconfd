@@ -39,7 +39,7 @@ from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_config
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
-from opsiconfd.redis import async_redis_client
+from opsiconfd.redis import async_redis_client, pool_disconnect_connections
 from opsiconfd.session import session_manager
 from opsiconfd.ssl import opsi_ca_is_self_signed
 from opsiconfd.utils import asyncio_create_task
@@ -66,8 +66,14 @@ def memory_cleanup() -> None:
 
 def uvicorn_config() -> Config:
 	options = {
+		"loop": "uvloop",
 		"interface": "asgi3",
 		"http": "h11",  # "httptools"
+		# Using wsproto instead of websockets because of error:
+		# Websocket connection closed with error: no close frame received or sent
+		# Reproducable with one worker and:
+		#  perftest/messagebus-clients.py --clients 500 --events 0 --start-gap 20 --keep-connection
+		"ws": "wsproto",  # "websockets"
 		"host": config.interface,
 		"port": config.port,
 		"workers": config.workers,
@@ -75,11 +81,13 @@ def uvicorn_config() -> Config:
 		"date_header": False,
 		"server_header": False,
 		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"], ["X-opsi-server-role", opsi_config.get("host", "server-role")]],
+		# https://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html
+		"backlog": config.socket_backlog,
+		"timeout_keep_alive": 5,
+		"ws_per_message_deflate": False,
 		"ws_max_queue": config.websocket_queue_size,
 		"ws_ping_interval": 15,
 		"ws_ping_timeout": 10,
-		# https://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html
-		"backlog": config.socket_backlog,
 	}
 
 	if config.ssl_server_key and config.ssl_server_cert:
@@ -192,6 +200,15 @@ class Worker(WorkerInfo, UvicornServer):
 				await asyncio_sleep(1)
 			memory_cleanup()
 
+	async def redis_disconnect_task(self) -> None:
+		while not self.should_exit:
+			for _ in range(60):
+				if self.should_exit:
+					return
+				await asyncio_sleep(1)
+			# Disconnect idle redis connections in all redis pools of the worker
+			await pool_disconnect_connections(inuse_connections=False)
+
 	async def state_refresh_task(self) -> None:
 		while not self.should_exit:
 			for _ in range(int(self.redis_state_key_expire / 2)):
@@ -244,6 +261,7 @@ class Worker(WorkerInfo, UvicornServer):
 
 		app.register_app_state_handler(self.on_app_state_change)
 		asyncio_create_task(self.memory_cleanup_task())
+		asyncio_create_task(self.redis_disconnect_task())
 		asyncio_create_task(self.metrics_collector.main_loop())
 		asyncio_create_task(self.state_refresh_task())
 

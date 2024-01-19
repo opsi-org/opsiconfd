@@ -21,8 +21,9 @@ from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Callable, Generator, Iterable
 from uuid import uuid4
 
-from redis import BusyLoadingError, ConnectionPool, Redis, ResponseError, WatchError
+from redis import BusyLoadingError, Connection, ConnectionPool, Redis, ResponseError, WatchError
 from redis import ConnectionError as RedisConnectionError
+from redis.asyncio import Connection as AsyncConnection
 from redis.asyncio import ConnectionPool as AsyncConnectionPool
 from redis.asyncio import Redis as AsyncRedis
 
@@ -33,6 +34,15 @@ redis_pool_lock = threading.Lock()
 async_redis_pool_lock = asyncio.Lock()
 redis_connection_pool: dict[str, ConnectionPool] = {}
 async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
+
+
+def get_redis_connections() -> list[Connection | AsyncConnection]:
+	connections = []
+	for spool in redis_connection_pool.values():
+		connections.extend(spool._in_use_connections)  # type: ignore[attr-defined]
+	for apool in async_redis_connection_pool.values():
+		connections.extend(apool._in_use_connections)  # type: ignore[attr-defined]
+	return connections
 
 
 def decode_redis_result(_obj: Any) -> Any:

@@ -11,6 +11,7 @@ redis tests
 import asyncio
 import time
 from random import randbytes
+from threading import Thread
 from unittest.mock import patch
 
 import pytest
@@ -20,19 +21,43 @@ from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
 	AsyncRedis,
+	Connection,
+	Redis,
 	async_delete_recursively,
 	async_redis_client,
-	async_redis_connection_pool,
 	async_redis_lock,
 	delete_recursively,
 	dump,
+	get_redis_connections,
 	redis_client,
-	redis_connection_pool,
 	redis_lock,
 	restore,
 )
 
 from .utils import Config, config  # pylint: disable=unused-import
+
+
+def test_get_redis_connections(config: Config) -> None:
+	key = config.redis_key("test_get_redis_connections")
+	connections = get_redis_connections()
+
+	client1 = redis_client()
+	client2 = redis_client()
+
+	def reader(client: Redis) -> None:
+		client.xread(streams={key: "0"}, block=2000, count=1)
+
+	Thread(target=reader, args=[client1], daemon=True).start()
+	Thread(target=reader, args=[client2], daemon=True).start()
+
+	new_connections = [c for c in get_redis_connections() if c not in connections]
+	assert len(new_connections) == 2
+	for con in new_connections:
+		assert isinstance(con, Connection)
+
+	time.sleep(3)
+	new_connections = [c for c in get_redis_connections() if c not in connections]
+	assert len(new_connections) == 0
 
 
 @pytest.mark.asyncio

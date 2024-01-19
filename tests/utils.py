@@ -467,7 +467,12 @@ class WebSocketMessageReader(Thread):
 				return
 			if time.time() - start >= timeout:
 				if error_on_timeout:
-					messages = list(self.get_messages())
+					messages = []
+					try:
+						while True:
+							messages.append(self.messages.get_nowait())
+					except Empty:
+						pass
 					raise RuntimeError(
 						f"Timed out while waiting for messages (got {len(messages)}, expected {count})\nMessages: {messages}"
 					)

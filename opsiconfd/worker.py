@@ -78,6 +78,7 @@ def uvicorn_config() -> Config:
 		"ws_max_queue": config.websocket_queue_size,
 		"ws_ping_interval": 15,
 		"ws_ping_timeout": 10,
+		"timeout_keep_alive": 5,
 		# https://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html
 		"backlog": config.socket_backlog,
 	}

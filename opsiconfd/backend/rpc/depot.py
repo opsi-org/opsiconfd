@@ -186,7 +186,7 @@ class TransferSlot:
 			logger.error("Cloud not parse redis key %s", key)
 			logger.debug(err)
 			return None
-		return cls(depot_id=depot_id, host_id=host_id, slot_id=slot_id, slot_type=slot_type)
+		return cls(depot_id=depot_id, host_id=host_id, slot_id=slot_id, slot_type=TransferSlotType(slot_type))
 
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods

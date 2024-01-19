@@ -21,7 +21,6 @@ from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
-from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from opsiconfd import __version__
 from opsiconfd.addon import AddonManager
@@ -154,7 +153,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 						num_records = 0
 				if num_records > 0:
 					await websocket.send_bytes(message)
-		except (ConnectionClosedOK, ConnectionClosedError, WebSocketDisconnect):
+		except WebSocketDisconnect:
 			pass
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)

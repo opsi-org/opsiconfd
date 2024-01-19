@@ -43,7 +43,6 @@ from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
-from websockets import ConnectionClosedError
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.addon import AddonManager
@@ -307,10 +306,6 @@ class SessionMiddleware:
 			status_code = err.status_code  # pylint: disable=no-member
 			headers = err.headers  # pylint: disable=no-member
 			error = err.detail
-
-		elif isinstance(err, ConnectionClosedError):
-			logger.error("Websocket connection closed with error: %s", err)
-			return
 
 		else:
 			logger.error(err, exc_info=True)

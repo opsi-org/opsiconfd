@@ -41,7 +41,6 @@ from starlette.status import (
 )
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketState
-from websockets.exceptions import ConnectionClosedOK
 
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
@@ -123,11 +122,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			return
 
 		logger.debug("Message to websocket: %r", message)
-		try:
-			await websocket.send_bytes(data)
-			statistics.messages_sent += 1
-		except ConnectionClosedOK:
-			pass
+		await websocket.send_bytes(data)
+		statistics.messages_sent += 1
 
 	async def manager_task(self, websocket: WebSocket) -> None:
 		try:

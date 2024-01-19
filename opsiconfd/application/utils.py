@@ -21,7 +21,6 @@ from starlette.status import (
 )
 from starlette.types import Message, Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
-from websockets.exceptions import ConnectionClosedOK
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.logging import logger
@@ -142,7 +141,7 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				if session.expired:
 					logger.info("Session expired")
 					await websocket.close(code=WS_1000_NORMAL_CLOSURE)
-		except (ConnectionClosedOK, WebSocketDisconnect) as err:
+		except WebSocketDisconnect as err:
 			logger.debug("check_session_task: %s", err)
 
 	async def dispatch(self) -> None:

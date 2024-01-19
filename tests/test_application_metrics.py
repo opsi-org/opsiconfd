@@ -22,7 +22,7 @@ from opsiconfd.application.metrics import (
 	grafana_search,
 )
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import async_redis_client
+from opsiconfd.redis import async_delete_recursively, async_redis_client
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -90,27 +90,15 @@ async def test_grafana_search(config: Config) -> None:  # pylint: disable=redefi
 async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 	conf: Config, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
 ) -> None:
-	redis = await async_redis_client()
-	if postfix:
-		redis_key = f"{conf.redis_key('stats')}:worker:avg_cpu_percent:{conf.node_name}:1:{postfix}"
-	else:
-		redis_key = f"{conf.redis_key('stats')}:worker:avg_cpu_percent:{conf.node_name}:1"
-
+	redis_key = f"{conf.redis_key('stats')}:worker:avg_cpu_percent:{conf.node_name}:1{':' + postfix if postfix else ''}"
 	if delete:
-		async for key in redis.scan_iter(f"{conf.redis_key('stats')}:worker:avg_cpu_percent:*"):
-			await redis.delete(key)
-		await redis.delete(f"{conf.redis_key('stats')}:worker:avg_cpu_percent")
-
-		await asyncio.sleep(3)
-		setup_metric_downsampling()
-		await asyncio.sleep(3)
+		await async_delete_recursively(f"{conf.redis_key('stats')}:worker:avg_cpu_percent")
+		await asyncio.get_running_loop().run_in_executor(None, setup_metric_downsampling)
 
 	# Do not use a pipeline here (will kill redis-server)
-	seconds = end - start
-	samples = int(seconds / interval)
-	for sample_num in range(samples):
-		second = sample_num * interval
-		timestamp = start + second
+	redis = await async_redis_client()
+	timestamp = start
+	while timestamp <= end:
 		cmd = (
 			"TS.ADD",
 			redis_key,
@@ -127,19 +115,22 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 			1,
 		)
 		await redis.execute_command(" ".join([str(x) for x in cmd]))  # type: ignore[no-untyped-call]
+		timestamp += interval
 
 
 @pytest.mark.grafana_available
-async def test_grafana_query_end_current_time(
-	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name
+async def test_grafana_query_start_end(
+	test_client: OpsiconfdTestClient,
+	config: Config,  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	end = int(time.time())
+	end = int(time.time()) - 3600
 	value = 10
 
-	await create_ts_data(config, "", end - 3600, end, 5, value)
-	await create_ts_data(config, "minute", end - 23 * 3600, end, 60, value, False)
+	# Add some extra values before start and after end
+	await create_ts_data(config, "", end - 3600 - 50, end + 50, 5, value)
+	await create_ts_data(config, "minute", end - 23 * 3600 - 600, end + 600, 60, value, False)
 
 	seconds = 300
 	_to = datetime.datetime.fromtimestamp(end)
@@ -220,7 +211,8 @@ async def test_grafana_query_end_current_time(
 
 
 async def test_grafana_query_interval_in_past(
-	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	config: Config,  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

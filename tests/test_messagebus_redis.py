@@ -26,21 +26,20 @@ from .utils import (  # pylint: disable=unused-import
 
 
 @pytest.mark.asyncio
-async def test_message_reader_redis_connection(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+async def test_message_reader_redis_connection() -> None:
 	connections = get_redis_connections()
 	channel = "host:test-channel"
 
 	async def reader_task(reader: MessageReader) -> None:
 		async for redis_id, message, context in reader.get_messages():
-			pass
+			print(redis_id, message, context)
 
 	reader = MessageReader(channels={channel: ">"})
-	_reader_task = asyncio.create_task(reader_task(reader))
+	asyncio.create_task(reader_task(reader))
 	await send_message(
 		Message(id="00000000-0000-4000-8000-000000000001", type="test", sender="*", channel=channel), context=b"context_data1"
 	)
 	await asyncio.sleep(2)
-	# reader_task.cancel()
 	await reader.stop(wait=True)
 
 	# All redis connections should be closed

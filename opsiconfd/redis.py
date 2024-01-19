@@ -39,9 +39,9 @@ async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
 def get_redis_connections() -> list[Connection | AsyncConnection]:
 	connections = []
 	for spool in redis_connection_pool.values():
-		connections.extend(spool._in_use_connections)  # type: ignore[attr-defined]
+		connections.extend(spool._in_use_connections)  # type: ignore[attr-defined]  # pylint: disable=protected-access
 	for apool in async_redis_connection_pool.values():
-		connections.extend(apool._in_use_connections)  # type: ignore[attr-defined]
+		connections.extend(apool._in_use_connections)  # type: ignore[attr-defined]  # pylint: disable=protected-access
 	return connections
 
 

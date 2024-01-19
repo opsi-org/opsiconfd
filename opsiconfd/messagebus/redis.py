@@ -10,7 +10,6 @@ opsiconfd.messagebus.redis
 
 from __future__ import annotations
 
-import random
 from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
@@ -25,7 +24,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from redis.asyncio import StrictRedis
-from redis.exceptions import ResponseError, WatchError
+from redis.exceptions import ResponseError
 from redis.typing import StreamIdT
 
 from opsiconfd.backend import get_unprotected_backend

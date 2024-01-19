@@ -37,7 +37,7 @@ from opsiconfd.redis import (
 from .utils import Config, config  # pylint: disable=unused-import
 
 
-def test_get_redis_connections(config: Config) -> None:
+def test_get_redis_connections(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	key = config.redis_key("test_get_redis_connections")
 	connections = get_redis_connections()
 
@@ -61,7 +61,7 @@ def test_get_redis_connections(config: Config) -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_redis_pool(config: Config) -> None:
+async def test_async_redis_pool(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	base_key = config.redis_key()
 	num_connections = 1000
 	pool = (await async_redis_client()).connection_pool
@@ -84,7 +84,7 @@ async def test_async_redis_pool(config: Config) -> None:
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
 
-def test_sync_redis_pool(config: Config) -> None:
+def test_sync_redis_pool(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	base_key = config.redis_key()
 	num_connections = 1000
 	pool = redis_client().connection_pool
@@ -108,7 +108,7 @@ def test_sync_redis_pool(config: Config) -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_redis_client(config: Config) -> None:
+async def test_async_redis_client(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	base_key = config.redis_key()
 	num_connections = 10
 	pool = (await async_redis_client()).connection_pool
@@ -121,7 +121,7 @@ async def test_async_redis_client(config: Config) -> None:
 		assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
 
-def test_sync_redis_client(config: Config) -> None:
+def test_sync_redis_client(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	base_key = config.redis_key()
 	num_connections = 10
 	redis_client()

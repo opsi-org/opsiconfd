@@ -103,6 +103,14 @@ stages:
   echo "$(grep real= /tmp/perftest-result | cut -d '=' -f2)<30000" | bc > /tmp/bc-result
   [ $(cat /tmp/bc-result) = "1" ] || ( echo 'Required time >= 30 s' >&2; exit 1 )
 
+  echo "---------------------------------------"
+  echo "Run messagebus websocket load test"
+  echo "---------------------------------------"
+  poetry run ./perftest/messagebus-clients.py --clients 500 --events 0 --start-gap 20 --keep-connection || (
+    echo "messagebus-clients.py failed"
+    exit 1
+  )
+
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
   echo "---------------------------------------"

@@ -120,8 +120,8 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 
 @pytest.mark.grafana_available
 async def test_grafana_query_start_end(
-	test_client: OpsiconfdTestClient,
-	config: Config,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	config: Config,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -211,8 +211,8 @@ async def test_grafana_query_start_end(
 
 
 async def test_grafana_query_interval_in_past(
-	test_client: OpsiconfdTestClient,
-	config: Config,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	config: Config,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

@@ -134,12 +134,19 @@ def test_bad_gateway(test_client: OpsiconfdTestClient) -> None:  # pylint: disab
 def test_websocket(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	log_file = tmp_path / "request.log"
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with get_config({"admin_interface_terminal_shell": "/bin/echo testshell"}):
-		with http_test_server(log_file=str(log_file)) as server:
-			ReverseProxy(app, "/test_websocket", f"http://localhost:{server.port}")
-			with test_client.websocket_connect("/test_websocket/admin/terminal/ws") as websocket:
-				# TODO: Implement websocket server in http_test_server
-				with WebSocketMessageReader(websocket):  # as reader:
-					time.sleep(3)
-					# payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
-					# assert "testshell" in payload
+	with http_test_server(log_file=str(log_file)) as server:
+		ReverseProxy(app, "/test_websocket", f"http://localhost:{server.port}")
+		with test_client.websocket_connect("/test_websocket/path/to/ws") as websocket:
+			# TODO: Implement websocket server in http_test_server
+			with WebSocketMessageReader(websocket):
+				time.sleep(1)
+
+	log = log_file.read_text(encoding="utf-8")
+	request = json.loads(log)
+	assert request["method"] == "GET"
+	assert request["headers"]["Connection"] == "upgrade"
+	assert request["headers"]["Sec-WebSocket-Key"]
+	assert request["headers"]["Upgrade"] == "websocket"
+	assert request["headers"]["x-forwarded-host"] == "testserver"
+	assert request["headers"]["x-forwarded-server"] == "testserver"
+	assert request["headers"]["x-forwarded-for"] == request["headers"]["x-real-ip"]

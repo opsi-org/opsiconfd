@@ -64,9 +64,9 @@ async def log_viewer() -> None:
 
 
 def delete_locks() -> None:
-	with redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True):
-		logger.notice("Deleting all locks")
-		delete_recursively(config.redis_key("locks"))
+	redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True)
+	logger.notice("Deleting all locks")
+	delete_recursively(config.redis_key("locks"))
 
 
 def setup_main() -> None:
@@ -332,8 +332,8 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 	try:  # pylint: disable=too-many-nested-blocks
 		# Test if redis connection available
 		logger.info("Testing redis connection (timeout: %d)", REDIS_CONECTION_TIMEOUT)
-		with redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True):
-			logger.info("Redis connection is working")
+		redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True)
+		logger.info("Redis connection is working")
 
 		init_logging(log_mode=config.log_mode)
 

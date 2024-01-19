@@ -572,13 +572,13 @@ class RPCHostMixin(Protocol):
 		logger.info("Deleting old depot %s", old_depot)
 		self.host_deleteObjects([old_depot])
 
-		with redis_client() as redis:
-			for key_b in redis.scan_iter(f"{config.redis_key()}:*"):
-				key_b = cast(bytes, key_b)
-				key = key_b.decode("utf-8")
-				if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):
-					redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))  # type: ignore[no-untyped-call]
-			setup_metric_downsampling()
+		redis = redis_client()
+		for key_b in redis.scan_iter(f"{config.redis_key()}:*"):
+			key_b = cast(bytes, key_b)
+			key = key_b.decode("utf-8")
+			if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):
+				redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))  # type: ignore[no-untyped-call]
+		setup_metric_downsampling()
 
 	@rpc_method(check_acl=False)
 	async def host_getMessagebusConnectedIds(  # pylint: disable=invalid-name

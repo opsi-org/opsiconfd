@@ -101,13 +101,8 @@ def get_redis_connection(
 			time.sleep(2)
 
 
-@contextmanager
-def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[Redis, None, None]:
-	con = get_redis_connection(url=config.redis_internal_url, timeout=timeout, test_connection=test_connection)
-	try:
-		yield con
-	finally:
-		con.close()
+def redis_client(timeout: int = 0, test_connection: bool = False) -> Redis:
+	return get_redis_connection(url=config.redis_internal_url, timeout=timeout, test_connection=test_connection)
 
 
 async def get_async_redis_connection(
@@ -155,71 +150,70 @@ class DumpedKey:
 
 def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[DumpedKey, None, None]:
 	excludes = excludes or []
-	with redis_client() as client:
-		for key in client.scan_iter(f"{redis_key}:*"):
-			assert isinstance(key, bytes)
-			key = key.decode("utf-8")
+	client = redis_client()
+	for key in client.scan_iter(f"{redis_key}:*"):
+		assert isinstance(key, bytes)
+		key = key.decode("utf-8")
 
-			exclude_key = False
-			for exclude in excludes:
-				if key == exclude or key.startswith(f"{exclude}:"):
-					exclude_key = True
-					break
-			if exclude_key:
-				continue
+		exclude_key = False
+		for exclude in excludes:
+			if key == exclude or key.startswith(f"{exclude}:"):
+				exclude_key = True
+				break
+		if exclude_key:
+			continue
 
-			now = int(time.time() * 1000)
-			value = client.dump(key)
-			pttl = client.pttl(key)
-			expires = None
-			if pttl >= 0:
-				expires = now + pttl
-			assert isinstance(value, bytes)
-			yield DumpedKey(key, value, expires)
+		now = int(time.time() * 1000)
+		value = client.dump(key)
+		pttl = client.pttl(key)
+		expires = None
+		if pttl >= 0:
+			expires = now + pttl
+		assert isinstance(value, bytes)
+		yield DumpedKey(key, value, expires)
 
 
 def restore(dumped_keys: Iterable[DumpedKey]) -> None:
-	with redis_client() as client:
-		for dumped_key in dumped_keys:
-			client.restore(
-				name=dumped_key.name,
-				ttl=0 if dumped_key.expires is None else dumped_key.expires,
-				value=dumped_key.value,
-				absttl=True,
-				replace=True,
-			)
+	for dumped_key in dumped_keys:
+		redis_client().restore(
+			name=dumped_key.name,
+			ttl=0 if dumped_key.expires is None else dumped_key.expires,
+			value=dumped_key.value,
+			absttl=True,
+			replace=True,
+		)
 
 
 def delete_recursively(redis_key: str, *, piped: bool = True, excludes: Iterable[str] | None = None) -> None:
 	excludes = excludes or []
 
-	with redis_client() as client:
-		delete_keys = []
-		for key in client.scan_iter(f"{redis_key}:*"):
-			assert isinstance(key, bytes)
-			key = key.decode("utf-8")
+	client = redis_client()
+	delete_keys = []
+	for key in client.scan_iter(f"{redis_key}:*"):
+		assert isinstance(key, bytes)
+		key = key.decode("utf-8")
 
-			exclude_key = False
-			for exclude in excludes:
-				if key == exclude or key.startswith(f"{exclude}:"):
-					exclude_key = True
-					break
-			if exclude_key:
-				continue
-
-			if piped:
-				delete_keys.append(key)
-			else:
-				client.unlink(key)
+		exclude_key = False
+		for exclude in excludes:
+			if key == exclude or key.startswith(f"{exclude}:"):
+				exclude_key = True
+				break
+		if exclude_key:
+			continue
 
 		if piped:
-			with client.pipeline() as pipe:
-				for key in delete_keys:
-					pipe.unlink(key)
-				pipe.unlink(redis_key)
-				pipe.execute()
+			delete_keys.append(key)
 		else:
-			client.unlink(redis_key)
+			client.unlink(key)
+
+	if piped:
+		with client.pipeline() as pipe:
+			for key in delete_keys:
+				pipe.unlink(key)
+			pipe.unlink(redis_key)
+			pipe.execute()
+	else:
+		client.unlink(redis_key)
 
 
 async def async_delete_recursively(redis_key: str, piped: bool = True) -> None:
@@ -249,33 +243,33 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 	redis_key = f"{conf.redis_key('locks')}:{lock_name}"
 	end = time.time() + acquire_timeout
 	pxt = round(lock_timeout) * 1000 if lock_timeout else None
-	with redis_client() as client:
-		while True:
-			# PXAT timestamp-milliseconds -- Set the specified Unix time at which the key will expire, in milliseconds.
-			if client.set(redis_key, identifier, nx=True, px=pxt):
-				break
-			if time.time() >= end:
-				raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")
-			time.sleep(0.5)
-		try:
-			yield identifier
-		finally:
-			with client.pipeline(transaction=True) as pipe:
-				while True:
-					try:
-						# Redis will only perform the transaction if the watched keys were not modified.
-						pipe.watch(redis_key)
-						if pipe.get(redis_key) == indentifier_b:
-							# Release lock
-							pipe.multi()
-							pipe.delete(redis_key)
-							pipe.execute()
-						else:
-							# Different identifier, not our lock
-							pipe.unwatch()
-						break
-					except WatchError:
-						pass
+	client = redis_client()
+	while True:
+		# PXAT timestamp-milliseconds -- Set the specified Unix time at which the key will expire, in milliseconds.
+		if client.set(redis_key, identifier, nx=True, px=pxt):
+			break
+		if time.time() >= end:
+			raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")
+		time.sleep(0.5)
+	try:
+		yield identifier
+	finally:
+		with client.pipeline(transaction=True) as pipe:
+			while True:
+				try:
+					# Redis will only perform the transaction if the watched keys were not modified.
+					pipe.watch(redis_key)
+					if pipe.get(redis_key) == indentifier_b:
+						# Release lock
+						pipe.multi()
+						pipe.delete(redis_key)
+						pipe.execute()
+					else:
+						# Different identifier, not our lock
+						pipe.unwatch()
+					break
+				except WatchError:
+					pass
 
 
 @asynccontextmanager

@@ -32,85 +32,85 @@ def get_yappi_tag() -> int:
 
 
 def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-	with redis_client() as client:
-		for metric in MetricsRegistry().get_metrics():
-			is_worker_metric = isinstance(metric, WorkerMetric)
-			is_node_metric = isinstance(metric, NodeMetric)
+	client = redis_client()
+	for metric in MetricsRegistry().get_metrics():
+		is_worker_metric = isinstance(metric, WorkerMetric)
+		is_node_metric = isinstance(metric, NodeMetric)
 
-			if not metric.downsampling:
-				continue
+		if not metric.downsampling:
+			continue
 
-			iterations = 1
+		iterations = 1
+		if is_worker_metric:
+			iterations = config.workers
+
+		for iteration in range(iterations):
+			node_name = config.node_name
+			worker_num = None
 			if is_worker_metric:
-				iterations = config.workers
+				worker_num = iteration + 1
 
-			for iteration in range(iterations):
-				node_name = config.node_name
-				worker_num = None
+			logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
+
+			orig_key = None
+			cmd = None
+			if is_worker_metric:
+				orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+			elif is_node_metric:
+				orig_key = metric.redis_key.format(node_name=node_name)
+				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
+			else:
+				orig_key = metric.redis_key
+				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
+
+			logger.debug("redis command: %s", cmd)
+			try:
+				client.execute_command(cmd)
+			except RedisResponseError as err:
+				if str(err) != "TSDB: key already exists":
+					raise
+
+			cmd = f"TS.INFO {orig_key}"
+			info = client.execute_command(cmd)
+			existing_rules: dict[str, dict[str, str]] = {}
+			for idx, val in enumerate(info):
+				if isinstance(val, bytes) and "rules" in val.decode("utf8"):
+					rules = info[idx + 1]
+					for rule in rules:
+						key = rule[0].decode("utf8")
+						existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
+
+			for rule in metric.downsampling:
+				retention, retention_time, aggregation = rule
+				time_bucket = get_time_bucket_duration(retention)
+				key = f"{orig_key}:{retention}"
 				if is_worker_metric:
-					worker_num = iteration + 1
-
-				logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
-
-				orig_key = None
-				cmd = None
-				if is_worker_metric:
-					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 				elif is_node_metric:
-					orig_key = metric.redis_key.format(node_name=node_name)
-					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
+					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name}"
 				else:
-					orig_key = metric.redis_key
-					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
+					cmd = f"TS.CREATE {key} RETENTION {retention_time}"
 
-				logger.debug("redis command: %s", cmd)
 				try:
 					client.execute_command(cmd)
 				except RedisResponseError as err:
 					if str(err) != "TSDB: key already exists":
 						raise
 
-				cmd = f"TS.INFO {orig_key}"
-				info = client.execute_command(cmd)
-				existing_rules: dict[str, dict[str, str]] = {}
-				for idx, val in enumerate(info):
-					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
-						rules = info[idx + 1]
-						for rule in rules:
-							key = rule[0].decode("utf8")
-							existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
-
-				for rule in metric.downsampling:
-					retention, retention_time, aggregation = rule
-					time_bucket = get_time_bucket_duration(retention)
-					key = f"{orig_key}:{retention}"
-					if is_worker_metric:
-						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-					elif is_node_metric:
-						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name}"
+				create = True
+				cur_rule = existing_rules.get(key)
+				if cur_rule:
+					if time_bucket == cur_rule.get("time_bucket") and aggregation.lower() == cur_rule["aggregation"].lower():
+						create = False
 					else:
-						cmd = f"TS.CREATE {key} RETENTION {retention_time}"
-
-					try:
+						cmd = f"TS.DELETERULE {orig_key} {key}"
 						client.execute_command(cmd)
-					except RedisResponseError as err:
-						if str(err) != "TSDB: key already exists":
-							raise
 
-					create = True
-					cur_rule = existing_rules.get(key)
-					if cur_rule:
-						if time_bucket == cur_rule.get("time_bucket") and aggregation.lower() == cur_rule["aggregation"].lower():
-							create = False
-						else:
-							cmd = f"TS.DELETERULE {orig_key} {key}"
-							client.execute_command(cmd)
-
-					if create:
-						cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation} {time_bucket}"
-						logger.debug("Redis cmd: %s", cmd)
-						client.execute_command(cmd)
+				if create:
+					cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation} {time_bucket}"
+					logger.debug("Redis cmd: %s", cmd)
+					client.execute_command(cmd)
 
 
 TIME_BUCKET_DURATIONS_MS = {

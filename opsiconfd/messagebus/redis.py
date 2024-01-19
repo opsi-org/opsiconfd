@@ -10,6 +10,7 @@ opsiconfd.messagebus.redis
 
 from __future__ import annotations
 
+import random
 from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
@@ -150,13 +151,12 @@ async def send_message(message: Message, context: Any = None) -> None:
 def sync_send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
-	with redis_client() as redis:
-		redis.xadd(
-			f"{config.redis_key('messagebus')}:channels:{message.channel}",
-			maxlen=MAX_STREAM_LENGTH,
-			approximate=True,
-			fields=fields,  # type: ignore[arg-type]
-		)
+	redis_client().xadd(
+		f"{config.redis_key('messagebus')}:channels:{message.channel}",
+		maxlen=MAX_STREAM_LENGTH,
+		approximate=True,
+		fields=fields,  # type: ignore[arg-type]
+	)
 
 
 async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
@@ -225,7 +225,7 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 				if attempt >= 10:
 					logger.error("Failed to update messagebus websocket count after %d attempts", attempt)
 					break
-				await sleep(0.1)
+				await sleep(random.randint(1, 500) / 1000)
 	except CancelledError:
 		pass
 

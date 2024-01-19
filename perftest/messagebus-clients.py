@@ -26,9 +26,10 @@ from opsicommon.messagebus import (  # type: ignore[import]
 
 
 class MessagebusClient:  # pylint: disable=too-many-instance-attributes
-	def __init__(self, test_manager: "TestManager", name: str) -> None:
+	def __init__(self, test_manager: "TestManager", name: str, start_wait: int = 0) -> None:
 		self.test_manager = test_manager
 		self.name = name
+		self.start_wait = start_wait
 		self.loop: asyncio.AbstractEventLoop | None = None
 		self.session: aiohttp.ClientSession | None = None
 		self.websocket: aiohttp.ClientWebSocketResponse | None = None
@@ -57,6 +58,8 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 		self.messages_out += 1
 
 	async def run(self) -> None:
+		if self.start_wait > 0:
+			await asyncio.sleep(self.start_wait / 1000)
 		self.loop = get_event_loop()
 		try:
 			self.session = aiohttp.ClientSession(
@@ -65,6 +68,7 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 			)
 			self.websocket = await self.session.ws_connect(url=self.test_manager.args.messagebus_url, params={"compression": "lz4"})
 
+			self.test_manager.add_client_connected()
 			create_task(self.websocket_reader())
 			await self.send_message(ChannelSubscriptionRequestMessage(sender="@", channel="service:messagebus", channels=["event:test"]))
 			await sleep(5)
@@ -78,6 +82,7 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 				await self.websocket.close()
 			if self.session:
 				await self.session.close()
+			self.test_manager.remove_client_connected()
 
 
 class TestManager:  # pylint: disable=too-few-public-methods
@@ -88,13 +93,25 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		arg_parser.add_argument("--password", action="store", type=str, help="Auth password", default="adminuser")
 		arg_parser.add_argument("--clients", action="store", type=int, help="Number of clients", default=1)
 		arg_parser.add_argument("--events", action="store", type=int, help="Number of event messages to send per client", default=10)
+		arg_parser.add_argument("--start-gap", action="store", type=int, help="Gap in milliseconds between client startup", default=0)
 		self.args = arg_parser.parse_args()
 		url = urlparse(self.args.server)
 		base_url = f"{url.scheme or 'https'}://{url.hostname}:{url.port or 4447}"
 		self.args.messagebus_url = f"{base_url}/messagebus/v1"
+		self.clients_connected = 0
+
+	def add_client_connected(self) -> None:
+		self.clients_connected += 1
+		print(self.clients_connected)
+
+	def remove_client_connected(self) -> None:
+		self.clients_connected -= 1
+		print(self.clients_connected)
 
 	async def main(self) -> None:
-		test_clients = [MessagebusClient(self, name=f"messagebus client{c+1}") for c in range(self.args.clients)]
+		test_clients = [
+			MessagebusClient(self, name=f"messagebus client{c+1}", start_wait=c * self.args.start_gap) for c in range(self.args.clients)
+		]
 		await asyncio.gather(*[client.run() for client in test_clients])
 		out = sum([client.messages_out for client in test_clients])  # pylint: disable=consider-using-generator
 		_in = sum([client.messages_in for client in test_clients])  # pylint: disable=consider-using-generator

@@ -361,7 +361,7 @@ def test_invalid_redis_key() -> None:
 	assert transfer_slot is None
 
 
-def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> None:
+def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	depot_id = "depot1.uib.test"
 	host_id = "client1.uib.test"
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)

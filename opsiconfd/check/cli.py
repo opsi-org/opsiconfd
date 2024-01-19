@@ -15,14 +15,40 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
 
+from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
-from opsiconfd.check.main import (
-	CHECKS,
-	health_check,
-)
+from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
+from opsiconfd.check.jsonrpc import check_deprecated_calls
+from opsiconfd.check.ldap import check_ldap_connection
+from opsiconfd.check.main import CHECKS, health_check
+from opsiconfd.check.mysql import check_mysql
+from opsiconfd.check.opsilicense import check_opsi_licenses
+from opsiconfd.check.opsipackages import check_product_on_clients, check_product_on_depots
+from opsiconfd.check.redis import check_redis
+from opsiconfd.check.ssl import check_ssl
+from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages
 from opsiconfd.config import config
 
 STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", CheckStatus.ERROR: "bold red"}
+
+__all__ = [
+	"check_depotservers",
+	"check_opsi_config",
+	"check_opsiconfd_config",
+	"check_run_as_user",
+	"check_mysql",
+	"check_redis",
+	"check_ssl",
+	"check_system_packages",
+	"check_disk_usage",
+	"check_distro_eol",
+	"check_opsi_licenses",
+	"check_ldap_connection",
+	"check_deprecated_calls",
+	"check_product_on_clients",
+	"check_product_on_depots",
+	"console_health_check",
+]
 
 
 def print_health_check_manual(console: Console) -> None:
@@ -45,7 +71,8 @@ def print_health_check_manual(console: Console) -> None:
 	All the checks are described below:
 	"""
 	console.print(Markdown(text.replace("\t", "")))
-	for check in CHECKS:
+	for check_id in CHECKS:
+		check = globals()[f"check_{check_id}"]
 		console.print(Markdown((check.__doc__ or "").replace("\t", "")))
 
 

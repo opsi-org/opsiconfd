@@ -18,6 +18,7 @@ from opsiconfd.backend.rpc.depot import (
 	TRANSFER_SLOT_CONFIG,
 	TRANSFER_SLOT_RETENTION_TIME,
 	TransferSlot,
+	TransferSlotType,
 )
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
@@ -70,7 +71,7 @@ def _get_slots(test_client: OpsiconfdTestClient, number: int) -> list[dict]:  # 
 		# Assert the result
 		assert result["result"].get("slot_id") is not None
 		assert result["result"].get("depot_id") == "depot1.uib.test"
-		assert result["result"].get("client_id") == "client1.uib.test"
+		assert result["result"].get("host_id") == "client1.uib.test"
 		assert result["result"].get("retry_after") is None
 		assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
 
@@ -90,7 +91,7 @@ def test_acquire_transfer_slot_available_slots(test_client: OpsiconfdTestClient)
 	# Assert the result
 	assert result["result"].get("slot_id") is not None
 	assert result["result"].get("depot_id") == "depot1.uib.test"
-	assert result["result"].get("client_id") == "client1.uib.test"
+	assert result["result"].get("host_id") == "client1.uib.test"
 	assert result["result"].get("retry_after") is None
 	assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
 
@@ -105,7 +106,7 @@ def test_acquire_transfer_slot_with_slot_id(test_client: OpsiconfdTestClient) ->
 		# Assert the result
 		assert result["result"].get("slot_id") == TEST_SLOT_ID
 		assert result["result"].get("depot_id") == "depot1.uib.test"
-		assert result["result"].get("client_id") == "client1.uib.test"
+		assert result["result"].get("host_id") == "client1.uib.test"
 		assert result["result"].get("retry_after") is None
 		assert result["result"].get("retention") == TRANSFER_SLOT_RETENTION_TIME
 
@@ -129,7 +130,7 @@ def test_acquire_transfer_slot_max_default(test_client: OpsiconfdTestClient) -> 
 		# Assert the result
 		assert result["result"].get("slot_id") is None
 		assert result["result"].get("depot_id") is None
-		assert result["result"].get("client_id") is None
+		assert result["result"].get("host_id") is None
 		assert result["result"].get("retry_after") is not None
 
 		rpc = {
@@ -143,7 +144,7 @@ def test_acquire_transfer_slot_max_default(test_client: OpsiconfdTestClient) -> 
 		# Assert the result
 		assert result["result"].get("slot_id") is None
 		assert result["result"].get("depot_id") is None
-		assert result["result"].get("client_id") is None
+		assert result["result"].get("host_id") is None
 		assert result["result"].get("retry_after") is not None
 
 
@@ -172,7 +173,7 @@ def test_acquire_transfer_slot_max_config(  # pylint: disable=redefined-outer-na
 		# Assert the result
 		assert result["result"].get("slot_id") is not None
 		assert result["result"].get("depot_id") == depot["id"]
-		assert result["result"].get("client_id") == clients[1]["id"]
+		assert result["result"].get("host_id") == clients[1]["id"]
 		assert result["result"].get("retry_after") is None
 
 	rpc = {
@@ -186,7 +187,7 @@ def test_acquire_transfer_slot_max_config(  # pylint: disable=redefined-outer-na
 	# Assert the result
 	assert result["result"].get("slot_id") is None
 	assert result["result"].get("depot_id") is None
-	assert result["result"].get("client_id") is None
+	assert result["result"].get("host_id") is None
 	assert result["result"].get("retry_after") is not None
 
 
@@ -218,7 +219,7 @@ def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-ou
 			# Assert the result
 			assert result["result"].get("slot_id") is not None
 			assert result["result"].get("depot_id") == depot["id"]
-			assert result["result"].get("client_id") == clients[1]["id"]
+			assert result["result"].get("host_id") == clients[1]["id"]
 			assert result["result"].get("retry_after") is None
 
 		rpc = {
@@ -232,49 +233,49 @@ def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-ou
 		# Assert the result
 		assert result["result"].get("slot_id") is None
 		assert result["result"].get("depot_id") is None
-		assert result["result"].get("client_id") is None
+		assert result["result"].get("host_id") is None
 		assert result["result"].get("retry_after") is not None
 
 
 def test_create_transfer_slot_with_depot_id() -> None:
 	depot_id = "depot1.uib.test"
-	client_id = "client1.uib.test"
-	transfer_slot = TransferSlot(depot_id, client_id)
+	host_id = "client1.uib.test"
+	transfer_slot = TransferSlot(depot_id, host_id)
 	assert transfer_slot.depot_id == depot_id
-	assert transfer_slot.client_id == client_id
+	assert transfer_slot.host_id == host_id
 	assert transfer_slot.slot_id is not None
 	assert transfer_slot.retry_after is None
 
 
 def test_create_transfer_slot_with_depot_id_and_slot_id() -> None:
 	depot_id = "depot1.uib.test"
-	client_id = "client1.uib.test"
+	host_id = "client1.uib.test"
 	slot_id = TEST_SLOT_ID
-	transfer_slot = TransferSlot(depot_id, client_id, slot_id)
+	transfer_slot = TransferSlot(depot_id, host_id, slot_id)
 	assert transfer_slot.depot_id == depot_id
-	assert transfer_slot.client_id == client_id
+	assert transfer_slot.host_id == host_id
 	assert str(transfer_slot.slot_id) == slot_id
 	assert transfer_slot.retry_after is None
 
 
 def test_create_transfer_slot_with_depot_id_slot_id_and_retry_after() -> None:
 	depot_id = "depot1.uib.test"
-	client_id = "client1.uib.test"
+	host_id = "client1.uib.test"
 	slot_id = TEST_SLOT_ID
 	retry_after = 60
-	transfer_slot = TransferSlot(depot_id, client_id, slot_id, retry_after)
+	transfer_slot = TransferSlot(depot_id, host_id, slot_id, retry_after=retry_after)
 	assert transfer_slot.depot_id == depot_id
-	assert transfer_slot.client_id == client_id
+	assert transfer_slot.host_id == host_id
 	assert transfer_slot.slot_id == uuid.UUID("urn:uuid:" + TEST_SLOT_ID)
 	assert transfer_slot.retry_after is None
 
 
 def test_transfer_slot_session_error(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	with pytest.raises(BackendPermissionDeniedError) as excinfo:
-		backend.depot_acquireTransferSlot(depot="depot1.uib.test", client="client1.uib.test")
+		backend.depot_acquireTransferSlot(depot="depot1.uib.test", host="client1.uib.test")
 		assert "Access denied" in str(excinfo.value)
 	with pytest.raises(BackendPermissionDeniedError) as excinfo:
-		backend.depot_releaseTransferSlot(depot="depot1.uib.test", client="client1.uib.test", slot_id=TEST_SLOT_ID)
+		backend.depot_releaseTransferSlot(depot="depot1.uib.test", host="client1.uib.test", slot_id=TEST_SLOT_ID)
 		assert "Access denied" in str(excinfo.value)
 
 
@@ -290,16 +291,20 @@ def test_release_transfer_slot_with_slot_id(  # pylint: disable=redefined-outer-
 	# Assert the result
 	assert result["result"].get("slot_id") == TEST_SLOT_ID
 	assert result["result"].get("depot_id") == "depot1.uib.test"
-	assert result["result"].get("client_id") == "client1.uib.test"
+	assert result["result"].get("host_id") == "client1.uib.test"
 	assert result["result"].get("retry_after") is None
 
 	with sync_redis_client() as redis_client:
 		redis_res = decode_redis_result(redis_client.keys())
 		print(redis_res)
-		redis_res = decode_redis_result(redis_client.get(f"{config.redis_key('slot')}:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"))
+		redis_res = decode_redis_result(redis_client.get(
+			f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}"
+		))
 		print(redis_res)
 		assert redis_res == "client1.uib.test"
-		redis_res = decode_redis_result(redis_client.ttl(f"{config.redis_key('slot')}:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"))
+		redis_res = decode_redis_result(redis_client.ttl(
+			f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}"
+		))
 		assert 10 < redis_res <= 60
 
 	rpc = {"id": 1, "method": "depot_releaseTransferSlot", "params": ["depot1.uib.test", "client1.uib.test", TEST_SLOT_ID]}
@@ -341,11 +346,11 @@ def test_return_list_with_valid_input(  # pylint: disable=redefined-outer-name
 
 
 def test_valid_redis_key_with_all_values() -> None:
-	key = f"slot:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"
+	key = f"slot:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}"
 	transfer_slot = TransferSlot.from_redis_key(key)
 	assert transfer_slot
 	assert transfer_slot.depot_id == "depot1.uib.test"
-	assert transfer_slot.client_id == "client1.uib.test"
+	assert transfer_slot.host_id == "client1.uib.test"
 	assert isinstance(transfer_slot.slot_id, uuid.UUID)
 	assert transfer_slot.slot_id == uuid.UUID("urn:uuid:" + TEST_SLOT_ID)
 
@@ -354,3 +359,21 @@ def test_invalid_redis_key() -> None:
 	key = "invalidrediskey:test"
 	transfer_slot = TransferSlot.from_redis_key(key)
 	assert transfer_slot is None
+
+
+def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	depot_id = "depot1.uib.test"
+	host_id = "client1.uib.test"
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	for slot_type in TransferSlotType:
+		rpc = {
+			"id": 1,
+			"method": "depot_acquireTransferSlot",
+			"params": [depot_id, host_id, None, slot_type],
+		}
+		result = test_client.post("/rpc", json=rpc)
+		print(result)
+	with sync_redis_client() as redis_client:
+		assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
+		for slot_type in TransferSlotType:
+			assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1

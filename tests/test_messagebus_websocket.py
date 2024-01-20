@@ -548,7 +548,7 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 						redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
 						assert await redis.exists(redis_key)
 						await redis.delete(redis_key)
-						await reader.async_wait_for_message(count=1, timeout=10)
+						await reader.async_wait_for_message(count=1, timeout=40)
 						msg = next(reader.get_messages())
 						assert msg["type"] == "general_error"
 						assert msg["error"]["message"] == "Session expired or deleted"

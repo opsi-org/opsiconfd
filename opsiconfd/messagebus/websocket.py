@@ -317,7 +317,10 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			self._compression = compression
 
 		await self.scope["session"].update_messagebus_last_used()
-
+		print("=========================================================")
+		print(self.scope["session"].messagebus_last_used)
+		print(self.scope["session"].in_use_by_messagebus)
+		print(self.scope["session"].max_age)
 		await websocket.accept()
 
 		self._manager_task = create_task(self.manager_task(websocket))

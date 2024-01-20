@@ -44,7 +44,7 @@ from starlette.websockets import WebSocket, WebSocketState
 from wsproto.utilities import LocalProtocolError
 
 from opsiconfd.logging import get_logger
-from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
+from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data, utc_time_timestamp
 from opsiconfd.worker import Worker
 
 from . import check_channel_name, get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
@@ -317,8 +317,10 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			self._compression = compression
 
 		await self.scope["session"].update_messagebus_last_used()
-		print("=========================================================")
+		print("-----------------------------------------------------------")
+		print(utc_time_timestamp())
 		print(self.scope["session"].messagebus_last_used)
+		print(utc_time_timestamp() - self.scope["session"].messagebus_last_used)
 		print(self.scope["session"].in_use_by_messagebus)
 		print(self.scope["session"].max_age)
 		await websocket.accept()

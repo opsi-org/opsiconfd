@@ -519,6 +519,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		assert remain >= lifetime - 5
 		assert session_id == cookie.value
 
+		print("Connect to messagebus")
 		with test_client.websocket_connect("/messagebus/v1", headers={"Cookie": f"{cookie.name}={cookie.value}"}):
 			time.sleep(2)
 			res = test_client.get("/admin/", headers=lt_headers)

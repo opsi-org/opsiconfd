@@ -37,7 +37,7 @@ from opsicommon.objects import UnicodeConfig
 
 from opsiconfd.redis import get_redis_connections, ip_address_to_redis_key
 from opsiconfd.session import OPSISession, session_manager
-from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
+from opsiconfd.utils import compress_data, decompress_data
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

@@ -480,13 +480,25 @@ class WebSocketMessageReader(Thread):
 				return
 			time.sleep(0.1)
 
-	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
+	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0, error_on_timeout: bool = True) -> None:
+		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:
 			if self.messages.qsize() >= count:
 				return
 			if time.time() - start >= timeout:
-				raise RuntimeError("timed out")
+				if error_on_timeout:
+					messages = []
+					try:
+						while True:
+							messages.append(self.messages.get_nowait())
+					except Empty:
+						pass
+					raise RuntimeError(
+						f"Timed out while waiting for messages (got {len(messages)}, expected {count})\nMessages: {messages}"
+					)
+				print(f"Timed out while waiting for messages (got {self.messages.qsize()}, expected {count} max)")
+				return
 			await asyncio.sleep(0.1)
 
 	def get_messages(self) -> Generator[dict[str, Any], None, None]:

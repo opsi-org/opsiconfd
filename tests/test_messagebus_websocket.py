@@ -549,12 +549,12 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 						redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
 						assert await redis.exists(redis_key)
 						await redis.delete(redis_key)
-						await asyncio.sleep(3)
 						assert session.deleted
-						reader.wait_for_message(count=1)
+						await reader.async_wait_for_message(count=1)
 						msg = next(reader.get_messages())
 						assert msg["type"] == "general_error"
 						assert msg["error"]["message"] == "Session expired or deleted"
+						assert session.deleted
 						# await asyncio.sleep(1)
 						# message = ChannelSubscriptionRequestMessage(
 						# sender=CONNECTION_USER_CHANNEL,

@@ -496,7 +496,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 
 def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 9):
+	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 15):
 		lifetime = config.session_lifetime
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -521,14 +521,14 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 
 		print("Connect to messagebus")
 		with test_client.websocket_connect("/messagebus/v1", headers={"Cookie": f"{cookie.name}={cookie.value}"}):
-			time.sleep(2)
 			res = test_client.get("/admin/", headers=lt_headers)
 			assert res.status_code == 200
 			cookie = list(test_client.cookies.jar)[0]
 			# If session is used my messagebus, session expires never
 			assert cookie.expires is None
 
-		time.sleep(10)
+		# Messagebus no longer connected, wait for MESSAGEBUS_IN_USE_TIMEOUT + 1
+		time.sleep(16)
 		res = test_client.get("/admin/")
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]

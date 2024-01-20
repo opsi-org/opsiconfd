@@ -844,12 +844,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		if attrs:
 			attrs += "; "
 
-		print("=========================================================")
-		print(utc_time_timestamp())
-		print(self.messagebus_last_used)
-		print(utc_time_timestamp() - self.messagebus_last_used)
-		print(self.in_use_by_messagebus)
-		print(self.max_age)
 		# A zero or negative number will expire the cookie immediately
 		max_age = f"; Max-Age={self.max_age}"
 		if self.deleted:

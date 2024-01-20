@@ -8,7 +8,6 @@
 opsiconfd.messagebus tests
 """
 
-import asyncio
 import random
 from random import randbytes
 from time import sleep, time

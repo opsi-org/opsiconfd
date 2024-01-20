@@ -42,7 +42,9 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 			raise RuntimeError("Websocket not connected")
 		while not self.should_exit:
 			msg = await self.websocket.receive()
-			if msg.data is None:
+			if msg.type == aiohttp.WSMsgType.CLOSE:
+				print("Websocket closed")
+				self.should_exit = True
 				break
 			data = lz4.frame.decompress(msg.data)
 			Message.from_msgpack(data)
@@ -76,8 +78,9 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 				await self.send_message(EventMessage(sender="@", event="test", channel="event:test", data={"test": "testdata"}))
 				await sleep(1)
 			self.test_manager.add_client_completed()
-			if self.test_manager.args.keep_connection:
+			if not self.should_exit and self.test_manager.args.keep_connection:
 				await self.test_manager.all_completed.wait()
+				await sleep(self.test_manager.args.keep_connection)
 		finally:
 			self.should_exit = True
 			if self.websocket:
@@ -96,7 +99,10 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		arg_parser.add_argument("--clients", action="store", type=int, help="Number of clients", default=1)
 		arg_parser.add_argument("--events", action="store", type=int, help="Number of event messages to send per client", default=10)
 		arg_parser.add_argument(
-			"--keep-connection", action="store_true", help="Keep client connection until all clients have sent all events"
+			"--keep-connection",
+			type=int,
+			help="Keep client connection until all clients have sent all events (in seconds, 0=do not wait for other clients)",
+			default=0,
 		)
 		arg_parser.add_argument("--start-gap", action="store", type=int, help="Gap in milliseconds between client startup", default=0)
 		arg_parser.add_argument("--verbose", action="store_true", help="Verbose output")

@@ -33,6 +33,12 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * Select "Run Tests" on the Status Bar, use the Test Explorer or run `poetry run pytest --cov-append --cov opsiconfd --cov-report term --cov-report xml -vv tests` in a terminal
 
 
+# Performance
+## Redis
+* Based on the Redis official benchmark, you can improve performance by upto 50% using unix sockets (versus TCP ports) on Redis.
+* Check slow queries `SLOWLOG GET`
+* Check queries `MONITOR`
+
 ## Memory usage / profiling
 * https://bugs.python.org/issue41699
 

@@ -8,9 +8,11 @@
 opsiconfd.messagebus tests
 """
 
+import asyncio
 import random
 from random import randbytes
 from time import sleep, time
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -19,6 +21,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	Error,
+	GeneralErrorMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
@@ -34,8 +38,9 @@ from opsicommon.messagebus import (  # type: ignore[import]
 )
 from opsicommon.objects import UnicodeConfig
 
-from opsiconfd.redis import get_redis_connections
-from opsiconfd.utils import compress_data, decompress_data
+from opsiconfd.redis import get_redis_connections, ip_address_to_redis_key
+from opsiconfd.session import OPSISession, session_manager
+from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -44,11 +49,11 @@ from .utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	Redis,
 	WebSocketMessageReader,
+	async_redis_client,
 	clean_mysql,
 	clean_redis,
 	client_jsonrpc,
 	config,
-	sync_redis_client,
 	test_client,
 )
 
@@ -523,3 +528,42 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 			assert msg["channel"] == "event:config_created"
 			assert msg["event"] == "config_created"
 			assert msg["data"] == {"id": "test.config"}
+
+
+@pytest.mark.asyncio
+async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-locals,redefined-outer-name
+	config: Config,
+	test_client: OpsiconfdTestClient,
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	session_manager._session_check_interval = 1
+	session_manager._session_store_interval_min = 1
+	asyncio_create_task(session_manager.manager_task())
+	try:
+		with patch("opsiconfd.messagebus.websocket.MessagebusWebsocket._update_session_interval", 1.0):
+			async with async_redis_client() as redis:
+				with test_client.websocket_connect("/messagebus/v1") as websocket:
+					session: OPSISession = websocket.scope["session"]
+					with WebSocketMessageReader(websocket) as reader:
+						reader.wait_for_message(count=1)
+						list(reader.get_messages())
+						redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
+						assert await redis.exists(redis_key)
+						await redis.delete(redis_key)
+						await asyncio.sleep(3)
+						assert session.deleted
+						reader.wait_for_message(count=1)
+						msg = next(reader.get_messages())
+						assert msg["type"] == "general_error"
+						assert msg["error"]["message"] == "Session expired or deleted"
+						# await asyncio.sleep(1)
+						# message = ChannelSubscriptionRequestMessage(
+						# sender=CONNECTION_USER_CHANNEL,
+						# channel="service:messagebus",
+						# channels=["session:11111111-1111-1111-1111-111111111111"],
+						# operation="add",
+						# )
+						# websocket.send_bytes(message.to_msgpack())
+
+	finally:
+		await session_manager.stop()

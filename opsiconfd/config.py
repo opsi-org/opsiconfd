@@ -921,7 +921,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--session-lifetime",
 			env_var="OPSICONFD_SESSION_LIFETIME",
 			type=int,
-			default=60,
+			default=120,
 			help=self._help("opsiconfd", "The interval in seconds after an inactive session expires."),
 		)
 		self._parser.add(

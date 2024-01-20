@@ -87,6 +87,7 @@ async def messagebroker_index() -> HTMLResponse:
 @messagebus_router.websocket_route("/v1")
 class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instance-attributes
 	encoding = "bytes"
+	_update_session_interval = 30.0
 
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
@@ -118,7 +119,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		if self._compression:
 			data = await run_in_threadpool(compress_data, data, self._compression)
 
-		if websocket.client_state != WebSocketState.CONNECTED:
+		if websocket.client_state != WebSocketState.CONNECTED or websocket.application_state != WebSocketState.CONNECTED:
 			logger.debug("Websocket client not connected")
 			return
 
@@ -132,13 +133,26 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 	async def manager_task(self, websocket: WebSocket) -> None:
 		try:
-			update_session_interval = 5.0
+			session: OPSISession = self.scope["session"]
 			update_session_time = 0.0
-			while websocket.client_state == WebSocketState.CONNECTED:
+			while websocket.client_state == WebSocketState.CONNECTED and websocket.application_state == WebSocketState.CONNECTED:
 				now = time()
-				if now >= update_session_time + update_session_interval:
-					update_session_time = now
-					await self.scope["session"].update_messagebus_last_used()
+				if now >= update_session_time + self._update_session_interval:
+					if session.deleted or session.expired:
+						logger.info("Session %r expired or deleted, closing websocket", session.session_id)
+						await self._send_message_to_websocket(
+							websocket,
+							GeneralErrorMessage(
+								sender=self._messagebus_worker_id,
+								channel=self._session_channel,
+								error=Error(code=None, message="Session expired or deleted"),
+							),
+						)
+						await websocket.close(code=WS_1000_NORMAL_CLOSURE)
+						break
+					else:
+						update_session_time = now
+						await self.scope["session"].update_messagebus_last_used()
 				await sleep(1.0)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)

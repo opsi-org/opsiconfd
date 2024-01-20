@@ -377,8 +377,9 @@ class SessionMiddleware:
 
 
 class SessionManager:  # pylint: disable=too-few-public-methods
-	def __init__(self) -> None:
-		self._session_store_interval = 30
+	def __init__(self, session_check_interval: int = 5, session_store_interval_min: int = 60) -> None:
+		self._session_check_interval = session_check_interval
+		self._session_store_interval_min = session_store_interval_min
 		self._stopped = asyncio.Event()
 		self._should_stop = False
 		self._manager_task: asyncio.Task | None = None
@@ -390,9 +391,14 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 			await self._stopped.wait()
 
 	async def manager_task(self) -> None:
-		while not self._should_stop:  # pylint: disable=too-many-nested-blocks
+		while True:  # pylint: disable=too-many-nested-blocks
 			try:
-				await asyncio.sleep(1.0)
+				for _ in range(self._session_check_interval):
+					if self._should_stop:
+						break
+					await asyncio.sleep(1)
+				if self._should_stop:
+					break
 				delete_session_ids = []
 				for session in list(self.sessions.values()):
 					if session.expired:
@@ -402,15 +408,23 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 					elif session.deleted:
 						logger.debug("Removing deleted session: %s", session.session_id)
 						delete_session_ids.append(session.session_id)
-					else:
+					elif not session.last_stored:
+						await session.store(modifications_only=False)
+					elif session.modifications:
 						logger.trace("Session modifications: %s", session.modifications)
-						if session.modifications:
-							if set(session.modifications) - {"last_used", "messagebus_last_used"}:
-								# Only last_used changed
-								if time.time() >= session.last_stored + self._session_store_interval:
-									await session.store(modifications_only=True)
-							else:
-								await session.store(modifications_only=True)
+						if not set(session.modifications) - {"last_used", "messagebus_last_used"}:
+							# Only last_used / messagebus_last_used changed
+							if session.authenticated:
+								store_interval = min(int(session.max_age / 2), self._session_store_interval_min)
+								if time.time() >= session.last_stored + store_interval:
+									if await session.is_stored():
+										await session.store(modifications_only=True)
+									else:
+										session.deleted = True
+										logger.debug("Session deleted elsewhere: %s", session.session_id)
+										delete_session_ids.append(session.session_id)
+						else:
+							await session.store(modifications_only=True)
 
 				for delete_session_id in delete_session_ids:
 					if delete_session_id in self.sessions:
@@ -722,11 +736,9 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			for redis_key in redis.scan_iter(session_key):
 				validity = 0
 				try:
-					max_age = redis.hget(redis_key, b"max_age")
-					if max_age:
-						last_used = redis.hget(redis_key, b"last_used")
-						if last_used:
-							validity = int(int(max_age) - (now - int(last_used)))
+					vals = redis.hmget(redis_key, (b"max_age", b"last_used"))
+					if vals and vals[0] and vals[1]:
+						validity = int(int(vals[0]) - (now - int(vals[1])))
 				except Exception as err:  # pylint: disable=broad-except
 					logger.debug(err)
 				if validity > 0:
@@ -856,6 +868,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 	@property
 	def in_use_by_messagebus(self) -> bool:
 		return int(utc_time_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
+
+	def _is_stored(self) -> bool:
+		return redis_client().exists(self.redis_key) > 0
+
+	async def is_stored(self) -> bool:
+		# aioredis is sometimes slow ~300ms load, using redis for now
+		return await run_in_threadpool(self._is_stored)
 
 	def _refresh(self) -> bool:
 		version = redis_client().hget(self.redis_key, b"version")

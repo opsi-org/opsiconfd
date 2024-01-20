@@ -91,7 +91,7 @@ async def test_session_store_and_load() -> None:
 @pytest.mark.asyncio
 async def test_session_manager_max_age() -> None:
 	with get_config({"session_lifetime": 10}):
-		manager = SessionManager()
+		manager = SessionManager(session_check_interval=1)
 		asyncio_create_task(manager.manager_task())
 
 		headers = Headers()
@@ -137,7 +137,7 @@ async def test_session_manager_max_age() -> None:
 @pytest.mark.asyncio
 async def test_session_refresh() -> None:
 	async with async_redis_client() as redis_client:
-		manager = SessionManager()
+		manager = SessionManager(session_check_interval=1)
 		asyncio_create_task(manager.manager_task())
 
 		sess = await manager.get_session("172.10.11.12")
@@ -176,25 +176,27 @@ async def test_session_refresh() -> None:
 @pytest.mark.asyncio
 async def test_session_manager_store_session() -> None:
 	async with async_redis_client() as redis_client:
-		manager = SessionManager()
+		manager = SessionManager(session_check_interval=1, session_store_interval_min=60)
 		asyncio_create_task(manager.manager_task())
 
-		manager._session_store_interval = 60  # pylint: disable=protected-access
 		sess1 = await manager.get_session("172.10.11.11")
 		await sleep(2)
 		res = await redis_client.hgetall(sess1.redis_key)
+		assert res[b"authenticated"] == b"0"
+
 		sess1.authenticated = True
 		await sleep(2)
 		res = await redis_client.hgetall(sess1.redis_key)
 		assert res
+		assert res[b"authenticated"] == b"1"
 
-		manager._session_store_interval = 1  # pylint: disable=protected-access
 		sess2 = await manager.get_session("172.10.11.12")
 		res = await redis_client.hgetall(sess2.redis_key)
 		assert not res
 		await sleep(2)
 		res = await redis_client.hgetall(sess2.redis_key)
 		assert res
+		assert res[b"authenticated"] == b"0"
 
 		await manager.stop(wait=True)
 
@@ -202,7 +204,7 @@ async def test_session_manager_store_session() -> None:
 @pytest.mark.asyncio
 async def test_session_manager_remove_expired_session() -> None:
 	async with async_redis_client() as redis_client:
-		manager = SessionManager()
+		manager = SessionManager(session_check_interval=1)
 		asyncio_create_task(manager.manager_task())
 
 		headers = Headers({"x-opsi-session-lifetime": "5"})
@@ -220,8 +222,25 @@ async def test_session_manager_remove_expired_session() -> None:
 
 
 @pytest.mark.asyncio
+async def test_session_manager_remove_deleted_session() -> None:
+	async with async_redis_client() as redis_client:
+		manager = SessionManager(session_check_interval=1, session_store_interval_min=1)
+		asyncio_create_task(manager.manager_task())
+
+		sess = await manager.get_session("172.10.11.12")
+		sess.authenticated = True
+		await sleep(3)
+		assert sess.session_id in manager.sessions
+
+		await redis_client.delete(sess.redis_key)
+		await sess.update_last_used()
+		await sleep(3)
+		assert sess.deleted
+
+
+@pytest.mark.asyncio
 async def test_session_manager_changed_client_addr() -> None:
-	manager = SessionManager()
+	manager = SessionManager(session_check_interval=1)
 	asyncio_create_task(manager.manager_task())
 
 	sess1 = await manager.get_session("172.10.11.12")
@@ -235,8 +254,9 @@ async def test_session_manager_changed_client_addr() -> None:
 @pytest.mark.asyncio
 async def test_session_manager_concurrent() -> None:
 	async with async_redis_client() as redis_client:
-		manager1 = SessionManager()
-		manager2 = SessionManager()
+		manager1 = SessionManager(session_check_interval=1)
+		manager2 = SessionManager(session_check_interval=1)
+
 		asyncio_create_task(manager1.manager_task())
 		asyncio_create_task(manager2.manager_task())
 
@@ -262,6 +282,7 @@ async def test_session_manager_concurrent() -> None:
 		assert not res
 
 		sess1 = await manager1.get_session("172.10.11.12", session_id=sess1.session_id)
+		# New session
 		assert sess1.session_id != sess2.session_id
 
 		await manager1.stop(wait=True)

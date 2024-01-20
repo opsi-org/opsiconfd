@@ -21,8 +21,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
-	Error,
-	GeneralErrorMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
@@ -54,6 +52,7 @@ from .utils import (  # pylint: disable=unused-import
 	clean_redis,
 	client_jsonrpc,
 	config,
+	sync_redis_client,
 	test_client,
 )
 
@@ -536,8 +535,8 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 	test_client: OpsiconfdTestClient,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	session_manager._session_check_interval = 1
-	session_manager._session_store_interval_min = 1
+	session_manager._session_check_interval = 1  # pylint: disable=protected-access
+	session_manager._session_store_interval_min = 1  # pylint: disable=protected-access
 	asyncio_create_task(session_manager.manager_task())
 	try:
 		with patch("opsiconfd.messagebus.websocket.MessagebusWebsocket._update_session_interval", 1.0):

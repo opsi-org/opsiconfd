@@ -316,6 +316,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				)
 			self._compression = compression
 
+		await self.scope["session"].update_messagebus_last_used()
+
 		await websocket.accept()
 
 		self._manager_task = create_task(self.manager_task(websocket))
@@ -395,7 +397,6 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 	async def on_connect(self, websocket: WebSocket) -> None:  # pylint: disable=arguments-differ
 		logger.info("Websocket client connected to messagebus")
 		session: OPSISession = self.scope["session"]
-		await session.update_messagebus_last_used()
 
 		event = EventMessage(
 			sender=self._messagebus_worker_id,

@@ -473,7 +473,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			)
 			websocket.send_bytes(message3.to_msgpack())
 
-			reader.wait_for_message(count=1)
+			reader.wait_for_message(count=1, timeout=10)
 			message4 = TraceResponseMessage.from_dict(next(reader.get_messages()))
 			message4.trace["recipient_ws_receive"] = timestamp()
 

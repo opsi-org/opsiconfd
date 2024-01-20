@@ -40,7 +40,6 @@ from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_con
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client, pool_disconnect_connections
-from opsiconfd.session import session_manager
 from opsiconfd.ssl import opsi_ca_is_self_signed
 from opsiconfd.utils import asyncio_create_task
 
@@ -255,8 +254,6 @@ class Worker(WorkerInfo, UvicornServer):
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)
 
-		asyncio_create_task(session_manager.manager_task())
-
 		await self.store_state_in_redis()
 
 		app.register_app_state_handler(self.on_app_state_change)
@@ -374,7 +371,6 @@ class Worker(WorkerInfo, UvicornServer):
 		await self.close_connections(wait=not self.force_exit)
 		await asyncio.sleep(0.1)
 
-		await session_manager.stop()
 		if self._metrics_collector:
 			self._metrics_collector.stop()
 

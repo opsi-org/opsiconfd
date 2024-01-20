@@ -534,13 +534,14 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 	test_client: OpsiconfdTestClient,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	session_manager._session_check_interval = 1  # pylint: disable=protected-access
-	session_manager._session_store_interval_min = 1  # pylint: disable=protected-access
-	asyncio_create_task(session_manager.manager_task())
-	try:
-		with patch("opsiconfd.messagebus.websocket.MessagebusWebsocket._update_session_interval", 1.0):
-			async with async_redis_client() as redis:
-				with test_client.websocket_connect("/messagebus/v1") as websocket:
+	with (
+		patch.object(session_manager, "_session_check_interval", 1),
+		patch.object(session_manager, "_session_store_interval_min", 1),
+		patch("opsiconfd.messagebus.websocket.MessagebusWebsocket._update_session_interval", 1.0),
+	):
+		async with async_redis_client() as redis:
+			with test_client as client:
+				with client.websocket_connect("/messagebus/v1") as websocket:
 					session: OPSISession = websocket.scope["session"]
 					with WebSocketMessageReader(websocket) as reader:
 						reader.wait_for_message(count=1)
@@ -548,12 +549,11 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 						redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
 						assert await redis.exists(redis_key)
 						await redis.delete(redis_key)
-						await reader.async_wait_for_message(count=1, timeout=40)
+						await reader.async_wait_for_message(count=1, timeout=10)
 						msg = next(reader.get_messages())
 						assert msg["type"] == "general_error"
 						assert msg["error"]["message"] == "Session expired or deleted"
 						assert session.deleted
-						# await asyncio.sleep(1)
 						# message = ChannelSubscriptionRequestMessage(
 						# sender=CONNECTION_USER_CHANNEL,
 						# channel="service:messagebus",
@@ -561,6 +561,3 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 						# operation="add",
 						# )
 						# websocket.send_bytes(message.to_msgpack())
-
-	finally:
-		await session_manager.stop()

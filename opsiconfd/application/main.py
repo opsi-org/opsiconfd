@@ -52,8 +52,9 @@ from opsiconfd.messagebus.websocket import messagebus_setup
 from opsiconfd.metrics.statistics import StatisticsMiddleware
 from opsiconfd.redis import async_redis_client
 from opsiconfd.rest import OpsiApiException, rest_api
-from opsiconfd.session import SessionMiddleware
+from opsiconfd.session import SessionMiddleware, session_manager
 from opsiconfd.ssl import as_pem, load_certs
+from opsiconfd.utils import asyncio_create_task
 
 
 @app.get("/")
@@ -236,6 +237,7 @@ async def async_application_startup() -> None:
 	# Create redis pool
 	await async_redis_client(timeout=10, test_connection=True)
 
+	asyncio_create_task(session_manager.manager_task())
 	await async_jsonrpc_startup()
 	await async_terminal_startup()
 
@@ -243,6 +245,7 @@ async def async_application_startup() -> None:
 async def async_application_shutdown() -> None:
 	await async_jsonrpc_shutdown()
 	await async_terminal_shutdown()
+	await session_manager.stop()
 
 
 def setup_app() -> None:

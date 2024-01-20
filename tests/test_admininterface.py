@@ -367,7 +367,7 @@ async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylin
 		assert res.json() == {"rpc_count": 10}
 
 
-def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_session_list(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
 	addr = test_client.get_client_address()
 	res = test_client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
@@ -386,7 +386,7 @@ def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 	for _idx in range(2, 12):
 		assert body[_idx].get("address") == "192.168.36." + str(_idx - 2)
 		assert body[_idx].get("user_agent") == "testclient"
-		assert body[_idx].get("max_age") == 120
+		assert body[_idx].get("max_age") == config.session_lifetime
 
 
 def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name

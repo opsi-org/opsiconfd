@@ -495,9 +495,9 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	assert res.status_code == 401
 
 
-def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 9):
-		lifetime = 60
+		lifetime = config.session_lifetime
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 		res = test_client.get("/admin/")

@@ -79,9 +79,9 @@ def fixture_admininterface(monkeypatch: Any) -> ModuleType:
 	return ai
 
 
-def test_unblock_all_request(
+def test_unblock_all_request(  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,
-	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,
 ) -> None:
 	with sync_redis_client() as redis:
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
@@ -117,9 +117,9 @@ async def test_unblock_all(config: Config, admininterface: ModuleType) -> None: 
 			assert not val
 
 
-def test_unblock_client_request(
+def test_unblock_client_request(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
 ) -> None:
 	with sync_redis_client() as redis:
 		test_ip = "192.168.1.2"
@@ -153,9 +153,9 @@ async def test_unblock_client(config: Config, admininterface: ModuleType) -> Non
 		assert not val
 
 
-def test_unblock_client_exception(
+def test_unblock_client_exception(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
 ) -> None:
 	with sync_redis_client() as redis_client:
 		test_ip = "192.168.1.2"
@@ -167,9 +167,9 @@ def test_unblock_client_exception(
 		assert val
 
 
-def test_unblock_all_exception(
+def test_unblock_all_exception(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
 ) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
@@ -181,9 +181,9 @@ def test_unblock_all_exception(
 
 
 @pytest.mark.asyncio
-async def test_get_rpc_list_request(
+async def test_get_rpc_list_request(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
 ) -> None:
 	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for _ in range(3):
@@ -215,9 +215,9 @@ def test_get_blocked_clients_request(  # pylint: disable=redefined-outer-name,un
 
 
 @pytest.mark.asyncio
-async def test_get_blocked_clients(
+async def test_get_blocked_clients(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
-	admininterface: ModuleType,  # pylint: disable=redefined-outer-name,unused-argument
+	admininterface: ModuleType,
 ) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
@@ -446,9 +446,9 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Unprotec
 		assert locked_products == {}
 
 
-def test_get_locked_products_list(
+def test_get_locked_products_list(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient,
-	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name
+	backend: UnprotectedBackend,
 ) -> None:
 	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},

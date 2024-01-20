@@ -26,7 +26,6 @@ from opsiconfd import (
 	set_contextvars_from_contex,
 )
 from opsiconfd.redis import ip_address_to_redis_key
-from opsiconfd.session import session_manager
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -497,7 +496,6 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 
 def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	##################session_manager._session_check_interval = 1
 	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 9):
 		lifetime = config.session_lifetime
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)

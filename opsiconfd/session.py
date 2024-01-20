@@ -79,7 +79,7 @@ ACCESS_ROLE_AUTHENTICATED = "authenticated"
 ACCESS_ROLE_ADMIN = "admin"
 SESSION_COOKIE_NAME = "opsiconfd-session"
 SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
-MESSAGEBUS_IN_USE_TIMEOUT = 40
+MESSAGEBUS_IN_USE_TIMEOUT = 60
 # Zsync2 will send "curl/<curl-version>" as User-Agent.
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
 # Do not keep sessions because they will never send a cookie (session id).

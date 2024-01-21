@@ -397,10 +397,8 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 
 	async def manager_task(self) -> None:
 		while True:  # pylint: disable=too-many-nested-blocks
-			print("==================================================", self._session_check_interval)
 			try:
 				for waits in range(self._session_check_interval):
-					print("-------------------------------------------", self._session_check_interval)
 					# Check for stop and changed _session_check_interval
 					if self._should_stop or waits > self._session_check_interval:
 						break
@@ -409,13 +407,6 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 					break
 				delete_session_ids = []
 				for session in list(self.sessions.values()):
-					print("session", session)
-					print("redis_key", session.redis_key)
-					print("modifications", session.modifications)
-					print("authenticated", session.authenticated)
-					print("_session_store_interval_min", self._session_store_interval_min)
-					print("session.max_age", session.max_age)
-					print("session.last_stored", session.last_stored)
 					if session.expired:
 						logger.debug("Delete expired session: %s", session.session_id)
 						await session.delete()
@@ -431,13 +422,6 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 							# Only last_used / messagebus_last_used changed
 							if session.authenticated:
 								store_interval = min(int(session.max_age / 2), self._session_store_interval_min)
-								print("store_interval", store_interval)
-								print("session.is_stored", await session.is_stored())
-								print("time.time()", time.time())
-								print(
-									"time.time() >= session.last_stored + store_interval",
-									time.time() >= session.last_stored + store_interval,
-								)
 								if time.time() >= session.last_stored + store_interval:
 									if await session.is_stored():
 										await session.store(modifications_only=True)

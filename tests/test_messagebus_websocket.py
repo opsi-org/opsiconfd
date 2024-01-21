@@ -8,7 +8,6 @@
 opsiconfd.messagebus tests
 """
 
-from typing import cast
 import random
 from random import randbytes
 from time import sleep, time

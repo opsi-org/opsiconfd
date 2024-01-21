@@ -15,7 +15,6 @@ from logging import LogRecord
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from opsicommon.logging.constants import (
 	LOG_ERROR,
 	LOG_NONE,
@@ -72,10 +71,10 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 	handled_exception = None
 	handled_record = None
 
-	async def handle_file_handler_error(
+	async def handle_file_handler_error(  # pylint: disable=unused-argument
 		file_handler: AsyncFileHandler,
 		record: LogRecord,
-		exception: Exception,  # pylint: disable=unused-argument
+		exception: Exception,
 	) -> None:
 		nonlocal handled_exception
 		handled_exception = exception

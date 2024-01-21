@@ -12,7 +12,6 @@ import time
 import uuid
 from asyncio import sleep
 
-import pytest
 from starlette.datastructures import Headers
 
 from opsiconfd.application import app

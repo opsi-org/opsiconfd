@@ -397,8 +397,10 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 
 	async def manager_task(self) -> None:
 		while True:  # pylint: disable=too-many-nested-blocks
+			print("==================================================")
 			try:
 				for waits in range(self._session_check_interval):
+					print("-------------------------------------------")
 					# Check for stop and changed _session_check_interval
 					if self._should_stop or waits > self._session_check_interval:
 						break
@@ -407,6 +409,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 					break
 				delete_session_ids = []
 				for session in list(self.sessions.values()):
+					print("session", session)
 					if session.expired:
 						logger.debug("Delete expired session: %s", session.session_id)
 						await session.delete()

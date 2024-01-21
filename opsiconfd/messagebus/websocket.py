@@ -137,6 +137,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			update_session_time = 0.0
 			while websocket.client_state == WebSocketState.CONNECTED and websocket.application_state == WebSocketState.CONNECTED:
 				now = time()
+				print(".......", now, update_session_time, self._update_session_interval)
 				if now >= update_session_time + self._update_session_interval:
 					if session.deleted or session.expired:
 						logger.info("Session %r expired or deleted, closing websocket", session.session_id)

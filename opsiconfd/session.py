@@ -397,10 +397,10 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 
 	async def manager_task(self) -> None:
 		while True:  # pylint: disable=too-many-nested-blocks
-			print("==================================================")
+			print("==================================================", self._session_check_interval)
 			try:
 				for waits in range(self._session_check_interval):
-					print("-------------------------------------------")
+					print("-------------------------------------------", self._session_check_interval)
 					# Check for stop and changed _session_check_interval
 					if self._should_stop or waits > self._session_check_interval:
 						break

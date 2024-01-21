@@ -11,7 +11,6 @@ test opsiconfd.backend.rpc.host_control
 from typing import Any
 from unittest import mock
 
-import pytest
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductDependency, ProductOnClient, ProductOnDepot
 
 from opsiconfd.config import get_depotserver_id

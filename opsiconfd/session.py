@@ -380,10 +380,15 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 	def __init__(self, session_check_interval: int = 5, session_store_interval_min: int = 60) -> None:
 		self._session_check_interval = session_check_interval
 		self._session_store_interval_min = session_store_interval_min
-		self._stopped = asyncio.Event()
-		self._should_stop = False
 		self._manager_task: asyncio.Task | None = None
+		self._should_stop = False
+		self._stopped = asyncio.Event()
 		self.sessions: dict[str, OPSISession] = {}
+
+	def reset(self) -> None:
+		self._should_stop = False
+		self._stopped = asyncio.Event()
+		self.sessions = {}
 
 	async def stop(self, wait: bool = False) -> None:
 		self._should_stop = True

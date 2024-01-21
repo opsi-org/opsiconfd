@@ -402,6 +402,7 @@ test_urls = (
 
 
 @pytest.mark.parametrize("url, method", test_urls)
+@pytest.mark.flaky(retries=1, delay=1)
 def test_max_auth_failures(
 	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument

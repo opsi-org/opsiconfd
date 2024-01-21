@@ -96,7 +96,6 @@ def test_unblock_all_request(  # pylint: disable=redefined-outer-name,unused-arg
 			assert not val
 
 
-@pytest.mark.asyncio
 async def test_unblock_all(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
@@ -131,7 +130,6 @@ def test_unblock_client_request(  # pylint: disable=redefined-outer-name,unused-
 		assert not val
 
 
-@pytest.mark.asyncio
 async def test_unblock_client(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		test_ip = "192.168.1.2"
@@ -180,7 +178,6 @@ def test_unblock_all_exception(  # pylint: disable=redefined-outer-name,unused-a
 		assert res.status_code == 500
 
 
-@pytest.mark.asyncio
 async def test_get_rpc_list_request(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
 	test_client: OpsiconfdTestClient,
@@ -214,7 +211,6 @@ def test_get_blocked_clients_request(  # pylint: disable=redefined-outer-name,un
 	assert sorted(res.json()) == sorted(addresses)
 
 
-@pytest.mark.asyncio
 async def test_get_blocked_clients(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
 	admininterface: ModuleType,
@@ -228,7 +224,6 @@ async def test_get_blocked_clients(  # pylint: disable=redefined-outer-name,unus
 
 
 @pytest.mark.parametrize("num_rpcs", [1, 3, 5])
-@pytest.mark.asyncio
 async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient, admininterface: ModuleType, num_rpcs: int
 ) -> None:
@@ -251,7 +246,6 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 	assert sorted(rpc_nums) == list(range(1, num_rpcs + 1))
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
 	"rpc_request_data, expected_response",
 	[
@@ -352,7 +346,6 @@ def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestC
 	assert admininterface.get_num_clients() == 0
 
 
-@pytest.mark.asyncio
 async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for _ in range(10):

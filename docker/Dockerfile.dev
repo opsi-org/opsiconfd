@@ -1,4 +1,4 @@
-FROM docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.11 as opsiconfd_development_build_43
+FROM docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11 as opsiconfd_development_build_43
 
 ARG DOCKER_ENV
 ARG USER

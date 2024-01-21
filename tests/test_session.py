@@ -38,7 +38,6 @@ def test_session_serialize() -> None:
 	assert session.serialize() == session2.serialize()
 
 
-@pytest.mark.asyncio
 async def test_session_store_and_load() -> None:
 	async with async_redis_client() as redis_client:
 		client_addr = "172.10.11.12"
@@ -88,7 +87,6 @@ async def test_session_store_and_load() -> None:
 		assert sess3.messagebus_last_used == sess2.messagebus_last_used
 
 
-@pytest.mark.asyncio
 async def test_session_manager_max_age() -> None:
 	with get_config({"session_lifetime": 10}):
 		manager = SessionManager(session_check_interval=1)
@@ -134,7 +132,6 @@ async def test_session_manager_max_age() -> None:
 		await manager.stop(wait=True)
 
 
-@pytest.mark.asyncio
 async def test_session_refresh() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager(session_check_interval=1)
@@ -173,7 +170,6 @@ async def test_session_refresh() -> None:
 		await manager.stop(wait=True)
 
 
-@pytest.mark.asyncio
 async def test_session_manager_store_session() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager(session_check_interval=1, session_store_interval_min=60)
@@ -201,7 +197,6 @@ async def test_session_manager_store_session() -> None:
 		await manager.stop(wait=True)
 
 
-@pytest.mark.asyncio
 async def test_session_manager_remove_expired_session() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager(session_check_interval=1)
@@ -221,7 +216,6 @@ async def test_session_manager_remove_expired_session() -> None:
 		await manager.stop(wait=True)
 
 
-@pytest.mark.asyncio
 async def test_session_manager_remove_deleted_session() -> None:
 	async with async_redis_client() as redis_client:
 		manager = SessionManager(session_check_interval=1, session_store_interval_min=1)
@@ -238,7 +232,6 @@ async def test_session_manager_remove_deleted_session() -> None:
 		assert sess.deleted
 
 
-@pytest.mark.asyncio
 async def test_session_manager_changed_client_addr() -> None:
 	manager = SessionManager(session_check_interval=1)
 	asyncio_create_task(manager.manager_task())
@@ -251,7 +244,6 @@ async def test_session_manager_changed_client_addr() -> None:
 	await manager.stop(wait=True)
 
 
-@pytest.mark.asyncio
 async def test_session_manager_concurrent() -> None:
 	async with async_redis_client() as redis_client:
 		manager1 = SessionManager(session_check_interval=1)

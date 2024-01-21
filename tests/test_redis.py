@@ -60,7 +60,6 @@ def test_get_redis_connections(config: Config) -> None:  # pylint: disable=redef
 	assert len(new_connections) == 0
 
 
-@pytest.mark.asyncio
 async def test_async_redis_pool(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	base_key = config.redis_key()
 	num_connections = 1000
@@ -107,7 +106,6 @@ def test_sync_redis_pool(config: Config) -> None:  # pylint: disable=redefined-o
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
 
-@pytest.mark.asyncio
 async def test_async_redis_client(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	base_key = config.redis_key()
 	num_connections = 10
@@ -135,7 +133,6 @@ def test_sync_redis_client(config: Config) -> None:  # pylint: disable=redefined
 		assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
 
 
-@pytest.mark.asyncio
 async def test_async_redis_pipeline(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	redis = await async_redis_client()
 	async with redis.pipeline() as pipe:
@@ -143,7 +140,6 @@ async def test_async_redis_pipeline(config: Config) -> None:  # pylint: disable=
 		await pipe.execute()  # type: ignore[attr-defined]
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
 	"piped",
 	(False, True),
@@ -211,7 +207,6 @@ def test_redis_lock(config: Config) -> None:  # pylint: disable=redefined-outer-
 	assert not client.get(redis_key)
 
 
-@pytest.mark.asyncio
 async def test_async_redis_lock(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	lock_name = "test-lock"
 	redis_key = f"{config.redis_key('locks')}:{lock_name}"
@@ -239,7 +234,6 @@ async def test_async_redis_lock(config: Config) -> None:  # pylint: disable=rede
 	assert not await client.get(redis_key)
 
 
-@pytest.mark.asyncio
 async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
 	base_key = config.redis_key("dump_recursively")
 	metric = NodeMetric(

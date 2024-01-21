@@ -237,6 +237,7 @@ async def async_application_startup() -> None:
 	# Create redis pool
 	await async_redis_client(timeout=10, test_connection=True)
 
+	session_manager.reset()
 	asyncio_create_task(session_manager.manager_task())
 	await async_jsonrpc_startup()
 	await async_terminal_startup()

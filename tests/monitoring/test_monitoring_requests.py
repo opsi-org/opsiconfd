@@ -277,7 +277,10 @@ def test_check_product_status_groupids(  # pylint: disable=redefined-outer-name,
 	],
 )
 def test_check_product_status_short(
-	test_client: OpsiconfdTestClient, config: Config, product: str, expected_result: Any  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	config: Config,
+	product: str,
+	expected_result: Any,  # pylint: disable=redefined-outer-name
 ) -> None:
 	data = json.dumps(
 		{
@@ -536,7 +539,6 @@ def test_check_depot_sync_status(  # pylint: disable=too-many-arguments,redefine
 	verbose: bool,
 	expected_result: Any,
 ) -> None:
-
 	data = json.dumps(
 		{
 			"task": "checkDepotSyncStatus",
@@ -561,7 +563,6 @@ def test_check_depot_sync_status(  # pylint: disable=too-many-arguments,redefine
 	assert request.json() == expected_result
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
 	"cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result",
 	[

@@ -39,7 +39,6 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-@pytest.mark.asyncio
 async def test_async_rotating_file_handler_rotation(tmp_path: Path) -> None:
 	max_log_file_size = 1
 	keep_rotated_log_files = 3
@@ -67,7 +66,6 @@ async def test_async_rotating_file_handler_rotation(tmp_path: Path) -> None:
 		assert len(os.listdir(tmp_path)) == 4
 
 
-@pytest.mark.asyncio
 async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None:
 	log_file = tmp_path / "test.log"
 
@@ -75,7 +73,9 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 	handled_record = None
 
 	async def handle_file_handler_error(
-		file_handler: AsyncFileHandler, record: LogRecord, exception: Exception  # pylint: disable=unused-argument
+		file_handler: AsyncFileHandler,
+		record: LogRecord,
+		exception: Exception,  # pylint: disable=unused-argument
 	) -> None:
 		nonlocal handled_exception
 		handled_exception = exception
@@ -100,7 +100,6 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 	assert str(handled_exception) == "I/O operation on closed file."
 
 
-@pytest.mark.asyncio
 async def test_async_redis_log_adapter(tmp_path: Path) -> None:
 	log_file = tmp_path / "log"
 	# with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_ERROR}):
@@ -129,7 +128,6 @@ async def test_async_redis_log_adapter(tmp_path: Path) -> None:
 			assert f"message {idx}" in line
 
 
-@pytest.mark.asyncio
 async def test_slow_callback_logging(tmp_path: Path) -> None:
 	log_file = tmp_path / "log"
 	with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_WARNING}):

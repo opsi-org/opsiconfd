@@ -25,7 +25,6 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-@pytest.mark.asyncio
 async def test_message_reader_redis_connection() -> None:
 	connections = get_redis_connections()
 	channel = "host:test-channel"
@@ -46,7 +45,6 @@ async def test_message_reader_redis_connection() -> None:
 	assert connections == get_redis_connections()
 
 
-@pytest.mark.asyncio
 async def test_message_reader_user_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
 	connections = get_redis_connections()
 
@@ -164,7 +162,6 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 	assert connections == get_redis_connections()
 
 
-@pytest.mark.asyncio
 async def test_message_reader_event_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
@@ -222,7 +219,6 @@ async def test_message_reader_event_channel(config: Config) -> None:  # pylint: 
 		assert await redis_client.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"0"
 
 
-@pytest.mark.asyncio
 async def test_consumer_group_message_reader() -> None:  # pylint: disable=redefined-outer-name,too-many-statements
 	class MyMessageReader(ConsumerGroupMessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
@@ -341,7 +337,6 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	assert len(reader2.received) == 0
 
 
-@pytest.mark.asyncio
 async def test_message_reader_survives_recreate_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
@@ -393,7 +388,6 @@ async def test_message_reader_survives_recreate_channel(config: Config) -> None:
 		await reader.stop()
 
 
-@pytest.mark.asyncio
 async def test_message_trim_to_maxlen(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	channel = "event:test_reader"
 	async with async_redis_client() as redis_client:

@@ -8,7 +8,6 @@
 conftest
 """
 
-import asyncio
 import os
 import pprint
 import shutil
@@ -18,7 +17,7 @@ import warnings
 from pathlib import Path
 from tempfile import mkdtemp
 from types import FrameType
-from typing import Any, Generator
+from typing import Any
 from unittest.mock import patch
 
 import urllib3
@@ -157,30 +156,6 @@ def pytest_runtest_setup(item: Item) -> None:
 			skip("Grafana not available")
 
 
-@fixture()  # scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-	"""Create an instance of the default event loop for each test case."""
-	loop = asyncio.get_event_loop_policy().new_event_loop()
-	yield loop
-	loop.close()
-
-
 @fixture(autouse=True)
 def disable_insecure_request_warning() -> None:
 	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
-
-
-@fixture(autouse=True)
-def disable_redis_asyncio_deprecation_warning() -> None:
-	# message="There is no current event loop", category=DeprecationWarning, module="redis.asyncio.connection", lineno=677
-	warnings.filterwarnings(
-		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
-	)
-
-
-@fixture(autouse=True)
-def disable_warnings() -> None:
-	# message="There is no current event loop", category=DeprecationWarning, module="redis.asyncio.connection", lineno=677
-	warnings.filterwarnings(
-		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
-	)

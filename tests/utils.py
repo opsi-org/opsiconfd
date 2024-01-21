@@ -44,6 +44,7 @@ from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config as _opsi_config
 from opsiconfd.utils import Singleton
 from opsiconfd.worker import Worker
+from opsiconfd.session import session_manager
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -62,6 +63,10 @@ class OpsiconfdTestClient(TestClient):
 		self._address = ("127.0.0.1", 12345)
 		self._username: str | None = None
 		self._password: str | None = None
+
+	def __enter__(self) -> OpsiconfdTestClient:
+		super().__enter__()
+		return self
 
 	@property  # type: ignore[override]
 	def auth(self) -> tuple[str, str] | None:
@@ -109,6 +114,7 @@ def test_client() -> Generator[OpsiconfdTestClient, None, None]:
 		patch("opsiconfd.application.main.BaseMiddleware.get_client_address", get_client_address),
 		patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send),
 	):
+		session_manager.reset()
 		yield client
 
 
@@ -180,7 +186,6 @@ def sync_clean_redis() -> None:
 
 
 @pytest_asyncio.fixture(autouse=True)
-@pytest.mark.asyncio
 async def clean_redis() -> AsyncGenerator[None, None]:  # pylint: disable=redefined-outer-name
 	await async_clean_redis()
 	yield None

@@ -26,7 +26,6 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-@pytest.mark.asyncio
 async def test_hostControl_processActionRequests(  # pylint: disable=invalid-name,too-many-locals
 	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name
 ) -> None:

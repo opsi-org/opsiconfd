@@ -382,6 +382,7 @@ def test_host_updateObject_ip_mac(  # pylint: disable=invalid-name,redefined-out
 	assert client["hardwareAddress"] == "aa:ff:ee:aa:ff:ee"
 
 
+@pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
 def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
 	acl_file: Path,
 	test_client: OpsiconfdTestClient,

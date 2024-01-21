@@ -553,26 +553,26 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 		patch.object(session_manager, "_session_check_interval", 1),
 		patch.object(session_manager, "_session_store_interval_min", 1),
 		patch("opsiconfd.messagebus.websocket.MessagebusWebsocket._update_session_interval", 1.0),
-		test_client as client,
 	):
-		async with async_redis_client() as redis:
-			with client.websocket_connect("/messagebus/v1") as websocket:
-				session: OPSISession = websocket.scope["session"]
-				with WebSocketMessageReader(websocket) as reader:
-					reader.wait_for_message(count=1)
-					list(reader.get_messages())
-					redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
-					assert await redis.exists(redis_key)
-					await redis.delete(redis_key)
-					await reader.async_wait_for_message(count=1)
-					msg = next(reader.get_messages())
-					assert msg["type"] == "general_error"
-					assert msg["error"]["message"] == "Session expired or deleted"
-					assert session.deleted
-					# message = ChannelSubscriptionRequestMessage(
-					# sender=CONNECTION_USER_CHANNEL,
-					# channel="service:messagebus",
-					# channels=["session:11111111-1111-1111-1111-111111111111"],
-					# operation="add",
-					# )
-					# websocket.send_bytes(message.to_msgpack())
+		with test_client as client:
+			async with async_redis_client() as redis:
+				with client.websocket_connect("/messagebus/v1") as websocket:
+					session: OPSISession = websocket.scope["session"]
+					with WebSocketMessageReader(websocket) as reader:
+						reader.wait_for_message(count=1)
+						list(reader.get_messages())
+						redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
+						assert await redis.exists(redis_key)
+						await redis.delete(redis_key)
+						await reader.async_wait_for_message(count=1)
+						msg = next(reader.get_messages())
+						assert msg["type"] == "general_error"
+						assert msg["error"]["message"] == "Session expired or deleted"
+						assert session.deleted
+						# message = ChannelSubscriptionRequestMessage(
+						# sender=CONNECTION_USER_CHANNEL,
+						# channel="service:messagebus",
+						# channels=["session:11111111-1111-1111-1111-111111111111"],
+						# operation="add",
+						# )
+						# websocket.send_bytes(message.to_msgpack())

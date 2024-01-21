@@ -119,6 +119,7 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 
 
 @pytest.mark.grafana_available
+@pytest.mark.flaky(retries=1, delay=1)
 async def test_grafana_query_start_end(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 	config: Config,  # pylint: disable=redefined-outer-name

@@ -410,6 +410,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 				delete_session_ids = []
 				for session in list(self.sessions.values()):
 					print("session", session)
+					print("redis_key", session.redis_key)
 					print("modifications", session.modifications)
 					print("authenticated", session.authenticated)
 					print("_session_store_interval_min", self._session_store_interval_min)
@@ -430,6 +431,13 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 							# Only last_used / messagebus_last_used changed
 							if session.authenticated:
 								store_interval = min(int(session.max_age / 2), self._session_store_interval_min)
+								print("store_interval", store_interval)
+								print("session.is_stored", await session.is_stored())
+								print("time.time()", time.time())
+								print(
+									"time.time() >= session.last_stored + store_interval",
+									time.time() >= session.last_stored + store_interval,
+								)
 								if time.time() >= session.last_stored + store_interval:
 									if await session.is_stored():
 										await session.store(modifications_only=True)

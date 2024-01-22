@@ -139,12 +139,14 @@ class TestManager:  # pylint: disable=too-few-public-methods
 				chunk_size = min(self.args.file_size - bytes_sent, 1_000_000)
 				yield random.randbytes(chunk_size)
 				bytes_sent += chunk_size
+				print(">", end="", flush=True)
 
 		test_file = "/repository/file-download-test-file"
 		self.args.file_url = f"{self.args.base_url}{test_file}"
 		async with httpx.AsyncClient(verify=False, auth=(self.args.username, self.args.password)) as client:
 			res = await client.put(self.args.file_url, content=test_data(), timeout=120)
 			res.raise_for_status()
+		print("")
 
 		try:
 			test_clients = [FileDownloadClient(self, name=f"download client{c+1}") for c in range(self.args.clients)]

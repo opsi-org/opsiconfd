@@ -13,8 +13,10 @@ from __future__ import annotations
 import asyncio
 import ctypes
 import gc
+import multiprocessing
 import os
 import socket
+import sys
 import time
 from asyncio import sleep as asyncio_sleep
 from concurrent.futures import ThreadPoolExecutor
@@ -22,13 +24,12 @@ from enum import StrEnum
 from logging import DEBUG
 from multiprocessing.context import SpawnProcess
 from signal import SIGHUP
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from opsicommon.utils import (
 	ip_address_in_network,
 	patch_popen,  # type: ignore[import]
 )
-from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
@@ -48,6 +49,10 @@ if TYPE_CHECKING:
 	from uvicorn.protocols.http.httptools_impl import HttpToolsProtocol
 	from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
 	from uvicorn.protocols.websockets.wsproto_impl import WSProtocol
+
+
+multiprocessing.allow_connection_pickling()
+spawn = multiprocessing.get_context("spawn")
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
@@ -156,6 +161,50 @@ class WorkerInfo:  # pylint: disable = too-few-public-methods
 	__str__ = __repr__
 
 
+# uvicorn._subprocess.get_subprocess
+def get_subprocess(
+	uvicorn_config: Config,
+	target: Callable[..., None],
+	sockets: list[socket.socket],
+) -> SpawnProcess:
+	stdin_fileno: Optional[int]
+	try:
+		stdin_fileno = sys.stdin.fileno()
+	except OSError:
+		stdin_fileno = None
+
+	kwargs = {
+		"uvicorn_config": uvicorn_config,
+		"opsiconfd_config": config.items(),
+		"target": target,
+		"sockets": sockets,
+		"stdin_fileno": stdin_fileno,
+	}
+
+	return spawn.Process(target=subprocess_started, kwargs=kwargs)
+
+
+# uvicorn._subprocess.subprocess_started
+def subprocess_started(
+	uvicorn_config: Config,
+	opsiconfd_config: dict[str, Any],
+	target: Callable[..., None],
+	sockets: list[socket.socket],
+	stdin_fileno: int | None,
+) -> None:
+	# Re-open stdin.
+	if stdin_fileno is not None:
+		sys.stdin = os.fdopen(stdin_fileno)
+
+	config.set_items(opsiconfd_config)
+
+	# Logging needs to be setup again for each child.
+	uvicorn_config.configure_logging()
+
+	# Now we can call into `Server.run(sockets=sockets)`
+	target(sockets=sockets)
+
+
 class Worker(WorkerInfo, UvicornServer):
 	_instance = None
 
@@ -168,7 +217,8 @@ class Worker(WorkerInfo, UvicornServer):
 		self.connection_close_wait_timeout = 10.0
 
 	def start_server_process(self, sockets: list[socket.socket]) -> None:
-		self.process = get_subprocess(config=self.config, target=self.run, sockets=sockets)
+		# Process will be spawned and will not inherit global variables from parent process
+		self.process = get_subprocess(uvicorn_config=self.config, target=self.run, sockets=sockets)
 		self.process.start()
 		if not self.process.pid:
 			raise RuntimeError("Failed to start server process")
@@ -226,9 +276,6 @@ class Worker(WorkerInfo, UvicornServer):
 		await redis.expire(self.redis_state_key, self.redis_state_key_expire)
 
 	def _run(self, sockets: Optional[list[socket.socket]] = None) -> None:
-		import pprint  # pylint: disable=import-outside-toplevel
-
-		pprint.pprint(config.items())
 		self.pid = os.getpid()
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
@@ -248,7 +295,6 @@ class Worker(WorkerInfo, UvicornServer):
 		try:
 			self._run(sockets)
 		except Exception as err:  # pylint: disable=broad-except
-			print(f"{self} terminated with error: {err}")
 			logger.error("%s terminated with error: %s", self, err, exc_info=True)
 		shutdown_logging()
 

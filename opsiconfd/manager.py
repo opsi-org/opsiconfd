@@ -113,7 +113,6 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		# Wait for all worker processes to start and see if they keep running
 		startup_end_time = time.time() + self.startup_time
 		while True:
-			print("=========================================")
 			worker_failed = False  # Set after a running worker was stopped again (failed)
 			all_running = True
 			with self.worker_update_lock:
@@ -125,18 +124,12 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 							worker_failed = True
 						all_running = False
 
-			print("all_running", all_running)
-			print("worker_failed", worker_failed)
-			print("time.time()", time.time())
-			print("startup_end_time", startup_end_time)
-
 			if not worker_failed and time.time() < startup_end_time:
 				if self.should_stop.wait(1.0):
 					break
 				continue
 
 			if all_running:
-				print("Startup completed, all workers running")
 				logger.info("Startup completed, all workers running")
 				self.startup = False
 				break
@@ -144,7 +137,6 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 			failed_workers = [
 				w for w in self.get_workers() if w.worker_state != WorkerState.RUNNING or (w.process and not w.process.is_alive())
 			]
-			print("Failed to start workers: %r", failed_workers)
 			logger.critical("Failed to start workers: %r", failed_workers)
 			self.stop(force=True)
 

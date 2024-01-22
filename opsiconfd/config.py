@@ -408,6 +408,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 	def items(self) -> dict[str, Any]:
 		return self._config.__dict__
 
+	def set_items(self, items: dict[str, Any]) -> None:
+		return self._config.__dict__.update(items)
+
 	def set_config_file(self, config_file: str) -> None:
 		self._config.config_file = config_file
 		for idx, arg in enumerate(self._args):

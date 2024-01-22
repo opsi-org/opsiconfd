@@ -119,7 +119,7 @@ def test_worker_manager_and_workers() -> None:
 		raise RuntimeError("Timed out while waiting for workers")
 
 	with get_config({"port": 4444, "workers": 2, "log_mode": "local", "log_level_stderr": 7}) as conf:
-		import pprint
+		import pprint  # pylint: disable=import-outside-toplevel
 
 		pprint.pprint(conf.items())
 		worker_manager = WorkerManager()

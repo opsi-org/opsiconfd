@@ -226,7 +226,7 @@ class Worker(WorkerInfo, UvicornServer):
 		await redis.expire(self.redis_state_key, self.redis_state_key_expire)
 
 	def _run(self, sockets: Optional[list[socket.socket]] = None) -> None:
-		import pprint
+		import pprint  # pylint: disable=import-outside-toplevel
 
 		pprint.pprint(config.items())
 		self.pid = os.getpid()

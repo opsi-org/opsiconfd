@@ -109,32 +109,35 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		self.check_modules()
 		self.bind_socket()
 		self.adjust_worker_count()
-		# Wait for all worker processes to start
-		timeout = time.time() + 10
+		# Wait for all worker processes to start and see if they keep running
+		startup_end_time = time.time() + 15
 		while True:
+			worker_failed = False  # Set after a running worker was stopped again (failed)
 			all_running = True
 			with self.worker_update_lock:
 				for worker in self.get_workers():
 					if worker.process and worker.process.is_alive():
 						worker.worker_state = WorkerState.RUNNING
 					else:
+						if all_running:
+							worker_failed = True
 						all_running = False
+
+			if not worker_failed and time.time() < startup_end_time:
+				if self.should_stop.wait(1.0):
+					break
+				continue
+
 			if all_running:
+				logger.info("Startup completed, all workers running")
+				self.startup = False
 				break
 
-			if time.time() >= timeout:
-				failed_workers = [
-					w for w in self.get_workers() if w.worker_state != WorkerState.RUNNING or (w.process and not w.process.is_alive())
-				]
-				logger.critical("Failed to start workers: %r", failed_workers)
-				self.stop(force=True)
-
-			if time.time() >= timeout or self.should_stop.wait(1.0):
-				while self.workers:
-					time.sleep(0.1)
-				return
-
-		self.startup = False
+			failed_workers = [
+				w for w in self.get_workers() if w.worker_state != WorkerState.RUNNING or (w.process and not w.process.is_alive())
+			]
+			logger.critical("Failed to start workers: %r", failed_workers)
+			self.stop(force=True)
 
 		while not self.should_stop.is_set():
 			auto_restart = []

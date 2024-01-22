@@ -20,6 +20,7 @@ import random
 import statistics
 import sys
 import time
+import traceback
 from asyncio import get_event_loop
 from typing import AsyncGenerator
 from urllib.parse import urlparse
@@ -39,7 +40,7 @@ class FileDownloadClient:  # pylint: disable=too-many-instance-attributes
 		chunks = self.test_manager.args.file_size / self.chunk_size
 		self.wait_time = self.test_manager.args.min_download_time / chunks
 		self.range_header = ""
-		self._ranges = [0, self.test_manager.args.file_size - 1]
+		self._ranges = [[0, self.test_manager.args.file_size - 1]]
 		if self.test_manager.args.range_requests:
 			self._ranges = [
 				[0, int(chunks / 2) * self.chunk_size - 1],
@@ -68,6 +69,7 @@ class FileDownloadClient:  # pylint: disable=too-many-instance-attributes
 				raise RuntimeError(f"Received {self.bytes_received} bytes, expected {self.test_manager.args.file_size} bytes")
 		except Exception as err:  # pylint: disable=broad-except
 			print(f"Exception in {self.name}: {err}")
+			traceback.print_exc()
 			self.exception = err
 		finally:
 			self.should_exit.set()

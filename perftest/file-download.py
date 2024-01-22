@@ -143,7 +143,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		test_file = "/repository/file-download-test-file"
 		self.args.file_url = f"{self.args.base_url}{test_file}"
 		async with httpx.AsyncClient(verify=False, auth=(self.args.username, self.args.password)) as client:
-			res = await client.put(self.args.file_url, content=test_data(), timeout=20)
+			res = await client.put(self.args.file_url, content=test_data(), timeout=60)
 			res.raise_for_status()
 
 		try:

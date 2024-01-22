@@ -53,7 +53,6 @@ from rich.console import Console
 
 from opsiconfd.redis import (
 	async_redis_client,
-	get_async_redis_connection,
 	redis_client,
 	retry_redis_call,
 )

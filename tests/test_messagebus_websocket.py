@@ -35,7 +35,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 )
 from opsicommon.objects import UnicodeConfig
 
-from opsiconfd.redis import get_redis_connections, ip_address_to_redis_key
+from opsiconfd.redis import ip_address_to_redis_key
 from opsiconfd.session import OPSISession, session_manager
 from opsiconfd.utils import compress_data, decompress_data
 

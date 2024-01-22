@@ -11,6 +11,8 @@
 opsiconfd backend performance tests
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import sys
@@ -28,7 +30,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 
 
 class MessagebusClient:  # pylint: disable=too-many-instance-attributes
-	def __init__(self, test_manager: "TestManager", name: str, start_wait: int = 0) -> None:
+	def __init__(self, test_manager: TestManager, name: str, start_wait: int = 0) -> None:
 		self.test_manager = test_manager
 		self.name = name
 		self.start_wait = start_wait

@@ -68,7 +68,7 @@ def memory_cleanup() -> None:
 	ctypes.CDLL("libc.so.6").malloc_trim(0)
 
 
-def uvicorn_config() -> Config:
+def get_uvicorn_config() -> Config:
 	options = {
 		"loop": "uvloop",
 		"interface": "asgi3",
@@ -210,7 +210,7 @@ class Worker(WorkerInfo, UvicornServer):
 
 	def __init__(self, node_name: str, worker_num: int) -> None:
 		WorkerInfo.__init__(self, node_name, worker_num, time.time())
-		UvicornServer.__init__(self, uvicorn_config())
+		UvicornServer.__init__(self, get_uvicorn_config())
 		self._metrics_collector: WorkerMetricsCollector | None = None
 		self.process: SpawnProcess | None = None
 		self.app_state = app._app_state.type
@@ -442,7 +442,7 @@ class Worker(WorkerInfo, UvicornServer):
 	def handle_sighup(self) -> None:
 		logger.notice("%s reloading", self)
 		config.reload()
-		for key, value in uvicorn_config().__dict__.items():
+		for key, value in get_uvicorn_config().__dict__.items():
 			# Do not replace the whole config object, because uvicorn
 			# server adds additional keys like "encoded_headers" on start
 			if value is not None:

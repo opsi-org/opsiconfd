@@ -52,8 +52,9 @@ from redis import ConnectionError as RedisConnectionError
 from rich.console import Console
 
 from opsiconfd.redis import (
+	async_redis_client,
 	get_async_redis_connection,
-	get_redis_connection,
+	redis_client,
 	retry_redis_call,
 )
 from opsiconfd.utils import asyncio_create_task
@@ -208,7 +209,6 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._running_event = running_event
 		self._read_config()
 		self._loop = get_running_loop()
-		self._redis = None
 		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
 		self._file_logs: Dict[str, AsyncFileHandler] = {}
 		self._file_log_active_lifetime = 30
@@ -353,8 +353,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 
 	async def _start(self) -> None:
 		try:
-			self._redis = await get_async_redis_connection(config.redis_internal_url, timeout=30, test_connection=True)
-			await self._redis.xtrim(name=self._redis_log_stream, maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
+			redis = await async_redis_client(timeout=30, test_connection=True)
+			await redis.xtrim(name=self._redis_log_stream, maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
 			asyncio_create_task(self._reader(), self._loop)
 			asyncio_create_task(self._watch_log_files(), self._loop)
 
@@ -369,12 +369,11 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 
 		msgpack_decoder = msgspec.msgpack.Decoder()
 		last_id = "$"
+		redis = await async_redis_client()
 		while True:  # pylint: disable=too-many-nested-blocks
 			try:
-				if not self._redis:
-					self._redis = await get_async_redis_connection(config.redis_internal_url)
 				# It is also possible to specify multiple streams
-				data = await self._redis.xread(streams={self._redis_log_stream: last_id}, block=1000)
+				data = await redis.xread(streams={self._redis_log_stream: last_id}, block=1000)
 				if self._should_stop.is_set():
 					break
 				if not data:
@@ -399,8 +398,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				raise
 			except EOFError:
 				break
-			except (RedisConnectionError, RedisBusyLoadingError):
-				self._redis = None
+			except (RedisConnectionError, RedisBusyLoadingError) as err:
+				logger.warning(err)
 			except Exception as err:  # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)
 
@@ -419,7 +418,6 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 		self._name = "RedisLogHandlerThread"
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
-		self._redis = get_redis_connection(config.redis_internal_url)
 		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
 		self._queue: Queue = Queue()
 		self._should_stop = threading.Event()
@@ -434,7 +432,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 	def run(self) -> None:
 		try:
 			# Trim redis log stream to max size
-			self._redis.xtrim(f"{self._redis_log_stream}", maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
+			redis_client().xtrim(f"{self._redis_log_stream}", maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
 			self._process_queue()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
@@ -444,7 +442,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 		while True:
 			self._should_stop.wait(self._max_delay)
 			if self._queue.qsize() > 0:
-				pipeline = self._redis.pipeline()
+				pipeline = redis_client().pipeline()
 				try:
 					while True:
 						pipeline.xadd(

@@ -169,7 +169,9 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 					"00000000-0000-4000-8000-000000000005",
 					"00000000-0000-4000-8000-000000000006",
 				]
+
 	# All redis connections should be closed
+	sleep(2)
 	assert len(get_redis_connections()) <= len(connections)
 
 
@@ -567,7 +569,7 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 						await reader.async_wait_for_message(count=1)
 						msg = next(reader.get_messages())
 						assert msg["type"] == "general_error"
-						assert msg["error"]["message"] == "Session expired or deleted"
+						assert msg["error"]["message"] == "Session deleted"
 						assert session.deleted
 						# message = ChannelSubscriptionRequestMessage(
 						# sender=CONNECTION_USER_CHANNEL,

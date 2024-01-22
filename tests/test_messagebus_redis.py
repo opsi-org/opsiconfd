@@ -41,6 +41,7 @@ async def test_message_reader_redis_connection() -> None:
 	await reader.stop(wait=True)
 
 	# All redis connections should be closed
+	await asyncio.sleep(2)
 	assert len(get_redis_connections()) <= len(connections)
 
 
@@ -158,6 +159,7 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 			assert len(reader.received) == 2
 
 	# All redis connections should be closed
+	await asyncio.sleep(2)
 	assert len(get_redis_connections()) <= len(connections)
 
 

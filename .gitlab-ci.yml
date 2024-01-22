@@ -44,7 +44,7 @@ stages:
   echo "redis-internal-url = redis://redis" >> tests/data/default-opsiconfd.conf
   echo "log-level-stderr = 0" >> tests/data/default-opsiconfd.conf
   echo "log-level-file = 6" >> tests/data/default-opsiconfd.conf
-  echo "log-file = /var/tmp/opsiconfd.log" >> tests/data/default-opsiconfd.conf
+  echo "log-file = /var/log/opsiconfd-test.log" >> tests/data/default-opsiconfd.conf
   cat tests/data/default-opsiconfd.conf
 
   sed -i s'/.*address.*/    "address": "mysql",/' tests/data/opsi-config/backends/mysql.conf
@@ -75,11 +75,13 @@ stages:
 
 
 .perftest: &perftest |
-  [ -e /var/tmp/opsiconfd-perftest.log ] && rm /var/tmp/opsiconfd-perftest.log
+  [ -e /var/log/opsiconfd-perftest.log ] && rm /var/log/opsiconfd-perftest.log
+  touch /var/log/opsiconfd-perftest.log
+  chmod 666 /var/log/opsiconfd-perftest.log
   poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l6 setup
-  poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=/var/tmp/opsiconfd-perftest.log --max-session-per-ip=20000 &
+  poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=/var/log/opsiconfd-perftest.log --max-session-per-ip=20000 &
   sleep 10
-  cat /var/tmp/opsiconfd-perftest.log
+  cat /var/log/opsiconfd-perftest.log
 
   date
   echo "---------------------------------------"
@@ -97,7 +99,7 @@ stages:
   echo "---------------------------------------"
   poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 > /tmp/perftest-result || (
     echo "opsiconfd-backend-perftest.py failed"
-    cat /var/tmp/opsiconfd-perftest.log
+    cat /var/log/opsiconfd-perftest.log
     exit 1
   )
   cat /tmp/perftest-result
@@ -109,12 +111,12 @@ stages:
   echo "---------------------------------------"
   poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
     echo "file-download.py failed"
-    cat /var/tmp/opsiconfd-perftest.log
+    cat /var/log/opsiconfd-perftest.log
     exit 1
   )
   poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
     echo "file-download.py failed (range-requests)"
-    cat /var/tmp/opsiconfd-perftest.log
+    cat /var/log/opsiconfd-perftest.log
     exit 1
   )
 
@@ -123,12 +125,14 @@ stages:
   echo "---------------------------------------"
   poetry run ./perftest/messagebus-clients.py --clients 500 --event-interval 30 --start-gap 20 || (
     echo "messagebus-clients.py failed"
-    cat /var/tmp/opsiconfd-perftest.log
+    cat /var/log/opsiconfd-perftest.log
     exit 1
   )
 
 .pytest: &pytest |
-  [ -e /var/tmp/opsiconfd.log ] && rm /var/tmp/opsiconfd.log
+  [ -e /var/log/opsiconfd-test.log ] && rm /var/log/opsiconfd-test.log
+  touch /var/log/opsiconfd-test.log
+  chmod 666 /var/log/opsiconfd-test.log
   echo "---------------------------------------"
   echo "Run tests"
   echo "---------------------------------------"

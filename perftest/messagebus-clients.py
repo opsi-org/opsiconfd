@@ -13,7 +13,9 @@ opsiconfd backend performance tests
 
 import argparse
 import asyncio
-from asyncio import create_task, get_event_loop, sleep
+import sys
+import time
+from asyncio import create_task, get_event_loop
 from urllib.parse import urlparse
 
 import aiohttp
@@ -33,23 +35,43 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 		self.loop: asyncio.AbstractEventLoop | None = None
 		self.session: aiohttp.ClientSession | None = None
 		self.websocket: aiohttp.ClientWebSocketResponse | None = None
-		self.should_exit = False
+		self.should_exit = asyncio.Event()
 		self.messages_in = 0
 		self.messages_out = 0
+		self.exception: Exception | None = None
 
 	async def websocket_reader(self) -> None:
-		if not self.websocket:
-			raise RuntimeError("Websocket not connected")
-		while not self.should_exit:
-			msg = await self.websocket.receive()
-			if msg.type == aiohttp.WSMsgType.CLOSE:
-				print("Websocket closed")
-				self.should_exit = True
-				break
-			data = lz4.frame.decompress(msg.data)
-			Message.from_msgpack(data)
-			self.messages_in += 1
-			print(".", end="")
+		try:
+			if not self.websocket:
+				raise RuntimeError("Websocket not connected")
+			while not self.should_exit.is_set():
+				msg = await self.websocket.receive()
+				if msg.type == aiohttp.WSMsgType.BINARY:
+					data = lz4.frame.decompress(msg.data)
+					Message.from_msgpack(data)
+					self.messages_in += 1
+					print(".", end="")
+				else:
+					if self.should_exit.is_set():
+						return
+					raise RuntimeError(f"Unexpected message type: {msg.type}")
+		except Exception as err:  # pylint: disable=broad-except
+			print(f"Exception in {self.name}: {err}")
+			self.exception = err
+			self.should_exit.set()
+
+	async def event_sender(self) -> None:
+		try:
+			while not self.should_exit.is_set():
+				for _ in range(self.test_manager.args.event_interval):
+					await asyncio.sleep(1)
+					if self.should_exit.is_set():
+						return
+				await self.send_message(EventMessage(sender="@", event="test", channel="event:test", data={"test": "testdata"}))
+		except Exception as err:  # pylint: disable=broad-except
+			print(f"Exception in {self.name}: {err}")
+			self.exception = err
+			self.should_exit.set()
 
 	async def send_message(self, message: Message) -> None:
 		if not self.websocket:
@@ -73,16 +95,28 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 			self.test_manager.add_client_connected()
 			create_task(self.websocket_reader())
 			await self.send_message(ChannelSubscriptionRequestMessage(sender="@", channel="service:messagebus", channels=["event:test"]))
-			await sleep(5)
-			for _ in range(self.test_manager.args.events):
-				await self.send_message(EventMessage(sender="@", event="test", channel="event:test", data={"test": "testdata"}))
-				await sleep(1)
-			self.test_manager.add_client_completed()
-			if not self.should_exit and self.test_manager.args.keep_connection:
-				await self.test_manager.all_completed.wait()
-				await sleep(self.test_manager.args.keep_connection)
+
+			if self.test_manager.args.event_interval > 0:
+				create_task(self.event_sender())
+
+			while not self.test_manager.all_connected.is_set():
+				if self.should_exit.is_set():
+					return
+				await asyncio.sleep(1)
+
+			if not self.test_manager.args.hold_connection:
+				return
+
+			end_time = time.time() + self.test_manager.args.hold_connection
+			while time.time() < end_time:
+				if self.should_exit.is_set():
+					return
+				await asyncio.sleep(1)
+		except Exception as err:  # pylint: disable=broad-except
+			print(f"Exception in {self.name}: {err}")
+			self.exception = err
 		finally:
-			self.should_exit = True
+			self.should_exit.set()
 			if self.websocket:
 				await self.websocket.close()
 			if self.session:
@@ -97,11 +131,13 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		arg_parser.add_argument("--username", action="store", type=str, help="Auth username", default="adminuser")
 		arg_parser.add_argument("--password", action="store", type=str, help="Auth password", default="adminuser")
 		arg_parser.add_argument("--clients", action="store", type=int, help="Number of clients", default=1)
-		arg_parser.add_argument("--events", action="store", type=int, help="Number of event messages to send per client", default=10)
 		arg_parser.add_argument(
-			"--keep-connection",
+			"--event-interval", action="store", type=int, help="Have the clients send events at this interval (in seconds)", default=30
+		)
+		arg_parser.add_argument(
+			"--hold-connection",
 			type=int,
-			help="Keep client connection until all clients have sent all events (in seconds, 0=do not wait for other clients)",
+			help="Hold client connection for this long after all clients are connected (in seconds)",
 			default=0,
 		)
 		arg_parser.add_argument("--start-gap", action="store", type=int, help="Gap in milliseconds between client startup", default=0)
@@ -112,24 +148,21 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		self.args.messagebus_url = f"{base_url}/messagebus/v1"
 		self.clients_connected = 0
 		self.clients_completed = 0
-		self.all_completed = asyncio.Event()
-
-	def add_client_completed(self) -> None:
-		self.clients_completed += 1
-		if self.args.verbose:
-			print(f"!{self.clients_completed}")
-		if self.clients_completed == self.args.clients:
-			self.all_completed.set()
+		self.all_connected = asyncio.Event()
 
 	def add_client_connected(self) -> None:
 		self.clients_connected += 1
+		print("+", end="")
 		if self.args.verbose:
-			print(f"+{self.clients_connected}")
+			print(self.clients_connected)
+		if self.clients_connected == self.args.clients:
+			self.all_connected.set()
 
 	def remove_client_connected(self) -> None:
 		self.clients_connected -= 1
+		print("-", end="")
 		if self.args.verbose:
-			print(f"-{self.clients_connected}")
+			print(self.clients_connected)
 
 	async def main(self) -> None:
 		test_clients = [
@@ -139,7 +172,10 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		out = sum([client.messages_out for client in test_clients])  # pylint: disable=consider-using-generator
 		_in = sum([client.messages_in for client in test_clients])  # pylint: disable=consider-using-generator
 		print(f"\nMessages out={out}, in={_in}")
-		assert out == (self.args.events + 1) * self.args.clients
+		exceptions = [client.exception for client in test_clients if client.exception]
+		if exceptions:
+			print(f"{len(exceptions)} exceptions occurred")
+			sys.exit(1)
 
 
 if __name__ == "__main__":

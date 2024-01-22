@@ -106,7 +106,7 @@ stages:
   echo "---------------------------------------"
   echo "Run messagebus websocket load test"
   echo "---------------------------------------"
-  poetry run ./perftest/messagebus-clients.py --clients 500 --events 0 --start-gap 20 --keep-connection 1 || (
+  poetry run ./perftest/messagebus-clients.py --clients 500 --event-interval 30 --start-gap 20  || (
     echo "messagebus-clients.py failed"
     exit 1
   )

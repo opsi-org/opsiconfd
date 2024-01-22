@@ -245,6 +245,7 @@ class Worker(WorkerInfo, UvicornServer):
 		try:
 			self._run(sockets)
 		except Exception as err:  # pylint: disable=broad-except
+			print(f"{self} terminated with error: {err}")
 			logger.error("%s terminated with error: %s", self, err, exc_info=True)
 		shutdown_logging()
 

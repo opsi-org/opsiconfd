@@ -118,7 +118,10 @@ def test_worker_manager_and_workers() -> None:
 			time.sleep(1)
 		raise RuntimeError("Timed out while waiting for workers")
 
-	with get_config({"port": 4444, "workers": 2, "log_mode": "local", "log_level_stderr": 7}):
+	with get_config({"port": 4444, "workers": 2, "log_mode": "local", "log_level_stderr": 7}) as conf:
+		import pprint
+
+		pprint.pprint(conf.items())
 		worker_manager = WorkerManager()
 		worker_manager.worker_restart_gap = 0.0
 		worker_manager.worker_check_interval = 2.0

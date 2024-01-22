@@ -36,6 +36,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.logging import logger
 
+# Not using WSGIMiddleware because of high memory usage on file transfers.
 # from a2wsgi import WSGIMiddleware
 from opsiconfd.wsgi import WSGIMiddleware
 

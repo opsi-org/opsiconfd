@@ -106,8 +106,20 @@ stages:
   echo "---------------------------------------"
   echo "Run messagebus websocket load test"
   echo "---------------------------------------"
-  poetry run ./perftest/messagebus-clients.py --clients 500 --event-interval 30 --start-gap 20  || (
+  poetry run ./perftest/messagebus-clients.py --clients 500 --event-interval 30 --start-gap 20 || (
     echo "messagebus-clients.py failed"
+    exit 1
+  )
+
+  echo "---------------------------------------"
+  echo "Run file-download memory test"
+  echo "---------------------------------------"
+  poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 10 || (
+    echo "file-download.py failed"
+    exit 1
+  )
+  poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 10 --range-requests || (
+    echo "file-download.py failed (range-requests)"
     exit 1
   )
 

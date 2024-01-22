@@ -88,7 +88,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 
 def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	connections = get_redis_connections()
+	# connections = get_redis_connections()
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket, decode=False) as reader:

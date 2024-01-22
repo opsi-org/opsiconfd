@@ -122,12 +122,16 @@ def test_worker_manager_and_workers() -> None:
 		worker_manager = WorkerManager()
 		worker_manager.worker_restart_gap = 0.0
 		worker_manager.worker_check_interval = 2.0
+		worker_manager.startup_time = 10.0
 		worker_manager_thread = threading.Thread(target=worker_manager.run, daemon=True)
 		worker_manager_thread.start()
 		try:
 			wait_for_workers_running(worker_manager, count=2)
 
-			# Asser startup phase set to completed
+			# Assert startup phase not yet set to completed
+			assert worker_manager.startup
+			time.sleep(worker_manager.startup_time)
+			# Assert startup phase not yet set to completed
 			assert not worker_manager.startup
 
 			assert worker_manager.workers[f"{worker_manager.node_name}:1"].worker_num == 1

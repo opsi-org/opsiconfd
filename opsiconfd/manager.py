@@ -57,6 +57,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		self.worker_restart_mem_interval = 3600
 		self.worker_check_interval = 10.0
 		self.worker_restart_gap = 5.0
+		self.startup_time = 15.0
 		self.restart_vanished_workers = True
 		self.worker_update_lock = Lock()
 		self.should_restart_workers = False
@@ -110,7 +111,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		self.bind_socket()
 		self.adjust_worker_count()
 		# Wait for all worker processes to start and see if they keep running
-		startup_end_time = time.time() + 15
+		startup_end_time = time.time() + self.startup_time
 		while True:
 			worker_failed = False  # Set after a running worker was stopped again (failed)
 			all_running = True

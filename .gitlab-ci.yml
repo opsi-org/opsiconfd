@@ -4,7 +4,8 @@ variables:
   CI_DEBUG_SERVICES: "false"
 
 stages:
-  - test
+  - unittest
+  - perftest
   - build
   - publish
 
@@ -108,10 +109,12 @@ stages:
   echo "---------------------------------------"
   poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
     echo "file-download.py failed"
+    cat /tmp/opsiconfd-perftest.log
     exit 1
   )
   poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
     echo "file-download.py failed (range-requests)"
+    cat /tmp/opsiconfd-perftest.log
     exit 1
   )
 
@@ -120,6 +123,7 @@ stages:
   echo "---------------------------------------"
   poetry run ./perftest/messagebus-clients.py --clients 500 --event-interval 30 --start-gap 20 || (
     echo "messagebus-clients.py failed"
+    cat /tmp/opsiconfd-perftest.log
     exit 1
   )
 
@@ -140,7 +144,7 @@ stages:
   poetry run mypy opsiconfd tests
 
 test:perftest:
-  stage: test
+  stage: perftest
   tags:
     - linux-docker-x64-hetzner
   services:
@@ -161,7 +165,7 @@ test:perftest:
     - *perftest
 
 test:pylint-pytest:
-  stage: test
+  stage: unittest
   tags:
     - linux-docker-x64-hetzner
   services:

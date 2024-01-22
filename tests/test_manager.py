@@ -134,6 +134,7 @@ def test_worker_manager_and_workers() -> None:
 			# Assert startup phase not yet set to completed
 			assert not worker_manager.startup
 
+			assert len(worker_manager.workers) == 2
 			assert worker_manager.workers[f"{worker_manager.node_name}:1"].worker_num == 1
 			assert worker_manager.workers[f"{worker_manager.node_name}:2"].worker_num == 2
 			pid1 = worker_manager.workers[f"{worker_manager.node_name}:1"].pid

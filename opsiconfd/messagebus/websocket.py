@@ -138,14 +138,14 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			while websocket.client_state == WebSocketState.CONNECTED and websocket.application_state == WebSocketState.CONNECTED:
 				now = time()
 				if now >= update_session_time + self._update_session_interval:
-					if session.deleted or session.expired:
-						logger.info("Session %r expired or deleted, closing websocket", session.session_id)
+					if session.deleted:
+						logger.info("Session %r deleted, closing websocket", session.session_id)
 						await self._send_message_to_websocket(
 							websocket,
 							GeneralErrorMessage(
 								sender=self._messagebus_worker_id,
 								channel=self._session_channel,
-								error=Error(code=None, message="Session expired or deleted"),
+								error=Error(code=None, message="Session deleted"),
 							),
 						)
 						await websocket.close(code=WS_1000_NORMAL_CLOSURE)

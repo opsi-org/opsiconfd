@@ -145,7 +145,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 	maintenance_address_exceptions: list[str] | None = None,
 	progress: Progress | None = None,
 ) -> dict[str, dict[str, Any]]:
-	with redis_lock("backup-restore", acquire_timeout=2.0, lock_timeout=12 * 3600):
+	with redis_lock("backup-restore", acquire_timeout=10.0, lock_timeout=12 * 3600):
 		if opsi_config.get("host", "server-role") != "configserver":
 			raise RuntimeError("Not a config server")
 
@@ -325,7 +325,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 	maintenance_address_exceptions: list[str] | None = None,
 	progress: Progress | None = None,
 ) -> None:
-	with redis_lock("backup-restore", acquire_timeout=2.0, lock_timeout=12 * 3600):
+	with redis_lock("backup-restore", acquire_timeout=10.0, lock_timeout=12 * 3600):
 		data = {}
 		if isinstance(data_or_file, Path):
 			backup_file = data_or_file

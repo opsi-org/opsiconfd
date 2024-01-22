@@ -174,7 +174,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			self._config_server_init()
 		else:
 			self._depot_server_init()
-		self.available_modules = self.get_licensing_info()["available_modules"]  # type: ignore[misc]
+		self.available_modules = self.backend_getLicensingInfo()["available_modules"]  # type: ignore[misc]
 
 		for base in Backend.__bases__:
 			logger.debug("Init %s", base)

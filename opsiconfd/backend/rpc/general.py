@@ -32,6 +32,7 @@ from opsicommon.license import (
 	OPSI_LICENSE_STATE_VALID,
 	OPSI_MODULE_IDS,
 	OPSI_OBSOLETE_MODULE_IDS,
+	OpsiLicensePool,
 	OpsiModulesFile,
 	get_default_opsi_license_pool,
 )
@@ -322,16 +323,17 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@lru_cache(maxsize=10)
 	def _get_licensing_info(
-		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, ttl_hash: int = 0
+		self: BackendProtocol,
+		pool: OpsiLicensePool,
+		licenses: bool = False,
+		legacy_modules: bool = False,
+		dates: bool = False,
+		ttl_hash: int = 0,
 	) -> dict[str, Any]:
 		"""
 		Returns opsi licensing information.
 		"""
 		del ttl_hash  # ttl_hash is only used to invalidate the cache after a ttl
-		pool = get_default_opsi_license_pool(
-			license_file_path=self.opsi_license_path, modules_file_path=self.opsi_modules_file, client_info=self._get_client_info
-		)
-
 		for config_id in ("client_limit_warning_percent", "client_limit_warning_absolute"):
 			try:
 				setattr(pool, config_id, int(self.config_getObjects(id=f"licensing.{config_id}")[0].getDefaultValues()[0]))
@@ -377,7 +379,8 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 				info["dates"][str(at_date)] = {"modules": pool.get_modules(at_date=at_date)}
 		return info
 
-	def get_licensing_info(  # pylint: disable=invalid-name
+	@rpc_method
+	def backend_getLicensingInfo(  # pylint: disable=invalid-name
 		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
 	) -> dict[str, Any]:
 		pool = get_default_opsi_license_pool(
@@ -392,13 +395,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			"""Return the same value withing `seconds` time period"""
 			return round(time.time() / seconds)
 
-		return self._get_licensing_info(licenses=licenses, legacy_modules=legacy_modules, dates=dates, ttl_hash=get_ttl_hash())
-
-	@rpc_method
-	def backend_getLicensingInfo(  # pylint: disable=invalid-name
-		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
-	) -> dict[str, Any]:
-		return self.get_licensing_info(licenses=licenses, legacy_modules=legacy_modules, dates=dates, allow_cache=allow_cache)
+		return self._get_licensing_info(pool=pool, licenses=licenses, legacy_modules=legacy_modules, dates=dates, ttl_hash=get_ttl_hash())
 
 	@rpc_method
 	def backend_info(self: BackendProtocol) -> dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements

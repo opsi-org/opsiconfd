@@ -161,7 +161,7 @@ def pytest_runtest_setup(item: Item) -> None:
 
 
 @hookimpl(hookwrapper=True)
-def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, None, None]:
+def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Result, None]:
 	start_threads = set(threading.enumerate())
 
 	global running_item  # pylint: disable=global-statement

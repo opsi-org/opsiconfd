@@ -133,9 +133,9 @@ def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dic
 				assert kwargs[key] == val
 
 
-def test_create_backup(
+def test_create_backup(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
-	app_state_reader: AppStateReaderThread,  # pylint: disable=redefined-outer-name,unused-argument
+	app_state_reader: AppStateReaderThread,
 ) -> None:
 	initalized_event = Event()
 	thread = Thread(

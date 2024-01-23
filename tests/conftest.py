@@ -146,7 +146,7 @@ def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: 
 	running_threads = [t for t in threading.enumerate() if t.name != "MainThread"]
 	if running_threads:
 		text = "\n".join([str(t) for t in running_threads if t.is_alive()])
-		print(f"\ERROR\nRunning threads on sessionfinish:\n{text}")
+		print(f"ERROR\nRunning threads on sessionfinish:\n{text}")
 		if exitstatus == 0:
 			sys.exit(1)
 

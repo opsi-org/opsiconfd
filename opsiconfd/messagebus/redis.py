@@ -23,7 +23,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TraceResponseMessage,
 	timestamp,
 )
-from redis.asyncio import StrictRedis
 from redis.exceptions import ResponseError
 from redis.typing import StreamIdT
 
@@ -36,8 +35,9 @@ from opsiconfd.redis import async_delete_recursively, async_redis_client, redis_
 from . import get_user_id_for_host
 
 if TYPE_CHECKING:
-	from opsiconfd.session import OPSISession
+	from redis.asyncio import StrictRedis
 
+	from opsiconfd.session import OPSISession
 
 logger = get_logger("opsiconfd.messagebus")
 

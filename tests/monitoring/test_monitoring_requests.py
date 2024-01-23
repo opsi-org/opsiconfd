@@ -15,11 +15,11 @@ import time
 from typing import Any
 
 import pytest
-from redis import asyncio as async_redis
 
 from opsiconfd.application.monitoring.utils import get_workers
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.metrics.statistics import setup_metric_downsampling
+from opsiconfd.redis import async_redis_client
 from tests.monitoring.test_monitoring import (  # pylint: disable=unused-import
 	MONITORING_CHECK_DAYS,
 	create_check_data,
@@ -605,13 +605,13 @@ async def test_check_opsi_webservice_cpu(  # pylint: disable=too-many-arguments,
 		}
 	)
 
-	redis_client = async_redis.StrictRedis.from_url(config.redis_internal_url)
-	workers = await get_workers(redis_client)
+	redis = await async_redis_client()
+	workers = await get_workers(redis)
 	timestamp = int(time.time() - 100)
 	for _ in range(200):
 		timestamp += 1
 		for worker in workers:
-			await redis_client.execute_command(  # type: ignore[no-untyped-call]
+			await redis.execute_command(  # type: ignore[no-untyped-call]
 				f"TS.ADD {config.redis_key('stats')}:worker:avg_cpu_percent:{worker} {timestamp*1000} {cpu_value} ON_DUPLICATE LAST"
 			)
 

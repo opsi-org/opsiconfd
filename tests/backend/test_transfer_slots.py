@@ -372,16 +372,10 @@ def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> N
 		}
 		result = test_client.post("/rpc", json=rpc)
 		print(result)
-<<<<<<< HEAD
 	redis = redis_client()
 	assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
 	for slot_type in TransferSlotType:
 		assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1
-=======
-	with sync_redis_client() as redis_client:
-		assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
-		for slot_type in TransferSlotType:
-			assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1
 
 
 def test_acquire_transfer_slot_max_per_type(  # pylint: disable=redefined-outer-name
@@ -415,4 +409,3 @@ def test_acquire_transfer_slot_max_per_type(  # pylint: disable=redefined-outer-
 					assert result["result"].get("depot_id") is None
 					assert result["result"].get("host_id") is None
 					assert result["result"].get("retry_after") is not None
->>>>>>> a0c51837246631b4f78bac7091bc2e9c78428d97

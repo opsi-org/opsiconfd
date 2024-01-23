@@ -104,10 +104,12 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 				assert user_channel == f"user:{ADMIN_USER}"
 				assert session_channel
 
+				sleep(1)
 				message = Message(
 					type="test", sender=CONNECTION_USER_CHANNEL, channel=session_channel, id="00000000-0000-4000-8000-000000000001"
 				)
 				websocket.send_bytes(message.to_msgpack())
+				sleep(1)
 				message = Message(
 					type="test", sender=CONNECTION_USER_CHANNEL, channel=user_channel, id="00000000-0000-4000-8000-000000000002"
 				)

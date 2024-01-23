@@ -19,7 +19,7 @@ import warnings
 from pathlib import Path
 from tempfile import mkdtemp
 from types import FrameType
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Generator
 from unittest.mock import patch
 
 import urllib3
@@ -161,7 +161,7 @@ def pytest_runtest_setup(item: Item) -> None:
 
 
 @hookimpl(hookwrapper=True)
-def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> None:
+def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, None, None]:
 	start_threads = set(threading.enumerate())
 
 	global running_item  # pylint: disable=global-statement

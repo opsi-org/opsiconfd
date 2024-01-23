@@ -396,6 +396,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 			await self._stopped.wait()
 
 	async def manager_task(self) -> None:
+		# A session can be managed in multiple worker processes / managers!
 		while True:  # pylint: disable=too-many-nested-blocks
 			try:
 				for waits in range(self._session_check_interval):
@@ -408,8 +409,11 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 				delete_session_ids = []
 				for session in list(self.sessions.values()):
 					if session.expired:
-						logger.debug("Delete expired session: %s", session.session_id)
-						await session.delete()
+						version = session.get_version_from_redis()
+						if version == session.version:
+							# Not updated by other managers
+							logger.debug("Delete expired session: %s", session.session_id)
+							await session.delete()
 						delete_session_ids.append(session.session_id)
 					elif session.deleted:
 						logger.debug("Removing deleted session: %s", session.session_id)
@@ -882,16 +886,25 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		# aioredis is sometimes slow ~300ms load, using redis for now
 		return await run_in_threadpool(self._is_stored)
 
-	def _refresh(self) -> bool:
+	def _get_version_from_redis(self) -> str | None:
 		version = redis_client().hget(self.redis_key, b"version")
+		if not version:
+			return None
+		return version.decode("utf-8")
+
+	async def get_version_from_redis(self) -> str | None:
+		# aioredis is sometimes slow ~300ms load, using redis for now
+		return await run_in_threadpool(self._get_version_from_redis)
+
+	def _refresh(self) -> bool:
+		version = self._get_version_from_redis()
 		if not version:
 			# Deleted
 			return False
-		version_str = version.decode("utf-8")
-		if version_str == self.version:
+		if version == self.version:
 			logger.debug("Version %s unchanged, cache up-to-date", self.version)
 			return True
-		logger.debug("Version %s changed to %s, reload", self.version, version_str)
+		logger.debug("Version %s changed to %s, reload", self.version, version)
 		return self._load()
 
 	async def refresh(self) -> bool:

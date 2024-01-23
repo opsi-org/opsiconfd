@@ -15,7 +15,7 @@ import pytest
 from opsicommon.exceptions import BackendPermissionDeniedError
 
 from opsiconfd.backend.rpc.depot import (
-	TRANSFER_SLOT_CONFIG,
+	TRANSFER_SLOT_CONFIGS,
 	TRANSFER_SLOT_RETENTION_TIME,
 	TransferSlot,
 	TransferSlotType,
@@ -42,14 +42,14 @@ TEST_SLOT_ID = "17676023-8426-4094-8ac7-ef4c22ac9803"
 def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # pylint: disable=redefined-outer-name
 	sync_clean_redis()
 
-	backend.configState_delete(configId=TRANSFER_SLOT_CONFIG, objectId="*")
-	backend.config_delete(id=TRANSFER_SLOT_CONFIG)
+	backend.configState_delete(configId=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], objectId="*")
+	backend.config_delete(id=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC])
 
 	yield
 
 	sync_clean_redis()
-	backend.configState_delete(configId=TRANSFER_SLOT_CONFIG, objectId="*")
-	backend.config_delete(id=TRANSFER_SLOT_CONFIG)
+	backend.configState_delete(configId=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], objectId="*")
+	backend.config_delete(id=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC])
 
 
 def _get_slots(test_client: OpsiconfdTestClient, number: int) -> list[dict]:  # pylint: disable=redefined-outer-name
@@ -154,8 +154,8 @@ def test_acquire_transfer_slot_max_config(  # pylint: disable=redefined-outer-na
 
 	clients, depot = _create_clients_and_depot(test_client)
 
-	backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[5])
-	backend.configState_create(configId=TRANSFER_SLOT_CONFIG, objectId=depot["id"], values=[5])
+	backend.config_create(id=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], defaultValues=[5])
+	backend.configState_create(configId=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], objectId=depot["id"], values=[5])
 
 	for i in range(5):
 		print(i)
@@ -199,8 +199,9 @@ def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-ou
 
 		clients, depot = _create_clients_and_depot(test_client)
 
-		backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[4])
-		backend.configState_create(configId=TRANSFER_SLOT_CONFIG, objectId=depot["id"], values=["invalid max"])
+		config_name = TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC]
+		backend.config_create(id=config_name, defaultValues=[4])
+		backend.configState_create(configId=config_name, objectId=depot["id"], values=["invalid max"])
 
 		# should use default max
 		for i in range(TRANSFER_SLOT_MAX):
@@ -320,7 +321,7 @@ def test_release_transfer_slot_with_slot_id(  # pylint: disable=redefined-outer-
 def test_return_list_with_valid_input(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient, backend: UnprotectedBackend
 ) -> None:
-	backend.config_create(id=TRANSFER_SLOT_CONFIG, defaultValues=[40])
+	backend.config_create(id=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], defaultValues=[40])
 
 	excepted_slots = _get_slots(test_client, 40)
 
@@ -371,7 +372,47 @@ def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> N
 		}
 		result = test_client.post("/rpc", json=rpc)
 		print(result)
+<<<<<<< HEAD
 	redis = redis_client()
 	assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
 	for slot_type in TransferSlotType:
 		assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1
+=======
+	with sync_redis_client() as redis_client:
+		assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
+		for slot_type in TransferSlotType:
+			assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1
+
+
+def test_acquire_transfer_slot_max_per_type(  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient, backend: UnprotectedBackend
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 3):
+		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX  # pylint: disable=import-outside-toplevel
+
+		clients, depot = _create_clients_and_depot(test_client)
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+		for slot_type in TransferSlotType:
+			backend.config_create(id=TRANSFER_SLOT_CONFIGS[slot_type], defaultValues=[1])
+			for i in range(TRANSFER_SLOT_MAX):
+				rpc = {
+					"id": 1,
+					"method": "depot_acquireTransferSlot",
+					"params": [depot["id"], clients[1]["id"], None, slot_type],
+				}
+				res = test_client.post("/rpc", json=rpc)
+				result = res.json()
+				print(result)
+				if i == 0:
+					assert result["result"].get("slot_id") is not None
+					assert result["result"].get("depot_id") == depot["id"]
+					assert result["result"].get("host_id") == clients[1]["id"]
+					assert result["result"].get("retry_after") is None
+				else:
+					assert result["result"].get("slot_id") is None
+					assert result["result"].get("depot_id") is None
+					assert result["result"].get("host_id") is None
+					assert result["result"].get("retry_after") is not None
+>>>>>>> a0c51837246631b4f78bac7091bc2e9c78428d97

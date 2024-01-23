@@ -3034,7 +3034,6 @@ files = [
     {file = "PyYAML-6.0.1-cp311-cp311-win_amd64.whl", hash = "sha256:bf07ee2fef7014951eeb99f56f39c9bb4af143d8aa3c21b1677805985307da34"},
     {file = "PyYAML-6.0.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:855fb52b0dc35af121542a76b9a84f8d1cd886ea97c84703eaa6d88e37a2ad28"},
     {file = "PyYAML-6.0.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:40df9b996c2b73138957fe23a16a4f0ba614f4c0efce1e9406a184b6d07fa3a9"},
-    {file = "PyYAML-6.0.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a08c6f0fe150303c1c6b71ebcd7213c2858041a7e01975da3a99aed1e7a378ef"},
     {file = "PyYAML-6.0.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6c22bec3fbe2524cde73d7ada88f6566758a8f7227bfbf93a408a9d86bcc12a0"},
     {file = "PyYAML-6.0.1-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:8d4e9c88387b0f5c7d5f281e55304de64cf7f9c0021a3525bd3b1c542da3b0e4"},
     {file = "PyYAML-6.0.1-cp312-cp312-win32.whl", hash = "sha256:d483d2cdf104e7c9fa60c544d92981f12ad66a457afae824d146093b8c294c54"},
@@ -3081,15 +3080,13 @@ description = ""
 optional = false
 python-versions = "*"
 files = [
-    {file = "pyzsync-1.2.0-cp310-cp310-manylinux_2_24_x86_64.whl", hash = "sha256:445ad26b0669884e80139cbbad62ce8679a28578e3f620cfa7df5df1fc95fccc"},
+    {file = "pyzsync-1.2.0-cp310-cp310-manylinux_2_24_x86_64.whl", hash = "sha256:ec53efba37b85395e928dbd9d00203f390c3c11324753e4a1882b5bb0008a54f"},
     {file = "pyzsync-1.2.0-cp310-none-win32.whl", hash = "sha256:6cc541a5960185fc24ccd1d40a24ddcffb7bb8fd6f2fefbd6b3eb377be0c3b09"},
-    {file = "pyzsync-1.2.0-cp311-cp311-macosx_10_7_x86_64.whl", hash = "sha256:6f83a7a3046c12d5d633d484b843bf202cf3c4dfeee68f14bfeed4a75096cbcd"},
-    {file = "pyzsync-1.2.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a06d7a6dfaa93a92d22a4ee77af0417724daa1b4ed7ee7bc1c799c68ae512b96"},
-    {file = "pyzsync-1.2.0-cp311-cp311-manylinux_2_24_x86_64.whl", hash = "sha256:c36226798a9349d9d973fc2056061ac0122ee8c4039463739a2d35135809b947"},
-    {file = "pyzsync-1.2.0-cp311-none-win32.whl", hash = "sha256:f4e61e69ab86aada0039d4226c3ab30d4d79a7d35bc3e5ed297f43d6d0dc3e8b"},
-    {file = "pyzsync-1.2.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ab6244add5ed54d98a5ec86fc7a1dcb3a8f47404c6d3af6f5a537175702623ab"},
-    {file = "pyzsync-1.2.0-cp312-cp312-manylinux_2_24_x86_64.whl", hash = "sha256:27df0f100d312272acd3f8d5262d5ac0fd91cb7501a92418db38cafa83dc8ab1"},
-    {file = "pyzsync-1.2.0.tar.gz", hash = "sha256:d0a5e09ce423ea64f279446d67b75e62d547cf84c847dd89c46d796d4ab8362f"},
+    {file = "pyzsync-1.2.0-cp311-cp311-macosx_10_7_x86_64.whl", hash = "sha256:33ee76b2735b0fa5a84e93445bc0d2cf83a7595b3f3a1d88805ce8c46a0c1312"},
+    {file = "pyzsync-1.2.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2ddebbe7c71fad105c5117878bf993e4526f8ef644f174558cb0b8c0fd564034"},
+    {file = "pyzsync-1.2.0-cp311-cp311-manylinux_2_24_x86_64.whl", hash = "sha256:1750ceff002451db58b2897b037232375829e39ca629a2be43d834902b060b6b"},
+    {file = "pyzsync-1.2.0-cp311-none-win32.whl", hash = "sha256:2f07a565b6cc7c20ecd6395e0b1367d88933579b2bd5267d4a6cde897dd6b70c"},
+    {file = "pyzsync-1.2.0.tar.gz", hash = "sha256:c721e845fd2ab60debd6eb11beaae8b4417f3de771f1fecadc676c404e8d5ca4"},
 ]
 
 [package.source]

@@ -83,14 +83,23 @@ ALLOWED_SERVER_DATA = (
 	Path(BOOT_DIR),
 )
 
-TRANSFER_SLOT_CONFIG = "opsiconfd.transfer.slot"
-TRANSFER_SLOT_MAX = 1000
-TRANSFER_SLOT_RETENTION_TIME = 60
-
 
 class TransferSlotType(StrEnum):
 	OPSICLIENTD_PRODUCT_SYNC = "opsiclientd_product_sync"
 	OPSI_PACKAGE_UPDATER = "opsi_package_updater"
+
+
+TRANSFER_SLOT_CONFIGS = {
+	TransferSlotType.OPSI_PACKAGE_UPDATER: "opsiconfd.transfer.slots_opsi_package_updater",
+	TransferSlotType.OPSICLIENTD_PRODUCT_SYNC: "opsiconfd.transfer.slots_opsiclientd_product_sync"
+}
+# Possibility to make retention time configurable if necessary
+# TRANSFER_SLOT_RETENTION_CONFIGS = {
+# 	TransferSlotType.OPSI_PACKAGE_UPDATER: "opsiconfd.transfer.retention_opsi_package_updater",
+# 	TransferSlotType.OPSICLIENTD_PRODUCT_SYNC: "opsiconfd.transfer.retention_opsiclientd_product_sync"
+# }
+TRANSFER_SLOT_MAX = 1000
+TRANSFER_SLOT_RETENTION_TIME = 60
 
 
 def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data_dir: Path, env: dict[str, str] | None = None) -> list[str]:
@@ -380,20 +389,20 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 				return slot
 
 		max_slots = TRANSFER_SLOT_MAX
-		# IDEA: differentiate between types? total max and single max per type?
-		slot_config = self.configState_getValues(TRANSFER_SLOT_CONFIG, depot).get(depot, {}).get(TRANSFER_SLOT_CONFIG)
+		slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
+		slot_config = self.configState_getValues(slot_config_name, depot).get(depot, {}).get(slot_config_name)
 		if slot_config:
 			try:
 				max_slots = int(slot_config[0])
 			except ValueError:
 				logger.warning(
 					"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
-					TRANSFER_SLOT_CONFIG,
+					slot_config_name,
 					TRANSFER_SLOT_MAX,
 				)
 
 		redis = redis_client()
-		depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:*"))))
+		depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*"))))
 		if depot_slots >= max_slots:
 			retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
 			return TransferSlot(retry_after=retry_after)

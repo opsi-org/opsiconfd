@@ -11,6 +11,7 @@ The opsi configuration service.
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from contextlib import asynccontextmanager, nullcontext
 from dataclasses import asdict, dataclass, field
@@ -154,6 +155,7 @@ class OpsiconfdApp(FastAPI):
 		self._app_state_handler: set[Callable] = set()
 		self._app_state: AppState = StartupState()
 		self._manager_task_should_stop = False
+		self._manager_task_stopped = threading.Event()
 		self.application_setup_done = False
 
 	@property
@@ -240,8 +242,10 @@ class OpsiconfdApp(FastAPI):
 		)
 		await send_message(event)
 
-	def stop_app_state_manager_task(self) -> None:
+	def stop_app_state_manager_task(self, wait: bool = False) -> None:
 		self._manager_task_should_stop = True
+		if wait:
+			self._manager_task_stopped.wait(5.0)
 
 	async def app_state_manager_task(  # pylint: disable=too-many-branches
 		self,
@@ -252,6 +256,7 @@ class OpsiconfdApp(FastAPI):
 		"""
 		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
 		"""
+		self._manager_task_stopped.clear()
 		self._manager_task_should_stop = False
 
 		if manager_mode and init_app_state:
@@ -293,6 +298,8 @@ class OpsiconfdApp(FastAPI):
 				self._manager_task_should_stop = True
 
 			await asyncio.sleep(interval)
+
+		self._manager_task_stopped.set()
 
 
 app = OpsiconfdApp()

@@ -120,6 +120,7 @@ def test_worker_manager_and_workers() -> None:
 
 	with get_config({"port": 4444, "workers": 2}):
 		worker_manager = WorkerManager()
+		worker_manager.init_logging = lambda *args: None  # type: ignore[assignment]
 		worker_manager.worker_restart_gap = 0.0
 		worker_manager.worker_check_interval = 2.0
 		worker_manager_thread = threading.Thread(target=worker_manager.run, daemon=True)

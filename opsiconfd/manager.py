@@ -104,9 +104,12 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 	def get_worker_infos(self) -> list[WorkerInfo]:
 		return list(self.workers.values())
 
+	def init_logging(self) -> None:
+		init_logging(config.log_mode)
+
 	def run(self) -> None:
 		logger.notice("Starting server")
-		init_logging(config.log_mode)
+		self.init_logging()
 		self.check_modules()
 		self.bind_socket()
 		self.adjust_worker_count()

@@ -175,19 +175,13 @@ def test_unblock_all_exception(  # pylint: disable=redefined-outer-name,unused-a
 		assert res.status_code == 500
 
 
-async def test_get_rpc_list_request(  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,
+def test_get_rpc_list_request(  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,
 ) -> None:
 	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for _ in range(3):
-			await run_in_threadpool(
-				call_rpc,
-				test_client,
-				[{"id": 1, "method": "host_getIdents", "params": [None]}],
-				[False],
-			)
-	response = await run_in_threadpool(test_client.get, "/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
+			call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
+	response = test_client.get("/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	result = response.json()
 	for idx in range(3):

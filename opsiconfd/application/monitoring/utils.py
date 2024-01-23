@@ -9,15 +9,13 @@ monitoring
 """
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi.responses import JSONResponse
+from redis.asyncio import StrictRedis
 
 from opsiconfd.config import config
 from opsiconfd.redis import decode_redis_result
-
-if TYPE_CHECKING:
-	from redis.asyncio import StrictRedis
 
 ERRORCODE_PATTERN = re.compile(r"\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)")  # pylint: disable=anomalous-backslash-in-string
 

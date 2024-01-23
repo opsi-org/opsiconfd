@@ -166,10 +166,9 @@ def sync_clean_redis() -> None:
 		redis.delete(key)
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def clean_redis() -> AsyncGenerator[None, None]:  # pylint: disable=redefined-outer-name
-	await async_clean_redis()
-	yield None
+@pytest.fixture(autouse=True)
+def clean_redis() -> None:
+	sync_clean_redis()
 
 
 @pytest.fixture
@@ -202,7 +201,7 @@ def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 			session.execute("DELETE FROM `USER`")
 
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def clean_mysql() -> None:  # pylint: disable=redefined-outer-name
 	delete_mysql_data()
 

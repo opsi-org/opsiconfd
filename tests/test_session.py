@@ -215,6 +215,41 @@ async def test_session_manager_remove_expired_session() -> None:
 	await manager.stop(wait=True)
 
 
+async def test_session_multi_manager_remove_expired_session() -> None:
+	redis = await async_redis_client()
+	manager1 = SessionManager(session_check_interval=1)
+	manager2 = SessionManager(session_check_interval=1)
+	asyncio_create_task(manager1.manager_task())
+	asyncio_create_task(manager2.manager_task())
+
+	headers = Headers({"x-opsi-session-lifetime": "5"})
+	sess1 = await manager1.get_session("172.10.11.12", headers=headers)
+	sess1.authenticated = True
+	await sess1.store()
+
+	sess2 = await manager2.get_session("172.10.11.12", headers=headers, session_id=sess1.session_id)
+	assert sess2.session_id == sess1.session_id
+
+	assert sess1.session_id in manager1.sessions
+	assert manager1.sessions[sess1.session_id].authenticated
+	assert sess2.session_id in manager2.sessions
+	assert manager2.sessions[sess2.session_id].authenticated
+
+	for _ in range(7):
+		# Update session usage only in manager1
+		await sess1.update_last_used()
+		await sleep(1)
+
+	# Session should be removed from manager2 but not from manager1 nor redis
+	assert sess1.session_id in manager1.sessions
+	assert sess1.session_id not in manager2.sessions
+	assert await redis.exists(sess1.redis_key)
+
+	# Reread session from redis
+	sess3 = await manager2.get_session("172.10.11.12", headers=headers, session_id=sess1.session_id)
+	assert sess3.session_id == sess1.session_id
+
+
 async def test_session_manager_remove_deleted_session() -> None:
 	redis = await async_redis_client()
 	manager = SessionManager(session_check_interval=1, session_store_interval_min=1)

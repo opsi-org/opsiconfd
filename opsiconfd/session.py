@@ -409,7 +409,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 				delete_session_ids = []
 				for session in list(self.sessions.values()):
 					if session.expired:
-						version = session.get_version_from_redis()
+						version = await session.get_version_from_redis()
 						if version == session.version:
 							# Not updated by other managers
 							logger.debug("Delete expired session: %s", session.session_id)

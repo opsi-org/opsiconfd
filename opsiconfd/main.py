@@ -55,12 +55,20 @@ from opsiconfd.utils import get_manager_pid, log_config
 
 REDIS_CONECTION_TIMEOUT = 30
 
+_log_viewer_should_stop = asyncio.Event()
+
+
+def stop_log_viewer() -> None:
+	_log_viewer_should_stop.set()
+
 
 async def log_viewer() -> None:
+	_log_viewer_should_stop.clear()
 	set_filter_from_string(config.log_filter)
-	AsyncRedisLogAdapter(stderr_file=sys.stdout)
-	while True:
+	log_adapter = AsyncRedisLogAdapter(stderr_file=sys.stdout)
+	while not _log_viewer_should_stop.is_set():
 		await asyncio.sleep(1)
+	await log_adapter.stop()
 
 
 def delete_locks() -> None:

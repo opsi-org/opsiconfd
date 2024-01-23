@@ -19,7 +19,7 @@ from opsicommon import __version__ as python_opsi_common_version  # type: ignore
 
 from opsiconfd import __version__
 from opsiconfd.logging import RedisLogHandler
-from opsiconfd.main import main
+from opsiconfd.main import main, stop_log_viewer
 from opsiconfd.utils import get_manager_pid
 
 from .utils import get_config
@@ -48,6 +48,7 @@ def test_log_viewer() -> None:
 		handler.emit(LogRecord(name="test-logger", level=10, pathname="-", lineno=1, msg="test-record", args=None, exc_info=None))
 		time.sleep(1)
 		handler.stop()
+		stop_log_viewer()
 
 
 def test_reload() -> None:

@@ -17,13 +17,12 @@ import types
 from contextlib import contextmanager
 from queue import Empty, Queue
 from threading import Event, Thread
-from typing import Any, AsyncGenerator, Generator, Type, Union
+from typing import Any, Generator, Type, Union
 from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
 import MySQLdb  # type: ignore[import]
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from MySQLdb.connections import Connection  # type: ignore[import]

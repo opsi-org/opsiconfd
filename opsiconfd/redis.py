@@ -36,6 +36,17 @@ redis_connection_pool: dict[str, ConnectionPool] = {}
 async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
 
 
+def repr_pieces(self: Connection | AsyncConnection) -> list[tuple[str, str | int]]:
+	pieces = [("host", self.host), ("port", self.port), ("db", self.db), ("id", id(self))]
+	if self.client_name:
+		pieces.append(("client_name", self.client_name))
+	return pieces
+
+
+AsyncConnection.repr_pieces = repr_pieces  # type: ignore[method-assign]
+Connection.repr_pieces = repr_pieces  # type: ignore[method-assign]
+
+
 def get_redis_connections() -> list[Connection | AsyncConnection]:
 	connections = []
 	for spool in redis_connection_pool.values():

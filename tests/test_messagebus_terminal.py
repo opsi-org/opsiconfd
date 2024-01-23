@@ -209,8 +209,11 @@ async def test_terminal_fail() -> None:
 
 	await asyncio.sleep(3)
 
-	assert len(messages) == 3
+	assert len(messages) >= 3
 	assert isinstance(messages[0], TerminalOpenEventMessage)
-	assert isinstance(messages[1], TerminalDataReadMessage)
-	assert messages[1].data == b"exit_1\r\n"
-	assert isinstance(messages[2], TerminalCloseEventMessage)
+	data = b""
+	for msg in range(1, len(messages) - 1):
+		assert isinstance(msg, TerminalDataReadMessage)
+		data += msg.data
+	assert data == b"exit_1\r\n"
+	assert isinstance(messages[-1], TerminalCloseEventMessage)

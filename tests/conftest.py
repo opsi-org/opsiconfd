@@ -13,11 +13,13 @@ import pprint
 import shutil
 import sys
 import threading
+import time
+import traceback
 import warnings
 from pathlib import Path
 from tempfile import mkdtemp
 from types import FrameType
-from typing import Any
+from typing import Any, Callable, Coroutine
 from unittest.mock import patch
 
 import urllib3
@@ -25,6 +27,7 @@ from _pytest.config import Config
 from _pytest.logging import LogCaptureHandler
 from _pytest.main import Session
 from _pytest.nodes import Item
+from pluggy._result import Result
 from pytest import fixture, hookimpl, skip
 
 from opsiconfd.application.main import application_setup
@@ -39,6 +42,8 @@ from opsiconfd.worker import Worker
 from .utils import sync_clean_redis
 
 GRAFANA_AVAILABLE = False
+
+running_item: Callable | Coroutine | None = None
 
 
 def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument
@@ -86,17 +91,21 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
 		GRAFANA_AVAILABLE = True
 
-	# return
 	def stderr_close() -> None:
-		raise RuntimeError("sys.stderr.close called!")
+		print("sys.stderr.close called!", file=sys.stderr)
+		print("Running item:", running_item, file=sys.stderr)
+		traceback.print_stack(file=sys.stderr)
 
 	sys.stderr.close = stderr_close  # type: ignore[method-assign]
 
 	def stdout_close() -> None:
-		raise RuntimeError("sys.stdout.close called!")
+		print("sys.stdout.close called!", file=sys.stderr)
+		print("Running item:", running_item, file=sys.stderr)
+		traceback.print_stack(file=sys.stderr)
 
 	sys.stdout.close = stdout_close  # type: ignore[method-assign]
 
+	# return
 	print("Drop database")
 	try:
 		mysql = MySQLConnection()
@@ -134,9 +143,55 @@ def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: 
 
 	sync_clean_redis()
 
-	running_threads = "\n".join([str(t) for t in threading.enumerate()])
+	running_threads = [t for t in threading.enumerate() if t.name != "MainThread"]
 	if running_threads:
-		print(f"\nRunning threads on sessionfinish:\n{running_threads}")
+		text = "\n".join([str(t) for t in running_threads if t.is_alive()])
+		print(f"\ERROR\nRunning threads on sessionfinish:\n{text}")
+		if exitstatus == 0:
+			sys.exit(1)
+
+
+@hookimpl()
+def pytest_runtest_setup(item: Item) -> None:
+	# Called to perform the setup phase for a test item.
+	grafana_available = GRAFANA_AVAILABLE
+	for marker in item.iter_markers():
+		if marker.name == "grafana_available" and not grafana_available:
+			skip("Grafana not available")
+
+
+@hookimpl(hookwrapper=True)
+def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> None:
+	start_threads = set(threading.enumerate())
+
+	global running_item  # pylint: disable=global-statement
+	running_item = pyfuncitem
+
+	outcome: Result = yield
+
+	running_item = None
+	_result = outcome.get_result()  # Will raise if outcome was exception
+
+	for wait in range(5):
+		running_threads = (
+			set(
+				t
+				for t in threading.enumerate()
+				if t.is_alive()
+				# and t.name != "AnyIO worker thread"
+				and "ThreadPoolExecutor" not in str((getattr(t, "_args", None) or [None])[0])
+			)
+			- start_threads
+		)
+		if not running_threads:
+			break
+		if wait >= 4:
+			print("Running threads after test:", file=sys.stderr)
+			for thread in running_threads:
+				print(thread.__dict__, file=sys.stderr)
+			outcome.force_exception(RuntimeError(f"Running threads after test: {running_threads}"))
+			break
+		time.sleep(1)
 
 
 @hookimpl()
@@ -146,14 +201,6 @@ def pytest_configure(config: Config) -> None:
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
 	config.option.asyncio_mode = "auto"
 	config.addinivalue_line("markers", "grafana_available: mark test to run only if a local grafana instance is available")
-
-
-@hookimpl()
-def pytest_runtest_setup(item: Item) -> None:
-	grafana_available = GRAFANA_AVAILABLE
-	for marker in item.iter_markers():
-		if marker.name == "grafana_available" and not grafana_available:
-			skip("Grafana not available")
 
 
 @fixture(autouse=True)

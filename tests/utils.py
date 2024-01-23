@@ -14,7 +14,7 @@ import asyncio
 import contextvars
 import time
 import types
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
 from queue import Empty, Queue
 from threading import Event, Thread
 from typing import Any, AsyncGenerator, Generator, Type, Union

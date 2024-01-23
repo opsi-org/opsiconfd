@@ -191,11 +191,11 @@ def test_jsonrpc20(test_client: OpsiconfdTestClient) -> None:  # pylint: disable
 		("invalid", "application/msgpack", "application/msgpack"),
 	),
 )
-def test_serializations(
+def test_serializations(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient,
 	content_type: str,
 	accept: str,
-	expected_content_type: str,  # pylint: disable=redefined-outer-name
+	expected_content_type: str,
 ) -> None:
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
@@ -225,11 +225,11 @@ def test_serializations(
 		("lz4", "invalid", 400),
 	),
 )
-def test_compression(
+def test_compression(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient,
 	content_encoding: str,
 	accept_encoding: str,
-	status_code: int,  # pylint: disable=redefined-outer-name
+	status_code: int,
 ) -> None:
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]

@@ -200,8 +200,9 @@ def test_acquire_transfer_slot_max_config_error(  # pylint: disable=redefined-ou
 
 		clients, depot = _create_clients_and_depot(test_client)
 
-		backend.config_create(id=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], defaultValues=[4])
-		backend.configState_create(configId=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], objectId=depot["id"], values=["invalid max"])
+		config_name = TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC]
+		backend.config_create(id=config_name, defaultValues=[4])
+		backend.configState_create(configId=config_name, objectId=depot["id"], values=["invalid max"])
 
 		# should use default max
 		for i in range(TRANSFER_SLOT_MAX):
@@ -383,7 +384,7 @@ def test_acquire_transfer_slot_max_per_type(  # pylint: disable=redefined-outer-
 	test_client: OpsiconfdTestClient, backend: UnprotectedBackend
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 4):
+	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 3):
 		from opsiconfd.backend.rpc.depot import TRANSFER_SLOT_MAX  # pylint: disable=import-outside-toplevel
 
 		clients, depot = _create_clients_and_depot(test_client)
@@ -391,7 +392,7 @@ def test_acquire_transfer_slot_max_per_type(  # pylint: disable=redefined-outer-
 
 		for slot_type in TransferSlotType:
 			backend.config_create(id=TRANSFER_SLOT_CONFIGS[slot_type], defaultValues=[1])
-			for i in range(3):
+			for i in range(TRANSFER_SLOT_MAX):
 				rpc = {
 					"id": 1,
 					"method": "depot_acquireTransferSlot",

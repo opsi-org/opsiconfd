@@ -9,6 +9,7 @@ redis tests
 """
 
 import asyncio
+import re
 import time
 from random import randbytes
 from threading import Thread
@@ -35,6 +36,11 @@ from opsiconfd.redis import (
 )
 
 from .utils import Config, config  # pylint: disable=unused-import
+
+
+def test_connection_repr() -> None:
+	client = redis_client()
+	assert re.match(r"Redis<ConnectionPool<Connection<host=.*,port=\d+,db=\d+,id=\d+>>>", repr(client))
 
 
 def test_get_redis_connections(config: Config) -> None:  # pylint: disable=redefined-outer-name

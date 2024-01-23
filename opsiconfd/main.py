@@ -146,29 +146,32 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 				f"maintenance={maintenance}, encoding={encoding}, "
 				f"compression={compression or 'none'}, encrypt={bool(config.password)}"
 			)
-			if maintenance:
-				initalized_event = threading.Event()
-				threading.Thread(
-					target=asyncio.run,
-					args=[
-						app.app_state_manager_task(
-							manager_mode=True, init_app_state=(MaintenanceState(), NormalState()), initalized_event=initalized_event
-						)
-					],
-					daemon=True,
-				).start()
-				initalized_event.wait(5)
+			try:
+				if maintenance:
+					initalized_event = threading.Event()
+					threading.Thread(
+						target=asyncio.run,
+						args=[
+							app.app_state_manager_task(
+								manager_mode=True, init_app_state=(MaintenanceState(), NormalState()), initalized_event=initalized_event
+							)
+						],
+						daemon=True,
+					).start()
+					initalized_event.wait(5)
 
-			create_backup(
-				config_files=not config.no_config_files,
-				redis_data=not config.no_redis_data,
-				backup_file=backup_file,
-				file_encoding=encoding,  # type: ignore[arg-type]
-				file_compression=compression,  # type: ignore[arg-type]
-				password=config.password,
-				maintenance=maintenance,
-				progress=progress,
-			)
+				create_backup(
+					config_files=not config.no_config_files,
+					redis_data=not config.no_redis_data,
+					backup_file=backup_file,
+					file_encoding=encoding,  # type: ignore[arg-type]
+					file_compression=compression,  # type: ignore[arg-type]
+					password=config.password,
+					maintenance=maintenance,
+					progress=progress,
+				)
+			finally:
+				app.stop_app_state_manager_task(wait=True)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' successfully created.")
 	except KeyboardInterrupt:
@@ -254,30 +257,33 @@ def restore_main() -> None:
 			)
 
 			initalized_event = threading.Event()
-			threading.Thread(
-				target=asyncio.run,
-				args=[
-					app.app_state_manager_task(
-						manager_mode=True, init_app_state=(MaintenanceState(), NormalState()), initalized_event=initalized_event
-					)
-				],
-				daemon=True,
-			).start()
-			initalized_event.wait(5)
+			try:
+				threading.Thread(
+					target=asyncio.run,
+					args=[
+						app.app_state_manager_task(
+							manager_mode=True, init_app_state=(MaintenanceState(), NormalState()), initalized_event=initalized_event
+						)
+					],
+					daemon=True,
+				).start()
+				initalized_event.wait(5)
 
-			setup_mysql(interactive=True)
+				setup_mysql(interactive=True)
 
-			restore_backup(
-				backup_file,
-				config_files=config.config_files,
-				redis_data=config.redis_data,
-				hw_audit=not config.no_hw_audit,
-				ignore_errors=config.ignore_errors,
-				batch=not config.ignore_errors,
-				server_id=server_id,
-				password=config.password,
-				progress=progress,
-			)
+				restore_backup(
+					backup_file,
+					config_files=config.config_files,
+					redis_data=config.redis_data,
+					hw_audit=not config.no_hw_audit,
+					ignore_errors=config.ignore_errors,
+					batch=not config.ignore_errors,
+					server_id=server_id,
+					password=config.password,
+					progress=progress,
+				)
+			finally:
+				app.stop_app_state_manager_task(wait=True)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' successfully restored.")
 	except KeyboardInterrupt:

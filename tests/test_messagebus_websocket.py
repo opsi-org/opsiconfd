@@ -169,9 +169,7 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 					"00000000-0000-4000-8000-000000000006",
 				]
 	# All redis connections should be closed
-	print(connections == get_redis_connections())
-	# TODO:
-	# assert connections == get_redis_connections()
+	assert connections == get_redis_connections()
 
 
 def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals,redefined-outer-name

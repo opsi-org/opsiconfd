@@ -399,16 +399,6 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				break
 			except (RedisConnectionError, RedisBusyLoadingError):
 				pass
-			except PermissionError as err:
-				stat_info = os.stat(err.filename)
-				# TODO: move to handle_log_exception
-				if hasattr(err, "filename"):
-					text = (
-						f"permissions: {stat_info.st_mode:o}, owner: {stat_info.st_uid}, group: {stat_info.st_gid}\n"
-						f"process uid: {os.geteuid()}, gid: {os.getegid()}\n"
-					)
-					sys.stderr.write(text)
-				handle_log_exception(err, stderr=True, temp_file=False)
 			except Exception as err:  # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)
 

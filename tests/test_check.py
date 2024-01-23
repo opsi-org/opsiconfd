@@ -53,6 +53,7 @@ from opsiconfd.check.main import (
 from opsiconfd.check.opsipackages import get_available_product_versions
 from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
+from opsiconfd.redis import redis_client
 from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
@@ -72,7 +73,6 @@ from .utils import (  # pylint: disable=unused-import
 	get_config,
 	get_opsi_config,
 	sync_clean_redis,
-	sync_redis_client,
 	test_client,
 )
 
@@ -557,18 +557,17 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 
 	# test key expires and method is removed from set
 	redis_prefix_stats = config.redis_key("stats")
-	with sync_redis_client() as redis_client:
-		methods = redis_client.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
-		assert len(methods) == 1
-		redis_client.expire(f"{redis_prefix_stats}:rpcs:deprecated:{DEPRECATED_METHOD}:count", 1)
+	redis = redis_client()
+	methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
+	assert len(methods) == 1
+	redis.expire(f"{redis_prefix_stats}:rpcs:deprecated:{DEPRECATED_METHOD}:count", 1)
 	time.sleep(5)
 	result = check_deprecated_calls()
 	assert result.check_status == CheckStatus.OK
 	assert len(result.partial_results) == 0
 
-	with sync_redis_client() as redis_client:
-		methods = redis_client.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
-		assert len(methods) == 0
+	methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
+	assert len(methods) == 0
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument

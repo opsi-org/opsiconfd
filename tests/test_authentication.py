@@ -25,7 +25,7 @@ from opsiconfd import (
 	set_contextvars,
 	set_contextvars_from_contex,
 )
-from opsiconfd.redis import ip_address_to_redis_key
+from opsiconfd.redis import ip_address_to_redis_key, redis_client
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -38,7 +38,6 @@ from .utils import (  # pylint: disable=unused-import
 	database_connection,
 	depot_jsonrpc,
 	get_config,
-	sync_redis_client,
 	test_client,
 )
 
@@ -123,23 +122,23 @@ def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 
 
 def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	with sync_redis_client() as redis:
-		client_addr = "192.168.1.1"
-		test_client.set_client_address(client_addr, 12345)
+	redis = redis_client()
+	client_addr = "192.168.1.1"
+	test_client.set_client_address(client_addr, 12345)
 
-		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
-		assert res.status_code == 200
+	res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
-		assert len(keys) == 1
-		assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	assert len(keys) == 1
+	assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
-		res = test_client.get("/session/logout")
-		assert res.status_code == 200
-		assert "opsiconfd-session" in res.headers["set-cookie"]
-		assert "Max-Age=0" in res.headers["set-cookie"]
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
-		assert len(keys) == 0
+	res = test_client.get("/session/logout")
+	assert res.status_code == 200
+	assert "opsiconfd-session" in res.headers["set-cookie"]
+	assert "Max-Age=0" in res.headers["set-cookie"]
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	assert len(keys) == 0
 
 
 def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -228,27 +227,27 @@ def test_change_session_ip(
 	config: Config,  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> None:
-	with sync_redis_client() as redis:
-		client_addr = "192.168.1.1"
-		test_client.set_client_address(client_addr, 12345)
-		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
-		assert res.status_code == 200
+	redis = redis_client()
+	client_addr = "192.168.1.1"
+	test_client.set_client_address(client_addr, 12345)
+	res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
-		assert len(keys) == 1
-		assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	assert len(keys) == 1
+	assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
-		client_addr = "192.168.2.2"
-		test_client.set_client_address(client_addr, 12345)
-		res = test_client.get("/session/authenticated")
-		assert res.status_code == 401
+	client_addr = "192.168.2.2"
+	test_client.set_client_address(client_addr, 12345)
+	res = test_client.get("/session/authenticated")
+	assert res.status_code == 401
 
-		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
-		assert res.status_code == 200
+	res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
-		assert len(keys) == 2
-		assert keys[1].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	assert len(keys) == 2
+	assert keys[1].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
 
 def test_update_client_object(  # pylint: disable=redefined-outer-name
@@ -341,7 +340,7 @@ def test_max_sessions_limit(
 	max_session_per_ip = 10
 	over_limit = 3
 	redis_key = f"{config.redis_key('session')}:*"
-	with get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis:
+	with get_config({"max_session_per_ip": max_session_per_ip}):
 		for num in range(1, max_session_per_ip + 1 + over_limit):
 			res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 			if num > max_session_per_ip:
@@ -352,6 +351,7 @@ def test_max_sessions_limit(
 			test_client.reset_cookies()
 
 		# Delete some sessions
+		redis = redis_client()
 		num = 0
 		for key in redis.scan_iter(redis_key):
 			num += 1
@@ -375,12 +375,13 @@ def test_max_sessions_not_for_depot(
 	depot_key = "29124776768a560d5e45d3c50889ec51"
 	with depot_jsonrpc(test_client, "", depot_id, depot_key):
 		test_client.reset_cookies()
-		with get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis:
+		with get_config({"max_session_per_ip": max_session_per_ip}):
 			for _ in range(1, max_session_per_ip + 1 + over_limit):
 				res = test_client.get("/depot", auth=(depot_id, depot_key))
 				assert res.status_code == 200
 				test_client.reset_cookies()
 
+		redis = redis_client()
 		session_keys = list(redis.scan_iter(redis_key))
 		assert len(session_keys) >= max_session_per_ip + over_limit
 
@@ -411,10 +412,11 @@ def test_max_auth_failures(
 ) -> None:
 	over_limit = 3
 	max_auth_failures = 5
-	with get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis:
+	with get_config({"max_auth_failures": max_auth_failures}) as conf:
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000
 			print("now:", now, ", num:", num, ", max_auth_failures:", max_auth_failures)
+			redis = redis_client()
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
 				cmd = (
 					f"ts.range {key.decode()} "

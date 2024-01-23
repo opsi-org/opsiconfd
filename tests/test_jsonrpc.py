@@ -23,6 +23,7 @@ from opsiconfd.application.jsonrpc import (
 	deserialize_data,
 	serialize_data,
 )
+from opsiconfd.redis import redis_client
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -36,7 +37,6 @@ from .utils import (  # pylint: disable=unused-import
 	get_config,
 	get_dummy_products,
 	products_jsonrpc,
-	sync_redis_client,
 	test_client,
 )
 
@@ -192,7 +192,10 @@ def test_jsonrpc20(test_client: OpsiconfdTestClient) -> None:  # pylint: disable
 	),
 )
 def test_serializations(
-	test_client: OpsiconfdTestClient, content_type: str, accept: str, expected_content_type: str  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	content_type: str,
+	accept: str,
+	expected_content_type: str,  # pylint: disable=redefined-outer-name
 ) -> None:
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
@@ -223,11 +226,14 @@ def test_serializations(
 	),
 )
 def test_compression(
-	test_client: OpsiconfdTestClient, content_encoding: str, accept_encoding: str, status_code: int  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	content_encoding: str,
+	accept_encoding: str,
+	status_code: int,  # pylint: disable=redefined-outer-name
 ) -> None:
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
-	with (products_jsonrpc(test_client, "", products), patch("opsiconfd.application.jsonrpc.COMPRESS_MIN_SIZE", 0)):
+	with products_jsonrpc(test_client, "", products), patch("opsiconfd.application.jsonrpc.COMPRESS_MIN_SIZE", 0):
 		rpc = {"id": "compression", "method": "product_getObjects", "params": [[], {"id": product_ids}]}
 		data = serialize_data(rpc, "json")
 		if accept_encoding != "invalid":
@@ -251,7 +257,7 @@ def test_compression(
 
 
 def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # pylint: disable=redefined-outer-name
-	with (patch("opsiconfd.application.jsonrpc.RPC_DEBUG_DIR", str(tmp_path)), get_config({"debug_options": "rpc-error-log"})):
+	with patch("opsiconfd.application.jsonrpc.RPC_DEBUG_DIR", str(tmp_path)), get_config({"debug_options": "rpc-error-log"}):
 		rpc = {"id": 1, "method": "invalid", "params": [1, 2, 3]}
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 		res.raise_for_status()
@@ -266,7 +272,7 @@ def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  #
 
 
 def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	with (patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True), sync_redis_client() as redis):
+	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for num in (1, 2):
 			rpc = {
 				"id": num,
@@ -279,6 +285,7 @@ def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> Non
 			num_results = len(result["result"])
 			assert num_results > 0
 			if num == 2:
+				redis = redis_client()
 				assert int(redis.get(f"{config.redis_key('stats')}:num_rpcs") or 0) == 2
 				redis_result = redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, -1)
 				infos = [msgpack.loads(value) for value in redis_result]

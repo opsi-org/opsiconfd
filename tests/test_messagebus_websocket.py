@@ -35,7 +35,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 )
 from opsicommon.objects import UnicodeConfig
 
-from opsiconfd.redis import ip_address_to_redis_key
+from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, session_manager
 from opsiconfd.utils import compress_data, decompress_data
 
@@ -44,14 +44,11 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	Config,
 	OpsiconfdTestClient,
-	Redis,
 	WebSocketMessageReader,
-	async_redis_client,
 	clean_mysql,
 	clean_redis,
 	client_jsonrpc,
 	config,
-	sync_redis_client,
 	test_client,
 )
 
@@ -88,7 +85,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 
 def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	# connections = get_redis_connections()
+	connections = get_redis_connections()
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket, decode=False) as reader:
@@ -170,8 +167,7 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 					"00000000-0000-4000-8000-000000000006",
 				]
 	# All redis connections should be closed
-	# TODO: skipping for now
-	# assert connections == get_redis_connections()
+	assert connections == get_redis_connections()
 
 
 def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals,redefined-outer-name
@@ -193,7 +189,8 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 			sleep(1)
 		raise RuntimeError(f"Timeout while waiting for reader count {count}")
 
-	with sync_redis_client() as redis, test_client as client:
+	with test_client as client:
+		redis = redis_client()
 		assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") is None
 
 		with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
@@ -556,24 +553,24 @@ async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-
 		patch("opsiconfd.messagebus.websocket.MessagebusWebsocket._update_session_interval", 1.0),
 	):
 		with test_client as client:
-			async with async_redis_client() as redis:
-				with client.websocket_connect("/messagebus/v1") as websocket:
-					session: OPSISession = websocket.scope["session"]
-					with WebSocketMessageReader(websocket) as reader:
-						reader.wait_for_message(count=1)
-						list(reader.get_messages())
-						redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
-						assert await redis.exists(redis_key)
-						await redis.delete(redis_key)
-						await reader.async_wait_for_message(count=1, timeout=10.0)
-						msg = next(reader.get_messages())
-						assert msg["type"] == "general_error"
-						assert msg["error"]["message"] == "Session deleted"
-						assert session.deleted
-						# message = ChannelSubscriptionRequestMessage(
-						# sender=CONNECTION_USER_CHANNEL,
-						# channel="service:messagebus",
-						# channels=["session:11111111-1111-1111-1111-111111111111"],
-						# operation="add",
-						# )
-						# websocket.send_bytes(message.to_msgpack())
+			redis = await async_redis_client()
+			with client.websocket_connect("/messagebus/v1") as websocket:
+				session: OPSISession = websocket.scope["session"]
+				with WebSocketMessageReader(websocket) as reader:
+					reader.wait_for_message(count=1)
+					list(reader.get_messages())
+					redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
+					assert await redis.exists(redis_key)
+					await redis.delete(redis_key)
+					await reader.async_wait_for_message(count=1, timeout=10.0)
+					msg = next(reader.get_messages())
+					assert msg["type"] == "general_error"
+					assert msg["error"]["message"] == "Session deleted"
+					assert session.deleted
+					# message = ChannelSubscriptionRequestMessage(
+					# sender=CONNECTION_USER_CHANNEL,
+					# channel="service:messagebus",
+					# channels=["session:11111111-1111-1111-1111-111111111111"],
+					# operation="add",
+					# )
+					# websocket.send_bytes(message.to_msgpack())

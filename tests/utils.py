@@ -28,8 +28,6 @@ from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from MySQLdb.connections import Connection  # type: ignore[import]
 from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
-from redis import Redis
-from redis.asyncio import Redis as AsyncRedis
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
@@ -42,6 +40,7 @@ from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config, OpsiConfig
 from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config as _opsi_config
+from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import session_manager
 from opsiconfd.utils import Singleton
 from opsiconfd.worker import Worker
@@ -155,34 +154,16 @@ def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None,
 		_opsi_config.read_config_file()
 
 
-@asynccontextmanager
-async def async_redis_client() -> AsyncGenerator[AsyncRedis, None]:  # pylint: disable=redefined-outer-name
-	redis_client: AsyncRedis = AsyncRedis.from_url(_config.redis_internal_url)
-	try:
-		yield redis_client
-	finally:
-		await redis_client.aclose()  # type: ignore[attr-defined]
-
-
-@contextmanager
-def sync_redis_client() -> Generator[Redis, None, None]:  # pylint: disable=redefined-outer-name
-	redis_client = Redis.from_url(_config.redis_internal_url)
-	try:
-		yield redis_client
-	finally:
-		redis_client.close()
-
-
 async def async_clean_redis() -> None:
-	async with async_redis_client() as redis_client:
-		async for key in redis_client.scan_iter(f"{_config.redis_key()}:*"):
-			await redis_client.delete(key)
+	redis = await async_redis_client()
+	async for key in redis.scan_iter(f"{_config.redis_key()}:*"):
+		await redis.delete(key)
 
 
 def sync_clean_redis() -> None:
-	with sync_redis_client() as redis_client:
-		for key in redis_client.scan_iter(f"{_config.redis_key()}:*"):
-			redis_client.delete(key)
+	redis = redis_client()
+	for key in redis.scan_iter(f"{_config.redis_key()}:*"):
+		redis.delete(key)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -196,13 +177,12 @@ def worker_state() -> None:
 	worker = Worker._instance  # pylint: disable=protected-access
 	if not worker:
 		raise RuntimeError("No worker instance")
-	with sync_redis_client() as rclient:
-		rclient.hset(
-			f"{_config.redis_key('state')}:workers:{_config.node_name}:{worker.worker_num}",
-			key=None,
-			value=None,
-			mapping={"worker_pid": worker.pid, "node_name": _config.node_name, "worker_num": worker.worker_num},
-		)
+	redis_client().hset(
+		f"{_config.redis_key('state')}:workers:{_config.node_name}:{worker.worker_num}",
+		key=None,
+		value=None,
+		mapping={"worker_pid": worker.pid, "node_name": _config.node_name, "worker_num": worker.worker_num},
+	)
 
 
 def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
@@ -464,7 +444,7 @@ class WebSocketMessageReader(Thread):
 		except Empty:
 			pass
 
-	def wait_for_message(self, count: int = 1, timeout: float = 10.0, error_on_timeout: bool = True) -> None:
+	def wait_for_message(self, count: int = 1, timeout: float = 5.0, error_on_timeout: bool = True) -> None:
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:
@@ -485,7 +465,7 @@ class WebSocketMessageReader(Thread):
 				return
 			time.sleep(0.1)
 
-	async def async_wait_for_message(self, count: int = 1, timeout: float = 10.0, error_on_timeout: bool = True) -> None:
+	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0, error_on_timeout: bool = True) -> None:
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:

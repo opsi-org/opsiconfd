@@ -23,7 +23,7 @@ from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
 from opsiconfd.config import FQDN
-from opsiconfd.redis import ip_address_to_redis_key
+from opsiconfd.redis import ip_address_to_redis_key, redis_client
 
 from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
@@ -40,23 +40,21 @@ from .utils import (  # pylint: disable=unused-import
 	depot_jsonrpc,
 	get_config,
 	products_jsonrpc,
-	sync_redis_client,
 	test_client,
 )
 
 
 def set_failed_auth_and_blocked(conf: Config, ip_address: str) -> None:  # pylint: disable=redefined-outer-name
-	with sync_redis_client() as redis:
-		ip_address_redis = ip_address_to_redis_key(ip_address)
-		redis.execute_command(
-			f"ts.create {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} "
-			f"RETENTION 86400000 LABELS client_addr {ip_address}"
-		)
-		redis.execute_command(
-			f"ts.add {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} "
-			f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
-		)
-		redis.set(f"{conf.redis_key('stats')}:client:blocked:{ip_address_redis}", 1)
+	redis = redis_client()
+	ip_address_redis = ip_address_to_redis_key(ip_address)
+	redis.execute_command(
+		f"ts.create {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} RETENTION 86400000 LABELS client_addr {ip_address}"
+	)
+	redis.execute_command(
+		f"ts.add {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} "
+		f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
+	)
+	redis.set(f"{conf.redis_key('stats')}:client:blocked:{ip_address_redis}", 1)
 
 
 def call_rpc(client: OpsiconfdTestClient, rpc_request_data: list, expect_error: list) -> None:
@@ -83,86 +81,85 @@ def test_unblock_all_request(  # pylint: disable=redefined-outer-name,unused-arg
 	test_client: OpsiconfdTestClient,
 	config: Config,
 ) -> None:
-	with sync_redis_client() as redis:
-		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
-		for test_ip in addresses:
-			set_failed_auth_and_blocked(config, test_ip)
+	redis = redis_client()
+	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
+	for test_ip in addresses:
+		set_failed_auth_and_blocked(config, test_ip)
 
-		res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
-		assert res.status_code == 200
+	res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
 
-		for test_ip in addresses:
-			val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
-			assert not val
+	for test_ip in addresses:
+		val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		assert not val
 
 
 async def test_unblock_all(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	with sync_redis_client() as redis:
-		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
+	redis = redis_client()
+	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 
-		for test_ip in addresses:
-			set_failed_auth_and_blocked(config, test_ip)
+	for test_ip in addresses:
+		set_failed_auth_and_blocked(config, test_ip)
 
-		response = await admininterface.unblock_all_clients()
-		print(response)
-		print(response.__dict__)
-		assert response.status_code == 200
-		response_body = json.loads(response.body)
-		assert response_body.get("error") is None
-		assert sorted(response_body["clients"]) == sorted(addresses)
+	response = await admininterface.unblock_all_clients()
+	print(response)
+	print(response.__dict__)
+	assert response.status_code == 200
+	response_body = json.loads(response.body)
+	assert response_body.get("error") is None
+	assert sorted(response_body["clients"]) == sorted(addresses)
 
-		for test_ip in addresses:
-			val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
-			assert not val
+	for test_ip in addresses:
+		val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		assert not val
 
 
 def test_unblock_client_request(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
 	test_client: OpsiconfdTestClient,
 ) -> None:
-	with sync_redis_client() as redis:
-		test_ip = "192.168.1.2"
-		set_failed_auth_and_blocked(config, test_ip)
-		res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip})
-		assert res.status_code == 200
+	redis = redis_client()
+	test_ip = "192.168.1.2"
+	set_failed_auth_and_blocked(config, test_ip)
+	res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip})
+	assert res.status_code == 200
 
-		val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
-		assert not val
+	val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
+	assert not val
 
 
 async def test_unblock_client(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	with sync_redis_client() as redis:
-		test_ip = "192.168.1.2"
-		set_failed_auth_and_blocked(config, test_ip)
+	redis = redis_client()
+	test_ip = "192.168.1.2"
+	set_failed_auth_and_blocked(config, test_ip)
 
-		headers = Headers()
-		scope = {"method": "GET", "type": "http", "headers": headers}
-		test_request = Request(scope=scope)
-		test_request._json = {"client_addr": test_ip}  # pylint: disable=protected-access
-		body = f'{{"client_addr":"{config.external_url}"}}'
-		test_request._body = body.encode()  # pylint: disable=protected-access
+	headers = Headers()
+	scope = {"method": "GET", "type": "http", "headers": headers}
+	test_request = Request(scope=scope)
+	test_request._json = {"client_addr": test_ip}  # pylint: disable=protected-access
+	body = f'{{"client_addr":"{config.external_url}"}}'
+	test_request._body = body.encode()  # pylint: disable=protected-access
 
-		response = await admininterface.unblock_client(test_request)
-		response_dict = json.loads(response.body)
-		assert response.status_code == 200
-		assert response_dict.get("error") is None
+	response = await admininterface.unblock_client(test_request)
+	response_dict = json.loads(response.body)
+	assert response.status_code == 200
+	assert response_dict.get("error") is None
 
-		val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
-		assert not val
+	val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
+	assert not val
 
 
 def test_unblock_client_exception(  # pylint: disable=redefined-outer-name,unused-argument
 	config: Config,
 	test_client: OpsiconfdTestClient,
 ) -> None:
-	with sync_redis_client() as redis_client:
-		test_ip = "192.168.1.2"
-		set_failed_auth_and_blocked(config, test_ip)
-		res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": None})
-		assert res.status_code == 500
+	test_ip = "192.168.1.2"
+	set_failed_auth_and_blocked(config, test_ip)
+	res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": None})
+	assert res.status_code == 500
 
-		val = redis_client.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
-		assert val
+	val = redis_client().get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
+	assert val
 
 
 def test_unblock_all_exception(  # pylint: disable=redefined-outer-name,unused-argument
@@ -259,15 +256,15 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 ) -> None:
 	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
-	with sync_redis_client() as redis:
-		session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
-		sessions = []
-		local_ip = None
-		for key in redis.scan_iter(f"{config.redis_key('session')}:*"):
-			addr, sess = key.decode("utf8").split(":")[-2:]
-			sessions.append(sess)
-			if sess == session:
-				local_ip = addr
+	redis = redis_client()
+	session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
+	sessions = []
+	local_ip = None
+	for key in redis.scan_iter(f"{config.redis_key('session')}:*"):
+		addr, sess = key.decode("utf8").split(":")[-2:]
+		sessions.append(sess)
+		if sess == session:
+			local_ip = addr
 
 	rpc_request_data = json.loads(json.dumps(rpc_request_data).replace("<local_ip>", local_ip or ""))
 	expected_response = json.loads(json.dumps(expected_response).replace("<local_ip>", local_ip or ""))

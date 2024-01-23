@@ -22,7 +22,7 @@ from opsiconfd.backend.rpc.depot import (
 )
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
-from opsiconfd.redis import decode_redis_result
+from opsiconfd.redis import decode_redis_result, redis_client
 from tests.backend.rpc.test_config_state import _create_clients_and_depot
 
 from ..utils import (  # pylint: disable=unused-import
@@ -32,7 +32,6 @@ from ..utils import (  # pylint: disable=unused-import
 	backend,
 	config,
 	sync_clean_redis,
-	sync_redis_client,
 	test_client,
 )
 
@@ -294,18 +293,18 @@ def test_release_transfer_slot_with_slot_id(  # pylint: disable=redefined-outer-
 	assert result["result"].get("host_id") == "client1.uib.test"
 	assert result["result"].get("retry_after") is None
 
-	with sync_redis_client() as redis_client:
-		redis_res = decode_redis_result(redis_client.keys())
-		print(redis_res)
-		redis_res = decode_redis_result(redis_client.get(
-			f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}"
-		))
-		print(redis_res)
-		assert redis_res == "client1.uib.test"
-		redis_res = decode_redis_result(redis_client.ttl(
-			f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}"
-		))
-		assert 10 < redis_res <= 60
+	redis = redis_client()
+	redis_res = decode_redis_result(redis.keys())
+	print(redis_res)
+	redis_res = decode_redis_result(
+		redis.get(f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}")
+	)
+	print(redis_res)
+	assert redis_res == "client1.uib.test"
+	redis_res = decode_redis_result(
+		redis.ttl(f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}")
+	)
+	assert 10 < redis_res <= 60
 
 	rpc = {"id": 1, "method": "depot_releaseTransferSlot", "params": ["depot1.uib.test", "client1.uib.test", TEST_SLOT_ID]}
 	res = test_client.post("/rpc", json=rpc)
@@ -313,10 +312,9 @@ def test_release_transfer_slot_with_slot_id(  # pylint: disable=redefined-outer-
 
 	assert result["error"] is None
 
-	with sync_redis_client() as redis_client:
-		redis_res = decode_redis_result(redis_client.get(f"{config.redis_key('slot')}:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"))
-		print(redis_res)
-		assert redis_res is None
+	redis_res = decode_redis_result(redis.get(f"{config.redis_key('slot')}:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"))
+	print(redis_res)
+	assert redis_res is None
 
 
 def test_return_list_with_valid_input(  # pylint: disable=redefined-outer-name
@@ -373,7 +371,7 @@ def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> N
 		}
 		result = test_client.post("/rpc", json=rpc)
 		print(result)
-	with sync_redis_client() as redis_client:
-		assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
-		for slot_type in TransferSlotType:
-			assert len(list(redis_client.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1
+	redis = redis_client()
+	assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
+	for slot_type in TransferSlotType:
+		assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1

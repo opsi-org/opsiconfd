@@ -24,6 +24,7 @@ from opsiconfd.application import (
 	ShutdownState,
 	app,
 )
+from opsiconfd.redis import redis_client
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -32,7 +33,6 @@ from .utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	clean_redis,
 	config,
-	sync_redis_client,
 	test_client,
 )
 
@@ -45,15 +45,15 @@ class AppStateReaderThread(Thread):
 		self.stop = False
 
 	def run(self) -> None:
-		with sync_redis_client() as redis:
-			while not self.stop:
-				data = redis.get(self.redis_key)
-				if data:
-					app_state = AppState.from_dict(msgpack.decode(data))
-					if not self.app_states or app_state != self.app_states[-1]:
-						self.app_states.append(app_state)
-						print("App state changed:", app_state)
-				time.sleep(0.01)
+		redis = redis_client()
+		while not self.stop:
+			data = redis.get(self.redis_key)
+			if data:
+				app_state = AppState.from_dict(msgpack.decode(data))
+				if not self.app_states or app_state != self.app_states[-1]:
+					self.app_states.append(app_state)
+					print("App state changed:", app_state)
+			time.sleep(0.01)
 
 
 @pytest.fixture

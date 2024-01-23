@@ -91,8 +91,13 @@ class TransferSlotType(StrEnum):
 
 TRANSFER_SLOT_CONFIGS = {
 	TransferSlotType.OPSI_PACKAGE_UPDATER: "opsiconfd.transfer.slots_opsi_package_updater",
-	TransferSlotType.OPSICLIENTD_PRODUCT_SYNC: "opsiconfd.transfer.slots_slots_opsiclientd_product_sync"
+	TransferSlotType.OPSICLIENTD_PRODUCT_SYNC: "opsiconfd.transfer.slots_opsiclientd_product_sync"
 }
+# Possibility to make retention time configurable if necessary
+# TRANSFER_SLOT_RETENTION_CONFIGS = {
+# 	TransferSlotType.OPSI_PACKAGE_UPDATER: "opsiconfd.transfer.retention_opsi_package_updater",
+# 	TransferSlotType.OPSICLIENTD_PRODUCT_SYNC: "opsiconfd.transfer.retention_opsiclientd_product_sync"
+# }
 TRANSFER_SLOT_MAX = 1000
 TRANSFER_SLOT_RETENTION_TIME = 60
 

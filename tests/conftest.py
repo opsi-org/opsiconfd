@@ -185,7 +185,7 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> None:
 		)
 		if not running_threads:
 			break
-		if wait >= 4:
+		if wait >= 10:
 			print("Running threads after test:", file=sys.stderr)
 			for thread in running_threads:
 				print(thread.__dict__, file=sys.stderr)

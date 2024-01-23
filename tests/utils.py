@@ -442,7 +442,7 @@ class WebSocketMessageReader(Thread):
 		except Empty:
 			pass
 
-	def wait_for_message(self, count: int = 1, timeout: float = 5.0, error_on_timeout: bool = True) -> None:
+	def wait_for_message(self, count: int = 1, timeout: float = 10.0, error_on_timeout: bool = True) -> None:
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:
@@ -463,7 +463,7 @@ class WebSocketMessageReader(Thread):
 				return
 			time.sleep(0.1)
 
-	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0, error_on_timeout: bool = True) -> None:
+	async def async_wait_for_message(self, count: int = 1, timeout: float = 10.0, error_on_timeout: bool = True) -> None:
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:

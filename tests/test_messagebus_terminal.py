@@ -213,7 +213,8 @@ async def test_terminal_fail() -> None:
 	assert isinstance(messages[0], TerminalOpenEventMessage)
 	data = b""
 	for idx in range(1, len(messages) - 1):
-		assert isinstance(messages[idx], TerminalDataReadMessage)
-		data += messages[idx].data
+		msg = messages[idx]
+		assert isinstance(msg, TerminalDataReadMessage)
+		data += msg.data
 	assert data == b"exit_1\r\n"
 	assert isinstance(messages[-1], TerminalCloseEventMessage)

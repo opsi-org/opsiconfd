@@ -170,7 +170,11 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 	outcome: Result = yield
 
 	running_item = None
-	_result = outcome.get_result()  # Will raise if outcome was exception
+	try:
+		_result = outcome.get_result()  # Will raise if outcome was exception
+	except BaseException as exc:
+		outcome.force_exception(exc)
+		return
 
 	for wait in range(5):
 		running_threads = (

@@ -7,7 +7,6 @@
 """
 opsiconfd.ssl
 """
-
 import datetime
 import os
 import re
@@ -19,21 +18,12 @@ from re import DOTALL, finditer
 from socket import gethostbyaddr
 from typing import Any
 
-from OpenSSL.crypto import (
-	FILETYPE_PEM,
-	X509,
-	PKey,
-	X509Name,
-	X509Store,
-	X509StoreContext,
-	X509StoreContextError,
-	dump_publickey,
-	load_certificate,
-	load_privatekey,
-)
-from OpenSSL.crypto import Error as CryptoError
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509 import verification  # type: ignore[attr-defined]
 from opsicommon.server.rights import FilePermission, PermissionRegistry, set_rights
-from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca
+from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca, x509_name_to_dict
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from opsiconfd.backend import get_unprotected_backend
@@ -98,41 +88,38 @@ def setup_ssl_file_permissions() -> None:
 		set_rights(permission.path)
 
 
-def get_not_before_and_not_after(cert: X509) -> tuple[datetime.datetime | None, int | None, datetime.datetime | None, int | None]:
-	dt_not_before = None
-	not_before_days = None
-	dt_not_after = None
-	not_after_days = None
-	if not_before := cert.get_notBefore():
-		dt_not_before = datetime.datetime.strptime(not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
-		not_before_days = (dt_not_before - datetime.datetime.now()).days
-
-	if not_after := cert.get_notAfter():
-		dt_not_after = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
-		not_after_days = (dt_not_after - datetime.datetime.now()).days
-
-	return (dt_not_before, not_before_days, dt_not_after, not_after_days)
+def get_not_before_and_not_after(
+	cert: x509.Certificate,
+) -> tuple[datetime.datetime, int, datetime.datetime, int]:
+	return (
+		cert.not_valid_before_utc,
+		(cert.not_valid_before_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days,
+		cert.not_valid_after_utc,
+		(cert.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days,
+	)
 
 
-def get_cert_info(cert: X509, renew_days: int) -> dict[str, Any]:
-	alt_names = ""
-	for idx in range(0, cert.get_extension_count()):
-		if cert.get_extension(idx).get_short_name() == b"subjectAltName":
-			alt_names = str(cert.get_extension(idx))
+def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
+	alt_names = [extension for extension in cert.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+	alt_names_str = ""
+	if alt_names:
+		alt_names_str = ",".join(
+			str(a) for a in alt_names[0].value.get_values_for_type(x509.DNSName) + alt_names[0].value.get_values_for_type(x509.IPAddress)
+		)
 
 	dt_not_before, _not_before_days, dt_not_after, not_after_days = get_not_before_and_not_after(cert)
 
 	return {
-		"issuer": cert.get_issuer(),
-		"subject": cert.get_subject(),
-		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)).upper(),
-		"fingerprint_sha1": cert.digest("sha1").decode("ascii"),
-		"fingerprint_sha256": cert.digest("sha256").decode("ascii"),
+		"issuer": str(cert.issuer),
+		"subject": str(cert.subject),
+		"serial_number": ":".join((f"{cert.serial_number:x}").zfill(40)[i : i + 2] for i in range(0, 40, 2)).upper(),
+		"fingerprint_sha1": ":".join(cert.fingerprint(hashes.SHA1()).hex()[i : i + 2] for i in range(0, 40, 2)).upper(),
+		"fingerprint_sha256": ":".join(cert.fingerprint(hashes.SHA256()).hex()[i : i + 2] for i in range(0, 64, 2)).upper(),
 		"not_before": dt_not_before,
 		"not_after": dt_not_after,
 		"expires_in_days": not_after_days,
 		"renewal_in_days": (not_after_days or 0) - renew_days,
-		"alt_names": alt_names,
+		"alt_names": alt_names_str,
 	}
 
 
@@ -144,7 +131,7 @@ def get_server_cert_info() -> dict[str, Any]:
 	return get_cert_info(load_local_server_cert(), config.ssl_server_cert_renew_days)
 
 
-def store_key(key_file: str | Path, passphrase: str, key: PKey) -> None:
+def store_key(key_file: str | Path, passphrase: str, key: rsa.RSAPrivateKey) -> None:
 	if not isinstance(key_file, Path):
 		key_file = Path(key_file)
 
@@ -154,29 +141,39 @@ def store_key(key_file: str | Path, passphrase: str, key: PKey) -> None:
 	setup_ssl_file_permissions()
 
 
-def load_key(key_file: str | Path, passphrase: str) -> PKey:
+def load_key(key_file: str | Path, passphrase: str) -> rsa.RSAPrivateKey:
 	if not isinstance(key_file, Path):
 		key_file = Path(key_file)
 	try:
-		return load_privatekey(FILETYPE_PEM, key_file.read_text(encoding="utf-8"), passphrase=passphrase.encode("utf-8"))
-	except CryptoError as err:
+		private_key = serialization.load_pem_private_key(
+			key_file.read_text(encoding="utf-8").encode("utf-8"), password=passphrase.encode("utf-8")
+		)
+		if not isinstance(private_key, rsa.RSAPrivateKey):
+			raise ValueError(f"Not a RSA private key, but {private_key.__class__.__name__}")
+		return private_key
+	except ValueError as err:
 		raise RuntimeError(f"Failed to load private key from '{key_file}': {err}") from err
 
 
-def store_cert(cert_file: str | Path, cert: X509, keep_others: bool = False) -> None:
+def store_cert(cert_file: str | Path, cert: x509.Certificate, keep_others: bool = False) -> None:
 	if not isinstance(cert_file, Path):
 		cert_file = Path(cert_file)
 
 	cert_file.parent.mkdir(parents=True, exist_ok=True)
 	certs = []
 	if cert_file.exists() and keep_others:
-		certs = [c for c in load_certs(cert_file) if c.get_subject().CN != cert.get_subject().CN]
+		certs = [
+			c
+			for c in load_certs(cert_file)
+			if c.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+			!= cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+		]
 	certs.append(cert)
 	cert_file.write_text("".join(as_pem(c) for c in certs), encoding="utf-8")
 	setup_ssl_file_permissions()
 
 
-def load_certs(cert_file: Path | str) -> list[X509]:
+def load_certs(cert_file: Path | str) -> list[x509.Certificate]:
 	if not isinstance(cert_file, Path):
 		cert_file = Path(cert_file)
 
@@ -184,28 +181,28 @@ def load_certs(cert_file: Path | str) -> list[X509]:
 	data = cert_file.read_text(encoding="utf-8")
 	for match in re.finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", data, re.DOTALL):
 		try:
-			certs.append(load_certificate(FILETYPE_PEM, match.group(1).encode("utf-8")))
-		except CryptoError as err:
+			certs.append(x509.load_pem_x509_certificate(match.group(1).encode("utf-8")))
+		except ValueError as err:
 			logger.warning(err, exc_info=True)
 	return certs
 
 
-def load_cert(cert_file: Path | str, subject_cn: str | None = None) -> X509:
+def load_cert(cert_file: Path | str, subject_cn: str | None = None) -> x509.Certificate:
 	if not isinstance(cert_file, Path):
 		cert_file = Path(cert_file)
 
 	for cert in load_certs(cert_file):
-		if not subject_cn or cert.get_subject().CN == subject_cn:
+		if not subject_cn or cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == subject_cn:
 			return cert
 
 	raise RuntimeError(f"Failed to load {repr(subject_cn) if subject_cn else 'cert'} from '{cert_file}': Not found")
 
 
-def store_ca_key(ca_key: PKey) -> None:
+def store_ca_key(ca_key: rsa.RSAPrivateKey) -> None:
 	store_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, ca_key)
 
 
-def load_ca_key() -> PKey:
+def load_ca_key() -> rsa.RSAPrivateKey:
 	try:
 		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase)
 	except RuntimeError:
@@ -218,11 +215,11 @@ def load_ca_key() -> PKey:
 		return key
 
 
-def store_ca_cert(ca_cert: X509) -> None:
+def store_ca_cert(ca_cert: x509.Certificate) -> None:
 	store_cert(config.ssl_ca_cert, ca_cert, keep_others=True)
 
 
-def load_ca_cert() -> X509:
+def load_ca_cert() -> x509.Certificate:
 	return load_cert(config.ssl_ca_cert, subject_cn=config.ssl_ca_subject_cn)
 
 
@@ -230,11 +227,11 @@ def get_ca_cert_as_pem() -> str:
 	return as_pem(load_ca_cert())
 
 
-def store_local_server_key(srv_key: PKey) -> None:
+def store_local_server_key(srv_key: rsa.RSAPrivateKey) -> None:
 	store_key(config.ssl_server_key, config.ssl_server_key_passphrase, srv_key)
 
 
-def load_local_server_key() -> PKey:
+def load_local_server_key() -> rsa.RSAPrivateKey:
 	try:
 		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase)
 	except RuntimeError:
@@ -247,15 +244,15 @@ def load_local_server_key() -> PKey:
 		return key
 
 
-def store_local_server_cert(server_cert: X509) -> None:
+def store_local_server_cert(server_cert: x509.Certificate) -> None:
 	store_cert(config.ssl_server_cert, server_cert)
 
 
-def load_local_server_cert() -> X509:
+def load_local_server_cert() -> x509.Certificate:
 	return load_cert(config.ssl_server_cert)
 
 
-def create_local_server_cert(renew: bool = True) -> tuple[X509, PKey]:  # pylint: disable=too-many-locals
+def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:  # pylint: disable=too-many-locals
 	ca_key = load_ca_key()
 	ca_cert = load_ca_cert()
 	domain = get_domain()
@@ -278,7 +275,7 @@ def create_local_server_cert(renew: bool = True) -> tuple[X509, PKey]:  # pylint
 
 def depotserver_setup_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
-	ca_crt = load_certificate(FILETYPE_PEM, get_unprotected_backend().getOpsiCACert())  # pylint: disable=no-member
+	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert())  # pylint: disable=no-member
 	store_ca_cert(ca_crt)
 	install_ca(ca_crt)
 	return False
@@ -294,18 +291,6 @@ def get_ca_subject() -> dict[str, str]:
 		"OU": f"opsi@{domain}",
 		"CN": config.ssl_ca_subject_cn,
 		"emailAddress": f"opsi@{domain}",
-	}
-
-
-def subject_to_dict(subject: X509Name) -> dict[str, str]:
-	return {
-		"C": subject.C,
-		"ST": subject.ST,
-		"L": subject.L,
-		"O": subject.O,
-		"OU": subject.OU,
-		"CN": subject.CN,
-		"emailAddress": subject.emailAddress,
 	}
 
 
@@ -326,15 +311,25 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 		create = True
 
 	if ca_key and ca_crt:
-		if dump_publickey(FILETYPE_PEM, ca_key) != dump_publickey(FILETYPE_PEM, ca_crt.get_pubkey()):
+		if ca_key.public_key().public_bytes(
+			encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
+		) != ca_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
 			logger.warning("CA cert does not match CA key, creating new CA cert")
 			renew = True
 		else:
 			not_after_days = get_not_before_and_not_after(ca_crt)[3]
 			if not_after_days:
-				logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, not_after_days)
+				logger.info(
+					"CA '%s' will expire in %d days",
+					ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
+					not_after_days,
+				)
 				if not_after_days <= config.ssl_ca_cert_renew_days:
-					logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, not_after_days)
+					logger.notice(
+						"CA '%s' will expire in %d days, renewing",
+						ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
+						not_after_days,
+					)
 					renew = True
 
 	if create or renew:
@@ -342,7 +337,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 		current_ca_subject = {}
 		if os.path.exists(config.ssl_ca_cert):
 			try:
-				current_ca_subject = subject_to_dict(load_ca_cert().get_subject())
+				current_ca_subject = x509_name_to_dict(load_ca_cert().subject)
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error("Failed to load CA cert: %s", err, exc_info=True)
 
@@ -401,49 +396,50 @@ def setup_ca() -> bool:
 	raise ValueError(f"Invalid server role: {server_role}")
 
 
-def validate_cert(cert: X509, ca_cert: X509 | None = None) -> None:
-	"""Will throw a X509StoreContextError if cert is invalid"""
-	store = X509Store()
-
+def validate_cert(cert: x509.Certificate, ca_cert: x509.Certificate | None = None) -> None:
+	ca_certs = [ca_cert] if ca_cert else []
 	if os.path.exists(config.ssl_trusted_certs):
 		with open(config.ssl_trusted_certs, "r", encoding="utf-8") as file:
 			for match in finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", file.read(), DOTALL):
 				try:
-					store.add_cert(load_certificate(FILETYPE_PEM, match.group(1).encode("ascii")))
+					ca_certs.append(x509.load_pem_x509_certificate(match.group(1).encode("ascii")))
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to load certificate from %r: %s", config.ssl_trusted_certs, err, exc_info=True)
 
-	if ca_cert:
-		store.add_cert(ca_cert)
-
-	store_ctx = X509StoreContext(store, cert)
-	store_ctx.verify_certificate()
+	store = verification.Store(ca_certs)
+	builder = verification.PolicyBuilder().store(store)
+	dns_name = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+	if not isinstance(dns_name, str):
+		dns_name = dns_name.decode("utf-8")
+	verifier = builder.build_server_verifier(x509.DNSName(dns_name))
+	verifier.verify(cert, [])
 
 	if ca_cert:
 		dt_ca_cert_not_before = get_not_before_and_not_after(ca_cert)[0]
 		dt_cert_not_before = get_not_before_and_not_after(cert)[0]
 		if dt_ca_cert_not_before and dt_cert_not_before and dt_ca_cert_not_before > dt_cert_not_before:
-			raise X509StoreContextError(  # type: ignore[call-arg]
-				message=f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}",
-				errors=[],
-				certificate=ca_cert,
+			raise verification.VerificationError(
+				f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}"
 			)
 
 
-def opsi_ca_is_self_signed(ca_cert: X509 | None = None) -> bool:
+def opsi_ca_is_self_signed(ca_cert: x509.Certificate | None = None) -> bool:
 	ca_cert = ca_cert or load_ca_cert()
-	return ca_cert.get_issuer().CN == ca_cert.get_subject().CN
+	return (
+		ca_cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+		== ca_cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+	)
 
 
-def check_intermediate_ca(ca_cert: X509) -> bool:
+def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
 	if opsi_ca_is_self_signed():
 		return False
 
 	# opsi CA is not self-signed. opsi CA is an intermediate CA.
 	try:
 		validate_cert(ca_cert)
-	except X509StoreContextError as err:
-		issuer_subject = str(ca_cert.get_issuer()).split("'")[1]
+	except verification.VerificationError as err:
+		issuer_subject = ca_cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 		raise RuntimeError(
 			f"Opsi CA is an intermediate CA, issuer is {issuer_subject!r}, {err}. "
 			f"Make sure issuer certficate is in {config.ssl_trusted_certs!r} "
@@ -501,44 +497,42 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 			create = True
 
 	if not create and srv_key and srv_crt:
-		if dump_publickey(FILETYPE_PEM, srv_key) != dump_publickey(FILETYPE_PEM, srv_crt.get_pubkey()):
+		if srv_key.public_key().public_bytes(
+			encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
+		) != srv_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
 			logger.warning("Server cert does not match server key, creating new server cert")
 			create = True
 
 	if not create and srv_crt:
 		try:
 			validate_cert(srv_crt, ca_cert)
-		except X509StoreContextError as err:
+		except verification.VerificationError as err:
 			logger.warning("Failed to verify server cert with opsi CA (%s), creating new server cert", err)
 			create = True
 
 	if not create and srv_crt:
 		not_after_days = get_not_before_and_not_after(srv_crt)[3]
 		if not_after_days:
-			logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, not_after_days)
+			common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+			logger.info("Server cert '%s' will expire in %d days", common_name, not_after_days)
 			if not_after_days <= config.ssl_server_cert_renew_days:
-				logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, not_after_days)
+				logger.notice("Server cert '%s' will expire in %d days, recreating", common_name, not_after_days)
 				create = True
 
 	if not create and srv_crt:
-		if server_cn != srv_crt.get_subject().CN:
-			logger.notice("Server CN has changed from '%s' to '%s', creating new server cert", srv_crt.get_subject().CN, server_cn)
+		common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+		if server_cn != common_name:
+			logger.notice("Server CN has changed from '%s' to '%s', creating new server cert", common_name, server_cn)
 			create = True
 
 	if not create and server_role == "configserver" and srv_crt:
 		cert_hns = set()
 		cert_ips = set()
-		for idx in range(srv_crt.get_extension_count()):
-			ext = srv_crt.get_extension(idx)
-			if ext.get_short_name() == b"subjectAltName":
-				for alt_name in str(ext).split(","):
-					alt_name = alt_name.strip()
-					if alt_name.startswith("DNS:"):
-						cert_hns.add(alt_name.split(":", 1)[-1].strip())
-					elif alt_name.startswith(("IP:", "IP Address:")):
-						addr = alt_name.split(":", 1)[-1].strip()
-						cert_ips.add(ip_address(addr).compressed)
-				break
+		alt_names = [extension for extension in srv_crt.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+		if alt_names:
+			cert_hns = {str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)}
+			cert_ips = {str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)}
+
 		hns = get_hostnames()
 		if cert_hns != hns:
 			logger.notice("Server hostnames have changed from %s to %s, creating new server cert", cert_hns, hns)
@@ -568,13 +562,16 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
 					time.sleep(5)
 			if pem:
-				srv_crt = load_certificate(FILETYPE_PEM, pem)
-				srv_key = load_privatekey(FILETYPE_PEM, pem)
+				srv_crt = x509.load_pem_x509_certificate(pem)
+				private_key = serialization.load_pem_private_key(pem, password=None)
+				if not isinstance(private_key, rsa.RSAPrivateKey):
+					raise ValueError(f"Not a RSA private key, but {private_key.__class__.__name__}")
+				srv_key = private_key
 
 		if srv_key:
 			store_local_server_key(srv_key)
 		if srv_crt:
-			serial = ":".join((f"{srv_crt.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2))
+			serial = ":".join((f"{srv_crt.serial_number:x}").zfill(40)[i : i + 2] for i in range(0, 40, 2))
 			logger.info("Storing new server cert with serial %s", serial)
 			store_local_server_cert(srv_crt)
 		return True

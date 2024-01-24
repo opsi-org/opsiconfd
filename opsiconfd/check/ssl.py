@@ -9,13 +9,14 @@ health check
 """
 from __future__ import annotations
 
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.x509 import verification  # type: ignore[attr-defined]
+
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import config, opsi_config
 from opsiconfd.ssl import (
-	FILETYPE_PEM,
-	X509StoreContextError,
 	check_intermediate_ca,
-	dump_publickey,
 	get_ca_subject,
 	get_not_before_and_not_after,
 	get_server_cn,
@@ -24,8 +25,8 @@ from opsiconfd.ssl import (
 	load_local_server_cert,
 	load_local_server_key,
 	opsi_ca_is_self_signed,
-	subject_to_dict,
 	validate_cert,
+	x509_name_to_dict,
 )
 
 
@@ -63,7 +64,7 @@ def check_ssl() -> CheckResult:
 					partial_result.check_status = CheckStatus.WARNING
 				else:
 					ca_subject = get_ca_subject()
-					current_ca_subject = subject_to_dict(load_ca_cert().get_subject())
+					current_ca_subject = x509_name_to_dict(load_ca_cert().subject)
 					if ca_subject != current_ca_subject:
 						partial_result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."
 						partial_result.check_status = CheckStatus.WARNING
@@ -141,18 +142,20 @@ def check_ssl() -> CheckResult:
 		)
 		try:
 			srv_key = load_local_server_key()
-			if dump_publickey(FILETYPE_PEM, srv_key) != dump_publickey(FILETYPE_PEM, srv_crt.get_pubkey()):
+			if srv_key.public_key().public_bytes(
+				encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
+			) != srv_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.message = "Server cert does not match server key."
 			else:
 				server_cn = get_server_cn()
-				if server_cn != srv_crt.get_subject().CN:
+				if server_cn != srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value:
 					partial_result.check_status = CheckStatus.ERROR
 					partial_result.message = f"Server CN has changed from '{server_cn}' to '{srv_crt.get_subject().CN}'"
 				elif ca_cert:
 					try:
 						validate_cert(srv_crt, ca_cert)
-					except X509StoreContextError:
+					except verification.VerificationError:
 						partial_result.check_status = CheckStatus.ERROR
 						partial_result.message = "Failed to verify server cert with opsi CA."
 		except Exception as err:  # pylint: disable=broad-except

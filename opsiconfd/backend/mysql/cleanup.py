@@ -243,6 +243,44 @@ def convert_config_objects(session: Session) -> None:
 		logger.notice("Changed %d Configes to UnicodeConfigs.", result.rowcount)
 
 
+def add_missing_version_info_to_product_on_client(session: Session) -> None:
+	result = session.execute(
+		"""
+			UPDATE
+				PRODUCT_ON_CLIENT AS upod
+			JOIN (
+				SELECT
+					poc.clientId,
+					poc.productId,
+					IFNULL(
+						(
+							SELECT
+								SUBSTRING_INDEX(SUBSTRING_INDEX(cs.`values`, '"', 2), '"', -1) AS depot_id
+							FROM
+								CONFIG_STATE AS cs
+							WHERE
+								cs.configId = "clientconfig.depot.id" AND
+								cs.objectId = poc.clientId
+						),
+						(SELECT hcs.hostId FROM HOST AS hcs WHERE hcs.`type` = "OpsiConfigserver")
+					) AS depotId
+				FROM
+					PRODUCT_ON_CLIENT AS poc
+				WHERE
+					poc.installationStatus = "installed" AND
+					(poc.productVersion IS NULL OR poc.packageVersion IS NULL OR poc.productVersion = "" OR poc.packageVersion = "")
+			) AS miss ON miss.clientId = upod.clientId AND miss.productId = upod.productId
+			JOIN
+				PRODUCT_ON_DEPOT AS pod ON miss.depotId = pod.DepotId AND miss.productId = pod.productId
+			SET
+				upod.productVersion = pod.productVersion,
+				upod.packageVersion = pod.packageVersion
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Added %d versions to ProductOnClients.", result.rowcount)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		remove_orphans_config_value(session)
@@ -259,3 +297,4 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_hardware_device(mysql, session)
 		remove_orphans_hardware_config(mysql, session)
 		convert_config_objects(session)
+		add_missing_version_info_to_product_on_client(session)

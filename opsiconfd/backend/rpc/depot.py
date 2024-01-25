@@ -69,7 +69,7 @@ from opsiconfd.config import (
 	opsi_config,
 )
 from opsiconfd.logging import logger
-from opsiconfd.redis import decode_redis_result, redis_client
+from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
 # deprecated can be used in extension config files
@@ -91,7 +91,7 @@ class TransferSlotType(StrEnum):
 
 TRANSFER_SLOT_CONFIGS = {
 	TransferSlotType.OPSI_PACKAGE_UPDATER: "opsiconfd.transfer.slots_opsi_package_updater",
-	TransferSlotType.OPSICLIENTD_PRODUCT_SYNC: "opsiconfd.transfer.slots_opsiclientd_product_sync"
+	TransferSlotType.OPSICLIENTD_PRODUCT_SYNC: "opsiconfd.transfer.slots_opsiclientd_product_sync",
 }
 # Possibility to make retention time configurable if necessary
 # TRANSFER_SLOT_RETENTION_CONFIGS = {
@@ -380,35 +380,37 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 
-		slot = TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type, retry_after=None)
-		if slot_id:
+		slot_type = TransferSlotType(slot_type)
+		with redis_lock(f"transfer-slot-{slot_type}", acquire_timeout=10.0, lock_timeout=30.0):
+			slot = TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type, retry_after=None)
+			if slot_id:
+				redis = redis_client()
+				res = decode_redis_result(redis.get(slot.redis_key))
+				if res:
+					redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
+					return slot
+
+			max_slots = TRANSFER_SLOT_MAX
+			slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
+			slot_config = self.configState_getValues(slot_config_name, depot).get(depot, {}).get(slot_config_name)
+			if slot_config:
+				try:
+					max_slots = int(slot_config[0])
+				except ValueError:
+					logger.warning(
+						"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
+						slot_config_name,
+						TRANSFER_SLOT_MAX,
+					)
+
 			redis = redis_client()
-			res = decode_redis_result(redis.get(slot.redis_key))
-			if res:
-				redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
-				return slot
+			depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*"))))
+			if depot_slots >= max_slots:
+				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
+				return TransferSlot(retry_after=retry_after)
 
-		max_slots = TRANSFER_SLOT_MAX
-		slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
-		slot_config = self.configState_getValues(slot_config_name, depot).get(depot, {}).get(slot_config_name)
-		if slot_config:
-			try:
-				max_slots = int(slot_config[0])
-			except ValueError:
-				logger.warning(
-					"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
-					slot_config_name,
-					TRANSFER_SLOT_MAX,
-				)
-
-		redis = redis_client()
-		depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*"))))
-		if depot_slots >= max_slots:
-			retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
-			return TransferSlot(retry_after=retry_after)
-
-		redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
-		return slot
+			redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
+			return slot
 
 	@rpc_method(check_acl=False)
 	def depot_releaseTransferSlot(  # pylint: disable=invalid-name
@@ -434,12 +436,13 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		Raises:
 		        BackendPermissionDeniedError: If access is denied.
 		"""
-
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 
-		redis_client().unlink(TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type).redis_key)
+		slot_type = TransferSlotType(slot_type)
+		with redis_lock(f"transfer-slot-{slot_type}", acquire_timeout=10.0, lock_timeout=30.0):
+			redis_client().unlink(TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type).redis_key)
 
 	@rpc_method
 	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:  # pylint: disable=invalid-name

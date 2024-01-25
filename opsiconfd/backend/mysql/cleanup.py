@@ -244,6 +244,9 @@ def convert_config_objects(session: Session) -> None:
 
 
 def add_missing_version_info_to_product_on_client(session: Session) -> None:
+	# Failed to replicate object <ProductOnClient(clientId='...', productId='...', installationStatus='installed', actionRequest='setup')>:
+	# Backend referential integrity error: Cannot set installationStatus for product '...', client '...' to 'installed'
+	# without productVersion and packageVersion   (Replicator.py:336)
 	result = session.execute(
 		"""
 			UPDATE

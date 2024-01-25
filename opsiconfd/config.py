@@ -1208,6 +1208,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			help=self._help("expert", "Clients are allowed to login with the host key only."),
 		)
 		self._parser.add(
+			"--replace-host-key-on-auth",
+			env_var="OPSICONFD_REPLACE_HOST_KEY_ON_AUTH",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help("expert", "Replace the host key with every authentication."),
+		)
+		self._parser.add(
 			"--maintenance",
 			nargs="*",
 			env_var="OPSICONFD_MAINTENANCE",

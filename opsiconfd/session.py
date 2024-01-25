@@ -37,7 +37,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 )
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from opsicommon.objects import Host, OpsiClient, User  # type: ignore[import]
-from opsicommon.utils import ip_address_in_network, timestamp
+from opsicommon.utils import generate_opsi_host_key, ip_address_in_network, timestamp
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
@@ -1070,6 +1070,13 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 		else:
 			# Value None on update means no change!
 			host.ipAddress = None
+		if config.replace_host_key_on_auth:
+			logger.info("Replacing opsi host key")
+			new_host_key = generate_opsi_host_key()
+			host.setOpsiHostKey(new_host_key)
+			if not scope.get("response-headers"):
+				scope["response-headers"] = {}
+			scope["response-headers"]["x-opsi-new-host-key"] = new_host_key
 		await backend.async_call("host_updateObject", host=host)
 
 	elif host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):

@@ -8,7 +8,6 @@
 login tests
 """
 
-import json
 import time
 from datetime import datetime
 from unittest.mock import patch
@@ -17,6 +16,7 @@ import pyotp
 import pytest
 from fastapi import status
 from MySQLdb.connections import Connection  # type: ignore[import]
+from opsicommon.objects import OpsiClient
 from packaging.version import Version
 
 from opsiconfd import (
@@ -32,6 +32,8 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_USER,
 	Config,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
 	clean_mysql,
 	clean_redis,
 	config,
@@ -390,19 +392,19 @@ def test_max_sessions_not_for_depot(
 			redis.delete(key)
 
 
-test_urls = (
+@pytest.mark.parametrize(
+	"url, method",
 	(
-		"/session/authenticated",
-		"get",
-	),
-	(
-		"/session/login",
-		"post",
+		(
+			"/session/authenticated",
+			"get",
+		),
+		(
+			"/session/login",
+			"post",
+		),
 	),
 )
-
-
-@pytest.mark.parametrize("url, method", test_urls)
 @pytest.mark.flaky(retries=1, delay=1)
 def test_max_auth_failures(
 	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
@@ -596,75 +598,66 @@ def test_onetime_password_hardware_address(
 		database_connection.commit()
 
 
+def test_replace_host_key_on_auth(
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	opsi_client = OpsiClient(id="replace-key.uib.gmbh", opsiHostKey="c5e2008ece470d2951cd9cd82d9f0504")
+	assert opsi_client.opsiHostKey
+	backend.host_createObjects([opsi_client])
+	with get_config({"replace_host_key_on_auth": False}):
+		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+		res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
+		assert res.status_code == 200
+		assert "x-opsi-new-host-key" not in res.headers
+
+	test_client.reset_cookies()
+	with get_config({"replace_host_key_on_auth": True}):
+		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+		res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
+		assert res.status_code == 200
+		new_key = res.headers["x-opsi-new-host-key"]
+		assert new_key and new_key != opsi_client.opsiHostKey
+		opsi_client.opsiHostKey = new_key
+
+	with get_config({"replace_host_key_on_auth": False}):
+		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+		res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
+		assert res.status_code == 200
+		assert "x-opsi-new-host-key" not in res.headers
+
+
 def test_auth_only_hostkey(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-	database_connection: Connection,  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
+	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-	host_key = "f020dcde5108508cd947c5e229d9ec04"
+	opsi_client = OpsiClient(id="onlyhostkey.uib.gmbh", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
+	assert opsi_client.opsiHostKey
+	backend.host_createObjects([opsi_client])
 
-	database_connection.query(
-		"""
-		INSERT INTO HOST
-			(hostId, type, opsiHostKey)
-		VALUES
-			("onlyhostkey.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04");
-	"""
-	)
-	database_connection.commit()
-	try:
-		data = json.dumps({"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": "onlyhostkey.uib.gmbh"}]})
+	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
 
-		res = test_client.post("/rpc", auth=("", host_key), content=data)
+	with get_config({"allow_host_key_only_auth": False}):
+		res = test_client.post("/rpc", auth=("", opsi_client.opsiHostKey), json=data)
 		assert res.status_code == 401
+		test_client.reset_cookies()
 
-		config.allow_host_key_only_auth = True
-
-		res = test_client.post("/rpc", auth=(ADMIN_USER, host_key), content=data)
+	with get_config({"allow_host_key_only_auth": True}):
+		res = test_client.post("/rpc", auth=(ADMIN_USER, opsi_client.opsiHostKey), json=data)
 		assert res.status_code == 401
+		test_client.reset_cookies()
 
-		res = test_client.post("/rpc", auth=("", ADMIN_PASS), content=data)
+		res = test_client.post("/rpc", auth=("", ADMIN_PASS), json=data)
 		assert res.status_code == 401
+		test_client.reset_cookies()
 
-		res = test_client.post("/rpc", auth=("", host_key), content=data)
+		res = test_client.post("/rpc", auth=("", opsi_client.opsiHostKey), json=data)
 		assert res.status_code == 200
+		assert res.headers["x-opsi-new-host-id"] == opsi_client.id
+		test_client.reset_cookies()
 
-		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), content=data)
+		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data)
 		assert res.status_code == 200
-
-	finally:
-		database_connection.query('DELETE FROM HOST WHERE hostId = "onlyhostkey.uib.gmbh"')
-		database_connection.commit()
-
-
-def test_auth_only_hostkey_id_header(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-	database_connection: Connection,  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
-) -> None:
-	host_key = "f020dcde5108508cd947c5e229d9ec04"
-
-	database_connection.query(
-		"""
-		INSERT INTO HOST
-			(hostId, type, opsiHostKey)
-		VALUES
-			("onlyhostkey.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04");
-	"""
-	)
-	database_connection.commit()
-	try:
-		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": "onlyhostkey.uib.gmbh"}]}
-
-		config.allow_host_key_only_auth = True
-
-		res = test_client.post("/rpc", auth=("", host_key), json=data)
-		print(res.headers)
-		assert res.status_code == 200
-		assert res.headers["x-opsi-new-host-id"] == "onlyhostkey.uib.gmbh"
-	finally:
-		database_connection.query('DELETE FROM HOST WHERE hostId = "onlyhostkey.uib.gmbh"')
-		database_connection.commit()
 
 
 test_urls = (

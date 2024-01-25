@@ -65,6 +65,8 @@ pyinstaller-poetry:
       dst: opsiconfd_data
   dirname: opsiconfd
   after_script: |
+    rm -r dist/opsiconfd/tk dist/opsiconfd/tcl
+    mkdir dist/opsiconfd/tk dist/opsiconfd/tcl
     find dist/opsiconfd -iname "*.c" -delete
     find dist/opsiconfd -iname "*.h" -delete
     find dist/opsiconfd -iname "*.so" -exec chmod -x "{}" \;

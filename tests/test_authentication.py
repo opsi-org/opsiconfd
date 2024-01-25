@@ -16,7 +16,7 @@ import pyotp
 import pytest
 from fastapi import status
 from MySQLdb.connections import Connection  # type: ignore[import]
-from opsicommon.objects import OpsiClient
+from opsicommon import objects
 from packaging.version import Version
 
 from opsiconfd import (
@@ -602,36 +602,42 @@ def test_replace_host_key_on_auth(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-	opsi_client = OpsiClient(id="replace-key.uib.gmbh", opsiHostKey="c5e2008ece470d2951cd9cd82d9f0504")
+	opsi_client = objects.OpsiClient(id="replace-key.uib.gmbh", opsiHostKey="c5e2008ece470d2951cd9cd82d9f0504")
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
-	with get_config({"replace_host_key_on_auth": False}):
-		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
-		res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
-		assert res.status_code == 200
-		assert "x-opsi-new-host-key" not in res.headers
+
+	config = objects.BoolConfig(
+		id="clientconfig.replace_host_key_on_auth.active", description="Replace host key on auth", defaultValues=[False]
+	)
+	backend.config_createObjects([config])
+
+	backend.configState_createObjects([objects.ConfigState(config.id, opsi_client.id, values=[False])])
+	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+	res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
+	assert res.status_code == 200
+	assert "x-opsi-new-host-key" not in res.headers
 
 	test_client.reset_cookies()
-	with get_config({"replace_host_key_on_auth": True}):
-		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
-		res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
-		assert res.status_code == 200
-		new_key = res.headers["x-opsi-new-host-key"]
-		assert new_key and new_key != opsi_client.opsiHostKey
-		opsi_client.opsiHostKey = new_key
+	backend.configState_createObjects([objects.ConfigState(config.id, opsi_client.id, values=[True])])
+	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+	res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
+	assert res.status_code == 200
+	new_key = res.headers["x-opsi-new-host-key"]
+	assert new_key and new_key != opsi_client.opsiHostKey
+	opsi_client.opsiHostKey = new_key
 
-	with get_config({"replace_host_key_on_auth": False}):
-		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
-		res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
-		assert res.status_code == 200
-		assert "x-opsi-new-host-key" not in res.headers
+	backend.configState_createObjects([objects.ConfigState(config.id, opsi_client.id, values=[False])])
+	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+	res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
+	assert res.status_code == 200
+	assert "x-opsi-new-host-key" not in res.headers
 
 
 def test_auth_only_hostkey(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-	opsi_client = OpsiClient(id="onlyhostkey.uib.gmbh", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
+	opsi_client = objects.OpsiClient(id="onlyhostkey.uib.gmbh", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 

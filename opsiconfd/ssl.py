@@ -101,11 +101,11 @@ def get_not_before_and_not_after(
 
 def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
 	alt_names = [extension for extension in cert.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
-	alt_names_str = ""
-	if alt_names:
-		alt_names_str = ",".join(
-			str(a) for a in alt_names[0].value.get_values_for_type(x509.DNSName) + alt_names[0].value.get_values_for_type(x509.IPAddress)
-		)
+	alt_names_str = (
+		[str(a) for a in alt_names[0].value.get_values_for_type(x509.DNSName) + alt_names[0].value.get_values_for_type(x509.IPAddress)]
+		if alt_names
+		else []
+	)
 
 	dt_not_before, _not_before_days, dt_not_after, not_after_days = get_not_before_and_not_after(cert)
 

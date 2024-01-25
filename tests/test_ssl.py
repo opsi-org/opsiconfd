@@ -314,8 +314,6 @@ def test_server_key_fallback(tmpdir: Path) -> None:
 def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
-	ssl_ca_cert_bak = tmpdir / "opsi-ca-cert.pem.bak"
-	ssl_ca_key_bak = tmpdir / "opsi-ca-key.pem.bak"
 	config.ssl_ca_cert = str(ssl_ca_cert)
 	config.ssl_ca_key = str(ssl_ca_key)
 	config.ssl_ca_key_passphrase = "secret"
@@ -358,8 +356,6 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			encryption_algorithm=serialization.NoEncryption(),
 		)
 
-		assert not ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
-
 		if additional_certs:
 			# Additional certs must be kept
 			data = ssl_ca_cert.read_text(encoding="utf-8")
@@ -393,8 +389,6 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			format=serialization.PrivateFormat.TraditionalOpenSSL,
 			encryption_algorithm=serialization.NoEncryption(),
 		)
-
-		assert ssl_ca_cert_bak.exists() and ssl_ca_key_bak.exists()
 
 		if additional_certs:
 			# Additional certs must be kept

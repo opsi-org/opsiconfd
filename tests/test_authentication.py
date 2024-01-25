@@ -606,22 +606,19 @@ def test_replace_host_key_on_auth(
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
-	backend.config_createObjects(
-		[
-			objects.BoolConfig(
-				id="clientconfig.replace_host_key_on_auth.active", description="Replace host key on auth", defaultValues=[False]
-			)
-		]
+	config_obj = objects.BoolConfig(
+		id="clientconfig.replace_host_key_on_auth.active", description="Replace host key on auth", defaultValues=[False]
 	)
+	backend.config_createObjects([config_obj])
 
-	backend.configState_createObjects([objects.ConfigState(config.id, opsi_client.id, values=[False])])
+	backend.configState_createObjects([objects.ConfigState(config_obj.id, opsi_client.id, values=[False])])
 	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
 	res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
 	assert res.status_code == 200
 	assert "x-opsi-new-host-key" not in res.headers
 
 	test_client.reset_cookies()
-	backend.configState_createObjects([objects.ConfigState(config.id, opsi_client.id, values=[True])])
+	backend.configState_createObjects([objects.ConfigState(config_obj.id, opsi_client.id, values=[True])])
 	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
 	res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
 	assert res.status_code == 200
@@ -629,7 +626,7 @@ def test_replace_host_key_on_auth(
 	assert new_key and new_key != opsi_client.opsiHostKey
 	opsi_client.opsiHostKey = new_key
 
-	backend.configState_createObjects([objects.ConfigState(config.id, opsi_client.id, values=[False])])
+	backend.configState_createObjects([objects.ConfigState(config_obj.id, opsi_client.id, values=[False])])
 	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
 	res = test_client.post("/rpc", auth=(opsi_client.id, opsi_client.opsiHostKey), json=data)
 	assert res.status_code == 200

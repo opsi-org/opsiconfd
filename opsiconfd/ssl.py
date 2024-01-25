@@ -352,6 +352,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 					if os.path.exists(backup):
 						os.remove(backup)
 					shutil.copy(filename, backup)
+					os.chmod(backup, 0o600)
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to create backup of %r: %s", filename, err)
 

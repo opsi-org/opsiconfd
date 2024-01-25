@@ -150,6 +150,8 @@ def check_ssl() -> CheckResult:
 			else:
 				server_cn = get_server_cn()
 				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+				if not isinstance(cert_cn, str):
+					cert_cn = cert_cn.decode("utf-8")
 				if server_cn != cert_cn:
 					partial_result.check_status = CheckStatus.ERROR
 					partial_result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"

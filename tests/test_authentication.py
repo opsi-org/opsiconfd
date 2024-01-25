@@ -606,10 +606,13 @@ def test_replace_host_key_on_auth(
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
-	config = objects.BoolConfig(
-		id="clientconfig.replace_host_key_on_auth.active", description="Replace host key on auth", defaultValues=[False]
+	backend.config_createObjects(
+		[
+			objects.BoolConfig(
+				id="clientconfig.replace_host_key_on_auth.active", description="Replace host key on auth", defaultValues=[False]
+			)
+		]
 	)
-	backend.config_createObjects([config])
 
 	backend.configState_createObjects([objects.ConfigState(config.id, opsi_client.id, values=[False])])
 	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}

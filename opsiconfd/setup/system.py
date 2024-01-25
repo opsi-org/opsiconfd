@@ -124,13 +124,15 @@ def setup_users_and_groups() -> None:
 		)
 
 
-def setup_systemd() -> None:
-	systemd_running = False
+def systemd_running() -> bool:
 	for proc in psutil.process_iter():
 		if proc.name() == "systemd":
-			systemd_running = True
-			break
-	if not systemd_running:
+			return True
+	return False
+
+
+def setup_systemd() -> None:
+	if not systemd_running():
 		logger.debug("Systemd not running")
 		return
 

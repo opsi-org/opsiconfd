@@ -44,11 +44,14 @@ from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
 from opsiconfd.setup.samba import setup_samba
 from opsiconfd.setup.sudo import setup_sudoers
-from opsiconfd.setup.system import setup_limits, setup_systemd, setup_users_and_groups
+from opsiconfd.setup.system import setup_limits, setup_systemd, setup_users_and_groups, systemd_running
 from opsiconfd.ssl import setup_ssl
 
 
 def restart_opsiconfd_if_running() -> None:
+	if not systemd_running():
+		logger.debug("Systemd not running")
+		return
 	try:
 		if subprocess.run(["systemctl", "is-active", "--quiet", "opsiconfd"], check=False).returncode == 0:
 			rich_print("[b]Restarting opsiconfd[/b]")

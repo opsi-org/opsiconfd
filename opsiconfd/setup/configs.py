@@ -248,7 +248,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 	if "clientconfig.depot.user" not in config_ids:
 		logger.info("Creating config 'clientconfig.depot.user'")
 
-		depot_user = "pcpatch"
+		depot_user = opsi_config.get("depot_user", "username")
 		domain = _get_windows_domain()
 		if domain:
 			depot_user = f"{domain}\\{depot_user}"

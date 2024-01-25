@@ -207,7 +207,7 @@ class RPCUserMixin(Protocol):
 
 		result["password"] = blowfish_decrypt(depot.opsiHostKey, result["password"])
 
-		if username == "pcpatch":
+		if username == opsi_config.get("depot_user", "username"):
 			try:
 				id_rsa = os.path.join(pwd.getpwnam(username)[5], ".ssh", "id_rsa")
 				with open(id_rsa, encoding="utf-8") as file:
@@ -289,7 +289,7 @@ class RPCUserMixin(Protocol):
 			try:
 				logger.debug("Running on univention %s", univention_server_role)
 				if univention_server_role not in ("domaincontroller_master", "domaincontroller_backup"):
-					logger.warning("Did not change the password for 'pcpatch', please change it on the master server.")
+					logger.warning("Did not change the password for %r, please change it on the master server.", username)
 					return
 
 				logger.debug("Executing: %s", cmd)

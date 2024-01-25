@@ -151,7 +151,8 @@ def setup_samba() -> None:
 	username = opsi_config.get("depot_user", "username")
 	try:
 		backend.user_getCredentials(username)
-	except Exception:  # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning("Failed to get credentials for user %s: %s, setting new random password", username, err)
 		backend.user_setCredentials(
 			username, get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
 		)

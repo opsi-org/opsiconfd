@@ -59,6 +59,7 @@ from opsicommon.types import (  # type: ignore[import]
 	forceUnicodeList,
 )
 
+from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -2190,7 +2191,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method(deprecated=True, alternative_method="user_getCredentials", check_acl=False)
 	def getPcpatchPassword(self: BackendProtocol, hostId: str) -> str:  # pylint: disable=invalid-name
-		return self.user_getCredentials(username="pcpatch", hostId=hostId)["password"]
+		return self.user_getCredentials(username=opsi_config.get("depot_user", "username"), hostId=hostId)["password"]
 
 	@rpc_method(deprecated=True, alternative_method="accessControl_userIsAdmin", check_acl=False)
 	def userIsAdmin(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name

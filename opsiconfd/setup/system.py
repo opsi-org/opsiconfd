@@ -110,6 +110,10 @@ def setup_users_and_groups() -> None:
 		except KeyError:
 			logger.debug("Group not found: %s", groupname)
 
+	server_role = opsi_config.get("host", "server-role")
+	if server_role != "configserver":
+		return
+
 	# pylint: disable=import-outside-toplevel
 	from opsiconfd.backend import get_unprotected_backend
 

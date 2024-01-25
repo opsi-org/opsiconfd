@@ -149,9 +149,10 @@ def check_ssl() -> CheckResult:
 				partial_result.message = "Server cert does not match server key."
 			else:
 				server_cn = get_server_cn()
-				if server_cn != srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value:
+				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+				if server_cn != cert_cn:
 					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = f"Server CN has changed from '{server_cn}' to '{srv_crt.get_subject().CN}'"
+					partial_result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
 				elif ca_cert:
 					try:
 						validate_cert(srv_crt, ca_cert)

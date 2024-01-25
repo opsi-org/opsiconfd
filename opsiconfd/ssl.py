@@ -110,8 +110,8 @@ def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
 	dt_not_before, _not_before_days, dt_not_after, not_after_days = get_not_before_and_not_after(cert)
 
 	return {
-		"issuer": str(cert.issuer),
-		"subject": str(cert.subject),
+		"issuer": x509_name_to_dict(cert.issuer),
+		"subject": x509_name_to_dict(cert.subject),
 		"serial_number": ":".join((f"{cert.serial_number:x}").zfill(40)[i : i + 2] for i in range(0, 40, 2)).upper(),
 		"fingerprint_sha1": ":".join(cert.fingerprint(hashes.SHA1()).hex()[i : i + 2] for i in range(0, 40, 2)).upper(),
 		"fingerprint_sha256": ":".join(cert.fingerprint(hashes.SHA256()).hex()[i : i + 2] for i in range(0, 64, 2)).upper(),

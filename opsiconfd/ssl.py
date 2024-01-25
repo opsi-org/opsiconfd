@@ -299,18 +299,26 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 
 	create = False
 	renew = False
-	try:
-		ca_key = load_ca_key()
-		try:
-			ca_crt = load_ca_cert()
-		except Exception as err_cert:  # pylint: disable=broad-except
-			logger.info("Failed to load CA cert (%s), creating new CA cert", err_cert)
-			ca_crt = None
-			renew = True
-	except Exception as err_key:  # pylint: disable=broad-except
-		logger.info("Failed to load CA key (%s), creating new CA key and cert", err_key)
-		ca_key = None
+	ca_key = None
+	ca_crt = None
+
+	if not os.path.exists(config.ssl_ca_key):
+		logger.info("CA key file %r not found, creating new CA key and cert", config.ssl_ca_key)
 		create = True
+	elif not os.path.exists(config.ssl_ca_cert):
+		logger.info("CA cert file %r not found, creating new CA cert", config.ssl_ca_cert)
+		renew = True
+	else:
+		try:
+			ca_key = load_ca_key()
+			try:
+				ca_crt = load_ca_cert()
+			except Exception as err_cert:  # pylint: disable=broad-except
+				logger.warning("Failed to load CA cert (%s), creating new CA cert", err_cert)
+				renew = True
+		except Exception as err_key:  # pylint: disable=broad-except
+			logger.warning("Failed to load CA key (%s), creating new CA key and cert", err_key)
+			create = True
 
 	if ca_key and ca_crt:
 		if ca_key.public_key().public_bytes(

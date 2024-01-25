@@ -303,10 +303,12 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 		ca_key = load_ca_key()
 		try:
 			ca_crt = load_ca_cert()
-		except Exception:  # pylint: disable=broad-except
+		except Exception as err_cert:  # pylint: disable=broad-except
+			logger.info("Failed to load CA cert (%s), creating new CA cert", err_cert)
 			ca_crt = None
 			renew = True
-	except Exception:  # pylint: disable=broad-except
+	except Exception as err_key:  # pylint: disable=broad-except
+		logger.info("Failed to load CA key (%s), creating new CA key and cert", err_key)
 		ca_key = None
 		create = True
 

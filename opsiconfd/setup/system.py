@@ -12,6 +12,7 @@ import grp
 import os
 import pwd
 import resource
+import string
 import subprocess
 
 import psutil
@@ -24,8 +25,8 @@ from opsicommon.server.setup import (  # type: ignore[import]
 )
 
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
-from opsiconfd.utils import running_in_docker
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_random_string, running_in_docker
 
 
 def setup_limits() -> None:
@@ -108,6 +109,19 @@ def setup_users_and_groups() -> None:
 					)
 		except KeyError:
 			logger.debug("Group not found: %s", groupname)
+
+	# pylint: disable=import-outside-toplevel
+	from opsiconfd.backend import get_unprotected_backend
+
+	backend = get_unprotected_backend()
+	username = opsi_config.get("depot_user", "username")
+	try:
+		backend.user_getCredentials(username)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning("Failed to get credentials for user %s: %s, setting new random password", username, err)
+		backend.user_setCredentials(
+			username, get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
+		)
 
 
 def setup_systemd() -> None:

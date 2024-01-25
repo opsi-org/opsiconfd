@@ -314,6 +314,8 @@ def test_server_key_fallback(tmpdir: Path) -> None:
 def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	ssl_ca_cert_bak = tmpdir / "opsi-ca-cert.pem.bak"
+	ssl_ca_key_bak = tmpdir / "opsi-ca-key.pem.bak"
 	config.ssl_ca_cert = str(ssl_ca_cert)
 	config.ssl_ca_key = str(ssl_ca_key)
 	config.ssl_ca_key_passphrase = "secret"
@@ -355,6 +357,9 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			format=serialization.PrivateFormat.TraditionalOpenSSL,
 			encryption_algorithm=serialization.NoEncryption(),
 		)
+
+		assert not ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
+
 		if additional_certs:
 			# Additional certs must be kept
 			data = ssl_ca_cert.read_text(encoding="utf-8")
@@ -388,6 +393,9 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			format=serialization.PrivateFormat.TraditionalOpenSSL,
 			encryption_algorithm=serialization.NoEncryption(),
 		)
+
+		assert ssl_ca_cert_bak.exists() and ssl_ca_key_bak.exists()
+
 		if additional_certs:
 			# Additional certs must be kept
 			data = ssl_ca_cert.read_text(encoding="utf-8")
@@ -402,6 +410,8 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:  # pylint: disable=too-many-statements
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	ssl_ca_cert_bak = tmpdir / "opsi-ca-cert.pem.bak"
+	ssl_ca_key_bak = tmpdir / "opsi-ca-key.pem.bak"
 	ssl_server_cert = tmpdir / "opsiconfd-cert.pem"
 	ssl_server_key = tmpdir / "opsiconfd-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -483,6 +493,11 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:  #
 		)
 
 		if additional_certs:
+			assert ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
+		else:
+			assert not ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
+
+		if additional_certs:
 			# Additional certs must be kept
 			data = ssl_ca_cert.read_text(encoding="utf-8")
 			for additional_cert in additional_certs:
@@ -511,6 +526,11 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:  #
 		)
 		# Subject must stay the same
 		assert x509_name_to_dict(ca_crt.subject) == orig_ca_subject
+
+		if additional_certs:
+			assert ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
+		else:
+			assert not ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
 
 		if additional_certs:
 			# Additional certs must be kept
@@ -544,6 +564,11 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:  #
 		new_subject = x509_name_to_dict(ca_crt.subject)
 		assert new_subject != orig_ca_subject
 		assert new_subject == ca_subject
+
+		if additional_certs:
+			assert ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
+		else:
+			assert not ssl_ca_cert_bak.exists() and not ssl_ca_key_bak.exists()
 
 
 def test_create_local_server_cert(tmpdir: Path) -> None:

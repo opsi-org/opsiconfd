@@ -10,6 +10,7 @@ opsiconfd.ssl
 import datetime
 import os
 import re
+import shutil
 import socket
 import time
 from ipaddress import ip_address
@@ -299,8 +300,8 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 
 	create = False
 	renew = False
-	ca_key = None
-	ca_crt = None
+	cur_ca_key = None
+	cur_ca_crt = None
 
 	if not os.path.exists(config.ssl_ca_key):
 		logger.info("CA key file %r not found, creating new CA key and cert", config.ssl_ca_key)
@@ -310,9 +311,9 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 		renew = True
 	else:
 		try:
-			ca_key = load_ca_key()
+			cur_ca_key = load_ca_key()
 			try:
-				ca_crt = load_ca_cert()
+				cur_ca_crt = load_ca_cert()
 			except Exception as err_cert:  # pylint: disable=broad-except
 				logger.warning("Failed to load CA cert (%s), creating new CA cert", err_cert)
 				renew = True
@@ -320,27 +321,39 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 			logger.warning("Failed to load CA key (%s), creating new CA key and cert", err_key)
 			create = True
 
-	if ca_key and ca_crt:
-		if ca_key.public_key().public_bytes(
+	if cur_ca_key and cur_ca_crt:
+		if cur_ca_key.public_key().public_bytes(
 			encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
-		) != ca_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
+		) != cur_ca_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
 			logger.warning("CA cert does not match CA key, creating new CA cert")
 			renew = True
 		else:
-			not_after_days = get_not_before_and_not_after(ca_crt)[3]
+			not_after_days = get_not_before_and_not_after(cur_ca_crt)[3]
 			if not_after_days:
 				logger.info(
 					"CA '%s' will expire in %d days",
-					ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
+					cur_ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
 					not_after_days,
 				)
 				if not_after_days <= config.ssl_ca_cert_renew_days:
 					logger.notice(
 						"CA '%s' will expire in %d days, renewing",
-						ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
+						cur_ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
 						not_after_days,
 					)
 					renew = True
+
+	if create:
+		for filename in (config.ssl_ca_cert, config.ssl_ca_key):
+			if os.path.exists(filename) and os.stat(filename).st_size > 0:
+				logger.info("Creating backup of %r", filename)
+				try:
+					backup = f"{filename}.bak"
+					if os.path.exists(backup):
+						os.remove(backup)
+					shutil.copy(filename, backup)
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error("Failed to create backup of %r: %s", filename, err)
 
 	if create or renew:
 		ca_subject = get_ca_subject()
@@ -364,20 +377,18 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 			)
 			ca_subject = current_ca_subject
 
-		cur_ca_key = None
 		if renew:
 			logger.notice("Renewing opsi CA")
-			cur_ca_key = load_ca_key()
 		else:
 			logger.notice("Creating opsi CA")
 
 		(ca_crt, ca_key) = create_ca(
 			subject=ca_subject,
 			valid_days=config.ssl_ca_cert_valid_days,
-			key=cur_ca_key,
+			key=cur_ca_key if renew else None,
 			permitted_domains=config.ssl_ca_permitted_domains or None,
 		)
-		if not cur_ca_key:
+		if create:
 			store_ca_key(ca_key)
 		store_ca_cert(ca_crt)
 		install_ca(ca_crt)

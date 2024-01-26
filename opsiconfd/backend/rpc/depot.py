@@ -64,7 +64,6 @@ from opsiconfd.config import (
 	BOOT_DIR,
 	DEPOT_DIR,
 	PACKAGE_SCRIPT_TIMEOUT,
-	REPOSITORY_DIR,
 	WORKBENCH_DIR,
 	config,
 	opsi_config,
@@ -917,7 +916,6 @@ class DepotserverPackageManager:
 			product_id = typeForceProductId(product_id)
 			force = forceBool(force)
 			delete_files = forceBool(delete_files)
-			depot = self.backend.host_getObjects(type="OpsiDepotserver", id=self._depot_id)[0]
 			allow_remove_used = True
 			try:
 				allow_remove_used = forceBool(

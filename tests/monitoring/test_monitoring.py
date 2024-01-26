@@ -108,7 +108,7 @@ test_data: tuple[tuple[Any, Any, Any, Any], ...] = (
 		{"capacity": 107374182400, "available": 21474836480, "used": 85899345920, "usage": 0.80},
 		"not-a-resource",
 		{"warning": "10%", "critical": "5%"},
-		{"state": 3, "message": "UNKNOWN: No results get. Nothing to check."},
+		{"state": 3, "message": "UNKNOWN: No disk usage results, nothing to check."},
 	),
 	(
 		{"capacity": 107374182400, "available": 21474836480, "used": 85899345920, "usage": 0.80},
@@ -270,7 +270,7 @@ def test_check_disk_usage_no_result(  # pylint: disable=too-many-arguments,redef
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
 		result = check_opsi_disk_usage(opsiresource=["not-a-resource"])
 
-	assert json.loads(result.body) == {"message": ("UNKNOWN: No results get. Nothing to check."), "state": 3}
+	assert json.loads(result.body) == {"message": ("UNKNOWN: No disk usage results, nothing to check."), "state": 3}
 
 
 def test_check_locked_products(

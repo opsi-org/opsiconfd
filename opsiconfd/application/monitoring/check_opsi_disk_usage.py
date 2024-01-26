@@ -57,8 +57,7 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 	try:
 		for resource in resources:
 			path = dirs.get(resource)
-			if path and path.startswith("file://"):
-				path = path.replace("file://", "")
+			if path:
 				results[resource] = get_disk_usage(path).as_dict()
 	except Exception as err:  # pylint: disable=broad-except
 		return generate_response(State.UNKNOWN, f"Not able to check DiskUsage: {err}")
@@ -92,5 +91,5 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 					message.append(f"DiskUsage from ressource: '{result}' is ok. (available: {free_space:.2f}%).")
 	else:
 		state = State.UNKNOWN
-		message.append("No results get. Nothing to check.")
+		message.append("No disk usage results, nothing to check.")
 	return generate_response(state, " ".join(message))

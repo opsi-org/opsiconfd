@@ -173,7 +173,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 		ctm = (
 			maintenance_mode(
 				message="Maintenance mode, backup in progress, please try again later",
-				wait_accomplished=30,
+				wait_accomplished=60,
 				address_exceptions=maintenance_address_exceptions or [],
 				progress=progress,
 			)
@@ -352,7 +352,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 
 		with maintenance_mode(
 			message="Maintenance mode, restore in progress, please try again later",
-			wait_accomplished=30,
+			wait_accomplished=60,
 			address_exceptions=maintenance_address_exceptions or [],
 			progress=progress,
 		):

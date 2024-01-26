@@ -451,7 +451,7 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 				cert.verify_directly_issued_by(icert)
 				issuer_cert = icert
 				break
-			except Exception:
+			except Exception:  # pylint: disable=broad-exception-caught
 				continue
 	if not issuer_cert:
 		raise verification.VerificationError("Failed to verify certificate")

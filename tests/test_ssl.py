@@ -24,7 +24,6 @@ from cryptography.x509 import verification  # type: ignore[attr-defined]
 
 import opsiconfd.ssl
 from opsiconfd.application.main import get_ssl_ca_cert
-from opsiconfd.config import config
 from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
@@ -32,7 +31,6 @@ from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
 	get_ca_cert_info,
-	get_cert_info,
 	get_hostnames,
 	get_ips,
 	get_server_cert_info,

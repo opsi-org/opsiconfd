@@ -97,7 +97,7 @@ async def monitoring(request: Request) -> JSONResponse:  # pylint: disable=too-m
 				cpu_thresholds=params.get("cpu", {}), error_thresholds=params.get("errors", {}), perfdata=params.get("perfdata", True)
 			)
 		elif task == "checkOpsiDiskUsage":
-			response = check_opsi_disk_usage(backend=backend, opsiresource=params.get("resource", None))
+			response = check_opsi_disk_usage(opsiresource=params.get("resource", None))
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})
 	except Exception as err:  # pylint: disable=broad-except

@@ -23,6 +23,7 @@ from opsicommon.types import (  # type: ignore[import]
 	forceProductId,
 )
 
+from opsiconfd.config import DEPOT_DIR
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -99,23 +100,8 @@ class RPCExtOpsiMixin(Protocol):
 		Setting rights for a specified path.
 		If no path is given it will try to set the rights for the current depot.
 		"""
-		if path is None:
-			old_depot_path = "/opt/pcbin/install/"
-			new_depot_path = "/var/lib/opsi/depot/"
-			try:
-				if os.path.exists(new_depot_path) and os.path.islink(new_depot_path):
-					linked_path = os.readlink(new_depot_path)
-					if os.path.isabs(linked_path):
-						path = linked_path
-					else:
-						path = os.path.join(os.path.dirname(new_depot_path), linked_path)
-				else:
-					path = old_depot_path
-			except OSError as oserr:
-				if "operation not permitted" in str(oserr).lower():
-					path = old_depot_path
-				else:
-					raise oserr
+		if not path:
+			path = DEPOT_DIR
 
 		if not os.path.exists(path):
 			raise IOError(f"The path {path!r} does not exist")

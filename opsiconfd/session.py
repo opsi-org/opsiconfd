@@ -37,7 +37,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 )
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from opsicommon.objects import Host, OpsiClient, User  # type: ignore[import]
-from opsicommon.utils import generate_opsi_host_key, ip_address_in_network, timestamp
+from opsicommon.utils import ip_address_in_network, timestamp
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool

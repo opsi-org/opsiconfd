@@ -1070,16 +1070,6 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 		else:
 			# Value None on update means no change!
 			host.ipAddress = None
-		config_name = "clientconfig.replace_host_key_on_auth.active"
-		replace_host_key_on_auth = backend.configState_getValues(config_name, host.id).get(host.id, {}).get(config_name)
-		if replace_host_key_on_auth and replace_host_key_on_auth[0]:
-			logger.info("Replacing opsi host key")
-			new_host_key = generate_opsi_host_key()
-			host.setOpsiHostKey(new_host_key)
-			if not scope.get("response-headers"):
-				scope["response-headers"] = {}
-			scope["response-headers"]["x-opsi-new-host-key"] = new_host_key
-			# TODO: Set clientconfig.replace_host_key_on_auth.last_set to timestamp
 		await backend.async_call("host_updateObject", host=host)
 
 	elif host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):

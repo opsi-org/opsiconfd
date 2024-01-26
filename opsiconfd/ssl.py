@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 from opsicommon.server.rights import FilePermission, PermissionRegistry, set_rights
-from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca, x509_name_to_dict
+from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca, is_self_signed, x509_name_to_dict
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from opsiconfd.backend import get_unprotected_backend
@@ -300,6 +300,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 
 	create = False
 	renew = False
+	is_intermediate_ca = False
 	cur_ca_key = None
 	cur_ca_crt = None
 
@@ -314,6 +315,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 			cur_ca_key = load_ca_key()
 			try:
 				cur_ca_crt = load_ca_cert()
+				is_intermediate_ca = not is_self_signed(cur_ca_crt)
 			except Exception as err_cert:  # pylint: disable=broad-except
 				logger.warning("Failed to load CA cert (%s), creating new CA cert", err_cert)
 				renew = True
@@ -342,6 +344,14 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 						not_after_days,
 					)
 					renew = True
+
+	if is_intermediate_ca and (create or renew):
+		assert cur_ca_crt
+		issuer_subject = cur_ca_crt.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+		raise RuntimeError(
+			f"opsi CA needs to be {'renewed' if renew else 'recreated'} and is an intermediate CA (issuer={issuer_subject!r}). "
+			f"Please update the current CA certificate '{config.ssl_ca_cert}' and key '{config.ssl_ca_key}' manually."
+		)
 
 	if create:
 		for filename in (config.ssl_ca_cert, config.ssl_ca_key):
@@ -418,8 +428,8 @@ def setup_ca() -> bool:
 	raise ValueError(f"Invalid server role: {server_role}")
 
 
-def validate_cert(cert: x509.Certificate, ca_cert: x509.Certificate | None = None) -> None:
-	ca_certs = [ca_cert] if ca_cert else []
+def get_trusted_certs() -> list[x509.Certificate]:
+	ca_certs = []
 	if os.path.exists(config.ssl_trusted_certs):
 		with open(config.ssl_trusted_certs, "r", encoding="utf-8") as file:
 			for match in finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", file.read(), DOTALL):
@@ -427,44 +437,67 @@ def validate_cert(cert: x509.Certificate, ca_cert: x509.Certificate | None = Non
 					ca_certs.append(x509.load_pem_x509_certificate(match.group(1).encode("ascii")))
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to load certificate from %r: %s", config.ssl_trusted_certs, err, exc_info=True)
+	return ca_certs
 
-	store = verification.Store(ca_certs)
+
+def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x509.Certificate) -> None:
+	if not isinstance(ca_certs, list):
+		ca_certs = [ca_certs]
+
+	issuer_cert = None
+	for icert in ca_certs:
+		if icert.subject == cert.issuer:
+			try:
+				cert.verify_directly_issued_by(icert)
+				issuer_cert = icert
+				break
+			except Exception:
+				continue
+	if not issuer_cert:
+		raise verification.VerificationError("Failed to verify certificate")
+
+	dt_ca_cert_not_before = get_not_before_and_not_after(issuer_cert)[0]
+	dt_cert_not_before = get_not_before_and_not_after(cert)[0]
+	if dt_ca_cert_not_before and dt_cert_not_before and dt_ca_cert_not_before > dt_cert_not_before:
+		raise verification.VerificationError(
+			f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}"
+		)
+
+	is_ca = any(ext for ext in cert.extensions if ext.oid == x509.OID_BASIC_CONSTRAINTS and ext.value.ca)
+	if is_ca:
+		return
+
+	# Extended validation for server certificates
+	store = verification.Store([issuer_cert])
 	builder = verification.PolicyBuilder().store(store)
-	dns_name = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
-	if not isinstance(dns_name, str):
-		dns_name = dns_name.decode("utf-8")
-	verifier = builder.build_server_verifier(x509.DNSName(dns_name))
+	common_name = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+	if not isinstance(common_name, str):
+		common_name = common_name.decode("utf-8")
+	verifier = builder.build_server_verifier(x509.DNSName(common_name))
 	verifier.verify(cert, [])
 
-	if ca_cert:
-		dt_ca_cert_not_before = get_not_before_and_not_after(ca_cert)[0]
-		dt_cert_not_before = get_not_before_and_not_after(cert)[0]
-		if dt_ca_cert_not_before and dt_cert_not_before and dt_ca_cert_not_before > dt_cert_not_before:
-			raise verification.VerificationError(
-				f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}"
-			)
 
-
-def opsi_ca_is_self_signed(ca_cert: x509.Certificate | None = None) -> bool:
-	ca_cert = ca_cert or load_ca_cert()
-	return (
-		ca_cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
-		== ca_cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
-	)
+def opsi_ca_is_self_signed() -> bool:
+	return is_self_signed(load_ca_cert())
 
 
 def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
-	if opsi_ca_is_self_signed():
+	if is_self_signed(ca_cert):
 		return False
 
 	# opsi CA is not self-signed. opsi CA is an intermediate CA.
+	ca_certs = [
+		cert
+		for cert in load_certs(config.ssl_ca_cert)
+		if cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value != config.ssl_ca_subject_cn
+	]
 	try:
-		validate_cert(ca_cert)
+		validate_cert(ca_cert, ca_certs + get_trusted_certs())
 	except verification.VerificationError as err:
 		issuer_subject = ca_cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 		raise RuntimeError(
-			f"Opsi CA is an intermediate CA, issuer is {issuer_subject!r}, {err}. "
-			f"Make sure issuer certficate is in {config.ssl_trusted_certs!r} "
+			f"opsi CA is an intermediate CA, issuer is {issuer_subject!r}, {err}. "
+			f"Make sure issuer certficate is in {config.ssl_ca_cert!r} or {config.ssl_trusted_certs!r} "
 			"or specify a certificate database containing the issuer certificate via --ssl-trusted-certs."
 		) from err
 	return True

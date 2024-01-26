@@ -128,7 +128,9 @@ test_data: tuple[tuple[Any, Any, Any, Any], ...] = (
 
 @pytest.fixture(autouse=True)
 def create_check_data(
-	test_client: OpsiconfdTestClient, config: Config, database_connection: Connection  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,
+	config: Config,
+	database_connection: Connection,  # pylint: disable=redefined-outer-name
 ) -> Generator[None, None, None]:
 	delete_mysql_data()
 
@@ -253,7 +255,7 @@ def test_check_disk_usage(  # pylint: disable=too-many-arguments,redefined-outer
 		return DiskUsage(**info)
 
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
-		result = check_opsi_disk_usage(backend, thresholds=thresholds, opsiresource=opsiresource)
+		result = check_opsi_disk_usage(thresholds=thresholds, opsiresource=opsiresource)
 
 	assert expected_result == json.loads(result.body)
 
@@ -266,15 +268,15 @@ def test_check_disk_usage_no_result(  # pylint: disable=too-many-arguments,redef
 		return return_value
 
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
-		result = check_opsi_disk_usage(backend, opsiresource=["not-a-resource"])
+		result = check_opsi_disk_usage(opsiresource=["not-a-resource"])
 
 	assert json.loads(result.body) == {"message": ("UNKNOWN: No results get. Nothing to check."), "state": 3}
 
 
 def test_check_locked_products(
-	backend: UnprotectedBackend, database_connection: Connection  # pylint: disable=redefined-outer-name
+	backend: UnprotectedBackend,
+	database_connection: Connection,  # pylint: disable=redefined-outer-name
 ) -> None:
-
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
 	assert json.loads(result.body) == {"message": "OK: No products locked on depots: pytest-test-depot.uib.gmbh", "state": 0}
 
@@ -423,7 +425,10 @@ def test_check_locked_products(
 	],
 )
 def test_check_short_product_status(  # pylint: disable=too-many-arguments
-	backend: UnprotectedBackend, product_id: str, thresholds: dict, expected_result: Any  # pylint: disable=redefined-outer-name
+	backend: UnprotectedBackend,
+	product_id: str,
+	thresholds: dict,
+	expected_result: Any,  # pylint: disable=redefined-outer-name
 ) -> None:
 	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
 	assert json.loads(result.body) == expected_result

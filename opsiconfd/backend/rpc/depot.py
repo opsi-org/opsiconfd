@@ -64,6 +64,7 @@ from opsiconfd.config import (
 	BOOT_DIR,
 	DEPOT_DIR,
 	PACKAGE_SCRIPT_TIMEOUT,
+	REPOSITORY_DIR,
 	WORKBENCH_DIR,
 	config,
 	opsi_config,
@@ -986,14 +987,9 @@ class DepotserverPackageManager:
 			logger.debug("Deleting product '%s'", product_id)
 
 			if delete_files:
-				if not depot.depotLocalUrl.startswith("file:///"):
-					raise BackendBadValueError(
-						f"Value '{depot.depotLocalUrl}' not allowed for depot local url (has to start with 'file:///')"
-					)
-
-				for element in os.listdir(depot.depotLocalUrl[7:]):
+				for element in os.listdir(DEPOT_DIR):
 					if element.lower() == product_id.lower():
-						client_data_dir = os.path.join(depot.depotLocalUrl[7:], element)
+						client_data_dir = os.path.join(DEPOT_DIR, element)
 						logger.info("Deleting client data dir '%s'", client_data_dir)
 						shutil.rmtree(client_data_dir)
 

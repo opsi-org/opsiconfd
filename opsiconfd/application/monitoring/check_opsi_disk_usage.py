@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from fastapi.responses import JSONResponse
 from opsicommon.types import forceList  # type: ignore[import]
 
+from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 from opsiconfd.utils import get_disk_usage
 
 from .utils import State, generate_response
@@ -31,16 +32,7 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 	warning = thresholds.get("warning", "5G")
 	critical = thresholds.get("critical", "1G")
 
-	try:
-		config_server = backend.host_getObjects(type="OpsiConfigserver")[0]
-	except IndexError:
-		return generate_response(State.UNKNOWN, "Could not get OpsiConfigserver object.")
-
-	workbench_path = config_server.workbenchLocalUrl
-	depot_path = config_server.depotLocalUrl
-	repository_path = config_server.repositoryLocalUrl
-
-	dirs = {"workbench": workbench_path, "depot": depot_path, "repository": repository_path}
+	dirs = {"workbench": WORKBENCH_DIR, "depot": DEPOT_DIR, "repository": REPOSITORY_DIR}
 
 	if opsiresource:
 		resources = forceList(opsiresource)

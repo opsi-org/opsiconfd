@@ -18,7 +18,7 @@ from opsicommon.objects import ProductProperty
 from opsicommon.package.wim import wim_info
 from opsicommon.types import forceList, forceObjectClass, forceProductId
 
-from opsiconfd.config import get_depotserver_id
+from opsiconfd.config import DEPOT_DIR, get_depotserver_id
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -126,13 +126,7 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 		depot = depot[0]
 		logger.debug("Working with %s", depot)
 
-		depot_path = depot.depotLocalUrl
-		if not depot_path.startswith("file://"):
-			raise ValueError(f"Unable to handle the depot remote local url {depot_path!r}.")
-
-		depot_path = depot_path[7:]
-		logger.debug("Created path %s", depot_path)
-		product_path = os.path.join(depot_path, product_id)
+		product_path = os.path.join(DEPOT_DIR, product_id)
 		wim_search_path = os.path.join(product_path, "installfiles", "sources")
 
 		for filename in ("install.wim", "install.esd"):

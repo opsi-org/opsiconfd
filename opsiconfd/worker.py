@@ -323,28 +323,31 @@ class Worker(WorkerInfo, UvicornServer):
 	def get_connection_count(self) -> int:
 		return len(self.server_state.connections)
 
-	async def close_connections(  # pylint: disable=too-many-branches
+	async def close_connections(  # pylint: disable=too-many-branches,too-many-nested-blocks
 		self, address_exceptions: list[str] | None = None, wait: bool = True
 	) -> None:
 		address_exceptions = address_exceptions or []
 		logger.info("Closing connections, address exceptions: %s", address_exceptions)
 		keep_connections = set()
 		for connection in self.server_state.connections:
-			skip = False
-			if address_exceptions:
-				client = connection.client
-				if client:
-					client_ip = client[0]
-					for network in address_exceptions:
-						if ip_address_in_network(client_ip, network):
-							logger.info("Keeping excluded connection %s", connection)
-							keep_connections.add(connection)
-							skip = True
-							break
-			if not skip:
-				if logger.isEnabledFor(DEBUG):
-					logger.debug("Closing connection: %s", self.get_connection_info(connection))
-				connection.shutdown()
+			try:
+				skip = False
+				if address_exceptions:
+					client = connection.client
+					if client:
+						client_ip = client[0]
+						for network in address_exceptions:
+							if ip_address_in_network(client_ip, network):
+								logger.info("Keeping excluded connection %s", connection)
+								keep_connections.add(connection)
+								skip = True
+								break
+				if not skip:
+					if logger.isEnabledFor(DEBUG):
+						logger.debug("Closing connection: %s", self.get_connection_info(connection))
+					connection.shutdown()
+			except Exception as err:  # pylint: disable=broad-except
+				logger.warning("Failed to close connection %s: %s", connection, err)
 
 		if not wait:
 			return

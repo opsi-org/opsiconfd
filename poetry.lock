@@ -2850,7 +2850,7 @@ optional = false
 python-versions = ">=3.11,<3.13"
 files = [
     {file = "python_opsi-4.3.3.0-py3-none-any.whl", hash = "sha256:d6703c607194744164ce5fa15db5051ec29c4ccc209d957394a144f2eab5f47f"},
-    {file = "python_opsi-4.3.3.0.tar.gz", hash = "sha256:63a84a9ce330e7afa3b683b8b1b708a1ad89c6af09f7ebe937ddc2c3575c4696"},
+    {file = "python_opsi-4.3.3.0.tar.gz", hash = "sha256:23ce5fc3625a4ebd2cf6dcf39c8233b551eda79715ba7d5b20af5dc2f064af33"},
 ]
 
 [package.dependencies]
@@ -2889,8 +2889,8 @@ description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.4.0-py3-none-any.whl", hash = "sha256:6f3c7d77da4bd565e76a9b62b70f5bfbd4ec70233916c0c238727e28e88d8f4b"},
-    {file = "python_opsi_common-4.3.4.0.tar.gz", hash = "sha256:92ed04e68e635f118082dd8851147e4b0e08cbcec82d1ac9593d788c3acf6916"},
+    {file = "python_opsi_common-4.3.4.0-py3-none-any.whl", hash = "sha256:a3e5f12e9daa3b4319bb396a43631720c414baa0f327160bb41079137e3ee982"},
+    {file = "python_opsi_common-4.3.4.0.tar.gz", hash = "sha256:55b9b4e62f1000848e450cb7ea4d9157cd1a5953c328c282565881eba45e716b"},
 ]
 
 [package.dependencies]

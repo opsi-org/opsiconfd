@@ -14,8 +14,7 @@ testreport.xml
 
 # Visual Studio Code
 .vscode/*
-docker/dev.env
-.env
+local.env
 
 .~*
 
@@ -24,3 +23,4 @@ opsi-utils/
 
 sql/
 changelogs/
+tests/data/opsi-config/opsi.conf

@@ -16,7 +16,7 @@
 		{
 			"label": "Redis clean",
 			"type": "shell",
-			"command": "source ${workspaceFolder}/.venv/bin/activate; python ${workspaceFolder}/scripts/clean-redis.py",
+			"command": "poetry run python ${workspaceFolder}/scripts/clean-redis.py",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
@@ -27,16 +27,6 @@
 			"label": "Restore Backup",
 			"type": "shell",
 			"command": "sudo opsi-backup restore --force --backends=${input:opsi-backends} --new-server-id=${OPSI_HOSTNAME} ${input:opsi-backup}",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated"
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "Create .env file",
-			"type": "shell",
-			"command": "${workspaceFolder}/scripts/devenv.sh",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"

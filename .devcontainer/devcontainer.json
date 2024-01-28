@@ -1,15 +1,17 @@
 {
-	"name": "opsiconfd-43",
-	"dockerComposeFile": "../docker/dev-opsiconfd-compose.yml",
+	"name": "opsiconfd-dev-43",
+	"dockerComposeFile": "../docker/opsiconfd-dev/docker-compose.yml",
 	"service": "opsiconfd-dev-43",
-	"workspaceFolder": "/workspace",
+	"initializeCommand": ".devcontainer/initialize.sh",
 	"postCreateCommand": ".devcontainer/post_create.sh",
 	"postStartCommand": ".devcontainer/post_start.sh",
-	"remoteEnv": {
-		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
-		"DEV_USER": "${localEnv:USER}",
-		"DEV_UID": "${localEnv:UID}"
-	},
+	"workspaceFolder": "/workspace",
+	"remoteUser": "${localEnv:USER}",
+	//"remoteEnv": {
+	//	"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
+	//	"DEV_USER": "${localEnv:USER}",
+	//	"DEV_UID": "${localEnv:UID}"
+	//},
 	"customizations": {
 		"vscode": {
 			"settings": {
@@ -58,6 +60,5 @@
 				"charliermarsh.ruff"
 			]
 		}
-	},
-	"remoteUser": "${localEnv:USER}"
+	}
 }

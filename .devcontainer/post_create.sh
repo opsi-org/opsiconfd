@@ -12,8 +12,3 @@ sudo mkdir -p /tftpboot
 sudo ln -s /workspace/addons /var/lib/opsiconfd/addons
 
 sudo chown -R $DEV_USER /workspace
-
-/workspace/scripts/setup-hosts.sh
-/workspace/scripts/setup-grafana.sh
-/workspace/scripts/setup-mysql.sh
-/workspace/scripts/setup-redis.sh

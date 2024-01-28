@@ -20,8 +20,7 @@ Thus, long runinng JSON-RPC requests could block other requests.
 
 # Development in Dev Container
 * Install Remote-Containers: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
-* Run task "Create .env file" or run `./scripts/devenv.sh`
-* Set OPSILICSRV_TOKEN in .env file if available
+* Set OPSILICSRV_TOKEN in docker/opsiconfd-dev/.env if available
 * Open project in container:
 	* \<F1\> -> Remote-Containers: Reopen in Container
 	* or remote button in bottom left corner -> Reopen in Container
@@ -29,7 +28,6 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.
 
 ## Run Tests
-* Start opsiconfd with `sudo -E poetry run opsiconfd -l=5 -c tests/data/default-opsiconfd.conf`
 * Select "Run Tests" on the Status Bar, use the Test Explorer or run `poetry run pytest --cov-append --cov opsiconfd --cov-report term --cov-report xml -vv tests` in a terminal
 
 

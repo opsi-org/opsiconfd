@@ -16,7 +16,7 @@ before_script:
   - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
 
 after_script:
-  - docker compose -f docker/opsiconfd-dev/docker-compose.yml logs
+  - '[ "$CI_DEBUG_SERVICES" = "true" ] && docker compose -f docker/opsiconfd-dev/docker-compose.yml logs'
   - docker compose -f docker/opsiconfd-dev/docker-compose.yml kill
 
 .install_tools: &install_tools |
@@ -190,7 +190,12 @@ test:pylint-pytest:
     - env | grep "OPSILICSRV_TOKEN=" > docker/opsiconfd-dev/local.env
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml up --detach --wait --wait-timeout 30
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry install
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ruff opsiagent
+    - echo "---------------------------------------"
+    - echo "Run linters"
+    - echo "---------------------------------------"
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run pylint --disable=R,fixme,E0012 opsiconfd test
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ruff opsiconfd tests
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run mypy opsiconfd tests
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

@@ -1,6 +1,6 @@
 FROM docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
 
-ARG DEV_USER
+ARG DEV_USER=devuser
 
 ENV LC_ALL="en_US.UTF-8" \
 	LANG="en_US.UTF-8" \

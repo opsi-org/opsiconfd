@@ -15,6 +15,9 @@ before_script:
   - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
   - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
 
+after_script:
+  - docker compose -f docker/opsiconfd-dev/docker-compose.yml kill
+
 .install_tools: &install_tools |
   export DEBIAN_FRONTEND=noninteractive
   apt update

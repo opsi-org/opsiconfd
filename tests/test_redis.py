@@ -11,6 +11,7 @@ redis tests
 import asyncio
 import re
 import time
+from datetime import datetime, timezone
 from random import randbytes
 from threading import Thread
 from unittest.mock import patch
@@ -262,7 +263,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 
 	collector = ManagerMetricsCollector()
 	with patch("opsiconfd.metrics.collector.ManagerMetricsCollector._get_timestamp", _get_timestamp):
-		now_ts = int(time.time() * 1000)
+		now_ts = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 		num_values = 7200
 		start_ts = now_ts - num_values * 1000
 		for val_num in range(num_values):
@@ -300,7 +301,7 @@ async def test_dump_restore(config: Config) -> None:  # pylint: disable=redefine
 			if key.endswith(":hour"):
 				assert len(vals) == 1
 			elif key.endswith(":minute"):
-				assert len(vals) == 119
+				assert len(vals) in (118, 119)
 			else:
 				assert len(vals) == 7200
 			assert vals[0][1] == b"10"

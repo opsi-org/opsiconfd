@@ -55,7 +55,7 @@ def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disa
 
 
 def check_products_on_depot(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 	pods: list | tuple,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	for product_on_depot in pods:

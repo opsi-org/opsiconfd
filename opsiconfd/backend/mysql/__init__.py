@@ -175,8 +175,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		finally:
 			self.unique_hardware_addresses = unique_hardware_addresses
 
-	def _parse_config(self, config: dict[str, Any]) -> None:
-		for key, val in config.items():
+	def _parse_config(self, conf: dict[str, Any]) -> None:
+		for key, val in conf.items():
 			attr = "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr == "unique_hardware_addresses":
 				val = val in (True, "true", "1")

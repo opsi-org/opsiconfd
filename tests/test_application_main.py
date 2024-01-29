@@ -10,7 +10,7 @@ test application.main
 
 import warnings
 from datetime import datetime, timezone
-from time import sleep, time
+from time import sleep
 from unittest.mock import patch
 
 from starlette.types import Receive, Scope, Send

@@ -142,7 +142,7 @@ def get_config(values: Union[dict[str, Any], list[str]], with_env: bool = False)
 		yield _config
 	finally:
 		_config._config.__dict__ = conf  # pylint: disable=protected-access
-		_config._args = args  # pylint: disable==protected-access
+		_config._args = args  # pylint: disable=protected-access
 		if not with_env:
 			os.environ.update(environ)
 

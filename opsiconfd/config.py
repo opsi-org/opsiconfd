@@ -1044,6 +1044,19 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			choices=CHECKS,
 		)
 		self._parser.add(
+			"--mysql-internal-url",
+			env_var="OPSICONFD_MYSQL_INTERNAL_URL",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"MySQL connection url."
+				"By default the config from /etc/opsi/backends/mysql.conf will be used!\n"
+				"Examples:\n"
+				"mysql://<username>:<password>@mysql-server:3306/opsi?\n"
+				"mysql://<username>:<password>@mysql-server\n",
+			),
+		)
+		self._parser.add(
 			"--redis-internal-url",
 			env_var="OPSICONFD_REDIS_INTERNAL_URL",
 			default="redis://localhost",

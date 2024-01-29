@@ -18,6 +18,7 @@ from inspect import signature
 from json import JSONDecodeError, dumps, loads
 from pathlib import Path
 from time import sleep
+from types import NoneType
 from typing import (
 	TYPE_CHECKING,
 	Any,
@@ -29,7 +30,7 @@ from typing import (
 	Union,
 	overload,
 )
-from urllib.parse import quote, urlencode
+from urllib.parse import parse_qs, quote, urlencode, urlparse
 
 from opsicommon.exceptions import BackendPermissionDeniedError
 from opsicommon.logging import secret_filter
@@ -144,7 +145,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		self.username = "opsi"
 		self.password = "opsi"
 		self.database = "opsi"
-		self._database_charset = "utf8"
+		self._database_charset = "utf8mb4"
 		self._connection_pool_size = 20
 		self._connection_pool_max_overflow = 10
 		self._connection_pool_timeout = 30
@@ -160,6 +161,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		self.tables: dict[str, dict[str, dict[str, str | bool | None]]] = {}
 
 		self.read_config_file()
+		self.get_opsiconfd_config()
 		secret_filter.add_secrets(self.password)
 
 	def __repr__(self) -> str:
@@ -173,22 +175,46 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		finally:
 			self.unique_hardware_addresses = unique_hardware_addresses
 
+	def _parse_config(self, config: dict[str, Any]) -> None:
+		for key, val in config.items():
+			attr = "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
+			if attr == "unique_hardware_addresses":
+				val = val in (True, "true", "1")
+			if hasattr(self, attr):
+				_type = type(getattr(self, attr))
+				if _type is NoneType:
+					_type = str
+				setattr(self, attr, _type(val))
+			elif hasattr(self, f"_{attr}"):
+				_type = type(getattr(self, f"_{attr}"))
+				if _type is NoneType:
+					_type = str
+				setattr(self, f"_{attr}", _type(val))
+			else:
+				logger.warning("Skipping invalid config option %s", key)
+
+		if self._database_charset.replace("-", "").lower() == "utf8":
+			self._database_charset = "utf8mb4"
+		if self.password:
+			secret_filter.add_secrets(self.password)
+		if self.address == "::1":
+			self.address = "[::1]"
+
+	def get_opsiconfd_config(self) -> None:
+		if not config.mysql_internal_url:
+			return
+		uri = urlparse(config.mysql_internal_url)
+		self.address = uri.hostname
+		self.database = uri.path.lstrip("/")
+		self.username = uri.username
+		self.password = uri.password
+		self._parse_config({k: v[0] for k, v in parse_qs(uri.query).items()})
+
 	def read_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
 		loc: dict[str, Any] = {}
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
-
-		for key, val in loc["config"].items():
-			if "password" in key:
-				secret_filter.add_secrets(val)
-			attr = "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
-			if hasattr(self, attr):
-				setattr(self, attr, val)
-			elif hasattr(self, f"_{attr}"):
-				setattr(self, f"_{attr}", val)
-
-		if self.address == "::1":
-			self.address = "[::1]"
+		self._parse_config(loc["config"])
 
 	def update_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
@@ -207,7 +233,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		self._engine = create_engine(
 			uri,
 			pool_pre_ping=True,  # auto reconnect
-			encoding=self._database_charset,
 			pool_size=self._connection_pool_size,
 			max_overflow=self._connection_pool_max_overflow,
 			pool_timeout=self._connection_pool_timeout,
@@ -247,11 +272,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	def _init_connection(self) -> None:
 		password = quote(self.password)
 		secret_filter.add_secrets(password)
-
-		properties = {}
-		if self._database_charset == "utf8":
-			properties["charset"] = "utf8mb4"
-
+		properties = {
+			"charset": self._database_charset,
+		}
 		address = self.address
 		if address.startswith("/"):
 			properties["unix_socket"] = address

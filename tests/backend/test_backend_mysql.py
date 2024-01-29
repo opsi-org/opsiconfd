@@ -9,17 +9,22 @@ test opsiconfd.backend.mysql
 """
 
 import re
+import textwrap
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
 from tests.utils import backend, get_config  # pylint: disable=unused-import
 
 
-def test_config(tmp_path: Path) -> None:
+def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 	config_file = tmp_path / "mysql.conf"
 	with get_config({"backend_config_dir": str(tmp_path)}):
-		config = """
+		config = textwrap.dedent(
+			"""
 			# -*- coding: utf-8 -*-
 
 			module = 'MySQL'
@@ -35,6 +40,7 @@ def test_config(tmp_path: Path) -> None:
 				"unique_hardware_addresses": True
 			}
 			"""
+		)
 		expected = {
 			"username": "usernameö$",
 			"database": "databaseö$",
@@ -46,7 +52,6 @@ def test_config(tmp_path: Path) -> None:
 			"_connection_pool_size": 13,
 			"unique_hardware_addresses": True,
 		}
-		config = "\n".join(line.strip() for line in config.split("\n"))
 		config_file.write_text(config, encoding="utf-8")
 
 		con = MySQLConnection()
@@ -54,11 +59,13 @@ def test_config(tmp_path: Path) -> None:
 			assert getattr(con, key) == value
 
 		# Test unique_hardware_addresses = False
-		config = """
+		config = textwrap.dedent(
+			"""
 			config = {
 				"unique_hardware_addresses": False
 			}
 			"""
+		)
 		expected = {
 			"unique_hardware_addresses": False,
 		}
@@ -66,6 +73,96 @@ def test_config(tmp_path: Path) -> None:
 		config_file.write_text(config, encoding="utf-8")
 		con = MySQLConnection()
 		for key, value in expected.items():
+			assert getattr(con, key) == value
+
+
+def test_update_config_file(tmp_path: Path) -> None:
+	config_file = tmp_path / "mysql.conf"
+	with get_config({"backend_config_dir": str(tmp_path)}):
+		config = textwrap.dedent(
+			"""
+			# -*- coding: utf-8 -*-
+
+			module = 'MySQL'
+			config = {
+				"username" : "???",
+				"database" : "???",
+				"address" : "???",
+				"password" : "???"
+			}
+			"""
+		)
+		config_file.write_text(config, encoding="utf-8")
+		con = MySQLConnection()
+		con.address = "address"
+		con.database = "database"
+		con.username = "username"
+		con.password = "password"
+		con.update_config_file()
+		new_config = config_file.read_text(encoding="utf-8")
+		assert new_config == textwrap.dedent(
+			"""
+			# -*- coding: utf-8 -*-
+
+			module = 'MySQL'
+			config = {
+				"username" : "username",
+				"database" : "database",
+				"address" : "address",
+				"password" : "password",
+			}
+			"""
+		)
+
+
+@pytest.mark.parametrize(
+	"mysql_internal_url, expected_config",
+	(
+		(
+			"mysql://mysql-host:3306/opsidb?databaseCharset=utf8&username=opsiuser&password=opsipass",
+			{
+				"username": "opsiuser",
+				"database": "opsidb",
+				"address": "mysql-host",
+				"password": "opsipass",
+				"_database_charset": "utf8mb4",
+				"unique_hardware_addresses": True,
+			},
+		),
+		(
+			"mysql://u:p@localhost:3306/db?databaseCharset=charset"
+			"&connectionPoolMaxOverflow=11&connectionPoolTimeout=12&connectionPoolSize=13&unique_hardware_addresses=0",
+			{
+				"username": "u",
+				"database": "db",
+				"address": "localhost",
+				"password": "p",
+				"_database_charset": "charset",
+				"_connection_pool_max_overflow": 11,
+				"_connection_pool_timeout": 12,
+				"_connection_pool_size": 13,
+				"unique_hardware_addresses": False,
+			},
+		),
+	),
+)
+def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expected_config: dict[str, Any]) -> None:
+	config_file = tmp_path / "mysql.conf"
+	with get_config({"backend_config_dir": str(tmp_path), "mysql_internal_url": mysql_internal_url}, with_env=False):
+		config = textwrap.dedent(
+			"""
+			# -*- coding: utf-8 -*-
+
+			module = 'MySQL'
+			config = {
+				"address" : "address"
+			}
+			"""
+		)
+		config_file.write_text(config, encoding="utf-8")
+
+		con = MySQLConnection()
+		for key, value in expected_config.items():
 			assert getattr(con, key) == value
 
 

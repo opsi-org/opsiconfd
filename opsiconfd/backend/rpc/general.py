@@ -198,10 +198,12 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		backup_file = None
 		if return_type == "file_id":
 			now = datetime.now().strftime("%Y%m%d-%H%M%S")
-			file_id, backup_file = prepare_file(
+			file_meta = prepare_file(
 				filename=f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}{'.aes' if password else ''}",
 				content_type="binary/octet-stream",
 			)
+			file_id = file_meta.file_id
+			backup_file = file_meta.file_path
 
 		data = create_backup(
 			config_files=config_files,

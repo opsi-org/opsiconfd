@@ -277,14 +277,15 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:
 		"state": 0,
 	}
 	mysql = MySQLConnection()
-	with mysql.session() as session:
-		session.execute(
-			(
-				"REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES "
-				'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
-				'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+	with mysql.connection():
+		with mysql.session() as session:
+			session.execute(
+				(
+					"REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES "
+					'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
+					'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+				)
 			)
-		)
 
 	time.sleep(2)
 

@@ -187,7 +187,7 @@ test:pylint-pytest:
     #- *run_linters
     #- *pytest
     - env | grep "OPSILICSRV_TOKEN=" > docker/opsiconfd-dev/local.env
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml up -d
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml up --detach --wait --wait-timeout 30
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry install
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ruff opsiagent
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'

@@ -1,4 +1,4 @@
-image: docker
+image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
 
 variables:
   CI_DEBUG_SERVICES: "false"
@@ -22,6 +22,7 @@ test:pylint-pytest:
   stage: test
   tags:
     - linux-docker-x64-hetzner
+  image: docker
   services:
   script:
     - apt-get update
@@ -116,7 +117,6 @@ build:linux-pyinstaller:
   stage: build
   tags:
     - linux-docker-x64-hetzner
-  image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
   script:
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
@@ -138,7 +138,6 @@ build:arm64-pyinstaller:
   stage: build
   tags:
     - arm64
-  image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
   script:
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
@@ -176,7 +175,7 @@ publish:obs_ext:
     - build:linux-pyinstaller
     - build:arm64-pyinstaller
   script:
-    - *install_tools
+    - opsi-dev-cli self update
     - opsi-dev-cli -l info packaging obs update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
     - opsi-dev-cli -l info changelog from-git output
     - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md

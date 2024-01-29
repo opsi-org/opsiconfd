@@ -30,7 +30,7 @@ from typing import (
 	Union,
 	overload,
 )
-from urllib.parse import parse_qs, quote, urlencode, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
 from opsicommon.exceptions import BackendPermissionDeniedError
 from opsicommon.logging import secret_filter
@@ -204,10 +204,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		if not config.mysql_internal_url:
 			return
 		uri = urlparse(config.mysql_internal_url)
+		if uri.password:
+			secret_filter.add_secrets(uri.password)
 		self.address = uri.hostname
 		self.database = uri.path.lstrip("/")
-		self.username = uri.username
-		self.password = uri.password
+		self.username = unquote(uri.username or "")
+		self.password = unquote(uri.password or "")
 		self._parse_config({k: v[0] for k, v in parse_qs(uri.query).items()})
 
 	def read_config_file(self) -> None:

@@ -130,6 +130,15 @@ def test_update_config_file(tmp_path: Path) -> None:
 			},
 		),
 		(
+			"mysql://username:p%C3%A4ssw%C3%B6rd%24@host:3306/opsidb",
+			{
+				"username": "username",
+				"database": "opsidb",
+				"address": "host",
+				"password": "pässwörd$",
+			},
+		),
+		(
 			"mysql://u:p@localhost:3306/db?databaseCharset=charset"
 			"&connectionPoolMaxOverflow=11&connectionPoolTimeout=12&connectionPoolSize=13&unique_hardware_addresses=0",
 			{

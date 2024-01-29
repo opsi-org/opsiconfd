@@ -9,7 +9,7 @@ login tests
 """
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pyotp
@@ -413,7 +413,7 @@ def test_max_auth_failures(
 	max_auth_failures = 5
 	with get_config({"max_auth_failures": max_auth_failures}) as conf:
 		for num in range(max_auth_failures + over_limit):
-			now = round(time.time()) * 1000
+			now = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 			print("now:", now, ", num:", num, ", max_auth_failures:", max_auth_failures)
 			redis = redis_client()
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):

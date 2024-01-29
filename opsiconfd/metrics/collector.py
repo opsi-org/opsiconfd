@@ -21,7 +21,7 @@ from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.metrics.registry import Metric, MetricsRegistry, NodeMetric, WorkerMetric
 from opsiconfd.redis import async_redis_client
-from opsiconfd.utils import utc_time_timestamp
+from opsiconfd.utils import utc_timestamp
 
 if TYPE_CHECKING:
 	from opsiconfd.messagebus.websocket import MessagebusWebsocketStatistics
@@ -47,7 +47,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 
 	def _get_timestamp(self) -> int:
 		# Return unix timestamp (UTC) in millis
-		return int(utc_time_timestamp() * 1000)
+		return int(utc_timestamp() * 1000)
 
 	async def _fetch_values(self) -> None:
 		pass

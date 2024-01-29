@@ -84,7 +84,7 @@ def log_config(log_level: int = INFO) -> None:
 	get_logger().log(log_level, "Config: %s", conf)
 
 
-def utc_time_timestamp() -> float:
+def utc_timestamp() -> float:
 	return datetime.datetime.now(tz=datetime.timezone.utc).timestamp()
 
 

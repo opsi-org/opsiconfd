@@ -196,17 +196,36 @@ def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 	mysql = MySQLConnection()  # pylint: disable=invalid-name
 	with mysql.connection():
 		with mysql.session() as session:
-			session.execute("DELETE FROM `PRODUCT_ON_CLIENT`")
-			session.execute("DELETE FROM `PRODUCT_ON_DEPOT`")
-			session.execute("DELETE FROM `PRODUCT_DEPENDENCY`")
-			session.execute("DELETE FROM `PRODUCT_PROPERTY_VALUE`")
-			session.execute("DELETE FROM `PRODUCT_PROPERTY`")
-			session.execute("DELETE FROM `PRODUCT`")
-			session.execute("DELETE FROM `OBJECT_TO_GROUP`")
-			session.execute("DELETE FROM `GROUP`")
-			session.execute("DELETE FROM `CONFIG_STATE`")
-			session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
-			session.execute("DELETE FROM `USER`")
+			for table in (
+				"LICENSE_ON_CLIENT",
+				"SOFTWARE_CONFIG",
+				"SOFTWARE_LICENSE_TO_LICENSE_POOL",
+				"WINDOWS_SOFTWARE_ID_TO_PRODUCT",
+				"AUDIT_SOFTWARE_TO_LICENSE_POOL",
+				"SOFTWARE_LICENSE",
+				"LICENSE_POOL",
+				"LICENSE_CONTRACT",
+				"CONFIG_STATE",
+				"CONFIG_VALUE",
+				"CONFIG",
+				"OBJECT_TO_GROUP",
+				"PRODUCT_ID_TO_LICENSE_POOL",
+				"PRODUCT_ON_CLIENT",
+				"PRODUCT_ON_DEPOT",
+				"PRODUCT_PROPERTY",
+				"PRODUCT_PROPERTY_STATE",
+				"PRODUCT_PROPERTY_VALUE",
+				"PRODUCT_DEPENDENCY",
+				"PRODUCT",
+				"SOFTWARE",
+				"HOST",
+				"GROUP",
+				"USER",
+			):
+				if table == "HOST":
+					session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
+				else:
+					session.execute(f"DELETE FROM `{table}`")
 
 
 @pytest.fixture(autouse=True)

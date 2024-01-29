@@ -58,7 +58,7 @@ from opsiconfd.backend import (
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
-from opsiconfd.utils import asyncio_create_task, utc_time_timestamp
+from opsiconfd.utils import asyncio_create_task, utc_timestamp
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -521,7 +521,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
 	def _set_modified(self, attribute: str) -> None:
-		self._modifications[attribute] = utc_time_timestamp()
+		self._modifications[attribute] = utc_timestamp()
 
 	@property
 	def modifications(self) -> dict[str, float]:
@@ -560,7 +560,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 
 	@property
 	def validity(self) -> int:
-		return int(self.max_age - (utc_time_timestamp() - self.last_used))
+		return int(self.max_age - (utc_timestamp() - self.last_used))
 
 	@property
 	def version(self) -> str | None:
@@ -741,7 +741,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		session_count = 0
 		try:
 			redis = redis_client()
-			now = utc_time_timestamp()
+			now = utc_timestamp()
 			session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
 			for redis_key in redis.scan_iter(session_key):
 				validity = 0
@@ -765,7 +765,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		self.version = str(uuid.uuid4())
-		self.created = int(utc_time_timestamp())
+		self.created = int(utc_timestamp())
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init_new_session(self) -> None:
@@ -870,14 +870,14 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			headers["set-cookie"] = cookie
 
 	async def update_last_used(self) -> None:
-		self.last_used = int(utc_time_timestamp())
+		self.last_used = int(utc_timestamp())
 
 	async def update_messagebus_last_used(self) -> None:
-		self.last_used = self.messagebus_last_used = int(utc_time_timestamp())
+		self.last_used = self.messagebus_last_used = int(utc_timestamp())
 
 	@property
 	def in_use_by_messagebus(self) -> bool:
-		return int(utc_time_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
+		return int(utc_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
 
 	def _is_stored(self) -> bool:
 		return redis_client().exists(self.redis_key) > 0
@@ -929,7 +929,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 				pass
 
 		if not self.last_stored:
-			self.last_stored = int(utc_time_timestamp())
+			self.last_stored = int(utc_timestamp())
 
 		self._modifications = {}
 		return True
@@ -945,7 +945,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 			return
 		logger.debug("Store session")
 		self.version = str(uuid.uuid4())
-		self.last_stored = int(utc_time_timestamp())
+		self.last_stored = int(utc_timestamp())
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
 		redis = redis_client()
@@ -1247,7 +1247,7 @@ async def check_blocked(ip_address: str) -> None:
 		logger.info("Client '%s' is blocked", ip_address)
 		raise ConnectionRefusedError(f"Client '{ip_address}' is blocked")
 
-	now = round(time.time()) * 1000
+	now = int(utc_timestamp() * 1000)
 	cmd = (
 		f"ts.range {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(ip_address)} "
 		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"

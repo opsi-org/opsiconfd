@@ -193,7 +193,7 @@ test:pylint-pytest:
     - echo "---------------------------------------"
     - echo "Run linters"
     - echo "---------------------------------------"
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run pylint --disable=R,fixme,E0012 opsiconfd test
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ruff opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run mypy opsiconfd tests
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'

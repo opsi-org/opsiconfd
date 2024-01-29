@@ -54,7 +54,7 @@ poetry install --no-interaction --no-ansi
 if [ -n "$DEV_USER" ]; then
 	echo "* Git config"
 	chown -R $DEV_USER /workspace
-	git config --global core.editor "code --wait"
+	su - $DEV_USER -c 'git config --global core.editor "code --wait"'
 fi
 
 # Run CMD

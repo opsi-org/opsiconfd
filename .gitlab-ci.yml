@@ -16,6 +16,7 @@ before_script:
   - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
 
 after_script:
+  - docker compose -f docker/opsiconfd-dev/docker-compose.yml logs
   - docker compose -f docker/opsiconfd-dev/docker-compose.yml kill
 
 .install_tools: &install_tools |

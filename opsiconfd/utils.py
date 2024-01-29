@@ -85,7 +85,7 @@ def log_config(log_level: int = INFO) -> None:
 
 
 def utc_time_timestamp() -> float:
-	return datetime.datetime.utcnow().timestamp()
+	return datetime.datetime.now(tz=datetime.timezone.utc).timestamp()
 
 
 def running_in_docker() -> bool:

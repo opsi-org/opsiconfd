@@ -17,7 +17,7 @@ from msgspec import json
 from opsicommon.objects import OpsiClient
 from werkzeug.http import parse_options_header
 
-from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage
+from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage, FileMetaData
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -54,7 +54,8 @@ def test_raw_file_upload_download_delete(tmp_path: Path, test_client: OpsiconfdT
 
 
 def test_raw_file_upload_download_with_delete(
-	tmp_path: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+	tmp_path: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client = OpsiClient(id="test-file-upload-1.opsi.org")
@@ -136,13 +137,13 @@ def test_cleanup_file_storage(tmp_path: Path) -> None:
 		(tmp_path / ".hidden").touch()
 		(tmp_path / "subdir").mkdir()
 		(tmp_path / "invalid2.meta").write_bytes(b"-")
-		path = _prepare_file("test")[1]
+		path = _prepare_file("test").file_path
 		path.rename(path.parent / "invalid-uuid-filename")
 		path.with_suffix(".meta").rename(path.parent / "invalid-uuid-filename.meta")
 		_prepare_file("expired", validity=1)  # Valid for 1 second
 		sleep(2)
 
-		valid_files = [_prepare_file("ok")[1], _prepare_file("ok")[1], _prepare_file("ok")[1]]
+		valid_files = [_prepare_file("ok").file_path, _prepare_file("ok").file_path, _prepare_file("ok").file_path]
 		valid_meta = [f.with_suffix(".meta") for f in valid_files]
 		valid_filenames = [f.name for f in valid_files + valid_meta]
 

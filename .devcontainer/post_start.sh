@@ -17,7 +17,7 @@ opsi-dev-tool git-hooks --install
 echo "* Git config"
 git config --global core.editor "code --wait"
 
-echo "*** Setup mysql ***"
+echo "* Setup mysql"
 cat <<EOF | mysql -h $MYSQL_HOST -u root --password=${MYSQL_ROOT_PASSWORD}
 CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
 DROP DATABASE IF EXISTS opsitest;

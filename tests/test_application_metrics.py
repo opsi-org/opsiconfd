@@ -10,10 +10,7 @@ test application.metrics
 
 import asyncio
 import datetime
-import time
 from typing import Union
-
-import pytest
 
 from opsiconfd.application.metrics import (
 	get_nodes,

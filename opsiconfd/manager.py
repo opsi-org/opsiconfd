@@ -107,7 +107,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 	def init_logging(self) -> None:
 		init_logging(config.log_mode)
 
-	def run(self) -> None:
+	def run(self) -> None:  # pylint: disable=too-many-statements
 		logger.notice("Starting server")
 		self.init_logging()
 		self.check_modules()

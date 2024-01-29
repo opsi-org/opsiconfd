@@ -33,7 +33,7 @@ from starlette.types import Receive, Scope, Send
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.backend.mysql import MySQLConnection, Session
+from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config, OpsiConfig
 from opsiconfd.config import config as _config
@@ -142,7 +142,7 @@ def get_config(values: Union[dict[str, Any], list[str]], with_env: bool = False)
 		yield _config
 	finally:
 		_config._config.__dict__ = conf  # pylint: disable=protected-access
-		_config._args = args  # pylint: disable=protected-
+		_config._args = args  # pylint: disable==protected-access
 		if not with_env:
 			os.environ.update(environ)
 

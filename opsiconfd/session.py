@@ -395,7 +395,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 		if wait:
 			await self._stopped.wait()
 
-	async def manager_task(self) -> None:
+	async def manager_task(self) -> None:  # pylint: disable=too-many-branches
 		# A session can be managed in multiple worker processes / managers!
 		while True:  # pylint: disable=too-many-nested-blocks
 			try:

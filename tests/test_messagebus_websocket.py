@@ -83,7 +83,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				assert jsonrpc_response_message.error is None
 
 
-def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	connections = get_redis_connections()
 	with test_client as client:

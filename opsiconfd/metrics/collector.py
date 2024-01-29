@@ -11,7 +11,6 @@ metrics.collector
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import TYPE_CHECKING, Any
 
 import psutil

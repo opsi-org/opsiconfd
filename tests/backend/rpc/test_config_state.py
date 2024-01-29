@@ -8,9 +8,8 @@
 test opsiconfd.backend.rpc.obj_config_state
 """
 
-from typing import Any, Generator
+from typing import Any
 
-import pytest
 from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver
 
 from opsiconfd.config import get_configserver_id

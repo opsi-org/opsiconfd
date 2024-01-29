@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+from pydantic import BaseModel
 
 import aiofiles  # type: ignore[import]
 from fastapi import APIRouter, FastAPI, Request, UploadFile, status
@@ -24,7 +25,7 @@ from opsiconfd import contextvar_client_session
 from opsiconfd.config import FILE_TRANSFER_STORAGE_DIR
 from opsiconfd.logging import logger
 from opsiconfd.utils import utc_timestamp
-from pydantic import BaseModel
+
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession

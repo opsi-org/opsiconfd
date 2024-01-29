@@ -70,7 +70,7 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 
 
 def test_config_insertObject(  # pylint: disable=invalid-name
-	acl_file: Path,
+	acl_file: Path,  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -121,7 +121,7 @@ def test_config_insertObject(  # pylint: disable=invalid-name
 
 
 def test_config_updateObject(  # pylint: disable=invalid-name
-	acl_file: Path,
+	acl_file: Path,  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -179,7 +179,7 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 
 
 def test_config_createUnicode_empty_string(  # pylint: disable=invalid-name
-	acl_file: Path,
+	acl_file: Path,  # pylint: disable=redefined-outer-name,unused-argument
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)

@@ -1,3 +1,5 @@
+#!/bin/sh
+
 echo "* Running as $(whoami)"
 
 update-alternatives --set editor /usr/bin/vim.basic

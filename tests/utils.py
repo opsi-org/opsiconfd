@@ -19,7 +19,7 @@ from queue import Empty, Queue
 from threading import Event, Thread
 from typing import Any, Generator, Type, Union
 from unittest.mock import patch
-
+import os
 import msgpack  # type: ignore[import]
 import MySQLdb  # type: ignore[import]
 import pytest
@@ -122,10 +122,13 @@ def config() -> Config:
 
 
 @contextmanager
-def get_config(values: Union[dict[str, Any], list[str]]) -> Generator[Config, None, None]:
+def get_config(values: Union[dict[str, Any], list[str]], with_env: bool = False) -> Generator[Config, None, None]:
+	environ = os.environ.copy()
 	conf = _config._config.__dict__.copy()  # pylint: disable=protected-access
 	args = _config._args.copy()  # pylint: disable=protected-access
 	try:
+		if not with_env:
+			os.environ.clear()
 		if isinstance(values, dict):
 			_config._config.__dict__.update(values)  # pylint: disable=protected-access
 			_config._update_config()  # pylint: disable=protected-access
@@ -135,7 +138,9 @@ def get_config(values: Union[dict[str, Any], list[str]]) -> Generator[Config, No
 		yield _config
 	finally:
 		_config._config.__dict__ = conf  # pylint: disable=protected-access
-		_config._args = args  # pylint: disable=protected-access
+		_config._args = args  # pylint: disable=protected-
+		if not with_env:
+			os.environ.update(environ)
 
 
 @pytest.fixture

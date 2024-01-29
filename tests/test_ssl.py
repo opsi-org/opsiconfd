@@ -224,7 +224,7 @@ def test_create_ca(tmpdir: Path) -> None:
 				out = subprocess.check_output(["openssl", "x509", "-noout", "-fingerprint", "-sha256", "-in", conf.ssl_ca_cert]).decode(
 					"utf-8"
 				)
-				match = re.search(r"sha256 Fingerprint=([A-F0-9:]+)", out)
+				match = re.search(r"sha256 Fingerprint=([A-F0-9:]+)", out, re.IGNORECASE)
 				assert match
 				openssl_fingerprint_sha256 = match.group(1)
 				assert info["fingerprint_sha256"].lstrip("0") == openssl_fingerprint_sha256.lstrip("0").upper()
@@ -232,7 +232,7 @@ def test_create_ca(tmpdir: Path) -> None:
 				out = subprocess.check_output(["openssl", "x509", "-noout", "-fingerprint", "-sha1", "-in", conf.ssl_ca_cert]).decode(
 					"utf-8"
 				)
-				match = re.search(r"sha1 Fingerprint=([A-F0-9:]+)", out)
+				match = re.search(r"sha1 Fingerprint=([A-F0-9:]+)", out, re.IGNORECASE)
 				assert match
 				openssl_fingerprint_sha1 = match.group(1)
 				assert info["fingerprint_sha1"].lstrip("0") == openssl_fingerprint_sha1.lstrip("0").upper()

@@ -9,7 +9,7 @@ test application.main
 """
 
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from time import sleep, time
 from unittest.mock import patch
 
@@ -42,13 +42,16 @@ def test_http_1_0_warning(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 			for warn in warns:
 				assert "is using http version 1.0" in str(warn.message)
 
+
 def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	res = test_client.get("/")
 	server_date = res.headers["date"]
 	assert server_date.endswith(" UTC")
-	timestamp = datetime.strptime(server_date, '%a, %d %b %Y %H:%M:%S %Z').timestamp()
-	assert abs(timestamp - time()) < 2
+	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
+	now = datetime.now(tz=timezone.utc)
+	assert abs((now - server_dt).total_seconds()) < 2
 	sleep(1)
 	res = test_client.get("/")
 	server_date = res.headers["date"]
-	assert timestamp < datetime.strptime(server_date, '%a, %d %b %Y %H:%M:%S %Z').timestamp()
+	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
+	assert now < server_dt

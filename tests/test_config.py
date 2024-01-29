@@ -27,7 +27,7 @@ from .utils import (  # pylint: disable=unused-import
 
 
 @pytest.mark.parametrize(
-	"value, expexted_value, exception",
+	"value, expected_value, exception",
 	[
 		("10.10.0.0/16", "10.10.0.0/16", None),
 		("10.10.0.0/255.255.255.0", "10.10.0.0/24", None),
@@ -37,16 +37,16 @@ from .utils import (  # pylint: disable=unused-import
 		("2001:0db8:1234:0000:0000:0000:0000:0000/48", "2001:db8:1234::/48", None),
 	],
 )
-def test_network_address(value: Any, expexted_value: Any, exception: Type[Exception] | None) -> None:
+def test_network_address(value: Any, expected_value: Any, exception: Type[Exception] | None) -> None:
 	if exception:
 		with pytest.raises(exception):
 			network_address(value)
 	else:
-		assert network_address(value) == expexted_value
+		assert network_address(value) == expected_value
 
 
 @pytest.mark.parametrize(
-	"value, expexted_value, exception",
+	"value, expected_value, exception",
 	[
 		("10.10.0.1", "10.10.0.1", None),
 		("10.10.0.1/32", None, ArgumentTypeError),
@@ -55,24 +55,24 @@ def test_network_address(value: Any, expexted_value: Any, exception: Type[Except
 		("127.0.0.1", "127.0.0.1", None),
 	],
 )
-def test_ip_address(value: Any, expexted_value: Any, exception: Type[Exception] | None) -> None:
+def test_ip_address(value: Any, expected_value: Any, exception: Type[Exception] | None) -> None:
 	if exception:
 		with pytest.raises(exception):
 			ip_address(value)
 	else:
-		assert ip_address(value) == expexted_value
+		assert ip_address(value) == expected_value
 
 
 @pytest.mark.parametrize(
-	"value, expexted_value",
+	"value, expected_value",
 	[("yes", True), ("y", True), ("true", True), ("1", True), (True, True), ("0", False), ("no", False), ("false", False), (False, False)],
 )
-def test_str2bool(value: Any, expexted_value: bool) -> None:
-	assert str2bool(value) is expexted_value
+def test_str2bool(value: Any, expected_value: bool) -> None:
+	assert str2bool(value) is expected_value
 
 
 @pytest.mark.parametrize(
-	"arguments, config_name, expexted_value",
+	"arguments, config_name, expected_value",
 	[
 		(["--backend-config-dir", "/test"], "backend_config_dir", "/test"),
 		(["--dispatch-config-file", "/filename"], "dispatch_config_file", "/filename"),
@@ -82,13 +82,13 @@ def test_str2bool(value: Any, expexted_value: bool) -> None:
 		(["--symlink-logs"], "symlink_logs", True),
 	],
 )
-def test_cmdline(arguments: list[str], config_name: str, expexted_value: Any) -> None:
+def test_cmdline(arguments: list[str], config_name: str, expected_value: Any) -> None:
 	with get_config(arguments) as conf:
-		assert getattr(conf, config_name) == expexted_value
+		assert getattr(conf, config_name) == expected_value
 
 
 @pytest.mark.parametrize(
-	"varname, value, config_name, expexted_value",
+	"varname, value, config_name, expected_value",
 	[
 		("OPSICONFD_BACKEND_CONFIG_DIR", "/test", "backend_config_dir", "/test"),
 		("OPSICONFD_DISPATCH_CONFIG_FILE", "/filename", "dispatch_config_file", "/filename"),
@@ -99,17 +99,17 @@ def test_cmdline(arguments: list[str], config_name: str, expexted_value: Any) ->
 		("OPSICONFD_SSL_SERVER_KEY_PASSPHRASE", "", "ssl_server_key_passphrase", None),
 	],
 )
-def test_environment_vars(varname: str, value: str, config_name: str, expexted_value: Any) -> None:
+def test_environment_vars(varname: str, value: str, config_name: str, expected_value: Any) -> None:
 	os.environ[varname] = value
-	with get_config([]) as conf:
+	with get_config([], with_env=True) as conf:
 		try:
-			assert getattr(conf, config_name) == expexted_value
+			assert getattr(conf, config_name) == expected_value
 		finally:
 			del os.environ[varname]
 
 
 @pytest.mark.parametrize(
-	"varname, value, config_name, expexted_value",
+	"varname, value, config_name, expected_value",
 	[
 		("backend-config-dir", "/test", "backend_config_dir", "/test"),
 		("dispatch-config-file", "/filename", "dispatch_config_file", "/filename"),
@@ -120,11 +120,11 @@ def test_environment_vars(varname: str, value: str, config_name: str, expexted_v
 		("symlink-logs", "no", "symlink_logs", False),
 	],
 )
-def test_config_file(tmp_path: Path, varname: str, value: str, config_name: str, expexted_value: Any) -> None:
+def test_config_file(tmp_path: Path, varname: str, value: str, config_name: str, expected_value: Any) -> None:
 	conf_file = tmp_path / "opsiconfd.conf"
 	conf_file.write_text(f"{varname} = {value}")
 	with get_config(["--config-file", str(conf_file)]) as conf:
-		assert getattr(conf, config_name) == expexted_value
+		assert getattr(conf, config_name) == expected_value
 
 
 def test_help() -> None:
@@ -134,7 +134,7 @@ def test_help() -> None:
 		nonlocal text
 		text = message
 
-	with (patch("argparse.ArgumentParser._print_message", print_message), patch("sys.stdout.isatty", lambda: True)):
+	with patch("argparse.ArgumentParser._print_message", print_message), patch("sys.stdout.isatty", lambda: True):
 		with pytest.raises(SystemExit):
 			with get_config(["--help"]):
 				pass
@@ -189,8 +189,7 @@ def test_upgrade_config_files(tmp_path: Path) -> None:
 		encoding="utf-8",
 	)
 
-	with (patch("opsiconfd.config.is_manager", lambda x: True), get_config(["--config-file", str(config_file)]) as conf):
-
+	with patch("opsiconfd.config.is_manager", lambda x: True), get_config(["--config-file", str(config_file)]) as conf:
 		data = config_file.read_text(encoding="utf-8")
 		data = re.sub(r"^#.*\n?", "", data, flags=re.MULTILINE)
 		assert data == (
@@ -226,7 +225,7 @@ def test_upgrade_config_files(tmp_path: Path) -> None:
 		assert conf.max_session_per_ip == 333
 
 	config_file.write_text("xxx\nyyy\n")
-	with (patch("opsiconfd.config.is_manager", lambda x: True), get_config(["--config-file", str(config_file)]) as conf):
+	with patch("opsiconfd.config.is_manager", lambda x: True), get_config(["--config-file", str(config_file)]) as conf:
 		conf._upgrade_config_file()  # pylint: disable=protected-access
 		assert config_file.read_text(encoding="utf-8") == "xxx\nyyy\n"
 

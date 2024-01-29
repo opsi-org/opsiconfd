@@ -3,10 +3,9 @@
 	"dockerComposeFile": "../docker/opsiconfd-dev/docker-compose.yml",
 	"service": "opsiconfd-dev-43",
 	"initializeCommand": ".devcontainer/initialize.sh",
-	"postCreateCommand": ".devcontainer/post_create.sh",
-	"postStartCommand": ".devcontainer/post_start.sh",
 	"workspaceFolder": "/workspace",
 	"remoteUser": "${localEnv:USER}",
+	"overrideCommand": false,
 	//"remoteEnv": {
 	//	"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
 	//	"DEV_USER": "${localEnv:USER}",

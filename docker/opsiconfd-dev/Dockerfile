@@ -75,6 +75,9 @@ RUN if [ -n "$DEV_USER" ]; then \
 	#&& cp -r /root/.bash* /home/adminuser/ \
 	#&& cp -r /root/.bash* /home/${DEV_USER}/ \
 	#&& chmod g+rw -R . \
-	#&& chmod +x /*entrypoint.sh \
+	&& chmod +x /entrypoint.sh \
 	&& mkdir tftpboot \
 	&& chown -R $DEV_USER /workspace
+
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD [ "sleep", "infinity" ]

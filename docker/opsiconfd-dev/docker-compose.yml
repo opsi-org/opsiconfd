@@ -25,7 +25,6 @@ services:
       - $LOCAL_WORKSPACE_DIR:/workspace:cached
     ports:
       - 4448:4447
-    command: sleep infinity
     env_file:
       - .env
       - local.env

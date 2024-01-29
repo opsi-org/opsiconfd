@@ -18,12 +18,10 @@ from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
-	database_connection,
 	test_client,
 )
-
-from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def test_auditHardware_create_get_delete(  # pylint: disable=invalid-name,too-many-statements
@@ -101,7 +99,8 @@ def test_auditHardware_create_get_delete(  # pylint: disable=invalid-name,too-ma
 	ahs = deserialize(res["result"])
 	assert len(ahs) == 10
 	assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(
-		by_hardware_class["NETWORK_CONTROLLER"], key=lambda a: a.getIdent()  # type: ignore
+		by_hardware_class["NETWORK_CONTROLLER"],
+		key=lambda a: a.getIdent(),  # type: ignore
 	)
 
 	# Test deleteObjects

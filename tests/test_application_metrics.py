@@ -99,6 +99,7 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 	redis = await async_redis_client()
 	timestamp = start
 	while timestamp <= end:
+		# print(timestamp * 1000)
 		cmd = (
 			"TS.ADD",
 			redis_key,
@@ -118,27 +119,30 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 		timestamp += interval
 
 
-@pytest.mark.grafana_available
-@pytest.mark.flaky(retries=1, delay=1)
+# @pytest.mark.flaky(retries=1, delay=1)
 async def test_grafana_query_start_end(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
 	config: Config,  # pylint: disable=redefined-outer-name
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	end = int(time.time()) - 3600
-	value = 10
+	utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
 
-	# Add some extra values before start and after end
-	await create_ts_data(config, "", end - 3600 - 50, end + 50, 5, value)
-	await create_ts_data(config, "minute", end - 23 * 3600 - 600, end + 600, 60, value, False)
+	# Create some data
+	start = int(utc_now.timestamp()) - 3600
+	end = int(utc_now.timestamp())
+	value = 10
+	interval = 5
+	interval_minute = 60
+	await create_ts_data(config, "", start, end, interval, value)
+	await create_ts_data(config, "minute", end - 23 * 3600, end, interval_minute, value, False)
 
 	seconds = 300
-	_to = datetime.datetime.fromtimestamp(end)
+	_to = utc_now
 	_from = _to - datetime.timedelta(seconds=seconds)
 	query = {
 		"app": "dashboard",
-		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
+		"range": {"from": _from.isoformat(), "to": _to.isoformat(), "raw": {"from": f"now-{seconds}s", "to": "now"}},
 		"intervalMs": 500,
 		"timezone": "utc",
 		"targets": [
@@ -149,22 +153,23 @@ async def test_grafana_query_start_end(
 	res = test_client.post("/metrics/grafana/query", json=query)
 	assert res.status_code == 200
 	data = res.json()
+	# print(data[0]["datapoints"])
 	num_values = len(data[0]["datapoints"])
-	expected_values = seconds / 5
+	expected_values = seconds / interval
 
 	assert expected_values - 1 <= num_values <= expected_values + 1
-	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 5) * 1000
-	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 5) * 1000
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - interval) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + interval) * 1000
 	for dat in data[0]["datapoints"]:
 		assert dat[0] == value
 
 	# Downsampling (minute)
 	seconds = 10 * 3600
-	_to = datetime.datetime.fromtimestamp(end)
+	_to = utc_now
 	_from = _to - datetime.timedelta(seconds=seconds)
 	query = {
 		"app": "dashboard",
-		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
+		"range": {"from": _from.isoformat(), "to": _to.isoformat(), "raw": {"from": f"now-{seconds}s", "to": "now"}},
 		"intervalMs": 500,
 		"timezone": "utc",
 		"targets": [
@@ -175,23 +180,23 @@ async def test_grafana_query_start_end(
 	res = test_client.post("/metrics/grafana/query", json=query)
 	assert res.status_code == 200
 	data = res.json()
-	print(data[0]["datapoints"])
+	# print(data[0]["datapoints"])
 	num_values = len(data[0]["datapoints"])
-	expected_values = seconds / 60
+	expected_values = seconds / interval_minute
 
 	assert expected_values - 1 <= num_values <= expected_values + 1
-	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 60) * 1000
-	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 60) * 1000
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - interval_minute) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + interval_minute) * 1000
 	for dat in data[0]["datapoints"]:
 		assert dat[0] == value
 
 	# minute, end one hour in the past
 	seconds = 10 * 3600
-	_to = datetime.datetime.fromtimestamp(end) - datetime.timedelta(seconds=3600)
+	_to = utc_now - datetime.timedelta(seconds=3600)
 	_from = _to - datetime.timedelta(seconds=seconds)
 	query = {
 		"app": "dashboard",
-		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
+		"range": {"from": _from.isoformat(), "to": _to.isoformat(), "raw": {"from": f"now-{seconds}s", "to": "now"}},
 		"intervalMs": 500,
 		"timezone": "utc",
 		"targets": [
@@ -202,13 +207,13 @@ async def test_grafana_query_start_end(
 	res = test_client.post("/metrics/grafana/query", json=query)
 	assert res.status_code == 200
 	data = res.json()
-	print(data[0]["datapoints"])
+	# print(data[0]["datapoints"])
 	num_values = len(data[0]["datapoints"])
-	expected_values = seconds / 60
+	expected_values = seconds / interval_minute
 
 	assert expected_values - 1 <= num_values <= expected_values + 1
-	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 60) * 1000
-	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 60) * 1000
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - interval_minute) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + interval_minute) * 1000
 	for dat in data[0]["datapoints"]:
 		assert dat[0] == value
 
@@ -219,7 +224,9 @@ async def test_grafana_query_interval_in_past(
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	end = int(time.time())
+	utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+
+	end = int(utc_now.timestamp())
 	await create_ts_data(config, "minute", end - 23 * 3600, end, 60, 20)
 	await create_ts_data(config, "hour", end - 35 * 3600, end, 3600, 40, False)
 
@@ -227,7 +234,7 @@ async def test_grafana_query_interval_in_past(
 	# but 30h ago the minutes should be deleted so hours should be used
 	# grafana seconds: seconds to go back in time (now-grafana seconds)
 	grafana_seconds = 30 * 3600
-	end = int(time.time()) - grafana_seconds
+	end = int(utc_now.timestamp()) - grafana_seconds
 	seconds = 3600
 
 	_to = datetime.datetime.fromtimestamp(end)
@@ -236,8 +243,8 @@ async def test_grafana_query_interval_in_past(
 	query = {
 		"app": "dashboard",
 		"range": {
-			"from": f"{_from.isoformat()}Z",
-			"to": f"{_to.isoformat()}Z",
+			"from": _from.isoformat(),
+			"to": _to.isoformat(),
 			"raw": {"from": f"now-{grafana_seconds + seconds}s", "to": f"now-{grafana_seconds}s"},
 		},
 		"intervalMs": 500,

@@ -8,31 +8,14 @@
 test opsiconfd.backend groups
 """
 
-from typing import Generator
-
-import pytest
 
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
 	OpsiconfdTestClient,
-	database_connection,
+	clean_mysql,
 	test_client,
 )
-
-
-@pytest.fixture(autouse=True)
-def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	def _del() -> None:
-		cursor = database_connection.cursor()
-		cursor.execute("DELETE FROM `GROUP` WHERE groupId LIKE 'test-backend-rpc-group%'")
-		database_connection.commit()
-		cursor.close()
-
-	_del()
-	yield
-	_del()
 
 
 def test_group_insertObject(  # pylint: disable=invalid-name,disable=redefined-outer-name

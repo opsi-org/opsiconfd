@@ -20,13 +20,12 @@ from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
-	database_connection,
 	test_client,
 )
 
 from .test_obj_product import create_test_products
-from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def test_licenseOnClient_getOrCreateObject(  # pylint: disable=invalid-name

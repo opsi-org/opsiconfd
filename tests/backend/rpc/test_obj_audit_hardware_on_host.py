@@ -13,16 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.utils import (  # pylint: disable=unused-import
-	ADMIN_PASS,
-	ADMIN_USER,
-	OpsiconfdTestClient,
-	clean_redis,
-	database_connection,
-	test_client,
-)
-
-from .utils import cleanup_database  # pylint: disable=unused-import
+from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, clean_mysql, clean_redis, test_client  # pylint: disable=unused-import
 
 
 @pytest.mark.parametrize("method", ("auditHardwareOnHost_updateObjects", "auditHardwareOnHost_createObjects"))

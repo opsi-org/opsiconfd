@@ -12,20 +12,17 @@ from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
-	database_connection,
 	get_config,
 	test_client,
 )
 
 from .test_obj_product import create_test_products
-from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
-
 	product1, product2 = create_test_products(test_client)
 	depot_id = get_depotserver_id()
 	pod1 = {
@@ -58,7 +55,8 @@ def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disa
 
 
 def check_products_on_depot(
-	test_client: OpsiconfdTestClient, pods: list | tuple  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,
+	pods: list | tuple,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	for product_on_depot in pods:
 		rpc = {

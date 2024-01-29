@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import os
 import time
 import types
 from contextlib import contextmanager
@@ -19,13 +20,11 @@ from queue import Empty, Queue
 from threading import Event, Thread
 from typing import Any, Generator, Type, Union
 from unittest.mock import patch
-import os
+
 import msgpack  # type: ignore[import]
-import MySQLdb  # type: ignore[import]
 import pytest
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
-from MySQLdb.connections import Connection  # type: ignore[import]
 from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
@@ -34,7 +33,7 @@ from starlette.types import Receive, Scope, Send
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.mysql import MySQLConnection, Session
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config, OpsiConfig
 from opsiconfd.config import config as _config
@@ -130,6 +129,11 @@ def get_config(values: Union[dict[str, Any], list[str]], with_env: bool = False)
 		if not with_env:
 			os.environ.clear()
 		if isinstance(values, dict):
+			for key in list(values):
+				if key not in _config._config.__dict__:  # pylint: disable=protected-access
+					key2 = key.replace("-", "_")
+					if key2 in _config._config.__dict__:  # pylint: disable=protected-access
+						values[key2] = values.pop(key)
 			_config._config.__dict__.update(values)  # pylint: disable=protected-access
 			_config._update_config()  # pylint: disable=protected-access
 		else:
@@ -371,21 +375,10 @@ def get_dummy_products(count: int) -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def database_connection() -> Generator[Connection, None, None]:
-	with open("tests/data/opsi-config/backends/mysql.conf", mode="r", encoding="utf-8") as conf:
-		_globals: dict[str, Any] = {}
-		exec(conf.read(), _globals)  # pylint: disable=exec-used
-		mysql_config = _globals["config"]
-
-	mysql = MySQLdb.connect(
-		host=mysql_config["address"],
-		user=mysql_config["username"],
-		passwd=mysql_config["password"],
-		db=mysql_config["database"],
-		charset=mysql_config["databaseCharset"],
-	)
-	yield mysql
-	mysql.close()
+def database_connection() -> Generator[MySQLConnection, None, None]:
+	mysql = MySQLConnection()  # pylint: disable=invalid-name
+	with mysql.connection():
+		yield mysql
 
 
 @pytest.fixture()

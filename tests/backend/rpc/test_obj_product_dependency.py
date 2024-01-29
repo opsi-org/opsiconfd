@@ -17,18 +17,16 @@ from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
+	clean_mysql,
 	clean_redis,
-	database_connection,
 	get_config,
 	test_client,
 )
 
 from .test_obj_product import create_test_products
-from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements

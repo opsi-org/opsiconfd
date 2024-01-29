@@ -25,7 +25,7 @@ from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
+	MySQLConnection,
 	OpsiconfdTestClient,
 	backend,
 	clean_redis,
@@ -36,18 +36,16 @@ from tests.utils import (  # pylint: disable=unused-import
 
 
 @pytest.fixture(autouse=True)
-def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
-	database_connection.commit()
+def clean_mysql(database_connection: MySQLConnection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
+	with database_connection.session() as session:
+		session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+		session.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+		session.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
 	yield
-	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
-	database_connection.commit()
-	cursor.close()
+	with database_connection.session() as session:
+		session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+		session.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+		session.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
 
 
 @pytest.fixture()
@@ -72,7 +70,8 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 
 
 def test_config_insertObject(  # pylint: disable=invalid-name
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = OpsiClient(id="test-backend-rpc-obj-config-1.opsi.test", opsiHostKey="c68857de49124e5860d3c501a2675795")
@@ -122,7 +121,8 @@ def test_config_insertObject(  # pylint: disable=invalid-name
 
 
 def test_config_updateObject(  # pylint: disable=invalid-name
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = OpsiClient(id="test-backend-rpc-obj-config-1.opsi.test", opsiHostKey="c68857de49124e5860d3c501a2675795")
@@ -179,7 +179,8 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 
 
 def test_config_createUnicode_empty_string(  # pylint: disable=invalid-name
-	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	rpc = {

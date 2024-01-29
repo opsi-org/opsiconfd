@@ -17,32 +17,13 @@ from opsiconfd.config import get_configserver_id
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
 	clean_mysql,
 	clean_redis,
-	database_connection,
 	test_client,
 )
-
-
-@pytest.fixture(autouse=False)
-def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
-	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-%'")
-	database_connection.commit()
-	yield
-	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
-	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-%'")
-	database_connection.commit()
-	cursor.close()
 
 
 def _create_clients_and_depot(

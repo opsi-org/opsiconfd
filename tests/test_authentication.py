@@ -15,7 +15,6 @@ from unittest.mock import patch
 import pyotp
 import pytest
 from fastapi import status
-from MySQLdb.connections import Connection  # type: ignore[import]
 from opsicommon import objects
 from packaging.version import Version
 
@@ -31,6 +30,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
+	MySQLConnection,
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
@@ -254,21 +254,20 @@ def test_change_session_ip(
 
 def test_update_client_object(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient,
-	database_connection: Connection,
+	database_connection: MySQLConnection,
 ) -> None:
 	host_id = "test-client-update.uib.gmbh"
 	host_key = "0dc5e29e2994c04de5108508cdd7cf02"
 
-	cursor = database_connection.cursor()
-	cursor.execute(
-		f"""
-		INSERT INTO HOST
-			(hostId, type, opsiHostKey, lastSeen, ipAddress)
-		VALUES
-			("{host_id}", "OpsiClient", "{host_key}", "2023-01-01 01:01:01", "1.2.3.4");
-	"""
-	)
-	database_connection.commit()
+	with database_connection.session() as session:
+		session.execute(
+			f"""
+			INSERT INTO HOST
+				(hostId, type, opsiHostKey, lastSeen, ipAddress)
+			VALUES
+				("{host_id}", "OpsiClient", "{host_key}", "2023-01-01 01:01:01", "1.2.3.4");
+		"""
+		)
 
 	client_addr = "192.168.2.2"
 	with get_config({"update-ip": True}):
@@ -276,8 +275,8 @@ def test_update_client_object(  # pylint: disable=redefined-outer-name
 		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
 		assert res.status_code == 200
 
-		cursor.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'")
-		last_seen, ip_address = cursor.fetchone()
+		with database_connection.session() as session:
+			last_seen, ip_address = session.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'").fetchone()
 		delta = last_seen - datetime.now()
 		assert abs(delta.total_seconds()) < 3
 		assert ip_address == client_addr
@@ -286,8 +285,8 @@ def test_update_client_object(  # pylint: disable=redefined-outer-name
 		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
 		assert res.status_code == 200
 
-		cursor.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'")
-		last_seen, ip_address = cursor.fetchone()
+		with database_connection.session() as session:
+			last_seen, ip_address = session.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'").fetchone()
 		assert ip_address == client_addr
 
 	with get_config({"update-ip": False}):
@@ -295,11 +294,9 @@ def test_update_client_object(  # pylint: disable=redefined-outer-name
 		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
 		assert res.status_code == 200
 
-		cursor.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'")
-		last_seen, ip_address = cursor.fetchone()
+		with database_connection.session() as session:
+			last_seen, ip_address = session.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'").fetchone()
 		assert ip_address == client_addr
-
-	cursor.close()
 
 
 def test_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -546,17 +543,18 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 
 def test_onetime_password_host_id(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	database_connection: Connection,  # pylint: disable=redefined-outer-name
+	database_connection: MySQLConnection,  # pylint: disable=redefined-outer-name
 ) -> None:
-	database_connection.query(
+	with database_connection.session() as session:
+		session.execute(
+			"""
+			INSERT INTO HOST
+				(hostId, type, opsiHostKey, oneTimePassword)
+			VALUES
+				("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1me");
 		"""
-		INSERT INTO HOST
-			(hostId, type, opsiHostKey, oneTimePassword)
-		VALUES
-			("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1me");
-	"""
-	)
-	database_connection.commit()
+		)
+
 	try:
 		rpc = {"id": 1, "method": "backend_info", "params": []}
 		res = test_client.post("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
@@ -567,23 +565,23 @@ def test_onetime_password_host_id(
 		res = test_client.post("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
 		assert res.status_code == 401
 	finally:
-		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
-		database_connection.commit()
+		with database_connection.session() as session:
+			session.execute('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
 
 
 def test_onetime_password_hardware_address(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	database_connection: Connection,  # pylint: disable=redefined-outer-name
+	database_connection: MySQLConnection,  # pylint: disable=redefined-outer-name
 ) -> None:
-	database_connection.query(
+	with database_connection.session() as session:
+		session.execute(
+			"""
+			INSERT INTO HOST
+				(hostId, type, opsiHostKey, oneTimePassword, hardwareAddress)
+			VALUES
+				("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1mac", "01:02:aa:bb:cc:dd");
 		"""
-		INSERT INTO HOST
-			(hostId, type, opsiHostKey, oneTimePassword, hardwareAddress)
-		VALUES
-			("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1mac", "01:02:aa:bb:cc:dd");
-	"""
-	)
-	database_connection.commit()
+		)
 	try:
 		rpc = {"id": 1, "method": "backend_info", "params": []}
 		res = test_client.post("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
@@ -594,8 +592,8 @@ def test_onetime_password_hardware_address(
 		res = test_client.post("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
 		assert res.status_code == 401
 	finally:
-		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
-		database_connection.commit()
+		with database_connection.session() as session:
+			session.execute('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
 
 
 def test_auth_only_hostkey(

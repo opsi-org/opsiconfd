@@ -31,7 +31,6 @@ from tests.utils import (  # pylint: disable=unused-import
 	OpsiconfdTestClient,
 	clean_redis,
 	config,
-	database_connection,
 	test_client,
 	worker_state,
 )

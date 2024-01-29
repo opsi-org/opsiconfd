@@ -9,14 +9,8 @@ test update database
 """
 
 
-from typing import Any, Generator
-
-import pytest
-
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.schema import update_database
-from opsiconfd.setup.backend import setup_backend, setup_mysql
-from tests.utils import Connection, database_connection  # pylint: disable=unused-import
 
 CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS `CONFIG` (
@@ -376,52 +370,39 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 """
 
-
 GET_CONSTRAINTS = """
 	SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.UPDATE_RULE, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
 	INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
 	ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+	WHERE `t1`.`TABLE_SCHEMA` LIKE :database
 """
 
 
-@pytest.fixture(autouse=True)
-def setup_and_cleanup_database() -> Generator[None, None, None]:
-	with open("tests/data/opsi-config/backends/mysql.conf", mode="r", encoding="utf-8") as conf:
-		_globals: dict[str, Any] = {}
-		exec(conf.read(), _globals)  # pylint: disable=exec-used
-		mysql_config = _globals["config"]
+def test_update_database() -> None:  # pylint: disable=redefined-outer-name
+	database = "opsiupgradetest"
 	mysql = MySQLConnection()
+	mysql.database = database
+
 	with mysql.connection():
 		with mysql.session() as session:
-			session.execute(f"DROP DATABASE IF EXISTS `{mysql_config['database']}`")
-			session.execute(f"CREATE DATABASE IF NOT EXISTS `{mysql.database}`")
-			session.execute(f"USE `{mysql_config['database']}`")
+			session.execute(f"DROP DATABASE IF EXISTS `{database}`")
+			session.execute(f"CREATE DATABASE IF NOT EXISTS `{database}`")
+			session.execute(f"USE `{database}`")
 			session.execute(CREATE_TABLES_SQL)
-			session.commit()
+			assert session.execute("SELECT DATABASE()").fetchone()[0] == database
 
-	yield
+		try:
+			with mysql.session() as session:
+				assert session.execute("SELECT DATABASE()").fetchone()[0] == database
+				res = session.execute(GET_CONSTRAINTS, params={"database": database}).fetchall()
+				assert len(res) == 17
 
-	with mysql.connection():
-		with mysql.session() as session:
-			session.execute(f"DROP DATABASE IF EXISTS `{mysql_config['database']}`")
+			update_database(mysql)
 
-	print("Setup database")
-	setup_mysql(explicit=True)
-	print("Setup backend")
-	setup_backend()
-
-
-def test_update_database(database_connection: Connection) -> None:  # pylint: disable=redefined-outer-name
-	database_connection.autocommit(True)
-	cursor = database_connection.cursor()
-	cursor.execute(GET_CONSTRAINTS)
-	res = cursor.fetchall()
-	assert len(res) < 50
-
-	mysql = MySQLConnection()
-	mysql.connect()
-	update_database(mysql)
-
-	cursor.execute(GET_CONSTRAINTS)
-	res = cursor.fetchall()
-	assert len(res) == 50
+			with mysql.session() as session:
+				assert session.execute("SELECT DATABASE()").fetchone()[0] == database
+				res = session.execute(GET_CONSTRAINTS, params={"database": database}).fetchall()
+				assert len(res) == 50
+		finally:
+			with mysql.session() as session:
+				session.execute(f"DROP DATABASE IF EXISTS `{database}`")

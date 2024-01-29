@@ -686,6 +686,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pyl
 		session.execute(CREATE_TABLES_SQL)
 		session.commit()
 
+		mysql.read_tables()
 		create_audit_hardware_tables(session, mysql.tables)
 		mysql.read_tables()
 

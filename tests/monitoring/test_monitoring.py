@@ -29,14 +29,13 @@ from opsiconfd.config import get_depotserver_id
 from opsiconfd.utils import DiskUsage
 from tests.utils import (  # pylint: disable=unused-import
 	Config,
-	Connection,
+	MySQLConnection,
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
 	clean_redis,
 	config,
 	create_depot_jsonrpc,
-	database_connection,
 	delete_mysql_data,
 	test_client,
 )
@@ -127,123 +126,116 @@ test_data: tuple[tuple[Any, Any, Any, Any], ...] = (
 
 
 @pytest.fixture(autouse=True)
-def create_check_data(
-	test_client: OpsiconfdTestClient,
-	config: Config,
-	database_connection: Connection,  # pylint: disable=redefined-outer-name
-) -> Generator[None, None, None]:
+def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Generator[None, None, None]:
 	delete_mysql_data()
 
-	mysql = database_connection
-	mysql.autocommit(True)
-	cursor = mysql.cursor()
+	mysql = MySQLConnection()
 
 	now = datetime.now()
+	with mysql.session() as session:
+		res = session.execute("SELECT * FROM HOST WHERE type != 'OpsiClient'").fetchall()
+		print("Server objects in MySQL:", res)
 
-	cursor.execute("SELECT * FROM HOST WHERE type != 'OpsiClient'")
-	print("Server objects in MySQL:", cursor.fetchall())
+		# Product
+		for idx in range(5):
+			session.execute(
+				"INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority, setupScript, uninstallScript) VALUES "
+				f'("pytest-prod-{idx}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {idx}", 60+{idx},'
+				' "setup.opsiscript", "uninstall.opsiscript");'
+			)
+			session.execute(
+				f"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
+				f'("pytest-prod-{idx}", "1.0", "1", "{get_depotserver_id()}", "LocalbootProduct");'
+			)
 
-	# Product
-	for idx in range(5):
-		cursor.execute(
-			"INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority, setupScript, uninstallScript) VALUES "
-			f'("pytest-prod-{idx}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {idx}", 60+{idx},'
-			' "setup.opsiscript", "uninstall.opsiscript");'
-		)
-		cursor.execute(
-			f"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
-			f'("pytest-prod-{idx}", "1.0", "1", "{get_depotserver_id()}", "LocalbootProduct");'
-		)
-
-	cursor.execute(
-		"INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) VALUES  "
-		'("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60),'
-		'("pytest-prod-4", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 4 version 2", 60);'
-	)
-
-	# Host
-	for idx in range(5):
-		cursor.execute(
-			f"INSERT INTO HOST (hostId, `type`, created, lastSeen, hardwareAddress, `description`, notes, inventoryNumber) "
-			f'VALUES ("pytest-client-{idx}.uib.local", "OpsiClient", "{now}", "{now}", "af:fe:af:fe:af:f{idx}", '
-			f'"description client{idx}", "notes client{idx}", "{idx}");'
-		)
-	cursor.execute(
-		"INSERT INTO HOST (hostId, type, created, lastSeen) VALUES "
-		f'("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}"),'
-		f'("pytest-lost-client-fp.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}"),'
-		f'("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}");'
-	)
-
-	create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot.uib.gmbh")
-	create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot2.uib.gmbh")
-
-	# Product on client
-	cursor.execute(
-		"INSERT INTO PRODUCT_ON_CLIENT "
-		"(productId, clientId, productType, installationStatus, actionRequest, actionResult, "
-		" productVersion, packageVersion, modificationTime) VALUES "
-		f'("pytest-prod-1", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}"),'
-		f'("pytest-prod-2", "pytest-client-2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}"),'
-		f'("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}"),'
-		f'("pytest-prod-2", "pytest-lost-client-fp.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}"),'
-		f'("pytest-prod-2", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}"),'
-		f'("pytest-prod-1", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}"),'
-		f'("pytest-prod-4", "pytest-client-0.uib.local", "LocalbootProduct", "not_installed", "none", "none", "1.0", 1, "{now}"),'
-		f'("pytest-prod-4", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "none", "none", "1.0", 1, "{now}"),'
-		f'("pytest-prod-4", "pytest-client-4.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'
-	)
-
-	# Product on depot
-	cursor.execute(
-		"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
-		'("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-		'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-		'("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
-		'("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
-		'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-		'("pytest-prod-4", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-		'("pytest-prod-3", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
-		'("pytest-prod-4", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
-	)
-
-	# Product Group
-	cursor.execute('INSERT INTO `GROUP` (type, groupId) VALUES ("ProductGroup", "pytest-group-1"), ("ProductGroup", "pytest-group-2");')
-
-	cursor.execute(
-		"INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) VALUES "
-		'("ProductGroup", "pytest-group-1", "pytest-prod-0"),'
-		'("ProductGroup", "pytest-group-1", "pytest-prod-1"),'
-		'("ProductGroup", "pytest-group-1", "pytest-prod-2"),'
-		'("ProductGroup", "pytest-group-2", "pytest-prod-3"),'
-		'("ProductGroup", "pytest-group-2", "pytest-prod-4");'
-	)
-
-	res = cursor.execute('SELECT configId from CONFIG WHERE configId="clientconfig.depot.id";')
-	if res == 0:
-		cursor.execute(
-			"INSERT INTO CONFIG (configId, `type`, description, multiValue, editable) VALUES "
-			'("clientconfig.depot.id", "UnicodeConfig", "ID of the opsi depot to use", 0, 1);'
+		session.execute(
+			"INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) VALUES  "
+			'("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60),'
+			'("pytest-prod-4", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 4 version 2", 60);'
 		)
 
-		cursor.execute(
-			"INSERT INTO CONFIG_VALUE (configId, value, isDefault) VALUES " f'("clientconfig.depot.id", "{get_depotserver_id()}", 1);'
+		# Host
+		for idx in range(5):
+			session.execute(
+				f"INSERT INTO HOST (hostId, `type`, created, lastSeen, hardwareAddress, `description`, notes, inventoryNumber) "
+				f'VALUES ("pytest-client-{idx}.uib.local", "OpsiClient", "{now}", "{now}", "af:fe:af:fe:af:f{idx}", '
+				f'"description client{idx}", "notes client{idx}", "{idx}");'
+			)
+		session.execute(
+			"INSERT INTO HOST (hostId, type, created, lastSeen) VALUES "
+			f'("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}"),'
+			f'("pytest-lost-client-fp.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}"),'
+			f'("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}");'
 		)
 
-	# Clients to Depots
-	cursor.execute(
-		"INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) VALUES "
-		'("clientconfig.depot.id", "pytest-client-1.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
-		'("clientconfig.depot.id", "pytest-client-2.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
-		'("clientconfig.depot.id", "pytest-client-3.uib.local",	\'["pytest-test-depot2.uib.gmbh"]\'),'
-		'("clientconfig.depot.id", "pytest-client-4.uib.local", \'["pytest-test-depot2.uib.gmbh"]\');'
-	)
+		create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot.uib.gmbh")
+		create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot2.uib.gmbh")
 
-	cursor.close()
+		# Product on client
+		session.execute(
+			"INSERT INTO PRODUCT_ON_CLIENT "
+			"(productId, clientId, productType, installationStatus, actionRequest, actionResult, "
+			" productVersion, packageVersion, modificationTime) VALUES "
+			f'("pytest-prod-1", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}"),'
+			f'("pytest-prod-2", "pytest-client-2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}"),'
+			f'("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}"),'
+			f'("pytest-prod-2", "pytest-lost-client-fp.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}"),'
+			f'("pytest-prod-2", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}"),'
+			f'("pytest-prod-1", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}"),'
+			f'("pytest-prod-4", "pytest-client-0.uib.local", "LocalbootProduct", "not_installed", "none", "none", "1.0", 1, "{now}"),'
+			f'("pytest-prod-4", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "none", "none", "1.0", 1, "{now}"),'
+			f'("pytest-prod-4", "pytest-client-4.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'
+		)
+
+		# Product on depot
+		session.execute(
+			"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
+			'("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
+			'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
+			'("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
+			'("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
+			'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
+			'("pytest-prod-4", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
+			'("pytest-prod-3", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
+			'("pytest-prod-4", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
+		)
+
+		# Product Group
+		session.execute(
+			'INSERT INTO `GROUP` (type, groupId) VALUES ("ProductGroup", "pytest-group-1"), ("ProductGroup", "pytest-group-2");'
+		)
+
+		session.execute(
+			"INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) VALUES "
+			'("ProductGroup", "pytest-group-1", "pytest-prod-0"),'
+			'("ProductGroup", "pytest-group-1", "pytest-prod-1"),'
+			'("ProductGroup", "pytest-group-1", "pytest-prod-2"),'
+			'("ProductGroup", "pytest-group-2", "pytest-prod-3"),'
+			'("ProductGroup", "pytest-group-2", "pytest-prod-4");'
+		)
+
+		res = session.execute('SELECT configId from CONFIG WHERE configId="clientconfig.depot.id";')
+		if res == 0:
+			session.execute(
+				"INSERT INTO CONFIG (configId, `type`, description, multiValue, editable) VALUES "
+				'("clientconfig.depot.id", "UnicodeConfig", "ID of the opsi depot to use", 0, 1);'
+			)
+
+			session.execute(
+				"INSERT INTO CONFIG_VALUE (configId, value, isDefault) VALUES " f'("clientconfig.depot.id", "{get_depotserver_id()}", 1);'
+			)
+
+		# Clients to Depots
+		session.execute(
+			"INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) VALUES "
+			'("clientconfig.depot.id", "pytest-client-1.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
+			'("clientconfig.depot.id", "pytest-client-2.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
+			'("clientconfig.depot.id", "pytest-client-3.uib.local",	\'["pytest-test-depot2.uib.gmbh"]\'),'
+			'("clientconfig.depot.id", "pytest-client-4.uib.local", \'["pytest-test-depot2.uib.gmbh"]\');'
+		)
 
 	yield
 
-	cursor = mysql.cursor()
 	delete_mysql_data()
 
 
@@ -273,10 +265,7 @@ def test_check_disk_usage_no_result(  # pylint: disable=too-many-arguments,redef
 	assert json.loads(result.body) == {"message": ("UNKNOWN: No disk usage results, nothing to check."), "state": 3}
 
 
-def test_check_locked_products(
-	backend: UnprotectedBackend,
-	database_connection: Connection,  # pylint: disable=redefined-outer-name
-) -> None:
+def test_check_locked_products(backend: UnprotectedBackend) -> None:
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
 	assert json.loads(result.body) == {"message": "OK: No products locked on depots: pytest-test-depot.uib.gmbh", "state": 0}
 
@@ -285,17 +274,15 @@ def test_check_locked_products(
 		"message": (f"OK: No products locked on depots: {get_depotserver_id()}," "pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh"),
 		"state": 0,
 	}
-
-	cursor = database_connection.cursor()
-	cursor.execute(
-		(
-			"REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES "
-			'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
-			'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+	mysql = MySQLConnection()
+	with mysql.session() as session:
+		session.execute(
+			(
+				"REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES "
+				'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
+				'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+			)
 		)
-	)
-	database_connection.commit()
-	cursor.close()
 
 	time.sleep(2)
 

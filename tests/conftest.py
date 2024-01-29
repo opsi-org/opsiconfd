@@ -41,7 +41,7 @@ from opsiconfd.worker import Worker
 
 from .utils import sync_clean_redis
 
-GRAFANA_AVAILABLE = False
+GRAFANA_IS_LOCAL = False
 
 running_item: Callable | Coroutine | None = None
 
@@ -68,7 +68,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		# vscode test discovery running
 		return
 
-	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
+	global GRAFANA_IS_LOCAL  # pylint: disable=global-statement
 
 	Path("tests/data/opsi-config/opsi.conf").unlink(missing_ok=True)
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
@@ -89,7 +89,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	pprint.pprint(_config.items(), width=200)
 
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
-		GRAFANA_AVAILABLE = True
+		GRAFANA_IS_LOCAL = True
 
 	def stderr_close() -> None:
 		print("sys.stderr.close called!", file=sys.stderr)
@@ -154,9 +154,8 @@ def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: 
 @hookimpl()
 def pytest_runtest_setup(item: Item) -> None:
 	# Called to perform the setup phase for a test item.
-	grafana_available = GRAFANA_AVAILABLE
 	for marker in item.iter_markers():
-		if marker.name == "grafana_available" and not grafana_available:
+		if marker.name == "grafana_is_local" and not GRAFANA_IS_LOCAL:
 			skip("Grafana not available")
 
 
@@ -204,7 +203,7 @@ def pytest_configure(config: Config) -> None:
 	# When the mode is auto, all discovered async tests are considered
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
 	config.option.asyncio_mode = "auto"
-	config.addinivalue_line("markers", "grafana_available: mark test to run only if a local grafana instance is available")
+	config.addinivalue_line("markers", "grafana_is_local: mark test to run only if a local grafana instance is running on the local host")
 
 
 @fixture(autouse=True)

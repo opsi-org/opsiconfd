@@ -14,16 +14,14 @@ from opsicommon.objects import LicensePool
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
-	database_connection,
 	get_config,
 	test_client,
 )
 
 from .test_obj_product import create_test_products
-from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def test_licensePool_insert_get_delete(  # pylint: disable=invalid-name

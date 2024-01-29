@@ -13,16 +13,14 @@ import pytest
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
-	database_connection,
 	get_config,
 	test_client,
 )
 
 from .test_obj_product_property import create_test_product_properties
-from .utils import cleanup_database  # pylint: disable=unused-import
 
 
 def create_test_client(test_client: OpsiconfdTestClient) -> dict:  # pylint: disable=redefined-outer-name

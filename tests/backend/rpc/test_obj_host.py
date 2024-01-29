@@ -20,26 +20,12 @@ from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Connection,
 	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
-	database_connection,
 	get_config,
 	test_client,
 )
-
-
-@pytest.fixture(autouse=True)
-def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-host%'")
-	database_connection.commit()
-	yield
-	cursor.execute("DELETE FROM `CONFIG_STATE` WHERE objectId LIKE 'test-backend-rpc%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-host%'")
-	database_connection.commit()
-	cursor.close()
 
 
 @pytest.fixture()
@@ -955,7 +941,7 @@ def _create_clients_and_depot(
 	return (clients, depot)
 
 
-def test_rename_depot(test_client: OpsiconfdTestClient, cleanup_database: Generator) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_rename_depot(test_client: OpsiconfdTestClient, clean_mysql: Generator) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	# create clients and depot. client 2 is assigned to depot

@@ -2,6 +2,8 @@
 
 echo "* Running as $(whoami)"
 
+cd /workspace
+
 update-alternatives --set editor /usr/bin/vim.basic
 
 mkdir -p /var/log/opsi
@@ -21,10 +23,6 @@ echo "* Upgrade opsi-dev-cli"
 opsi-dev-cli self upgrade --system || true
 
 opsi-set-rights
-
-echo "* Install git hooks"
-cd /workspace
-opsi-dev-tool git-hooks --install
 
 echo "* Setup mysql"
 #cat <<EOF | mysql -h $MYSQL_HOST -u root --password=${MYSQL_ROOT_PASSWORD}
@@ -48,16 +46,26 @@ GRANT ALL PRIVILEGES ON *.* TO ${MYSQL_USER}@'%';
 FLUSH PRIVILEGES;
 EOF
 
-echo "* Setup poetry venv"
-cd /workspace
-poetry lock --no-update
-poetry install --no-interaction --no-ansi
-
 if [ -n "$DEV_USER" ]; then
+	if [ -z "$SSH_AUTH_SOCK" ]; then
+		VSCODE_AUTH_SOCK=$(ls -t /tmp/vscode-ssh-auth-*.sock 2> /dev/null | head -n1)
+		[ -n "$VSCODE_AUTH_SOCK" ] && export SSH_AUTH_SOCK=$VSCODE_AUTH_SOCK
+	fi
+	ssh-add -L
+
 	echo "* Git config"
 	chown -R $DEV_USER /workspace
 	su - $DEV_USER -c 'git config --global core.editor "code --wait"'
+
+	echo "* Install git hooks"
+	su - $DEV_USER -c 'opsi-dev-tool git-hooks --install'
 fi
+
+echo "* Setup poetry venv"
+poetry lock --no-update
+poetry install --no-interaction --no-ansi
+
+[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
 
 # Run CMD
 exec "$@"

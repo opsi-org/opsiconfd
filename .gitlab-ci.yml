@@ -184,18 +184,17 @@ test:pylint-pytest:
     - linux-docker-x64-hetzner
   services:
   script:
-    #- *prepare_tests
-    #- *run_linters
-    #- *pytest
     - env | grep "OPSILICSRV_TOKEN=" > docker/opsiconfd-dev/local.env
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml up --detach --wait --wait-timeout 30
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry install
-    - echo "---------------------------------------"
+
     - echo "Run linters"
-    - echo "---------------------------------------"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ruff opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run mypy opsiconfd tests
+
+    - echo "Run pytest"
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

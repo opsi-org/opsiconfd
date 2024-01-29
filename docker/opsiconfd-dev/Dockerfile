@@ -72,7 +72,7 @@ RUN chmod +x /entrypoint.sh \
 		&& adduser ${DEV_USER} shadow \
 		#&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
 		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
-		&& chown -R $DEV_USER /workspace
+		&& chown -R $DEV_USER /workspace \
 	; fi
 
 ENTRYPOINT [ "/entrypoint.sh" ]

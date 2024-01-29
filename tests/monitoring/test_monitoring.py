@@ -34,6 +34,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	UnprotectedBackend,
 	backend,
 	clean_redis,
+	clean_mysql,
 	config,
 	create_depot_jsonrpc,
 	delete_mysql_data,

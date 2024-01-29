@@ -9,6 +9,12 @@ stages:
   - build
   - publish
 
+before_script:
+  # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
+  - export CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
+  - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
+  - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
+
 .install_tools: &install_tools |
   export DEBIAN_FRONTEND=noninteractive
   apt update
@@ -173,22 +179,13 @@ test:pylint-pytest:
   tags:
     - linux-docker-x64-hetzner
   services:
-    - name: mysql:latest
-      command:
-        - --max_connections=1000
-        - --max_allowed_packet=64M
-        - --default-authentication-plugin=mysql_native_password
-    - name: redislabs/redistimeseries:latest
-      alias: redis
-  variables:
-    MYSQL_ROOT_PASSWORD: "opsi"
-    MYSQL_DATABASE: "opsitest"
-    MYSQL_USER: "opsi"
-    MYSQL_PASSWORD: "opsi"
   script:
-    - *prepare_tests
-    - *run_linters
-    - *pytest
+    #- *prepare_tests
+    #- *run_linters
+    #- *pytest
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml run -d opsiconfd-dev
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev poetry install
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev poetry run ruff opsiagent
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

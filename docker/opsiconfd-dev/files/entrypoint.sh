@@ -1,34 +1,28 @@
 echo "* Running as $(whoami)"
 
-sudo update-alternatives --set editor /usr/bin/vim.basic
+update-alternatives --set editor /usr/bin/vim.basic
 
-sudo mkdir -p /var/log/opsi
-sudo mkdir -p /var/lib/opsi/depot
-sudo mkdir -p /var/lib/opsi/public
-sudo mkdir -p /var/lib/opsi/repository
-sudo mkdir -p /var/lib/opsi/workbench
-sudo mkdir -p /var/lib/opsiconfd
-sudo mkdir -p /tftpboot
-sudo ln -s /workspace/addons /var/lib/opsiconfd/addons
-
-sudo chown -R $DEV_USER /workspace
+mkdir -p /var/log/opsi
+mkdir -p /var/lib/opsi/depot
+mkdir -p /var/lib/opsi/public
+mkdir -p /var/lib/opsi/repository
+mkdir -p /var/lib/opsi/workbench
+mkdir -p /var/lib/opsiconfd
+mkdir -p /tftpboot
+ln -s /workspace/addons /var/lib/opsiconfd/addons
 
 echo "* Fetch a test license"
-sudo mkdir -p /etc/opsi/licenses
-sudo wget --header="Authorization: Bearer ${OPSILICSRV_TOKEN}" "https://opsi-license-server.uib.gmbh/api/v1/licenses/test?usage=opsiconfd-dev-container" -O /etc/opsi/licenses/test.opsilic || true
+mkdir -p /etc/opsi/licenses
+wget --header="Authorization: Bearer ${OPSILICSRV_TOKEN}" "https://opsi-license-server.uib.gmbh/api/v1/licenses/test?usage=opsiconfd-dev-container" -O /etc/opsi/licenses/test.opsilic || true
 
 echo "* Upgrade opsi-dev-cli"
-sudo opsi-dev-cli self upgrade --system || true
+opsi-dev-cli self upgrade --system || true
 
-sudo chown -R $DEV_USER /workspace
-sudo opsi-set-rights
+opsi-set-rights
 
 echo "* Install git hooks"
 cd /workspace
 opsi-dev-tool git-hooks --install
-
-echo "* Git config"
-git config --global core.editor "code --wait"
 
 echo "* Setup mysql"
 #cat <<EOF | mysql -h $MYSQL_HOST -u root --password=${MYSQL_ROOT_PASSWORD}
@@ -56,6 +50,12 @@ echo "* Setup poetry venv"
 cd /workspace
 poetry lock --no-update
 poetry install --no-interaction --no-ansi
+
+if [ -n "$DEV_USER" ]; then
+	echo "* Git config"
+	chown -R $DEV_USER /workspace
+	git config --global core.editor "code --wait"
+fi
 
 # Run CMD
 exec "$@"

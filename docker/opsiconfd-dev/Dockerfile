@@ -1,6 +1,6 @@
 FROM docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
 
-ARG DEV_USER=devuser
+ARG DEV_USER
 
 ENV LC_ALL="en_US.UTF-8" \
 	LANG="en_US.UTF-8" \
@@ -49,13 +49,7 @@ RUN apt-get update \
 
 COPY files/ /
 
-RUN if [ -n "$DEV_USER" ]; then \
-	useradd --create-home -s /bin/zsh ${DEV_USER} \
-	&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
-	&& cp -a /root/.zshrc /root/.oh-my-zsh /root/.p10k.zsh  /root/.zsh_history /home/${DEV_USER}/ \
-	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER} \
-	&& chmod -R g-rww,o-rww /home/${DEV_USER}/.oh-my-zsh \
-	; fi \
+RUN chmod +x /entrypoint.sh \
 	&& (getent group opsifileadmins || groupadd opsifileadmins) \
 	&& (getent group opsiadmin || groupadd opsiadmin) \
 	&& (getent passwd opsiconfd || useradd --system -g opsifileadmins -d /var/lib/opsiconfd/home -s /bin/zsh opsiconfd) \
@@ -65,19 +59,21 @@ RUN if [ -n "$DEV_USER" ]; then \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser opsifileadmins \
 	&& adduser adminuser opsiadmin \
-	&& echo "${DEV_USER}:adminuser" | chpasswd \
-	&& adduser ${DEV_USER} opsifileadmins \
-	&& adduser ${DEV_USER} opsiadmin \
-	&& adduser ${DEV_USER} sudo \
-	&& adduser ${DEV_USER} shadow \
-	#&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
-	&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
-	#&& cp -r /root/.bash* /home/adminuser/ \
-	#&& cp -r /root/.bash* /home/${DEV_USER}/ \
-	#&& chmod g+rw -R . \
-	&& chmod +x /entrypoint.sh \
-	&& mkdir tftpboot \
-	&& chown -R $DEV_USER /workspace
+	&& if [ -n "$DEV_USER" ]; then \
+		useradd --create-home -s /bin/zsh ${DEV_USER} \
+		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+		&& cp -a /root/.zshrc /root/.oh-my-zsh /root/.p10k.zsh  /root/.zsh_history /home/${DEV_USER}/ \
+		&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER} \
+		&& chmod -R g-rww,o-rww /home/${DEV_USER}/.oh-my-zsh \
+		&& echo "${DEV_USER}:adminuser" | chpasswd \
+		&& adduser ${DEV_USER} opsifileadmins \
+		&& adduser ${DEV_USER} opsiadmin \
+		&& adduser ${DEV_USER} sudo \
+		&& adduser ${DEV_USER} shadow \
+		#&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
+		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+		&& chown -R $DEV_USER /workspace
+	; fi
 
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "sleep", "infinity" ]

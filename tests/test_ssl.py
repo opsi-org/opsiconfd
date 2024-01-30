@@ -219,15 +219,14 @@ def test_create_ca(tmpdir: Path) -> None:
 				match = re.search(r"Serial Number:\s*\n\s*([a-f0-9:]+)", out)
 				assert match
 				openssl_serial = match.group(1)
-				assert info["serial_number"].lstrip("0") == openssl_serial.lstrip("0").upper()
-
+				assert info["serial_number"].lstrip("0:") == openssl_serial.lstrip("0:").upper()
 				out = subprocess.check_output(["openssl", "x509", "-noout", "-fingerprint", "-sha256", "-in", conf.ssl_ca_cert]).decode(
 					"utf-8"
 				)
 				match = re.search(r"sha256 Fingerprint=([A-F0-9:]+)", out, re.IGNORECASE)
 				assert match
 				openssl_fingerprint_sha256 = match.group(1)
-				assert info["fingerprint_sha256"].lstrip("0") == openssl_fingerprint_sha256.lstrip("0").upper()
+				assert info["fingerprint_sha256"].lstrip("0:") == openssl_fingerprint_sha256.lstrip("0:").upper()
 
 				out = subprocess.check_output(["openssl", "x509", "-noout", "-fingerprint", "-sha1", "-in", conf.ssl_ca_cert]).decode(
 					"utf-8"
@@ -235,7 +234,7 @@ def test_create_ca(tmpdir: Path) -> None:
 				match = re.search(r"sha1 Fingerprint=([A-F0-9:]+)", out, re.IGNORECASE)
 				assert match
 				openssl_fingerprint_sha1 = match.group(1)
-				assert info["fingerprint_sha1"].lstrip("0") == openssl_fingerprint_sha1.lstrip("0").upper()
+				assert info["fingerprint_sha1"].lstrip("0:") == openssl_fingerprint_sha1.lstrip("0:").upper()
 
 
 def test_create_ca_permitted_domains(tmpdir: Path) -> None:

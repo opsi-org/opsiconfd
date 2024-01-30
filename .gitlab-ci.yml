@@ -44,18 +44,10 @@ test:pylint-pytest:
     - sleep 10
 
     - echo "Run opsiconfd-perftest"
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json -w perftest-result
-    - cat perftest-result
-    - |
-      [ $(grep errors= perftest-result | cut -d '=' -f2) -gt 0 ] && (
-        echo "Errors in perftest" >&2
-        exit 1
-      )
     # Average request time has to be faster than 10 ms
-    - echo "$(grep avg_seconds_per_request= perftest-result | cut -d '=' -f2)<0.01" | bc > bc-result
-    - |
-      [ $(cat bc-result) = "1" ] || (
-        echo "Average seconds per request >= 10 ms" >&2
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 (
+        echo "opsiconfd-perftest.py failed" >&2
+        cat opsiconfd-perftest.log
         exit 1
       )
 

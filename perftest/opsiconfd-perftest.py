@@ -55,6 +55,8 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		print_responses: bool = False,
 		jsonrpc_methods: Optional[list[str]] = None,
 		write_results: str | None = None,
+		max_avg_seconds_per_request: float = 0,
+		max_errors: int = -1,
 	) -> None:
 		url = urlparse(server)
 		self.base_url = f"{url.scheme or 'https'}://{url.hostname or url.path}:{url.port or 4447}"
@@ -66,6 +68,8 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		self.print_responses = print_responses
 		self.test_cases = []
 		self.write_results = write_results
+		self.max_avg_seconds_per_request = max_avg_seconds_per_request
+		self.max_errors = max_errors
 		if self.write_results:
 			with open(self.write_results, "wb"):
 				pass
@@ -111,6 +115,13 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 
 		for test_case in self.test_cases:
 			await test_case.run()
+			results = test_case.calc_results()["errors"]
+			if self.max_errors >= 0 and results["errors"] > self.max_errors:
+				print(f"Number of errors exceeded {self.max_errors}")
+				sys.exit(1)
+			if self.max_avg_seconds_per_request > 0 and results["avg_seconds_per_request"] > self.max_avg_seconds_per_request:
+				print(f"Average time per request exceeded {self.max_avg_seconds_per_request} seconds")
+				sys.exit(1)
 
 	async def stop(self) -> None:
 		for test_case in self.test_cases:
@@ -183,9 +194,7 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			self.start = time.perf_counter()
 			if self.requests.get("test"):
 				for _i in range(self.iterations):
-					tasks = [
-						client.execute_requests(self.requests["test"]) for client in self.clients
-					]  # pylint: disable=loop-invariant-statement
+					tasks = [client.execute_requests(self.requests["test"]) for client in self.clients]  # pylint: disable=loop-invariant-statement
 					await asyncio.gather(*tasks, return_exceptions=False)  # pylint: disable=dotted-import-in-loop
 					if self._should_stop:
 						break
@@ -247,22 +256,14 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			result["total_request_seconds"] += res["seconds"]  # pylint: disable=loop-invariant-statement
 			result["bytes_sent"] += res["bytes_sent"]  # pylint: disable=loop-invariant-statement
 			result["bytes_received"] += res["bytes_received"]  # pylint: disable=loop-invariant-statement
-			if (
-				result["min_seconds_per_request"] == 0 or result["min_seconds_per_request"] > res["seconds"]
-			):  # pylint: disable=loop-invariant-statement
+			if result["min_seconds_per_request"] == 0 or result["min_seconds_per_request"] > res["seconds"]:  # pylint: disable=loop-invariant-statement
 				result["min_seconds_per_request"] = res["seconds"]  # pylint: disable=loop-invariant-statement
-			if (
-				result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]
-			):  # pylint: disable=loop-invariant-statement
+			if result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]:  # pylint: disable=loop-invariant-statement
 				result["max_seconds_per_request"] = res["seconds"]  # pylint: disable=loop-invariant-statement
 			sum_round_trip_time += res["round_trip_time"]
-			if (
-				result["min_round_trip_time"] == 0 or result["min_round_trip_time"] > res["round_trip_time"]
-			):  # pylint: disable=loop-invariant-statement
+			if result["min_round_trip_time"] == 0 or result["min_round_trip_time"] > res["round_trip_time"]:  # pylint: disable=loop-invariant-statement
 				result["min_round_trip_time"] = res["round_trip_time"]  # pylint: disable=loop-invariant-statement
-			if (
-				result["max_round_trip_time"] == 0 or result["max_round_trip_time"] < res["round_trip_time"]
-			):  # pylint: disable=loop-invariant-statement
+			if result["max_round_trip_time"] == 0 or result["max_round_trip_time"] < res["round_trip_time"]:  # pylint: disable=loop-invariant-statement
 				result["max_round_trip_time"] = res["round_trip_time"]  # pylint: disable=loop-invariant-statement
 
 		result["avg_seconds_per_request"] = result["total_request_seconds"] / result["requests"]
@@ -463,9 +464,7 @@ class Client:
 					params[idx] = file.read()
 		return {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 
-	async def execute_jsonrpc_request(
-		self, request: dict[str, Any]
-	) -> tuple[Any | None, Any, int, int]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def execute_jsonrpc_request(self, request: dict[str, Any]) -> tuple[Any | None, Any, int, int]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		headers = {}
 
 		if self.test_case.encoding == "json":
@@ -524,9 +523,7 @@ class Client:
 		end = time.perf_counter()
 		return (error, end - start, request_data_len, response_data_len, end - start)
 
-	async def messagebus_jsonrpc(
-		self, method: str, params: list[Any] | None = None
-	) -> tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def messagebus_jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		params = params or []
 		req = self.jsonrpc_request(method, params)
 		messagebus_ws = await self.messagebus_ws()
@@ -585,6 +582,16 @@ def main() -> None:
 	arg_parser.add_argument("-r", "--print-responses", action="store_true", default=None, help="Print server responses")
 	arg_parser.add_argument("-l", "--load", action="store", nargs="+", metavar="FILE", help="Load test from FILE")
 	arg_parser.add_argument("-w", "--write-results", action="store", metavar="FILE", help="Write results to FILE")
+	arg_parser.add_argument(
+		"--max-avg-seconds-per-request",
+		action="store",
+		type=float,
+		help="Fail if average time per request exceeds this value (in seconds)",
+		default=0,
+	)
+	arg_parser.add_argument(
+		"--max-errors", action="store", type=int, help="Fail if number of request errors exceeds this value", default=-1
+	)
 	args = arg_parser.parse_args()
 	kwargs = args.__dict__
 

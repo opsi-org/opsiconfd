@@ -45,7 +45,8 @@ test:pylint-pytest:
 
     - echo "Run opsiconfd-perftest"
     # Average request time has to be faster than 10 ms
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 (
+    - |
+      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 || (
         echo "opsiconfd-perftest.py failed" >&2
         cat opsiconfd-perftest.log
         exit 1

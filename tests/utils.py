@@ -35,7 +35,7 @@ from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
-from opsiconfd.config import Config, OpsiConfig
+from opsiconfd.config import Config, OpsiConfig, get_configserver_id
 from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config as _opsi_config
 from opsiconfd.redis import async_redis_client, redis_client
@@ -223,7 +223,7 @@ def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 				"USER",
 			):
 				if table == "HOST":
-					session.execute("DELETE FROM `HOST` WHERE type != 'OpsiConfigserver'")
+					session.execute("DELETE FROM `HOST` WHERE hostId != :configserver_id", {"configserver_id": get_configserver_id()})
 				else:
 					session.execute(f"DELETE FROM `{table}`")
 

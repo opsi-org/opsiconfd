@@ -9,8 +9,6 @@ stages:
   - publish
 
 before_script:
-  # Clean up
-  - '[ -e .venv ] && rm -rf .venv'
   # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
   - export CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
   - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/

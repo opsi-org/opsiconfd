@@ -366,7 +366,8 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 
 			while not self._should_stop:
 				try:
-					stream_entries = await self._get_stream_entries(redis)
+					async with self._channels_lock:
+						stream_entries = await self._get_stream_entries(redis)
 					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
 						if end_ts and now_ts > end_ts:

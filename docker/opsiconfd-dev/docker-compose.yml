@@ -26,9 +26,9 @@ services:
       args:
         DEV_USER: $USER
     volumes:
-      - $LOCAL_WORKSPACE_DIR:/workspace:cached
+      - ${LOCAL_WORKSPACE_DIR}:/workspace:cached
     ports:
-      - 4448:4447
+      - ${OPSICONFD_FORWARD_PORT}4447
     env_file:
       - .env
       - local.env

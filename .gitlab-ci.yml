@@ -8,7 +8,6 @@ stages:
   - build
   - publish
 
-
 test:pylint-pytest:
   stage: test
   tags:

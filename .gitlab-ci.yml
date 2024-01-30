@@ -18,6 +18,7 @@ test:pylint-pytest:
     # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
     - export CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
     - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
+    - export COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
     - env | grep "OPSILICSRV_TOKEN=" > docker/opsiconfd-dev/local.env
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v

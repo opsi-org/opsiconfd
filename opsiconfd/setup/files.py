@@ -59,12 +59,11 @@ EXTENDER_FILES = (
 
 
 def _get_default_dirs() -> list[str]:
-	return [
+	dirs = [
 		f"/{LOG_DIR}/bootimage",
 		f"/{LOG_DIR}/clientconnect",
 		f"/{LOG_DIR}/instlog",
 		f"/{LOG_DIR}/userlogin",
-		os.path.dirname(config.log_file),
 		TMP_DIR,
 		DEPOT_DIR,
 		NTFS_IMAGES_DIR,
@@ -76,6 +75,9 @@ def _get_default_dirs() -> list[str]:
 		OPSICONFD_HOME,
 		FILE_TRANSFER_STORAGE_DIR,
 	]
+	if config.log_file:
+		dirs.append(os.path.dirname(config.log_file))
+	return dirs
 
 
 def move_exender_files() -> None:
@@ -112,7 +114,7 @@ def migrate_acl_conf_if_default() -> None:
 	replace it with the 4.3 (and 4.2) default.
 	"""
 	md5sum = get_file_md5sum(config.acl_file)
-	if md5sum in ("74a0dbc5320fa0a80f8f6edb0d43a7e7", ):  # 4.1 default
+	if md5sum in ("74a0dbc5320fa0a80f8f6edb0d43a7e7",):  # 4.1 default
 		write_default_acl_conf(Path(config.acl_file))
 
 

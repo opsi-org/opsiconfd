@@ -34,7 +34,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from opsicommon.objects import UnicodeConfig
-from opsicommon.logging import use_logging_config
+from opsicommon.logging import use_logging_config, get_logger
 from opsicommon.logging.constants import LOG_TRACE
 
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
@@ -53,6 +53,8 @@ from .utils import (  # pylint: disable=unused-import
 	config,
 	test_client,
 )
+
+logger = get_logger()
 
 
 @pytest.mark.parametrize("compression", ("", "lz4", "gzip"))
@@ -463,10 +465,13 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 	with use_logging_config(stderr_level=LOG_TRACE):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		with test_client as client:
+			logger.debug("Connecting to messagebus")
 			with client.websocket_connect("/messagebus/v1") as websocket:
 				with WebSocketMessageReader(websocket) as reader:
+					logger.debug("Waiting for channel_subscription_event")
 					reader.wait_for_message(count=1)
-					next(reader.get_messages())
+					msg = Message.from_dict(next(reader.get_messages()))
+					assert isinstance(msg, ChannelSubscriptionEventMessage)
 
 					payload = randbytes(16 * 1024)
 					message1 = TraceRequestMessage(
@@ -474,10 +479,13 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 					)
 					assert round(message1.created / 1000) == round(time())
 					message1.trace["sender_ws_send"] = int(time() * 1000)
+					logger.debug("Sending trace request to self")
 					websocket.send_bytes(message1.to_msgpack())
 
+					logger.debug("Waiting for trace request to self")
 					reader.wait_for_message(count=1)
-					message2 = TraceRequestMessage.from_dict(next(reader.get_messages()))
+					message2 = Message.from_dict(next(reader.get_messages()))
+					assert isinstance(message2, TraceRequestMessage)
 					message2.trace["recipient_ws_receive"] = timestamp()
 					assert message2.created == message1.created
 
@@ -489,12 +497,15 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 						trace={"sender_ws_send": timestamp()},
 						payload=message2.payload,
 					)
+					logger.debug("Sending trace response to self")
 					websocket.send_bytes(message3.to_msgpack())
 
+					logger.debug("Waiting for trace response to self")
 					reader.wait_for_message(count=1)
-					message4 = TraceResponseMessage.from_dict(next(reader.get_messages()))
-					message4.trace["recipient_ws_receive"] = timestamp()
+					message4 = Message.from_dict(next(reader.get_messages()))
+					assert isinstance(message4, TraceResponseMessage)
 
+					message4.trace["recipient_ws_receive"] = timestamp()
 					assert message4.ref_id == message1.id
 					assert message4.payload == message1.payload
 					trc = message4.req_trace

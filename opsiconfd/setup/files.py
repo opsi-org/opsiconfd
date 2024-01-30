@@ -120,7 +120,7 @@ def migrate_acl_conf_if_default() -> None:
 
 def setup_files() -> None:
 	for _dir in _get_default_dirs():
-		if not os.path.isdir(_dir) and not os.path.islink(_dir):
+		if _dir and not os.path.isdir(_dir) and not os.path.islink(_dir):
 			os.makedirs(_dir)
 			set_rights(_dir)
 	move_exender_files()

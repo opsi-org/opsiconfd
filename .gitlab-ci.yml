@@ -8,25 +8,24 @@ stages:
   - build
   - publish
 
-before_script:
-  # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
-  - export CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
-  - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
-  - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
-  - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
-
-after_script:
-  - '[ "$CI_DEBUG_SERVICES" = "true" ] && docker compose -f docker/opsiconfd-dev/docker-compose.yml logs'
-  - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
 
 test:pylint-pytest:
   stage: test
   tags:
     - linux-docker-x64-hetzner
   image: docker
-  services:
-  script:
+  before_script:
+    # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
+    - export CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
+    - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
     - env | grep "OPSILICSRV_TOKEN=" > docker/opsiconfd-dev/local.env
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
+  after_script:
+    - '[ "$CI_DEBUG_SERVICES" = "true" ] && docker compose -f docker/opsiconfd-dev/docker-compose.yml logs'
+    - echo "Stop docker containers"
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
+  script:
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml up --detach --wait --wait-timeout 30
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry lock --no-update
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry install
@@ -97,9 +96,6 @@ test:pylint-pytest:
         cat opsiconfd-perftest.log
         exit 1
       )
-
-    - echo "Stop docker containers"
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

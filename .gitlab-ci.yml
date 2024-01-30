@@ -19,15 +19,17 @@ test:pylint-pytest:
     # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
     - CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
     - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
+
+    - echo -e "${TXT_HEAD}Build docker images{TXT_CLEAR}"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
     - env | grep "OPSILICSRV_TOKEN=" > docker/opsiconfd-dev/local.env
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
   after_script:
     - COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
     - '[ "$CI_DEBUG_SERVICES" = "true" ] && docker compose -f docker/opsiconfd-dev/docker-compose.yml logs'
     - echo -e "${TXT_HEAD}Stop docker containers${TXT_CLEAR}"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
   script:
+    - echo -e "${TXT_HEAD}Prepare docker containers{TXT_CLEAR}"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml up --detach --wait --wait-timeout 30
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry lock --no-update
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry install

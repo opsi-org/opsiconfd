@@ -14,7 +14,7 @@ from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from time import time
 from typing import TYPE_CHECKING, Literal
-
+from uvicorn.protocols.utils import ClientDisconnected
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
@@ -127,7 +127,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		try:
 			await websocket.send_bytes(data)
 			statistics.messages_sent += 1
-		except LocalProtocolError as err:
+		except (ClientDisconnected, LocalProtocolError) as err:
 			# Websocket propably closed
 			logger.debug("Failed to send message to websocket: %s", err)
 

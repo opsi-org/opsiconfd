@@ -61,17 +61,9 @@ test:pylint-pytest:
 
     - echo "Run opsiconfd-backend-perftest"
     - |
-      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 > perftest-result || (
+      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiconfd-dev-43 poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
         echo "opsiconfd-backend-perftest.py failed" >&2
-        cat perftest-result
         cat opsiconfd-perftest.log
-        exit 1
-      )
-    - cat perftest-result
-    - echo "$(grep real= perftest-result | cut -d '=' -f2)<30000" | bc > /tmp/bc-result
-    - |
-      [ $(cat /tmp/bc-result) = "1" ] || (
-        echo "Required time >= 30 s" >&2
         exit 1
       )
 

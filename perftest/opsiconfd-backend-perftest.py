@@ -13,9 +13,10 @@ opsiconfd backend performance tests
 
 import argparse
 import asyncio
+import sys
 import time
 from asyncio import sleep
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from itertools import product
 from statistics import mean, median
 from typing import Any, Dict, List
@@ -33,6 +34,9 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		arg_parser.add_argument("--clients", action="store", type=int, help="Number of clients", default=1000)
 		arg_parser.add_argument("--products", action="store", type=int, help="Number of products", default=100)
 		arg_parser.add_argument("--iterations", action="store", type=int, help="Number of test repetitions", default=3)
+		arg_parser.add_argument(
+			"--max-real", action="store", type=int, help="Fail if real time spent exceeds this value (in ms)", default=0
+		)
 		self.args = arg_parser.parse_args()
 		url = urlparse(self.args.server)
 		base_url = f"{url.scheme or 'https'}://{url.hostname}:{url.port or 4447}"
@@ -63,19 +67,16 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		if not timeseries_worker_cpu:
 			raise RuntimeError("Failed to find timeseries")
 
-		range_from = start.replace(microsecond=0)
-		range_to = (end + timedelta(seconds=1)).replace(microsecond=0)
-		seconds = int((range_to - range_from).total_seconds())
 		data = {
 			"app": "opsiconfd-backend-perftest",
 			"panelId": 1,
 			"timezone": "browser",
 			"range": {
-				"from": range_from.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-				"to": range_to.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-				"raw": {"from": f"now-{seconds}s", "to": "now"},
+				"from": start.isoformat(),
+				"to": end.isoformat(),
+				"raw": {},
 			},
-			"intervalMs": seconds * 1000,
+			"intervalMs": 500,
 			"targets": [{"target": timeseries_worker_cpu, "refId": "A", "type": "timeserie"}],
 			"format": "json",
 		}
@@ -95,7 +96,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			follow_redirects=True,
 			timeout=httpx.Timeout(connect=5, read=120, write=120, pool=5),
 		) as client:
-			start = datetime.utcnow()
+			start = datetime.now(tz=timezone.utc)
 			hosts = [
 				{"type": "OpsiClient", "id": f"client{h}.opsi.test", "opsiHostKey": "ffffffffffffffffffffffffffffffff"}
 				for h in range(self.args.clients)
@@ -121,7 +122,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			await self.jsonrpc_request(client, self.args.jsonrpc_url, "product_deleteObjects", products)
 			await self.jsonrpc_request(client, self.args.jsonrpc_url, "host_deleteObjects", hosts)
 
-			end = datetime.utcnow()
+			end = datetime.now(tz=timezone.utc)
 			worker_cpu_usage = await self.get_cpu_usage(client, start, end)
 
 		return {
@@ -145,6 +146,10 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		print("rpc statistics (ms):")
 		for k, v in avg_stats.items():
 			print(f"{k}={v}")
+
+		if self.args.max_real > 0 and avg_stats["real"] > self.args.max_real:
+			print(f"real time of {avg_stats['real']} ms exceeds limit of {self.args.max_real} ms")
+			sys.exit(1)
 
 
 class TestClient:  # pylint: disable=too-few-public-methods

@@ -34,6 +34,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from opsicommon.objects import UnicodeConfig
+from opsicommon.logging import logging_config, logger
 
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, session_manager
@@ -458,60 +459,64 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 
 
 def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with test_client as client:
-		with client.websocket_connect("/messagebus/v1") as websocket:
-			with WebSocketMessageReader(websocket) as reader:
-				reader.wait_for_message(count=1)
-				next(reader.get_messages())
+	logging_config(stderr_level=9)
+	try:
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		with test_client as client:
+			with client.websocket_connect("/messagebus/v1") as websocket:
+				with WebSocketMessageReader(websocket) as reader:
+					reader.wait_for_message(count=1)
+					next(reader.get_messages())
 
-				payload = randbytes(16 * 1024)
-				message1 = TraceRequestMessage(
-					sender=CONNECTION_USER_CHANNEL, channel=CONNECTION_SESSION_CHANNEL, payload=payload, trace={}
-				)
-				assert round(message1.created / 1000) == round(time())
-				message1.trace["sender_ws_send"] = int(time() * 1000)
-				websocket.send_bytes(message1.to_msgpack())
+					payload = randbytes(16 * 1024)
+					message1 = TraceRequestMessage(
+						sender=CONNECTION_USER_CHANNEL, channel=CONNECTION_SESSION_CHANNEL, payload=payload, trace={}
+					)
+					assert round(message1.created / 1000) == round(time())
+					message1.trace["sender_ws_send"] = int(time() * 1000)
+					websocket.send_bytes(message1.to_msgpack())
 
-				reader.wait_for_message(count=1)
-				message2 = TraceRequestMessage.from_dict(next(reader.get_messages()))
-				message2.trace["recipient_ws_receive"] = timestamp()
-				assert message2.created == message1.created
+					reader.wait_for_message(count=1)
+					message2 = TraceRequestMessage.from_dict(next(reader.get_messages()))
+					message2.trace["recipient_ws_receive"] = timestamp()
+					assert message2.created == message1.created
 
-				message3 = TraceResponseMessage(
-					sender=CONNECTION_USER_CHANNEL,
-					channel=CONNECTION_SESSION_CHANNEL,
-					ref_id=message2.id,
-					req_trace=message2.trace,
-					trace={"sender_ws_send": timestamp()},
-					payload=message2.payload,
-				)
-				websocket.send_bytes(message3.to_msgpack())
+					message3 = TraceResponseMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel=CONNECTION_SESSION_CHANNEL,
+						ref_id=message2.id,
+						req_trace=message2.trace,
+						trace={"sender_ws_send": timestamp()},
+						payload=message2.payload,
+					)
+					websocket.send_bytes(message3.to_msgpack())
 
-				reader.wait_for_message(count=1)
-				message4 = TraceResponseMessage.from_dict(next(reader.get_messages()))
-				message4.trace["recipient_ws_receive"] = timestamp()
+					reader.wait_for_message(count=1)
+					message4 = TraceResponseMessage.from_dict(next(reader.get_messages()))
+					message4.trace["recipient_ws_receive"] = timestamp()
 
-				assert message4.ref_id == message1.id
-				assert message4.payload == message1.payload
-				trc = message4.req_trace
-				assert (
-					trc["sender_ws_send"]
-					<= trc["broker_ws_receive"]
-					<= trc["broker_redis_send"]
-					<= trc["broker_redis_receive"]
-					<= trc["broker_ws_send"]
-					<= trc["recipient_ws_receive"]
-				)
-				trc = message4.trace
-				assert (
-					trc["sender_ws_send"]
-					<= trc["broker_ws_receive"]
-					<= trc["broker_redis_send"]
-					<= trc["broker_redis_receive"]
-					<= trc["broker_ws_send"]
-					<= trc["recipient_ws_receive"]
-				)
+					assert message4.ref_id == message1.id
+					assert message4.payload == message1.payload
+					trc = message4.req_trace
+					assert (
+						trc["sender_ws_send"]
+						<= trc["broker_ws_receive"]
+						<= trc["broker_redis_send"]
+						<= trc["broker_redis_receive"]
+						<= trc["broker_ws_send"]
+						<= trc["recipient_ws_receive"]
+					)
+					trc = message4.trace
+					assert (
+						trc["sender_ws_send"]
+						<= trc["broker_ws_receive"]
+						<= trc["broker_redis_send"]
+						<= trc["broker_redis_receive"]
+						<= trc["broker_ws_send"]
+						<= trc["recipient_ws_receive"]
+					)
+	finally:
+		logging_config(stderr_level=4)
 
 
 def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

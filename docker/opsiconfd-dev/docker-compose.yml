@@ -18,6 +18,10 @@ services:
       - SYS_ADMIN
       - DAC_READ_SEARCH
       - SYS_PTRACE
+    depends_on:
+      - mysql
+      - redis
+      - grafana
     build:
       args:
         DEV_USER: $USER

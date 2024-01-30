@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import datetime
 import random
 import statistics
 import sys
 import time
+from datetime import datetime, timezone
 import traceback
 from asyncio import get_event_loop
 from typing import AsyncGenerator
@@ -96,7 +96,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 		self.args.file_size = int(self.args.file_size * 1_000_000)
 		self.args.memory_usage_limit = int(self.args.memory_usage_limit * 1_000_000)
 
-	async def get_worker_memory_usage(self, start_time: int, end_time: int) -> tuple[int, int]:
+	async def get_worker_memory_usage(self, start_time: datetime, end_time: datetime) -> tuple[int, int]:
 		target_names = []
 		async with httpx.AsyncClient(verify=False, auth=(self.args.username, self.args.password)) as client:
 			res = await client.get(self.args.base_url + "/metrics/grafana/search")
@@ -104,12 +104,10 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			target_names = [name for name in res.json() if name.startswith("Average memory usage of worker")]
 
 			assert target_names
-			_from = datetime.datetime.fromtimestamp(start_time)
-			_to = datetime.datetime.fromtimestamp(end_time)
 			targets = [{"type": "timeserie", "target": name, "refId": "A"} for name in target_names]
 			query = {
 				"app": "dashboard",
-				"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {}},
+				"range": {"from": start_time.isoformat(), "to": end_time.isoformat(), "raw": {}},
 				"intervalMs": 500,
 				"timezone": "utc",
 				"targets": targets,
@@ -125,10 +123,10 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			return int(avg_workers_memory_usage), int(max_workers_memory_usage)
 
 	async def main(self) -> None:
-		start = int(time.time())
+		start = datetime.now(timezone.utc)
 		# Wait until some memory metrics are generated
 		await asyncio.sleep(10)
-		now = int(time.time())
+		now = datetime.now(timezone.utc)
 
 		start_memory = (await self.get_worker_memory_usage(start_time=start, end_time=now))[0]
 		print(f"start_memory: {(start_memory / 1_000_000):0.3f} MB")
@@ -150,9 +148,9 @@ class TestManager:  # pylint: disable=too-few-public-methods
 
 		try:
 			test_clients = [FileDownloadClient(self, name=f"download client{c+1}") for c in range(self.args.clients)]
-			start = int(time.time())
+			start = datetime.now(timezone.utc)
 			await asyncio.gather(*[client.run() for client in test_clients])
-			now = int(time.time())
+			now = datetime.now(timezone.utc)
 			print("")
 			max_memory_usage = (await self.get_worker_memory_usage(start_time=start, end_time=now))[1] - start_memory
 			exceptions = [client.exception for client in test_clients if client.exception]

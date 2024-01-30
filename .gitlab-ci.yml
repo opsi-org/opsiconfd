@@ -103,7 +103,7 @@ build:linux-pyinstaller:
   script:
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
-    - opsi-dev-cli self update
+    - opsi-dev-cli self upgrade
     - poetry lock --no-update
     - poetry install
     - poetry run opsi-dev-cli -l debug pyinstaller build
@@ -124,7 +124,7 @@ build:arm64-pyinstaller:
   script:
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
-    - opsi-dev-cli self update
+    - opsi-dev-cli self upgrade
     - poetry lock --no-update
     - poetry install
     - poetry run opsi-dev-cli -l debug pyinstaller build
@@ -158,7 +158,7 @@ publish:obs_ext:
     - build:linux-pyinstaller
     - build:arm64-pyinstaller
   script:
-    - opsi-dev-cli self update
+    - opsi-dev-cli self upgrade
     - opsi-dev-cli -l info packaging obs update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
     - opsi-dev-cli -l info changelog from-git output
     - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md

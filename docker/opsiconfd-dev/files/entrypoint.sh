@@ -61,11 +61,10 @@ if [ -n "$DEV_USER" ]; then
 	su - $DEV_USER -c 'opsi-dev-tool git-hooks --install'
 fi
 
-echo "* Setup poetry venv"
-poetry lock --no-update
-poetry install --no-interaction --no-ansi
-
-[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
+#echo "* Setup poetry venv"
+#poetry lock --no-update
+#poetry install --no-interaction --no-ansi
+#[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
 
 # Run CMD
 exec "$@"

@@ -105,7 +105,7 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 			"RETENTION",
 			7200000,
 			"ON_DUPLICATE",
-			"SUM",
+			"LAST",
 			"LABELS",
 			"node_name",
 			conf.node_name,
@@ -185,8 +185,7 @@ async def test_grafana_query_start_end(
 	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - interval_minute) * 1000
 	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + interval_minute) * 1000
 	correct_values = [dat for dat in data[0]["datapoints"] if dat[0] == value]
-	# Sometimes a value is 20 instead of 10
-	assert len(correct_values) >= num_values - 1
+	assert len(correct_values) == num_values
 
 	# minute, end one hour in the past
 	seconds = 10 * 3600
@@ -213,7 +212,6 @@ async def test_grafana_query_start_end(
 	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - interval_minute) * 1000
 	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + interval_minute) * 1000
 	correct_values = [dat for dat in data[0]["datapoints"] if dat[0] == value]
-	# Sometimes a value is 20 instead of 10
 	assert len(correct_values) == num_values
 
 

@@ -34,7 +34,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from opsicommon.objects import UnicodeConfig
-from opsicommon.logging import logging_config
+from opsicommon.logging import use_logging_config
+from opsicommon.logging.constants import LOG_TRACE
 
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, session_manager
@@ -459,8 +460,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 
 
 def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	logging_config(stderr_level=9)
-	try:
+	with use_logging_config(stderr_level=LOG_TRACE):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		with test_client as client:
 			with client.websocket_connect("/messagebus/v1") as websocket:
@@ -515,8 +515,6 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 						<= trc["broker_ws_send"]
 						<= trc["recipient_ws_receive"]
 					)
-	finally:
-		logging_config(stderr_level=4)
 
 
 def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

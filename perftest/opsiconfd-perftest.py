@@ -115,7 +115,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 
 		for test_case in self.test_cases:
 			await test_case.run()
-			results = test_case.calc_results()["errors"]
+			results = test_case.calc_results()
 			if self.max_errors >= 0 and results["errors"] > self.max_errors:
 				print(f"Number of errors exceeded {self.max_errors}")
 				sys.exit(1)

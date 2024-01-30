@@ -34,7 +34,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from opsicommon.objects import UnicodeConfig
-from opsicommon.logging import logging_config, logger
+from opsicommon.logging import logging_config
 
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, session_manager

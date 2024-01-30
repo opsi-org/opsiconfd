@@ -37,6 +37,7 @@ def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 				"connectionPoolMaxOverflow" : 11,
 				"connectionPoolTimeout" : 12,
 				"connectionPoolSize" : 13,
+				"connectionPoolRecycling" : -1,
 				"unique_hardware_addresses": True
 			}
 			"""
@@ -50,6 +51,7 @@ def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 			"_connection_pool_max_overflow": 11,
 			"_connection_pool_timeout": 12,
 			"_connection_pool_size": 13,
+			"_connection_pool_recycling": -1,
 			"unique_hardware_addresses": True,
 		}
 		config_file.write_text(config, encoding="utf-8")
@@ -130,12 +132,13 @@ def test_update_config_file(tmp_path: Path) -> None:
 			},
 		),
 		(
-			"mysql://username:p%C3%A4ssw%C3%B6rd%24@host:3306/opsidb",
+			"mysql://username:p%C3%A4ssw%C3%B6rd%24@host:3306/opsidb?connectionPoolRecycling=100",
 			{
 				"username": "username",
 				"database": "opsidb",
 				"address": "host",
 				"password": "pässwörd$",
+				"_connection_pool_recycling": 100,
 			},
 		),
 		(
@@ -150,6 +153,7 @@ def test_update_config_file(tmp_path: Path) -> None:
 				"_connection_pool_max_overflow": 11,
 				"_connection_pool_timeout": 12,
 				"_connection_pool_size": 13,
+				"_connection_pool_recycling": -1,
 				"unique_hardware_addresses": False,
 			},
 		),

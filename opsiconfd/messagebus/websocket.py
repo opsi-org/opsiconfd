@@ -216,6 +216,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				raise ValueError(err)
 			subsciption_event.error = Error(code=0, message=err, details=None)
 			await self._send_message_to_websocket(websocket, subsciption_event)
+			return
 
 		subscribed_channels: dict[str, MessageReader] = await self._get_subscribed_channels()
 

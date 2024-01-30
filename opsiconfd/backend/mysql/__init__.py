@@ -170,6 +170,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	@contextmanager
 	def disable_unique_hardware_addresses(self) -> Generator[None, None, None]:
 		unique_hardware_addresses = self.unique_hardware_addresses
+		self.unique_hardware_addresses = False
 		try:
 			yield
 		finally:

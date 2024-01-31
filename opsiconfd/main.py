@@ -39,7 +39,6 @@ from opsiconfd.config import (
 	configure_warnings,
 	get_depotserver_id,
 	get_server_role,
-	opsi_config,
 )
 from opsiconfd.logging import (
 	AsyncRedisLogAdapter,

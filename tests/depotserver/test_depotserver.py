@@ -8,10 +8,8 @@
 test depotserver
 """
 from pathlib import Path
-from typing import Any, cast
 from pytest import fixture
 from _pytest.fixtures import FixtureFunction
-from unittest.mock import patch
 from tests.utils import get_config, OpsiconfdTestClient, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
 
 from opsiconfd.config import get_depotserver_id
@@ -47,7 +45,7 @@ def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestC
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client as client:
 		backend = get_unprotected_backend()
-		assert backend._server_role == "depotserver"
+		assert backend._server_role == "depotserver"  # pylint: disable=protected-access
 		idents = client.jsonrpc20(method="host_getIdents")["result"]
 		assert idents == backend.host_getIdents()
 		depot_id = get_depotserver_id()

@@ -20,7 +20,7 @@ from queue import Empty, Queue
 from threading import Event, Thread
 from typing import Any, Generator, Type, Union
 from unittest.mock import patch
-
+from uuid import uuid4
 import msgpack  # type: ignore[import]
 import pytest
 from fastapi.testclient import TestClient
@@ -42,7 +42,6 @@ from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import session_manager
 from opsiconfd.utils import Singleton
 from opsiconfd.worker import Worker
-from uuid import uuid4
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -90,7 +89,9 @@ class OpsiconfdTestClient(TestClient):
 	def get_client_address(self) -> tuple[str, int]:
 		return self._address
 
-	def jsonrpc20(self, method: str, params: dict[str, Any] | list[Any] | None = None, id: int | str | None = None) -> Any:
+	def jsonrpc20(  # pylint: disable=redefined-builtin
+		self, method: str, params: dict[str, Any] | list[Any] | None = None, id: int | str | None = None
+	) -> Any:
 		params = serialize(params or {})
 		rpc = {"jsonrpc": "2.0", "id": id or str(uuid4()), "method": method, "params": params}
 		res = self.post("/rpc", json=rpc)

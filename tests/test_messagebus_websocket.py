@@ -533,21 +533,43 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
-			with WebSocketMessageReader(websocket) as reader:
+			with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
 				message = ChannelSubscriptionRequestMessage(
-					sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=["event:config_created"], operation="add"
+					sender=CONNECTION_USER_CHANNEL,
+					channel="service:messagebus",
+					channels=["event:config_created", "event:host_connected", "event:host_disconnected"],
+					operation="add",
 				)
 				websocket.send_bytes(message.to_msgpack())
 				reader.wait_for_message(count=2)
 				list(reader.get_messages())
 
+				host_id = "msgbus-test-client.opsi.test"
+				host_key = "92aa768a259dec1856013c4e458507d5"
+				with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
+					client.reset_cookies()
+					client.auth = (host_id, host_key)
+					with client.websocket_connect("/messagebus/v1"):
+						sleep(1)
+
+				reader.wait_for_message(count=2)
+				messages = list(reader.get_messages())
+
+				assert messages[0]["type"] == "event"
+				assert messages[0]["channel"] == "event:host_connected"
+				assert messages[0]["event"] == "host_connected"
+				assert messages[0]["data"]["host"]["id"] == "msgbus-test-client.opsi.test"
+
+				assert messages[1]["type"] == "event"
+				assert messages[1]["channel"] == "event:host_disconnected"
+				assert messages[1]["event"] == "host_disconnected"
+				assert messages[1]["data"]["host"]["id"] == "msgbus-test-client.opsi.test"
+
+				client.auth = (ADMIN_USER, ADMIN_PASS)
+				client.reset_cookies()
 				conf = UnicodeConfig("test.config")
-				rpc = {"id": 12345, "method": "config_createObjects", "params": [conf.to_hash()]}
-				res = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
-				res.raise_for_status()
-				result = res.json()
-				assert result["id"] == rpc["id"]
-				assert result["error"] is None
+				result = client.jsonrpc20(method="config_createObjects", params=[conf.to_hash()])
+				assert "error" not in result
 				assert result["result"] is None
 
 				reader.wait_for_message(count=1)

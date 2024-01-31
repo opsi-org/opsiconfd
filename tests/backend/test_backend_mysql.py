@@ -22,7 +22,7 @@ from tests.utils import backend, get_config  # pylint: disable=unused-import
 
 def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 	config_file = tmp_path / "mysql.conf"
-	with get_config({"backend_config_dir": str(tmp_path)}):
+	with get_config({"backend_config_dir": str(tmp_path), "mysql_internal_url": None}):
 		config = textwrap.dedent(
 			"""
 			# -*- coding: utf-8 -*-

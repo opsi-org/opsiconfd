@@ -25,6 +25,7 @@ test:pylint-pytest:
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
     - env | grep "OPSILICSRV_TOKEN=" >> docker/opsiconfd-dev/.env
+    - echo "LOCAL_WORKSPACE_DIR=../.." >> docker/opsiconfd-dev/.env
   after_script:
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
     #- COMPOSE_FILE=docker/opsiconfd-dev/docker-compose.yml

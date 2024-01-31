@@ -24,6 +24,10 @@ test:pylint-pytest:
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
     - env | grep "OPSILICSRV_TOKEN=" >> docker/opsiconfd-dev/.env
     - echo "LOCAL_WORKSPACE_DIR=../.." >> docker/opsiconfd-dev/.env
+    - echo "OPSISERVER_DEV_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
+    - echo "OPSISERVER_CS_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
+    - echo "DEV_USER=" >> docker/opsiconfd-dev/.env
+    - echo "DEV_UID=" >> docker/opsiconfd-dev/.env
 
     - echo -e "${TXT_HEAD}Build docker images${TXT_CLEAR}"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml build

@@ -1,11 +1,13 @@
 FROM docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
 
 ARG DEV_USER
+ARG DEV_UID
 
 ENV LC_ALL="en_US.UTF-8" \
 	LANG="en_US.UTF-8" \
 	LANGUAGE="en_US:en" \
 	DEV_USER=${DEV_USER} \
+	DEV_UID=${DEV_UID} \
 	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_9.0/
 	# python:
 	#PYTHONFAULTHANDLER=1 \
@@ -53,14 +55,15 @@ RUN chmod +x /entrypoint.sh \
 	&& (getent group opsifileadmins || groupadd opsifileadmins) \
 	&& (getent group opsiadmin || groupadd opsiadmin) \
 	&& (getent passwd opsiconfd || useradd --system -g opsifileadmins -d /var/lib/opsiconfd/home -s /bin/zsh opsiconfd) \
-	&& (getent passwd pcpatch || useradd -d /var/lib/opsi -s /bin/sh pcpatch) \
-	&& adduser pcpatch opsifileadmins \
-	&& (getent passwd adminuser || useradd --create-home -d /home/adminuser -s /bin/zsh adminuser) \
+	&& (getent passwd pcpatch || useradd --system -g opsifileadmins -d /var/lib/opsi -s /bin/sh pcpatch) \
+	&& (getent passwd adminuser || useradd --uid 2222 --create-home -d /home/adminuser -s /bin/zsh adminuser) \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser opsifileadmins \
 	&& adduser adminuser opsiadmin \
 	&& if [ -n "$DEV_USER" ]; then \
-		useradd --create-home -s /bin/zsh ${DEV_USER} \
+		uid=1000 \
+		&& if [ -n "$DEV_USER" ]; then uid=$DEV_UID; fi \
+		&& useradd --uid $uid --create-home -s /bin/zsh ${DEV_USER} \
 		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
 		&& cp -a /root/.zshrc /root/.oh-my-zsh /root/.p10k.zsh  /root/.zsh_history /home/${DEV_USER}/ \
 		&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER} \

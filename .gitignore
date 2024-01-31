@@ -14,7 +14,7 @@ testreport.xml
 
 # Visual Studio Code
 .vscode/*
-local.env
+docker/opsiconfd-dev/.env
 
 .~*
 

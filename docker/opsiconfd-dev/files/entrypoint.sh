@@ -24,28 +24,6 @@ opsi-dev-cli self upgrade --system || true
 
 opsi-set-rights
 
-echo "* Setup mysql"
-#cat <<EOF | mysql -h $MYSQL_HOST -u root --password=${MYSQL_ROOT_PASSWORD}
-#CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
-#DROP DATABASE IF EXISTS opsitest;
-#CREATE DATABASE IF NOT EXISTS opsitest;
-#CREATE USER IF NOT EXISTS ${MYSQL_USER}@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-#ALTER USER ${MYSQL_USER}@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-#GRANT ALL PRIVILEGES ON *.* TO ${MYSQL_USER}@'%';
-#FLUSH PRIVILEGES;
-#EOF
-#zcat /confd-dev-data.sql.gz | \
-#	sed 's/dev-server.uib.local/'${HOSTNAME}.${DOMAINNAME}'/g' | \
-#	mysql -h $MYSQL_HOST -u root --password=${MYSQL_ROOT_PASSWORD} ${MYSQL_DATABASE}
-
-cat <<EOF | mysql -h $MYSQL_HOST -u root --password=${MYSQL_ROOT_PASSWORD}
-CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};
-CREATE USER IF NOT EXISTS ${MYSQL_USER}@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-ALTER USER ${MYSQL_USER}@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-GRANT ALL PRIVILEGES ON *.* TO ${MYSQL_USER}@'%';
-FLUSH PRIVILEGES;
-EOF
-
 if [ -n "$DEV_USER" ]; then
 	if [ -z "$SSH_AUTH_SOCK" ]; then
 		VSCODE_AUTH_SOCK=$(ls -t /tmp/vscode-ssh-auth-*.sock 2> /dev/null | head -n1)
@@ -56,15 +34,25 @@ if [ -n "$DEV_USER" ]; then
 	echo "* Git config"
 	chown -R $DEV_USER /workspace
 	su - $DEV_USER -c 'git config --global core.editor "code --wait"'
-
-	echo "* Install git hooks"
-	su - $DEV_USER -c 'opsi-dev-tool git-hooks --install'
 fi
 
-#echo "* Setup poetry venv"
-#poetry lock --no-update
-#poetry install --no-interaction --no-ansi
-#[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
+if [ -e .venv ]; then
+	echo "* Waiting until poetry venv is set up"
+	last_file_count=1
+	file_count=0
+	# Wait until running poetry install is completed
+	while [ $file_count -ne $last_file_count ]; do
+		last_file_count=$file_count
+		sleep 5
+		file_count=$(find .venv -type f | wc -l)
+	done
+else
+	echo "* Setup poetry venv"
+	poetry lock --no-update
+	poetry install --no-interaction --no-ansi
+	[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
+fi
 
+touch /run/.docker-healthy
 # Run CMD
 exec "$@"

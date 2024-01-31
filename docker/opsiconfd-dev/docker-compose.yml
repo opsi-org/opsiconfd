@@ -1,17 +1,23 @@
 version: '3.8'
 
 volumes:
-  mysql_data:
+  mysql-dev_data:
     driver: local
-  redis_data:
+  redis-dev_data:
     driver: local
-  grafana_data:
+  grafana-dev_data:
+    driver: local
+  mysql-cs_data:
+    driver: local
+  redis-cs_data:
+    driver: local
+  grafana-cs_data:
     driver: local
 
 services:
-  opsiconfd-dev-43:
-    hostname: opsiconfd-dev-43
-    domainname: ${DOMAINNAME}
+  opsiserver43-dev:
+    hostname: opsiserver43-dev
+    domainname: opsi.test
     # Needed for mount
     privileged: true
     cap_add:
@@ -19,46 +25,103 @@ services:
       - DAC_READ_SEARCH
       - SYS_PTRACE
     depends_on:
-      - mysql
-      - redis
-      - grafana
+      - mysql-dev
+      - redis-dev
+      - grafana-dev
     build:
       args:
-        DEV_USER: $USER
+        DEV_USER: $DEV_USER
+        DEV_UID: $DEV_UID
     volumes:
       - ${LOCAL_WORKSPACE_DIR}:/workspace:cached
     ports:
-      - ${OPSICONFD_FORWARD_PORT}4447
+      - ${OPSISERVER_DEV_OPSICONFD_FORWARD_PORT}4447
     env_file:
       - .env
-      - local.env
+      - opsiserver43-dev.env
 
-  mysql:
+  mysql-dev:
     image: mariadb:10.7
     restart: ${RESTART_POLICY}
-    hostname: ${MYSQL_HOST}
+    hostname: mysql-dev
     command: --max_connections=${MYSQL_MAX_CONNECTIONS} --max_allowed_packet=${MYSQL_MAX_ALLOWED_PACKET} --sort_buffer_size=${MYSQL_SORT_BUFFER_SIZE}
     env_file:
       - .env
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql-dev_data:/var/lib/mysql
 
-  redis:
+  redis-dev:
     image: redislabs/redistimeseries:latest
     restart: ${RESTART_POLICY}
-    hostname: ${REDIS_HOST}
+    hostname: redis-dev
     #command: sh -c "redis-server --requirepass $$REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redistimeseries.so"
     command: sh -c "redis-server --loadmodule /usr/lib/redis/modules/redistimeseries.so"
     env_file:
       - .env
     volumes:
-      - redis_data:/data
+      - redis-dev_data:/data
 
-  grafana:
+  grafana-dev:
     image: grafana/grafana:latest
     restart: ${RESTART_POLICY}
-    hostname: ${GRAFANA_HOST}
+    hostname: grafana-dev
     env_file:
       - .env
     volumes:
-      - grafana_data:/var/lib/grafana
+      - grafana-dev_data:/var/lib/grafana
+
+  opsiserver43-cs:
+    hostname: opsiserver43-cs
+    domainname: opsi.test
+    # Needed for mount
+    privileged: true
+    cap_add:
+      - SYS_ADMIN
+      - DAC_READ_SEARCH
+      - SYS_PTRACE
+    depends_on:
+      - mysql-cs
+      - redis-cs
+      - grafana-cs
+    build:
+      args:
+        DEV_USER: $DEV_USER
+        DEV_UID: $DEV_UID
+    volumes:
+      - ${LOCAL_WORKSPACE_DIR}:/workspace:cached
+    ports:
+      - ${OPSISERVER_CS_OPSICONFD_FORWARD_PORT}4447
+    env_file:
+      - .env
+      - opsiserver43-cs.env
+    command: poetry run opsiconfd
+
+  mysql-cs:
+    image: mariadb:10.7
+    restart: ${RESTART_POLICY}
+    hostname: mysql-cs
+    command: --max_connections=${MYSQL_MAX_CONNECTIONS} --max_allowed_packet=${MYSQL_MAX_ALLOWED_PACKET} --sort_buffer_size=${MYSQL_SORT_BUFFER_SIZE}
+    env_file:
+      - .env
+    volumes:
+      - mysql-cs_data:/var/lib/mysql
+
+  redis-cs:
+    image: redislabs/redistimeseries:latest
+    restart: ${RESTART_POLICY}
+    hostname: redis-configserver
+    #command: sh -c "redis-server --requirepass $$REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redistimeseries.so"
+    command: sh -c "redis-server --loadmodule /usr/lib/redis/modules/redistimeseries.so"
+    env_file:
+      - .env
+    volumes:
+      - redis-cs_data:/data
+
+  grafana-cs:
+    image: grafana/grafana:latest
+    restart: ${RESTART_POLICY}
+    hostname: grafana-cs
+    env_file:
+      - .env
+    volumes:
+      - grafana-cs_data:/var/lib/grafana

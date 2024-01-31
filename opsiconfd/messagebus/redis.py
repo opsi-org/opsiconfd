@@ -244,21 +244,20 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 	It is possible to ACK messages.
 	Messages which are ACKed will not be delivered again
 	if a new reader is starting to read the channel.
+
+	channels:
+	        A dict of channel names to stream IDs,
+	        where IDs indicate the last ID already seen.
+	        Special IDs:
+	        ID ">" means that we want to receive all undelivered messages.
+	        ID "$" means that we only want new messages (added after reader was started).
 	"""
 
 	_info_suffix = CHANNEL_INFO_SUFFIX
 	_count_readers = True
 
-	def __init__(self, channels: dict[str, StreamIdT] | None = None) -> None:
-		"""
-		channels:
-		        A dict of channel names to stream IDs, where
-		        IDs indicate the last ID already seen.
-		        Special IDs:
-		        ID ">" means that we want to receive all undelivered messages.
-		        ID "$" means that we only want new messages (added after reader was started).
-		"""
-		self._channels = channels or {}
+	def __init__(self) -> None:
+		self._channels: dict[str, StreamIdT] = {}
 		self._streams: dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{config.redis_key('messagebus')}:channels"
 		self._should_stop = False
@@ -348,12 +347,6 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 			raise ValueError("No channels to read from")
 
 		_logger = logger
-		async with self._channels_lock:
-			try:
-				await self._update_streams()
-			except Exception as err:
-				logger.error(err, exc_info=True)
-				raise
 
 		try:  # pylint: disable=too-many-nested-blocks
 			_logger.debug("%s: getting messages", self)
@@ -450,28 +443,29 @@ class ConsumerGroupMessageReader(MessageReader):
 
 	All messages must be ACKed.
 	ACKed messages will not be delivered again.
+
+	channels:
+	        A dict of channel names to stream IDs
+
+	        ID ">" means that we want to receive messages never delivered to other consumers so far.
+	        Messages that have already been delivered but not ACKed will not be delivered again!
+
+	        If the ID is any valid numerical ID, all pending messages (starting from the specified ID) will be delivered first.
+	        Pending messages means messages that are intended for the specified consumer but were never acknowledged.
+	        After delivering the pending messages, the reader will act as if ID ">" was passed.
+	        This is different from the normal XACK behavior of redis.
 	"""
 
 	_count_readers = False
 
-	def __init__(self, consumer_group: str, consumer_name: str, channels: dict[str, StreamIdT] | None = None) -> None:
+	def __init__(self, consumer_group: str, consumer_name: str) -> None:
 		"""
 		consumer_group:
 		        Name of a consumer group
 		consumer_name:
 		        Name of the consumer as member of the consumer group
-		channels:
-		        A dict of channel names to stream IDs.
-
-		        ID ">" means that we want to receive messages never delivered to other consumers so far.
-		        Messages that have already been delivered but not ACKed will not be delivered again!
-
-		        If the ID is any valid numerical ID, all pending messages (starting from the specified ID) will be delivered first.
-		        Pending messages means messages that are intended for the specified consumer but were never acknowledged.
-		        After delivering the pending messages, the reader will act as if ID ">" was passed.
-		        This is different from the normal XACK behavior of redis.
 		"""
-		super().__init__(channels)
+		super().__init__()
 		self._consumer_group = consumer_group.encode("utf-8")
 		self._consumer_name = consumer_name.encode("utf-8")
 

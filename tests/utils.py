@@ -21,10 +21,12 @@ from threading import Event, Thread
 from typing import Any, Generator, Type, Union
 from unittest.mock import patch
 from uuid import uuid4
+
 import msgpack  # type: ignore[import]
 import pytest
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
+from opsicommon.logging import get_logger
 from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
@@ -45,6 +47,8 @@ from opsiconfd.worker import Worker
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
+
+logger = get_logger()
 
 
 def reset_singleton(cls: Singleton) -> None:
@@ -445,6 +449,7 @@ class WebSocketMessageReader(Thread):
 				else:
 					msg = raw
 				self.messages.put(msg)
+				logger.debug("WebSocketMessageReader received message (size: %d, raw: %s, qsize: %d)", len(raw), raw, self.messages.qsize())
 				if self.print_raw_data:
 					print(
 						f"WebSocketMessageReader received message (size: {len(raw)}, raw: {raw[:self.print_raw_data]}...), qsize: {self.messages.qsize()}"
@@ -463,6 +468,7 @@ class WebSocketMessageReader(Thread):
 			pass
 
 	def wait_for_message(self, count: int = 1, timeout: float = 10.0, error_on_timeout: bool = True) -> None:
+		logger.debug("WebSocketMessageReader waiting for %d messages with timeout %f", count, timeout)
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:
@@ -476,14 +482,17 @@ class WebSocketMessageReader(Thread):
 							messages.append(self.messages.get_nowait())
 					except Empty:
 						pass
+					logger.error("Timed out while waiting for messages (got %d, expected %d)\nMessages: %s", len(messages), count, messages)
 					raise RuntimeError(
 						f"Timed out while waiting for messages (got {len(messages)}, expected {count})\nMessages: {messages}"
 					)
+				logger.debug("Timed out while waiting for messages (got %d, expected %d)", self.messages.qsize(), count)
 				print(f"Timed out while waiting for messages (got {self.messages.qsize()}, expected {count} max)")
 				return
 			time.sleep(0.1)
 
 	async def async_wait_for_message(self, count: int = 1, timeout: float = 10.0, error_on_timeout: bool = True) -> None:
+		logger.debug("WebSocketMessageReader waiting for %d messages with timeout %f", count, timeout)
 		print(f"WebSocketMessageReader waiting for {count} messages with timeout {timeout}")
 		start = time.time()
 		while True:
@@ -497,9 +506,11 @@ class WebSocketMessageReader(Thread):
 							messages.append(self.messages.get_nowait())
 					except Empty:
 						pass
+					logger.error("Timed out while waiting for messages (got %d, expected %d)\nMessages: %s", len(messages), count, messages)
 					raise RuntimeError(
 						f"Timed out while waiting for messages (got {len(messages)}, expected {count})\nMessages: {messages}"
 					)
+				logger.debug("Timed out while waiting for messages (got %d, expected %d max)", self.messages.qsize(), count)
 				print(f"Timed out while waiting for messages (got {self.messages.qsize()}, expected {count} max)")
 				return
 			await asyncio.sleep(0.1)

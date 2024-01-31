@@ -15,6 +15,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from opsicommon.logging import get_logger, use_logging_config
+from opsicommon.logging.constants import LOG_TRACE
 from opsicommon.messagebus import (  # type: ignore[import]
 	CONNECTION_SESSION_CHANNEL,
 	CONNECTION_USER_CHANNEL,
@@ -34,8 +36,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from opsicommon.objects import UnicodeConfig
-from opsicommon.logging import use_logging_config, get_logger
-from opsicommon.logging.constants import LOG_TRACE
 
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, session_manager
@@ -472,6 +472,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 					reader.wait_for_message(count=1)
 					msg = Message.from_dict(next(reader.get_messages()))
 					assert isinstance(msg, ChannelSubscriptionEventMessage)
+					logger.debug("Got channel_subscription_event")
 
 					payload = randbytes(16 * 1024)
 					message1 = TraceRequestMessage(

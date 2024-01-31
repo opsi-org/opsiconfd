@@ -31,7 +31,8 @@ async def test_message_reader_redis_connection() -> None:
 		async for redis_id, message, context in reader.get_messages():
 			print(redis_id, message, context)
 
-	reader = MessageReader(channels={channel: ">"})
+	reader = MessageReader()
+	await reader.set_channels(channels={channel: ">"})
 	asyncio.create_task(reader_task(reader))
 	await send_message(
 		Message(id="00000000-0000-4000-8000-000000000001", type="test", sender="*", channel=channel), context=b"context_data1"
@@ -67,7 +68,8 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 	)
 
 	# ID ">" means that we want to receive all undelivered messages.
-	reader1 = MyMessageReader(channels={channel: ">"})
+	reader1 = MyMessageReader()
+	await reader1.set_channels({channel: ">"})
 	_reader_task1 = asyncio.create_task(reader_task(reader1))
 
 	await send_message(
@@ -78,7 +80,8 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 	)
 
 	# Start another reader
-	reader2 = MyMessageReader(channels={channel: ">"})
+	reader2 = MyMessageReader()
+	await reader2.set_channels({channel: ">"})
 	_reader_task2 = asyncio.create_task(reader_task(reader2))
 
 	# Wait until readers have read all messages
@@ -104,7 +107,8 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 	)
 
 	# Start a reader again
-	reader1 = MyMessageReader(channels={channel: ">"})
+	reader1 = MyMessageReader()
+	await reader1.set_channels(channels={channel: ">"})
 	_reader_task1 = asyncio.create_task(reader_task(reader1))
 
 	await asyncio.sleep(1)
@@ -136,13 +140,15 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 	)
 
 	# Start two readers again
-	reader1 = MyMessageReader(channels={channel: ">"})
-	reader2 = MyMessageReader(channels={"other-channel": ">"})
+	reader1 = MyMessageReader()
+	await reader1.set_channels({channel: ">"})
+	reader2 = MyMessageReader()
+	await reader2.set_channels({"other-channel": ">"})
 	_reader_task1 = asyncio.create_task(reader_task(reader1))
 	await asyncio.sleep(1)
 	_reader_task2 = asyncio.create_task(reader_task(reader2))
 	await asyncio.sleep(1)
-	await reader2.add_channels(channels={channel: ">"})
+	await reader2.add_channels({channel: ">"})
 	await asyncio.sleep(1)
 	await send_message(
 		Message(id="00000000-0000-4000-8000-000000000008", type="test", sender="*", channel=channel), context=b"context_data8"
@@ -175,7 +181,8 @@ async def test_message_reader_event_channel(config: Config) -> None:  # pylint: 
 	# Add some messages before reader starts reading
 	await send_message(Message(id="00000000-0000-4000-8000-000000000001", type="test", sender="*", channel=channel))
 
-	reader1 = MyMessageReader(channels={channel: CONNECTION_SESSION_CHANNEL})
+	reader1 = MyMessageReader()
+	await reader1.set_channels({channel: CONNECTION_SESSION_CHANNEL})
 	_reader_task1 = asyncio.create_task(reader_task(reader1))
 
 	await asyncio.sleep(1)
@@ -183,7 +190,8 @@ async def test_message_reader_event_channel(config: Config) -> None:  # pylint: 
 
 	await send_message(Message(id="00000000-0000-4000-8000-000000000002", type="test", sender="*", channel=channel))
 
-	reader2 = MyMessageReader(channels={channel: CONNECTION_SESSION_CHANNEL})
+	reader2 = MyMessageReader()
+	await reader2.set_channels(channels={channel: CONNECTION_SESSION_CHANNEL})
 	_reader_task2 = asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(1)
@@ -191,7 +199,8 @@ async def test_message_reader_event_channel(config: Config) -> None:  # pylint: 
 
 	await send_message(Message(id="00000000-0000-4000-8000-000000000003", type="test", sender="*", channel=channel))
 
-	reader3 = MyMessageReader(channels={channel: CONNECTION_SESSION_CHANNEL})
+	reader3 = MyMessageReader()
+	await reader3.set_channels(channels={channel: CONNECTION_SESSION_CHANNEL})
 	_reader_task3 = asyncio.create_task(reader_task(reader3))
 
 	# Re-set channels, to check if reader-count is handled correctly
@@ -231,14 +240,12 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 			if reader.ack:
 				await reader.ack_message(message.channel, redis_id)
 
-	reader1 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
-	)
+	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1")
+	await reader1.set_channels({"service:config:jsonrpc": "0"})
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
-	)
+	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2")
+	await reader2.set_channels({"service:config:jsonrpc": "0"})
 	asyncio.create_task(reader_task(reader2))
 
 	for idx in range(1, 101):
@@ -269,15 +276,13 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 			context=b"context_data",
 		)
 
-	reader1 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
-	)
+	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1")
+	await reader1.set_channels({"service:config:jsonrpc": "0"})
 	reader1.ack = False
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
-	)
+	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2")
+	await reader2.set_channels({"service:config:jsonrpc": "0"})
 	reader2.ack = True
 	asyncio.create_task(reader_task(reader2))
 
@@ -295,14 +300,12 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	reader1_received_ids = [rcv[1].id for rcv in reader1.received]
 
 	# Restart readers
-	reader1 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
-	)
+	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1")
+	await reader1.set_channels({"service:config:jsonrpc": "0"})
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
-	)
+	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2")
+	await reader2.set_channels({"service:config:jsonrpc": "0"})
 	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
@@ -316,14 +319,12 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	assert sorted(reader1_received_ids) == sorted([rcv[1].id for rcv in reader1.received])
 
 	# Restart readers
-	reader1 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"}
-	)
+	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1")
+	await reader1.set_channels({"service:config:jsonrpc": "0"})
 	asyncio.create_task(reader_task(reader1))
 
-	reader2 = MyMessageReader(
-		consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"}
-	)
+	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2")
+	await reader2.set_channels({"service:config:jsonrpc": "0"})
 	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
@@ -346,9 +347,8 @@ async def test_message_reader_survives_recreate_channel(config: Config) -> None:
 			reader.received.append((redis_id, message, context))
 
 	redis = await async_redis_client()
-	reader = MyMessageReader(
-		channels={"host:test-123": ">", "terminal:123": CONNECTION_SESSION_CHANNEL, "invalid": CONNECTION_SESSION_CHANNEL}
-	)
+	reader = MyMessageReader()
+	await reader.set_channels({"host:test-123": ">", "terminal:123": CONNECTION_SESSION_CHANNEL, "invalid": CONNECTION_SESSION_CHANNEL})
 	asyncio.create_task(reader_task(reader))
 	await asyncio.sleep(2)
 	await send_message(Message(id="00000000-0000-4000-8000-000000000001", type="test", sender="*", channel="host:test-123"))

@@ -291,7 +291,8 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 	global terminal_instance_reader  # pylint: disable=invalid-name,global-statement
 
 	channel = f"{get_messagebus_worker_id()}:terminal"
-	terminal_instance_reader = MessageReader(channels={channel: "$"})
+	terminal_instance_reader = MessageReader()
+	await terminal_instance_reader.set_channels({channel: "$"})
 	async for _redis_id, message, _context in terminal_instance_reader.get_messages():
 		try:
 			if isinstance(
@@ -379,8 +380,8 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 	terminal_request_reader = ConsumerGroupMessageReader(
 		consumer_group=channel,
 		consumer_name=get_messagebus_worker_id(),
-		channels={channel: "0"},
 	)
+	await terminal_request_reader.set_channels({channel: "0"})
 	async for redis_id, message, _context in terminal_request_reader.get_messages():
 		try:
 			if isinstance(message, TerminalOpenRequestMessage):

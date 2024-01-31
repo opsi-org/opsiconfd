@@ -246,7 +246,8 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		rpc_id_to_client_id = {}
 		async with session_channel(owner_id=messagebus_user_id) as channel:
 			# ID "$" means: Only read new messages added after reader is started.
-			message_reader = MessageReader(channels={channel: "$"})
+			message_reader = MessageReader()
+			await message_reader.set_channels({channel: "$"})
 
 			expires = timestamp() + int(timeout * 1000)
 			coros = []

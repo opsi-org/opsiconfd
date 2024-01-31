@@ -14,7 +14,7 @@ from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from time import time
 from typing import TYPE_CHECKING, Literal
-from uvicorn.protocols.utils import ClientDisconnected
+
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
@@ -41,6 +41,7 @@ from starlette.status import (
 )
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketState
+from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
 from opsiconfd.logging import get_logger
@@ -270,7 +271,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				if channel.startswith("service:"):
 					consumer_name = f"{self._messagebus_user_id}:{self._session_channel.split(':', 1)[1]}"
 					# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
-					reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=consumer_name, channels={channel: "0"})
+					reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=consumer_name)
+					await reader.set_channels({channel: "0"})
 					self._messagebus_reader.append(reader)
 					asyncio_create_task(self.message_reader_task(websocket, reader))
 				else:
@@ -292,7 +294,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				if msr:
 					await msr[0].add_channels(message_reader_channels)  # type: ignore[arg-type]
 				else:
-					reader = MessageReader(message_reader_channels)  # type: ignore[arg-type]
+					reader = MessageReader()
+					await reader.set_channels(message_reader_channels)  # type: ignore[arg-type]
 					self._messagebus_reader.append(reader)
 					asyncio_create_task(self.message_reader_task(websocket, reader))
 

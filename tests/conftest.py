@@ -152,7 +152,7 @@ def pytest_runtest_setup(item: Item) -> None:
 			skip("Grafana not available")
 
 
-@hookimpl(hookwrapper=True)
+@hookimpl(wrapper=True)
 def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Result, Result]:
 	start_threads = set(threading.enumerate())
 
@@ -166,7 +166,7 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 	# Reset log level
 	logging_config(stderr_level=0)
 
-	for wait in range(10):
+	for wait in range(6):
 		left_over_threads = (
 			set(
 				t

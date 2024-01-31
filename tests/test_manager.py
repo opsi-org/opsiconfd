@@ -14,6 +14,7 @@ import os
 import signal
 import threading
 import time
+from contextlib import contextmanager
 from typing import Generator
 from unittest.mock import patch
 
@@ -30,8 +31,8 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-@pytest.fixture()
-def manager() -> Generator[Manager, None, None]:  # pylint: disable=redefined-outer-name
+@contextmanager
+def run_manager() -> Generator[Manager, None, None]:  # pylint: disable=redefined-outer-name
 	with (
 		patch("opsiconfd.manager.WorkerManager.run", lambda *args, **kwargs: None),
 		patch("opsiconfd.manager.init_logging", lambda *args, **kwargs: None),
@@ -47,57 +48,58 @@ def manager() -> Generator[Manager, None, None]:  # pylint: disable=redefined-ou
 			man.stop()
 
 
-def test_manager_signals(manager: Manager) -> None:  # pylint: disable=redefined-outer-name
+def test_manager_signals() -> None:  # pylint: disable=redefined-outer-name
 	# signal_handler is replaced in conftest
+	with run_manager() as manager:
+		test_reload = False
 
-	test_reload = False
+		def reload() -> None:
+			nonlocal test_reload
+			test_reload = True
 
-	def reload() -> None:
-		nonlocal test_reload
-		test_reload = True
+		setattr(manager, "reload", reload)
 
-	setattr(manager, "reload", reload)
+		manager._last_reload = 0  # pylint: disable=protected-access
+		manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
+		assert test_reload is True
 
-	manager._last_reload = 0  # pylint: disable=protected-access
-	manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
-	assert test_reload is True
+		test_reload = False
+		manager._last_reload = int(time.time())  # pylint: disable=protected-access
+		manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
+		assert test_reload is False
 
-	test_reload = False
-	manager._last_reload = int(time.time())  # pylint: disable=protected-access
-	manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
-	assert test_reload is False
+		test_stop = ""
 
-	test_stop = ""
+		def stop(force: bool = False) -> None:
+			nonlocal test_stop
+			test_stop = "force" if force else "normal"
 
-	def stop(force: bool = False) -> None:
-		nonlocal test_stop
-		test_stop = "force" if force else "normal"
-
-	setattr(manager._worker_manager, "stop", stop)  # pylint: disable=protected-access
-	manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
-	assert manager._should_stop is True  # pylint: disable=protected-access
-	assert test_stop == "normal"
-	time.sleep(0.1)
-	manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
-	assert manager._should_stop is True  # pylint: disable=protected-access
-	assert test_stop == "force"
+		setattr(manager._worker_manager, "stop", stop)  # pylint: disable=protected-access
+		manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
+		assert manager._should_stop is True  # pylint: disable=protected-access
+		assert test_stop == "normal"
+		time.sleep(0.1)
+		manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
+		assert manager._should_stop is True  # pylint: disable=protected-access
+		assert test_stop == "force"
 
 
 @pytest.mark.parametrize("cert_changed", (False, True))
-def test_check_server_cert(manager: Manager, cert_changed: bool) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	test_restarted = False
+def test_check_server_cert(cert_changed: bool) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	with run_manager():
+		test_restarted = False
 
-	def restart_workers(self: WorkerManager) -> None:  # pylint: disable=unused-argument
-		nonlocal test_restarted
-		test_restarted = True
+		def restart_workers(self: WorkerManager) -> None:  # pylint: disable=unused-argument
+			nonlocal test_restarted
+			test_restarted = True
 
-	with (
-		patch("opsiconfd.manager.WorkerManager.restart_workers", restart_workers),
-		patch("opsiconfd.manager.setup_server_cert", lambda: cert_changed),
-	):
-		with get_config({"ssl_server_cert_check_interval": 0.00001}):
-			time.sleep(2)
-			assert test_restarted == cert_changed
+		with (
+			patch("opsiconfd.manager.WorkerManager.restart_workers", restart_workers),
+			patch("opsiconfd.manager.setup_server_cert", lambda: cert_changed),
+		):
+			with get_config({"ssl_server_cert_check_interval": 0.00001}):
+				time.sleep(2)
+				assert test_restarted == cert_changed
 
 
 def test_worker_manager_and_workers() -> None:

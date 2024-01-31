@@ -13,11 +13,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
-from pydantic import BaseModel
 
 import aiofiles  # type: ignore[import]
 from fastapi import APIRouter, FastAPI, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from werkzeug.http import parse_options_header
 
@@ -25,7 +25,6 @@ from opsiconfd import contextvar_client_session
 from opsiconfd.config import FILE_TRANSFER_STORAGE_DIR
 from opsiconfd.logging import logger
 from opsiconfd.utils import utc_timestamp
-
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
@@ -96,7 +95,7 @@ def cleanup_file_storage() -> None:
 	all_files = set()
 	keep_files = set()
 	storage_dir = Path(FILE_TRANSFER_STORAGE_DIR)
-	storage_dir.mkdir(exist_ok=True)
+	storage_dir.mkdir(parents=True, exist_ok=True)
 	for path in storage_dir.iterdir():
 		if not path.is_file():
 			continue

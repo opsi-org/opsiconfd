@@ -8,19 +8,21 @@
 test depotserver
 """
 from pathlib import Path
-from pytest import fixture
-from _pytest.fixtures import FixtureFunction
-from tests.utils import get_config, OpsiconfdTestClient, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+from typing import Generator
 
+from _pytest.fixtures import FixtureFunction
+from pytest import fixture
+
+from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.setup import setup_depotserver
-from opsiconfd.backend import get_unprotected_backend, reinit_backend
+from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # pylint: disable=unused-import
 
 CONFIGSERVER = "opsiserver43-cs"
 
 
 @fixture(autouse=False)
-def depotserver_setup(tmp_path: Path) -> None:
+def depotserver_setup(tmp_path: Path) -> Generator[None, None, None]:
 	opsi_config_file = Path("/etc/opsi/opsi.conf")
 	orig_opsi_conf = opsi_config_file.read_bytes()
 	try:

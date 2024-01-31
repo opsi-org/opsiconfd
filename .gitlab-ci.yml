@@ -33,6 +33,8 @@ test:pylint-pytest:
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
 
   after_script:
+    # Unfortunatly after_script is currently not executed when a job is canceled
+    # https://gitlab.com/groups/gitlab-org/-/epics/10158
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
     #- COMPOSE_FILE=docker/opsiconfd-dev/docker-compose.yml
     - COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID

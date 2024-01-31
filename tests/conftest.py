@@ -27,6 +27,7 @@ from _pytest.config import Config
 from _pytest.logging import LogCaptureHandler
 from _pytest.main import Session
 from _pytest.nodes import Item
+from opsicommon.logging import logging_config
 from pluggy._result import Result
 from pytest import fixture, hookimpl, skip
 
@@ -68,8 +69,6 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		# vscode test discovery running
 		return
 
-	global GRAFANA_IS_LOCAL  # pylint: disable=global-statement
-
 	Path("tests/data/opsi-config/opsi.conf").unlink(missing_ok=True)
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
@@ -89,6 +88,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	pprint.pprint(_config.items(), width=200)
 
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
+		global GRAFANA_IS_LOCAL  # pylint: disable=global-statement
 		GRAFANA_IS_LOCAL = True
 
 	def stderr_close() -> None:
@@ -175,8 +175,11 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 		outcome.force_exception(exc)
 		return
 
+	# Reset log level
+	logging_config(stderr_level=0)
+
 	for wait in range(5):
-		running_threads = (
+		left_over_threads = (
 			set(
 				t
 				for t in threading.enumerate()
@@ -186,13 +189,13 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 			)
 			- start_threads
 		)
-		if not running_threads:
+		if not left_over_threads:
 			break
 		if wait >= 10:
-			print("Running threads after test:", file=sys.stderr)
-			for thread in running_threads:
+			print("Left over threads after test:", file=sys.stderr)
+			for thread in left_over_threads:
 				print(thread.__dict__, file=sys.stderr)
-			outcome.force_exception(RuntimeError(f"Running threads after test: {running_threads}"))
+			outcome.force_exception(RuntimeError(f"Left over threads after test: {left_over_threads}"))
 			break
 		time.sleep(1)
 

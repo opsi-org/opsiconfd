@@ -36,6 +36,7 @@ from opsiconfd.config import (
 	SSH_COMMANDS_CUSTOM_FILE,
 	SSH_COMMANDS_DEFAULT_FILE,
 	config,
+	get_server_role,
 	opsi_config,
 )
 from opsiconfd.logging import logger, secret_filter
@@ -146,7 +147,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 	progress: Progress | None = None,
 ) -> dict[str, dict[str, Any]]:
 	with redis_lock("backup-restore", acquire_timeout=10.0, lock_timeout=12 * 3600):
-		if opsi_config.get("host", "server-role") != "configserver":
+		if get_server_role() != "configserver":
 			raise RuntimeError("Not a config server")
 
 		backend = get_unprotected_backend()

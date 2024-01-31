@@ -34,9 +34,9 @@ from opsiconfd import (  # pylint: disable=unused-import
 	server_timing,
 )
 from opsiconfd.application import app
-from opsiconfd.backend import get_service_client
+from opsiconfd.backend import get_service_client, stop_service_clients
 from opsiconfd.backend.rpc import MethodInterface
-from opsiconfd.config import config, get_depotserver_id, opsi_config
+from opsiconfd.config import config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.messagebus import get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import sync_send_message
@@ -150,6 +150,10 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			cls.__instance = super().__new__(cls, *args, **kwargs)
 		return cls.__instance
 
+	@classmethod
+	def reset_singleton(cls) -> None:
+		cls.__instance = None
+
 	def __init__(self) -> None:
 		if self.__initialized:
 			return
@@ -157,6 +161,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self.events_enabled = True
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
+		self._server_role = get_server_role()
 		self._depot_id: str = get_depotserver_id()
 		self._mysql = MySQLConnection()
 		self._service_client: ServiceClient | None = None
@@ -170,7 +175,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		except RuntimeError:
 			pass
 
-		if opsi_config.get("host", "server-role") == "configserver":
+		if self._server_role == "configserver":
 			self._config_server_init()
 		else:
 			self._depot_server_init()
@@ -180,7 +185,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			logger.debug("Init %s", base)
 			base.__init__(self)  # type: ignore[misc]
 
-		if opsi_config.get("host", "server-role") == "configserver":
+		if self._server_role == "configserver":
 			self._interface = describe_interface(self)
 			self._interface_list = [self._interface[name].as_dict() for name in sorted(list(self._interface.keys()))]
 
@@ -296,6 +301,8 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				for method in base.__dict__.values():
 					if callable(method) and hasattr(method, "backend_event_shutdown"):
 						method(self)
+		if self._server_role == "depotserver":
+			stop_service_clients()
 
 	def reload_config(self) -> None:
 		self._dhcpd_control_reload_config()  # pylint: disable=no-member

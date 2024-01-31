@@ -24,8 +24,19 @@ if TYPE_CHECKING:
 
 protected_backend = None  # pylint: disable=invalid-name
 unprotected_backend = None  # pylint: disable=invalid-name
-service_clients = {}  # pylint: disable=invalid-name
+service_clients: dict[str, ServiceClient] = {}  # pylint: disable=invalid-name
 service_clients_lock = Lock()
+
+
+def reinit_backend() -> None:
+	global protected_backend  # pylint: disable=invalid-name,global-statement
+	global unprotected_backend  # pylint: disable=invalid-name,global-statement
+	if protected_backend:
+		protected_backend.reset_singleton()
+		protected_backend = None
+	if unprotected_backend:
+		unprotected_backend.reset_singleton()
+		unprotected_backend = None
 
 
 def get_protected_backend() -> ProtectedBackend:
@@ -41,6 +52,7 @@ def get_protected_backend() -> ProtectedBackend:
 
 def get_unprotected_backend() -> UnprotectedBackend:
 	global unprotected_backend  # pylint: disable=invalid-name,global-statement
+
 	if not unprotected_backend:
 		from opsiconfd.backend.rpc.main import (  # pylint: disable=import-outside-toplevel
 			UnprotectedBackend,
@@ -88,3 +100,9 @@ def get_service_client(name: str = "") -> ServiceClient:
 			service_client.connect_messagebus()
 			service_clients[name] = service_client
 		return service_clients[name]
+
+
+def stop_service_clients() -> None:
+	with service_clients_lock:
+		for service_client in service_clients.values():
+			service_client.stop()

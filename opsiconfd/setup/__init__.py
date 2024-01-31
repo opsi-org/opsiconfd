@@ -26,14 +26,7 @@ from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend, new_service_client
-from opsiconfd.config import (
-	DEPOT_DIR,
-	FQDN,
-	REPOSITORY_DIR,
-	WORKBENCH_DIR,
-	config,
-	opsi_config,
-)
+from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config, get_server_role
 from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
@@ -227,7 +220,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 		rich_print(f"Password for user {opsi_config.get('depot_user', 'username')} set.")
 		return
 
-	if opsi_config.get("host", "server-role") == "depotserver":
+	if get_server_role() == "depotserver":
 		for attempt in range(1, 6):
 			service_client = new_service_client(f"opsiconfd depotserver {__version__} connection test")
 			try:
@@ -241,7 +234,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 				time.sleep(5)
 
 	backend_available = True
-	if opsi_config.get("host", "server-role") == "configserver" or configure_mysql:
+	if get_server_role() == "configserver" or configure_mysql:
 		try:
 			setup_mysql(interactive=interactive, explicit=explicit, force=configure_mysql)
 			opsi_config.set("host", "server-role", "configserver", persistent=True)

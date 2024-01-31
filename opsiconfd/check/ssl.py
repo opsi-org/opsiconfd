@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.ssl import (
 	check_intermediate_ca,
 	get_ca_subject,
@@ -35,7 +35,7 @@ def check_ssl() -> CheckResult:
 	## SSL
 	Checks the state of the opsi CA and the server certificate.
 	"""
-	server_role = opsi_config.get("host", "server-role")
+	server_role = get_server_role()
 	result = CheckResult(
 		check_id="ssl",
 		check_name="SSL",

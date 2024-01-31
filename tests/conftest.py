@@ -143,13 +143,6 @@ def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: 
 
 	sync_clean_redis()
 
-	running_threads = [t for t in threading.enumerate() if t.name != "MainThread"]
-	if running_threads:
-		text = "\n".join([str(t) for t in running_threads if t.is_alive()])
-		print(f"ERROR\nRunning threads on sessionfinish:\n{text}")
-		if exitstatus == 0:
-			sys.exit(1)
-
 
 @hookimpl()
 def pytest_runtest_setup(item: Item) -> None:
@@ -160,7 +153,7 @@ def pytest_runtest_setup(item: Item) -> None:
 
 
 @hookimpl(hookwrapper=True)
-def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Result, None]:
+def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Result, Result]:
 	start_threads = set(threading.enumerate())
 
 	global running_item  # pylint: disable=global-statement
@@ -169,16 +162,11 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 	outcome: Result = yield
 
 	running_item = None
-	try:
-		_result = outcome.get_result()  # Will raise if outcome was exception
-	except BaseException as exc:  # pylint: disable=broad-exception-caught
-		outcome.force_exception(exc)
-		return
 
 	# Reset log level
 	logging_config(stderr_level=0)
 
-	for wait in range(5):
+	for wait in range(10):
 		left_over_threads = (
 			set(
 				t
@@ -191,13 +179,13 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 		)
 		if not left_over_threads:
 			break
-		if wait >= 10:
+		if wait >= 5:
 			print("Left over threads after test:", file=sys.stderr)
 			for thread in left_over_threads:
 				print(thread.__dict__, file=sys.stderr)
-			outcome.force_exception(RuntimeError(f"Left over threads after test: {left_over_threads}"))
-			break
+			raise RuntimeError(f"Left over threads after test: {left_over_threads}")
 		time.sleep(1)
+	return outcome
 
 
 @hookimpl()

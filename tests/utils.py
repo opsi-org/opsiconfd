@@ -42,6 +42,7 @@ from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import session_manager
 from opsiconfd.utils import Singleton
 from opsiconfd.worker import Worker
+from uuid import uuid4
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -89,11 +90,12 @@ class OpsiconfdTestClient(TestClient):
 	def get_client_address(self) -> tuple[str, int]:
 		return self._address
 
-	def jsonrpc20(self, method: str, params: dict[str, Any] | list[Any] | None = None) -> Any:
+	def jsonrpc20(self, method: str, params: dict[str, Any] | list[Any] | None = None, id: int | str | None = None) -> Any:
 		params = serialize(params or {})
-		rpc = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
-		print(self._username, self._password)
-		return deserialize(self.post("/rpc", json=rpc).json(), deep=True)
+		rpc = {"jsonrpc": "2.0", "id": id or str(uuid4()), "method": method, "params": params}
+		res = self.post("/rpc", json=rpc)
+		res.raise_for_status()
+		return deserialize(res.json(), deep=True)
 
 
 @pytest.fixture()

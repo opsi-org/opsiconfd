@@ -27,7 +27,7 @@ from opsicommon.objects import (  # type: ignore[import]
 )
 
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
-from opsiconfd.config import config, get_configserver_id, opsi_config
+from opsiconfd.config import config, get_configserver_id, opsi_config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.utils import running_in_docker
 
@@ -97,7 +97,7 @@ def _cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
 
 
 def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-branches
-	if opsi_config.get("host", "server-role") != "configserver":
+	if get_server_role() != "configserver":
 		return
 
 	# pylint: disable=import-outside-toplevel

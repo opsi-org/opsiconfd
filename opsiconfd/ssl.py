@@ -35,6 +35,7 @@ from opsiconfd.config import (
 	config,
 	get_depotserver_id,
 	opsi_config,
+	get_server_role,
 )
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
@@ -410,7 +411,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 
 
 def setup_ca() -> bool:
-	server_role = opsi_config.get("host", "server-role")
+	server_role = get_server_role()
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
 
@@ -505,7 +506,7 @@ def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
 
 def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
-	server_role = opsi_config.get("host", "server-role")
+	server_role = get_server_role()
 	if server_role not in ("configserver", "depotserver"):
 		raise ValueError(f"Invalid server role: {server_role}")
 
@@ -637,7 +638,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 
 def setup_ssl() -> None:
 	logger.info("Setup ssl")
-	server_role = opsi_config.get("host", "server-role")
+	server_role = get_server_role()
 	force_new_server_cert = False
 	if "opsi_ca" not in config.skip_setup:
 		# Create new server cert if CA was created / renewed

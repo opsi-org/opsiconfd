@@ -38,6 +38,7 @@ from opsiconfd.config import (
 	config,
 	configure_warnings,
 	get_depotserver_id,
+	get_server_role,
 	opsi_config,
 )
 from opsiconfd.logging import (
@@ -356,9 +357,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
 
-		logger.essential(
-			"Opsiconfd version %r starting on %r as %r", __version__, get_depotserver_id(), opsi_config.get("host", "server-role")
-		)
+		logger.essential("Opsiconfd version %r starting on %r as %r", __version__, get_depotserver_id(), get_server_role())
 		log_config()
 
 		setup(explicit=bool(config.setup))

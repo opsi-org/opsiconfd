@@ -29,6 +29,7 @@ services:
       - redis-dev
       - grafana-dev
     build:
+      context: .
       args:
         DEV_USER: $DEV_USER
         DEV_UID: $DEV_UID
@@ -84,6 +85,7 @@ services:
       - redis-cs
       - grafana-cs
     build:
+      context: .
       args:
         DEV_USER: $DEV_USER
         DEV_UID: $DEV_UID

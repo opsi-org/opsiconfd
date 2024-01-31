@@ -28,15 +28,7 @@ from opsiconfd.backend.mysql.schema import (
 	drop_database,
 	update_database,
 )
-from opsiconfd.config import (
-	DEPOT_DIR,
-	FQDN,
-	REPOSITORY_DIR,
-	WORKBENCH_DIR,
-	config,
-	get_configserver_id,
-	opsi_config,
-)
+from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_configserver_id, opsi_config, get_server_role
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_ip_addresses, get_random_string
 
@@ -236,7 +228,7 @@ def file_mysql_migration() -> None:
 
 
 def setup_backend(force_server_id: str | None = None) -> None:
-	if opsi_config.get("host", "server-role") != "configserver":
+	if get_server_role() != "configserver":
 		return
 
 	file_mysql_migration()

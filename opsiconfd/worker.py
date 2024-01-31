@@ -37,7 +37,7 @@ from opsiconfd import __version__
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import AppState, MaintenanceState, app
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
-from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_config
+from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, get_server_role
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client, pool_disconnect_connections
@@ -84,7 +84,7 @@ def get_uvicorn_config() -> Config:
 		"log_config": None,
 		"date_header": False,
 		"server_header": False,
-		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"], ["X-opsi-server-role", opsi_config.get("host", "server-role")]],
+		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"], ["X-opsi-server-role", get_server_role()]],
 		# https://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html
 		"backlog": config.socket_backlog,
 		"timeout_keep_alive": 5,

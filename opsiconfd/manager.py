@@ -35,7 +35,7 @@ from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, 
 from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.backend import get_service_client, get_unprotected_backend
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import ManagerMetricsCollector
@@ -337,7 +337,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._cleanup_file_storage_interval = 3600
 		self._metrics_collector = ManagerMetricsCollector()
 		self._worker_manager = WorkerManager()
-		self._is_config_server = opsi_config.get("host", "server-role") == "configserver"
+		self._is_config_server = get_server_role() == "configserver"
 		self._service_client: ServiceClient | None = None
 		if not self._is_config_server:
 			self._service_client = get_service_client("manager")

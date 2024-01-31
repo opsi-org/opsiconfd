@@ -42,7 +42,7 @@ from opsiconfd.application.status import status_setup
 from opsiconfd.application.utils import OpsiconfdWebSocketEndpoint
 from opsiconfd.application.webdav import webdav_setup
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.terminal import (
 	async_terminal_shutdown,
@@ -200,7 +200,7 @@ def application_setup() -> None:
 	filetransfer_setup(app)
 	status_setup(app)
 
-	if opsi_config.get("host", "server-role") == "configserver":
+	if get_server_role() == "configserver":
 		monitoring_setup(app)
 		metrics_setup(app)
 		messagebus_setup(app)

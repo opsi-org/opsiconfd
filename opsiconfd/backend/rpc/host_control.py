@@ -50,7 +50,7 @@ from opsicommon.types import (  # type: ignore[import]
 )
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_user_id_for_host, get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import (
@@ -409,7 +409,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 					raise BackendMissingDataError(f"Failed to get hardware address for host '{host.id}'")
 
 				responsible_depot_id = self._depot_id
-				if opsi_config.get("host", "server-role") == "configserver":
+				if get_server_role() == "configserver":
 					responsible_depot_id = self._get_responsible_depot_id(host.id) or self._depot_id
 					if responsible_depot_id != self._depot_id:
 						logger.info("Not responsible for client '%s', sending WOL broadcast via depot '%s'", host.id, responsible_depot_id)

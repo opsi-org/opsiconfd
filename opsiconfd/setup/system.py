@@ -24,7 +24,7 @@ from opsicommon.server.setup import (  # type: ignore[import]
 	set_primary_group,
 )
 
-from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
+from opsiconfd.config import OPSICONFD_HOME, config, opsi_config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_random_string, running_in_docker
 
@@ -110,7 +110,7 @@ def setup_users_and_groups() -> None:
 		except KeyError:
 			logger.debug("Group not found: %s", groupname)
 
-	server_role = opsi_config.get("host", "server-role")
+	server_role = get_server_role()
 	if server_role != "configserver":
 		return
 

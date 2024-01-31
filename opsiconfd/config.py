@@ -112,15 +112,19 @@ if running_in_docker():
 		pass
 
 
+def get_server_role() -> str:
+	return opsi_config.get("host", "server-role")
+
+
 def get_configserver_id() -> str:
-	server_role = opsi_config.get("host", "server-role")
+	server_role = get_server_role()
 	if server_role != "configserver":
 		raise ValueError(f"Not a configserver (server-role {server_role!r} configured in {opsi_config.config_file!r})")
 	return opsi_config.get("host", "id")
 
 
 def get_depotserver_id() -> str:
-	server_role = opsi_config.get("host", "server-role")
+	server_role = get_server_role()
 	if server_role not in ("depotserver", "configserver"):
 		raise ValueError(f"Not a depotsever (no server-role configured in {opsi_config.config_file!r})")
 	return opsi_config.get("host", "id")

@@ -44,7 +44,7 @@ from psutil import AccessDenied, NoSuchProcess, Process
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_service_client
-from opsiconfd.config import config, get_depotserver_id, opsi_config
+from opsiconfd.config import config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.utils import asyncio_create_task
 
@@ -364,9 +364,9 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 
 
 async def messagebus_terminal_instance_worker() -> None:
-	if opsi_config.get("host", "server-role") == "configserver":
+	if get_server_role() == "configserver":
 		await messagebus_terminal_instance_worker_configserver()
-	elif opsi_config.get("host", "server-role") == "depotserver":
+	elif get_server_role() == "depotserver":
 		await messagebus_terminal_instance_worker_depotserver()
 
 
@@ -420,7 +420,7 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 
 
 async def messagebus_terminal_open_request_worker() -> None:
-	if opsi_config.get("host", "server-role") == "configserver":
+	if get_server_role() == "configserver":
 		await messagebus_terminal_open_request_worker_configserver()
-	elif opsi_config.get("host", "server-role") == "depotserver":
+	elif get_server_role() == "depotserver":
 		await messagebus_terminal_open_request_worker_depotserver()

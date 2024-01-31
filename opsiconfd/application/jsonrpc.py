@@ -44,7 +44,7 @@ from opsiconfd.backend import (
 	get_service_client,
 	get_unprotected_backend,
 )
-from opsiconfd.config import RPC_DEBUG_DIR, config, get_depotserver_id, opsi_config
+from opsiconfd.config import RPC_DEBUG_DIR, config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
@@ -642,7 +642,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 
 
 async def messagebus_jsonrpc_request_worker() -> None:
-	if opsi_config.get("host", "server-role") == "configserver":
+	if get_server_role() == "configserver":
 		await messagebus_jsonrpc_request_worker_configserver()
-	elif opsi_config.get("host", "server-role") == "depotserver":
+	elif get_server_role() == "depotserver":
 		await messagebus_jsonrpc_request_worker_depotserver()

@@ -16,7 +16,7 @@ import netifaces  # type: ignore[import]
 from aiozeroconf import ServiceInfo, Zeroconf  # type: ignore[import]
 
 from opsiconfd import __version__
-from opsiconfd.config import FQDN, config, opsi_config
+from opsiconfd.config import FQDN, config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
 
@@ -26,7 +26,7 @@ _info = None  # pylint: disable=invalid-name
 
 async def register_opsi_services() -> None:  # pylint: disable=too-many-branches
 	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement
-	if opsi_config.get("host", "server-role") != "configserver":
+	if get_server_role() != "configserver":
 		return
 
 	logger.info("Register zeroconf service")

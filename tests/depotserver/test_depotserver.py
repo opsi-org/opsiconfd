@@ -41,6 +41,7 @@ def depotserver_setup(tmp_path: Path) -> Generator[None, None, None]:
 			yield
 		finally:
 			opsi_config_file.write_bytes(orig_opsi_conf)
+			reinit_backend()
 
 
 def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument

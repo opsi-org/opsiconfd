@@ -56,7 +56,7 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 		sleep(0.1)
 		setup_sudoers()
 		data = sudoers.read_text(encoding="utf-8")
-		print(data)
+
 		assert data.endswith(
 			"# Auto added by opsiconfd setup\n"
 			"Defaults:opsiconfd !requiretty\n"

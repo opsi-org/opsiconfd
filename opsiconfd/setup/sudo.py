@@ -60,7 +60,9 @@ def setup_sudoers() -> None:
 		sline = line.strip().lower()
 		if line == START_COMMENT:
 			insert_pos = idx
-		if line == START_COMMENT or sline.startswith((f"{user} ", f"{user}\t", f"defaults:{user}")):
+		if line == START_COMMENT or sline.startswith(
+			(f"{user} ", f"{user}\t", f"defaults:{user}", f"%{admin_group} ", f"%{file_admin_group} ")
+		):
 			continue
 		new_lines.append(line)
 		idx += 1

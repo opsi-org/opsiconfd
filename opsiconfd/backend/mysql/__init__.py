@@ -73,7 +73,8 @@ class ColumnInfo:
 
 
 class MySQLSession(Session):  # pylint: disable=too-few-public-methods
-	execute_attempts = 3
+	retry_on_server_has_gone_away = 3
+	retry_on_deadlock = 3
 
 	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
@@ -95,12 +96,13 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 					logger.trace(
 						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True
 					)
-					if attempt >= self.execute_attempts:
-						raise
 					str_err = str(err).lower()
 					if "deadlock" in str_err:
-						pass
+						if attempt > self.retry_on_deadlock:
+							raise
 					elif "server has gone away" in str_err:
+						if attempt > self.retry_on_server_has_gone_away:
+							raise
 						self.rollback()
 					else:
 						raise
@@ -145,6 +147,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		self.username = "opsi"
 		self.password = "opsi"
 		self.database = "opsi"
+		self._driver = "pymysql"  # mysqldb
 		self._database_charset = "utf8mb4"
 		self._connection_pool_size = 20
 		self._connection_pool_max_overflow = 10
@@ -207,6 +210,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		uri = urlparse(config.mysql_internal_url)
 		if uri.password:
 			secret_filter.add_secrets(uri.password)
+		if "+" in uri.scheme:
+			self._driver = uri.scheme.split("+")[1]
 		self.address = uri.hostname
 		self.database = uri.path.lstrip("/")
 		self.username = unquote(uri.username or "")
@@ -275,9 +280,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	def _init_connection(self) -> None:
 		password = quote(self.password)
 		secret_filter.add_secrets(password)
-		properties = {
+		properties: dict[str, str | int] = {
 			"charset": self._database_charset,
 		}
+		if self._driver == "pymysql":
+			properties["client_flag"] = 1 << 16  # MULTI_STATEMENTS
 		address = self.address
 		if address.startswith("/"):
 			properties["unix_socket"] = address
@@ -285,7 +292,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 
 		params = f"?{urlencode(properties)}" if properties else ""
 
-		uri = f"mysql://{quote(self.username)}:{password}@{address}/{self.database}{params}"
+		uri = f"mysql+{self._driver}://{quote(self.username)}:{password}@{address}/{self.database}{params}"
 		self._create_engine(uri)
 
 		logger.info("Connecting to %s", uri)
@@ -297,7 +304,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 				if not str(err.orig).startswith("(1049"):
 					raise
 				# 1049 - Unknown database
-				self._create_engine(f"mysql://{quote(self.username)}:{password}@{address}/{params}")
+				self._create_engine(f"mysql+{self._driver}://{quote(self.username)}:{password}@{address}/{params}")
 				create_database(self)
 				self._create_engine(uri)
 				version_string = session.execute("SELECT @@VERSION").fetchone()[0]

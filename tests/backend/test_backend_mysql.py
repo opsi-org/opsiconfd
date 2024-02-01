@@ -11,7 +11,9 @@ test opsiconfd.backend.mysql
 import re
 import textwrap
 from pathlib import Path
+from threading import Thread
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -34,6 +36,7 @@ def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 				"address" : "addressö$",
 				"password" : "passwordö$",
 				"databaseCharset" : "charset",
+				"driver": "drivername",
 				"connectionPoolMaxOverflow" : 11,
 				"connectionPoolTimeout" : 12,
 				"connectionPoolSize" : 13,
@@ -47,6 +50,7 @@ def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 			"database": "databaseö$",
 			"address": "addressö$",
 			"password": "passwordö$",
+			"_driver": "drivername",
 			"_database_charset": "charset",
 			"_connection_pool_max_overflow": 11,
 			"_connection_pool_timeout": 12,
@@ -121,13 +125,14 @@ def test_update_config_file(tmp_path: Path) -> None:
 	"mysql_internal_url, expected_config",
 	(
 		(
-			"mysql://mysql-host:3306/opsidb?databaseCharset=utf8&username=opsiuser&password=opsipass",
+			"mysql+drivername://mysql-host:3306/opsidb?databaseCharset=utf8&username=opsiuser&password=opsipass",
 			{
 				"username": "opsiuser",
 				"database": "opsidb",
 				"address": "mysql-host",
 				"password": "opsipass",
 				"_database_charset": "utf8mb4",
+				"_driver": "drivername",
 				"unique_hardware_addresses": True,
 			},
 		),
@@ -186,13 +191,44 @@ def test_connect() -> None:
 			assert session.execute("SELECT 999").fetchone()[0] == 999
 
 
-def exclude_test_big_query() -> None:
-	con = MySQLConnection()
-	with con.connection():
-		with con.session() as session:
-			where = " OR ".join("10000 = 10000" for i in range(1000000))
-			query = f"SELECT * FROM HOST WHERE {where}"
-			assert session.execute(query).fetchone()[0]
+def test_big_query() -> None:
+	class QueryThread(Thread):
+		def __init__(self, con: MySQLConnection, query: str) -> None:
+			super().__init__()
+			self.con = con
+			self.query = query
+			self.error: Exception | None = None
+
+		def run(self) -> None:
+			try:
+				with self.con.session() as session:
+					assert session.execute(query).fetchone()[0]
+			except Exception as err:  # pylint: disable=broad-except
+				self.error = err
+
+	query_size = 500_000
+	connection = MySQLConnection()
+	where = "10000 = 10000"
+	while len(where) < query_size:
+		where += " OR 10000 = 10000"
+	query = f"SELECT * FROM HOST WHERE {where}"
+
+	with patch("opsiconfd.backend.mysql.MySQLSession.retry_on_server_has_gone_away", 0), connection.connection():
+		threads: list[QueryThread] = []
+		for _ in range(30):
+			thread = QueryThread(connection, query)
+			threads.append(thread)
+			thread.start()
+
+		errors: list[Exception] = []
+		for thread in threads:
+			thread.join()
+			if thread.error:
+				errors.append(thread.error)
+
+		if errors:
+			err_str = "\n".join(str(err)[:100] + "..." for err in errors)
+			raise RuntimeError(f"{len(errors)} errors occured:\n{err_str}")
 
 
 def test_get_columns() -> None:  # pylint: disable=too-many-branches

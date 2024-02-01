@@ -18,7 +18,7 @@ import types
 from contextlib import contextmanager
 from queue import Empty, Queue
 from threading import Event, Thread
-from typing import Any, Generator, Type, Union
+from typing import Any, Generator, Type
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -128,7 +128,7 @@ def config() -> Config:
 
 
 @contextmanager
-def get_config(values: Union[dict[str, Any], list[str]], with_env: bool = False) -> Generator[Config, None, None]:
+def get_config(values: dict[str, Any] | list[str], with_env: bool = False) -> Generator[Config, None, None]:
 	environ = os.environ.copy()
 	conf = _config._config.__dict__.copy()  # pylint: disable=protected-access
 	args = _config._args.copy()  # pylint: disable=protected-access

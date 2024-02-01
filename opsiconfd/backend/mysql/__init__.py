@@ -27,7 +27,6 @@ from typing import (
 	Literal,
 	Optional,
 	Type,
-	Union,
 	overload,
 )
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
@@ -406,7 +405,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 					self._client_id_column[table_name] = ""
 
 	def get_columns(  # pylint: disable=too-many-branches
-		self, tables: list[str], ace: list[RPCACE], attributes: Union[list[str], tuple[str, ...]] | None = None
+		self, tables: list[str], ace: list[RPCACE], attributes: list[str] | tuple[str, ...] | None = None
 	) -> dict[str, ColumnInfo]:
 		res: dict[str, ColumnInfo] = {}
 		first_table = tables[0]

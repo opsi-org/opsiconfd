@@ -69,6 +69,7 @@ a2wsgi = "^1.8"
 netifaces = "^0.11.0"
 werkzeug = "^3.0"
 wsproto = "^1.2.0"
+pymysql = "^1.1.0"
 
 [tool.ruff.format]
 indent-style = "tab"

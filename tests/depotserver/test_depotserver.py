@@ -23,24 +23,24 @@ CONFIGSERVER = "opsiserver43-cs"
 
 @fixture(autouse=False)
 def depotserver_setup(tmp_path: Path) -> Generator[None, None, None]:
-	opsi_config_file = Path("/etc/opsi/opsi.conf")
-	orig_opsi_conf = opsi_config_file.read_bytes()
-	try:
-		ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
-		with get_config({"ssl_ca_cert": str(ssl_ca_cert)}):
-			depot_id = get_depotserver_id()
-			unattended_configuration = {
-				"configserver": CONFIGSERVER,
-				"username": "adminuser",
-				"password": "adminuser",
-				"depot_id": depot_id,
-				"description": "pytest depotserver",
-			}
+	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
+	with get_config({"ssl_ca_cert": str(ssl_ca_cert)}) as conf:
+		opsi_config_file = Path(conf.opsi_config)
+		orig_opsi_conf = opsi_config_file.read_bytes()
+		depot_id = get_depotserver_id()
+		unattended_configuration = {
+			"configserver": CONFIGSERVER,
+			"username": "adminuser",
+			"password": "adminuser",
+			"depot_id": depot_id,
+			"description": "pytest depotserver",
+		}
+		try:
 			setup_depotserver(unattended_configuration)
 			reinit_backend()
 			yield
-	finally:
-		opsi_config_file.write_bytes(orig_opsi_conf)
+		finally:
+			opsi_config_file.write_bytes(orig_opsi_conf)
 
 
 def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument

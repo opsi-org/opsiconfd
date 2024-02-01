@@ -56,13 +56,14 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 		sleep(0.1)
 		setup_sudoers()
 		data = sudoers.read_text(encoding="utf-8")
-
+		print(data)
 		assert data.endswith(
 			"# Auto added by opsiconfd setup\n"
 			"Defaults:opsiconfd !requiretty\n"
 			"opsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
-			"opsiconfd ALL=NOPASSWD: /sbin/systemctl reload dhcpd\n"
-			"\n"
+			"%opsifileadmins ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
+			"%opsiadmin ALL=NOPASSWD: /usr/bin/opsiconfd setup *\n"
+			"opsiconfd ALL=NOPASSWD: /sbin/systemctl reload dhcpd\n\n"
 		)
 		assert sudoers.stat().st_mtime != mtime
 		mtime = sudoers.stat().st_mtime
@@ -79,7 +80,11 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 		setup_sudoers()
 		data = sudoers.read_text(encoding="utf-8")
 		assert data.endswith(
-			"# Auto added by opsiconfd setup\nDefaults:opsiconfd !requiretty\nopsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n\n"
+			"# Auto added by opsiconfd setup\n"
+			"Defaults:opsiconfd !requiretty\n"
+			"opsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
+			"%opsifileadmins ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
+			"%opsiadmin ALL=NOPASSWD: /usr/bin/opsiconfd setup *\n\n"
 		)
 		assert sudoers.stat().st_mtime != mtime
 		mtime = sudoers.stat().st_mtime

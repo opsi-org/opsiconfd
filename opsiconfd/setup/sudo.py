@@ -12,7 +12,7 @@ import shlex
 import shutil
 from pathlib import Path
 
-from opsiconfd.config import SUDOERS_CONF, config
+from opsiconfd.config import SUDOERS_CONF, config, opsi_config
 from opsiconfd.dhcpd import get_dhcpd_control_config
 from opsiconfd.logging import logger
 
@@ -38,8 +38,15 @@ def setup_sudoers() -> None:
 	sudoers_conf = Path(SUDOERS_CONF)
 	if not sudoers_conf.exists():
 		return
-
-	add_lines = [START_COMMENT, f"Defaults:{user} !requiretty", f"{user} ALL=NOPASSWD: /usr/bin/opsi-set-rights"]
+	admin_group = opsi_config.get("groups", "admingroup")
+	file_admin_group = opsi_config.get("groups", "fileadmingroup")
+	add_lines = [
+		START_COMMENT,
+		f"Defaults:{user} !requiretty",
+		f"{user} ALL=NOPASSWD: /usr/bin/opsi-set-rights",
+		f"%{file_admin_group} ALL=NOPASSWD: /usr/bin/opsi-set-rights",
+		f"%{admin_group} ALL=NOPASSWD: /usr/bin/opsiconfd setup *",
+	]
 	dhcpd_control_config = get_dhcpd_control_config()
 	if dhcpd_control_config.enabled and dhcpd_control_config.reload_config_command:
 		cmd = format_command(dhcpd_control_config.reload_config_command)

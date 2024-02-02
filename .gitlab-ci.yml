@@ -44,8 +44,6 @@ test:pylint-pytest:
   script:
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml up --detach --wait --wait-timeout 30
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry lock --no-update
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry install
 
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pylint opsiconfd tests

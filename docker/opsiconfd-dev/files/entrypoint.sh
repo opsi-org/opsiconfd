@@ -43,6 +43,7 @@ if mkdir .venv 2>/dev/null; then
 	[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
 else
 	echo "* Waiting until poetry venv is set up"
+	start_time=$(date +%s)
 	last_file_count=1
 	file_count=0
 	# Wait until running poetry install is completed
@@ -51,6 +52,9 @@ else
 		sleep 5
 		file_count=$(find .venv -type f | wc -l)
 	done
+	end_time=$(date +%s)
+	diff=$((end_time - start_time))
+	echo "venv ready after ${diff} seconds"
 fi
 
 touch /run/.docker-healthy

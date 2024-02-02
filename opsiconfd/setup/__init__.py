@@ -26,7 +26,7 @@ from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend, new_service_client
-from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, opsi_config, get_server_role
+from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
 from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
@@ -37,7 +37,7 @@ from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
 from opsiconfd.setup.samba import setup_samba
 from opsiconfd.setup.sudo import setup_sudoers
-from opsiconfd.setup.system import setup_limits, setup_systemd, setup_users_and_groups, systemd_running
+from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups, systemd_running
 from opsiconfd.ssl import setup_ssl
 
 
@@ -282,6 +282,9 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 	else:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			setup_users_and_groups()
+
+	if config.run_as_user != "root" and config.port < 1024:
+		set_unprivileged_port_start(config.port)
 
 	if "files" not in config.skip_setup:
 		setup_files()

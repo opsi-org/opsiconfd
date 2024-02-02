@@ -2431,52 +2431,42 @@ reference = "uibpypi"
 
 [[package]]
 name = "pydevd"
-version = "2.10.0"
+version = "3.0.3"
 description = "PyDev.Debugger (used in PyDev, PyCharm and VSCode Python)"
 optional = false
 python-versions = "*"
 files = [
-    {file = "pydevd-2.10.0-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:648bf9154cea5cb42ae840a358b30f0ea7a57c4afd1a3e710eb33c9e3af15e3e"},
-    {file = "pydevd-2.10.0-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:cc1841a7bcba2d858707a104ceafadcc17d36e39514d089b51ef0d58720be3a5"},
-    {file = "pydevd-2.10.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:224c51f6cf7cd4e3f7a414faf26b0d761a2193838d94470b79ca704f87082895"},
-    {file = "pydevd-2.10.0-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:cc9987033101733b9eeafccdc8104b91374017f99b793692e837e627203a907f"},
-    {file = "pydevd-2.10.0-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:432dc8b7a7072b9e8260a2251acdd9044f7bf42ab2004a01295a32063475a85f"},
-    {file = "pydevd-2.10.0-cp310-cp310-win_amd64.whl", hash = "sha256:5e432cce32cfaf277aab65e08a86f4b40285c02b66f2412882a764c9b4deb712"},
-    {file = "pydevd-2.10.0-cp311-cp311-macosx_10_15_universal2.whl", hash = "sha256:e62ed5d0cf298ae820bb03e37d6e6cc7b58e85de1de5c2f2834f5bd97afdcf8a"},
-    {file = "pydevd-2.10.0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2874c6d053db5fd1275ff38a5d1f0f2348abcb296e5dcccdb566c5f4e1d03d09"},
-    {file = "pydevd-2.10.0-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c76e572a9e078b848da41744ffdf757c0566ca07041ce68ffc8405d6eee8d5dc"},
-    {file = "pydevd-2.10.0-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:41d43312bfcd3212b9986b31afbfb95e859e9bd4caf6082ccb345730f9851105"},
-    {file = "pydevd-2.10.0-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:7e56e77f3ef8f9f3bf6040f7918c232390fd13172e22a85778549f7662500ce4"},
-    {file = "pydevd-2.10.0-cp311-cp311-win_amd64.whl", hash = "sha256:f40a86b8e05857fa66bd427a19a079d37443a94f127f8cc1a19a052f389fc668"},
-    {file = "pydevd-2.10.0-cp312-cp312-macosx_10_15_universal2.whl", hash = "sha256:b0978b2d5a85706c647b57beb21661c6d19f9609f9171bdd1fecbcad1f1463b4"},
-    {file = "pydevd-2.10.0-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:8c9faeda2ad3fc29a0253b0f5fd25a71ee9c7bbed98f353829e550bca8f6ead7"},
-    {file = "pydevd-2.10.0-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b396666d3d44df88a604368c333586aecff138440d51a71c8f2b2be0d72af85a"},
-    {file = "pydevd-2.10.0-cp312-cp312-musllinux_1_1_i686.whl", hash = "sha256:51b1412bd468267d9f21a322592950f6dfe13b7846b08aa1fc423c9979e22d14"},
-    {file = "pydevd-2.10.0-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:cb2855c19fcb075874ae1717287555015e78c2fa7def6ee6583b57b5ee2d1216"},
-    {file = "pydevd-2.10.0-cp312-cp312-win_amd64.whl", hash = "sha256:a4e775e3819689092a94340e5ab77bf2f436c52b7b04535f73324e952b44dae4"},
-    {file = "pydevd-2.10.0-cp36-cp36m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:84d8d19e10f4fac132736ffdca65124e8903d78e98c70ba0e8ca85e5d386d3e1"},
-    {file = "pydevd-2.10.0-cp36-cp36m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c9dd12d117a716c261163c63bc4fcbee54e08d2d5bf8e92212bf11b67f23db7b"},
-    {file = "pydevd-2.10.0-cp36-cp36m-musllinux_1_1_i686.whl", hash = "sha256:62b1589937c6edf9ff20e0902d564d1dbbb47a38229a135f904e56bd914d1cf1"},
-    {file = "pydevd-2.10.0-cp36-cp36m-musllinux_1_1_x86_64.whl", hash = "sha256:87cc3d882bb242e00e54d60aa3c66a85075d2159b85f21c45edec445eff93121"},
-    {file = "pydevd-2.10.0-cp37-cp37m-macosx_11_0_x86_64.whl", hash = "sha256:6af832d8bbd45808d14368d8b8bcc4608c2f28728052cabc9d6219290fabe0c2"},
-    {file = "pydevd-2.10.0-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:855b506a6a311e28e444c943e5e87a835d416a5f89b1f6947ea7dcbe198812ba"},
-    {file = "pydevd-2.10.0-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:33e05edd6c72980de3d29da5f7952bb6f98882ba2ee67fd3ce234cd015b450c3"},
-    {file = "pydevd-2.10.0-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:e76ccdce082afe57a4f703249c4439301fc2b140e65eef8ba92ee0106ddd7444"},
-    {file = "pydevd-2.10.0-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:e95c6f3f0f9b1daf20ffc2c52a69b2479846357881fb6e8cdce06e673befa5c2"},
-    {file = "pydevd-2.10.0-cp37-cp37m-win_amd64.whl", hash = "sha256:a18007a23cf0a5b7a3cf8460021184afdfb3f2fe64f90f22ef1fb6827c52018d"},
-    {file = "pydevd-2.10.0-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:41bb27a251f5e8e083c1c4695bb1b228cd53bc8accb08bc5f745267e3ffca546"},
-    {file = "pydevd-2.10.0-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c1628c2c4255236c43b4f338f352b14c0fa0f10afb0e0a9a89ee26b7c38c42ed"},
-    {file = "pydevd-2.10.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:088c30a8d275def7a69072fff8d2de1cd86dcb55be26ac31b187f10722646671"},
-    {file = "pydevd-2.10.0-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:fca802de1235c7019b83498db19d987dbdf49fda017df34aff22cd2661d04af4"},
-    {file = "pydevd-2.10.0-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:8663bdd8a50aafe18d7960df6b55d06ea49f00c9d087d428514d6a366e297de6"},
-    {file = "pydevd-2.10.0-cp38-cp38-win_amd64.whl", hash = "sha256:9fde211a8050cede4364892778b50bb949e10bbe6099a371c2af8cdbadc2ffde"},
-    {file = "pydevd-2.10.0-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:935ea501f2a3b3fcd40c0b04511b1e12bd1954d0085b9dffda9d9d7951f802e3"},
-    {file = "pydevd-2.10.0-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:41415ada51e0e0772240277f6c9589c4b5119123178cbaef9db1e98eb076108e"},
-    {file = "pydevd-2.10.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ad53ca43258a9541739d92f7ca307a41d922946437a5db5c50ae1bee53441d17"},
-    {file = "pydevd-2.10.0-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:9a27b6b7d2af7c68249d33d734d0d128092950d738d837d7e38fc95c64aa6885"},
-    {file = "pydevd-2.10.0-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:be262b80fb08caf8605f4c96e92cc65482b6549237a16a1590e2df300241ad7f"},
-    {file = "pydevd-2.10.0-cp39-cp39-win_amd64.whl", hash = "sha256:a322964a2e8284a3a007938cef507717f3eba8a57e37eaf2e2af3dfa99e2fbd4"},
-    {file = "pydevd-2.10.0.tar.gz", hash = "sha256:9a6111118ecd2e05675d43b582b0b62d36c72ffee5fb483e97352c6702a8213b"},
+    {file = "pydevd-3.0.3-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:4afe97661564264144ec8183f914d0eb45879740bbf252b562534998b28619d7"},
+    {file = "pydevd-3.0.3-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:156c2fdf6b9742221689b0ac168a6ee2b6c9ec29d45c8170985352bc04f9be23"},
+    {file = "pydevd-3.0.3-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e62cfd002fde3a7524a41b0592de34558b0b3801605379b023ade3c8a89127a3"},
+    {file = "pydevd-3.0.3-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:fc29d3c0180d8c0165cc3f077a4464b16759acd33e996689004a78eb7e94595b"},
+    {file = "pydevd-3.0.3-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:81ffb7d37436c2a8512287c976634285bb2dfd2e74e66c010c5982c00315974e"},
+    {file = "pydevd-3.0.3-cp310-cp310-win_amd64.whl", hash = "sha256:8cbb6e0b2fc1f6212c6649a465ae7ccb3a27f66383927b0cd585623bb70c6396"},
+    {file = "pydevd-3.0.3-cp311-cp311-macosx_10_15_universal2.whl", hash = "sha256:e89f3850d953f99b150217f7cce6ee1f218f7bfb6fe5532ca6d920d87b5d69ee"},
+    {file = "pydevd-3.0.3-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:db5bca127384c88afd8e47a17d4c17019e880afd384c2aab388824742a8a5359"},
+    {file = "pydevd-3.0.3-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6f37767b4f98482fcfc0269bd2e4fcbf5df85a7d8f820b55818f534fbacef257"},
+    {file = "pydevd-3.0.3-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:b2b063a8d79a26012537c09c7c1eb83141c78b95ecf9fd57ac97fdd2274bb9fe"},
+    {file = "pydevd-3.0.3-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:b01a2571c30a3f722ce6e4aaefab4fa7ea20de45c755755c6843b55a53b5054f"},
+    {file = "pydevd-3.0.3-cp311-cp311-win_amd64.whl", hash = "sha256:624dbf25eb0536b5e68cf2639082e6adb170a2dd3ec24881979c7e0773f8a295"},
+    {file = "pydevd-3.0.3-cp312-cp312-macosx_10_15_universal2.whl", hash = "sha256:fe769ae975dfcd98af6c3c2ddba518c7e5bf7f872ccde8c507a624bd05cd237d"},
+    {file = "pydevd-3.0.3-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:5cc18328573aa1dcb8553a32941ce5843d1ec044524de08c64fed3c6a0831ee1"},
+    {file = "pydevd-3.0.3-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fdeefa173f29bc7f9b27d81987ddaf2c58c3edececde2541c0a0a98ad49ef1c9"},
+    {file = "pydevd-3.0.3-cp312-cp312-musllinux_1_1_i686.whl", hash = "sha256:00988532192b439690384caf515eb24e70ec42d9ec2578467c13cb0f8980f6ad"},
+    {file = "pydevd-3.0.3-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:f26881d9cd4bc00f8b8fc5e86e665b06503200c72bcc3459fcefaf103c711c6b"},
+    {file = "pydevd-3.0.3-cp312-cp312-win_amd64.whl", hash = "sha256:7f42e77319493e25c3d00816b36c6dc31160a57e4db900e4736fb2c8ec3e1fba"},
+    {file = "pydevd-3.0.3-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:bc766a57dab72759bfa95d3c41bb59602ed3b5d98fb457eced65ce40a490680c"},
+    {file = "pydevd-3.0.3-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:a35e4308aa45f50bcabe4f160766b2987f42a0a6fed3a040705c637c07637c04"},
+    {file = "pydevd-3.0.3-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:367cbfa14643da6d60faf86577f70305aac5b12695374a83e3d1c6dc5e87e135"},
+    {file = "pydevd-3.0.3-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:4a9e70ac6370d1d8ecbee8c86a120d18649839fa198f54666461d04da8344610"},
+    {file = "pydevd-3.0.3-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:bce3b843dc09b8c1d269e541536b75cf3bb53f956b5cac620405264b441b7be7"},
+    {file = "pydevd-3.0.3-cp38-cp38-win_amd64.whl", hash = "sha256:051c8405e9e83cfaf5a0767ee3beeb205777c41f7ab4333012ecc56507c22b69"},
+    {file = "pydevd-3.0.3-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:e248f669c31bb6fe93b7633f68e1007ee47c11b59a751259935743dc64484ae3"},
+    {file = "pydevd-3.0.3-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:778ecae64682b2a884c7bbf7cda70e9eb7b7eb846176c543501082a7f082a26a"},
+    {file = "pydevd-3.0.3-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:69d6fff38ef7dd3b30ff31000017937247bd7a6ed3b35de6f0eba9dfd7ec96a9"},
+    {file = "pydevd-3.0.3-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:10d879f89f41a76004c29b3976b9a737cb7290c0e252c7d8112db256be182874"},
+    {file = "pydevd-3.0.3-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:352f12428b134885d610f23843cdd40ab4be815103ac01f8688616c24ec56984"},
+    {file = "pydevd-3.0.3-cp39-cp39-win_amd64.whl", hash = "sha256:15b9d14ed470924f53281f32fcb55c7ebecb9f08af757f8a8f66e6346231a6bc"},
+    {file = "pydevd-3.0.3.tar.gz", hash = "sha256:898e0139ef3571d4e1697cc747c56a5c1f464345c4c077e31c0ae01187731b5c"},
 ]
 
 [package.source]
@@ -2545,13 +2535,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "pyinstaller-hooks-contrib"
-version = "2023.12"
+version = "2024.0"
 description = "Community maintained hooks for PyInstaller"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pyinstaller-hooks-contrib-2023.12.tar.gz", hash = "sha256:11a9d59d903723dd693e8c10b054f3ea1ecad390623c9fa527c731d715fc5b3f"},
-    {file = "pyinstaller_hooks_contrib-2023.12-py2.py3-none-any.whl", hash = "sha256:6a601a0d783fa725327fc6ac712779475dc8979f639419c7fcd460dd8d0a6d2a"},
+    {file = "pyinstaller-hooks-contrib-2024.0.tar.gz", hash = "sha256:a7118c1a5c9788595e5c43ad058a7a5b7b6d59e1eceb42362f6ec1f0b61986b0"},
+    {file = "pyinstaller_hooks_contrib-2024.0-py2.py3-none-any.whl", hash = "sha256:469b5690df53223e2e8abffb2e44d6ee596e7d79d4b1eed9465123b67439875a"},
 ]
 
 [package.dependencies]
@@ -2727,20 +2717,20 @@ reference = "uibpypi"
 
 [[package]]
 name = "pytest"
-version = "7.4.4"
+version = "8.0.0"
 description = "pytest: simple powerful testing with Python"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "pytest-7.4.4-py3-none-any.whl", hash = "sha256:b090cdf5ed60bf4c45261be03239c2c1c22df034fbffe691abe93cd80cea01d8"},
-    {file = "pytest-7.4.4.tar.gz", hash = "sha256:2cf0005922c6ace4a3e2ec8b4080eb0d9753fdc93107415332f50ce9e7994280"},
+    {file = "pytest-8.0.0-py3-none-any.whl", hash = "sha256:50fb9cbe836c3f20f0dfa99c565201fb75dc54c8d76373cd1bde06b06657bdb6"},
+    {file = "pytest-8.0.0.tar.gz", hash = "sha256:249b1b0864530ba251b7438274c4d251c58d868edaaec8762893ad4a0d71c36c"},
 ]
 
 [package.dependencies]
 colorama = {version = "*", markers = "sys_platform == \"win32\""}
 iniconfig = "*"
 packaging = "*"
-pluggy = ">=0.12,<2.0"
+pluggy = ">=1.3.0,<2.0"
 
 [package.extras]
 testing = ["argcomplete", "attrs (>=19.2.0)", "hypothesis (>=3.56)", "mock", "nose", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
@@ -2752,17 +2742,17 @@ reference = "uibpypi"
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.23.4"
+version = "0.23.3"
 description = "Pytest support for asyncio"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pytest-asyncio-0.23.4.tar.gz", hash = "sha256:2143d9d9375bf372a73260e4114541485e84fca350b0b6b92674ca56ff5f7ea2"},
-    {file = "pytest_asyncio-0.23.4-py3-none-any.whl", hash = "sha256:b0079dfac14b60cd1ce4691fbfb1748fe939db7d0234b5aba97197d10fbe0fef"},
+    {file = "pytest-asyncio-0.23.3.tar.gz", hash = "sha256:af313ce900a62fbe2b1aed18e37ad757f1ef9940c6b6a88e2954de38d6b1fb9f"},
+    {file = "pytest_asyncio-0.23.3-py3-none-any.whl", hash = "sha256:37a9d912e8338ee7b4a3e917381d1c95bfc8682048cb0fbc35baba316ec1faba"},
 ]
 
 [package.dependencies]
-pytest = ">=7.0.0,<8"
+pytest = ">=7.0.0"
 
 [package.extras]
 docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
@@ -4244,4 +4234,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "d2776af467057a27d49126d4a7d396ca20c561fc135b4d56d3915e5227bfc515"
+content-hash = "98032abd30ab96a26a67e3982ed49e98f21ff3eed73a21d63bb919b051e097ba"

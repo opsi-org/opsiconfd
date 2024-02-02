@@ -277,7 +277,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		)
 
 	def _init_connection(self) -> None:
-		password = quote(self.password)
+		password = self.password
+		if self._driver == "pymysql":
+			# Workaround pymysql bug (pymysql will encode password as latin-1)
+			password = password.encode("utf-8").decode("latin-1")
+		password = quote(password)
 		secret_filter.add_secrets(password)
 		properties: dict[str, str | int] = {
 			"charset": self._database_charset,

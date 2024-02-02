@@ -20,14 +20,15 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.logging import logger
 
-OPSI_REPO_FILE = "https://opsipackages.43.opsi.org/stable/packages.msgpack.zstd"
+OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
+OPSI_REPO_FILE = f"https://{OPSI_PACKAGES_HOST}/stable/packages.msgpack.zstd"
 MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
 MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
 
 
 def get_available_product_versions(product_ids: list[str]) -> dict:
 	available_packages = {}
-	session = prepare_proxy_environment("opsipackages.43.opsi.org")
+	session = prepare_proxy_environment(OPSI_PACKAGES_HOST)
 
 	res = session.get(OPSI_REPO_FILE, timeout=10, stream=True)
 	res.raise_for_status()

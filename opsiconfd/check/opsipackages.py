@@ -14,7 +14,7 @@ from datetime import datetime
 
 import requests
 from opsicommon.package.repo_meta import RepoMetaPackageCollection
-from opsicommon.utils import compare_versions
+from opsicommon.utils import compare_versions, prepare_proxy_environment
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
@@ -27,8 +27,9 @@ MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client
 
 def get_available_product_versions(product_ids: list[str]) -> dict:
 	available_packages = {}
+	session = prepare_proxy_environment("opsipackages.43.opsi.org")
 
-	res = requests.get(OPSI_REPO_FILE, timeout=10, stream=True)
+	res = session.get(OPSI_REPO_FILE, timeout=10, stream=True)
 	res.raise_for_status()
 
 	col = RepoMetaPackageCollection()

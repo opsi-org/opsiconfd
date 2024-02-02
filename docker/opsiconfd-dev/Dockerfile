@@ -51,7 +51,7 @@ RUN apt-get update \
 
 COPY files/ /
 
-RUN chmod +x /entrypoint.sh chmod +x /healthcheck.sh \
+RUN chmod +x /entrypoint.sh /healthcheck.sh \
 	&& (getent group opsifileadmins || groupadd opsifileadmins) \
 	&& (getent group opsiadmin || groupadd opsiadmin) \
 	&& (getent passwd opsiconfd || useradd --system -g opsifileadmins -d /var/lib/opsiconfd/home -s /bin/zsh opsiconfd) \

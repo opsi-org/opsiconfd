@@ -48,7 +48,7 @@ test:pylint-pytest:
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry install
 
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pylint opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run ruff opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run mypy opsiconfd tests
 

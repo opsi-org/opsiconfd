@@ -29,6 +29,8 @@ follow_imports = "silent"
 
 [tool.ruff]
 line-length = 140
+
+[tool.ruff.lint]
 ignore = [ "F401", "E402", "F811",]
 
 [tool.poetry.scripts]
@@ -85,6 +87,9 @@ no-docstring-rgx = ".*"
 indent-string = "\t"
 max-line-length = 140
 
+[tool.pylint.'MESSAGES CONTROL']
+disable = "R,fixme,E0012"
+
 [tool.poetry.group.dev.dependencies]
 hypothesis = "^6.32"
 idna = "^3.3"
@@ -93,7 +98,8 @@ mypy = "^1.4"
 pyinstaller = "^6.1"
 pylint = "^3.0"
 pylint-pydantic = "^0.3"
-pytest = "^8.0"
+# pytest-asyncio currently not compatible with pytest >= 8.0
+pytest = ">=7.0,<8.0"
 pytest-asyncio = "^0.23"
 pytest-cov = "^4.0"
 types-certifi = "^2021.10"

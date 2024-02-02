@@ -19,7 +19,7 @@ import sqlite3
 import string
 import subprocess
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, AsyncGenerator, Generator, Union
+from typing import Any, AsyncGenerator, Generator
 from urllib.parse import quote, unquote, urlparse
 
 import aiohttp
@@ -247,7 +247,7 @@ class HTTPBearerAuth(AuthBase):  # pylint: disable=too-few-public-methods
 
 @contextmanager
 def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, None]:
-	auth: Union[HTTPBearerAuth, HTTPBasicAuth, None] = None
+	auth: HTTPBearerAuth | HTTPBasicAuth | None = None
 	url = urlparse(config.grafana_internal_url)
 	if url.username is not None:
 		if url.password is None:

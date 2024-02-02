@@ -10,7 +10,6 @@ test application.metrics
 
 import asyncio
 import datetime
-from typing import Union
 
 from opsiconfd.application.metrics import (
 	get_nodes,
@@ -32,9 +31,9 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-async def _register_workers(conf: Config) -> tuple[dict[str, Union[str, int]], ...]:
+async def _register_workers(conf: Config) -> tuple[dict[str, str | int], ...]:
 	node_name = "testnode"
-	workers: tuple[dict[str, Union[str, int]], ...] = (
+	workers: tuple[dict[str, str | int], ...] = (
 		{"node_name": node_name, "pid": 121, "worker_num": 1},
 		{"node_name": node_name, "pid": 122, "worker_num": 2},
 		{"node_name": node_name, "pid": 123, "worker_num": 3},

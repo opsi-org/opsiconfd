@@ -14,6 +14,7 @@ import pwd
 import resource
 import string
 import subprocess
+from pathlib import Path
 
 import psutil
 from opsicommon.server.setup import (  # type: ignore[import]
@@ -24,7 +25,7 @@ from opsicommon.server.setup import (  # type: ignore[import]
 	set_primary_group,
 )
 
-from opsiconfd.config import OPSICONFD_HOME, config, opsi_config, get_server_role
+from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_random_string, running_in_docker
 
@@ -143,3 +144,11 @@ def setup_systemd() -> None:
 	logger.info("Setup systemd")
 	subprocess.check_output(["systemctl", "daemon-reload"])
 	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"])
+
+
+def set_unprivileged_port_start(port: int) -> None:
+	conf = Path("/proc/sys/net/ipv4/ip_unprivileged_port_start")
+	port_start = int(conf.read_text(encoding="ascii"))
+	if port_start > port:
+		logger.notice("Setting ip_unprivileged_port_start to %d", port)
+		conf.write_text(str(port), encoding="ascii")

@@ -48,7 +48,7 @@ test:pylint-pytest:
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry install
 
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pylint opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run ruff opsiconfd tests
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run mypy opsiconfd tests
 
@@ -56,7 +56,6 @@ test:pylint-pytest:
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
 
     - echo -e "${TXT_HEAD}Run perftests${TXT_CLEAR}"
-    #- docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l6 setup
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
     - sleep 10
 

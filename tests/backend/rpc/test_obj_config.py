@@ -258,7 +258,7 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 				self.err = err
 
 	# Do not retry on "Deadlock found when trying to get lock; try restarting transaction"
-	with patch("opsiconfd.backend.mysql.MySQLSession.execute_attempts", 1):
+	with patch("opsiconfd.backend.mysql.MySQLSession.retry_on_deadlock", 0):
 		for _ in range(3):
 			threads = [BThread() for _ in range(25)]
 			for thread in threads:

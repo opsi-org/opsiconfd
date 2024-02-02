@@ -9,34 +9,19 @@ ENV LC_ALL="en_US.UTF-8" \
 	DEV_USER=${DEV_USER} \
 	DEV_UID=${DEV_UID} \
 	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_9.0/
-	# python:
-	#PYTHONFAULTHANDLER=1 \
-	#PYTHONUNBUFFERED=1 \
-	#PYTHONHASHSEED=random \
-	# pip:
-	#PIP_NO_CACHE_DIR=off \
-	#PIP_DISABLE_PIP_VERSION_CHECK=on \
-	#PIP_DEFAULT_TIMEOUT=100
 
 RUN apt-get update \
 	&& apt-get --yes dist-upgrade\
-	&& apt-get --yes --allow-downgrades install \
+	&& apt-get --yes install \
 		sudo \
 		zsh \
-		git \
-		openssh-client \
-		inetutils-ping \cpio \
+		inetutils-ping \
 		vim \
 		nano \
-		wget \
 		gettext \
 		mariadb-client \
-		libmariadb-dev \
-		psmisc \
 		librsync1 \
-		libsqlite3-0=3.16.2-5+deb9u1 \
 		netcat \
-		apt-transport-https \
 	&& mkdir -p /usr/local/share/keyrings \
 	&& wget -q -O - ${OPSI_REPO}Release.key | gpg --dearmor > /usr/local/share/keyrings/opsi-obs.gpg \
 	&& echo "deb [signed-by=/usr/local/share/keyrings/opsi.gpg] ${OPSI_REPO} /" > /etc/apt/sources.list.d/opsi.list \

@@ -36,7 +36,12 @@ if [ -n "$DEV_USER" ]; then
 	su - $DEV_USER -c 'git config --global core.editor "code --wait"'
 fi
 
-if [ -e .venv ]; then
+if mkdir .venv 2>/dev/null; then
+	echo "* Setup poetry venv"
+	poetry lock --no-update
+	poetry install --no-interaction --no-ansi
+	[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
+else
 	echo "* Waiting until poetry venv is set up"
 	last_file_count=1
 	file_count=0
@@ -46,11 +51,6 @@ if [ -e .venv ]; then
 		sleep 5
 		file_count=$(find .venv -type f | wc -l)
 	done
-else
-	echo "* Setup poetry venv"
-	poetry lock --no-update
-	poetry install --no-interaction --no-ansi
-	[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
 fi
 
 touch /run/.docker-healthy

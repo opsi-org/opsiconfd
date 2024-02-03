@@ -30,7 +30,7 @@ test:pylint-pytest:
     - echo "DEV_UID=" >> docker/opsiconfd-dev/.env
 
     - echo -e "${TXT_HEAD}Build docker images${TXT_CLEAR}"
-    - docker compose -f docker/opsiconfd-dev/docker-compose.yml build
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml build --pull
 
   after_script:
     # Unfortunatly after_script is currently not executed when a job is canceled
@@ -39,6 +39,8 @@ test:pylint-pytest:
     #- COMPOSE_FILE=docker/opsiconfd-dev/docker-compose.yml
     - COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
     - '[ "$CI_DEBUG_SERVICES" = "true" ] && docker compose -f docker/opsiconfd-dev/docker-compose.yml logs'
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml opsiserver43-dev logs
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml opsiserver43-cs logs
     - echo -e "${TXT_HEAD}Stop docker containers${TXT_CLEAR}"
     - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
   script:

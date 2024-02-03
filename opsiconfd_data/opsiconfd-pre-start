@@ -1,0 +1,27 @@
+#!/bin/sh
+
+dist=$(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2)
+
+# Distribution specific workarounds
+if [[ "$dist" =~ "SUSE Linux Enterprise Server 15 SP1" ]]; then
+	# opsiconfd setup: /bin/sh: /usr/lib/opsiconfd/libreadline.so.7: no version information available (required by /bin/sh)
+	cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
+fi
+
+# Use pam_unix.so from system
+# Authentication failure (auth_type=auth-module)...
+# ARM64: ubuntu: /usr/lib/aarch64-linux-gnu, debian: /lib/aarch64-linux-gnu
+for libdir in /lib64 /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /lib/aarch64-linux-gnu; do
+	[ -e ${libdir}/libpam.so.0 ] && cp ${libdir}/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
+done
+
+# Use libssl.so.1.1 from system
+#  PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
+for libdir in /lib64 /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /lib/aarch64-linux-gnu; do
+	[ -e ${libdir}/libcrypto.so.1.1 ] && cp ${libdir}/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
+done
+
+# Use libmariadb.so.3 from system
+for libdir in /lib64 /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /lib/aarch64-linux-gnu; do
+	[ -e ${libdir}/libmariadb.so.3 ] && cp ${libdir}/libmariadb.so.3 /usr/lib/opsiconfd/libmariadb.so.2
+done

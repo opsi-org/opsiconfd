@@ -10,6 +10,7 @@ Requires=local-fs.target
 Wants=network-online.target
 
 [Service]
+ExecStartPre=/usr/lib/opsiconfd/opsiconfd-pre-start
 ExecStart=/usr/bin/opsiconfd start --log-level-stderr=0
 ExecStop=/usr/bin/opsiconfd force-stop --log-level-stderr=0
 ExecReload=/usr/bin/opsiconfd reload --log-level-stderr=0

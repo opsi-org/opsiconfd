@@ -52,9 +52,11 @@ else
 		sleep 5
 		file_count=$(find .venv -type f | wc -l)
 	done
+	sleep 5
 	end_time=$(date +%s)
 	diff=$((end_time - start_time))
 	echo "venv ready after ${diff} seconds"
+	ls -l .venv/bin/
 fi
 
 touch /run/.docker-healthy

@@ -91,7 +91,7 @@ package:
     if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi
     mkdir -p ${DST}/rootfs/etc/opsi
     mkdir -p ${DST}/rootfs/usr/bin
-    mkdir -p ${DST}/rootfs/usr/lib
+    mkdir -p ${DST}/rootfs/usr/lib/opsiconfd
     mkdir -p ${DST}/rootfs/usr/share/opsiconfd
     mkdir -p ${DST}/rootfs/var/lib/opsi/depot
     mkdir -p ${DST}/rootfs/var/lib/opsi/ntfs-images

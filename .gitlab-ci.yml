@@ -15,11 +15,11 @@ test:pylint-pytest:
   image: docker
   before_script:
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
+    #- COMPOSE_FILE=docker/opsiconfd-dev/docker-compose.yml
+    - COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
     # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
     - CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
     - export LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
-    - export COMPOSE_FILE=${LOCAL_WORKSPACE_DIR}/docker/opsiconfd-dev/docker-compose.yml
-    - export COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
 
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
     - env | grep "OPSILICSRV_TOKEN=" >> docker/opsiconfd-dev/.env
@@ -29,41 +29,44 @@ test:pylint-pytest:
     - echo "OPSISERVER_CS_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
     - echo "DEV_USER=" >> docker/opsiconfd-dev/.env
     - echo "DEV_UID=" >> docker/opsiconfd-dev/.env
-    - cat docker/opsiconfd-dev/.env
+
     - echo -e "${TXT_HEAD}Build docker images${TXT_CLEAR}"
-    - docker compose build --pull
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml build --pull
 
   after_script:
     # Unfortunatly after_script is currently not executed when a job is canceled
     # https://gitlab.com/groups/gitlab-org/-/epics/10158
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
-    - export COMPOSE_FILE=${LOCAL_WORKSPACE_DIR}/docker/opsiconfd-dev/docker-compose.yml
-    - export COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
-    - '[ "$CI_DEBUG_SERVICES" = "true" ] && docker compose logs'
-    - docker compose logs opsiserver43-dev
-    - docker compose logs opsiserver43-cs
+    #- COMPOSE_FILE=docker/opsiconfd-dev/docker-compose.yml
+    - COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
+    - '[ "$CI_DEBUG_SERVICES" = "true" ] && docker compose -f docker/opsiconfd-dev/docker-compose.yml logs'
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml logs opsiserver43-dev
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml logs opsiserver43-cs
     - echo -e "${TXT_HEAD}Stop docker containers${TXT_CLEAR}"
-    - docker compose down -v
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml down -v
   script:
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
-    - docker compose up --detach --wait --wait-timeout 120
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml up --detach --wait --wait-timeout 120
+    #- docker compose -f docker/opsiconfd-dev/docker-compose.yml logs opsiserver43-dev
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev md5sum /usr/lib/x86_64-linux-gnu/libmariadb.so.2
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev md5sum /usr/lib/x86_64-linux-gnu/libmariadb.so.3
 
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
-    - docker compose exec opsiserver43-dev poetry run pylint opsiconfd tests
-    - docker compose exec opsiserver43-dev poetry run ruff opsiconfd tests
-    - docker compose exec opsiserver43-dev poetry run mypy opsiconfd tests
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pylint opsiconfd tests
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run ruff opsiconfd tests
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run mypy opsiconfd tests
 
     - echo -e "${TXT_HEAD}Run pytest${TXT_CLEAR}"
-    - docker compose exec opsiserver43-dev poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
 
     - echo -e "${TXT_HEAD}Run perftests${TXT_CLEAR}"
-    - docker compose exec opsiserver43-dev poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
+    - docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
     - sleep 10
 
     - echo -e "${TXT_HEAD}Run opsiconfd-perftest${TXT_CLEAR}"
     # Average request time has to be faster than 10 ms
     - |
-      docker compose exec opsiserver43-dev poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 || (
+      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 || (
         echo -e "${TXT_ERROR}opsiconfd-perftest.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -71,7 +74,7 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run opsiconfd-backend-perftest${TXT_CLEAR}"
     - |
-      docker compose exec opsiserver43-dev poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
+      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
         echo -e "${TXT_ERROR}opsiconfd-backend-perftest.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -79,13 +82,13 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run file-download memory test${TXT_CLEAR}"
     - |
-      docker compose exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
+      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
         echo -e "${TXT_ERROR}file-download.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
       )
     - |
-      docker compose exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
+      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
         echo -e "${TXT_ERROR}file-download.py failed (range-requests)${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -93,7 +96,7 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run messagebus websocket load test${TXT_CLEAR}"
     - |
-      docker compose exec opsiserver43-dev poetry run ./perftest/messagebus-clients.py --clients 500 --event-interval 30 --start-gap 20 || (
+      docker compose -f docker/opsiconfd-dev/docker-compose.yml exec opsiserver43-dev poetry run ./perftest/messagebus-clients.py --clients 500 --event-interval 30 --start-gap 20 || (
         echo -e "${TXT_ERROR}messagebus-clients.py failed (range-requests)${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1

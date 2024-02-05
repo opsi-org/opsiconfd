@@ -89,7 +89,7 @@ def utc_timestamp() -> float:
 
 
 def running_in_docker() -> bool:
-	return os.path.exists("/.dockerenv")
+	return os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv")
 
 
 def is_opsiconfd(proc: psutil.Process) -> bool:

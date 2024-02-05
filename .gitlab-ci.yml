@@ -15,12 +15,10 @@ test:pylint-pytest:
   image: docker
   before_script:
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
-    #- COMPOSE_FILE=docker/opsiconfd-dev/docker-compose.yml
-    - COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
     # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
     - CONTAINER_ID=$(docker ps -q -f "label=com.gitlab.gitlab-runner.job.id=$CI_JOB_ID" -f "label=com.gitlab.gitlab-runner.type=build")
     - LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
-    - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml"
+    - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml -p opsiconfd-test-$CI_JOB_ID"
 
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
     - env | grep "OPSILICSRV_TOKEN=" >> docker/opsiconfd-dev/.env
@@ -38,8 +36,7 @@ test:pylint-pytest:
     # Unfortunatly after_script is currently not executed when a job is canceled
     # https://gitlab.com/groups/gitlab-org/-/epics/10158
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
-    - COMPOSE_PROJECT_NAME=opsiconfd-test-$CI_JOB_ID
-    - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml"
+    - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml -p opsiconfd-test-$CI_JOB_ID"
 
     - '[ "$CI_DEBUG_SERVICES" = "true" ] && $DOCKER_COMPOSE logs'
     - $DOCKER_COMPOSE logs opsiserver43-dev

@@ -84,6 +84,15 @@ def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: Ops
 			with service.connection():
 				service.messagebus.register_messagebus_listener(listener)
 				service.connect_messagebus()
+				# Wait for channel_subscription_event
+				for _ in range(10):
+					sleep(1)
+					if len(listener.messages) == 1:
+						break
+				assert len(listener.messages) == 1
+				assert isinstance(listener.messages[0], ChannelSubscriptionEventMessage)
+				listener.messages = []
+
 				message = JSONRPCRequestMessage(
 					sender=CONNECTION_USER_CHANNEL,
 					channel=f"service:depot:{depot_id}:jsonrpc",
@@ -93,10 +102,8 @@ def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: Ops
 				service.messagebus.send_message(message=message)
 				for _ in range(10):
 					sleep(1)
-					if len(listener.messages) == 2:
+					if len(listener.messages) == 1:
 						break
-
-				assert len(listener.messages) == 2
-				assert isinstance(listener.messages[0], ChannelSubscriptionEventMessage)
-				assert isinstance(listener.messages[1], JSONRPCResponseMessage)
-				assert listener.messages[1].result["capacity"] > 0
+				assert len(listener.messages) == 1
+				assert isinstance(listener.messages[0], JSONRPCResponseMessage)
+				assert listener.messages[0].result["capacity"] > 0

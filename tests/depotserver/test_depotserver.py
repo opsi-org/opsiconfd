@@ -8,25 +8,24 @@
 test depotserver
 """
 from pathlib import Path
-from typing import Generator
 from time import sleep
-from _pytest.fixtures import FixtureFunction
-from pytest import fixture, mark
+from typing import Generator
 
-from opsicommon.logging import use_logging_config, LOG_TRACE
-from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags, MessagebusListener
+from _pytest.fixtures import FixtureFunction
+from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
+from opsicommon.logging import LOG_TRACE, use_logging_config
 from opsicommon.messagebus import (
+	CONNECTION_USER_CHANNEL,
+	ChannelSubscriptionEventMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
-	CONNECTION_USER_CHANNEL,
 	Message,
-	ChannelSubscriptionEventMessage,
 )
+from pytest import fixture, mark
 
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.setup import setup_depotserver
-
 from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # pylint: disable=unused-import
 
 CONFIGSERVER = "opsiserver43-cs"
@@ -67,7 +66,7 @@ def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestC
 		assert CONFIGSERVER in [ident.split(".")[0] for ident in idents]
 
 
-@mark.xfail(reason="Fails in CI")
+# @mark.xfail(reason="Fails in CI")
 def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with use_logging_config(stderr_level=LOG_TRACE):
 		depot_id = get_depotserver_id()

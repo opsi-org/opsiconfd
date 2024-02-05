@@ -40,7 +40,7 @@ from starlette.status import (
 	WS_1011_INTERNAL_ERROR,
 )
 from starlette.types import Receive, Scope, Send
-from starlette.websockets import WebSocket, WebSocketState
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
@@ -128,7 +128,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		try:
 			await websocket.send_bytes(data)
 			statistics.messages_sent += 1
-		except (ClientDisconnected, LocalProtocolError) as err:
+		except (ClientDisconnected, LocalProtocolError, WebSocketDisconnect) as err:
 			# Websocket propably closed
 			logger.debug("Failed to send message to websocket: %s", err)
 

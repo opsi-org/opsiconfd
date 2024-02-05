@@ -29,6 +29,7 @@ service_clients_lock = Lock()
 
 
 def reinit_backend() -> None:
+	stop_service_clients()
 	global protected_backend  # pylint: disable=invalid-name,global-statement
 	global unprotected_backend  # pylint: disable=invalid-name,global-statement
 	if protected_backend:
@@ -104,5 +105,6 @@ def get_service_client(name: str = "") -> ServiceClient:
 
 def stop_service_clients() -> None:
 	with service_clients_lock:
-		for service_client in service_clients.values():
-			service_client.stop()
+		for name in list(service_clients):
+			service_clients[name].stop()
+			del service_clients[name]

@@ -67,7 +67,7 @@ def test_rpc_method_decorator() -> None:
 		def test_annotation(
 			self, param1: str | None = None, param2: SomeStrEnum | None = None, param3: SomeDataclass | None = None
 		) -> bool:
-			return param1 and param2 and param3
+			return bool(param1) and bool(param2) and bool(param3)
 
 	test = Test()
 	assert getattr(test.func1, "rpc_interface")

@@ -607,7 +607,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 	message = ChannelSubscriptionRequestMessage(
 		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[f"service:depot:{depot_id}:jsonrpc"], operation="set"
 	)
-	await run_in_threadpool(service_client.messagebus.send_message, message)
+	await service_client.messagebus.async_send_message(message)
 
 	message_queue: Queue[JSONRPCRequestMessage] = Queue()
 
@@ -639,7 +639,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 			result=result.result if isinstance(result, JSONRPC20Response) else None,
 			error=result.error if isinstance(result, JSONRPC20ErrorResponse) else None,
 		)
-		await run_in_threadpool(service_client.messagebus.send_message, response)
+		await service_client.messagebus.async_send_message(response)
 
 
 async def messagebus_jsonrpc_request_worker() -> None:

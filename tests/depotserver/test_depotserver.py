@@ -9,14 +9,23 @@ test depotserver
 """
 from pathlib import Path
 from typing import Generator
-
+from time import sleep
 from _pytest.fixtures import FixtureFunction
 from pytest import fixture
 
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.setup import setup_depotserver
+from opsiconfd.messagebus import get_user_id_for_host
 from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # pylint: disable=unused-import
+from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags, MessagebusListener, Messagebus
+from opsicommon.messagebus import (
+	JSONRPCRequestMessage,
+	JSONRPCResponseMessage,
+	CONNECTION_USER_CHANNEL,
+	Message,
+	ChannelSubscriptionEventMessage,
+)
 
 CONFIGSERVER = "opsiserver43-cs"
 
@@ -30,8 +39,8 @@ def depotserver_setup(tmp_path: Path) -> Generator[None, None, None]:
 		depot_id = get_depotserver_id()
 		unattended_configuration = {
 			"configserver": CONFIGSERVER,
-			"username": "adminuser",
-			"password": "adminuser",
+			"username": ADMIN_USER,
+			"password": ADMIN_PASS,
 			"depot_id": depot_id,
 			"description": "pytest depotserver",
 		}
@@ -54,3 +63,37 @@ def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestC
 		depot_id = get_depotserver_id()
 		assert depot_id in idents
 		assert CONFIGSERVER in [ident.split(".")[0] for ident in idents]
+
+
+def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	depot_id = get_depotserver_id()
+	service = ServiceClient(address=CONFIGSERVER, username=ADMIN_USER, password=ADMIN_PASS, verify=ServiceVerificationFlags.ACCEPT_ALL)
+
+	class TestMessagebusListener(MessagebusListener):
+		messages = []
+
+		def message_received(self, message: Message) -> None:
+			self.messages.append(message)
+
+	with test_client:  # Start application
+		sleep(5)
+		listener = TestMessagebusListener(service.messagebus)
+		with service.connection():
+			service.messagebus.register_messagebus_listener(listener)
+			service.connect_messagebus()
+			message = JSONRPCRequestMessage(
+				sender=CONNECTION_USER_CHANNEL,
+				channel=f"service:depot:{depot_id}:jsonrpc",
+				method="depot_getDiskSpaceUsage",
+				params=("/tmp",),
+			)
+			service.messagebus.send_message(message=message)
+			for _ in range(10):
+				sleep(1)
+				if len(listener.messages) == 2:
+					break
+
+			assert len(listener.messages) == 2
+			assert isinstance(listener.messages[0], ChannelSubscriptionEventMessage)
+			assert isinstance(listener.messages[1], JSONRPCResponseMessage)
+			assert listener.messages[1].result["capacity"] > 0

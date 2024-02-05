@@ -56,7 +56,6 @@ else
 	end_time=$(date +%s)
 	diff=$((end_time - start_time))
 	echo "venv ready after ${diff} seconds"
-	ls -l .venv/bin/
 fi
 
 touch /run/.docker-healthy

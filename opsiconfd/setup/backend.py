@@ -21,6 +21,7 @@ from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
+from opsiconfd.backend import get_mysql
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
 from opsiconfd.backend.mysql.schema import (
@@ -28,7 +29,7 @@ from opsiconfd.backend.mysql.schema import (
 	drop_database,
 	update_database,
 )
-from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_configserver_id, opsi_config, get_server_role
+from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_configserver_id, get_server_role, opsi_config
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_ip_addresses, get_random_string
 
@@ -212,7 +213,7 @@ def file_mysql_migration() -> None:
 
 	backend = get_unprotected_backend()
 	with backend.events_disabled():
-		mysql = MySQLConnection()
+		mysql = get_mysql()
 		mysql.connect()
 		drop_database(mysql)
 		create_database(mysql)

@@ -132,7 +132,11 @@ def test_worker_manager_and_workers() -> None:
 
 			# Assert startup phase not yet set to completed
 			assert worker_manager.startup
-			time.sleep(worker_manager.startup_time + 10)
+			time.sleep(worker_manager.startup_time)
+			for _ in range(10):
+				if not worker_manager.startup:
+					break
+				time.sleep(1)
 			# Assert startup phase set to completed
 			assert not worker_manager.startup
 

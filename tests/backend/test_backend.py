@@ -10,10 +10,12 @@ webdav tests
 
 from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
+from OPSI.Backend.Replicator import BackendReplicator
 from opsiconfd.backend import (
 	get_mysql,
 	get_unprotected_backend,
 )
+
 
 from ..utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -25,6 +27,8 @@ from ..utils import (  # pylint: disable=unused-import
 	depot_jsonrpc,
 	get_config,
 	test_client,
+	backend,
+	UnprotectedBackend,
 )
 
 
@@ -122,3 +126,7 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 		finally:
 			test_client.reset_cookies()
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+
+def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:
+	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)

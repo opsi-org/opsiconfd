@@ -358,7 +358,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		depot: str,
 		host: str,
 		slot_id: str | None = None,
-		slot_type: TransferSlotType = TransferSlotType.OPSICLIENTD_PRODUCT_SYNC,
+		slot_type: str = "opsiclientd_product_sync",
 	) -> TransferSlot:
 		"""
 		Acquires a transfer slot for the specified depot and slot ID.
@@ -418,7 +418,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		depot: str,
 		host: str,
 		slot_id: str,
-		slot_type: TransferSlotType = TransferSlotType.OPSICLIENTD_PRODUCT_SYNC,
+		slot_type: str = "opsiclientd_product_sync",
 	) -> None:
 		"""
 		Release a transfer slot for the specified depot, client and slot ID.

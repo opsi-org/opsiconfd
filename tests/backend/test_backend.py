@@ -128,5 +128,5 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 
-def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:
+def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)

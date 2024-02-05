@@ -83,6 +83,9 @@ class MethodInterface:  # pylint: disable=too-many-instance-attributes
 		return asdict(self)
 
 
+COMPLEX_TYPE_RE = re.compile(r"\S+\.\S+")
+
+
 def get_method_interface(  # pylint: disable=too-many-locals
 	func: Callable, deprecated: bool = False, drop_version: str | None = None, alternative_method: str | None = None
 ) -> MethodInterface:
@@ -95,7 +98,9 @@ def get_method_interface(  # pylint: disable=too-many-locals
 	for param in params:
 		str_param = str(sig.parameters[param])
 		if ": " in str_param:
-			annotations[param] = str_param.split(": ", 1)[1].split(" = ", 1)[0]
+			annotation = str_param.split(": ", 1)[1].split(" = ", 1)[0]
+			annotation = COMPLEX_TYPE_RE.sub("Any", annotation)
+			annotations[param] = annotation
 
 	if defaults is not None:
 		offset = len(params) - len(defaults)

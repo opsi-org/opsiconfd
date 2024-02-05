@@ -8,28 +8,29 @@
 test depotserver
 """
 from pathlib import Path
-from typing import Generator
 from time import sleep
-from _pytest.fixtures import FixtureFunction
-from pytest import fixture, mark
+from typing import Generator
 
-from opsicommon.logging import use_logging_config, LOG_TRACE
-from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags, MessagebusListener
+from _pytest.fixtures import FixtureFunction
+from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
+from opsicommon.logging import get_logger, use_logging_config, LOG_TRACE
 from opsicommon.messagebus import (
+	CONNECTION_USER_CHANNEL,
+	ChannelSubscriptionEventMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
-	CONNECTION_USER_CHANNEL,
 	Message,
-	ChannelSubscriptionEventMessage,
 )
+from pytest import fixture
 
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.setup import setup_depotserver
-
 from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # pylint: disable=unused-import
 
 CONFIGSERVER = "opsiserver43-cs"
+
+logger = get_logger()
 
 
 @fixture(autouse=False)
@@ -67,7 +68,6 @@ def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestC
 		assert CONFIGSERVER in [ident.split(".")[0] for ident in idents]
 
 
-@mark.xfail(reason="Fails in CI")
 def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with use_logging_config(stderr_level=LOG_TRACE):
 		depot_id = get_depotserver_id()
@@ -79,21 +79,26 @@ def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: Ops
 			def message_received(self, message: Message) -> None:
 				self.messages.append(message)
 
+		logger.notice("Start application")
 		with test_client:  # Start application
 			sleep(5)
+			logger.notice("Connect to configserver")
 			listener = TestMessagebusListener(service.messagebus)
 			with service.connection():
 				service.messagebus.register_messagebus_listener(listener)
 				service.connect_messagebus()
 				# Wait for channel_subscription_event
+				logger.notice("Wait for ChannelSubscriptionEventMessage")
 				for _ in range(10):
 					sleep(1)
 					if len(listener.messages) == 1:
 						break
+				logger.notice("Got a message")
 				assert len(listener.messages) == 1
 				assert isinstance(listener.messages[0], ChannelSubscriptionEventMessage)
 				listener.messages = []
 
+				logger.notice("Sending JSONRPC request message")
 				message = JSONRPCRequestMessage(
 					sender=CONNECTION_USER_CHANNEL,
 					channel=f"service:depot:{depot_id}:jsonrpc",
@@ -101,6 +106,7 @@ def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: Ops
 					params=("/tmp",),
 				)
 				service.messagebus.send_message(message=message)
+				logger.notice("Wait for JSONRPCResponseMessage")
 				for _ in range(10):
 					sleep(1)
 					if len(listener.messages) == 1:

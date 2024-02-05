@@ -89,7 +89,14 @@ def utc_timestamp() -> float:
 
 
 def running_in_docker() -> bool:
-	return os.path.exists("/.dockerenv")
+	try:
+		with open("/proc/2/stat", encoding="utf-8", errors="replace") as file:
+			return "kthreadd" not in file.read()
+	except FileNotFoundError:
+		return True
+	except Exception:  # pylint: disable=broad-exception-caught
+		pass
+	return False
 
 
 def is_opsiconfd(proc: psutil.Process) -> bool:

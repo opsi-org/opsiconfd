@@ -553,7 +553,8 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 					client.reset_cookies()
 					client.auth = (host_id, host_key)
 					test_sess = client.websocket_connect("/messagebus/v1")
-					test_sess.__enter__()
+					# Do not use context manager here, because __exit__ will shut down the whole application
+					test_sess.__enter__()  # pylint: disable=unnecessary-dunder-call
 					sleep(1)
 					test_sess.close()
 

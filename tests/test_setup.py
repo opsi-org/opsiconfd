@@ -16,10 +16,10 @@ from typing import Generator
 from unittest.mock import patch
 
 from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_systemd
-from opsiconfd.setup.files import migrate_acl_conf_if_default
 from opsiconfd.setup import setup as opsiconfd_setup
+from opsiconfd.setup.files import migrate_acl_conf_if_default
 
-from .utils import get_config, ACL_CONF_41
+from .utils import ACL_CONF_41, get_config
 
 
 def test_setup_limits() -> None:

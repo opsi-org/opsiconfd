@@ -21,7 +21,7 @@ from opsicommon.messagebus import (
 	JSONRPCResponseMessage,
 	Message,
 )
-from pytest import fixture, mark
+from pytest import fixture
 
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id

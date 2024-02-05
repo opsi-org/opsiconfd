@@ -95,7 +95,9 @@ def get_method_interface(  # pylint: disable=too-many-locals
 	for param in params:
 		str_param = str(sig.parameters[param])
 		if ": " in str_param:
-			annotations[param] = str_param.split(": ", 1)[1].split(" = ", 1)[0]
+			annotation = str_param.split(": ", 1)[1].split(" = ", 1)[0]
+			annotation = re.sub("\S+\.\S+", "Any", annotation)
+			annotations[param] = annotation
 
 	if defaults is not None:
 		offset = len(params) - len(defaults)

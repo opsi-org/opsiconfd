@@ -607,7 +607,11 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 	message = ChannelSubscriptionRequestMessage(
 		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[f"service:depot:{depot_id}:jsonrpc"], operation="set"
 	)
-	await service_client.messagebus.async_send_message(message)
+	try:
+		await service_client.messagebus.async_send_message(message)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to send message to messagebus: %s", err)
+		return
 
 	message_queue: Queue[JSONRPCRequestMessage] = Queue()
 
@@ -639,7 +643,10 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 			result=result.result if isinstance(result, JSONRPC20Response) else None,
 			error=result.error if isinstance(result, JSONRPC20ErrorResponse) else None,
 		)
-		await service_client.messagebus.async_send_message(response)
+		try:
+			await service_client.messagebus.async_send_message(response)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error("Failed to send message to messagebus: %s", err)
 
 
 async def messagebus_jsonrpc_request_worker() -> None:

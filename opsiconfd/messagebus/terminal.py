@@ -314,7 +314,11 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 	subscription_message = ChannelSubscriptionRequestMessage(
 		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[channel], operation="set"
 	)
-	await service_client.messagebus.async_send_message(subscription_message)
+	try:
+		await service_client.messagebus.async_send_message(subscription_message)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to send message to messagebus: %s", err)
+		return
 
 	message_queue: Queue[
 		TerminalDataWriteMessage
@@ -400,7 +404,11 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 	message = ChannelSubscriptionRequestMessage(
 		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[f"service:depot:{depot_id}:terminal"], operation="set"
 	)
-	await service_client.messagebus.async_send_message(message)
+	try:
+		await service_client.messagebus.async_send_message(message)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to send message to messagebus: %s", err)
+		return
 
 	message_queue: Queue[TerminalOpenRequestMessage] = Queue()
 

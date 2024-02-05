@@ -13,12 +13,7 @@ from time import sleep
 from _pytest.fixtures import FixtureFunction
 from pytest import fixture
 
-from opsiconfd.backend import get_unprotected_backend, reinit_backend
-from opsiconfd.config import get_depotserver_id
-from opsiconfd.setup import setup_depotserver
-from opsiconfd.messagebus import get_user_id_for_host
-from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # pylint: disable=unused-import
-from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags, MessagebusListener, Messagebus
+from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags, MessagebusListener
 from opsicommon.messagebus import (
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
@@ -26,6 +21,12 @@ from opsicommon.messagebus import (
 	Message,
 	ChannelSubscriptionEventMessage,
 )
+
+from opsiconfd.backend import get_unprotected_backend, reinit_backend
+from opsiconfd.config import get_depotserver_id
+from opsiconfd.setup import setup_depotserver
+
+from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # pylint: disable=unused-import
 
 CONFIGSERVER = "opsiserver43-cs"
 

@@ -6,6 +6,7 @@ After=redis-server.service
 After=mysql.service
 After=mariadb.service
 After=univention-directory-listener.service
+After=winbind.service
 Requires=local-fs.target
 Wants=network-online.target
 

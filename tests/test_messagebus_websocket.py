@@ -543,15 +543,19 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 				)
 				websocket.send_bytes(message.to_msgpack())
 				reader.wait_for_message(count=2)
-				list(reader.get_messages())
+				messages = list(reader.get_messages())
+				assert messages[0]["type"] == "channel_subscription_event"
+				assert messages[1]["type"] == "channel_subscription_event"
 
 				host_id = "msgbus-test-client.opsi.test"
 				host_key = "92aa768a259dec1856013c4e458507d5"
 				with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 					client.reset_cookies()
 					client.auth = (host_id, host_key)
-					with client.websocket_connect("/messagebus/v1"):
-						sleep(1)
+					test_sess = client.websocket_connect("/messagebus/v1")
+					test_sess.__enter__()
+					sleep(1)
+					test_sess.close()
 
 				reader.wait_for_message(count=2)
 				messages = list(reader.get_messages())

@@ -10,7 +10,7 @@ webdav tests
 
 from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
-from OPSI.Backend.Replicator import BackendReplicator
+from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import]
 from opsiconfd.backend import (
 	get_mysql,
 	get_unprotected_backend,

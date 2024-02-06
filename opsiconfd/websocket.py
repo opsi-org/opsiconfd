@@ -30,8 +30,8 @@ class WSProtocolPing(WSProtocol):
 	def __init__(
 		self, config: Config, server_state: ServerState, app_state: dict[str, Any], _loop: AbstractEventLoop | None = None
 	) -> None:
-		self._ping_interval = config.ws_ping_interval
-		self._ping_timeout = config.ws_ping_timeout
+		self._ping_interval = config.ws_ping_interval or 0.0
+		self._ping_timeout = config.ws_ping_timeout or 0.0
 		self._last_ping_sent = time.time()
 		self._current_pong_timeout = 0.0
 		super().__init__(config, server_state, app_state, _loop)
@@ -77,7 +77,7 @@ class WSProtocolPing(WSProtocol):
 			elif isinstance(event, events.Pong):
 				self.handle_pong(event)
 
-	def connection_made(self, transport: asyncio.Transport) -> None:
+	def connection_made(self, transport: asyncio.Transport) -> None:  # type: ignore[override]
 		super().connection_made(transport)
 		if self._ping_interval > 0 and self._ping_timeout > 0:
 			task = self.loop.create_task(self._ping_pong_task())

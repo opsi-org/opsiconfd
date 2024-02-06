@@ -26,7 +26,7 @@ from opsiconfd import (
 )
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
@@ -53,7 +53,7 @@ login_test_data = (
 )
 
 
-def test_get_session(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_session(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.get("/")
 	cvars = get_contextvars()
 	try:
@@ -66,7 +66,7 @@ def test_get_session(test_client: OpsiconfdTestClient) -> None:  # pylint: disab
 
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
 def test_login_error(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	auth_data: tuple[str, str],
 	expected_status_code: int,
 	expected_text: str,
@@ -77,7 +77,7 @@ def test_login_error(
 	assert res.headers.get("set-cookie", None) is not None
 
 
-def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/session/authenticated")
 	assert res.status_code == 401
 	assert res.headers.get("www-authenticate", None) is not None
@@ -87,13 +87,13 @@ def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # p
 	assert res.headers.get("www-authenticate", None) is None
 
 
-def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert str(res.url).rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
 
 
-def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": "invalid"})
 	assert res.status_code == 401
 	assert "Authentication failed for user" in res.json()["message"]
@@ -123,7 +123,7 @@ def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	assert abs(diff.total_seconds()) < 5
 
 
-def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
 	redis = redis_client()
 	client_addr = "192.168.1.1"
 	test_client.set_client_address(client_addr, 12345)
@@ -143,7 +143,7 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 	assert len(keys) == 0
 
 
-def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with get_config({"multi_factor_auth": "totp_mandatory"}):
 		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 401
@@ -226,8 +226,8 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 
 
 def test_change_session_ip(
-	config: Config,  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	redis = redis_client()
 	client_addr = "192.168.1.1"
@@ -252,9 +252,9 @@ def test_change_session_ip(
 	assert keys[1].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
 
-def test_update_client_object(  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient,
-	database_connection: MySQLConnection,
+def test_update_client_object(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	database_connection: MySQLConnection,  # noqa: F811
 ) -> None:
 	host_id = "test-client-update.uib.gmbh"
 	host_key = "0dc5e29e2994c04de5108508cdd7cf02"
@@ -299,7 +299,7 @@ def test_update_client_object(  # pylint: disable=redefined-outer-name
 		assert ip_address == client_addr
 
 
-def test_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
@@ -310,7 +310,7 @@ def test_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=
 		assert res.status_code == 403
 
 
-def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
@@ -321,19 +321,19 @@ def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 		assert res.status_code == 403
 
 
-def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/public")
 	assert res.status_code == 200
 
 
-def test_public_access_put(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_public_access_put(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.put("/public/test.bin", content=b"test")
 	assert res.status_code == 403
 
 
 def test_max_sessions_limit(
-	config: Config,  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.set_client_address("192.168.1.1", 12345)
 	max_session_per_ip = 10
@@ -363,8 +363,8 @@ def test_max_sessions_limit(
 
 
 def test_max_sessions_not_for_depot(
-	config: Config,  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.set_client_address("192.168.11.1", 12345)
 	max_session_per_ip = 3
@@ -404,8 +404,8 @@ def test_max_sessions_not_for_depot(
 )
 @pytest.mark.flaky(retries=1, delay=1)
 def test_max_auth_failures(
-	config: Config,  # pylint: disable=redefined-outer-name,unused-argument
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	url: str,
 	method: str,
 ) -> None:
@@ -455,7 +455,7 @@ def test_max_auth_failures(
 			print("Auth:", num, max_auth_failures, res.status_code, res.text)
 
 
-def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	lifetime = 5  # 5 seconds
 	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
 
@@ -497,7 +497,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	assert res.status_code == 401
 
 
-def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> None:  # noqa: F811  # noqa: F811
 	with patch("opsiconfd.session.MESSAGEBUS_IN_USE_TIMEOUT", 15):
 		lifetime = config.session_lifetime
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -542,8 +542,8 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 
 
 def test_onetime_password_host_id(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	database_connection: MySQLConnection,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	database_connection: MySQLConnection,  # noqa: F811
 ) -> None:
 	with database_connection.session() as session:
 		session.execute(
@@ -570,8 +570,8 @@ def test_onetime_password_host_id(
 
 
 def test_onetime_password_hardware_address(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	database_connection: MySQLConnection,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	database_connection: MySQLConnection,  # noqa: F811
 ) -> None:
 	with database_connection.session() as session:
 		session.execute(
@@ -597,8 +597,8 @@ def test_onetime_password_hardware_address(
 
 
 def test_auth_only_hostkey(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	opsi_client = objects.OpsiClient(id="onlyhostkey.uib.gmbh", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
 	assert opsi_client.opsiHostKey
@@ -655,7 +655,7 @@ test_urls = (
 	),
 )
 def test_min_configed_version(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	min_configed_version: str | None,
 	user_agent: str | None,
 	status_code: int,

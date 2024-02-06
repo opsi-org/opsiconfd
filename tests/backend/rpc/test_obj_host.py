@@ -7,7 +7,7 @@
 """
 test opsiconfd.backend.mysql
 """
-# pylint: disable=too-many-lines
+
 from pathlib import Path
 from typing import Generator
 from uuid import uuid4
@@ -17,7 +17,7 @@ from opsicommon.objects import OpsiDepotserver
 
 from opsiconfd.backend.rpc.main import ProtectedBackend
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -42,11 +42,11 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 	backend = ProtectedBackend()
 	try:
 		with get_config({"acl_file": str(_acl_file)}):
-			backend._read_acl_file()  # pylint: disable=protected-access
+			backend._read_acl_file()
 		yield _acl_file
 	finally:
 		# Restore original ACL
-		backend._read_acl_file()  # pylint: disable=protected-access
+		backend._read_acl_file()
 
 
 def test_auto_fill_depotserver_url() -> None:
@@ -63,9 +63,9 @@ def test_auto_fill_depotserver_url() -> None:
 	assert not auto_fill_depotserver_urls(depot)
 
 
-def test_host_insertObject(  # pylint: disable=invalid-name,disable=redefined-outer-name,unused-argument
+def test_host_insertObject(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -135,9 +135,9 @@ def test_host_insertObject(  # pylint: disable=invalid-name,disable=redefined-ou
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
-def test_host_updateObject(  # pylint: disable=invalid-name,redefined-outer-name,unused-argument
+def test_host_updateObject(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -223,9 +223,9 @@ def test_host_updateObject(  # pylint: disable=invalid-name,redefined-outer-name
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
-def test_host_updateObject_systemUUID(  # pylint: disable=invalid-name,redefined-outer-name,unused-argument
+def test_host_updateObject_systemUUID(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -290,9 +290,9 @@ def test_host_updateObject_systemUUID(  # pylint: disable=invalid-name,redefined
 	assert client["systemUUID"] == "9f3f1c96-1821-413c-b850-0507a17c7e47"
 
 
-def test_host_updateObject_ip_mac(  # pylint: disable=invalid-name,redefined-outer-name,unused-argument
+def test_host_updateObject_ip_mac(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -369,9 +369,9 @@ def test_host_updateObject_ip_mac(  # pylint: disable=invalid-name,redefined-out
 
 
 @pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
-def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_createObjects(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -461,9 +461,9 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 				assert client["opsiHostKey"] is None
 
 
-def test_host_createObjects_with_systemUUID(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_createObjects_with_systemUUID(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -552,9 +552,9 @@ def test_host_createObjects_with_systemUUID(  # pylint: disable=invalid-name,too
 	assert clients[0]["systemUUID"] is None
 
 
-def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_updateObjects(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -642,9 +642,9 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
-def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_getIdents(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -689,9 +689,9 @@ def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements,red
 	assert res["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}, {"id": "test-backend-rpc-host-2.opsi.test"}]
 
 
-def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_deleteObjects(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
@@ -763,9 +763,9 @@ def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
 	assert res["result"] == []
 
 
-def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_createOpsiClient(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create client
@@ -808,9 +808,9 @@ def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-stateme
 	assert client["notes"] == "notes"
 
 
-def test_host_createOpsiDepotserver(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_createOpsiDepotserver(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create depot
@@ -837,9 +837,9 @@ def test_host_createOpsiDepotserver(  # pylint: disable=invalid-name,too-many-st
 	assert depot["depotRemoteUrl"] == "webdavs://depot.remote/url"
 
 
-def test_host_createOpsiConfigserver(  # pylint: disable=invalid-name,too-many-statements,redefined-outer-name,unused-argument
+def test_host_createOpsiConfigserver(
 	acl_file: Path,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create depot
@@ -866,8 +866,8 @@ def test_host_createOpsiConfigserver(  # pylint: disable=invalid-name,too-many-s
 	assert depot["depotRemoteUrl"] == "webdavs://depot.remote/url"
 
 
-def test_host_check_duplicate_hardware_address(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+def test_host_check_duplicate_hardware_address(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# Create client
@@ -895,7 +895,7 @@ def test_host_check_duplicate_hardware_address(  # pylint: disable=invalid-name
 
 
 def _create_clients_and_depot(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> tuple(list[dict[str, str], dict[str, str]]):  # type: ignore[valid-type]
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -941,7 +941,7 @@ def _create_clients_and_depot(
 	return (clients, depot)
 
 
-def test_rename_depot(test_client: OpsiconfdTestClient, clean_mysql: Generator) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_rename_depot(test_client: OpsiconfdTestClient, clean_mysql: Generator) -> None:  # noqa: F811  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	# create clients and depot. client 2 is assigned to depot

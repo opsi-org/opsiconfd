@@ -32,7 +32,7 @@ def monitoring_setup(app: FastAPI) -> None:
 
 
 @monitoring_router.post("{any:path}")
-async def monitoring(request: Request) -> JSONResponse:  # pylint: disable=too-many-branches
+async def monitoring(request: Request) -> JSONResponse:
 	backend = get_unprotected_backend()
 	request_data = await request.json()
 	task = None
@@ -100,7 +100,7 @@ async def monitoring(request: Request) -> JSONResponse:  # pylint: disable=too-m
 			response = check_opsi_disk_usage(opsiresource=params.get("resource", None))
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error(err, exc_info=True)
 		response = JSONResponse({"state": State.UNKNOWN, "message": str(err)})
 

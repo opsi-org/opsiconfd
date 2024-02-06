@@ -19,7 +19,7 @@ import pytest
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
-from tests.utils import backend, get_config  # pylint: disable=unused-import
+from tests.utils import backend, get_config  # noqa: F401
 
 
 def test_config_backend_mysql_conf(tmp_path: Path) -> None:
@@ -203,7 +203,7 @@ def test_big_query() -> None:
 			try:
 				with self.con.session() as session:
 					assert session.execute(query).fetchone()[0]
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				self.error = err
 
 	query_size = 500_000
@@ -231,7 +231,7 @@ def test_big_query() -> None:
 			raise RuntimeError(f"{len(errors)} errors occured:\n{err_str}")
 
 
-def test_get_columns() -> None:  # pylint: disable=too-many-branches
+def test_get_columns() -> None:
 	allowed_attributes = {"id", "type", "description"}
 	client_id = "client1.opsi.org"
 	ace = [

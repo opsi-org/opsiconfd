@@ -34,8 +34,8 @@ def reverse_proxy_setup(_app: FastAPI) -> None:
 proxy_logger = get_logger("opsiconfd.reverse_proxy")
 
 
-class ReverseProxy:  # pylint: disable=too-few-public-methods
-	def __init__(  # pylint: disable=too-many-arguments
+class ReverseProxy:
+	def __init__(
 		self,
 		app: FastAPI,
 		mount_path: str,
@@ -103,7 +103,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 
 		return _request_headers
 
-	async def handle_request(self, request: Request) -> Response:  # pylint: disable=too-many-branches
+	async def handle_request(self, request: Request) -> Response:
 		path = self._get_path(request.url.path)
 		if not path:
 			return Response(content="Not found", status_code=404)
@@ -118,7 +118,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 				proxy_logger.trace(">>> %s: %s", header, value)
 
 		try:
-			resp = await client._request(  # pylint: disable=protected-access
+			resp = await client._request(
 				method=request.method, headers=request_headers, str_or_url=path, data=request.stream(), allow_redirects=False
 			)
 		except ClientConnectorError as err:
@@ -152,7 +152,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 				proxy_logger.trace("%s: %s", name, data)
 			await writer(data)
 
-	async def handle_websocket_request(self, client_websocket: WebSocket) -> None:  # pylint: disable=too-many-branches
+	async def handle_websocket_request(self, client_websocket: WebSocket) -> None:
 		path = self._get_path(client_websocket.url.path)
 		if not path:
 			await client_websocket.close(status.WS_1008_POLICY_VIOLATION)

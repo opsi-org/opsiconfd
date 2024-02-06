@@ -14,7 +14,7 @@ from unittest import mock
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductDependency, ProductOnClient, ProductOnDepot
 
 from opsiconfd.config import get_depotserver_id
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -25,15 +25,15 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-async def test_hostControl_processActionRequests(  # pylint: disable=invalid-name,too-many-locals
-	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name
+async def test_hostControl_processActionRequests(
+	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
 
 	messagebus_rpcs = []
 
-	async def mock_messagebus_rpc(  # pylint: disable=too-many-locals,unused-argument
+	async def mock_messagebus_rpc(
 		self: UnprotectedBackend, client_ids: list[str], method: str, params: list[Any] | None = None, timeout: float | int | None = None
 	) -> dict[str, dict[str, Any]]:
 		nonlocal messagebus_rpcs

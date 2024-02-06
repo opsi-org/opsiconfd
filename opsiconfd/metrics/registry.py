@@ -18,13 +18,13 @@ from opsiconfd.grafana import GrafanaPanelConfig
 from opsiconfd.utils import Singleton
 
 
-class Metric:  # pylint: disable=too-many-instance-attributes
+class Metric:
 	_initialized = False
 	vars: list[str] = []
 
-	def __init__(  # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
+	def __init__(
 		self,
-		id: str,  # pylint: disable=invalid-name
+		id: str,
 		name: str,
 		aggregation: str = "avg",
 		retention: int = 0,
@@ -62,7 +62,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		self._initialized = True
 		assert aggregation in ("sum", "avg")
 		assert zero_if_missing in (None, "one", "continuous")
-		self.id = id  # pylint: disable=invalid-name
+		self.id = id
 		self.name = name
 		self.aggregation = aggregation
 		self.retention = retention
@@ -75,7 +75,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 
 		name_regex = self.name
 		for var in self.vars:
-			name_regex = name_regex.replace("{" + var + "}", rf"(?P<{var}>\S+)")  # pylint: disable=anomalous-backslash-in-string
+			name_regex = name_regex.replace("{" + var + "}", rf"(?P<{var}>\S+)")
 		self.name_regex = re.compile(name_regex)
 
 	def __str__(self) -> str:
@@ -95,14 +95,14 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		return self.name.format(**kwargs)
 
 	def get_vars_by_redis_key(self, redis_key: str) -> Dict[str, Any]:
-		vars = {}  # pylint: disable=redefined-builtin
+		vars = {}
 		if self.vars:
 			values = redis_key[len(self.redis_key_prefix) + 1 :].split(":")
 			vars = {self.vars[i]: value for i, value in enumerate(values)}
 		return vars
 
 	def get_name_by_redis_key(self, redis_key: str) -> str:
-		vars = self.get_vars_by_redis_key(redis_key)  # pylint: disable=redefined-builtin
+		vars = self.get_vars_by_redis_key(redis_key)
 		return self.get_name(**vars)
 
 	def get_vars_by_name(self, name: str) -> Dict[str, Any]:
@@ -316,7 +316,7 @@ class MetricsRegistry(metaclass=Singleton):
 			if not types or isinstance(metric, types):
 				yield metric
 
-	def get_metric_by_id(self, id: str) -> Metric:  # pylint: disable=redefined-builtin, invalid-name
+	def get_metric_by_id(self, id: str) -> Metric:
 		if id in self._metrics_by_id:
 			return self._metrics_by_id[id]
 		raise ValueError(f"Metric with id '{id}' not found")

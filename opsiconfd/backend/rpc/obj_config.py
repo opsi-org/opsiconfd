@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class RPCConfigMixin(Protocol):
-	def _config_insert_object(  # pylint: disable=too-many-arguments
+	def _config_insert_object(
 		self: BackendProtocol,
 		config: Config | dict,
 		ace: list[RPCACE],
@@ -36,7 +36,7 @@ class RPCConfigMixin(Protocol):
 	) -> None:
 		config = forceObjectClass(config, Config)
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
-		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
+		with self._mysql.session(session) as session:
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():
 				session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
 				if session.execute(query, params=data).rowcount > 0:
@@ -47,7 +47,7 @@ class RPCConfigMixin(Protocol):
 						)
 
 	@rpc_method(check_acl=False)
-	def config_insertObject(self: BackendProtocol, config: dict | Config) -> None:  # pylint: disable=invalid-name
+	def config_insertObject(self: BackendProtocol, config: dict | Config) -> None:
 		ace = self._get_ace("config_insertObject")
 		config = forceObjectClass(config, Config)
 		self._config_insert_object(config=config, ace=ace, create=True, set_null=True)
@@ -56,7 +56,7 @@ class RPCConfigMixin(Protocol):
 		self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def config_updateObject(self: BackendProtocol, config: dict | Config) -> None:  # pylint: disable=invalid-name
+	def config_updateObject(self: BackendProtocol, config: dict | Config) -> None:
 		ace = self._get_ace("config_updateObject")
 		config = forceObjectClass(config, Config)
 		self._config_insert_object(config=config, ace=ace, create=False, set_null=False)
@@ -65,7 +65,7 @@ class RPCConfigMixin(Protocol):
 		self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def config_createObjects(  # pylint: disable=invalid-name
+	def config_createObjects(
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> None:
 		ace = self._get_ace("config_createObjects")
@@ -80,7 +80,7 @@ class RPCConfigMixin(Protocol):
 			self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def config_updateObjects(  # pylint: disable=invalid-name
+	def config_updateObjects(
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> None:
 		ace = self._get_ace("config_updateObjects")
@@ -94,12 +94,12 @@ class RPCConfigMixin(Protocol):
 		for config in configs:
 			self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
-	def _config_get(  # pylint: disable=too-many-arguments,too-many-locals
+	def _config_get(
 		self: BackendProtocol,
 		ace: list[RPCACE] | None = None,
 		return_type: Literal["object", "dict"] = "object",
 		attributes: list[str] | tuple[str, ...] | None = None,
-		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+		filter: dict[str, Any] | None = None,
 	) -> list[dict] | list[Config]:
 		aggregates = {
 			"possibleValues": f'GROUP_CONCAT(`value` SEPARATOR "{self._mysql.record_separator}")',
@@ -116,7 +116,7 @@ class RPCConfigMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def config_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def config_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -125,7 +125,7 @@ class RPCConfigMixin(Protocol):
 		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(deprecated=True, alternative_method="config_getObjects", check_acl=False)
-	def config_getHashes(  # pylint: disable=invalid-name,redefined-builtin
+	def config_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -134,7 +134,7 @@ class RPCConfigMixin(Protocol):
 		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def config_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def config_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -143,7 +143,7 @@ class RPCConfigMixin(Protocol):
 		return self._mysql.get_idents("CONFIG", Config, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def config_deleteObjects(  # pylint: disable=invalid-name
+	def config_deleteObjects(
 		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
 	) -> None:
 		if not configs:
@@ -160,9 +160,9 @@ class RPCConfigMixin(Protocol):
 			self._send_messagebus_event("config_deleted", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def config_create(  # pylint: disable=too-many-arguments,invalid-name
+	def config_create(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		id: str,
 		description: str | None = None,
 		possibleValues: list | None = None,
 		defaultValues: list | None = None,
@@ -174,9 +174,9 @@ class RPCConfigMixin(Protocol):
 		self.config_createObjects(Config.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def config_createUnicode(  # pylint: disable=too-many-arguments,invalid-name
+	def config_createUnicode(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin
+		id: str,
 		description: str | None = None,
 		possibleValues: list[str] | None = None,
 		defaultValues: list[str] | None = None,
@@ -188,9 +188,9 @@ class RPCConfigMixin(Protocol):
 		self.config_createObjects(UnicodeConfig.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def config_createBool(  # pylint: disable=invalid-name
+	def config_createBool(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin
+		id: str,
 		description: str | None = None,
 		defaultValues: list[bool] | None = None,
 	) -> None:
@@ -199,7 +199,7 @@ class RPCConfigMixin(Protocol):
 		self.config_createObjects(BoolConfig.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def config_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def config_delete(self: BackendProtocol, id: list[str] | str) -> None:
 		idents = self.config_getIdents(returnType="dict", id=id)
 		if idents:
 			self.config_deleteObjects(idents)

@@ -16,11 +16,11 @@ from starlette.types import Receive, Send
 
 
 class Addon:
-	id: str = ""  # pylint: disable=invalid-name
+	id: str = ""
 	name: str = ""
 	version: str = ""
 
-	def __init__(self, path: str) -> None:  # pylint: disable=redefined-builtin
+	def __init__(self, path: str) -> None:
 		self.path = path
 		self.data_path = os.path.join(self.path, "data")
 		for attr in ("id", "name", "version"):
@@ -31,20 +31,20 @@ class Addon:
 	def router_prefix(self) -> str:
 		return f"/addons/{self.id}"
 
-	def on_load(self, app: FastAPI) -> None:  # pylint: disable=unused-argument
+	def on_load(self, app: FastAPI) -> None:
 		"""Called after loading the addon"""
 		return
 
-	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=unused-argument
+	def on_unload(self, app: FastAPI) -> None:
 		"""Called before unloading the addon"""
 		return
 
-	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=unused-argument
+	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:
 		"""Called on every request where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		return False
 
-	async def handle_request_exception(  # pylint: disable=unused-argument
+	async def handle_request_exception(
 		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
 	) -> bool:
 		"""Called on every request exception where the path matches the addons router prefix.

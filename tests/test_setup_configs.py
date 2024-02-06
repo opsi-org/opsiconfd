@@ -20,11 +20,11 @@ from opsicommon.objects import (
 )
 
 from opsiconfd.setup.configs import _auto_correct_depot_urls, _cleanup_product_on_clients, _get_windows_domain
-from tests.utils import UnprotectedBackend, backend, clean_mysql  # pylint: disable=unused-import
+from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
 
 
 def test_get_windows_domain() -> None:
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = ""
 
 	with patch("opsiconfd.setup.configs.run", PropertyMock(return_value=Proc())):
@@ -38,7 +38,7 @@ def test_get_windows_domain() -> None:
 		assert _get_windows_domain() == "MACHINE"
 
 
-def test_fix_urls(backend: UnprotectedBackend) -> None:  # pylint: disable=too-many-locals,redefined-outer-name
+def test_fix_urls(backend: UnprotectedBackend) -> None:  # noqa: F811
 	depot = OpsiDepotserver(
 		id="test-depot-1.opsi.org",
 		depotLocalUrl="file:///var/lib/opsi/depot",
@@ -62,7 +62,7 @@ def test_fix_urls(backend: UnprotectedBackend) -> None:  # pylint: disable=too-m
 	assert depot_corrected.workbenchRemoteUrl == "webdavs://test-depot-1.opsi.org:4447/workbench"
 
 
-def test_cleanup_product_on_clients(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_cleanup_product_on_clients(backend: UnprotectedBackend) -> None:  # noqa: F811
 	depot1 = OpsiDepotserver(id="test-cleanup-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-cleanup-host-1.opsi.test")
 	product1 = LocalbootProduct(

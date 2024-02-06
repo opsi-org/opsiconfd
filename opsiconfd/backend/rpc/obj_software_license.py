@@ -27,33 +27,33 @@ if TYPE_CHECKING:
 
 
 class RPCSoftwareLicenseMixin(Protocol):
-	def softwareLicense_bulkInsertObjects(  # pylint: disable=invalid-name
+	def softwareLicense_bulkInsertObjects(
 		self: BackendProtocol,
-		softwareLicenses: list[dict] | list[SoftwareLicense],  # pylint: disable=invalid-name
+		softwareLicenses: list[dict] | list[SoftwareLicense],
 	) -> None:
 		self._mysql.bulk_insert_objects(table="SOFTWARE_LICENSE", objs=softwareLicenses)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_insertObject(  # pylint: disable=invalid-name
+	def softwareLicense_insertObject(
 		self: BackendProtocol,
-		softwareLicense: dict | SoftwareLicense,  # pylint: disable=invalid-name
+		softwareLicense: dict | SoftwareLicense,
 	) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("softwareLicense_insertObject")
 		self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_updateObject(  # pylint: disable=invalid-name
+	def softwareLicense_updateObject(
 		self: BackendProtocol,
-		softwareLicense: dict | SoftwareLicense,  # pylint: disable=invalid-name
+		softwareLicense: dict | SoftwareLicense,
 	) -> None:
 		ace = self._get_ace("softwareLicense_updateObject")
 		self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_createObjects(  # pylint: disable=invalid-name
+	def softwareLicense_createObjects(
 		self: BackendProtocol,
-		softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense,  # pylint: disable=invalid-name
+		softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense,
 	) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("softwareLicense_createObjects")
@@ -64,9 +64,9 @@ class RPCSoftwareLicenseMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_updateObjects(  # pylint: disable=invalid-name
+	def softwareLicense_updateObjects(
 		self: BackendProtocol,
-		softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense,  # pylint: disable=invalid-name
+		softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense,
 	) -> None:
 		ace = self._get_ace("softwareLicense_updateObjects")
 		with self._mysql.session() as session:
@@ -76,7 +76,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def softwareLicense_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -85,7 +85,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		return self._mysql.get_objects(table="SOFTWARE_LICENSE", ace=ace, object_type=SoftwareLicense, attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicense_getObjects", check_acl=False)
-	def softwareLicense_getHashes(  # pylint: disable=invalid-name,redefined-builtin
+	def softwareLicense_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -96,7 +96,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def softwareLicense_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -105,7 +105,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		return self._mysql.get_idents(table="SOFTWARE_LICENSE", object_type=SoftwareLicense, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_deleteObjects(  # pylint: disable=invalid-name
+	def softwareLicense_deleteObjects(
 		self: BackendProtocol, softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense
 	) -> None:
 		if not softwareLicenses:
@@ -114,58 +114,58 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self._mysql.delete_objects(table="SOFTWARE_LICENSE", object_type=SoftwareLicense, obj=softwareLicenses, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def softwareLicense_delete(self: BackendProtocol, id: list[str] | str) -> None:
 		idents = self.softwareLicense_getIdents(returnType="dict", id=id)
 		if idents:
 			self.softwareLicense_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_createRetail(  # pylint: disable=too-many-arguments,invalid-name
+	def softwareLicense_createRetail(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int | None = None,  # pylint: disable=unused-argument
-		boundToHost: str | None = None,  # pylint: disable=unused-argument
-		expirationDate: str | None = None,  # pylint: disable=unused-argument
+		id: str,
+		licenseContractId: str,
+		maxInstallations: int | None = None,
+		boundToHost: str | None = None,
+		expirationDate: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.softwareLicense_createObjects(RetailSoftwareLicense.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_createOEM(  # pylint: disable=too-many-arguments,invalid-name
+	def softwareLicense_createOEM(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int | None = None,  # pylint: disable=unused-argument
-		boundToHost: str | None = None,  # pylint: disable=unused-argument
-		expirationDate: str | None = None,  # pylint: disable=unused-argument
+		id: str,
+		licenseContractId: str,
+		maxInstallations: int | None = None,
+		boundToHost: str | None = None,
+		expirationDate: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.softwareLicense_createObjects(OEMSoftwareLicense.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_createVolume(  # pylint: disable=too-many-arguments,invalid-name
+	def softwareLicense_createVolume(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int | None = None,  # pylint: disable=unused-argument
-		boundToHost: str | None = None,  # pylint: disable=unused-argument
-		expirationDate: str | None = None,  # pylint: disable=unused-argument
+		id: str,
+		licenseContractId: str,
+		maxInstallations: int | None = None,
+		boundToHost: str | None = None,
+		expirationDate: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.softwareLicense_createObjects(VolumeSoftwareLicense.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_createConcurrent(  # pylint: disable=too-many-arguments,invalid-name
+	def softwareLicense_createConcurrent(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int | None = None,  # pylint: disable=unused-argument
-		boundToHost: str | None = None,  # pylint: disable=unused-argument
-		expirationDate: str | None = None,  # pylint: disable=unused-argument
+		id: str,
+		licenseContractId: str,
+		maxInstallations: int | None = None,
+		boundToHost: str | None = None,
+		expirationDate: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

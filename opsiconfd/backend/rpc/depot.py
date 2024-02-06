@@ -7,7 +7,7 @@
 """
 opsiconfd.backend.rpc.depot
 """
-# pylint: disable=too-many-lines
+
 
 from __future__ import annotations
 
@@ -73,7 +73,7 @@ from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
 # deprecated can be used in extension config files
-from . import rpc_method  # pylint: disable=unused-import
+from . import rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -113,7 +113,7 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 		with open(script_path, "rb") as file:
 			data = file.read()
 		if data.startswith(b"#!"):
-			new_data = re.sub(rb"(^|\s|/)python3?(\s+)", rb"\g<1>opsi-python\g<2>", data)  # pylint: disable=anomalous-backslash-in-string
+			new_data = re.sub(rb"(^|\s|/)python3?(\s+)", rb"\g<1>opsi-python\g<2>", data)
 			if b"\r\n" in data:
 				logger.info("Replacing dos line breaks in %s", script_path.name)
 				new_data = new_data.replace(b"\r\n", b"\n")
@@ -198,23 +198,23 @@ class TransferSlot:
 		return cls(depot_id=depot_id, host_id=host_id, slot_id=slot_id, slot_type=TransferSlotType(slot_type))
 
 
-class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
+class RPCDepotserverMixin(Protocol):
 	ssh_rsa_public_key_file: str = "/etc/ssh/ssh_host_rsa_key.pub"
 	_package_manager: DepotserverPackageManager | None
 
 	def __init__(self: BackendProtocol) -> None:
-		if self.host_getIdents(id=self._depot_id):  # pylint: disable=maybe-no-member
+		if self.host_getIdents(id=self._depot_id):
 			self._package_manager = DepotserverPackageManager(self, self._depot_id)
 		else:
 			logger.info("Depot %r not found in backend", self._depot_id)
 			self._package_manager = None  # type: ignore[assignment]
 
 	@rpc_method
-	def depot_getHostRSAPublicKey(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
+	def depot_getHostRSAPublicKey(self: BackendProtocol) -> str:
 		return Path(self.ssh_rsa_public_key_file).read_text(encoding="utf-8")
 
 	@rpc_method
-	def depot_getMD5Sum(self: BackendProtocol, filename: str, forceCalculation: bool = False) -> str:  # pylint: disable=invalid-name
+	def depot_getMD5Sum(self: BackendProtocol, filename: str, forceCalculation: bool = False) -> str:
 		"""
 		This method calculates the md5-sum of a file.
 		:param filename: File to compute checksum for.
@@ -241,19 +241,19 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise BackendIOError(f"Failed to get get_file_md5sum: {err}") from err
 
 	@rpc_method
-	def depot_librsyncSignature(self: BackendProtocol, filename: str) -> str:  # pylint: disable=invalid-name
+	def depot_librsyncSignature(self: BackendProtocol, filename: str) -> str:
 		try:
-			# pylint: disable=import-outside-toplevel
+
 			from opsicommon.utils.rsync import librsync_signature
 
 			return librsync_signature(filename)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			raise BackendIOError(f"Failed to get librsync signature: {err}") from err
 
 	@rpc_method
-	def depot_librsyncPatchFile(self: BackendProtocol, oldfile: str, deltafile: str, newfile: str) -> None:  # pylint: disable=invalid-name
+	def depot_librsyncPatchFile(self: BackendProtocol, oldfile: str, deltafile: str, newfile: str) -> None:
 		try:
-			# pylint: disable=import-outside-toplevel
+
 			from opsicommon.utils.rsync import librsync_patch_file
 
 			return librsync_patch_file(oldfile, deltafile, newfile)
@@ -261,11 +261,11 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise BackendIOError(f"Failed to patch file: {err}") from err
 
 	@rpc_method
-	def depot_librsyncDeltaFile(  # pylint: disable=invalid-name
+	def depot_librsyncDeltaFile(
 		self: BackendProtocol, filename: str, signature: str, deltafile: str
 	) -> None:
 		try:
-			# pylint: disable=import-outside-toplevel
+
 			from opsicommon.utils.rsync import librsync_delta_file
 
 			# json serialisation cannot handle bytes, expecting base64 encoded string here
@@ -275,14 +275,14 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise BackendIOError(f"Failed to create librsync delta file: {err}") from err
 
 	@rpc_method
-	def depot_getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, float]:  # pylint: disable=invalid-name
+	def depot_getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, float]:
 		try:
 			return get_disk_usage(path).as_dict()
 		except Exception as err:
 			raise BackendIOError("Failed to get disk space usage: {err}") from err
 
 	@rpc_method
-	def depot_installPackage(  # pylint: disable=invalid-name,too-many-arguments
+	def depot_installPackage(
 		self: BackendProtocol,
 		filename: str,
 		force: bool = False,
@@ -308,7 +308,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			)
 
 	@rpc_method
-	def depot_uninstallPackage(  # pylint: disable=invalid-name
+	def depot_uninstallPackage(
 		self: BackendProtocol, productId: str, force: bool = False, deleteFiles: bool = True
 	) -> None:
 		if not self._package_manager:
@@ -317,7 +317,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self._package_manager.uninstall_package(productId, force, deleteFiles)
 
 	@rpc_method
-	def depot_createPackageContentFile(self: BackendProtocol, productId: str) -> None:  # pylint: disable=invalid-name
+	def depot_createPackageContentFile(self: BackendProtocol, productId: str) -> None:
 		"""
 		Create a package content file in the products depot directory.
 		An existing file will be overriden.
@@ -333,7 +333,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			os.chmod(package_content_path, 0o660)
 
 	@rpc_method
-	def depot_createMd5SumFile(self: BackendProtocol, filename: str, get_file_md5sumFilename: str) -> None:  # pylint: disable=invalid-name
+	def depot_createMd5SumFile(self: BackendProtocol, filename: str, get_file_md5sumFilename: str) -> None:
 		if not os.path.exists(filename):
 			raise BackendIOError(f"File not found: {filename}")
 		logger.info("Creating get_file_md5sum file '%s'", get_file_md5sumFilename)
@@ -343,7 +343,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			os.chmod(get_file_md5sumFilename, 0o660)
 
 	@rpc_method
-	def depot_createZsyncFile(self: BackendProtocol, filename: str, zsyncFilename: str) -> None:  # pylint: disable=invalid-name
+	def depot_createZsyncFile(self: BackendProtocol, filename: str, zsyncFilename: str) -> None:
 		if not os.path.exists(filename):
 			raise BackendIOError(f"File not found: {filename}")
 		logger.info("Creating zsync file '%s'", zsyncFilename)
@@ -353,7 +353,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			os.chmod(zsyncFilename, 0o660)
 
 	@rpc_method(check_acl=False)
-	def depot_acquireTransferSlot(  # pylint: disable=invalid-name
+	def depot_acquireTransferSlot(
 		self: BackendProtocol,
 		depot: str,
 		host: str,
@@ -413,7 +413,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			return slot
 
 	@rpc_method(check_acl=False)
-	def depot_releaseTransferSlot(  # pylint: disable=invalid-name
+	def depot_releaseTransferSlot(
 		self: BackendProtocol,
 		depot: str,
 		host: str,
@@ -445,7 +445,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			redis_client().unlink(TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type).redis_key)
 
 	@rpc_method
-	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:  # pylint: disable=invalid-name
+	def depot_listTransferSlot(self: BackendProtocol, depot: str) -> list[TransferSlot]:
 		"""
 		List all reserved TransferSlots of depot.
 
@@ -467,7 +467,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		return slots
 
 	@rpc_method
-	def workbench_buildPackage(self: BackendProtocol, package_dir: str) -> str:  # pylint: disable=invalid-name
+	def workbench_buildPackage(self: BackendProtocol, package_dir: str) -> str:
 		"""
 		Creates an opsi package from an opsi package source directory.
 		The function creates an opsi, md5 and zsync file in the source directory.
@@ -496,12 +496,12 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 				try:
 					os.chown(file, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 					os.chmod(file, 0o660)
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.warning(err)
 		return str(package_file)
 
 	@rpc_method
-	def workbench_installPackage(self: BackendProtocol, package_file_or_dir: str) -> None:  # pylint: disable=invalid-name
+	def workbench_installPackage(self: BackendProtocol, package_file_or_dir: str) -> None:
 		"""
 		Install an opsi package into the repository.
 		If the path points to an opsi source directory,
@@ -519,7 +519,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self.depot_installPackage(str(package_path))
 
 	@rpc_method
-	def network_sendBroadcast(  # pylint: disable=invalid-name
+	def network_sendBroadcast(
 		self: BackendProtocol, broadcast_address: str, ports: list[int], data: str
 	) -> None:
 		logger.debug("Sending data to network broadcast %s %s [%s]", broadcast_address, ports, data)
@@ -540,7 +540,7 @@ class DepotserverPackageManager:
 		self.backend = backend
 		self._depot_id = depot_id
 
-	def install_package(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+	def install_package(
 		self,
 		filename: str,
 		force: bool = False,
@@ -635,7 +635,7 @@ class DepotserverPackageManager:
 			if delete_products:
 				self.backend.product_deleteObjects(delete_products)
 
-		def clean_up_product_property_states(  # pylint: disable=too-many-locals
+		def clean_up_product_property_states(
 			product_properties: list[ProductProperty], depot_id: str, product_on_depot: ProductOnDepot
 		) -> None:
 			product_properties_to_cleanup = {}
@@ -644,7 +644,7 @@ class DepotserverPackageManager:
 					continue
 				product_properties_to_cleanup[product_property.propertyId] = product_property
 
-			if product_properties_to_cleanup:  # pylint: disable=too-many-nested-blocks
+			if product_properties_to_cleanup:
 				client_ids = set(
 					client_to_depot["clientId"] for client_to_depot in self.backend.configState_getClientToDepotserver(depotIds=depot_id)
 				)
@@ -761,7 +761,7 @@ class DepotserverPackageManager:
 						product_on_depot = self.backend.productOnDepot_getObjects(depotId=self._depot_id, productId=product_id)[0]
 						old_product_version = product_on_depot.getProductVersion()
 						old_package_version = product_on_depot.getPackageVersion()
-					except Exception as err:  # pylint: disable=broad-except
+					except Exception as err:
 						logger.debug(err)
 
 					logger.info("Creating product in backend")
@@ -882,7 +882,7 @@ class DepotserverPackageManager:
 								if product_property_state.propertyId in property_default_values:
 									try:
 										product_property_state.setValues(property_default_values[product_property_state.propertyId])
-									except Exception as err:  # pylint: disable=broad-except
+									except Exception as err:
 										logger.error(
 											"Failed to set default values to %s for productPropertyState %s: %s",
 											property_default_values[product_property_state.propertyId],
@@ -907,19 +907,19 @@ class DepotserverPackageManager:
 			logger.error(err, exc_info=True)
 			raise BackendError(f"Failed to install package '{filename}' on depot '{self._depot_id}': {err}") from err
 
-	def uninstall_package(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+	def uninstall_package(
 		self, product_id: str, force: bool = False, delete_files: bool = True
 	) -> None:
 		logger.info("=================================================================================================")
 		logger.notice("Uninstalling product '%s' on depot '%s'", product_id, self._depot_id)
-		try:  # pylint: disable=too-many-nested-blocks
+		try:
 			product_id = typeForceProductId(product_id)
 			force = forceBool(force)
 			delete_files = forceBool(delete_files)
 			allow_remove_used = True
 			try:
 				allow_remove_used = forceBool(
-					self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[0]  # pylint: disable=maybe-no-member
+					self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[0]
 				)
 			except IndexError:
 				pass
@@ -1000,7 +1000,7 @@ class DepotserverPackageManager:
 		for dependency in opsi_package.package_dependencies:
 			product_on_depots = self.backend.productOnDepot_getObjects(
 				depotId=self._depot_id,
-				productId=dependency.package,  # pylint: disable=protected-access
+				productId=dependency.package,
 			)
 			if not product_on_depots:
 				raise BackendUnaccomplishableError(f"Dependent package '{dependency.package}' not installed")

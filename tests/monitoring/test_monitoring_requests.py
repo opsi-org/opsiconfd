@@ -20,11 +20,11 @@ from opsiconfd.application.monitoring.utils import get_workers
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import async_redis_client
-from tests.monitoring.test_monitoring import (  # pylint: disable=unused-import
+from tests.monitoring.test_monitoring import (  # noqa: F401
 	MONITORING_CHECK_DAYS,
 	create_check_data,
 )
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
@@ -54,8 +54,8 @@ from tests.utils import (  # pylint: disable=unused-import
 		),
 	],
 )
-def test_check_product_status_none(  # pylint: disable=redefined-outer-name,too-many-arguments
-	test_client: OpsiconfdTestClient, config: Config, product_ids: list[str], verbose: bool, strict: bool, expected_result: Any
+def test_check_product_status_none(
+	test_client: OpsiconfdTestClient, config: Config, product_ids: list[str], verbose: bool, strict: bool, expected_result: Any  # noqa: F811  # noqa: F811
 ) -> None:
 	data = json.dumps(
 		{
@@ -135,8 +135,8 @@ def test_check_product_status_none(  # pylint: disable=redefined-outer-name,too-
 		),
 	],
 )
-def test_check_product_status_not_none(  # pylint: disable=redefined-outer-name,too-many-arguments
-	test_client: OpsiconfdTestClient, config: Config, products: list[str], verbose: bool, strict: bool, expected_result: Any
+def test_check_product_status_not_none(
+	test_client: OpsiconfdTestClient, config: Config, products: list[str], verbose: bool, strict: bool, expected_result: Any  # noqa: F811  # noqa: F811
 ) -> None:
 	data = json.dumps(
 		{
@@ -207,13 +207,13 @@ def test_check_product_status_not_none(  # pylint: disable=redefined-outer-name,
 					"For product 'pytest-prod-2' problems found on 1 clients!\n"
 				),
 				"state": 2,
-			},  # pylint: disable=too-many-arguments
+			},
 		),
 	],
 )
-def test_check_product_status_groupids(  # pylint: disable=redefined-outer-name,too-many-arguments
-	test_client: OpsiconfdTestClient,
-	config: Config,
+def test_check_product_status_groupids(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 	products: list[str],
 	group: list[str],
 	verbose: bool,
@@ -276,10 +276,10 @@ def test_check_product_status_groupids(  # pylint: disable=redefined-outer-name,
 	],
 )
 def test_check_product_status_short(
-	test_client: OpsiconfdTestClient,
-	config: Config,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 	product: str,
-	expected_result: Any,  # pylint: disable=redefined-outer-name
+	expected_result: Any,
 ) -> None:
 	data = json.dumps(
 		{
@@ -399,8 +399,8 @@ def test_check_product_status_short(
 		),
 	],
 )
-def test_check_client_status(  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient, config: Config, client: str, exclude: list[str], expected_result: Any
+def test_check_client_status(
+	test_client: OpsiconfdTestClient, config: Config, client: str, exclude: list[str], expected_result: Any  # noqa: F811  # noqa: F811
 ) -> None:
 	data = json.dumps(
 		{
@@ -524,13 +524,13 @@ def test_check_client_status(  # pylint: disable=redefined-outer-name
 					f"{get_depotserver_id()} (1.0-1) \n"
 				),
 				"state": 1,
-			},  # pylint: disable=too-many-arguments
+			},
 		),
 	],
 )
-def test_check_depot_sync_status(  # pylint: disable=too-many-arguments,redefined-outer-name
-	test_client: OpsiconfdTestClient,
-	config: Config,
+def test_check_depot_sync_status(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 	depot_ids: list[str],
 	product_ids: list[str],
 	exclude: list[str],
@@ -572,14 +572,14 @@ def test_check_depot_sync_status(  # pylint: disable=too-many-arguments,redefine
 			None,
 			False,
 			99,
-			{"message": "CRITICAL: CPU-Usage over 70%", "state": 2},  # pylint: disable=too-many-arguments
+			{"message": "CRITICAL: CPU-Usage over 70%", "state": 2},
 		),
 	],
 )
-async def test_check_opsi_webservice_cpu(  # pylint: disable=too-many-arguments,redefined-outer-name
-	worker_state: Any,  # pylint: disable=unused-argument
-	test_client: OpsiconfdTestClient,
-	config: Config,
+async def test_check_opsi_webservice_cpu(
+	worker_state: Any,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 	cpu_thresholds: dict[str, int],
 	error_thresholds: dict[str, int],
 	perfdata: bool,

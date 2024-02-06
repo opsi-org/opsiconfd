@@ -405,7 +405,7 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 	"additional_certs",
 	([], [GLOBALSIGN_ROOT_CA], [GLOBALSIGN_ROOT_CA, DIGICERT_GLOBAL_ROOT_CA]),
 )
-def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:  # pylint: disable=too-many-statements
+def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	ssl_ca_cert_bak = tmpdir / "opsi-ca-cert.pem.bak"

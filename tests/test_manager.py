@@ -23,7 +23,7 @@ import pytest
 
 from opsiconfd.manager import Manager, WorkerManager, WorkerState
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	UnprotectedBackend,
 	backend,
 	get_config,
@@ -32,7 +32,7 @@ from .utils import (  # pylint: disable=unused-import
 
 
 @contextmanager
-def run_manager() -> Generator[Manager, None, None]:  # pylint: disable=redefined-outer-name
+def run_manager() -> Generator[Manager, None, None]:
 	with (
 		patch("opsiconfd.manager.WorkerManager.run", lambda *args, **kwargs: None),
 		patch("opsiconfd.manager.init_logging", lambda *args, **kwargs: None),
@@ -48,7 +48,7 @@ def run_manager() -> Generator[Manager, None, None]:  # pylint: disable=redefine
 			man.stop()
 
 
-def test_manager_signals() -> None:  # pylint: disable=redefined-outer-name
+def test_manager_signals() -> None:
 	# signal_handler is replaced in conftest
 	with run_manager() as manager:
 		test_reload = False
@@ -59,12 +59,12 @@ def test_manager_signals() -> None:  # pylint: disable=redefined-outer-name
 
 		setattr(manager, "reload", reload)
 
-		manager._last_reload = 0  # pylint: disable=protected-access
+		manager._last_reload = 0
 		manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
 		assert test_reload is True
 
 		test_reload = False
-		manager._last_reload = int(time.time())  # pylint: disable=protected-access
+		manager._last_reload = int(time.time())
 		manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
 		assert test_reload is False
 
@@ -74,22 +74,22 @@ def test_manager_signals() -> None:  # pylint: disable=redefined-outer-name
 			nonlocal test_stop
 			test_stop = "force" if force else "normal"
 
-		setattr(manager._worker_manager, "stop", stop)  # pylint: disable=protected-access
+		setattr(manager._worker_manager, "stop", stop)
 		manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
-		assert manager._should_stop is True  # pylint: disable=protected-access
+		assert manager._should_stop is True
 		assert test_stop == "normal"
 		time.sleep(0.1)
 		manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
-		assert manager._should_stop is True  # pylint: disable=protected-access
+		assert manager._should_stop is True
 		assert test_stop == "force"
 
 
 @pytest.mark.parametrize("cert_changed", (False, True))
-def test_check_server_cert(cert_changed: bool) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_check_server_cert(cert_changed: bool) -> None:
 	with run_manager():
 		test_restarted = False
 
-		def restart_workers(self: WorkerManager) -> None:  # pylint: disable=unused-argument
+		def restart_workers(self: WorkerManager) -> None:
 			nonlocal test_restarted
 			test_restarted = True
 
@@ -190,7 +190,7 @@ def test_worker_manager_and_workers() -> None:
 			worker_manager_thread.join()
 
 
-def test_check_modules(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_check_modules(backend: UnprotectedBackend) -> None:  # noqa: F811
 	scalability_available = "scalability1" in backend.backend_getLicensingInfo()["available_modules"]
 	with get_config({"port": 4444, "workers": 2, "log_mode": "local"}) as config:
 		worker_manager = WorkerManager()

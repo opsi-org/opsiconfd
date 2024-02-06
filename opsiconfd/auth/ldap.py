@@ -87,7 +87,7 @@ class LDAPAuthentication(AuthenticationModule):
 			logger.info("LDAP authentication failed for user '%s'", username, exc_info=True)
 			raise BackendAuthenticationError(f"LDAP authentication failed for user '{username}': {err}") from err
 
-	def get_groupnames(self, username: str) -> set[str]:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+	def get_groupnames(self, username: str) -> set[str]:
 		groupnames = set()
 		if not self._ldap:
 			raise RuntimeError("Failed to get groupnames, not connected to ldap")
@@ -173,5 +173,5 @@ class LDAPAuthentication(AuthenticationModule):
 		if self._ldap:
 			try:
 				self._ldap.unbind()
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.warning(err)

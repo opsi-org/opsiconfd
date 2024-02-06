@@ -182,10 +182,10 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 }
 
 
-class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
-	def __init__(  # pylint: disable=too-many-arguments
+class GrafanaPanelConfig:
+	def __init__(
 		self,
-		type: str = "graph",  # pylint: disable=redefined-builtin
+		type: str = "graph",
 		title: str = "",
 		units: list[str] | None = None,
 		decimals: int = 0,
@@ -236,7 +236,7 @@ def grafana_is_local() -> bool:
 	return True
 
 
-class HTTPBearerAuth(AuthBase):  # pylint: disable=too-few-public-methods
+class HTTPBearerAuth(AuthBase):
 	def __init__(self, token: str) -> None:
 		self.token = token
 
@@ -299,7 +299,7 @@ async def async_grafana_admin_session() -> AsyncGenerator[tuple[str, aiohttp.Cli
 		yield (base_url, session)
 
 
-def setup_grafana() -> None:  # pylint: disable=too-many-branches
+def setup_grafana() -> None:
 	logger.info("Setup grafana")
 
 	if not grafana_is_local():

@@ -188,7 +188,7 @@ def cleanup_log_files() -> None:
 			elif os.path.isfile(file) and os.path.getmtime(file) < min_mtime:
 				logger.info("Deleting old log file: %s", file)
 				os.remove(file)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning(err)
 
 	for link in links:
@@ -196,5 +196,5 @@ def cleanup_log_files() -> None:
 			dst = os.path.realpath(link)
 			if not os.path.exists(dst):
 				os.unlink(link)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning(err)

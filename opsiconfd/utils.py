@@ -44,27 +44,27 @@ from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
 from opsicommon.types import forceString, forceStringLower
 from starlette.routing import Route
 
-logger: OPSILogger | None = None  # pylint: disable=invalid-name
-config = None  # pylint: disable=invalid-name
+logger: OPSILogger | None = None
+config = None
 if TYPE_CHECKING:
 	from config import Config  # type: ignore[import]
 
-	config: "Config" | None = None  # type: ignore[no-redef]  # pylint: disable=invalid-name
+	config: "Config" | None = None  # type: ignore[no-redef]
 
 
 def get_logger() -> OPSILogger:
-	global logger  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
+	global logger
 	if not logger:
-		from .logging import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .logging import (
 			logger,
 		)
 	return logger  # type: ignore[return-value]
 
 
 def get_config() -> Config:
-	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
+	global config
 	if not config:
-		from .config import (  # type: ignore[assignment]  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .config import (  # type: ignore[assignment]
 			config,
 		)
 	return config
@@ -94,7 +94,7 @@ def running_in_docker() -> bool:
 			return "kthreadd" not in file.read()
 	except FileNotFoundError:
 		return True
-	except Exception:  # pylint: disable=broad-exception-caught
+	except Exception:
 		pass
 	return False
 
@@ -432,7 +432,7 @@ def ldap3_uri_to_str(ldap_url: dict) -> str:
 _NODENAME_REGEX = re.compile(r"^[a-z0-9][a-z0-9\-_]*$")
 
 
-def forceNodename(var: Any) -> str:  # pylint: disable=invalid-name
+def forceNodename(var: Any) -> str:
 	var = forceStringLower(var)
 	if not _NODENAME_REGEX.search(var):
 		raise ValueError(f"Bad nodename: '{var}'")

@@ -254,7 +254,7 @@ def load_local_server_cert() -> x509.Certificate:
 	return load_cert(config.ssl_server_cert)
 
 
-def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:  # pylint: disable=too-many-locals
+def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
 	ca_key = load_ca_key()
 	ca_cert = load_ca_cert()
 	domain = get_domain()
@@ -277,7 +277,7 @@ def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.
 
 def depotserver_setup_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
-	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert())  # pylint: disable=no-member
+	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert())
 	store_ca_cert(ca_crt)
 	install_ca(ca_crt)
 	return False
@@ -296,7 +296,7 @@ def get_ca_subject() -> dict[str, str]:
 	}
 
 
-def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
+def configserver_setup_ca() -> bool:
 	logger.info("Checking CA")
 
 	create = False
@@ -317,10 +317,10 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 			try:
 				cur_ca_crt = load_ca_cert()
 				is_intermediate_ca = not is_self_signed(cur_ca_crt)
-			except Exception as err_cert:  # pylint: disable=broad-except
+			except Exception as err_cert:
 				logger.warning("Failed to load CA cert (%s), creating new CA cert", err_cert)
 				renew = True
-		except Exception as err_key:  # pylint: disable=broad-except
+		except Exception as err_key:
 			logger.warning("Failed to load CA key (%s), creating new CA key and cert", err_key)
 			create = True
 
@@ -364,7 +364,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 						os.remove(backup)
 					shutil.copy(filename, backup)
 					os.chmod(backup, 0o600)
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.error("Failed to create backup of %r: %s", filename, err)
 
 	if create or renew:
@@ -373,7 +373,7 @@ def configserver_setup_ca() -> bool:  # pylint: disable=too-many-branches
 		if os.path.exists(config.ssl_ca_cert):
 			try:
 				current_ca_subject = x509_name_to_dict(load_ca_cert().subject)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error("Failed to load CA cert: %s", err, exc_info=True)
 
 		if current_ca_subject and ca_subject != current_ca_subject:
@@ -436,7 +436,7 @@ def get_trusted_certs() -> list[x509.Certificate]:
 			for match in finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", file.read(), DOTALL):
 				try:
 					ca_certs.append(x509.load_pem_x509_certificate(match.group(1).encode("ascii")))
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.error("Failed to load certificate from %r: %s", config.ssl_trusted_certs, err, exc_info=True)
 	return ca_certs
 
@@ -452,7 +452,7 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 				cert.verify_directly_issued_by(icert)
 				issuer_cert = icert
 				break
-			except Exception:  # pylint: disable=broad-exception-caught
+			except Exception:
 				continue
 	if not issuer_cert:
 		raise verification.VerificationError("Failed to verify certificate")
@@ -504,7 +504,7 @@ def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
 	return True
 
 
-def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def setup_server_cert(force_new: bool = False) -> bool:
 	logger.info("Checking server cert")
 	server_role = get_server_role()
 	if server_role not in ("configserver", "depotserver"):
@@ -527,7 +527,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 		os.remove(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem"))
 
 	server_cn = get_server_cn()
-	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):  # pylint: disable=too-many-nested-blocks
+	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
 		create = True
 
 	srv_key = None
@@ -538,7 +538,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 		except PermissionError as err:
 			logger.error(err, exc_info=True)
 			raise
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning("Failed to load server key (%s), creating new server cert", err)
 			create = True
 
@@ -548,7 +548,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 		except PermissionError as err:
 			logger.error(err, exc_info=True)
 			raise
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning("Failed to load server cert (%s), creating new server cert", err)
 			create = True
 
@@ -610,7 +610,7 @@ def setup_server_cert(force_new: bool = False) -> bool:  # pylint: disable=too-m
 			for attempt in (1, 2, 3, 4, 5):
 				try:
 					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
-					pem = get_unprotected_backend().host_getTLSCertificate(get_depotserver_id())  # pylint: disable=no-member
+					pem = get_unprotected_backend().host_getTLSCertificate(get_depotserver_id())
 					break
 				except RequestsConnectionError as err:
 					if attempt == 5:

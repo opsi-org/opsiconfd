@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def check_client_status(
 	backend: Backend, client_id: str, exclude_product_list: list[str] | None = None
 ) -> JSONResponse:
 	state = State.OK
@@ -30,7 +30,7 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 	if not client_id:
 		raise ValueError("Failed to check: ClientId is needed for checkClientStatus")
 
-	client_obj = backend.host_getObjects(id=client_id)  # pylint: disable=protected-access
+	client_obj = backend.host_getObjects(id=client_id)
 
 	if not client_obj:
 		state = State.UNKNOWN

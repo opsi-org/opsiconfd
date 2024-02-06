@@ -86,7 +86,7 @@ async def messagebroker_index() -> HTMLResponse:
 
 
 @messagebus_router.websocket_route("/v1")
-class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instance-attributes
+class MessagebusWebsocket(WebSocketEndpoint):
 	encoding = "bytes"
 	_update_session_interval = 30.0
 
@@ -155,7 +155,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 						update_session_time = now
 						await self.scope["session"].update_messagebus_last_used()
 				await sleep(1.0)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
 	async def message_reader_task(self, websocket: WebSocket, reader: MessageReader) -> None:
@@ -169,10 +169,10 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					await reader.ack_message(message.channel, redis_id)
 		except StopAsyncIteration:
 			pass
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
-	def _check_channel_access(self, channel: str, operation: Literal["read", "write"]) -> bool:  # pylint: disable=too-many-return-statements
+	def _check_channel_access(self, channel: str, operation: Literal["read", "write"]) -> bool:
 		if operation not in ("read", "write"):
 			raise ValueError(f"Invalid channel operation {operation!r}")
 
@@ -201,7 +201,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				channels[channel] = reader
 		return channels
 
-	async def _process_channel_subscription(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	async def _process_channel_subscription(
 		self, websocket: WebSocket, channels: list[str], message: ChannelSubscriptionRequestMessage | None = None
 	) -> None:
 		subsciption_event = ChannelSubscriptionEventMessage(
@@ -289,7 +289,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					# Check for exact class (ConsumerGroupMessageReader is subclass of MessageReader)
 					r
 					for r in self._messagebus_reader
-					if type(r) == MessageReader  # pylint: disable=unidiomatic-typecheck
+					if type(r) == MessageReader
 				]
 				if msr:
 					await msr[0].add_channels(message_reader_channels)  # type: ignore[arg-type]
@@ -381,7 +381,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 				await send_message(message, self.scope["session"].serialize())
 
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning(err, exc_info=True)
 			await self._send_message_to_websocket(
 				websocket,
@@ -397,7 +397,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				),
 			)
 
-	async def on_connect(self, websocket: WebSocket) -> None:  # pylint: disable=arguments-differ
+	async def on_connect(self, websocket: WebSocket) -> None:
 		logger.info("Websocket client connected to messagebus")
 		session: OPSISession = self.scope["session"]
 
@@ -441,12 +441,12 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 		await send_message(event)
 
-	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
+	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		logger.info("Websocket client disconnected from messagebus")
 		for reader in self._messagebus_reader:
 			try:
 				await reader.stop(wait=False)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 
 		session: OPSISession = self.scope["session"]

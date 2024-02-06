@@ -80,7 +80,7 @@ class ActionGroup:
 	dependencies: dict[str, list[ProductDependency]] = field(default_factory=dict)
 	sort_log: list[str] = field(default_factory=list)
 
-	def sort(self) -> None:  # pylint: disable=too-many-branches
+	def sort(self) -> None:
 		logger.debug("Sort actions by priority and productId")
 		self.actions.sort(key=lambda a: (a.priority * -1, a.product_id))
 		prods = [f"{a.product_id}({a.priority})" for a in self.actions]
@@ -164,7 +164,7 @@ class Action:
 
 
 class RPCProductDependencyMixin(Protocol):
-	def get_product_action_groups(  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
+	def get_product_action_groups(
 		self: BackendProtocol,
 		product_on_clients: list[ProductOnClient],
 		*,
@@ -270,7 +270,7 @@ class RPCProductDependencyMixin(Protocol):
 			product_id_groups: list[set[str]] = field(default_factory=list)
 			dependencies: dict[str, list[ProductDependency]] = field(default_factory=lambda: defaultdict(list))
 
-			def process_dependencies(  # pylint: disable=too-many-arguments,too-many-branches
+			def process_dependencies(
 				self,
 				action: Action,
 				dependency_path: list[str] | None = None,
@@ -341,7 +341,7 @@ class RPCProductDependencyMixin(Protocol):
 
 					required_action = dependency.requiredAction
 					if not required_action:
-						if (  # pylint: disable=too-many-boolean-expressions
+						if (
 							dependency.requiredInstallationStatus == dep_poc.installationStatus
 							and (
 								not dependency.requiredProductVersion
@@ -493,37 +493,37 @@ class RPCProductDependencyMixin(Protocol):
 		prefix = re.sub(r"[\s\./]", "_", f"{prefix}{client_id}-{now}-")
 		with tempfile.NamedTemporaryFile(delete=False, dir=PROD_DEP_DEBUG_DIR, prefix=prefix, suffix=".log") as log_file:
 			logger.notice("Writing product action group debug log to: %s", log_file.name)
-			log_file.write(msgspec.json.encode([g.serialize() for g in product_action_groups]))  # pylint: disable=no-member
+			log_file.write(msgspec.json.encode([g.serialize() for g in product_action_groups]))
 			os.chmod(log_file.name, 0o666)
 
-	def productDependency_bulkInsertObjects(  # pylint: disable=invalid-name
+	def productDependency_bulkInsertObjects(
 		self: BackendProtocol,
-		productDependencies: list[dict] | list[ProductDependency],  # pylint: disable=invalid-name
+		productDependencies: list[dict] | list[ProductDependency],
 	) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_DEPENDENCY", objs=productDependencies)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_insertObject(  # pylint: disable=invalid-name
+	def productDependency_insertObject(
 		self: BackendProtocol,
-		productDependency: dict | ProductDependency,  # pylint: disable=invalid-name
+		productDependency: dict | ProductDependency,
 	) -> None:
 		ace = self._get_ace("productDependency_insertObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_updateObject(  # pylint: disable=invalid-name
+	def productDependency_updateObject(
 		self: BackendProtocol,
-		productDependency: dict | ProductDependency,  # pylint: disable=invalid-name
+		productDependency: dict | ProductDependency,
 	) -> None:
 		ace = self._get_ace("productDependency_updateObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_createObjects(  # pylint: disable=invalid-name
+	def productDependency_createObjects(
 		self: BackendProtocol,
-		productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency,  # pylint: disable=invalid-name
+		productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency,
 	) -> None:
 		ace = self._get_ace("productDependency_createObjects")
 		with self._mysql.session() as session:
@@ -534,9 +534,9 @@ class RPCProductDependencyMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_updateObjects(  # pylint: disable=invalid-name
+	def productDependency_updateObjects(
 		self: BackendProtocol,
-		productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency,  # pylint: disable=invalid-name
+		productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency,
 	) -> None:
 		ace = self._get_ace("productDependency_updateObjects")
 		with self._mysql.session() as session:
@@ -547,7 +547,7 @@ class RPCProductDependencyMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def productDependency_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def productDependency_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -558,7 +558,7 @@ class RPCProductDependencyMixin(Protocol):
 		)
 
 	@rpc_method(deprecated=True, alternative_method="productDependency_getObjects", check_acl=False)
-	def productDependency_getHashes(  # pylint: disable=invalid-name,redefined-builtin
+	def productDependency_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -569,7 +569,7 @@ class RPCProductDependencyMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def productDependency_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def productDependency_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -580,7 +580,7 @@ class RPCProductDependencyMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_deleteObjects(  # pylint: disable=invalid-name
+	def productDependency_deleteObjects(
 		self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency
 	) -> None:
 		if not productDependencies:
@@ -589,25 +589,25 @@ class RPCProductDependencyMixin(Protocol):
 		self._mysql.delete_objects(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, obj=productDependencies, ace=ace)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def productDependency_create(  # pylint: disable=too-many-arguments,invalid-name
+	def productDependency_create(
 		self: BackendProtocol,
-		productId: str,  # pylint: disable=unused-argument
-		productVersion: str,  # pylint: disable=unused-argument
-		packageVersion: str,  # pylint: disable=unused-argument
-		productAction: str,  # pylint: disable=unused-argument
-		requiredProductId: str | None = None,  # pylint: disable=unused-argument
-		requiredProductVersion: str | None = None,  # pylint: disable=unused-argument
-		requiredPackageVersion: str | None = None,  # pylint: disable=unused-argument
-		requiredAction: str | None = None,  # pylint: disable=unused-argument
-		requiredInstallationStatus: str | None = None,  # pylint: disable=unused-argument
-		requirementType: str | None = None,  # pylint: disable=unused-argument
+		productId: str,
+		productVersion: str,
+		packageVersion: str,
+		productAction: str,
+		requiredProductId: str | None = None,
+		requiredProductVersion: str | None = None,
+		requiredPackageVersion: str | None = None,
+		requiredAction: str | None = None,
+		requiredInstallationStatus: str | None = None,
+		requirementType: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.productDependency_createObjects(ProductDependency.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productDependency_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
+	def productDependency_delete(
 		self: BackendProtocol,
 		productId: list[str] | str,
 		productVersion: list[str] | str,
@@ -627,7 +627,7 @@ class RPCProductDependencyMixin(Protocol):
 			self.productDependency_deleteObjects(idents)
 
 	@rpc_method(check_acl=False, use_cache="product_ordering")
-	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
+	def getProductOrdering(
 		self: BackendProtocol, depotId: str, sortAlgorithm: str | None = None
 	) -> dict[str, list]:
 		if sortAlgorithm and sortAlgorithm != "algorithm1":

@@ -97,7 +97,7 @@ def health_check_main() -> None:
 	sys.exit(console_health_check())
 
 
-def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-statements
+def backup_main() -> None:
 	if config.delete_locks:
 		delete_locks()
 
@@ -187,7 +187,7 @@ def backup_main() -> None:  # pylint: disable=too-many-branches,too-many-stateme
 		console.quiet = False
 		console.print("[bold red]Backup interrupted[/bold red]")
 		sys.exit(2)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
 		baf = f" '{str(backup_file)}'" if backup_file else ""
@@ -225,7 +225,7 @@ def backup_info_main() -> None:
 		console.quiet = False
 		console.print("[bold red]Backup info interrupted[/bold red]")
 		sys.exit(2)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
 		baf = f" from '{str(backup_file)}'" if backup_file else ""
@@ -299,7 +299,7 @@ def restore_main() -> None:
 		console.quiet = False
 		console.print("[bold red]Restore interrupted[/bold red]")
 		sys.exit(2)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False
 		baf = f" from '{str(backup_file)}'" if backup_file else ""
@@ -308,7 +308,7 @@ def restore_main() -> None:
 	sys.exit(0)
 
 
-def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-branches
+def opsiconfd_main() -> None:
 	manager_pid = get_manager_pid(ignore_self=True)
 	if config.action == "start" and manager_pid:
 		raise RuntimeError(f"Opsiconfd manager process already running (pid {manager_pid})")
@@ -343,7 +343,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 	gc.set_threshold(*GC_THRESHOLDS)
 
 	stdin = None
-	try:  # pylint: disable=too-many-nested-blocks
+	try:
 		# Test if redis connection available
 		logger.info("Testing redis connection (timeout: %d)", REDIS_CONECTION_TIMEOUT)
 		redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True)
@@ -373,13 +373,13 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)
 				os.environ["HOME"] = user.pw_dir
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				raise RuntimeError(f"Failed to run as user '{config.run_as_user}': {err}") from err
 
 		# Subprocesses will inherit file descriptors
 		# Redirectring sys.stdin to prevent S_ISFIFO(stdin) to return true
 		# This is important for subprocesses like opsi-package postinst scripts
-		stdin = open(os.devnull, "rb")  # pylint: disable=consider-using-with
+		stdin = open(os.devnull, "rb")
 		os.dup2(stdin.fileno(), sys.stdin.fileno())
 
 		# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
@@ -400,7 +400,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 				thread.join(1)
 
 
-def main() -> None:  # pylint: disable=too-many-return-statements
+def main() -> None:
 	patch_popen()
 	configure_warnings()
 

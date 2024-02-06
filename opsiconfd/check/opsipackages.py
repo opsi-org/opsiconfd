@@ -44,7 +44,7 @@ def get_available_product_versions(product_ids: list[str]) -> dict:
 	return available_packages
 
 
-def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def check_product_on_depots() -> CheckResult:
 	"""
 	## Products on depots
 
@@ -143,7 +143,7 @@ def check_product_on_depots() -> CheckResult:  # pylint: disable=too-many-locals
 	return result
 
 
-def check_product_on_clients() -> CheckResult:  # pylint: disable=too-many-locals,too-many-branches
+def check_product_on_clients() -> CheckResult:
 	"""
 	## Products on clients
 

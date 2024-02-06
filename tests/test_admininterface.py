@@ -25,8 +25,8 @@ from opsiconfd.addon.manager import AddonManager
 from opsiconfd.config import FQDN
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 
-from .test_addon_manager import cleanup  # pylint: disable=unused-import
-from .utils import (  # pylint: disable=unused-import
+from .test_addon_manager import cleanup  # noqa: F401
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
@@ -44,7 +44,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def set_failed_auth_and_blocked(conf: Config, ip_address: str) -> None:  # pylint: disable=redefined-outer-name
+def set_failed_auth_and_blocked(conf: Config, ip_address: str) -> None:
 	redis = redis_client()
 	ip_address_redis = ip_address_to_redis_key(ip_address)
 	redis.execute_command(
@@ -72,14 +72,14 @@ def call_rpc(client: OpsiconfdTestClient, rpc_request_data: list, expect_error: 
 @pytest.fixture(name="admininterface")
 def fixture_admininterface(monkeypatch: Any) -> ModuleType:
 	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
-	import opsiconfd.application.admininterface as ai  # pylint: disable=import-outside-toplevel
+	import opsiconfd.application.admininterface as ai
 
 	return ai
 
 
-def test_unblock_all_request(  # pylint: disable=redefined-outer-name,unused-argument
-	test_client: OpsiconfdTestClient,
-	config: Config,
+def test_unblock_all_request(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 ) -> None:
 	redis = redis_client()
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
@@ -94,7 +94,7 @@ def test_unblock_all_request(  # pylint: disable=redefined-outer-name,unused-arg
 		assert not val
 
 
-async def test_unblock_all(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+async def test_unblock_all(config: Config, admininterface: ModuleType) -> None:  # noqa: F811
 	redis = redis_client()
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 
@@ -114,9 +114,9 @@ async def test_unblock_all(config: Config, admininterface: ModuleType) -> None: 
 		assert not val
 
 
-def test_unblock_client_request(  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,
-	test_client: OpsiconfdTestClient,
+def test_unblock_client_request(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	redis = redis_client()
 	test_ip = "192.168.1.2"
@@ -128,7 +128,7 @@ def test_unblock_client_request(  # pylint: disable=redefined-outer-name,unused-
 	assert not val
 
 
-async def test_unblock_client(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+async def test_unblock_client(config: Config, admininterface: ModuleType) -> None:  # noqa: F811
 	redis = redis_client()
 	test_ip = "192.168.1.2"
 	set_failed_auth_and_blocked(config, test_ip)
@@ -136,9 +136,9 @@ async def test_unblock_client(config: Config, admininterface: ModuleType) -> Non
 	headers = Headers()
 	scope = {"method": "GET", "type": "http", "headers": headers}
 	test_request = Request(scope=scope)
-	test_request._json = {"client_addr": test_ip}  # pylint: disable=protected-access
+	test_request._json = {"client_addr": test_ip}
 	body = f'{{"client_addr":"{config.external_url}"}}'
-	test_request._body = body.encode()  # pylint: disable=protected-access
+	test_request._body = body.encode()
 
 	response = await admininterface.unblock_client(test_request)
 	response_dict = json.loads(response.body)
@@ -149,9 +149,9 @@ async def test_unblock_client(config: Config, admininterface: ModuleType) -> Non
 	assert not val
 
 
-def test_unblock_client_exception(  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,
-	test_client: OpsiconfdTestClient,
+def test_unblock_client_exception(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_ip = "192.168.1.2"
 	set_failed_auth_and_blocked(config, test_ip)
@@ -162,9 +162,9 @@ def test_unblock_client_exception(  # pylint: disable=redefined-outer-name,unuse
 	assert val
 
 
-def test_unblock_all_exception(  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,
-	test_client: OpsiconfdTestClient,
+def test_unblock_all_exception(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
@@ -175,8 +175,8 @@ def test_unblock_all_exception(  # pylint: disable=redefined-outer-name,unused-a
 		assert res.status_code == 500
 
 
-def test_get_rpc_list_request(  # pylint: disable=redefined-outer-name,unused-argument
-	test_client: OpsiconfdTestClient,
+def test_get_rpc_list_request(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for _ in range(3):
@@ -190,8 +190,8 @@ def test_get_rpc_list_request(  # pylint: disable=redefined-outer-name,unused-ar
 		assert result[idx].get("params") == 1
 
 
-def test_get_blocked_clients_request(  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config, test_client: OpsiconfdTestClient
+def test_get_blocked_clients_request(
+	config: Config, test_client: OpsiconfdTestClient  # noqa: F811  # noqa: F811
 ) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
@@ -202,8 +202,8 @@ def test_get_blocked_clients_request(  # pylint: disable=redefined-outer-name,un
 	assert sorted(res.json()) == sorted(addresses)
 
 
-async def test_get_blocked_clients(  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,
+async def test_get_blocked_clients(
+	config: Config,  # noqa: F811
 	admininterface: ModuleType,
 ) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
@@ -215,8 +215,8 @@ async def test_get_blocked_clients(  # pylint: disable=redefined-outer-name,unus
 
 
 @pytest.mark.parametrize("num_rpcs", [1, 3, 5])
-async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient, admininterface: ModuleType, num_rpcs: int
+async def test_get_rpc_list(
+	test_client: OpsiconfdTestClient, admininterface: ModuleType, num_rpcs: int  # noqa: F811
 ) -> None:
 	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for _ in range(num_rpcs):
@@ -244,9 +244,9 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 		({"client_addr": "192.168.2.1"}, [200, None, "192.168.2.1", 0]),
 		(None, [500, {"message": "client_addr missing"}, None, 1]),
 	],
-)  # pylint: disable=too-many-locals
-async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
-	config: Config, admininterface: ModuleType, test_client: OpsiconfdTestClient, rpc_request_data: Any, expected_response: Any
+)
+async def test_delete_client_sessions(
+	config: Config, admininterface: ModuleType, test_client: OpsiconfdTestClient, rpc_request_data: Any, expected_response: Any  # noqa: F811  # noqa: F811
 ) -> None:
 	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
@@ -268,9 +268,9 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 	headers = Headers()
 	scope = {"method": "GET", "type": "http", "headers": headers}
 	test_request = Request(scope=scope)
-	test_request._json = rpc_request_data  # pylint: disable=protected-access
+	test_request._json = rpc_request_data
 	body = f"{rpc_request_data}"
-	test_request._body = body.encode()  # pylint: disable=protected-access
+	test_request._body = body.encode()
 
 	response = await admininterface.delete_client_sessions(test_request)
 
@@ -288,7 +288,7 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 		assert len(response_dict.get("redis-keys")) == expected_response[3]
 
 
-def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
+def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:  # noqa: F811  # noqa: F811
 	async def create_dashboard_user() -> tuple[str, str]:
 		return "", ""
 
@@ -319,14 +319,14 @@ def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:
 			assert response.headers.get("location") == "/grafana-proxy/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 
-def test_get_num_servers(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_num_servers(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert admininterface.get_num_servers() == 1
 	with depot_jsonrpc(test_client, "", "test-depot.uib.local"):
 		assert admininterface.get_num_servers() == 2
 	assert admininterface.get_num_servers() == 1
 
 
-def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert admininterface.get_num_clients() == 0
 	with (
 		client_jsonrpc(test_client, "", "test-client1.uib.local"),
@@ -337,7 +337,7 @@ def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestC
 	assert admininterface.get_num_clients() == 0
 
 
-async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for _ in range(10):
 			await run_in_threadpool(
@@ -351,7 +351,7 @@ async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylin
 		assert res.json() == {"rpc_count": 10}
 
 
-def test_get_session_list(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
+def test_get_session_list(test_client: OpsiconfdTestClient, config: Config) -> None:  # noqa: F811  # noqa: F811
 	addr = test_client.get_client_address()
 	res = test_client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
@@ -373,7 +373,7 @@ def test_get_session_list(test_client: OpsiconfdTestClient, config: Config) -> N
 		assert body[_idx].get("max_age") == config.session_lifetime
 
 
-def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811  # noqa: F811
 	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
@@ -402,7 +402,7 @@ def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBa
 		assert locked_products == {products[0]: [test_depots[1]], products[1]: test_depots}
 
 
-def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811  # noqa: F811
 	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
@@ -430,9 +430,9 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Unprotec
 		assert locked_products == {}
 
 
-def test_get_locked_products_list(  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient,
-	backend: UnprotectedBackend,
+def test_get_locked_products_list(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
@@ -456,7 +456,7 @@ def test_get_locked_products_list(  # pylint: disable=redefined-outer-name
 		assert result.json() == {products[0]: test_depots, products[1]: test_depots}
 
 
-def test_get_addon_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_addon_list(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	print(response.json())
@@ -465,8 +465,8 @@ def test_get_addon_list(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	assert len(response.json()) == len(addons)
 
 
-def test_get_routes(  # pylint: disable=redefined-outer-name, unused-argument
-	config: Config, test_client: OpsiconfdTestClient, cleanup: Callable
+def test_get_routes(
+	config: Config, test_client: OpsiconfdTestClient, cleanup: Callable  # noqa: F811  # noqa: F811  # noqa: F811
 ) -> None:
 	# uses clean up from addon manager test (auto run is true)
 	response = test_client.get("/admin/routes", auth=(ADMIN_USER, ADMIN_PASS))
@@ -526,7 +526,7 @@ def test_get_routes(  # pylint: disable=redefined-outer-name, unused-argument
 	addon_manager.unload_addon("test1")
 
 
-def test_licensing_info(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_licensing_info(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	response = test_client.get("/admin/licensing_info", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	lic_data = response.json()
@@ -538,7 +538,7 @@ def test_licensing_info(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 		assert isinstance(lic_data.get("info").get(clients), int)
 
 
-def test_welcome_page(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_welcome_page(config: Config, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
 	res = test_client.get("/welcome", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert "<h1>Welcome to opsi!</h1>" in res.content.decode("utf8")

@@ -20,7 +20,7 @@ from typing import Any, Callable, Optional
 import msgspec
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict  # pylint: disable=no-name-in-module
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import asc, column, desc  # type: ignore[import]
 from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
 from starlette.datastructures import URL, MutableHeaders
@@ -30,7 +30,7 @@ from opsiconfd.application.utils import parse_list
 from opsiconfd.logging import logger
 
 
-class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-methods
+class RestApiValidationError(BaseModel):
 	class_value: str = "RequestValidationError"
 	message: str
 	status: int = 422
@@ -59,7 +59,7 @@ class OpsiApiException(Exception):
 		super().__init__(self.message)
 
 
-class RESTResponse(Response):  # pylint: disable=too-few-public-methods, too-many-instance-attributes
+class RESTResponse(Response):
 	def __init__(
 		self,
 		data: None | int | str | list | dict = None,
@@ -136,7 +136,7 @@ class RESTErrorResponse(RESTResponse):
 		code: str | None = None,
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
 		headers: dict | None = None,
-	):  # pylint: disable=too-many-arguments
+	):
 		if isinstance(details, Exception):
 			error_class = details.__class__.__name__
 			details = str(details)
@@ -181,21 +181,21 @@ def pagination(query: SQLQuery, params: dict[str, Any]) -> SQLQuery:
 
 
 def common_parameters(
-	filterQuery: Optional[str] = Body(default=None, embed=True),  # pylint: disable=invalid-name
-	pageNumber: Optional[int] = Body(default=1, embed=True),  # pylint: disable=invalid-name
-	perPage: Optional[int] = Body(default=20, embed=True),  # pylint: disable=invalid-name
-	sortBy: Optional[list[str]] = Body(default=None, embed=True),  # pylint: disable=invalid-name
-	sortDesc: Optional[bool] = Body(default=True, embed=True),  # pylint: disable=invalid-name
+	filterQuery: Optional[str] = Body(default=None, embed=True),
+	pageNumber: Optional[int] = Body(default=1, embed=True),
+	perPage: Optional[int] = Body(default=20, embed=True),
+	sortBy: Optional[list[str]] = Body(default=None, embed=True),
+	sortDesc: Optional[bool] = Body(default=True, embed=True),
 ) -> dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": sortBy, "sortDesc": sortDesc}
 
 
 def common_query_parameters(
-	filterQuery: Optional[str] = Query(default=None, embed=True),  # pylint: disable=invalid-name
-	pageNumber: Optional[int] = Query(default=1, embed=True),  # pylint: disable=invalid-name
-	perPage: Optional[int] = Query(default=20, embed=True),  # pylint: disable=invalid-name
-	sortBy: Optional[list[str]] = Query(default=None, embed=True),  # pylint: disable=invalid-name
-	sortDesc: Optional[bool] = Query(default=True, embed=True),  # pylint: disable=invalid-name
+	filterQuery: Optional[str] = Query(default=None, embed=True),
+	pageNumber: Optional[int] = Query(default=1, embed=True),
+	perPage: Optional[int] = Query(default=20, embed=True),
+	sortBy: Optional[list[str]] = Query(default=None, embed=True),
+	sortDesc: Optional[bool] = Query(default=True, embed=True),
 ) -> dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
@@ -216,14 +216,14 @@ def create_link_header(total: int, commons: dict[str, Any], url: URL) -> dict:
 	return headers
 
 
-def rest_api(default_error_status_code: Callable | int | None = None) -> Callable:  # pylint: disable=too-many-statements
+def rest_api(default_error_status_code: Callable | int | None = None) -> Callable:
 	_func = None
 	if callable(default_error_status_code):
 		# Decorator used as @rest_api not @rest_api(...)
 		_func = default_error_status_code
 		default_error_status_code = None
 
-	def decorator(func: Callable) -> Callable:  # pylint: disable=too-many-statements
+	def decorator(func: Callable) -> Callable:
 		name = func.__qualname__
 
 		async def exec_func(func: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -232,16 +232,16 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 			return func(*args, **kwargs)
 
 		@wraps(func)
-		async def create_response(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+		async def create_response(
 			*args: Any, **kwargs: Any
 		) -> JSONResponse:
 			logger.debug("rest_api method name: %s", name)
 			content = None
 			http_status = status.HTTP_200_OK
-			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
+			try:
 				result = await exec_func(func, *args, **kwargs)
 				headers = {}
-				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return
+				if isinstance(result, RESTResponse):
 					if result.total and kwargs.get("request"):
 						headers = create_link_header(result.total, kwargs.get("commons", {}), kwargs["request"].url)
 						result.headers.update(headers)
@@ -261,7 +261,7 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 					content = result
 				return JSONResponse(content=content, status_code=http_status, headers=headers)
 
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 				content = {}
 				if isinstance(err, OpsiApiException):

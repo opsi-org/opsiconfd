@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol
 
 
-class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
+class RPCExtWIMMixin(Protocol):
 	def _wim_get_product_property(self: BackendProtocol, product_id: str, property_id: str) -> ProductProperty:
 		product_filter = {"productId": product_id, "propertyId": property_id}
 		properties = self.productProperty_getObjects(**product_filter)
@@ -107,7 +107,7 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 			logger.notice("Wrote languages to property %r of product %r.", product_property.propertyId, product_property.productId)
 
 	@rpc_method(check_acl=False)
-	def updateWIMConfig(self: BackendProtocol, productId: str) -> None:  # pylint: disable=invalid-name
+	def updateWIMConfig(self: BackendProtocol, productId: str) -> None:
 		"""
 		Update the configuration of a Windows netboot product based on the information in it's install.wim.
 
@@ -141,7 +141,7 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self.updateWIMConfigFromPath(wim_path, product_id)
 
 	@rpc_method(check_acl=False)
-	def updateWIMConfigFromPath(self: BackendProtocol, path: str, targetProductId: str) -> None:  # pylint: disable=invalid-name
+	def updateWIMConfigFromPath(self: BackendProtocol, path: str, targetProductId: str) -> None:
 		"""
 		Update the configuration of `targetProductId` based on the information in the install.wim at the given `path`.
 

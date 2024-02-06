@@ -42,7 +42,7 @@ def setup_limits() -> None:
 			soft_limit = 10000
 			resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, max(hard_limit, soft_limit)))
 			(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning("Failed to set RLIMIT_NOFILE: %s", err)
 	logger.info("Maximum number of open file descriptors: %s", soft_limit)
 
@@ -82,7 +82,7 @@ def setup_users_and_groups() -> None:
 	if user and user.pw_dir != OPSICONFD_HOME:
 		try:
 			modify_user(username=config.run_as_user, home=OPSICONFD_HOME)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning(
 				"Failed to change home directory of user %r (%s). Should be %r but is %r, please change manually.",
 				config.run_as_user,
@@ -106,7 +106,7 @@ def setup_users_and_groups() -> None:
 			if groupname == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
 				try:
 					set_primary_group(user.pw_name, opsi_config.get("groups", "fileadmingroup"))
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					# Could be a user in active directory / ldap
 					logger.debug(
 						"Failed to set primary group of %s to %s: %s", user.pw_name, opsi_config.get("groups", "fileadmingroup"), err
@@ -118,14 +118,14 @@ def setup_users_and_groups() -> None:
 	if server_role != "configserver":
 		return
 
-	# pylint: disable=import-outside-toplevel
+
 	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()
 	username = opsi_config.get("depot_user", "username")
 	try:
 		backend.user_getCredentials(username)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning("Failed to get credentials for user %s: %s, setting new random password", username, err)
 		backend.user_setCredentials(
 			username, get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")

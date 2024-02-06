@@ -45,7 +45,7 @@ def _get_windows_domain() -> str | None:
 			match = re.search(r"SID for local machine (\S+) is", out, flags=re.IGNORECASE)
 		if match:
 			return match.group(1)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.info("Could not get domain: %s", err)
 	return None
 
@@ -96,11 +96,11 @@ def _cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
 			backend.productOnClient_updateObjects(pocs)
 
 
-def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-branches
+def setup_configs() -> None:
 	if get_server_role() != "configserver":
 		return
 
-	# pylint: disable=import-outside-toplevel
+
 	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()
@@ -114,7 +114,7 @@ def setup_configs() -> None:  # pylint: disable=too-many-statements,too-many-bra
 
 	try:
 		_auto_correct_depot_urls(backend)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Failed to auto-correct depot URLs: %s", err)
 	_cleanup_product_on_clients(backend)
 

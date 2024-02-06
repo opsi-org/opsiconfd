@@ -13,7 +13,7 @@ import time
 from fastapi import status
 
 from opsiconfd.config import get_configserver_id
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -25,20 +25,20 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-def test_redis_command(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_redis_command(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.post("/redis-interface", auth=(ADMIN_USER, ADMIN_PASS), json={"cmd": "ping"})
 	res.raise_for_status()
 	assert res.json() == {"result": True}
 
 
-def test_redis_stats(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_redis_stats(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/redis-interface/redis-stats", auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
 	assert res.status_code == 200
 	assert res.json()["key_info"]
 
 
-def test_clear_rpc_cache(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_clear_rpc_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	products = get_dummy_products(10)
 	depot_id = "test-depot.uib.local"
 	configserver = get_configserver_id()

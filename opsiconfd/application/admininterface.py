@@ -190,7 +190,7 @@ async def unblock_all_clients() -> RESTResponse:
 	try:
 		result = await _unblock_all_clients()
 		return RESTResponse(result)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Error while removing redis client keys: %s", err)
 		return RESTErrorResponse(message="Error while removing redis client keys", details=err)
 
@@ -218,7 +218,7 @@ async def unblock_client(request: Request) -> RESTResponse:
 		client_addr = request_body.get("client_addr")
 		result = await _unblock_client(client_addr)
 		return RESTResponse(result)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Error while removing redis client keys: %s", err)
 		return RESTErrorResponse(message="Error while removing redis client keys.", details=err)
 
@@ -426,7 +426,7 @@ async def update_multi_factor_auth(request: Request) -> RESTResponse:
 @rest_api
 async def get_locked_products_list() -> RESTResponse:
 	backend = get_unprotected_backend()
-	products = await run_in_threadpool(backend.getProductLocks_hash)  # pylint: disable=no-member
+	products = await run_in_threadpool(backend.getProductLocks_hash)
 	return RESTResponse(products)
 
 
@@ -454,7 +454,7 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 	try:
 		await _unlock_products([product], depot_ids)
 		return RESTResponse({"product": product, "action": "unlock"})
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Error while removing redis session keys: %s", err)
 		return RESTErrorResponse(
 			message="Error while unlocking product",
@@ -469,7 +469,7 @@ async def unlock_all_products() -> RESTResponse:
 	try:
 		await _unlock_products()
 		return RESTResponse()
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Error while removing redis session keys: %s", err)
 		return RESTErrorResponse(message="Error while unlocking products", details=err)
 
@@ -524,7 +524,7 @@ async def open_grafana(request: Request) -> RedirectResponse:
 				else:
 					logger.error("Failed to get grafana_session cookie")
 
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error(err, exc_info=True)
 
 	return redirect_response
@@ -532,7 +532,7 @@ async def open_grafana(request: Request) -> RedirectResponse:
 
 @admin_interface_router.get("/config")
 @rest_api
-def get_confd_conf(all: bool = False) -> RESTResponse:  # pylint: disable=redefined-builtin
+def get_confd_conf(all: bool = False) -> RESTResponse:
 	keys_to_remove = (
 		"version",
 		"setup",
@@ -561,7 +561,7 @@ def get_confd_conf(all: bool = False) -> RESTResponse:  # pylint: disable=redefi
 
 @admin_interface_router.get("/routes")
 @rest_api
-def get_routes(request: Request) -> RESTResponse:  # pylint: disable=redefined-builtin
+def get_routes(request: Request) -> RESTResponse:
 	app = request.app
 	routes = {}
 	for route in app.routes:
@@ -581,7 +581,7 @@ def get_routes(request: Request) -> RESTResponse:  # pylint: disable=redefined-b
 @admin_interface_router.get("/licensing_info")
 @rest_api
 def get_licensing_info() -> RESTResponse:
-	info = get_unprotected_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
+	info = get_unprotected_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)
 	active_date = None
 	modules: dict[str, dict] = {}
 	previous: dict[str, dict] = {}
@@ -641,7 +641,7 @@ async def license_upload(files: list[UploadFile]) -> RESTResponse:
 			olf.write()
 			os.chmod(olf.filename, 0o660)
 		return RESTResponse(data=f"{len(files)} opsi license files imported", http_status=status.HTTP_201_CREATED)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning(err, exc_info=True)
 		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Invalid license file.", details=err)
 

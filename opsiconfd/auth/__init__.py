@@ -10,8 +10,6 @@ opsiconfd.auth
 
 from __future__ import annotations
 
-from typing import Set
-
 from opsicommon.exceptions import BackendAuthenticationError  # type: ignore[import]
 
 from ..config import opsi_config
@@ -24,7 +22,7 @@ class AuthenticationModule:
 	def authenticate(self, username: str, password: str) -> None:
 		raise BackendAuthenticationError("Not implemented")
 
-	def get_groupnames(self, username: str) -> set[str]:  # pylint: disable=unused-argument
+	def get_groupnames(self, username: str) -> set[str]:
 		return set()
 
 	def get_admin_groupname(self) -> str:

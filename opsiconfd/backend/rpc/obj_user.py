@@ -45,26 +45,26 @@ def is_local_user(username: str) -> bool:
 
 
 class RPCUserMixin(Protocol):
-	def user_bulkInsertObjects(  # pylint: disable=invalid-name
+	def user_bulkInsertObjects(
 		self: BackendProtocol,
-		users: list[dict] | list[User],  # pylint: disable=invalid-name
+		users: list[dict] | list[User],
 	) -> None:
 		self._mysql.bulk_insert_objects(table="USER", objs=users)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def user_insertObject(self: BackendProtocol, user: dict | User) -> None:  # pylint: disable=invalid-name  # pylint: disable=invalid-name
+	def user_insertObject(self: BackendProtocol, user: dict | User) -> None:
 		ace = self._get_ace("user_insertObject")
 		self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def user_updateObject(self: BackendProtocol, user: dict | User) -> None:  # pylint: disable=invalid-name  # pylint: disable=invalid-name
+	def user_updateObject(self: BackendProtocol, user: dict | User) -> None:
 		ace = self._get_ace("user_updateObject")
 		self._mysql.insert_object(table="USER", obj=user, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def user_createObjects(  # pylint: disable=invalid-name
+	def user_createObjects(
 		self: BackendProtocol,
-		users: list[dict] | list[User] | dict | User,  # pylint: disable=invalid-name
+		users: list[dict] | list[User] | dict | User,
 	) -> None:
 		ace = self._get_ace("user_createObjects")
 		with self._mysql.session() as session:
@@ -72,9 +72,9 @@ class RPCUserMixin(Protocol):
 				self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
-	def user_updateObjects(  # pylint: disable=invalid-name
+	def user_updateObjects(
 		self: BackendProtocol,
-		users: list[dict] | list[User] | dict | User,  # pylint: disable=invalid-name
+		users: list[dict] | list[User] | dict | User,
 	) -> None:
 		ace = self._get_ace("user_updateObjects")
 		with self._mysql.session() as session:
@@ -82,7 +82,7 @@ class RPCUserMixin(Protocol):
 				self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
-	def user_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def user_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -91,7 +91,7 @@ class RPCUserMixin(Protocol):
 		return self._mysql.get_objects(table="USER", ace=ace, object_type=User, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def user_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def user_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -100,20 +100,20 @@ class RPCUserMixin(Protocol):
 		return self._mysql.get_idents(table="USER", object_type=User, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def user_deleteObjects(self: BackendProtocol, users: list[dict] | list[User] | dict | User) -> None:  # pylint: disable=invalid-name
+	def user_deleteObjects(self: BackendProtocol, users: list[dict] | list[User] | dict | User) -> None:
 		if not users:
 			return
 		ace = self._get_ace("user_deleteObjects")
 		self._mysql.delete_objects(table="USER", object_type=User, obj=users, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def user_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def user_delete(self: BackendProtocol, id: list[str] | str) -> None:
 		idents = self.user_getIdents(returnType="dict", id=id)
 		if idents:
 			self.user_deleteObjects(idents)
 
 	@rpc_method
-	def user_updateMultiFactorAuth(  # pylint: disable=invalid-name,redefined-builtin
+	def user_updateMultiFactorAuth(
 		self: BackendProtocol, userId: str, type: str = "totp", returnType: str = "uri"
 	) -> str:
 		"""
@@ -168,7 +168,7 @@ class RPCUserMixin(Protocol):
 		raise ValueError(f"Invalid returnType {returnType}")
 
 	@rpc_method
-	def user_getCredentials(  # pylint: disable=invalid-name
+	def user_getCredentials(
 		self: BackendProtocol, username: str | None = None, hostId: str | None = None
 	) -> dict[str, str]:
 		"""
@@ -212,7 +212,7 @@ class RPCUserMixin(Protocol):
 				id_rsa = os.path.join(pwd.getpwnam(username)[5], ".ssh", "id_rsa")
 				with open(id_rsa, encoding="utf-8") as file:
 					result["rsaPrivateKey"] = file.read()
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.debug(err)
 
 		if hostId:
@@ -229,7 +229,7 @@ class RPCUserMixin(Protocol):
 		return result
 
 	@rpc_method
-	def user_setCredentials(  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+	def user_setCredentials(
 		self: BackendProtocol, username: str, password: str
 	) -> None:
 		"""
@@ -323,7 +323,7 @@ class RPCUserMixin(Protocol):
 				logger.debug("Executing: %s", cmd)
 				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
 				logger.debug(out)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err)
 			return
 
@@ -341,7 +341,7 @@ class RPCUserMixin(Protocol):
 			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
 			logger.debug(out)
 			password_set = True
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.debug("Setting password using smbldap failed: %s", err)
 
 		if not password_set:
@@ -356,7 +356,7 @@ class RPCUserMixin(Protocol):
 				inp = f"{username}:{password}\n"
 				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
 				logger.debug(out)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.debug("Setting password using chpasswd failed: %s", err)
 
 			try:
@@ -365,5 +365,5 @@ class RPCUserMixin(Protocol):
 				inp = f"{password}\n{password}\n"
 				out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
 				logger.debug(out)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.debug("Setting password using smbpasswd failed: %s", err)

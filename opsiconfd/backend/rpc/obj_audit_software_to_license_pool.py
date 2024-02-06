@@ -21,15 +21,15 @@ if TYPE_CHECKING:
 
 
 class RPCAuditSoftwareToLicensePoolMixin(Protocol):
-	def auditSoftwareToLicensePool_bulkInsertObjects(  # pylint: disable=invalid-name
+	def auditSoftwareToLicensePool_bulkInsertObjects(
 		self: BackendProtocol, auditSoftwareToLicensePools: list[dict] | list[AuditSoftwareToLicensePool]
 	) -> None:
 		self._mysql.bulk_insert_objects(table="AUDIT_SOFTWARE_TO_LICENSE_POOL", objs=auditSoftwareToLicensePools)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_insertObject(  # pylint: disable=invalid-name
+	def auditSoftwareToLicensePool_insertObject(
 		self: BackendProtocol,
-		auditSoftwareToLicensePool: dict | AuditSoftwareToLicensePool,  # pylint: disable=invalid-name
+		auditSoftwareToLicensePool: dict | AuditSoftwareToLicensePool,
 	) -> None:
 		ace = self._get_ace("auditSoftwareToLicensePool_insertObject")
 		self._mysql.insert_object(
@@ -37,7 +37,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_updateObject(  # pylint: disable=invalid-name
+	def auditSoftwareToLicensePool_updateObject(
 		self: BackendProtocol, auditSoftwareToLicensePool: dict | AuditSoftwareToLicensePool
 	) -> None:
 		ace = self._get_ace("auditSoftwareToLicensePool_updateObject")
@@ -46,7 +46,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_createObjects(  # pylint: disable=invalid-name
+	def auditSoftwareToLicensePool_createObjects(
 		self: BackendProtocol,
 		auditSoftwareToLicensePools: list[dict] | list[AuditSoftwareToLicensePool] | dict | AuditSoftwareToLicensePool,
 	) -> None:
@@ -63,7 +63,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_updateObjects(  # pylint: disable=invalid-name
+	def auditSoftwareToLicensePool_updateObjects(
 		self: BackendProtocol,
 		auditSoftwareToLicensePools: list[dict] | list[AuditSoftwareToLicensePool] | dict | AuditSoftwareToLicensePool,
 	) -> None:
@@ -80,7 +80,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def auditSoftwareToLicensePool_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -91,7 +91,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareToLicensePool_getObjects", check_acl=False)
-	def auditSoftwareToLicensePool_getHashes(  # pylint: disable=invalid-name,redefined-builtin
+	def auditSoftwareToLicensePool_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -107,7 +107,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def auditSoftwareToLicensePool_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -118,7 +118,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_deleteObjects(  # pylint: disable=invalid-name
+	def auditSoftwareToLicensePool_deleteObjects(
 		self: BackendProtocol,
 		auditSoftwareToLicensePools: list[dict] | list[AuditSoftwareToLicensePool] | dict | AuditSoftwareToLicensePool,
 	) -> None:
@@ -130,7 +130,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_create(  # pylint: disable=invalid-name,unused-argument,too-many-arguments
+	def auditSoftwareToLicensePool_create(
 		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str, licensePoolId: str
 	) -> None:
 		_hash = locals()
@@ -138,7 +138,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		self.auditSoftwareToLicensePool_createObjects(AuditSoftwareToLicensePool.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
+	def auditSoftwareToLicensePool_delete(
 		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str, licensePoolId: str
 	) -> None:
 		idents = self.auditSoftwareToLicensePool_getIdents(

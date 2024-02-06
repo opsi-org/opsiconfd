@@ -163,11 +163,11 @@ xfs_scrub_all.timer                        disabled        enabled
 		("univention-dhcp@.service", "enabled", "univention-dhcp"),
 		("other.service", "enabled", "dhcpd"),
 	),
-)  # pylint: disable=too-many-locals
+)
 def test_get_dhcpd_service_name(service_name: str, state: str, expected: str) -> None:
 	get_dhcpd_service_name.cache_clear()
 
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = UNIT_FILES_OUT.replace("{{service_name}}", service_name).replace("{{state}}", state)
 
 	with patch("opsiconfd.dhcpd.run", PropertyMock(return_value=Proc())):

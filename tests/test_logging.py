@@ -32,7 +32,7 @@ from opsiconfd.logging import (
 	logger,
 )
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	clean_redis,
 	get_config,
 )
@@ -71,7 +71,7 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 	handled_exception = None
 	handled_record = None
 
-	async def handle_file_handler_error(  # pylint: disable=unused-argument
+	async def handle_file_handler_error(
 		file_handler: AsyncFileHandler,
 		record: LogRecord,
 		exception: Exception,

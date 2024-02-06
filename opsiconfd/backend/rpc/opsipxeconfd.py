@@ -38,7 +38,7 @@ _opsipxeconfd_connection_threads: dict[str, OpsiPXEConfdConnectionThread] = {}
 _opsipxeconfd_connection_threads_lock: Lock = Lock()
 
 
-class OpsiPXEConfdConnection:  # pylint: disable=too-few-public-methods
+class OpsiPXEConfdConnection:
 	def __init__(self, socket_path: str, timeout: int = 60) -> None:
 		self._socket_path = socket_path
 		self._timeout = int(timeout)
@@ -65,7 +65,7 @@ class OpsiPXEConfdConnection:  # pylint: disable=too-few-public-methods
 					logger.trace("Received %s", part)
 					data += part
 				result = data.decode("utf-8")
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				raise RuntimeError(f"Failed to receive: {err}") from err
 
 		if "ERROR" in result:
@@ -92,17 +92,17 @@ class OpsiPXEConfdConnectionThread(Thread):
 			sleep(delay_reduction)
 			self._delay -= delay_reduction
 
-		with _opsipxeconfd_connection_threads_lock:  # pylint: disable=protected-access
+		with _opsipxeconfd_connection_threads_lock:
 			try:
 				logger.info("Updating pxe boot configuration for client %r", self._client_id)
 				con = OpsiPXEConfdConnection(self._socket_path)
 				logger.debug("Sending command %s", self._command)
 				result = con.send_command(self._command)
 				logger.debug("Got result %s", result)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.critical("Failed to update PXE boot configuration for client %r: %s", self._client_id, err)
 			finally:
-				del _opsipxeconfd_connection_threads[self._client_id]  # pylint: disable=protected-access
+				del _opsipxeconfd_connection_threads[self._client_id]
 
 	def update_command(self, command: str) -> None:
 		self._command = command
@@ -110,7 +110,7 @@ class OpsiPXEConfdConnectionThread(Thread):
 		logger.debug("Delay reset for OpsiPXEConfdConnectionThread %s", self._client_id)
 
 
-class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+class RPCOpsiPXEConfdControlMixin(Protocol):
 	_opsipxeconfd_control_enabled: bool = True
 	_opsipxeconfd_control_on_depot: bool = True
 	_opsipxeconfd_control_socket_path: str = "/var/run/opsipxeconfd/opsipxeconfd.socket"
@@ -264,7 +264,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 		self.opsipxeconfd_config_states_updated(config_states)
 
 	@rpc_method
-	def opsipxeconfd_updatePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
+	def opsipxeconfd_updatePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:
 		"""
 		Update the boot configuration of a specific client.
 		This method will relay calls to opsipxeconfd who does the handling.
@@ -274,7 +274,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 		"""
 		self._opsipxeconfd_updatePXEBootConfiguration(client_id)
 
-	def _opsipxeconfd_updatePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
+	def _opsipxeconfd_updatePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:
 		client_id = forceHostId(client_id)
 		logger.debug("Updating PXE boot config of %s", client_id)
 
@@ -282,10 +282,10 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 		self._opsipxeconfd_send_command(client_id, command)
 
 	@rpc_method
-	def opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
+	def opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:
 		self._opsipxeconfd_deletePXEBootConfiguration(client_id)
 
-	def _opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
+	def _opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:
 		client_id = forceHostId(client_id)
 		logger.debug("Deleting PXE boot config of %s", client_id)
 		command = f"remove {client_id}"

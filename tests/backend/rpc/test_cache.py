@@ -18,7 +18,7 @@ from opsiconfd.backend.rpc.cache import (
 	rpc_cache_load,
 	rpc_cache_store,
 )
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	clean_mysql,
 	clean_redis,
@@ -75,7 +75,7 @@ def test_cache_expiration() -> None:
 		assert rpc_cache_load("cache_test", param=True) is None
 
 
-def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	depot_id = "test-product-ordering-depot.uib.gmbh"
 	products = get_dummy_products(100)
 
@@ -117,7 +117,7 @@ def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> Non
 			assert product["id"] not in cached_sorted_products
 
 
-def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	depot_id = "test-product-ordering-depot.uib.gmbh"
 	products = get_dummy_products(100)
 	additional_products = [
@@ -168,7 +168,7 @@ def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> Non
 			assert product["id"] not in result["not_sorted"]
 
 
-def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	depot_id = "test-product-ordering-depot.uib.gmbh"
 	products = [
 		{

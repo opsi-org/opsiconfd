@@ -11,7 +11,7 @@ opsiconfd.backend.rpc
 from __future__ import annotations
 
 from threading import Lock
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 
@@ -22,16 +22,16 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.mysql import MySQLConnection
 	from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 
-protected_backend = None  # pylint: disable=invalid-name
-unprotected_backend = None  # pylint: disable=invalid-name
-service_clients: dict[str, ServiceClient] = {}  # pylint: disable=invalid-name
+protected_backend = None
+unprotected_backend = None
+service_clients: dict[str, ServiceClient] = {}
 service_clients_lock = Lock()
 
 
 def reinit_backend() -> None:
 	stop_service_clients()
-	global protected_backend  # pylint: disable=invalid-name,global-statement
-	global unprotected_backend  # pylint: disable=invalid-name,global-statement
+	global protected_backend
+	global unprotected_backend
 	if protected_backend:
 		protected_backend.reset_singleton()
 		protected_backend = None
@@ -41,9 +41,9 @@ def reinit_backend() -> None:
 
 
 def get_protected_backend() -> ProtectedBackend:
-	global protected_backend  # pylint: disable=invalid-name,global-statement
+	global protected_backend
 	if not protected_backend:
-		from opsiconfd.backend.rpc.main import (  # pylint: disable=import-outside-toplevel
+		from opsiconfd.backend.rpc.main import (
 			ProtectedBackend,
 		)
 
@@ -52,10 +52,10 @@ def get_protected_backend() -> ProtectedBackend:
 
 
 def get_unprotected_backend() -> UnprotectedBackend:
-	global unprotected_backend  # pylint: disable=invalid-name,global-statement
+	global unprotected_backend
 
 	if not unprotected_backend:
-		from opsiconfd.backend.rpc.main import (  # pylint: disable=import-outside-toplevel
+		from opsiconfd.backend.rpc.main import (
 			UnprotectedBackend,
 		)
 
@@ -64,7 +64,7 @@ def get_unprotected_backend() -> UnprotectedBackend:
 
 
 def get_mysql() -> MySQLConnection:
-	return get_unprotected_backend()._mysql  # pylint: disable=protected-access
+	return get_unprotected_backend()._mysql
 
 
 def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
@@ -82,7 +82,7 @@ def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
 def get_service_client(name: str = "") -> ServiceClient:
 	with service_clients_lock:
 		if name not in service_clients:
-			from opsiconfd.worker import Worker  # pylint: disable=import-outside-toplevel
+			from opsiconfd.worker import Worker
 
 			user_agent = f"opsiconfd depotserver {__version__}"
 			try:

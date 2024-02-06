@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
-	def configState_getValues(  # pylint: disable=invalid-name
+	def configState_getValues(
 		self: BackendProtocol,
 		config_ids: list[str] | str | None = None,
 		object_ids: list[str] | str | None = None,
@@ -71,13 +71,13 @@ class RPCConfigStateMixin(Protocol):
 			res[config_state.objectId][config_state.configId] = config_state.values
 		return res
 
-	def configState_bulkInsertObjects(  # pylint: disable=invalid-name
+	def configState_bulkInsertObjects(
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState]
 	) -> None:
 		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
+	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:
 		ace = self._get_ace("configState_insertObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
@@ -88,7 +88,7 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
-	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
+	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObject")
 		configState = forceObjectClass(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
@@ -99,7 +99,7 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
-	def configState_createObjects(  # pylint: disable=invalid-name
+	def configState_createObjects(
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_createObjects")
@@ -116,7 +116,7 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_updateObjects(  # pylint: disable=invalid-name
+	def configState_updateObjects(
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_updateObjects")
@@ -133,14 +133,14 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_getObjects(  # pylint: disable=redefined-builtin,invalid-name
+	def configState_getObjects(
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[ConfigState]:
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace, object_type=ConfigState, attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="configState_getObjects", check_acl=False)
-	def configState_getHashes(  # pylint: disable=redefined-builtin,invalid-name
+	def configState_getHashes(
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:
 		ace = self._get_ace("configState_getObjects")
@@ -149,7 +149,7 @@ class RPCConfigStateMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def configState_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def configState_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -158,7 +158,7 @@ class RPCConfigStateMixin(Protocol):
 		return self._mysql.get_idents(table="CONFIG_STATE", object_type=ConfigState, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def configState_deleteObjects(  # pylint: disable=invalid-name
+	def configState_deleteObjects(
 		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		if not configStates:
@@ -173,7 +173,7 @@ class RPCConfigStateMixin(Protocol):
 		self.opsipxeconfd_config_states_deleted(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_create(  # pylint: disable=invalid-name,unused-argument
+	def configState_create(
 		self: BackendProtocol, configId: str, objectId: str, values: list[Any] | None = None
 	) -> None:
 		_hash = locals()
@@ -181,7 +181,7 @@ class RPCConfigStateMixin(Protocol):
 		self.configState_createObjects(ConfigState.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def configState_delete(  # pylint: disable=redefined-builtin,invalid-name
+	def configState_delete(
 		self: BackendProtocol, configId: list[str] | str, objectId: list[str] | str
 	) -> None:
 		idents = self.configState_getIdents(returnType="dict", configId=configId, objectId=objectId)
@@ -189,12 +189,12 @@ class RPCConfigStateMixin(Protocol):
 			self.configState_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
-	def configState_getClientToDepotserver(  # pylint: disable=invalid-name,too-many-locals,too-many-branches
+	def configState_getClientToDepotserver(
 		self: BackendProtocol,
-		depotIds: list[str] | None = None,  # pylint: disable=invalid-name
-		clientIds: list[str] | None = None,  # pylint: disable=invalid-name
-		masterOnly: bool = True,  # pylint: disable=invalid-name
-		productIds: list[str] | None = None,  # pylint: disable=invalid-name
+		depotIds: list[str] | None = None,
+		clientIds: list[str] | None = None,
+		masterOnly: bool = True,
+		productIds: list[str] | None = None,
 	) -> list[dict[str, Any]]:
 		"""
 		Get a mapping of client and depots.
@@ -262,7 +262,7 @@ class RPCConfigStateMixin(Protocol):
 			return result
 
 		po_depots_by_depot_id_and_product_id: dict[str, dict[str, ProductOnDepot]] = {}
-		for pod in self.productOnDepot_getObjects(productId=productIds):  # pylint: disable=no-member
+		for pod in self.productOnDepot_getObjects(productId=productIds):
 			try:
 				po_depots_by_depot_id_and_product_id[pod.depotId][pod.productId] = pod
 			except KeyError:

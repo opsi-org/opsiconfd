@@ -18,7 +18,7 @@ class Backend(RPCExtSSHCommandsMixin):
 	pass
 
 
-def test_ssh_commands_file(tmp_path: Path) -> None:  # pylint: disable=too-many-statements
+def test_ssh_commands_file(tmp_path: Path) -> None:
 	ssh_commands_default_file = tmp_path / "server_commands_default.conf"
 	ssh_commands_custom_file = tmp_path / "server_commands_custom.conf"
 	ssh_commands_default_file.write_text(
@@ -45,7 +45,7 @@ def test_ssh_commands_file(tmp_path: Path) -> None:  # pylint: disable=too-many-
 		"opsiconfd.backend.rpc.ext_ssh_commands.RPCExtSSHCommandsMixin.ssh_commands_default_file", str(ssh_commands_default_file)
 	), patch("opsiconfd.backend.rpc.ext_ssh_commands.RPCExtSSHCommandsMixin.ssh_commands_custom_file", str(ssh_commands_custom_file)):
 		backend = Backend()
-		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_default_file))  # type: ignore[misc]  # pylint: disable=protected-access
+		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_default_file))  # type: ignore[misc]
 		assert len(cmd_list) == 2
 
 		assert cmd_list[0].position == 0
@@ -66,7 +66,7 @@ def test_ssh_commands_file(tmp_path: Path) -> None:  # pylint: disable=too-many-
 		assert cmd_list[1].id == "whoami"
 		assert cmd_list[1].buildIn is True
 
-		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # type: ignore[misc]  # pylint: disable=protected-access
+		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # type: ignore[misc]
 		assert len(cmd_list) == 2
 
 		assert cmd_list[0].position == 3
@@ -87,7 +87,7 @@ def test_ssh_commands_file(tmp_path: Path) -> None:  # pylint: disable=too-many-
 		assert cmd_list[1].id == "whoami_custom"
 		assert cmd_list[1].buildIn is False
 
-		cmd_dict = backend._read_ssh_commands_files()  # type: ignore[misc]  # pylint: disable=protected-access
+		cmd_dict = backend._read_ssh_commands_files()  # type: ignore[misc]
 		assert len(cmd_dict) == 3
 
 		assert cmd_dict["ls workbench"].commands == ["ls -l /var/lib/opsi/custom"]
@@ -98,8 +98,8 @@ def test_ssh_commands_file(tmp_path: Path) -> None:  # pylint: disable=too-many-
 		assert new_cmd.id == "new_1"
 		cmd_dict[new_cmd.menuText] = new_cmd
 
-		backend._write_custom_ssh_command_file(list(cmd_dict.values()))  # pylint: disable=protected-access
-		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # type: ignore[misc]  # pylint: disable=protected-access
+		backend._write_custom_ssh_command_file(list(cmd_dict.values()))
+		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # type: ignore[misc]
 		assert len(cmd_list) == 3
 		_new_cmd = None
 		for cmd in cmd_list:

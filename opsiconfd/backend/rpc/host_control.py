@@ -61,14 +61,14 @@ from opsiconfd.messagebus.redis import (
 )
 from opsiconfd.worker import Worker
 
-from . import read_backend_config_file, rpc_method  # pylint: disable=unused-import
+from . import read_backend_config_file, rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
 
 
-class RpcThread(KillableThread):  # pylint: disable=too-many-instance-attributes
-	def __init__(  # pylint: disable=too-many-arguments
+class RpcThread(KillableThread):
+	def __init__(
 		self,
 		host_id: str,
 		address: str,
@@ -104,17 +104,17 @@ class RpcThread(KillableThread):  # pylint: disable=too-many-instance-attributes
 		self.started = time.time()
 		try:
 			self.result = self.jsonrpc.execute_rpc(self.method, self.params)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			self.error = str(err)
 		finally:
 			try:
 				self.jsonrpc.disconnect()
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.warning("Failed to clean up jsonrpc connection: %s", err, exc_info=True)
 			self.ended = time.time()
 
 
-class ConnectionThread(Thread):  # pylint: disable=too-many-instance-attributes
+class ConnectionThread(Thread):
 	def __init__(self, host_id: str, address: str, host_reachable_timeout: int, opsiclientd_port: int) -> None:
 		Thread.__init__(self)
 		self.daemon = True
@@ -139,12 +139,12 @@ class ConnectionThread(Thread):  # pylint: disable=too-many-instance-attributes
 				sock.shutdown(SHUT_RDWR)
 			finally:
 				sock.close()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.info(err, exc_info=True)
 		self.ended = time.time()
 
 
-class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
+class RPCHostControlMixin(Protocol):
 	_host_control_opsiclientd_port: int = 4441
 	_host_control_host_rpc_timeout: int = 15
 	_host_control_host_reachable_timeout: int = 3
@@ -217,7 +217,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 			raise BackendUnaccomplishableError(f"Failed to get ip address for host '{host.id}'")
 		return address
 
-	async def _messagebus_rpc(  # pylint: disable=too-many-locals
+	async def _messagebus_rpc(
 		self: BackendProtocol, client_ids: list[str], method: str, params: list[Any] | None = None, timeout: float | int | None = None
 	) -> dict[str, dict[str, Any]]:
 		if not timeout:
@@ -286,7 +286,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		return result
 
-	def _opsiclientd_rpc(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	def _opsiclientd_rpc(
 		self: BackendProtocol, host_ids: list[str], method: str, params: list[Any] | None = None, timeout: int | None = None
 	) -> dict[str, dict[str, Any]]:
 		if not host_ids:
@@ -309,7 +309,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 					logger.info("Using port %s for opsiclientd at %s", port, host.id)
 				except IndexError:
 					pass  # No values found
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.warning("Failed to read custom opsiclientd port for %s: %s", host.id, err)
 
 				address = self._get_host_address(host)
@@ -329,11 +329,11 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 						params=params,
 					)
 				)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				result[host.id] = {"result": None, "error": str(err)}
 
 		running_threads = 0
-		while rpcts:  # pylint: disable=too-many-nested-blocks
+		while rpcts:
 			new_rpcts = []
 			for rpct in rpcts:
 				if rpct.ended:
@@ -368,7 +368,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 						if not rpct.ended:
 							try:
 								rpct.terminate()
-							except Exception as err:  # pylint: disable=broad-except
+							except Exception as err:
 								logger.error("Failed to terminate rpc thread: %s", err)
 						running_threads -= 1
 						continue
@@ -378,7 +378,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		return result
 
-	def _get_broadcast_addresses_for_host(self, host: Host) -> Any:  # pylint: disable=inconsistent-return-statements
+	def _get_broadcast_addresses_for_host(self, host: Host) -> Any:
 		if not self._host_control_broadcast_addresses:
 			return []
 
@@ -400,7 +400,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 				yield (broadcast.compressed, ports)
 
 	@rpc_method
-	def hostControl_start(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControl_start(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		"""Switches on remote computers using WOL."""
 		hosts = self.host_getObjects(attributes=["hardwareAddress", "ipAddress"], id=hostIds or [])
 		result = {}
@@ -435,13 +435,13 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 						self.network_sendBroadcast(broadcast_address, target_ports, str_payload)
 
 				result[host.id] = {"result": "sent", "error": None}
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.debug(err, exc_info=True)
 				result[host.id] = {"result": None, "error": str(err)}
 		return result
 
 	@rpc_method
-	async def hostControl_shutdown(  # pylint: disable=invalid-name
+	async def hostControl_shutdown(
 		self: BackendProtocol, hostIds: list[str] | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -455,7 +455,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="shutdown", params=[])
 
 	@rpc_method
-	async def hostControl_reboot(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:  # pylint: disable=invalid-name
+	async def hostControl_reboot(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No host ids given")
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
@@ -467,10 +467,10 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="reboot", params=[])
 
 	@rpc_method
-	async def hostControl_fireEvent(  # pylint: disable=invalid-name
+	async def hostControl_fireEvent(
 		self: BackendProtocol,
 		event: str,
-		hostIds: list[str] | None = None,  # pylint: disable=invalid-name
+		hostIds: list[str] | None = None,
 	) -> dict[str, Any]:
 		event = str(event)
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
@@ -482,13 +482,13 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="fireEvent", params=[event])
 
 	@rpc_method
-	async def hostControl_showPopup(  # pylint: disable=invalid-name,too-many-arguments
+	async def hostControl_showPopup(
 		self: BackendProtocol,
 		message: str,
-		hostIds: list[str] | None = None,  # pylint: disable=invalid-name
+		hostIds: list[str] | None = None,
 		mode: str = "prepend",
-		addTimestamp: bool = True,  # pylint: disable=invalid-name
-		displaySeconds: float | None = None,  # pylint: disable=invalid-name
+		addTimestamp: bool = True,
+		displaySeconds: float | None = None,
 	) -> dict[str, Any]:
 		"""
 		This rpc-call creates a popup-Window with a message on given clients.
@@ -513,9 +513,9 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="showPopup", params=params)
 
 	@rpc_method
-	async def hostControl_uptime(  # pylint: disable=invalid-name
+	async def hostControl_uptime(
 		self: BackendProtocol,
-		hostIds: list[str] | None = None,  # pylint: disable=invalid-name
+		hostIds: list[str] | None = None,
 	) -> dict[str, Any]:
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
@@ -526,7 +526,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="uptime", params=[])
 
 	@rpc_method
-	async def hostControl_getActiveSessions(  # pylint: disable=invalid-name
+	async def hostControl_getActiveSessions(
 		self: BackendProtocol, hostIds: list[str] | None = None
 	) -> dict[str, Any]:
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
@@ -538,7 +538,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="getActiveSessions", params=[])
 
 	@rpc_method
-	async def hostControl_processActionRequests(  # pylint: disable=invalid-name
+	async def hostControl_processActionRequests(
 		self: BackendProtocol, hostIds: list[str] | None = None, productIds: list[str] | None = None
 	) -> dict[str, dict[str, Any]]:
 		client_ids = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
@@ -574,12 +574,12 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return result
 
 	@rpc_method
-	async def hostControl_opsiclientdRpc(  # pylint: disable=invalid-name
+	async def hostControl_opsiclientdRpc(
 		self: BackendProtocol,
 		method: str,
 		params: list[Any] | None = None,
 		hostIds: list[str] | None = None,
-		timeout: int | None = None,  # pylint: disable=invalid-name
+		timeout: int | None = None,
 	) -> dict[str, Any]:
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
@@ -590,11 +590,11 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method=method, params=params, timeout=timeout)
 
 	@rpc_method
-	async def hostControl_reachable(  # pylint: disable=invalid-name,too-many-branches
+	async def hostControl_reachable(
 		self: BackendProtocol,
 		hostIds: list[str] | None = None,
-		timeout: int | None = None,  # pylint: disable=invalid-name
-	) -> dict[str, bool]:  # pylint: disable=too-many-branches
+		timeout: int | None = None,
+	) -> dict[str, bool]:
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
@@ -614,7 +614,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		result.update(await run_in_threadpool(self._host_control_reachable, client_ids=client_ids, timeout=_timeout))
 		return result
 
-	def _host_control_reachable(  # pylint: disable=too-many-branches
+	def _host_control_reachable(
 		self: BackendProtocol, client_ids: list[str], timeout: int
 	) -> dict[str, Any]:
 		result = {}
@@ -632,12 +632,12 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 						opsiclientd_port=self._host_control_opsiclientd_port,
 					)
 				)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.debug("Problem found: '%s'", err)
 				result[host.id] = False
 
 		running_threads = 0
-		while threads:  # pylint: disable=too-many-nested-blocks
+		while threads:
 			if self._shutting_down:
 				return {}
 			new_threads = []
@@ -656,12 +656,12 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return result
 
 	@rpc_method
-	async def hostControl_execute(  # pylint: disable=invalid-name,too-many-arguments
+	async def hostControl_execute(
 		self: BackendProtocol,
 		command: str,
-		hostIds: list[str] | None = None,  # pylint: disable=invalid-name
-		waitForEnding: bool = True,  # pylint: disable=invalid-name
-		captureStderr: bool = True,  # pylint: disable=invalid-name
+		hostIds: list[str] | None = None,
+		waitForEnding: bool = True,
+		captureStderr: bool = True,
 		encoding: str | None = None,
 		timeout: int = 300,
 	) -> dict[str, Any]:
@@ -679,14 +679,14 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		)
 
 	@rpc_method(check_acl="hostControl_start")
-	def hostControlSafe_start(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControlSafe_start(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		"""Switches on remote computers using WOL."""
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return self.hostControl_start(hostIds)
 
 	@rpc_method(check_acl="hostControl_shutdown")
-	async def hostControlSafe_shutdown(  # pylint: disable=invalid-name
+	async def hostControlSafe_shutdown(
 		self: BackendProtocol, hostIds: list[str] | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -694,7 +694,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_shutdown(hostIds)
 
 	@rpc_method(check_acl="hostControl_reboot")
-	async def hostControlSafe_reboot(  # pylint: disable=invalid-name
+	async def hostControlSafe_reboot(
 		self: BackendProtocol, hostIds: list[str] | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -702,7 +702,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_reboot(hostIds)
 
 	@rpc_method(check_acl="hostControl_fireEvent")
-	async def hostControlSafe_fireEvent(  # pylint: disable=invalid-name
+	async def hostControlSafe_fireEvent(
 		self: BackendProtocol, event: str, hostIds: list[str] | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -710,7 +710,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_fireEvent(event, hostIds)
 
 	@rpc_method(check_acl="hostControl_showPopup")
-	async def hostControlSafe_showPopup(  # pylint: disable=invalid-name,too-many-arguments
+	async def hostControlSafe_showPopup(
 		self: BackendProtocol,
 		message: str,
 		hostIds: list[str] | None = None,
@@ -723,7 +723,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_showPopup(message, hostIds, mode, addTimestamp, displaySeconds)
 
 	@rpc_method(check_acl="hostControl_uptime")
-	async def hostControlSafe_uptime(  # pylint: disable=invalid-name
+	async def hostControlSafe_uptime(
 		self: BackendProtocol, hostIds: list[str] | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -731,7 +731,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_uptime(hostIds)
 
 	@rpc_method(check_acl="hostControl_getActiveSessions")
-	async def hostControlSafe_getActiveSessions(  # pylint: disable=invalid-name
+	async def hostControlSafe_getActiveSessions(
 		self: BackendProtocol, hostIds: list[str] | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -739,7 +739,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_getActiveSessions(hostIds)
 
 	@rpc_method(check_acl="hostControl_opsiclientdRpc")
-	async def hostControlSafe_opsiclientdRpc(  # pylint: disable=invalid-name
+	async def hostControlSafe_opsiclientdRpc(
 		self: BackendProtocol, method: str, params: list[Any] | None = None, hostIds: list[str] | None = None, timeout: int | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -747,7 +747,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_opsiclientdRpc(method, params, hostIds, timeout)
 
 	@rpc_method(check_acl="hostControl_reachable")
-	async def hostControlSafe_reachable(  # pylint: disable=invalid-name
+	async def hostControlSafe_reachable(
 		self: BackendProtocol, hostIds: list[str] | None = None, timeout: int | None = None
 	) -> dict[str, Any]:
 		if not hostIds:
@@ -755,7 +755,7 @@ class RPCHostControlMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return await self.hostControl_reachable(hostIds, timeout)
 
 	@rpc_method(check_acl="hostControl_execute")
-	async def hostControlSafe_execute(  # pylint: disable=invalid-name,too-many-arguments
+	async def hostControlSafe_execute(
 		self: BackendProtocol,
 		command: str,
 		hostIds: list[str] | None = None,

@@ -92,7 +92,7 @@ class AddonManager(metaclass=Singleton):
 					continue
 				try:
 					self.load_addon(addon_path=addon_path)
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.error("Failed to load addon from %s: %s", addon_path, err, exc_info=True)
 
 	def unload_addon(self, addon_id: str) -> None:

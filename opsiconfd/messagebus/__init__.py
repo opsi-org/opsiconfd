@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from opsicommon.types import forceHostId, forceHostname, forceStringLower, forceUnsignedInt, forceUserId
+from opsicommon.types import forceHostId, forceStringLower, forceUnsignedInt, forceUserId
 
 from opsiconfd.utils import forceNodename
 from opsiconfd.worker import Worker
@@ -24,11 +24,11 @@ if TYPE_CHECKING:
 
 file_uploads: dict[str, FileUpload] = {}
 terminals: dict[str, Terminal] = {}
-messagebus_worker_id = ""  # pylint: disable=invalid-name
+messagebus_worker_id = ""
 
 
 def get_messagebus_worker_id() -> str:
-	global messagebus_worker_id  # pylint: disable=invalid-name,global-statement
+	global messagebus_worker_id
 	if not messagebus_worker_id:
 		messagebus_worker_id = get_user_id_for_service_worker(Worker.get_instance().id)
 	return messagebus_worker_id
@@ -50,7 +50,7 @@ def get_user_id_for_service_worker(worker_id: str) -> str:
 	return f"service_worker:{forceStringLower(worker_id)}"
 
 
-def check_channel_name(channel: str) -> str:  # pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
+def check_channel_name(channel: str) -> str:
 	if channel.startswith("session:"):
 		channel = channel.lower()
 		parts = channel.split(":")

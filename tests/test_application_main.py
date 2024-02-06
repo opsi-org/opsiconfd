@@ -17,7 +17,7 @@ from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -26,7 +26,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_http_1_0_warning(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_http_1_0_warning(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	orig_call = BaseMiddleware.__call__
 
 	async def mock_call(self: BaseMiddleware, scope: Scope, receive: Receive, send: Send) -> None:
@@ -43,7 +43,7 @@ def test_http_1_0_warning(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 				assert "is using http version 1.0" in str(warn.message)
 
 
-def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/")
 	server_date = res.headers["date"]
 	assert server_date.endswith(" UTC")

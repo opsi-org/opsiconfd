@@ -21,7 +21,7 @@ from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicensePool, get_
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
 from opsiconfd.utils import blowfish_encrypt
-from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # pylint: disable=unused-import
+from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -34,8 +34,8 @@ from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # 
 		(OPSI_CLIENT_INACTIVE_AFTER + 1000, 1, 1, 4),
 	],
 )
-def test_get_client_info(  # pylint: disable=too-many-locals,redefined-outer-name
-	backend: UnprotectedBackend,
+def test_get_client_info(  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
 	last_seen_days: int,
 	macos: int,
 	linux: int,
@@ -126,15 +126,15 @@ def test_get_client_info(  # pylint: disable=too-many-locals,redefined-outer-nam
 	backend.product_createObjects([oca, olca, omca])
 	backend.productOnClient_createObjects(pocs)
 
-	info = backend._get_client_info()  # type: ignore[misc] # pylint: disable=protected-access
+	info = backend._get_client_info()  # type: ignore[misc]
 	print(info)
 	assert info["macos"] == macos
 	assert info["linux"] == linux
 	assert info["windows"] == windows
 
 
-def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> None:  # pylint: disable=invalid-name,redefined-outer-name
-	class Proc:  # pylint: disable=too-few-public-methods
+def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> None:  # noqa: F811
+	class Proc:
 		test_input: dict[str, dict[str, Any]] = {}
 		test_output: dict[str, str | Exception] = {}
 		stdout: str = ""
@@ -205,8 +205,8 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 
 
 @pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
-def test_log_write(  # pylint: disable=redefined-outer-name,too-many-statements
-	backend: UnprotectedBackend, tmp_path: Path, log_type: str
+def test_log_write(  # noqa: F811
+	backend: UnprotectedBackend, tmp_path: Path, log_type: str  # noqa: F811
 ) -> None:
 	data = "line1\nline2\nüöß\n"
 	with patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)), get_config({"keep_rotated_logs": 2}):
@@ -277,8 +277,8 @@ def test_log_write(  # pylint: disable=redefined-outer-name,too-many-statements
 
 
 @pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
-def test_log_read(  # pylint: disable=redefined-outer-name,too-many-statements
-	backend: UnprotectedBackend, tmp_path: Path, log_type: str
+def test_log_read(
+	backend: UnprotectedBackend, tmp_path: Path, log_type: str  # noqa: F811
 ) -> None:
 	data = "line1\nline2\nüöß\n"
 	with patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)):
@@ -291,13 +291,13 @@ def test_log_read(  # pylint: disable=redefined-outer-name,too-many-statements
 		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=9) == "line1\n"
 
 
-def test_backend_getLicensingInfo(  # pylint: disable=invalid-name,redefined-outer-name
-	backend: UnprotectedBackend, tmp_path: Path
+def test_backend_getLicensingInfo(  # noqa: F811
+	backend: UnprotectedBackend, tmp_path: Path  # noqa: F811
 ) -> None:
 	modules_file = tmp_path / "modules"
 	pool = get_default_opsi_license_pool()
 
-	def mock_get_default_opsi_license_pool(  # pylint: disable=unused-argument
+	def mock_get_default_opsi_license_pool(
 		license_file_path: str | None = None,
 		modules_file_path: str | None = None,
 		client_info: dict | Callable | None = None,

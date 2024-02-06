@@ -8,16 +8,15 @@
 cleanup backend
 """
 
-import pytest  # pylint: disable=unused-import
 from opsicommon.objects import BoolConfig, UnicodeConfig
 
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import convert_config_objects
 from opsiconfd.backend.rpc.main import UnprotectedBackend
-from tests.utils import backend  # pylint: disable=unused-import
+from tests.utils import backend  # noqa: F401
 
 
-def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
 	configs: list[BoolConfig | UnicodeConfig] = []
 	for i in range(0, 50):
 		configs.append(BoolConfig(id=f"test-convert-boolconfig-{i}"))
@@ -43,7 +42,7 @@ def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # pylint:
 	backend.config_updateObjects(configs)
 
 	# Set invalid type "Config"
-	mysql = MySQLConnection()  # pylint: disable=invalid-name
+	mysql = MySQLConnection()
 	with mysql.connection():
 		with mysql.session() as session:
 			session.execute(

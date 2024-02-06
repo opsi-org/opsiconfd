@@ -22,7 +22,7 @@ from opsicommon.objects import (  # type: ignore[import]
 )
 
 from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	MySQLConnection,
@@ -36,7 +36,7 @@ from tests.utils import (  # pylint: disable=unused-import
 
 
 @pytest.fixture(autouse=True)
-def clean_mysql(database_connection: MySQLConnection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
+def clean_mysql(database_connection: MySQLConnection) -> Generator[None, None, None]:  # noqa: F811
 	with database_connection.session() as session:
 		session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
 		session.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
@@ -62,16 +62,16 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 	protected_backend = ProtectedBackend()
 	try:
 		with get_config({"acl_file": str(_acl_file)}):
-			protected_backend._read_acl_file()  # pylint: disable=protected-access
+			protected_backend._read_acl_file()
 		yield _acl_file
 	finally:
 		# Restore original ACL
-		protected_backend._read_acl_file()  # pylint: disable=protected-access
+		protected_backend._read_acl_file()
 
 
-def test_config_insertObject(  # pylint: disable=invalid-name
-	acl_file: Path,  # pylint: disable=redefined-outer-name,unused-argument
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_config_insertObject(
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = OpsiClient(id="test-backend-rpc-obj-config-1.opsi.test", opsiHostKey="c68857de49124e5860d3c501a2675795")
@@ -120,9 +120,9 @@ def test_config_insertObject(  # pylint: disable=invalid-name
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
-def test_config_updateObject(  # pylint: disable=invalid-name
-	acl_file: Path,  # pylint: disable=redefined-outer-name,unused-argument
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_config_updateObject(
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = OpsiClient(id="test-backend-rpc-obj-config-1.opsi.test", opsiHostKey="c68857de49124e5860d3c501a2675795")
@@ -178,9 +178,9 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
-def test_config_createUnicode_empty_string(  # pylint: disable=invalid-name
-	acl_file: Path,  # pylint: disable=redefined-outer-name,unused-argument
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_config_createUnicode_empty_string(
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	rpc = {
@@ -210,7 +210,7 @@ def test_config_createUnicode_empty_string(  # pylint: disable=invalid-name
 	assert res["result"][0]["multiValue"] is True
 
 
-def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name
+def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # noqa: F811
 	configs = []
 	for idx in range(10):
 		configs.extend(
@@ -254,7 +254,7 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 					sleep(0.1)
 					backend.config_getObjects()
 					sleep(0.1)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				self.err = err
 
 	# Do not retry on "Deadlock found when trying to get lock; try restarting transaction"

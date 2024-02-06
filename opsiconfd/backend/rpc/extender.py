@@ -36,7 +36,7 @@ class ExtenderMethod:
 	overwrite: bool = False
 
 
-class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
+class RPCExtenderMixin(Protocol):
 	_extender_method_info: list[ExtenderMethod] = []
 
 	def __init__(self) -> None:
@@ -45,7 +45,7 @@ class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
 			try:
 				loc: Dict[str, Any] = {}
 				if file.is_file():
-					exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
+					exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)
 				for function_name, function in loc.items():
 					if not function_name.startswith("_") and isfunction(function):
 						logger.info("Adding rpc extension method '%s'", function_name)
@@ -58,5 +58,5 @@ class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
 							method.overwrite = True
 						self._extender_method_info.append(method)
 						setattr(self, function_name, MethodType(function, self))
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error("Failed to load extension file '%s' %s", file, err, exc_info=True)

@@ -19,7 +19,7 @@ from werkzeug.http import parse_options_header
 
 from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -27,7 +27,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_raw_file_upload_download_delete(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_raw_file_upload_download_delete(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		data = b"file-data"
@@ -55,7 +55,7 @@ def test_raw_file_upload_download_delete(tmp_path: Path, test_client: OpsiconfdT
 
 def test_raw_file_upload_download_with_delete(
 	tmp_path: Path,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client = OpsiClient(id="test-file-upload-1.opsi.org")
@@ -92,8 +92,8 @@ def test_raw_file_upload_download_with_delete(
 		assert not meta_path.exists()
 
 
-def test_multipart_file_upload_download_delete(  # pylint: disable=redefined-outer-name
-	tmp_path: Path, test_client: OpsiconfdTestClient
+def test_multipart_file_upload_download_delete(
+	tmp_path: Path, test_client: OpsiconfdTestClient  # noqa: F811
 ) -> None:
 	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -155,7 +155,7 @@ def test_cleanup_file_storage(tmp_path: Path) -> None:
 			assert path.name in valid_filenames
 
 
-def test_raw_file_stream_upload(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_raw_file_stream_upload(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		blocksize = 1024

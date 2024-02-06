@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+def check_depot_sync_status(
 	backend: Backend,
 	depot_ids: list[str],
 	product_ids: list[str] | None,
@@ -73,7 +73,7 @@ def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-loc
 
 	state = State.OK
 	message = ""
-	if difference_products:  # pylint: disable=too-many-nested-blocks
+	if difference_products:
 		state = State.WARNING
 		message += f"Differences found for {len(difference_products)} products"
 

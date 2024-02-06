@@ -55,10 +55,10 @@ class WSProtocolPing(WSProtocol):
 						self.transport.write(self.conn.send(events.Ping(payload=b"")))
 						wait_time = self._ping_timeout + 1
 				await asyncio_sleep(wait_time)
-		except Exception as err:  # pylint: disable=broad-exception-caught
+		except Exception as err:
 			self.logger.error(err)
 
-	def handle_pong(self, event: events.Pong) -> None:  # pylint: disable=unused-argument
+	def handle_pong(self, event: events.Pong) -> None:
 		self.logger.debug("%s - WebSocket reveived pong", self.scope["client"])
 		self._current_pong_timeout = 0.0
 

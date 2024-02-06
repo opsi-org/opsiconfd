@@ -16,7 +16,7 @@ from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, Message  # type: i
 from opsiconfd.messagebus.redis import MAX_STREAM_LENGTH, ConsumerGroupMessageReader, MessageReader, send_message
 from opsiconfd.redis import async_redis_client, get_redis_connections
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	Config,
 	clean_redis,
 	config,
@@ -44,10 +44,10 @@ async def test_message_reader_redis_connection() -> None:
 	assert connections == get_redis_connections()
 
 
-async def test_message_reader_user_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+async def test_message_reader_user_channel(config: Config) -> None:  # noqa: F811
 	connections = get_redis_connections()
 
-	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
+	class MyMessageReader(MessageReader):
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: list[tuple[str, Message, bytes]] = []
 			super().__init__(**kwargs)
@@ -166,8 +166,8 @@ async def test_message_reader_user_channel(config: Config) -> None:  # pylint: d
 	assert connections == get_redis_connections()
 
 
-async def test_message_reader_event_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
-	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
+async def test_message_reader_event_channel(config: Config) -> None:  # noqa: F811
+	class MyMessageReader(MessageReader):
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: list[tuple[str, Message, bytes]] = []
 			super().__init__(**kwargs)
@@ -226,8 +226,8 @@ async def test_message_reader_event_channel(config: Config) -> None:  # pylint: 
 	assert await redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") == b"0"
 
 
-async def test_consumer_group_message_reader() -> None:  # pylint: disable=redefined-outer-name,too-many-statements
-	class MyMessageReader(ConsumerGroupMessageReader):  # pylint: disable=too-few-public-methods
+async def test_consumer_group_message_reader() -> None:
+	class MyMessageReader(ConsumerGroupMessageReader):
 		def __init__(self, **kwargs: Any) -> None:
 			self.ack = True
 			self.received: list[tuple[str, Message, bytes]] = []
@@ -336,8 +336,8 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	assert len(reader2.received) == 0
 
 
-async def test_message_reader_survives_recreate_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
+async def test_message_reader_survives_recreate_channel(config: Config) -> None:  # noqa: F811
+	class MyMessageReader(MessageReader):
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: list[tuple[str, Message, bytes]] = []
 			super().__init__(**kwargs)
@@ -386,7 +386,7 @@ async def test_message_reader_survives_recreate_channel(config: Config) -> None:
 	await reader.stop()
 
 
-async def test_message_trim_to_maxlen(config: Config) -> None:  # pylint: disable=redefined-outer-name
+async def test_message_trim_to_maxlen(config: Config) -> None:  # noqa: F811
 	channel = "event:test_reader"
 	redis = await async_redis_client()
 	for count in range(0, 1500):

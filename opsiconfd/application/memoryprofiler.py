@@ -43,7 +43,7 @@ TRACEMALLOC_RSS_PREV = 0
 
 @memory_profiler_router.get("/tracemalloc-snapshot-new")
 def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
-	global TRACEMALLOC_PREV_SNAPSHOT, TRACEMALLOC_RSS_PREV, TRACEMALLOC_RSS_START  # pylint: disable=global-statement
+	global TRACEMALLOC_PREV_SNAPSHOT, TRACEMALLOC_RSS_PREV, TRACEMALLOC_RSS_START
 	gc.collect()
 	mem_info = psutil.Process().memory_info()
 
@@ -82,7 +82,7 @@ LAST_OBJGRAPH_SNAPSHOT: Dict[str, Any] = {}
 
 @memory_profiler_router.get("/objgraph-snapshot-new")
 def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> JSONResponse:
-	global LAST_OBJGRAPH_SNAPSHOT  # pylint: disable=global-statement
+	global LAST_OBJGRAPH_SNAPSHOT
 	gc.collect()
 	mem_info = psutil.Process().memory_info()
 	data = {
@@ -146,7 +146,7 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 		msg = f"Object at address {obj_id} not found"
 		return Response(status_code=404, media_type="text/plain", headers={"Content-Length": str(len(msg))}, content=msg)
 
-	file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}")  # pylint: disable=consider-using-with
+	file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}")
 	objgraph.show_backrefs([obj], filename=file.name, shortnames=False)
 	data = file.read()
 	file.close()
@@ -156,7 +156,7 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 
 @memory_profiler_router.post("/snapshot")
 async def memory_info() -> JSONResponse:
-	global MEMORY_TRACKER  # pylint: disable=global-statement
+	global MEMORY_TRACKER
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
@@ -169,7 +169,7 @@ async def memory_info() -> JSONResponse:
 
 	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
-		value = msgspec.msgpack.encode({"memory_summary": memory_summary, "timestamp": timestamp})  # pylint: disable=c-extension-no-member
+		value = msgspec.msgpack.encode({"memory_summary": memory_summary, "timestamp": timestamp})
 		await pipe.lpush(f"{redis_prefix_stats}:memory:summary:{node}", value)  # type: ignore[attr-defined]
 		await pipe.ltrim(f"{redis_prefix_stats}:memory:summary:{node}", 0, 9)  # type: ignore[attr-defined]
 		redis_result = await pipe.execute()  # type: ignore[attr-defined]
@@ -201,7 +201,7 @@ async def delte_memory_snapshot() -> JSONResponse:
 
 	await redis.delete(f"{config.redis_key('stats')}:memory:summary:{node}")
 
-	global MEMORY_TRACKER  # pylint: disable=global-statement
+	global MEMORY_TRACKER
 	MEMORY_TRACKER = None
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all memory snapshots."}})
@@ -210,7 +210,7 @@ async def delte_memory_snapshot() -> JSONResponse:
 
 @memory_profiler_router.get("/diff")
 async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
-	global MEMORY_TRACKER  # pylint: disable=global-statement
+	global MEMORY_TRACKER
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
@@ -231,9 +231,9 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 		end = snapshot_count - snapshot2
 
 	redis_result = await redis.lindex(f"{redis_prefix_stats}:memory:summary:{node}", start)
-	snapshot1 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")  # pylint: disable=c-extension-no-member
+	snapshot1 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")
 	redis_result = await redis.lindex(f"{redis_prefix_stats}:memory:summary:{node}", end)
-	snapshot2 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")  # pylint: disable=c-extension-no-member
+	snapshot2 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")
 	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 
 	count = 0
@@ -259,7 +259,7 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 	def get_class(modulename: str, classname: str) -> type:
 		return getattr(sys.modules.get(modulename), classname)
 
-	global CLASS_TRACKER  # pylint: disable=global-statement
+	global CLASS_TRACKER
 	if not CLASS_TRACKER:
 		CLASS_TRACKER = classtracker.ClassTracker()
 
@@ -283,7 +283,7 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 
 @memory_profiler_router.get("/classtracker/summary")
 async def classtracker_summary() -> JSONResponse:
-	global CLASS_TRACKER  # pylint: disable=global-statement
+	global CLASS_TRACKER
 
 	if not CLASS_TRACKER:
 		CLASS_TRACKER = classtracker.ClassTracker()
@@ -311,7 +311,7 @@ async def classtracker_summary() -> JSONResponse:
 
 @memory_profiler_router.delete("/classtracker")
 async def delte_class_tracker() -> JSONResponse:
-	global CLASS_TRACKER  # pylint: disable=global-statement
+	global CLASS_TRACKER
 	if CLASS_TRACKER:
 		CLASS_TRACKER.close()
 	CLASS_TRACKER = None
@@ -360,7 +360,7 @@ def annotate_snapshot(stats: ConsoleStats, snapshot: Snapshot) -> None:
 		snapshot.classes[classname] = {"sum": total, "avg": avg, "active": active}
 
 
-def convert_bytes(bytes: float) -> str:  # pylint: disable=redefined-builtin
+def convert_bytes(bytes: float) -> str:
 	unit = "B"
 	for unit in ["B", "KB", "MB", "GB"]:
 		if abs(bytes) < 1024.0 or unit == "GB":

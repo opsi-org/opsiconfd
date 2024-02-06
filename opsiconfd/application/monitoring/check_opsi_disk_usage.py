@@ -19,7 +19,7 @@ from opsiconfd.utils import get_disk_usage
 from .utils import State, generate_response
 
 
-def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
+def check_opsi_disk_usage(
 	thresholds: dict[str, str] | None = None, opsiresource: list[str] | None = None
 ) -> JSONResponse:
 	thresholds = thresholds or {}
@@ -59,7 +59,7 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 			path = dirs.get(resource)
 			if path:
 				results[resource] = get_disk_usage(path).as_dict()
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		return generate_response(State.UNKNOWN, f"Not able to check DiskUsage: {err}")
 
 	if results:

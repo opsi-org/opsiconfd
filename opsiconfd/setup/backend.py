@@ -20,7 +20,6 @@ from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
-from opsiconfd import __version__
 from opsiconfd.backend import get_mysql
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
@@ -39,7 +38,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.database = root_mysql.database
 	mysql.password = (
 		"opsi"
-		if config._pytest  # pylint: disable=protected-access
+		if config._pytest
 		else get_random_string(16, alphabet=string.ascii_letters + string.digits)
 	)
 	secret_filter.add_secrets(mysql.password)
@@ -49,11 +48,11 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 		session.execute(f"CREATE USER IF NOT EXISTS '{mysql.username}'@'{mysql.address}'")
 		try:
 			session.execute(f"ALTER USER '{mysql.username}'@'{mysql.address}' IDENTIFIED WITH mysql_native_password BY '{mysql.password}'")
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.debug(err)
 			try:
 				session.execute(f"ALTER USER '{mysql.username}'@'{mysql.address}' IDENTIFIED BY '{mysql.password}'")
-			except Exception as err2:  # pylint: disable=broad-except
+			except Exception as err2:
 				logger.debug(err2)
 				session.execute(f"SET PASSWORD FOR '{mysql.username}'@'{mysql.address}' = PASSWORD('{mysql.password}')")
 		session.execute(f"GRANT ALL ON {mysql.database}.* TO '{mysql.username}'@'{mysql.address}'")
@@ -63,7 +62,7 @@ def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> Non
 	mysql.update_config_file()
 
 
-def setup_mysql_connection(interactive: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches,too-many-statements
+def setup_mysql_connection(interactive: bool = False, force: bool = False) -> None:
 	error: Exception | None = None
 
 	mysql = MySQLConnection()
@@ -73,7 +72,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 				with mysql.connection():
 					# OK
 					return
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.info("Failed to connect to MySQL database: %s", err)
 				error = err
 				if not interactive and "connection refused" in str(err).lower():
@@ -122,7 +121,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 				if not auto_try:
 					rich_print("[b][green]MySQL user setup successful[/green][/b]")
 				break
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			if not auto_try:
 				error = err
 
@@ -130,7 +129,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 		mysql_root = MySQLConnection()
 
 
-def setup_mysql(interactive: bool = False, explicit: bool = False, force: bool = False) -> None:  # pylint: disable=too-many-branches
+def setup_mysql(interactive: bool = False, explicit: bool = False, force: bool = False) -> None:
 	setup_mysql_connection(interactive=interactive, force=force)
 
 	mysql = MySQLConnection()
@@ -197,7 +196,7 @@ def file_mysql_migration() -> None:
 		if len(depot_servers) > 1:
 			error = (
 				"Cannot convert File to MySQL backend:\n"
-				f"Configserver {file_backend.__serverId!r} not found in File backend.\n"  # pylint: disable=protected-access
+				f"Configserver {file_backend.__serverId!r} not found in File backend.\n"
 				f"Depot servers in File backend are: {', '.join(d.id for d in depot_servers)}.\n"
 				f"Set host.id in {opsi_config.config_file!r} to one of these IDs and retry."
 			)
@@ -208,7 +207,7 @@ def file_mysql_migration() -> None:
 		config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
 		opsi_config.set("host", "id", config_server_id, persistent=True)
 
-	# pylint: disable=import-outside-toplevel
+
 	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()
@@ -234,7 +233,7 @@ def setup_backend(force_server_id: str | None = None) -> None:
 
 	file_mysql_migration()
 
-	# pylint: disable=import-outside-toplevel
+
 	from opsiconfd.backend import get_unprotected_backend
 
 	config_server_id = force_server_id or get_configserver_id()

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+def check_product_status(
 	backend: Backend,
 	product_ids: list[str] | set[str] | None = None,
 	product_groups: list[str] | None = None,
@@ -98,7 +98,7 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 		poducts_on_client = backend.productOnClient_getObjects(productId=list(product_ids), clientId=clients_on_depot.get(depot_id, None))
 
 		not_installed = set(product_ids.copy())
-		for poc in poducts_on_client:  # pylint: disable=protected-access, line-too-long
+		for poc in poducts_on_client:
 			not_installed.discard(poc.productId)
 			if poc.actionRequest not in action_requests_to_ignore:
 				if state != State.CRITICAL:

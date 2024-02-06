@@ -65,11 +65,11 @@ def setup_redis() -> None:
 		delete_recursively(delete_key)
 
 
-def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # pylint: disable=too-many-branches, too-many-statements
+def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 	service = ServiceClient(
 		opsi_config.get("service", "url"), verify="accept_all", ca_cert_file=config.ssl_ca_cert, jsonrpc_create_objects=True
 	)
-	try:  # pylint: disable=too-many-nested-blocks
+	try:
 		while True:
 			try:
 				if not unattended_configuration:
@@ -107,7 +107,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 			except KeyboardInterrupt:
 				print("")
 				return False
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				if unattended_configuration:
 					raise
 				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
@@ -144,7 +144,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 				depot.workbenchRemoteUrl = depot.workbenchRemoteUrl or f"smb://{FQDN}/opsi_workbench"
 				try:
 					depot.systemUUID = str(UUID(Path("/sys/class/dmi/id/product_uuid").read_text(encoding="ascii").strip()))
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					if unattended_configuration:
 						raise
 					logger.debug(err)
@@ -171,13 +171,13 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:  # 
 			except KeyboardInterrupt:
 				print("")
 				return False
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
 	finally:
 		service.disconnect()
 
 
-def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,too-many-statements
+def setup(explicit: bool = True) -> None:
 	"""
 	explicit: called as "opsiconfd setup"?
 	"""
@@ -238,7 +238,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 		try:
 			setup_mysql(interactive=interactive, explicit=explicit, force=configure_mysql)
 			opsi_config.set("host", "server-role", "configserver", persistent=True)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			# This can happen during package installation
 			# where backend config files are missing
 			logger.debug(err, exc_info=True)
@@ -262,7 +262,7 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 	if "backend" not in config.skip_setup and backend_available:
 		try:
 			setup_backend(force_server_id)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			# This can happen during package installation
 			# where backend config files are missing
 			logger.warning("Failed to setup backend: %s", err, exc_info=True)
@@ -302,42 +302,42 @@ def setup(explicit: bool = True) -> None:  # pylint: disable=too-many-branches,t
 	if "grafana" not in config.skip_setup:
 		try:
 			setup_grafana()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning("Failed to setup grafana: %s", err, exc_info=True)
 
 	try:
 		setup_redis()
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning("Failed to setup redis: %s", err, exc_info=True)
 
 	if "metric_downsampling" not in config.skip_setup:
 		try:
 			setup_metric_downsampling()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning("Failed to setup redis downsampling: %s", err, exc_info=True)
 
 	try:
 		setup_ssl()
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		# This can fail if fqdn is not valid
 		logger.error("Failed to setup ssl: %s", err, exc_info=True)
 
 	if "samba" not in config.skip_setup:
 		try:
 			setup_samba()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("Failed to setup samba: %s", err, exc_info=True)
 
 	if "dhcpd" not in config.skip_setup:
 		try:
 			setup_dhcpd()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("Failed to setup dhcpd: %s", err, exc_info=True)
 
 	if "sudoers" not in config.skip_setup:
 		try:
 			setup_sudoers()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("Failed to setup sudoers: %s", err, exc_info=True)
 
 	if explicit and (register_depot or rename_server):

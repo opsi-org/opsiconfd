@@ -61,7 +61,7 @@ COMPRESS_MIN_SIZE = 10000
 AWAIT_STORE_RPC_INFO = False
 
 jsonrpc_router = APIRouter()
-jsonrpc_message_reader = None  # pylint: disable=invalid-name
+jsonrpc_message_reader = None
 
 
 @dataclass(kw_only=True)
@@ -75,21 +75,21 @@ class RequestInfo:
 @dataclass(kw_only=True)
 class JSONRPCRequest:
 	method: str
-	id: int | str = 0  # pylint: disable=invalid-name
+	id: int | str = 0
 	params: list[Any] | tuple[Any, ...] | dict[str, Any] = field(default_factory=list)
 	info: RequestInfo = field(default_factory=RequestInfo)
 
 
 @dataclass
 class JSONRPCResponse:
-	id: int | str  # pylint: disable=invalid-name
+	id: int | str
 	result: Any | None = None
 	error: None = None
 
 
 @dataclass
 class JSONRPCErrorResponse:
-	id: int | str  # pylint: disable=invalid-name
+	id: int | str
 	error: Any | None
 	result: None = None
 
@@ -97,7 +97,7 @@ class JSONRPCErrorResponse:
 @dataclass(kw_only=True)
 class JSONRPC20Request:
 	method: str
-	id: int | str = 0  # pylint: disable=invalid-name
+	id: int | str = 0
 	params: list[Any] | tuple[Any, ...] | dict[str, Any] = field(default_factory=list)
 	jsonrpc: str = "2.0"
 	info: RequestInfo = field(default_factory=RequestInfo)
@@ -105,7 +105,7 @@ class JSONRPC20Request:
 
 @dataclass
 class JSONRPC20Response:
-	id: int | str  # pylint: disable=invalid-name
+	id: int | str
 	result: Any
 	jsonrpc: str = "2.0"
 
@@ -119,7 +119,7 @@ class JSONRPC20Error:
 
 @dataclass
 class JSONRPC20ErrorResponse:
-	id: int | str  # pylint: disable=invalid-name
+	id: int | str
 	error: JSONRPC20Error
 	jsonrpc: str = "2.0"
 
@@ -246,7 +246,7 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		await pipe.execute()  # type: ignore[attr-defined]
 
 
-async def store_rpc_info(  # pylint: disable=too-many-locals
+async def store_rpc_info(
 	request: JSONRPC20Request | JSONRPCRequest,
 	response: JSONRPC20Response | JSONRPC20ErrorResponse | JSONRPCResponse | JSONRPCErrorResponse,
 ) -> None:
@@ -295,7 +295,7 @@ async def store_rpc_info(  # pylint: disable=too-many-locals
 	async with redis.pipeline() as pipe:
 		pipe.lpush(  # type: ignore[attr-defined]
 			f"{redis_prefix_stats}:rpcs",
-			msgspec.msgpack.encode(data),  # pylint: disable=c-extension-no-member
+			msgspec.msgpack.encode(data),
 		)
 		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)  # type: ignore[attr-defined]
 		await pipe.execute()  # type: ignore[attr-defined]
@@ -369,7 +369,7 @@ def write_debug_log(
 	prefix = re.sub(r"[\s\./]", "_", f"{client}-{now}-")
 	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log") as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
-		log_file.write(msgspec.json.encode(msg))  # pylint: disable=no-member
+		log_file.write(msgspec.json.encode(msg))
 
 
 async def process_rpc_error(
@@ -383,7 +383,7 @@ async def process_rpc_error(
 		session = contextvar_client_session.get()
 		if session and session.is_admin:
 			details = str(traceback.format_exc())
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning(err, exc_info=True)
 
 	response: JSONRPC20ErrorResponse | JSONRPCErrorResponse
@@ -395,7 +395,7 @@ async def process_rpc_error(
 	if "rpc-log" in config.debug_options or "rpc-error-log" in config.debug_options:
 		try:
 			await run_in_threadpool(write_debug_log, request, response, exception)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning(err, exc_info=True)
 
 	return response
@@ -417,7 +417,7 @@ async def process_rpc(
 	if "rpc-log" in config.debug_options:
 		try:
 			await run_in_threadpool(write_debug_log, request, response)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning(err, exc_info=True)
 
 	return response
@@ -437,7 +437,7 @@ async def process_rpcs(
 			try:
 				logger.debug("Processing request from %s for %s", request.info.client, request.method)
 				response = await process_rpc(request, backend)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 				response = await process_rpc_error(err, request)
 
@@ -464,7 +464,7 @@ async def jsonrpc_head() -> Response:
 @jsonrpc_router.post("")
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
-async def process_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def process_request(
 	request: Request, response: Response
 ) -> Response:
 	request_compression = None
@@ -511,10 +511,10 @@ async def process_request(  # pylint: disable=too-many-locals,too-many-branches,
 		coro = process_rpcs(backend, *requests)
 		results = [result async for result in coro]
 		response.status_code = 200
-	except HTTPException as err:  # pylint: disable=broad-except
+	except HTTPException as err:
 		logger.error(err)
 		raise
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error(err, exc_info=True)
 		results = [await process_rpc_error(err)]
 		response.status_code = 400
@@ -562,12 +562,12 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 		backend = get_protected_backend()
 		response = await anext(process_rpcs(backend, rpc))
 		cast(JSONRPC20Response, response)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error(err, exc_info=True)
 		response = await process_rpc_error(err)
 		cast(JSONRPC20ErrorResponse, response)
 
-	response_message = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+	response_message = JSONRPCResponseMessage(
 		sender=cgmr.consumer_name,
 		channel=message.back_channel or message.sender,
 		ref_id=message.id,
@@ -584,7 +584,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 
 
 async def messagebus_jsonrpc_request_worker_configserver() -> None:
-	global jsonrpc_message_reader  # pylint: disable=invalid-name,global-statement
+	global jsonrpc_message_reader
 
 	worker = Worker.get_instance()
 	messagebus_worker_id = get_user_id_for_service_worker(worker.id)
@@ -596,7 +596,7 @@ async def messagebus_jsonrpc_request_worker_configserver() -> None:
 	async for redis_id, message, context in jsonrpc_message_reader.get_messages():
 		try:
 			await _process_message(jsonrpc_message_reader, redis_id, message, context)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
 
@@ -609,7 +609,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 	)
 	try:
 		await service_client.messagebus.async_send_message(message)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Failed to send message to messagebus: %s", err)
 		return
 
@@ -631,11 +631,11 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 		rpc = JSONRPC20Request(id=request.rpc_id, method=request.method, params=request.params)
 		try:
 			result = await anext(process_rpcs(unprotected_backend, rpc))
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 			result = await process_rpc_error(err)
 
-		response = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+		response = JSONRPCResponseMessage(
 			sender=CONNECTION_USER_CHANNEL,
 			channel=request.back_channel or request.sender,
 			ref_id=request.id,
@@ -645,7 +645,7 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 		)
 		try:
 			await service_client.messagebus.async_send_message(response)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("Failed to send message to messagebus: %s", err)
 
 

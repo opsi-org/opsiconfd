@@ -26,7 +26,7 @@ from pytest import fixture
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.setup import setup_depotserver
-from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # pylint: disable=unused-import
+from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # noqa: F401
 
 CONFIGSERVER = "opsiserver43-cs"
 
@@ -56,11 +56,11 @@ def depotserver_setup(tmp_path: Path) -> Generator[None, None, None]:
 			reinit_backend()
 
 
-def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client as client:
 		backend = get_unprotected_backend()
-		assert backend._server_role == "depotserver"  # pylint: disable=protected-access
+		assert backend._server_role == "depotserver"
 		idents = client.jsonrpc20(method="host_getIdents")["result"]
 		assert idents == backend.host_getIdents()
 		depot_id = get_depotserver_id()
@@ -68,7 +68,7 @@ def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestC
 		assert CONFIGSERVER in [ident.split(".")[0] for ident in idents]
 
 
-def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with use_logging_config(stderr_level=LOG_TRACE):
 		depot_id = get_depotserver_id()
 		service = ServiceClient(address=CONFIGSERVER, username=ADMIN_USER, password=ADMIN_PASS, verify=ServiceVerificationFlags.ACCEPT_ALL)

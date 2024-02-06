@@ -19,7 +19,7 @@ import pytest
 
 from opsiconfd.config import ip_address, network_address, str2bool
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	get_config,
 	test_client,
@@ -130,7 +130,7 @@ def test_config_file(tmp_path: Path, varname: str, value: str, config_name: str,
 def test_help() -> None:
 	text = ""
 
-	def print_message(self: Any, message: str, file: Any = None) -> None:  # pylint: disable=unused-argument
+	def print_message(self: Any, message: str, file: Any = None) -> None:
 		nonlocal text
 		text = message
 
@@ -226,7 +226,7 @@ def test_upgrade_config_files(tmp_path: Path) -> None:
 
 	config_file.write_text("xxx\nyyy\n")
 	with patch("opsiconfd.config.is_manager", lambda x: True), get_config(["--config-file", str(config_file)]) as conf:
-		conf._upgrade_config_file()  # pylint: disable=protected-access
+		conf._upgrade_config_file()
 		assert config_file.read_text(encoding="utf-8") == "xxx\nyyy\n"
 
 
@@ -235,7 +235,7 @@ def test_update_config_files(tmp_path: Path) -> None:
 	config_file.write_text(("# comment\nlog-level = 1\nmonitoring-debug = yes\n\n"), encoding="utf-8")
 
 	with get_config(["--config-file", str(config_file)]) as conf:
-		conf._update_config_file()  # pylint: disable=protected-access
+		conf._update_config_file()
 
 	data = config_file.read_text(encoding="utf-8")
 	assert data == ("# comment\nlog-level = 1\n\n")
@@ -262,7 +262,7 @@ def test_set_config_in_config_file(tmp_path: Path) -> None:
 		assert conf.grafana_internal_url == grafana_internal_url
 
 
-def test_disabled_features(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_disabled_features(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/status")
 	assert res.status_code == 200
 	with get_config({"disabled_features": ["status-page"]}):

@@ -31,7 +31,7 @@ def get_yappi_tag() -> int:
 	return contextvar_request_id.get() or 0
 
 
-def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def setup_metric_downsampling() -> None:
 	client = redis_client()
 	for metric in MetricsRegistry().get_metrics():
 		is_worker_metric = isinstance(metric, WorkerMetric)
@@ -131,7 +131,7 @@ def get_time_bucket_duration(name: str) -> int:
 	return duration_ms
 
 
-class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
+class StatisticsMiddleware:
 	def __init__(self, app: FastAPI, profiler_enabled: bool = False, log_func_stats: bool = False) -> None:
 		self.app = app
 		self._profiler_enabled = profiler_enabled
@@ -156,7 +156,7 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 
 		if self._write_callgrind_file:
 			# Use i.e. kcachegrind to visualize
-			func_stats.save(f"/tmp/callgrind.out.opsiconfd-yappi-{tag}", type="callgrind")  # pylint: disable=no-member
+			func_stats.save(f"/tmp/callgrind.out.opsiconfd-yappi-{tag}", type="callgrind")
 
 		if self._log_func_stats:
 			logger.essential(

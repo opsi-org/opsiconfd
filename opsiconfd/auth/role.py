@@ -11,8 +11,8 @@ opsiconfd.auth.role
 from opsiconfd.auth.rights import Rights
 
 
-class Role(Rights):  # pylint: disable=too-many-instance-attributes
-	def __init__(  # pylint: disable=too-many-arguments
+class Role(Rights):
+	def __init__(
 		self,
 		name: str = "",
 		read_only: bool = False,

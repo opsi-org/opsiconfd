@@ -125,7 +125,7 @@ def build_environ(scope: Scope) -> dict:
 	return environ
 
 
-class WSGIMiddleware:  # pylint: disable=too-few-public-methods
+class WSGIMiddleware:
 	def __init__(self, app: Callable) -> None:
 		self.app = app
 
@@ -135,7 +135,7 @@ class WSGIMiddleware:  # pylint: disable=too-few-public-methods
 		await responder(receive, send)
 
 
-class WSGIResponder:  # pylint: disable=too-many-instance-attributes
+class WSGIResponder:
 	def __init__(self, app: Callable, scope: Scope) -> None:
 		self.app = app
 		self.scope = scope

@@ -7,7 +7,7 @@
 """
 session handling
 """
-# pylint: disable=too-many-lines
+
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
 from opsiconfd.auth.user import create_user
 from opsiconfd.backend import (
-	get_unprotected_backend,  # pylint: disable=import-outside-toplevel
+	get_unprotected_backend,
 )
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
@@ -166,7 +166,7 @@ class SessionMiddleware:
 						return cookie_l[1].strip().lower()
 		return None
 
-	async def handle_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def handle_request(
 		self, connection: HTTPConnection, receive: Receive, send: Send
 	) -> None:
 		overload_time_left = self.check_overload()
@@ -259,7 +259,7 @@ class SessionMiddleware:
 
 		await self.app(scope, receive, send_wrapper)
 
-	async def handle_request_exception(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def handle_request_exception(
 		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
 	) -> None:
 		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
@@ -303,8 +303,8 @@ class SessionMiddleware:
 			error = str(err)
 
 		elif isinstance(err, HTTPException):
-			status_code = err.status_code  # pylint: disable=no-member
-			headers = err.headers  # pylint: disable=no-member
+			status_code = err.status_code
+			headers = err.headers
 			error = err.detail
 
 		else:
@@ -364,7 +364,7 @@ class SessionMiddleware:
 			response = PlainTextResponse(status_code=status_code, content=error, headers=headers)
 		await response(scope, receive, send)
 
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		if scope["type"] == "lifespan":
 			return await self.app(scope, receive, send)
 
@@ -372,11 +372,11 @@ class SessionMiddleware:
 			connection = HTTPConnection(scope)
 			set_context({"client_address": scope["client"][0]})
 			await self.handle_request(connection, receive, send)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			await self.handle_request_exception(err, connection, receive, send)
 
 
-class SessionManager:  # pylint: disable=too-few-public-methods
+class SessionManager:
 	def __init__(self, session_check_interval: int = 5, session_store_interval_min: int = 60) -> None:
 		self._session_check_interval = session_check_interval
 		self._session_store_interval_min = session_store_interval_min
@@ -395,9 +395,9 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 		if wait:
 			await self._stopped.wait()
 
-	async def manager_task(self) -> None:  # pylint: disable=too-many-branches
+	async def manager_task(self) -> None:
 		# A session can be managed in multiple worker processes / managers!
-		while True:  # pylint: disable=too-many-nested-blocks
+		while True:
 			try:
 				for waits in range(self._session_check_interval):
 					# Check for stop and changed _session_check_interval
@@ -440,7 +440,7 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 					if delete_session_id in self.sessions:
 						del self.sessions[delete_session_id]
 
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 		self._stopped.set()
 
@@ -484,8 +484,8 @@ class SessionManager:  # pylint: disable=too-few-public-methods
 		return session
 
 
-class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
-	def __init__(  # pylint: disable=too-many-arguments
+class OPSISession:
+	def __init__(
 		self, client_addr: str, headers: Headers | None = None, session_id: str | None = None
 	) -> None:
 		self._headers = Headers()
@@ -749,14 +749,14 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 					vals = redis.hmget(redis_key, (b"max_age", b"last_used"))
 					if vals and vals[0] and vals[1]:
 						validity = int(int(vals[0]) - (now - int(vals[1])))
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.debug(err)
 				if validity > 0:
 					session_count += 1
 				else:
 					redis.delete(redis_key)
 
-			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:  # pylint: disable=chained-comparison
+			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
@@ -916,7 +916,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		data = {}
 		try:
 			data = self.deserialize(redis_client().hgetall(self.redis_key))
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.warning("Failed to load session: %s (%s / %s)", err, self.client_addr, self.user_agent)
 
 		if not data:
@@ -983,11 +983,11 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes,too-many-publ
 		return await run_in_threadpool(self.sync_delete)
 
 
-auth_module: AuthenticationModule | None = None  # pylint: disable=invalid-name
+auth_module: AuthenticationModule | None = None
 
 
 def get_auth_module() -> AuthenticationModule:
-	global auth_module  # pylint: disable=invalid-name,global-statement
+	global auth_module
 
 	if not auth_module:
 		try:
@@ -998,7 +998,7 @@ def get_auth_module() -> AuthenticationModule:
 					auth_module = LDAPAuthentication(**ldap_conf)
 				else:
 					logger.error("Disabling LDAP authentication: directory-connector module not available")
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.debug(err)
 
 		if not auth_module:
@@ -1007,7 +1007,7 @@ def get_auth_module() -> AuthenticationModule:
 	return auth_module.get_instance()
 
 
-async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-branches,too-many-statements
+async def authenticate_host(scope: Scope) -> None:
 	session = scope["session"]
 	backend = get_unprotected_backend()
 
@@ -1138,7 +1138,7 @@ async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str 
 		raise
 
 
-async def _authenticate(  # pylint: disable=unused-argument,too-many-branches,too-many-statements
+async def _authenticate(
 	scope: Scope, username: str, password: str, mfa_otp: str | None = None
 ) -> None:
 	headers = Headers(scope=scope)

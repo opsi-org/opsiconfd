@@ -81,7 +81,7 @@ class ReloadThread(threading.Thread):
 					self._is_reloading = False
 
 
-class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attributes
+class RPCDHCPDControlMixin(Protocol):
 	_dhcpd_control_config: DHCPDControlConfig
 	_dhcpd_control_reload_thread: ReloadThread | None
 
@@ -170,10 +170,10 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self.dhcpd_control_hosts_updated(list(object_ids))
 
 	@rpc_method
-	def dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name,too-many-branches
+	def dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:
 		self._dhcpd_updateHost(host)
 
-	def _dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements
+	def _dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:
 		host = forceObjectClass(host, Host)
 
 		if not host.hardwareAddress:
@@ -193,7 +193,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				logger.info("IP addess of client %s unknown, trying to get host by name", host)
 				host_ip_address = socket.gethostbyname(host.id)
 				logger.info("Client fqdn resolved to %s", host_ip_address)
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.debug("Failed to get IP by hostname: %s", err)
 				if current_host_params:
 					logger.debug("Trying to use address for %s from existing DHCP configuration.", hostname)
@@ -228,7 +228,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 					depot = self.host_getObjects(id=depot_id)[0]
 					if depot.ipAddress:
 						parameters["next-server"] = depot.ipAddress
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error("Failed to get depot info: %s", err, exc_info=True)
 
 		if current_host_params:
@@ -267,16 +267,16 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 					parameters=parameters,
 				)
 				self._dhcpd_control_config.dhcpd_config_file.generate()
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 
 		self._dhcpd_control_trigger_reload()
 
 	@rpc_method
-	def dhcpd_deleteHost(self: BackendProtocol, host_id: str) -> None:  # pylint: disable=invalid-name
+	def dhcpd_deleteHost(self: BackendProtocol, host_id: str) -> None:
 		self._dhcpd_deleteHost(host_id)
 
-	def _dhcpd_deleteHost(self: BackendProtocol, host_id: str) -> None:  # pylint: disable=invalid-name
+	def _dhcpd_deleteHost(self: BackendProtocol, host_id: str) -> None:
 		with dhcpd_lock("config_update"):
 			try:
 				self._dhcpd_control_config.dhcpd_config_file.parse()
@@ -285,7 +285,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 					return
 				self._dhcpd_control_config.dhcpd_config_file.delete_host(hostname)
 				self._dhcpd_control_config.dhcpd_config_file.generate()
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 
 		self._dhcpd_control_trigger_reload()

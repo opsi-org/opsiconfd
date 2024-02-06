@@ -110,7 +110,7 @@ def cleanup_file_storage() -> None:
 			if file_meta.expires <= now:
 				# Expired
 				continue
-		except Exception:  # pylint: disable=broad-except
+		except Exception:
 			# Invalid meta data
 			continue
 
@@ -120,7 +120,7 @@ def cleanup_file_storage() -> None:
 	for path in all_files.difference(keep_files):
 		try:
 			path.unlink()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err)
 
 

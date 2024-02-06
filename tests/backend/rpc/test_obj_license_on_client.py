@@ -16,7 +16,7 @@ from opsicommon.objects import (
 	SoftwareLicenseToLicensePool,
 )
 
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -28,8 +28,8 @@ from tests.utils import (  # pylint: disable=unused-import
 from .test_obj_product import create_test_products
 
 
-def test_licenseOnClient_getOrCreateObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_licenseOnClient_getOrCreateObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

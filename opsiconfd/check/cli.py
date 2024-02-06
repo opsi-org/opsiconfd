@@ -84,7 +84,7 @@ def console_print_message(check_result: CheckResult | PartialCheckResult, consol
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
-def process_check_result(  # pylint: disable=too-many-branches
+def process_check_result(
 	result: CheckResult,
 	console: Console,
 	check_version: str | None = None,
@@ -133,7 +133,7 @@ def process_check_result(  # pylint: disable=too-many-branches
 	console.print("")
 
 
-def console_health_check() -> int:  # pylint: disable=too-many-branches
+def console_health_check() -> int:
 	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
 	check_version = None
 	if config.upgrade_check:

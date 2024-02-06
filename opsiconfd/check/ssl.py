@@ -68,7 +68,7 @@ def check_ssl() -> CheckResult:
 					if ca_subject != current_ca_subject:
 						partial_result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."
 						partial_result.check_status = CheckStatus.WARNING
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			partial_result.check_status = CheckStatus.ERROR
 			partial_result.message = f"A problem was found with the opsi CA certificate: {err}."
 			ca_cert = None
@@ -87,7 +87,7 @@ def check_ssl() -> CheckResult:
 				partial_result.message = "The opsi CA is a functional intermediate CA."
 				try:
 					check_intermediate_ca(ca_cert)
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					partial_result.check_status = CheckStatus.ERROR
 					partial_result.message = f"The opsi CA is an intermediate CA and a problem has been found: {err}"
 
@@ -102,7 +102,7 @@ def check_ssl() -> CheckResult:
 			)
 			try:
 				load_ca_key()
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.message = f"A problem was found with the opsi CA key: {err}."
 
@@ -126,7 +126,7 @@ def check_ssl() -> CheckResult:
 				if not_after_days <= config.ssl_server_cert_renew_days:
 					partial_result.message = f"The server certificate is OK but will expire in {not_after_days} days."
 					partial_result.check_status = CheckStatus.WARNING
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			partial_result.check_status = CheckStatus.ERROR
 			partial_result.message = f"A problem was found with the server certificate: {err}."
 			ca_cert = None
@@ -161,7 +161,7 @@ def check_ssl() -> CheckResult:
 					except verification.VerificationError:
 						partial_result.check_status = CheckStatus.ERROR
 						partial_result.message = "Failed to verify server cert with opsi CA."
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			partial_result.check_status = CheckStatus.ERROR
 			partial_result.message = f"A problem was found with the server key: {err}."
 

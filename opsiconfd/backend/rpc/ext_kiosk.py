@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol
 
 
-class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
+class RPCExtKioskMixin(Protocol):
 	def _get_software_on_demand_groups(self: BackendProtocol, client_id: str) -> set[str]:
 		"""
 		Get the software-on-demand groups for the given client.
@@ -45,7 +45,7 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 		return group_ids
 
 	@rpc_method(deprecated=False, check_acl=False)
-	def getKioskProductInfosForClient(  # pylint: disable=invalid-name,too-many-locals,too-many-statements,too-many-branches
+	def getKioskProductInfosForClient(
 		self: BackendProtocol, clientId: str, addConfigs: bool = False
 	) -> dict | list:
 		"""
@@ -78,7 +78,7 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 				if cst:
 					config_state_values = cst.get(clientId, {})
 
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 			raise RuntimeError(f"Failed to collect kiosk data: {err}") from err
 

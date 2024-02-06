@@ -39,12 +39,12 @@ async def redis_command(request: Request) -> RESTResponse:
 
 @redis_interface_router.get("/redis-stats")
 @rest_api
-async def get_redis_stats() -> RESTResponse:  # pylint: disable=too-many-locals
+async def get_redis_stats() -> RESTResponse:
 	redis = await async_redis_client()
 	try:
 		redis_info = await async_get_redis_info(redis)
 		return RESTResponse(redis_info)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Error while reading redis data: %s", err, exc_info=True)
 		return RESTErrorResponse(details=err, message="Error while reading redis data")
 
@@ -52,7 +52,7 @@ async def get_redis_stats() -> RESTResponse:  # pylint: disable=too-many-locals
 @redis_interface_router.get("/redis-debug-keys")
 @redis_interface_router.post("/redis-debug-keys")
 @rest_api
-async def get_redis_debug_keys(request: Request) -> RESTResponse:  # pylint: disable=too-many-locals
+async def get_redis_debug_keys(request: Request) -> RESTResponse:
 	try:
 		params = await request.json()
 	except json.decoder.JSONDecodeError:
@@ -73,7 +73,7 @@ async def get_redis_debug_keys(request: Request) -> RESTResponse:  # pylint: dis
 			key_str = key.decode("utf8")
 			info[key_str] = await redis.debug_object(key)
 		return RESTResponse(dict(sorted(info.items())))
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Error while reading redis data: %s", err)
 		return RESTErrorResponse(details=err, message="Error while reading redis data")
 

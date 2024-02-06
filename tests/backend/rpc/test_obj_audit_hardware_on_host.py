@@ -13,13 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, clean_mysql, clean_redis, test_client  # pylint: disable=unused-import
+from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, clean_mysql, clean_redis, test_client  # noqa: F401
 
 
 @pytest.mark.parametrize("method", ("auditHardwareOnHost_updateObjects", "auditHardwareOnHost_createObjects"))
 def test_hwaudit(
 	method: str,
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	host_id1 = "test-backend-rpc-host-1.opsi.test"
 	host_key1 = "5913c501a2854587dec4e60d57676892"

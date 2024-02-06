@@ -47,7 +47,7 @@ GRAFANA_IS_LOCAL = False
 running_item: Callable | Coroutine | None = None
 
 
-def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument
+def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:
 	sys.exit(1)
 
 
@@ -55,7 +55,7 @@ Manager.orig_signal_handler = Manager.signal_handler  # type: ignore[attr-define
 Manager.signal_handler = signal_handler  # type: ignore[assignment]
 
 
-def emit(*args: Any, **kwargs: Any) -> None:  # pylint: disable=unused-argument
+def emit(*args: Any, **kwargs: Any) -> None:
 	pass
 
 
@@ -63,7 +63,7 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 
 @hookimpl()
-def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
+def pytest_sessionstart(session: Session) -> None:
 	# print(sys.argv)
 	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
 		# vscode test discovery running
@@ -74,7 +74,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	_config.reload()
 
 	# Need to use other redis key prefix to not interfere with an running opsiconfd with same test config
-	_config._config.redis_prefix = "pytest"  # pylint: disable=protected-access
+	_config._config.redis_prefix = "pytest"
 
 	sync_clean_redis()
 
@@ -88,7 +88,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	pprint.pprint(_config.items(), width=200)
 
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
-		global GRAFANA_IS_LOCAL  # pylint: disable=global-statement
+		global GRAFANA_IS_LOCAL
 		GRAFANA_IS_LOCAL = True
 
 	def stderr_close() -> None:
@@ -111,7 +111,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		mysql = MySQLConnection()
 		with mysql.connection():
 			drop_database(mysql)
-	except Exception:  # pylint: disable=broad-except
+	except Exception:
 		pass
 	print("Setup database")
 	setup_mysql(explicit=True)
@@ -123,12 +123,12 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		setup_ssl()
 
 	print("Setup application")
-	Worker._instance = Worker("pytest", 1)  # pylint: disable=protected-access
+	Worker._instance = Worker("pytest", 1)
 	application_setup()
 
 
 @hookimpl()
-def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: disable=unused-argument
+def pytest_sessionfinish(session: Session, exitstatus: int) -> None:
 	# print(sys.argv)
 	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
 		# vscode test discovery running
@@ -156,7 +156,7 @@ def pytest_runtest_setup(item: Item) -> None:
 def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Result, Result]:
 	start_threads = set(threading.enumerate())
 
-	global running_item  # pylint: disable=global-statement
+	global running_item
 	running_item = pyfuncitem
 
 	outcome: Result = yield

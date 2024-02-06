@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 logger = get_logger("opsiconfd.metrics")
 
 
-class MetricsCollector:  # pylint: disable=too-many-instance-attributes
+class MetricsCollector:
 	_metric_type = Metric
 
 	def __init__(self) -> None:
@@ -105,7 +105,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 
 		try:
 			await self._execute_redis_command(*cmds)
-		except ResponseError as err:  # pylint: disable=broad-except
+		except ResponseError as err:
 			if str(err).lower().startswith("unknown command"):
 				logger.error("RedisTimeSeries module missing, metrics collector ending")
 				self.stop()
@@ -117,7 +117,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				try:
 					await self._fetch_values()
 					await self._write_values_to_redis()
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.error(err, exc_info=True)
 			for _ in range(self._interval):
 				if self._should_stop:
@@ -187,7 +187,7 @@ class ManagerMetricsCollector(MetricsCollector):
 		await self.add_value("node:avg_load", psutil.getloadavg()[0])
 
 
-statistics: MessagebusWebsocketStatistics | None = None  # pylint: disable=invalid-name
+statistics: MessagebusWebsocketStatistics | None = None
 
 
 class WorkerMetricsCollector(MetricsCollector):
@@ -201,8 +201,8 @@ class WorkerMetricsCollector(MetricsCollector):
 		self._last_messagebus_messages_sent = 0
 		self._last_messagebus_messages_received = 0
 
-		global statistics  # pylint: disable=global-statement,invalid-name
-		# pylint: disable=invalid-name,import-outside-toplevel,redefined-outer-name
+		global statistics
+
 		from opsiconfd.messagebus.websocket import statistics
 
 	@property

@@ -55,8 +55,8 @@ from .redis import send_message as redis_send_message
 
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
-terminal_instance_reader = None  # pylint: disable=invalid-name
-terminal_request_reader = None  # pylint: disable=invalid-name
+terminal_instance_reader = None
+terminal_request_reader = None
 
 
 async def async_terminal_startup() -> None:
@@ -89,14 +89,14 @@ def start_pty(
 		raise RuntimeError(f"Failed to start pty with shell {shell!r}: {err}") from err
 
 
-class Terminal:  # pylint: disable=too-many-instance-attributes
+class Terminal:
 	default_rows = 30
 	max_rows = 100
 	default_cols = 120
 	max_cols = 300
 	idle_timeout = 8 * 3600
 
-	def __init__(self, terminal_open_request: TerminalOpenRequestMessage, sender: str, send_message: Callable) -> None:  # pylint: disable=too-many-arguments
+	def __init__(self, terminal_open_request: TerminalOpenRequestMessage, sender: str, send_message: Callable) -> None:
 		self._terminal_open_request = terminal_open_request
 		self._sender = sender
 		self._send_message = send_message
@@ -177,7 +177,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		except EOF:
 			# shell exit
 			await self.close()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 			await self.close()
 
@@ -227,7 +227,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 				self._pty.close(True)
 			if self._pty_reader_task:
 				self._pty_reader_task.cancel()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
 
@@ -271,7 +271,7 @@ async def _process_message(
 			await terminal.process_message(message)
 		else:
 			raise RuntimeError("Invalid terminal id")
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning(err, exc_info=True)
 		terminal_error = TerminalErrorMessage(
 			sender=get_messagebus_worker_id(),
@@ -288,7 +288,7 @@ async def _process_message(
 
 
 async def messagebus_terminal_instance_worker_configserver() -> None:
-	global terminal_instance_reader  # pylint: disable=invalid-name,global-statement
+	global terminal_instance_reader
 
 	channel = f"{get_messagebus_worker_id()}:terminal"
 	terminal_instance_reader = MessageReader()
@@ -303,7 +303,7 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 				await process_file_message(message, redis_send_message)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
 
@@ -316,7 +316,7 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 	)
 	try:
 		await service_client.messagebus.async_send_message(subscription_message)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Failed to send message to messagebus: %s", err)
 		return
 
@@ -348,7 +348,7 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 					pass
 				else:
 					raise ValueError(f"Received invalid message type {message.type}")
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 
 	listener = TerminalMessageListener()
@@ -364,7 +364,7 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 				await process_file_message(message, service_client.messagebus.async_send_message)
 			else:
 				await _process_message(message, service_client.messagebus.async_send_message)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
 
@@ -376,7 +376,7 @@ async def messagebus_terminal_instance_worker() -> None:
 
 
 async def messagebus_terminal_open_request_worker_configserver() -> None:
-	global terminal_request_reader  # pylint: disable=invalid-name,global-statement
+	global terminal_request_reader
 
 	channel = "service:config:terminal"
 
@@ -392,7 +392,7 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 				await _process_message(message, redis_send_message)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 		# ACK Message
 		await terminal_request_reader.ack_message(message.channel, redis_id)
@@ -406,7 +406,7 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 	)
 	try:
 		await service_client.messagebus.async_send_message(message)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Failed to send message to messagebus: %s", err)
 		return
 

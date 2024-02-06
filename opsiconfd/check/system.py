@@ -135,7 +135,7 @@ def get_repo_versions() -> dict[str, str | None]:
 	return repo_versions
 
 
-def get_installed_packages(packages: dict | None = None) -> dict:  # pylint: disable=too-many-branches
+def get_installed_packages(packages: dict | None = None) -> dict:
 	installed_versions: dict[str, str] = {}
 	if linux_distro_id_like_contains(("sles", "rhel")):
 		cmd = ["yum", "list", "installed"]
@@ -191,7 +191,7 @@ def get_installed_packages(packages: dict | None = None) -> dict:  # pylint: dis
 	return installed_versions
 
 
-def check_system_packages() -> CheckResult:  # pylint: disable=too-many-branches, too-many-statements, too-many-locals
+def check_system_packages() -> CheckResult:
 	"""
 	## System packages
 	Currently the following system packages are checked for actuality:

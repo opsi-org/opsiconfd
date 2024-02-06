@@ -22,7 +22,7 @@ from opsicommon.objects import (
 )
 
 from opsiconfd.config import get_depotserver_id
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -35,7 +35,7 @@ from tests.utils import (  # pylint: disable=unused-import
 from .test_obj_product_on_depot import create_test_pods
 
 
-def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
+def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
 	pod1, pod2 = create_test_pods(test_client)
 
 	client1 = {
@@ -86,7 +86,7 @@ def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disa
 	return (poc1, poc2)
 
 
-def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list) -> None:  # noqa: F811
 	for product_on_client in pocs:
 		rpc = {
 			"jsonrpc": "2.0",
@@ -102,8 +102,8 @@ def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list) -> No
 			assert val == poc[attr]
 
 
-def test_product_on_client_insertObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_client_insertObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	poc1, poc2 = create_test_pocs(test_client)
@@ -111,7 +111,7 @@ def test_product_on_client_insertObject(  # pylint: disable=invalid-name
 	check_products_on_client(test_client, [poc1, poc2])
 
 
-def test_product_on_client_create_objects(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_client_create_objects(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	pod1, pod2 = create_test_pods(test_client)
 
@@ -158,7 +158,7 @@ def test_product_on_client_create_objects(test_client: OpsiconfdTestClient) -> N
 	check_products_on_client(test_client, [poc1, poc2])
 
 
-def test_product_on_client_create(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_client_create(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	pod1, pod2 = create_test_pods(test_client)
 
@@ -220,8 +220,8 @@ def test_product_on_client_create(test_client: OpsiconfdTestClient) -> None:  # 
 	check_products_on_client(test_client, [poc1, poc2])
 
 
-def test_product_on_client_updateObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_client_updateObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	poc1, poc2 = create_test_pocs(test_client)
@@ -332,8 +332,8 @@ def test_product_on_client_updateObject(  # pylint: disable=invalid-name
 				assert poc[attr] == val
 
 
-def test_product_on_client_getIdents(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_client_getIdents(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	poc1, poc2 = create_test_pocs(test_client)
@@ -348,8 +348,8 @@ def test_product_on_client_getIdents(  # pylint: disable=invalid-name
 	]
 
 
-def test_product_on_client_delete(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_client_delete(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	poc1, poc2 = create_test_pocs(test_client)
@@ -386,8 +386,8 @@ def test_product_on_client_delete(  # pylint: disable=invalid-name
 
 
 @pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
-def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_client_get_hashes(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	poc1, poc2 = create_test_pocs(test_client)
@@ -409,8 +409,8 @@ def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
 		assert val == poc[attr]
 
 
-def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-many-statements,too-many-locals,too-many-arguments
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+def _prepare_product_on_client_sequence_dependencies(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	poc_status: list[tuple[str, str, str]],
 	# productAction, requiredAction, requiredInstallationStatus, requirementType
 	requirement: tuple[str | None, str | None, str | None, str | None],
@@ -653,8 +653,8 @@ def _prepare_product_on_client_sequence_dependencies(  # pylint: disable=too-man
 		),
 	),
 )
-def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,redefined-outer-name,too-many-arguments
-	test_client: OpsiconfdTestClient,
+def test_productOnClient_sequence_dependencies(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	poc_status: list[tuple[str, str, str]],
 	requirement: tuple[str | None, str | None, str | None, str | None],
 	expected_actions: list[tuple[str, str]],
@@ -688,8 +688,8 @@ def test_productOnClient_sequence_dependencies(  # pylint: disable=invalid-name,
 		assert pocs[idx]["actionRequest"] == expected[1]
 
 
-def test_setProductActionRequestWithDependencies(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_setProductActionRequestWithDependencies(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -775,8 +775,8 @@ def test_setProductActionRequestWithDependencies(  # pylint: disable=invalid-nam
 	assert "error" not in res
 
 
-def test_productOnClients_removed_product(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_productOnClients_removed_product(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

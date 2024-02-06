@@ -18,7 +18,6 @@ from typing import Any
 
 import psutil
 
-from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.main import health_check
 from opsiconfd.check.system import get_disk_mountpoints, get_installed_packages
@@ -50,7 +49,7 @@ def get_lsb_release() -> dict[str, str]:
 		lines = run(
 			LSB_RELASE_COMMAND, shell=False, check=False, text=True, encoding="utf-8", capture_output=True, timeout=5
 		).stdout.splitlines()
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.debug("lsb_release not available: %s", err)
 		return data
 
@@ -157,7 +156,7 @@ def get_backendmanager_extension_methods() -> dict[str, Any]:
 	logger.debug("get_backendmanager_extension_methods")
 	backend = get_unprotected_backend()
 	result: dict = {}
-	for method in backend._extender_method_info:  # pylint: disable=protected-access
+	for method in backend._extender_method_info:
 		signature = []
 		for param in method.signature.parameters.values():
 			signature.append({param.name: str(param.annotation)})

@@ -27,7 +27,7 @@ from opsiconfd.application.monitoring.check_short_product_status import (
 )
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.utils import DiskUsage
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	Config,
 	MySQLConnection,
 	OpsiconfdTestClient,
@@ -127,7 +127,7 @@ test_data: tuple[tuple[Any, Any, Any, Any], ...] = (
 
 
 @pytest.fixture(autouse=True)
-def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Generator[None, None, None]:
+def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Generator[None, None, None]:  # noqa: F811  # noqa: F811
 	delete_mysql_data()
 
 	mysql = MySQLConnection()
@@ -243,10 +243,10 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
-def test_check_disk_usage(  # pylint: disable=too-many-arguments,redefined-outer-name
-	backend: UnprotectedBackend, info: dict[str, Any], opsiresource: Any, thresholds: Any, expected_result: Any
+def test_check_disk_usage(
+	backend: UnprotectedBackend, info: dict[str, Any], opsiresource: Any, thresholds: Any, expected_result: Any  # noqa: F811
 ) -> None:
-	def get_disk_usage(path: str) -> DiskUsage:  # pylint: disable=unused-argument
+	def get_disk_usage(path: str) -> DiskUsage:
 		return DiskUsage(**info)
 
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
@@ -256,10 +256,10 @@ def test_check_disk_usage(  # pylint: disable=too-many-arguments,redefined-outer
 
 
 @pytest.mark.parametrize("return_value", [(None), ({}), ([])])
-def test_check_disk_usage_no_result(  # pylint: disable=too-many-arguments,redefined-outer-name
-	backend: UnprotectedBackend, return_value: Any
+def test_check_disk_usage_no_result(
+	backend: UnprotectedBackend, return_value: Any  # noqa: F811
 ) -> None:
-	def get_disk_usage(path: str) -> DiskUsage:  # pylint: disable=unused-argument
+	def get_disk_usage(path: str) -> DiskUsage:
 		return return_value
 
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
@@ -268,7 +268,7 @@ def test_check_disk_usage_no_result(  # pylint: disable=too-many-arguments,redef
 	assert json.loads(result.body) == {"message": ("UNKNOWN: No disk usage results, nothing to check."), "state": 3}
 
 
-def test_check_locked_products(backend: UnprotectedBackend) -> None:
+def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F811
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
 	assert json.loads(result.body) == {"message": "OK: No products locked on depots: pytest-test-depot.uib.gmbh", "state": 0}
 
@@ -415,11 +415,11 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:
 		),
 	],
 )
-def test_check_short_product_status(  # pylint: disable=too-many-arguments
-	backend: UnprotectedBackend,
+def test_check_short_product_status(
+	backend: UnprotectedBackend,  # noqa: F811
 	product_id: str,
 	thresholds: dict,
-	expected_result: Any,  # pylint: disable=redefined-outer-name
+	expected_result: Any,
 ) -> None:
 	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
 	assert json.loads(result.body) == expected_result
@@ -463,23 +463,23 @@ def test_check_short_product_status(  # pylint: disable=too-many-arguments
 		),
 	],
 )
-def test_check_client_plugin(  # pylint: disable=too-many-arguments
-	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name
+def test_check_client_plugin(
+	backend: UnprotectedBackend,  # noqa: F811
 	params: dict,
 	reachable: bool,
 	command_result: dict,
 	expected_result: dict,
 ) -> None:
-	def host_control_safe_reachable(hostIds: list[str]) -> dict:  # pylint: disable=invalid-name
+	def host_control_safe_reachable(hostIds: list[str]) -> dict:
 		return {hostIds[0]: reachable}
 
-	def host_control_safe_execute(  # pylint: disable=too-many-arguments
-		command: str,  # pylint: disable=unused-argument
-		hostIds: list[str],  # pylint: disable=invalid-name
-		waitForEnding: bool,  # pylint: disable=unused-argument,invalid-name
-		captureStderr: bool,  # pylint: disable=unused-argument,invalid-name
-		encoding: str,  # pylint: disable=unused-argument
-		timeout: float,  # pylint: disable=unused-argument
+	def host_control_safe_execute(
+		command: str,
+		hostIds: list[str],
+		waitForEnding: bool,
+		captureStderr: bool,
+		encoding: str,
+		timeout: float,
 	) -> dict:
 		return {hostIds[0]: command_result}
 

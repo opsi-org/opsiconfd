@@ -29,11 +29,10 @@ from pyzsync import (
 	read_zsync_file,
 )
 
-from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
 from opsiconfd.config import get_depotserver_id
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -51,19 +50,19 @@ def test_webdav_setup() -> None:
 	webdav_setup(app)
 
 
-def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	# Windows WebDAV client send OPTIONS request for /
 	res = test_client.request(method="OPTIONS", url="/")
 	assert res.status_code == 200
 	assert res.headers["Allow"] == "OPTIONS, GET, HEAD"
 
 
-def test_webdav_path_modification(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_webdav_path_modification(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.request(method="PROPFIND", url="/dav", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 207
 
 
-def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024
 	rand_bytes = ("".join(random.choice(ascii_letters) for i in range(size))).encode("ascii")
@@ -84,13 +83,13 @@ def test_webdav_upload_download_delete_with_special_chars(test_client: Opsiconfd
 	res.raise_for_status()
 
 
-def test_webdav_auth(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_webdav_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	url = "/repository/test_file.bin"
 	res = test_client.get(url=url)
 	assert res.status_code == 401
 
 
-def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id, client_key]}
@@ -142,7 +141,7 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	),
 )
 def test_webdav_ignore_case_download(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	filename: str,
 	path: str,
 	exception: Type[Exception],
@@ -164,9 +163,9 @@ def test_webdav_ignore_case_download(
 
 		if exception:
 			with pytest.raises(exception):
-				prov._loc_to_file_path(path)  # pylint: disable=protected-access
+				prov._loc_to_file_path(path)
 		else:
-			file_path = prov._loc_to_file_path(path)  # pylint: disable=protected-access
+			file_path = prov._loc_to_file_path(path)
 			assert file_path == f"{base_dir}/{directory + '/' if directory else ''}{filename}"
 
 		url = f"/depot/{path}"
@@ -184,7 +183,7 @@ def test_webdav_ignore_case_download(
 
 
 def test_webdav_symlink(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	base_dir = Path("/var/lib/opsi/depot/symlink_test")
@@ -212,7 +211,7 @@ def test_webdav_symlink(
 			shutil.rmtree(base_dir)
 
 
-def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	res = test_client.get(url="/dav")
 	assert res.status_code == 200
@@ -224,8 +223,8 @@ def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # pyl
 	assert "/workbench" in res.text
 
 
-def test_webdav_setup_exception(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
-	host = backend.host_getObjects(type="OpsiDepotserver", id=get_depotserver_id())[0]  # pylint: disable=no-member
+def test_webdav_setup_exception(backend: UnprotectedBackend) -> None:  # noqa: F811
+	host = backend.host_getObjects(type="OpsiDepotserver", id=get_depotserver_id())[0]
 	repo_url = host.getRepositoryLocalUrl()
 	depot_url = host.getDepotLocalUrl()
 	workbench_url = host.getWorkbenchLocalUrl()
@@ -271,7 +270,7 @@ class MemoryUsageWatcher(Thread):
 				self.memory_usage.append(self.process.memory_info().rss)
 
 
-def test_repository_zsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # pylint: disable=too-many-locals,redefined-outer-name
+def test_repository_zsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	class TestHTTPPatcher(HTTPPatcher):
@@ -283,9 +282,9 @@ def test_repository_zsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> N
 
 		def _read_response_data(self, size: int | None = None) -> bytes:
 			if not size:
-				size = len(self._response._content)  # pylint: disable=protected-access
-			data = self._response._content[:size]  # pylint: disable=protected-access
-			self._response._content = self._response._content[size:]  # pylint: disable=protected-access
+				size = len(self._response._content)
+			data = self._response._content[:size]
+			self._response._content = self._response._content[size:]
 			return data
 
 	remote_file = Path("/var/lib/opsi/repository/remote")

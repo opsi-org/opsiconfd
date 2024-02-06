@@ -58,7 +58,7 @@ class CheckResult(PartialCheckResult):
 def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
 	try:
 		yield
-	except (OperationalError, MySQLdbOperationalError) as err:  # pylint: disable=broad-except
+	except (OperationalError, MySQLdbOperationalError) as err:
 		result.check_status = CheckStatus.ERROR
 		error_str = str(err).split("\n", 1)[0]
 		match = re.search(r"\((\d+),\s+(\S.*)\)", error_str)
@@ -68,6 +68,6 @@ def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
 	except RedisConnectionError as err:
 		result.check_status = CheckStatus.ERROR
 		result.message = f"Cannot connect to Redis: {err}"
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		result.check_status = CheckStatus.ERROR
 		result.message = str(err)

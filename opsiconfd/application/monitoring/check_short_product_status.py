@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def check_short_product_status(  # pylint: disable=too-many-statements, dangerous-default-value, too-many-locals, too-many-branches
+def check_short_product_status(
 	backend: Backend, product_id: str | None = None, thresholds: dict[str, str] | None = None
 ) -> JSONResponse:
 	thresholds = thresholds or {}
@@ -53,7 +53,7 @@ def check_short_product_status(  # pylint: disable=too-many-statements, dangerou
 	critical_flt = float(remove_percent(critical))
 
 	logger.debug("Checking shortly the productStates on Clients")
-	config_server = backend.host_getObjects(type="OpsiConfigserver")[0]  # pylint: disable=protected-access
+	config_server = backend.host_getObjects(type="OpsiConfigserver")[0]
 
 	for pod in backend.productOnDepot_getObjects(depotId=config_server.id, productId=product_id):
 		target_product_version = pod.productVersion

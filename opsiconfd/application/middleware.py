@@ -19,7 +19,7 @@ from opsicommon.logging.constants import TRACE  # type: ignore[import]
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
-from opsiconfd import __version__, contextvar_client_address, contextvar_request_id
+from opsiconfd import contextvar_client_address, contextvar_request_id
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger, logger
 from opsiconfd.utils import normalize_ip_address
@@ -39,11 +39,11 @@ PATH_MAPPINGS = {
 header_logger = get_logger("opsiconfd.headers")
 
 
-server_date = (0, b"", b"")  # pylint: disable=invalid-name
+server_date = (0, b"", b"")
 
 
 def get_server_date() -> tuple[bytes, bytes]:
-	global server_date  # pylint: disable=global-statement,invalid-name
+	global server_date
 	now = int(time())
 	if server_date[0] != now:
 		server_date = (
@@ -54,8 +54,8 @@ def get_server_date() -> tuple[bytes, bytes]:
 	return server_date[1], server_date[2]
 
 
-class BaseMiddleware:  # pylint: disable=too-few-public-methods
-	def __init__(self, app: FastAPI) -> None:  # pylint: disable=redefined-outer-name
+class BaseMiddleware:
+	def __init__(self, app: FastAPI) -> None:
 		self.app = app
 		self.worker_id = Worker.get_instance().id.encode("utf-8")
 
@@ -71,7 +71,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 	def before_send(scope: Scope, receive: Receive, send: Send) -> None:
 		pass
 
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-statements
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		if scope["type"] not in ("http", "websocket"):
 			return await self.app(scope, receive, send)
 
@@ -138,7 +138,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					origin = urlparse(req_headers[b"origin"].decode())
 					origin_scheme = origin.scheme
 					origin_port = int(origin.port)
-				except Exception:  # pylint: disable=broad-except
+				except Exception:
 					pass
 
 				headers = MutableHeaders(scope=message)

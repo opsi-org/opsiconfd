@@ -26,7 +26,7 @@ from opsiconfd.application import (
 )
 from opsiconfd.redis import redis_client
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
@@ -57,7 +57,7 @@ class AppStateReaderThread(Thread):
 
 
 @pytest.fixture
-def app_state_reader(config: Config) -> Generator[AppStateReaderThread, None, None]:  # pylint: disable=redefined-outer-name
+def app_state_reader(config: Config) -> Generator[AppStateReaderThread, None, None]:  # noqa: F811
 	thread = AppStateReaderThread(f"{config.redis_key('state')}:application:app_state")
 	thread.start()
 	yield thread
@@ -102,8 +102,8 @@ def test_app_state_from_dict() -> None:
 
 
 def test_maintenance(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	app_state_reader: AppStateReaderThread,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	app_state_reader: AppStateReaderThread,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	initalized_event = Event()

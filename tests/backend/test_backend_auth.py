@@ -15,7 +15,7 @@ import pytest
 from opsiconfd.backend.auth import read_acl_file
 
 
-def test_read_acl_file(tmp_path: Path) -> None:  # pylint: disable=too-many-statements
+def test_read_acl_file(tmp_path: Path) -> None:
 	acl_file = tmp_path / "acl.conf"
 	data = (
 		"backend_deleteBase : sys_group(admingrp1,admingrp2)\n"
@@ -108,7 +108,7 @@ def test_read_acl_file(tmp_path: Path) -> None:  # pylint: disable=too-many-stat
 	assert not acl[12].denied_attributes
 
 
-def test_acl_file_errors(tmp_path: Path) -> None:  # pylint: disable=too-many-statements
+def test_acl_file_errors(tmp_path: Path) -> None:
 	acl_file = tmp_path / "acl.conf"
 	for data in (
 		"backend_deleteBase : sys_group(admingrp1\n",

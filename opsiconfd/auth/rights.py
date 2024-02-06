@@ -15,7 +15,7 @@ from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBool
 
 
-class Rights:  # pylint: disable=too-many-instance-attributes
+class Rights:
 	name: str
 	role: str = ""
 	modified: str = ""
@@ -47,7 +47,7 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 	# def product_group_access_configured(self) -> bool:
 	# 	return bool(self.product_group_access)
 
-	def __init__(  # pylint: disable=too-many-arguments, too-many-locals
+	def __init__(
 		self,
 		name: str,
 		read_only: bool = False,
@@ -82,7 +82,7 @@ class Rights:  # pylint: disable=too-many-instance-attributes
 		now = datetime.utcnow()
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
 
-		from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+		from opsiconfd.backend import get_unprotected_backend
 
 		self.backend = get_unprotected_backend()
 		depots = [depot.id for depot in self.backend.host_getObjects(type="OpsiDepotserver")]

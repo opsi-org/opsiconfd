@@ -19,7 +19,7 @@ from aiozeroconf import (  # type: ignore[import]
 from opsiconfd import __version__
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
 
-from .utils import get_config  # pylint: disable=unused-import
+from .utils import get_config
 
 services = {}
 

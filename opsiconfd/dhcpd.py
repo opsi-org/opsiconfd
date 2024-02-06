@@ -176,7 +176,7 @@ class DHCPDConfBlock(DHCPDConfComponent):
 		self,
 		start_line: int,
 		parent_block: DHCPDConfBlock | None,
-		type: str,  # pylint: disable=redefined-builtin
+		type: str,
 		settings: list[str] | None = None,
 	):
 		super().__init__(start_line, parent_block)
@@ -255,7 +255,7 @@ class DHCPDConfBlock(DHCPDConfComponent):
 
 		return parameters
 
-	def get_blocks(self, type: str | None = None, recursive: bool = False) -> list[DHCPDConfBlock]:  # pylint: disable=redefined-builtin
+	def get_blocks(self, type: str | None = None, recursive: bool = False) -> list[DHCPDConfBlock]:
 		blocks = []
 		for component in self.components:
 			if not isinstance(component, DHCPDConfBlock):
@@ -309,7 +309,7 @@ class DHCPDConfGlobalBlock(DHCPDConfBlock):
 		super().__init__(1, None, "global")
 
 
-class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
+class DHCPDConfFile:
 	def __init__(self, file_path: str | Path, lock_timeout: float = 2.0) -> None:
 		self.file_path = Path(file_path)
 		self._lock_timeout = lock_timeout
@@ -327,7 +327,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 	def get_global_block(self) -> DHCPDConfBlock:
 		return self._global_block
 
-	def parse(self) -> None:  # pylint: disable=too-many-branches
+	def parse(self) -> None:
 		self._current_line = 0
 		self._current_token = None
 		self._current_index = -1
@@ -391,7 +391,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 				file.truncate()
 				file.write(self._global_block.as_text())
 
-	def add_host(  # pylint: disable=too-many-branches,too-many-locals,too-many-arguments,too-many-statements
+	def add_host(
 		self, hostname: str, hardware_address: str, ip_address: str, fixed_address: str, parameters: dict[str, str | bool] | None = None
 	) -> None:
 		self._assert_parsed()
@@ -569,7 +569,7 @@ class DHCPDConfFile:  # pylint: disable=too-many-instance-attributes
 		)
 		self._data = self._data[: self._current_index]
 
-	def _parse_semicolon(self) -> None:  # pylint: disable=too-many-branches
+	def _parse_semicolon(self) -> None:
 		logger.trace("_parse_semicolon")
 		data = self._data[: self._current_index]
 		self._data = self._data[self._current_index + 1 :]
@@ -683,7 +683,7 @@ def get_dhcpd_restart_command() -> list[str]:
 	return ["sudo", "systemctl", "restart", get_dhcpd_service_name()]
 
 
-def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def setup_dhcpd() -> None:
 	logger.info("Setup DHCPD")
 	dhcpd_control_config = get_dhcpd_control_config()
 	if not dhcpd_control_config.enabled:
@@ -719,7 +719,7 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 		)
 		conf_changed = True
 
-	for subnet in global_block.get_blocks("subnet", recursive=True):  # pylint: disable=too-many-nested-blocks
+	for subnet in global_block.get_blocks("subnet", recursive=True):
 		logger.info("Found subnet %s/%s", subnet.settings[1], subnet.settings[3])
 		groups = subnet.get_blocks("group")
 		if not groups:
@@ -798,7 +798,7 @@ def setup_dhcpd() -> None:  # pylint: disable=too-many-locals,too-many-branches,
 
 
 @dataclass(slots=True, kw_only=True)
-class DHCPDControlConfig:  # pylint: disable=too-many-instance-attributes
+class DHCPDControlConfig:
 	enabled: bool
 	dhcpd_on_depot: bool
 	dhcpd_config_file: DHCPDConfFile

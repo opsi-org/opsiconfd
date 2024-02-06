@@ -17,7 +17,7 @@ from opsiconfd.backend import (
 )
 
 
-from ..utils import (  # pylint: disable=unused-import
+from ..utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -42,13 +42,13 @@ def test_get_backend_interface() -> None:
 
 
 def test_get_mysql() -> None:
-	mysql = get_mysql()  # pylint: disable=invalid-name
+	mysql = get_mysql()
 	with mysql.session() as session:
 		host_ids = session.execute("SELECT hostId FROM HOST").fetchall()
 		assert len(host_ids) > 0
 
 
-def test_opsiconfd_backend_get_domain(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_opsiconfd_backend_get_domain(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client_id = "test-client-dom.opsi.org"
 	host_key = "76768a28560d5924e4587dec5913c501"
@@ -64,7 +64,7 @@ def test_opsiconfd_backend_get_domain(test_client: OpsiconfdTestClient) -> None:
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 
-def test_opsiconfd_backend_host_get_tls_certificate_depot(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_opsiconfd_backend_host_get_tls_certificate_depot(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	host_id = "test-depot-cert.opsi.org"
 	host_key = "aa768a25913c507dec18560d5924e458"
@@ -90,7 +90,7 @@ def test_opsiconfd_backend_host_get_tls_certificate_depot(test_client: Opsiconfd
 
 
 def test_opsiconfd_backend_host_get_tls_certificate_client(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	host_id = "test-client-cert.opsi.org"
@@ -128,5 +128,5 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 
-def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:  # noqa: F811
 	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)

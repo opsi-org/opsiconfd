@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class RPCProductPropertyMixin(Protocol):
-	def _product_property_insert_object(  # pylint: disable=too-many-arguments
+	def _product_property_insert_object(
 		self: BackendProtocol,
 		product_property: ProductProperty | dict,
 		ace: list[RPCACE],
@@ -35,7 +35,7 @@ class RPCProductPropertyMixin(Protocol):
 		lock: bool = True,
 	) -> None:
 		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)
-		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
+		with self._mysql.session(session) as session:
 			with self._mysql.table_lock(
 				session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}
 			) if lock else nullcontext():
@@ -68,7 +68,7 @@ class RPCProductPropertyMixin(Protocol):
 						)
 
 	@rpc_method(check_acl=False)
-	def productProperty_insertObject(  # pylint: disable=invalid-name
+	def productProperty_insertObject(
 		self: BackendProtocol, productProperty: dict | ProductProperty
 	) -> None:
 		ace = self._get_ace("productProperty_insertObject")
@@ -76,7 +76,7 @@ class RPCProductPropertyMixin(Protocol):
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def productProperty_updateObject(  # pylint: disable=invalid-name
+	def productProperty_updateObject(
 		self: BackendProtocol, productProperty: dict | ProductProperty
 	) -> None:
 		ace = self._get_ace("productProperty_updateObject")
@@ -84,7 +84,7 @@ class RPCProductPropertyMixin(Protocol):
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def productProperty_createObjects(  # pylint: disable=invalid-name
+	def productProperty_createObjects(
 		self: BackendProtocol, productProperties: list[dict] | list[ProductProperty] | dict | ProductProperty
 	) -> None:
 		ace = self._get_ace("productProperty_createObjects")
@@ -97,25 +97,25 @@ class RPCProductPropertyMixin(Protocol):
 					)
 
 	@rpc_method(check_acl=False)
-	def productProperty_create(  # pylint: disable=too-many-arguments,invalid-name
+	def productProperty_create(
 		self: BackendProtocol,
-		productId: str,  # pylint: disable=unused-argument
-		productVersion: str,  # pylint: disable=unused-argument
-		packageVersion: str,  # pylint: disable=unused-argument
-		propertyId: str,  # pylint: disable=unused-argument
-		type: str | None = None,  # pylint: disable=unused-argument, redefined-builtin
-		description: str | None = None,  # pylint: disable=unused-argument
-		possibleValues: List[str] | List[bool] | None = None,  # pylint: disable=unused-argument
-		defaultValues: str | None = None,  # pylint: disable=unused-argument
-		editable: str | None = None,  # pylint: disable=unused-argument
-		multiValue: str | None = None,  # pylint: disable=unused-argument
+		productId: str,
+		productVersion: str,
+		packageVersion: str,
+		propertyId: str,
+		type: str | None = None,
+		description: str | None = None,
+		possibleValues: List[str] | List[bool] | None = None,
+		defaultValues: str | None = None,
+		editable: str | None = None,
+		multiValue: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.productProperty_createObjects(ProductProperty.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productProperty_updateObjects(  # pylint: disable=invalid-name
+	def productProperty_updateObjects(
 		self: BackendProtocol, productProperties: list[dict] | list[ProductProperty] | dict | ProductProperty
 	) -> None:
 		ace = self._get_ace("productProperty_updateObjects")
@@ -127,12 +127,12 @@ class RPCProductPropertyMixin(Protocol):
 						product_property=product_property, ace=ace, create=True, set_null=False, session=session, lock=False
 					)
 
-	def _product_property_get(  # pylint: disable=too-many-arguments,too-many-locals
+	def _product_property_get(
 		self: BackendProtocol,
 		ace: list[RPCACE] | None = None,
 		return_type: Literal["object", "dict"] = "object",
 		attributes: list[str] | tuple[str, ...] | None = None,
-		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+		filter: dict[str, Any] | None = None,
 	) -> list[dict] | list[ProductProperty]:
 		aggregates = {
 			"possibleValues": f'GROUP_CONCAT(`value` SEPARATOR "{self._mysql.record_separator}")',
@@ -155,7 +155,7 @@ class RPCProductPropertyMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def productProperty_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def productProperty_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -164,7 +164,7 @@ class RPCProductPropertyMixin(Protocol):
 		return self._product_property_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(deprecated=True, alternative_method="productProperty_getObjects", check_acl=False)
-	def productProperty_getHashes(  # pylint: disable=invalid-name,redefined-builtin
+	def productProperty_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -173,7 +173,7 @@ class RPCProductPropertyMixin(Protocol):
 		return self._product_property_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def productProperty_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def productProperty_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -182,7 +182,7 @@ class RPCProductPropertyMixin(Protocol):
 		return self._mysql.get_idents("PRODUCT_PROPERTY", ProductProperty, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def productProperty_deleteObjects(  # pylint: disable=invalid-name
+	def productProperty_deleteObjects(
 		self: BackendProtocol, productProperties: list[dict] | list[ProductProperty] | dict | ProductProperty
 	) -> None:
 		if not productProperties:
@@ -194,7 +194,7 @@ class RPCProductPropertyMixin(Protocol):
 			remove_orphans_product_property_state(session)
 
 	@rpc_method(check_acl=False)
-	def productProperty_delete(  # pylint: disable=invalid-name
+	def productProperty_delete(
 		self: BackendProtocol,
 		productId: list[str] | str,
 		productVersion: list[str] | str,

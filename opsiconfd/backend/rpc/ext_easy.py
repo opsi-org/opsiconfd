@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class RPCExtEasyMixin(Protocol):
 	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
-	def getClients(self: BackendProtocol) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
+	def getClients(self: BackendProtocol) -> list[dict[str, Any]]:
 		"""
 		Returns a list of client hashes.
 
@@ -66,7 +66,7 @@ class RPCExtEasyMixin(Protocol):
 		return results
 
 	@rpc_method(deprecated=True, alternative_method="host_getIdents", check_acl=False)
-	def getClientIDs(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
+	def getClientIDs(self: BackendProtocol) -> list[str]:
 		"""
 		Returns a list of client IDs.
 
@@ -75,7 +75,7 @@ class RPCExtEasyMixin(Protocol):
 		return self.host_getIdents(type="OpsiClient")
 
 	@rpc_method(deprecated=True, alternative_method="configState_getClientToDepotserver", check_acl=False)
-	def getClientsOnDepot(self: BackendProtocol, depotIds: list[str]) -> list[str]:  # pylint: disable=invalid-name
+	def getClientsOnDepot(self: BackendProtocol, depotIds: list[str]) -> list[str]:
 		"""
 		Returns a list of client IDs that can be found on the given depots.
 
@@ -90,7 +90,7 @@ class RPCExtEasyMixin(Protocol):
 		return [clientToDepotserver["clientId"] for clientToDepotserver in self.configState_getClientToDepotserver(depotIds=depotIds)]
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def getClientsWithProducts(  # pylint: disable=invalid-name
+	def getClientsWithProducts(
 		self: BackendProtocol, productIds: list[str], installationStatus: str | None = None
 	) -> list[str]:
 		"""
@@ -121,7 +121,7 @@ class RPCExtEasyMixin(Protocol):
 		return list({poc.clientId for poc in self.productOnClient_getObjects(**poc_filter)})
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def getClientsWithActionRequest(self: BackendProtocol, actionRequests: list[str]) -> list[str]:  # pylint: disable=invalid-name
+	def getClientsWithActionRequest(self: BackendProtocol, actionRequests: list[str]) -> list[str]:
 		"""
 		Returns a list of client IDs that have the given actionRequests set.
 		Each client will only be present once in the list of one of the given action requests match.

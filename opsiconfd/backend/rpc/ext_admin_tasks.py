@@ -27,10 +27,10 @@ if TYPE_CHECKING:
 
 class RPCExtAdminTasksMixin(Protocol):
 	@rpc_method(deprecated=True, check_acl=False)
-	def setActionRequestWhereOutdated(  # pylint: disable=invalid-name
+	def setActionRequestWhereOutdated(
 		self: BackendProtocol,
 		actionRequest: str,
-		productId: str,  # pylint: disable=invalid-name
+		productId: str,
 	) -> set[str]:
 		"""
 		Set the specified `actionRequest` at every client that has not the
@@ -54,7 +54,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_update
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def getClientsWithOutdatedProduct(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
+	def getClientsWithOutdatedProduct(self: BackendProtocol, productId: str) -> set[str]:
 		"""
 		Get clients where the product with id `productId` is outdated.
 		This does only take clients into account where the 'installationStatus'
@@ -92,7 +92,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return updated_clients
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setActionRequestWhereOutdatedWithDependencies(  # pylint: disable=invalid-name
+	def setActionRequestWhereOutdatedWithDependencies(
 		self: BackendProtocol, actionRequest: str, productId: str
 	) -> set[str]:
 		"""
@@ -118,7 +118,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_update
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setupWhereNotInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
+	def setupWhereNotInstalled(self: BackendProtocol, productId: str) -> set[str]:
 		"""
 		Sets the action request for the product with `productId` to 'setup'
 		on all clients where the status of the product is not 'installed'.
@@ -173,7 +173,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_setup
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def updateWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
+	def updateWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:
 		"""
 		Set the product with the id `productId` to 'update' on every client
 		where the installation status is 'installed'.
@@ -221,7 +221,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_update
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def uninstallWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
+	def uninstallWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:
 		"""
 		Set the product with the id `productId` to 'uninstall' on every client
 		where the installation status is 'installed'.
@@ -268,7 +268,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_uninstall
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setupWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
+	def setupWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:
 		"""
 		Set the product with the id `productId` to 'setup' on every client
 		where the installation status is 'installed'.
@@ -320,7 +320,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_setup
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setupWhereFailed(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
+	def setupWhereFailed(self: BackendProtocol, productId: str) -> set[str]:
 		"""
 		Set the product with the id `productId` to 'setup' on every client
 		where the action result is 'failed'.

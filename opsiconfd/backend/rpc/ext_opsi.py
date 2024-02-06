@@ -34,13 +34,13 @@ if TYPE_CHECKING:
 
 class RPCExtOpsiMixin(Protocol):
 	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def setProductActionRequest(  # pylint: disable=invalid-name
+	def setProductActionRequest(
 		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
 	) -> None:
 		self.setProductState(productId=productId, objectId=clientId, actionRequest=actionRequest)
 
 	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def setProductActionRequestWithDependencies(  # pylint: disable=invalid-name
+	def setProductActionRequestWithDependencies(
 		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
 	) -> None:
 		"""
@@ -75,27 +75,27 @@ class RPCExtOpsiMixin(Protocol):
 		self.productOnClient_updateObjectsWithDependencies([product_on_client])
 
 	@rpc_method(deprecated=True, alternative_method="accessControl_userIsReadOnlyUser", check_acl=False)
-	def userIsReadOnlyUser(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
+	def userIsReadOnlyUser(self: BackendProtocol) -> bool:
 		return self.accessControl_userIsReadOnlyUser()
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def getServiceTime(self: BackendProtocol, utctime: bool = False) -> str:  # pylint: disable=invalid-name
+	def getServiceTime(self: BackendProtocol, utctime: bool = False) -> str:
 		if utctime:
 			return str(datetime.datetime.utcnow())
 		return str(datetime.datetime.now())
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects", check_acl=False)
-	def getSoftwareAuditDataCount(self: BackendProtocol) -> int:  # pylint: disable=invalid-name
+	def getSoftwareAuditDataCount(self: BackendProtocol) -> int:
 		"""Get the count of data relevant to the software audit."""
 		return len(self.auditSoftware_getObjects()) + len(self.auditSoftwareOnClient_getObjects())
 
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects", check_acl=False)
-	def getHardwareAuditDataCount(self: BackendProtocol) -> int:  # pylint: disable=invalid-name
+	def getHardwareAuditDataCount(self: BackendProtocol) -> int:
 		"""Get the count of data relevant to the hardware audit."""
 		return len(self.auditHardware_getObjects()) + len(self.auditHardwareOnHost_getObjects())
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setRights(self: BackendProtocol, path: str | None = None) -> str:  # pylint: disable=invalid-name
+	def setRights(self: BackendProtocol, path: str | None = None) -> str:
 		"""
 		Setting rights for a specified path.
 		If no path is given it will try to set the rights for the current depot.

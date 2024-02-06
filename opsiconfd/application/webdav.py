@@ -48,7 +48,7 @@ wsgidav.fs_dav_provider.BUFFER_SIZE = BLOCK_SIZE
 
 
 # Prevent warning in log
-def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info: str) -> bool:  # pylint: disable=unused-argument
+def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info: str) -> bool:
 	return False
 
 
@@ -123,10 +123,10 @@ class VirtualRootFilesystemProvider(DAVProvider):
 		return root.resolve("", path)
 
 
-def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, too-many-branches, too-many-locals
+def webdav_setup(app: FastAPI) -> None:
 	try:
 		depot_id = get_depotserver_id()
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning("%s, WebDAV disabled.", err)
 		return
 
@@ -168,7 +168,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 			raise RuntimeError(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
 
 		filesystems["repository"] = {"path": path, "ignore_case": False, "read_only": False}
-	except Exception as exc:  # pylint: disable=broad-except
+	except Exception as exc:
 		logger.error(exc, exc_info=True)
 
 	try:
@@ -180,7 +180,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 			raise RuntimeError(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
 
 		filesystems["depot"] = {"path": path, "ignore_case": True, "read_only": False}
-	except Exception as exc:  # pylint: disable=broad-except
+	except Exception as exc:
 		logger.error(exc, exc_info=True)
 
 	try:
@@ -192,7 +192,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 			raise RuntimeError(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
 
 		filesystems["workbench"] = {"path": path, "ignore_case": False, "read_only": False}
-	except Exception as exc:  # pylint: disable=broad-except
+	except Exception as exc:
 		logger.error(exc, exc_info=True)
 
 	if "public-folder" not in config.disabled_features:
@@ -205,7 +205,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 				raise RuntimeError(f"Cannot add webdav content 'public': permissions on directory '{path}' not sufficient.")
 
 			filesystems["public"] = {"path": path, "ignore_case": False, "read_only": True}
-		except Exception as exc:  # pylint: disable=broad-except
+		except Exception as exc:
 			logger.error(exc, exc_info=True)
 
 	if os.path.isdir(BOOT_DIR):
@@ -216,7 +216,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 				raise RuntimeError(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
 
 			filesystems["boot"] = {"path": path, "ignore_case": True, "read_only": True}
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
 	for name, conf in filesystems.items():

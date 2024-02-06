@@ -9,7 +9,7 @@ test opsiconfd.backend.rpc.obj_product
 """
 
 from opsiconfd.config import get_depotserver_id
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -22,7 +22,7 @@ from tests.utils import (  # pylint: disable=unused-import
 from .test_obj_product import create_test_products
 
 
-def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
+def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
 	product1, product2 = create_test_products(test_client)
 	depot_id = get_depotserver_id()
 	pod1 = {
@@ -55,8 +55,8 @@ def create_test_pods(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disa
 
 
 def check_products_on_depot(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-	pods: list | tuple,  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	pods: list | tuple,
 ) -> None:
 	for product_on_depot in pods:
 		rpc = {
@@ -73,14 +73,14 @@ def check_products_on_depot(
 			assert val == poc[attr]
 
 
-def test_product_on_depot_insertObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_depot_insertObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	check_products_on_depot(test_client, create_test_pods(test_client))
 
 
-def test_product_on_depot_create(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_depot_create(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product1, product2 = create_test_products(test_client)
 	depot_id = get_depotserver_id()
@@ -121,8 +121,8 @@ def test_product_on_depot_create(test_client: OpsiconfdTestClient) -> None:  # p
 	check_products_on_depot(test_client, [pod1, pod2])
 
 
-def test_product_on_depot_updateObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_depot_updateObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	depot_id = get_depotserver_id()
@@ -246,8 +246,8 @@ def test_product_on_depot_updateObject(  # pylint: disable=invalid-name
 				assert val == pod[attr]
 
 
-def test_product_on_depot_getIdents(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_depot_getIdents(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	pod1, pod2 = create_test_pods(test_client)
@@ -262,8 +262,8 @@ def test_product_on_depot_getIdents(  # pylint: disable=invalid-name
 	]
 
 
-def test_product_on_depot_delete(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_on_depot_delete(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	pod1, pod2 = create_test_pods(test_client)

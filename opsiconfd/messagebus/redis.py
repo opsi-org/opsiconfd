@@ -55,7 +55,7 @@ async def messagebus_cleanup(full: bool = False) -> None:
 	await cleanup_channels(full)
 
 
-async def cleanup_channels(full: bool = False) -> None:  # pylint: disable=too-many-locals, too-many-branches
+async def cleanup_channels(full: bool = False) -> None:
 	logger.debug("Cleaning up messagebus channels")
 	backend = get_unprotected_backend()
 	redis = await async_redis_client()
@@ -205,7 +205,7 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 
 	try:
 		await redis.hincrby(state_key, "websocket_count", increment)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)
 
 
@@ -230,11 +230,11 @@ async def get_websocket_connected_users(
 				continue
 			if int(await redis.hget(state_key, "websocket_count") or 0) > 0:
 				yield user_id
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)
 
 
-class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
+class MessageReader:
 	"""
 	Redis Messagebus reader.
 
@@ -340,7 +340,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
 
-	async def get_messages(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+	async def get_messages(
 		self, timeout: float = 0.0
 	) -> AsyncGenerator[tuple[str, Message, Any], None]:
 		if not self._channels:
@@ -348,7 +348,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 
 		_logger = logger
 
-		try:  # pylint: disable=too-many-nested-blocks
+		try:
 			_logger.debug("%s: getting messages", self)
 
 			redis = await async_redis_client()
@@ -403,7 +403,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance
 							# In this case the ID must be set to ">" to start reading new messages.
 							self._streams[stream_key] = ">"
 
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					_logger.error(err, exc_info=True)
 					await sleep(3)
 		except CancelledError:

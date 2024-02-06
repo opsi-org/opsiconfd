@@ -21,11 +21,11 @@ from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backup import create_backup, restore_backup
 from opsiconfd.main import backup_main
 
-from .test_application import (  # pylint: disable=unused-import
+from .test_application import (  # noqa: F401
 	AppStateReaderThread,
 	app_state_reader,
 )
-from .utils import Config, clean_redis, config, get_config  # pylint: disable=unused-import
+from .utils import Config, clean_redis, config, get_config  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -133,9 +133,9 @@ def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dic
 				assert kwargs[key] == val
 
 
-def test_create_backup(  # pylint: disable=redefined-outer-name,unused-argument
-	config: Config,
-	app_state_reader: AppStateReaderThread,
+def test_create_backup(
+	config: Config,  # noqa: F811
+	app_state_reader: AppStateReaderThread,  # noqa: F811
 ) -> None:
 	initalized_event = Event()
 	thread = Thread(
@@ -161,7 +161,7 @@ def test_create_backup(  # pylint: disable=redefined-outer-name,unused-argument
 		thread.join(5)
 
 
-def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa: F811
 	initalized_event = Event()
 	thread = Thread(
 		target=asyncio.run,
@@ -178,7 +178,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 		with mysql.session() as session:
 			session.execute(f"DROP DATABASE IF EXISTS {database}")
 
-		mysql.database = database  # pylint: disable=protected-access
+		mysql.database = database
 		mysql.connect()
 
 		restore_backup(Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False)

@@ -61,7 +61,7 @@ WS_PROTOCOLS["wsproto_ping"] = WSProtocolPing  # type: ignore
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
 	# https://bugs.python.org/issue41699
-	pool_executor = ThreadPoolExecutor(  # pylint: disable=consider-using-with
+	pool_executor = ThreadPoolExecutor(
 		max_workers=config.executor_workers, thread_name_prefix="worker-ThreadPoolExecutor"
 	)
 	loop.set_default_executor(pool_executor)
@@ -120,8 +120,8 @@ class WorkerState(StrEnum):
 	STOPPED = "stopped"
 
 
-class WorkerInfo:  # pylint: disable = too-few-public-methods
-	def __init__(  # pylint: disable = too-many-arguments
+class WorkerInfo:
+	def __init__(
 		self, node_name: str, worker_num: int, create_time: float = 0.0, pid: int = 0, app_state: str = ""
 	) -> None:
 		self.node_name = node_name
@@ -152,11 +152,11 @@ class WorkerInfo:  # pylint: disable = too-few-public-methods
 		return WorkerInfo(**kwargs)
 
 	@property
-	def id(self) -> str:  # pylint: disable=invalid-name
+	def id(self) -> str:
 		return f"{self.node_name}:{self.worker_num}"
 
 	@property
-	def redis_state_key(self) -> str:  # pylint: disable=invalid-name
+	def redis_state_key(self) -> str:
 		return f"{config.redis_key('state')}:workers:{self.id}"
 
 	def __repr__(self) -> str:
@@ -298,7 +298,7 @@ class Worker(WorkerInfo, UvicornServer):
 	def run(self, sockets: Optional[list[socket.socket]] = None) -> None:
 		try:
 			self._run(sockets)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("%s terminated with error: %s", self, err, exc_info=True)
 		shutdown_logging()
 
@@ -327,7 +327,7 @@ class Worker(WorkerInfo, UvicornServer):
 	def get_connection_count(self) -> int:
 		return len(self.server_state.connections)
 
-	async def close_connections(  # pylint: disable=too-many-branches,too-many-nested-blocks
+	async def close_connections(
 		self, address_exceptions: list[str] | None = None, wait: bool = True
 	) -> None:
 		address_exceptions = address_exceptions or []
@@ -350,7 +350,7 @@ class Worker(WorkerInfo, UvicornServer):
 					if logger.isEnabledFor(DEBUG):
 						logger.debug("Closing connection: %s", self.get_connection_info(connection))
 					connection.shutdown()
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.warning("Failed to close connection %s: %s", connection, err)
 
 		if not wait:

@@ -30,7 +30,6 @@ from opsicommon.messagebus import (
 from opsicommon.messagebus import timestamp as mb_timestamp
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
 from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.backend import get_service_client, get_unprotected_backend
@@ -46,7 +45,7 @@ from opsiconfd.worker import Worker, WorkerInfo, WorkerState
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
 
 
-class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-branches
+class WorkerManager:
 	def __init__(self) -> None:
 		self.socket: socket.socket | None = None
 		self.node_name = config.node_name
@@ -79,11 +78,11 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 					break
 				time.sleep(0.5)
 
-	def check_modules(self) -> None:  # pylint: disable=too-many-statements,too-many-branches
+	def check_modules(self) -> None:
 		if config.workers == 1:
 			return
 
-		if "scalability1" not in get_unprotected_backend().available_modules:  # pylint: disable=no-member
+		if "scalability1" not in get_unprotected_backend().available_modules:
 			config.workers = 1
 			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)
 
@@ -107,7 +106,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 	def init_logging(self) -> None:
 		init_logging(config.log_mode)
 
-	def run(self) -> None:  # pylint: disable=too-many-statements
+	def run(self) -> None:
 		logger.notice("Starting server")
 		self.init_logging()
 		self.check_modules()
@@ -290,7 +289,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 			for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
 				try:
 					worker_info = WorkerInfo.from_dict(redis.hgetall(redis_key_b))
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.error("Failed to read worker info from %r, deleting key: %s", redis_key_b.decode("utf-8"), err)
 					redis.delete(redis_key_b)
 					continue
@@ -320,7 +319,7 @@ class DepotserverManagerMessagebusListener(MessagebusListener):
 			logger.debug("Channels subscription event: %s", message.to_dict())
 
 
-class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
+class Manager(metaclass=Singleton):
 	def __init__(self) -> None:
 		self.pid: int | None = None
 		self._async_main_stopped = Event()
@@ -360,7 +359,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		log_config()
 		self._worker_manager.reload()
 
-	def signal_handler(self, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument
+	def signal_handler(self, signum: int, frame: FrameType | None) -> None:
 		# <CTRL>+<C> will send SIGINT to the entire process group on linux.
 		# So child processes will receive the SIGINT too.
 		logger.info("Manager process %s received signal %d", self.pid, signum)
@@ -391,7 +390,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		try:
 			Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
 			self._worker_manager.run()
-		except Exception as exc:  # pylint: disable=broad-except
+		except Exception as exc:
 			logger.error(exc, exc_info=True)
 
 	def run_loop(self) -> None:
@@ -420,7 +419,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 				)
 		self._redis_check_time = time.time()
 
-	async def async_main(self) -> None:  # pylint: disable=too-many-branches
+	async def async_main(self) -> None:
 		# Start MetricsCollector
 		asyncio_create_task(self._metrics_collector.main_loop(), self._loop)
 
@@ -437,7 +436,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			if config.zeroconf:
 				try:
 					await register_opsi_services()
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
@@ -455,7 +454,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 						await messagebus_cleanup(full=False)
 						self._messagebus_cleanup_time = now
 
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 			for _num in range(60):
 				if self._should_stop:
@@ -468,7 +467,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			if config.zeroconf:
 				try:
 					await unregister_opsi_services()
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
 
 		self._async_main_stopped.set()

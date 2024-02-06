@@ -21,27 +21,27 @@ if TYPE_CHECKING:
 
 
 class RPCAuditSoftwareOnClientMixin(Protocol):
-	def auditSoftwareOnClient_bulkInsertObjects(  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_bulkInsertObjects(
 		self: BackendProtocol, auditSoftwareOnClients: list[dict] | list[AuditSoftwareOnClient]
 	) -> None:
 		self._mysql.bulk_insert_objects(table="SOFTWARE_CONFIG", objs=auditSoftwareOnClients)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_insertObject(  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_insertObject(
 		self: BackendProtocol, auditSoftwareOnClient: dict | AuditSoftwareOnClient
 	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_insertObject")
 		self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_updateObject(  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_updateObject(
 		self: BackendProtocol, auditSoftwareOnClient: dict | AuditSoftwareOnClient
 	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_updateObject")
 		self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_createObjects(  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_createObjects(
 		self: BackendProtocol, auditSoftwareOnClients: list[dict] | list[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
 	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_createObjects")
@@ -52,7 +52,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_updateObjects(  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_updateObjects(
 		self: BackendProtocol, auditSoftwareOnClients: list[dict] | list[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
 	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_updateObjects")
@@ -63,7 +63,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def auditSoftwareOnClient_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -74,7 +74,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		)
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects", check_acl=False)
-	def auditSoftwareOnClient_getHashes(  # pylint: disable=redefined-builtin,invalid-name
+	def auditSoftwareOnClient_getHashes(
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:
 		ace = self._get_ace("auditSoftwareOnClient_getObjects")
@@ -83,7 +83,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def auditSoftwareOnClient_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -94,7 +94,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_deleteObjects(  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_deleteObjects(
 		self: BackendProtocol, auditSoftwareOnClients: list[dict] | list[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
 	) -> None:
 		if not auditSoftwareOnClients:
@@ -103,28 +103,28 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		self._mysql.delete_objects(table="SOFTWARE_CONFIG", object_type=AuditSoftwareOnClient, obj=auditSoftwareOnClients, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_create(  # pylint: disable=invalid-name,too-many-arguments,too-many-locals
+	def auditSoftwareOnClient_create(
 		self: BackendProtocol,
-		name: str,  # pylint: disable=unused-argument
-		version: str,  # pylint: disable=unused-argument
-		subVersion: str,  # pylint: disable=invalid-name,unused-argument
-		language: str,  # pylint: disable=unused-argument
-		architecture: str,  # pylint: disable=unused-argument
-		clientId: str,  # pylint: disable=invalid-name,unused-argument
-		uninstallString: str | None = None,  # pylint: disable=invalid-name,unused-argument
-		binaryName: str | None = None,  # pylint: disable=invalid-name,unused-argument
-		firstseen: str | None = None,  # pylint: disable=unused-argument
-		lastseen: str | None = None,  # pylint: disable=unused-argument
-		state: int | None = None,  # pylint: disable=unused-argument
-		usageFrequency: int | None = None,  # pylint: disable=invalid-name,unused-argument
-		lastUsed: str | None = None,  # pylint: disable=invalid-name,unused-argument
-		licenseKey: str | None = None,  # pylint: disable=invalid-name,unused-argument
+		name: str,
+		version: str,
+		subVersion: str,
+		language: str,
+		architecture: str,
+		clientId: str,
+		uninstallString: str | None = None,
+		binaryName: str | None = None,
+		firstseen: str | None = None,
+		lastseen: str | None = None,
+		state: int | None = None,
+		usageFrequency: int | None = None,
+		lastUsed: str | None = None,
+		licenseKey: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		return self.auditSoftwareOnClient_createObjects(AuditSoftwareOnClient.fromHash(_hash))
 
-	def auditSoftwareOnClient_delete(  # pylint: disable=invalid-name,too-many-arguments
+	def auditSoftwareOnClient_delete(
 		self: BackendProtocol,
 		name: list[str] | str,
 		version: list[str] | str,
@@ -159,7 +159,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 			self.auditSoftwareOnClient_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: list[str] | str) -> None:  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: list[str] | str) -> None:
 		idents = self.auditSoftwareOnClient_getIdents(returnType="dict", clientId=clientId)
 		if idents:
 			self.auditSoftwareOnClient_deleteObjects(idents)

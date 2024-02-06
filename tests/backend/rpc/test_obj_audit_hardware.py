@@ -14,7 +14,7 @@ from pathlib import Path
 
 from opsicommon.objects import AuditHardware, deserialize, serialize
 
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -24,8 +24,8 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-def test_auditHardware_create_get_delete(  # pylint: disable=invalid-name,too-many-statements
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+def test_auditHardware_create_get_delete(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

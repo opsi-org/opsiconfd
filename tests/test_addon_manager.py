@@ -18,7 +18,7 @@ from _pytest.fixtures import FixtureFunction
 
 from opsiconfd.addon import AddonManager
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	Config,
 	OpsiconfdTestClient,
 	clean_redis,
@@ -43,7 +43,7 @@ def cleanup() -> Generator[None, None, None]:
 	_cleanup()
 
 
-def test_load_addon(config: Config, cleanup: FixtureFunction) -> None:  # pylint: disable=redefined-outer-name, unused-argument
+def test_load_addon(config: Config, cleanup: FixtureFunction) -> None:  # noqa: F811
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
 	marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_load"
 
@@ -65,7 +65,7 @@ def test_load_addon(config: Config, cleanup: FixtureFunction) -> None:  # pylint
 		assert addon_manager.get_addon_by_path(addon.router_prefix) == addon
 
 
-def test_unload_addon(config: Config, cleanup: FixtureFunction) -> None:  # pylint: disable=redefined-outer-name, unused-argument
+def test_unload_addon(config: Config, cleanup: FixtureFunction) -> None:  # noqa: F811
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
 	marker_file = marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_unload"
 
@@ -84,8 +84,8 @@ def test_unload_addon(config: Config, cleanup: FixtureFunction) -> None:  # pyli
 	os.remove(marker_file)
 
 
-def test_reload_addon(  # pylint: disable=redefined-outer-name, unused-argument
-	config: Config, cleanup: FixtureFunction, tmpdir: str
+def test_reload_addon(
+	config: Config, cleanup: FixtureFunction, tmpdir: str  # noqa: F811
 ) -> None:
 	addon_dir = os.path.join(tmpdir, "test1")
 	shutil.copytree(os.path.abspath("tests/data/addons/test1"), addon_dir)
@@ -122,16 +122,16 @@ def test_reload_addon(  # pylint: disable=redefined-outer-name, unused-argument
 	assert len(addon_manager.addons) == 1
 
 
-def test_addon_static_dir(  # pylint: disable=redefined-outer-name, unused-argument
-	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
+def test_addon_static_dir(
+	test_client: OpsiconfdTestClient, cleanup: FixtureFunction  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1/static/index.html")
 	assert res.status_code == 200
 
 
-def test_addon_public_path(  # pylint: disable=redefined-outer-name, unused-argument
-	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
+def test_addon_public_path(
+	test_client: OpsiconfdTestClient, cleanup: FixtureFunction  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1")
@@ -141,8 +141,8 @@ def test_addon_public_path(  # pylint: disable=redefined-outer-name, unused-argu
 	assert res.status_code == 200
 
 
-def test_addon_auth(  # pylint: disable=redefined-outer-name, unused-argument
-	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
+def test_addon_auth(
+	test_client: OpsiconfdTestClient, cleanup: FixtureFunction  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1")
@@ -161,8 +161,8 @@ def test_addon_auth(  # pylint: disable=redefined-outer-name, unused-argument
 	assert res.status_code == 401
 
 
-def test_addon_exception_handling(  # pylint: disable=redefined-outer-name, unused-argument
-	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
+def test_addon_exception_handling(
+	test_client: OpsiconfdTestClient, cleanup: FixtureFunction  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1")

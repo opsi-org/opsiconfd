@@ -71,7 +71,7 @@ class ColumnInfo:
 	select: str | None
 
 
-class MySQLSession(Session):  # pylint: disable=too-few-public-methods
+class MySQLSession(Session):
 	retry_on_server_has_gone_away = 3
 	retry_on_deadlock = 3
 
@@ -108,7 +108,7 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 					sleep(retry_wait)
 
 
-class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+class MySQLConnection:
 	_column_to_attribute = {
 		"USER": {"userId": "id"},
 		"CONFIG": {"configId": "id"},
@@ -155,7 +155,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 
 		self.unique_hardware_addresses = True
 
-		self._Session: scoped_session | None = lambda: None  # pylint: disable=invalid-name
+		self._Session: scoped_session | None = lambda: None
 		self._session_factory = None
 		self._engine = None
 
@@ -220,7 +220,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	def read_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
 		loc: dict[str, Any] = {}
-		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
+		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)
 		self._parse_config(loc["config"])
 
 	def update_config_file(self) -> None:
@@ -249,12 +249,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			raise RuntimeError("Failed to create engine")
 
 		self._session_factory = sessionmaker(bind=self._engine, class_=MySQLSession, autocommit=False, autoflush=False)
-		self._Session = scoped_session(self._session_factory)  # pylint: disable=invalid-name
+		self._Session = scoped_session(self._session_factory)
 
 		listen(self._engine, "engine_connect", self._on_engine_connect)
 
 	@staticmethod
-	def _on_engine_connect(conn: Connection, branch: Optional[Connection]) -> None:  # pylint: disable=unused-argument
+	def _on_engine_connect(conn: Connection, branch: Optional[Connection]) -> None:
 		conn.execute(
 			"""
 			SET SESSION sql_mode=(SELECT
@@ -366,11 +366,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			yield session
 			if commit:
 				session.commit()
-		except Exception:  # pylint: disable=broad-except
+		except Exception:
 			session.rollback()
 			raise
 		finally:
-			self._Session.remove()  # pylint: disable=no-member
+			self._Session.remove()
 
 	@contextmanager
 	def table_lock(self, session: Session, locks: dict[str, str]) -> Generator[None, None, None]:
@@ -408,7 +408,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 				if table_name.startswith("HARDWARE_DEVICE_"):
 					self._client_id_column[table_name] = ""
 
-	def get_columns(  # pylint: disable=too-many-branches
+	def get_columns(
 		self, tables: list[str], ace: list[RPCACE], attributes: list[str] | tuple[str, ...] | None = None
 	) -> dict[str, ColumnInfo]:
 		res: dict[str, ColumnInfo] = {}
@@ -456,11 +456,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 						res[attr].select = f"IF(`{first_table}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
 		return res
 
-	def get_where(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	def get_where(
 		self,
 		columns: dict[str, ColumnInfo],
 		ace: list[RPCACE],
-		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+		filter: dict[str, Any] | None = None,
 	) -> tuple[str, dict[str, Any]]:
 		filter = filter or {}
 		allowed_client_ids = self.get_allowed_client_ids(ace)
@@ -537,7 +537,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	def _get_read_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
-		for name, param in sig.parameters.items():  # pylint: disable=unused-variable
+		for name, param in sig.parameters.items():
 			if name == "values":
 				conversions[name] = loads
 		return conversions
@@ -546,7 +546,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 	def _get_write_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
-		for name, param in sig.parameters.items():  # pylint: disable=unused-variable
+		for name, param in sig.parameters.items():
 			if name == "values":
 				conversions[name] = dumps
 		return conversions
@@ -601,7 +601,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			except JSONDecodeError as err:
 				logger.warning(err)
 
-	def _row_to_dict(  # pylint: disable=too-many-arguments
+	def _row_to_dict(
 		self,
 		row: Row,
 		object_type: Type[BaseObject] | None = None,
@@ -660,7 +660,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		return allowed_client_ids
 
 	@overload
-	def get_objects(  # pylint: disable=too-many-arguments
+	def get_objects(
 		self,
 		table: str,
 		object_type: Type[BaseObjectT],
@@ -669,12 +669,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		ace: list[RPCACE] | None = None,
 		ident_type: IdentType = "str",
 		attributes: list[str] | tuple[str, ...] | None = None,
-		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+		filter: dict[str, Any] | None = None,
 	) -> list[BaseObjectT] | list:  # list for empty list
 		...
 
 	@overload
-	def get_objects(  # pylint: disable=too-many-arguments
+	def get_objects(
 		self,
 		table: str,
 		object_type: Type[BaseObjectT],
@@ -683,11 +683,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		ace: list[RPCACE] | None = None,
 		ident_type: IdentType = "str",
 		attributes: list[str] | tuple[str, ...] | None = None,
-		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+		filter: dict[str, Any] | None = None,
 	) -> list[dict] | list:  # list for empty list
 		...
 
-	def get_objects(  # pylint: disable=too-many-arguments,too-many-locals
+	def get_objects(
 		self,
 		table: str,
 		object_type: Type[BaseObjectT],
@@ -696,7 +696,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 		ace: list[RPCACE] | None = None,
 		ident_type: IdentType = "str",
 		attributes: list[str] | tuple[str, ...] | None = None,
-		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+		filter: dict[str, Any] | None = None,
 	) -> list[dict] | list[BaseObjectT] | list:  # list for empty list
 		if not self.connected:
 			raise RuntimeError("Not connected to MySQL server")
@@ -759,13 +759,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 					for row in result
 				]
 
-	def get_idents(  # pylint: disable=too-many-arguments
+	def get_idents(
 		self,
 		table: str,
 		object_type: Type[BaseObject],
 		ace: list[RPCACE],
 		ident_type: IdentType = "str",
-		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+		filter: dict[str, Any] | None = None,
 	) -> list[dict]:
 		ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
 		if not ident_attributes:
@@ -780,7 +780,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			filter=filter,
 		)
 
-	def insert_query(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches
+	def insert_query(
 		self,
 		table: str,
 		obj: BaseObject | dict[str, Any],
@@ -854,7 +854,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			query = f"UPDATE `{table}` SET {','.join(updates)} WHERE {' AND '.join(where)}"
 		return query, data
 
-	def insert_object(  # pylint: disable=too-many-locals,too-many-arguments
+	def insert_object(
 		self,
 		table: str,
 		obj: BaseObject | dict[str, Any],
@@ -868,12 +868,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			raise RuntimeError("Not connected to MySQL server")
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:
-			with self.session(session) as session:  # pylint: disable=redefined-argument-from-local
+			with self.session(session) as session:
 				result = session.execute(query, params=params)
 				return result.lastrowid
 		return None
 
-	def bulk_insert_objects(  # pylint: disable=too-many-locals,too-many-arguments
+	def bulk_insert_objects(
 		self,
 		table: str,
 		objs: list[BaseObject | dict[str, Any]],
@@ -909,10 +909,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 			data.append(dat)
 
 		query = f"INSERT INTO `{table}` ({','.join(cols)}) VALUES ({','.join(vals)})"
-		with self.session(session) as session:  # pylint: disable=redefined-argument-from-local
+		with self.session(session) as session:
 			session.execute(query, params=data)
 
-	def delete_query(  # pylint: disable=too-many-locals
+	def delete_query(
 		self,
 		table: str,
 		object_type: Type[BaseObjectT],
@@ -962,7 +962,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes,too-many-
 
 		return f"DELETE FROM `{table}` WHERE {' OR '.join(conditions)}", params, idents
 
-	def delete_objects(  # pylint: disable=too-many-locals
+	def delete_objects(
 		self,
 		table: str,
 		object_type: Type[BaseObjectT],

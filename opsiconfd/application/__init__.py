@@ -119,7 +119,7 @@ class MaintenanceState(AppState):
 
 @asynccontextmanager
 async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
-	from opsiconfd.application.main import (  # pylint: disable=import-outside-toplevel
+	from opsiconfd.application.main import (
 		application_shutdown,
 		application_startup,
 		async_application_shutdown,
@@ -130,7 +130,7 @@ async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
 		asyncio_create_task(opsiconfd_app.app_state_manager_task(manager_mode=False))
 		await run_in_threadpool(application_startup)
 		await async_application_startup()
-	except Exception as error:  # pylint: disable=broad-except
+	except Exception as error:
 		logger.critical("Error during application startup: %s", error, exc_info=True)
 		raise error
 	yield
@@ -138,7 +138,7 @@ async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
 	try:
 		await run_in_threadpool(application_shutdown)
 		await async_application_shutdown()
-	except Exception as error:  # pylint: disable=broad-except
+	except Exception as error:
 		logger.critical("Error during application shutdown: %s", error, exc_info=True)
 	opsiconfd_app.set_app_state(ShutdownState(), wait_accomplished=None)
 
@@ -163,7 +163,7 @@ class OpsiconfdApp(FastAPI):
 		return self._app_state
 
 	def build_middleware_stack(self) -> ASGIApp:
-		from opsiconfd.application.main import setup_app  # pylint: disable=import-outside-toplevel
+		from opsiconfd.application.main import setup_app
 
 		setup_app()
 
@@ -211,7 +211,7 @@ class OpsiconfdApp(FastAPI):
 						app_state.accomplished = accomplished
 						await self.async_store_app_state_in_redis(app_state)
 				return app_state
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.error(err, exc_info=True)
 		return None
 
@@ -227,10 +227,10 @@ class OpsiconfdApp(FastAPI):
 		redis_client().set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
 	async def send_app_state_changed_event(self, old_state: AppState, state: AppState) -> None:
-		from opsiconfd.messagebus import (  # pylint: disable=import-outside-toplevel
+		from opsiconfd.messagebus import (
 			get_user_id_for_service_node,
 		)
-		from opsiconfd.messagebus.redis import (  # pylint: disable=import-outside-toplevel
+		from opsiconfd.messagebus.redis import (
 			send_message,
 		)
 
@@ -247,7 +247,7 @@ class OpsiconfdApp(FastAPI):
 		if wait:
 			self._manager_task_stopped.wait(5.0)
 
-	async def app_state_manager_task(  # pylint: disable=too-many-branches
+	async def app_state_manager_task(
 		self,
 		manager_mode: bool = False,
 		init_app_state: AppState | tuple[AppState, ...] | None = None,

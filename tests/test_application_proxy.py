@@ -18,7 +18,7 @@ from opsicommon.testing.helpers import http_test_server  # type: ignore[import]
 from opsiconfd.application import app
 from opsiconfd.application.proxy import ReverseProxy
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -28,7 +28,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_reverse_proxy_request(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_reverse_proxy_request(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	log_file = tmp_path / "request.log"
 
 	with (
@@ -63,7 +63,7 @@ def test_reverse_proxy_request(tmp_path: Path, test_client: OpsiconfdTestClient)
 		assert "authorization" in request["headers"]
 
 
-def test_forward_cookie(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_forward_cookie(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	log_file = tmp_path / "request.log"
 
 	with http_test_server(log_file=str(log_file)) as server:
@@ -117,7 +117,7 @@ def test_forward_cookie(tmp_path: Path, test_client: OpsiconfdTestClient) -> Non
 		log_file.unlink()
 
 
-def test_invalid_path(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_invalid_path(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with http_test_server() as server:
 		proxy = ReverseProxy(app, "/test_invalid_path", f"http://localhost:{server.port}")
 		proxy.base_url = f"http://localhost:{server.port}/test/base"
@@ -125,13 +125,13 @@ def test_invalid_path(test_client: OpsiconfdTestClient) -> None:  # pylint: disa
 		assert res.status_code == 404
 
 
-def test_bad_gateway(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_bad_gateway(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	ReverseProxy(app, "/test_bad_gateway", "http://localhost:1")
 	res = test_client.get("/test_bad_gateway/test", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 502
 
 
-def test_websocket(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_websocket(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	log_file = tmp_path / "request.log"
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with http_test_server(log_file=str(log_file)) as server:

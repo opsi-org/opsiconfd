@@ -86,20 +86,20 @@ def truncate_log_data(data: str, max_size: int) -> str:
 	return data
 
 
-class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
+class RPCGeneralMixin(Protocol):
 	opsi_modules_file: str = OPSI_MODULES_FILE
 	opsi_license_path: str = OPSI_LICENSE_DIR
 
 	@rpc_method()
-	def backend_createBase(self) -> None:  # pylint: disable=invalid-name
+	def backend_createBase(self) -> None:
 		return None
 
 	@rpc_method
-	def backend_deleteBase(self) -> None:  # pylint: disable=invalid-name
+	def backend_deleteBase(self) -> None:
 		return None
 
 	@rpc_method
-	def backend_getInterface(self: BackendProtocol) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
+	def backend_getInterface(self: BackendProtocol) -> list[dict[str, Any]]:
 		return self.get_interface()
 
 	@rpc_method
@@ -109,15 +109,15 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			session.sync_delete()
 
 	@rpc_method(deprecated=True)
-	def backend_setOptions(self: BackendProtocol, options: dict) -> None:  # pylint: disable=invalid-name
+	def backend_setOptions(self: BackendProtocol, options: dict) -> None:
 		return None
 
 	@rpc_method(deprecated=True)
-	def backend_getOptions(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
+	def backend_getOptions(self: BackendProtocol) -> dict:
 		return {}
 
 	@rpc_method(check_acl=False)
-	def backend_getSystemConfiguration(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
+	def backend_getSystemConfiguration(self: BackendProtocol) -> dict:
 		"""
 		Returns current system configuration.
 
@@ -132,45 +132,45 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return {"log": {"size_limit": config.max_log_size, "keep_rotated": config.keep_rotated_logs, "types": list(LOG_TYPES)}}
 
 	@rpc_method(check_acl=False)
-	def accessControl_authenticated(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
+	def accessControl_authenticated(self: BackendProtocol) -> bool:
 		session = contextvar_client_session.get()
 		if not session or not session.authenticated:
 			raise BackendAuthenticationError("Not authenticated")
 		return True
 
 	@rpc_method(check_acl=False)
-	def accessControl_userIsAdmin(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
+	def accessControl_userIsAdmin(self: BackendProtocol) -> bool:
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 		return session.is_admin
 
 	@rpc_method(check_acl=False)
-	def accessControl_userIsReadOnlyUser(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
+	def accessControl_userIsReadOnlyUser(self: BackendProtocol) -> bool:
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 		return session.is_read_only
 
 	@rpc_method(check_acl=False)
-	def accessControl_getUserGroups(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
+	def accessControl_getUserGroups(self: BackendProtocol) -> list[str]:
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 		return list(session.user_groups)
 
 	@rpc_method
-	def service_healthCheck(self: BackendProtocol) -> list[CheckResult]:  # pylint: disable=invalid-name
+	def service_healthCheck(self: BackendProtocol) -> list[CheckResult]:
 		self._check_role("admin")
 		return list(health_check())
 
 	@rpc_method
-	def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:  # pylint: disable=invalid-name
+	def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:
 		self._check_role("admin")
 		return get_diagnostic_data()
 
 	@rpc_method
-	def service_createBackup(  # pylint: disable=invalid-name,too-many-arguments
+	def service_createBackup(
 		self: BackendProtocol,
 		config_files: bool = True,
 		redis_data: bool = True,
@@ -220,7 +220,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return data
 
 	@rpc_method
-	def service_restoreBackup(  # pylint: disable=invalid-name,too-many-arguments
+	def service_restoreBackup(
 		self: BackendProtocol,
 		data_or_file_id: dict[str, dict[str, Any]] | str,
 		config_files: bool = False,
@@ -267,7 +267,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			delete_file(file_id)
 
 	@rpc_method
-	def service_setAppState(  # pylint: disable=invalid-name
+	def service_setAppState(
 		self: BackendProtocol, app_state: dict[str, Any], wait_accomplished: float = 30.0
 	) -> dict[str, Any]:
 		self._check_role("admin")
@@ -275,7 +275,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self._app.app_state.to_dict()
 
 	@rpc_method(check_acl=False)
-	def getDomain(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
+	def getDomain(self: BackendProtocol) -> str:
 		try:
 			client_address = contextvar_client_address.get()
 			if not client_address:
@@ -284,13 +284,13 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 				names = socket.gethostbyaddr(client_address)
 				if names[0] and names[0].count(".") >= 2:
 					return ".".join(names[0].split(".")[1:])
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.debug("Failed to get domain by client address: %s", err)
 
 		return ".".join(FQDN.split(".")[1:])
 
 	@rpc_method(check_acl=False)
-	def getOpsiCACert(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
+	def getOpsiCACert(self: BackendProtocol) -> str:
 		return get_ca_cert_as_pem()
 
 	def _get_client_info(self: BackendProtocol) -> dict[str, int]:
@@ -339,20 +339,20 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		for config_id in ("client_limit_warning_percent", "client_limit_warning_absolute"):
 			try:
 				setattr(pool, config_id, int(self.config_getObjects(id=f"licensing.{config_id}")[0].getDefaultValues()[0]))
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.debug(err)
 
 		try:
 			disable_warning_for_modules = [
 				m for m in self.config_getObjects(id="licensing.disable_warning_for_modules")[0].getDefaultValues() if m in OPSI_MODULE_IDS
 			]
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.debug(err)
 			disable_warning_for_modules = []
 
 		try:
 			client_limit_warning_days = int(self.config_getObjects(id="licensing.client_limit_warning_days")[0].getDefaultValues()[0])
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.debug(err)
 			client_limit_warning_days = 30
 
@@ -382,7 +382,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return info
 
 	@rpc_method
-	def backend_getLicensingInfo(  # pylint: disable=invalid-name
+	def backend_getLicensingInfo(
 		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
 	) -> dict[str, Any]:
 		pool = get_default_opsi_license_pool(
@@ -400,7 +400,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self._get_licensing_info(pool=pool, licenses=licenses, legacy_modules=legacy_modules, dates=dates, ttl_hash=get_ttl_hash())
 
 	@rpc_method
-	def backend_info(self: BackendProtocol) -> dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements
+	def backend_info(self: BackendProtocol) -> dict[str, Any]:
 		"""
 		Get info about the used opsi version and the licensed modules.
 
@@ -423,7 +423,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return {"opsiVersion": __version__, "modules": modules, "realmodules": realmodules}
 
 	@rpc_method
-	def log_write(  # pylint: disable=invalid-name,too-many-branches,too-many-locals
+	def log_write(
 		self: BackendProtocol, logType: str, data: str, objectId: str | None = None, append: bool = False
 	) -> None:
 		"""
@@ -473,7 +473,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 						try:
 							shutil.chown(dst_file_path, -1, opsi_config.get("groups", "admingroup"))
 							dst_file_path.chmod(0o644)
-						except Exception as err:  # pylint: disable=broad-except
+						except Exception as err:
 							logger.error("Failed to set file permissions on '%s': %s", dst_file_path, err)
 
 			for lfile in log_file.parent.glob(f"{log_file.name}.*"):
@@ -482,7 +482,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 						lfile.unlink()
 				except ValueError:
 					lfile.unlink()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("Failed to rotate log files: %s", err)
 
 		with open(log_file, mode="ab" if append else "wb") as file:
@@ -491,13 +491,13 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		try:
 			shutil.chown(log_file, group=opsi_config.get("groups", "admingroup"))
 			log_file.chmod(0o644)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error("Failed to set file permissions on '%s': %s", log_file, err)
 
 		self._send_messagebus_event("log_updated", data={"type": logType, "object_id": objectId})
 
 	@rpc_method
-	def log_read(self: BackendProtocol, logType: str, objectId: str | None = None, maxSize: int = 0) -> str:  # pylint: disable=invalid-name
+	def log_read(self: BackendProtocol, logType: str, objectId: str | None = None, maxSize: int = 0) -> str:
 		"""
 		Return the content of a log.
 

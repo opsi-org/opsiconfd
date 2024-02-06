@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals, too-many-statements
+def check_plugin_on_client(
 	backend: Backend,
 	host_id: str | list[str],
 	command: str,
@@ -38,7 +38,7 @@ def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-bran
 	message = ""
 	host_ids = forceList(host_id)
 
-	try:  # pylint: disable=too-many-nested-blocks
+	try:
 		result = backend.hostControlSafe_reachable(hostIds=host_ids)
 		if result.get(host_ids[0], False):
 			checkresult = backend.hostControlSafe_execute(
@@ -85,7 +85,7 @@ def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-bran
 			else:
 				message = f"Can't check host '{host_ids[0]}' is not reachable."
 				state = State.UNKNOWN
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		state = State.UNKNOWN
 		message = str(err)
 

@@ -9,7 +9,7 @@ test opsiconfd.backend groups
 """
 
 
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -18,8 +18,8 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-def test_group_insertObject(  # pylint: disable=invalid-name,disable=redefined-outer-name
-	test_client: OpsiconfdTestClient,
+def test_group_insertObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	group1 = {
@@ -65,8 +65,8 @@ def test_group_insertObject(  # pylint: disable=invalid-name,disable=redefined-o
 		assert val == group[attr]
 
 
-def test_group_updateObject(  # pylint: disable=invalid-name,redefined-outer-name
-	test_client: OpsiconfdTestClient,
+def test_group_updateObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	group1 = {

@@ -72,7 +72,7 @@ async def grafana_index() -> None:
 	return None
 
 
-async def grafana_dashboard_config() -> dict[str, Any]:  # pylint: disable=too-many-locals
+async def grafana_dashboard_config() -> dict[str, Any]:
 	workers = await get_workers()
 	nodes = await get_nodes()
 
@@ -143,20 +143,20 @@ async def grafana_search() -> list[str]:
 	return sorted(names)
 
 
-class GrafanaQueryTargetRange(BaseModel):  # pylint: disable=too-few-public-methods
+class GrafanaQueryTargetRange(BaseModel):
 	from_: str = Field(alias="from")
 	to: str
 	raw: dict
 	model_config = ConfigDict()
 
 
-class GrafanaQueryTarget(BaseModel):  # pylint: disable=too-few-public-methods
+class GrafanaQueryTarget(BaseModel):
 	type: str
 	target: str
 	refId: str
 
 
-class GrafanaQuery(BaseModel):  # pylint: disable=too-few-public-methods
+class GrafanaQuery(BaseModel):
 	app: str
 	range: GrafanaQueryTargetRange
 	intervalMs: int
@@ -171,7 +171,7 @@ def align_timestamp(timestamp: int | float) -> int:
 
 @grafana_metrics_router.get("/query")
 @grafana_metrics_router.post("/query")
-async def grafana_query(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def grafana_query(
 	query: GrafanaQuery,
 ) -> list[dict[str, Any]]:
 	logger.trace("Grafana query: %s", query)

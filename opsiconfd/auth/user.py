@@ -14,10 +14,10 @@ from opsiconfd.auth.rights import Rights
 from opsiconfd.auth.role import Role
 
 
-class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-public-methods
+class User(Rights):
 	name: str
 
-	def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+	def __init__(
 		self,
 		name: str,
 		role: str = "",
@@ -89,7 +89,7 @@ class User(Rights):  # pylint: disable=too-many-instance-attributes, too-few-pub
 
 
 def create_user(name: str, groups: set) -> None:
-	from opsiconfd.backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()
 

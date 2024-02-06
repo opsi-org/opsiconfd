@@ -48,7 +48,6 @@ test:pylint-pytest:
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 120
 
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run pylint opsiconfd tests
     - $DOCKER_COMPOSE exec opsiserver43-dev poetry run ruff opsiconfd tests
     - $DOCKER_COMPOSE exec opsiserver43-dev poetry run mypy opsiconfd tests
 

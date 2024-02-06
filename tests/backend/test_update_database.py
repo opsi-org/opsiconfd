@@ -378,7 +378,7 @@ GET_CONSTRAINTS = """
 """
 
 
-def test_update_database() -> None:  # pylint: disable=redefined-outer-name
+def test_update_database() -> None:
 	database = "opsiupgradetest"
 	mysql = MySQLConnection()
 	mysql.database = database

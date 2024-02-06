@@ -35,23 +35,23 @@ def test_rpc_method_decorator() -> None:
 			self.ace_called.append(method)
 
 		@rpc_method
-		def func1(self, arg1: str) -> str:  # pylint: disable=unused-argument
+		def func1(self, arg1: str) -> str:
 			return arg1
 
 		@rpc_method(check_acl="func2_other")
-		def func2(self, arg1: str | None = None) -> str | None:  # pylint: disable=unused-argument
+		def func2(self, arg1: str | None = None) -> str | None:
 			return arg1
 
 		@rpc_method(check_acl=False)
-		def func3(self, arg1: str | None = None) -> str | None:  # pylint: disable=unused-argument
+		def func3(self, arg1: str | None = None) -> str | None:
 			return arg1
 
 		@rpc_method
-		def test_insertObject(self, obj: Any) -> str:  # pylint: disable=unused-argument,invalid-name
+		def test_insertObject(self, obj: Any) -> str:
 			return obj
 
 		@rpc_method(check_acl=True)
-		def test2_insertObject(self, obj: Any) -> str:  # pylint: disable=unused-argument,invalid-name
+		def test2_insertObject(self, obj: Any) -> str:
 			"""DOC"""
 			return obj
 
@@ -87,9 +87,9 @@ def test_rpc_method_decorator() -> None:
 
 	assert test.test_insertObject.__doc__ == DOC_INSERT_OBJECT
 	assert test.test2_insertObject.__doc__ == "DOC"
-	assert test.test_deprecated.rpc_interface.deprecated  # pylint: disable=no-member
-	assert test.test_drop.rpc_interface.deprecated  # pylint: disable=no-member
-	assert test.test_drop.rpc_interface.drop_version == "5.0"  # pylint: disable=no-member
+	assert test.test_deprecated.rpc_interface.deprecated
+	assert test.test_drop.rpc_interface.deprecated
+	assert test.test_drop.rpc_interface.drop_version == "5.0"
 
 	assert test.func1("f1") == "f1"
 	assert test.func2("f2") == "f2"

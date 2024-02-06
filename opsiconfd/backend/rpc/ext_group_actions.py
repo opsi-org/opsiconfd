@@ -65,7 +65,7 @@ class RPCExtGroupActionsMixin(Protocol):
 				self.productOnClient_create(product_id, product_type, client, actionRequest=action_request)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setProductActionRequestForHostGroup(  # pylint: disable=invalid-name
+	def setProductActionRequestForHostGroup(
 		self: BackendProtocol, hostGroupId: str, productId: str, actionRequest: str
 	) -> None:
 		depots_with_clients = self._get_clients_on_depot_by_host_group(hostGroupId)
@@ -76,7 +76,7 @@ class RPCExtGroupActionsMixin(Protocol):
 			self._update_action_request_on_clients(client_ids, productId, actionRequest)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setProductActionRequestForProductGroup(  # pylint: disable=invalid-name
+	def setProductActionRequestForProductGroup(
 		self: BackendProtocol, hostGroupId: str, productGroupId: str, actionRequest: str
 	) -> None:
 		depots_with_clients = self._get_clients_on_depot_by_host_group(hostGroupId)
@@ -89,7 +89,7 @@ class RPCExtGroupActionsMixin(Protocol):
 				self._update_action_request_on_clients(client_ids, product_id, actionRequest)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setProductPropertyForHostGroup(  # pylint: disable=invalid-name
+	def setProductPropertyForHostGroup(
 		self: BackendProtocol, productId: str, propertyId: str, propertyValue: Any, groupId: str
 	) -> None:
 		clients_in_group = [c.objectId for c in self.objectToGroup_getObjects(groupId=groupId, groupType="HostGroup")]
@@ -108,7 +108,7 @@ class RPCExtGroupActionsMixin(Protocol):
 			self.productPropertyState_create(productId, propertyId, client, values=propertyValue)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def getPossibleImagefileValuesForHostGroup(self: BackendProtocol, groupId: str) -> list[str]:  # pylint: disable=invalid-name
+	def getPossibleImagefileValuesForHostGroup(self: BackendProtocol, groupId: str) -> list[str]:
 		def add_client_to_product(client_id: str, product_id: str) -> None:
 			if product_id not in products_with_clients:
 				products_with_clients[product_id] = set()
@@ -138,11 +138,11 @@ class RPCExtGroupActionsMixin(Protocol):
 		return [product for product, clients in products_with_clients.items() if client_set == clients]
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def groupname_exists(self: BackendProtocol, groupId: str) -> bool:  # pylint: disable=invalid-name
+	def groupname_exists(self: BackendProtocol, groupId: str) -> bool:
 		return bool(self.group_getObjects(id=groupId))
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def group_rename(self: BackendProtocol, oldGroupId: str, newGroupId: str) -> None:  # pylint: disable=invalid-name
+	def group_rename(self: BackendProtocol, oldGroupId: str, newGroupId: str) -> None:
 		if self.groupname_exists(newGroupId):
 			raise ValueError(f"Group {newGroupId!r} already exists")
 

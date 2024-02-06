@@ -50,9 +50,9 @@ Connection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 def get_redis_connections() -> list[Connection | AsyncConnection]:
 	connections = []
 	for spool in redis_connection_pool.values():
-		connections.extend(spool._in_use_connections)  # type: ignore[attr-defined]  # pylint: disable=protected-access
+		connections.extend(spool._in_use_connections)  # type: ignore[attr-defined]
 	for apool in async_redis_connection_pool.values():
-		connections.extend(apool._in_use_connections)  # type: ignore[attr-defined]  # pylint: disable=protected-access
+		connections.extend(apool._in_use_connections)  # type: ignore[attr-defined]
 	return connections
 
 
@@ -101,7 +101,7 @@ def ip_address_from_redis_key(key: str) -> str:
 
 def retry_redis_call(func: Callable) -> Callable:
 	@functools.wraps(func)
-	def wrapper_retry(*args: Any, **kwargs: Any) -> Callable:  # pylint: disable=inconsistent-return-statements
+	def wrapper_retry(*args: Any, **kwargs: Any) -> Callable:
 		while True:
 			try:
 				return func(*args, **kwargs)
@@ -116,7 +116,7 @@ def retry_redis_call(func: Callable) -> Callable:
 
 def get_redis_connection(
 	url: str,
-	db: int = 0,  # pylint: disable=invalid-name
+	db: int = 0,
 	timeout: int = 0,
 	test_connection: bool = False,
 ) -> Redis:
@@ -145,7 +145,7 @@ def redis_client(timeout: int = 0, test_connection: bool = False) -> Redis:
 
 async def get_async_redis_connection(
 	url: str,
-	db: int = 0,  # pylint: disable=invalid-name
+	db: int = 0,
 	timeout: int = 0,
 	test_connection: bool = False,
 ) -> AsyncRedis:
@@ -349,7 +349,7 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 					pass
 
 
-async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:  # pylint: disable=too-many-locals
+async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 	conf = config
 
 	key_info: dict[str, dict[str, list | int]] = {
@@ -383,7 +383,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:  # pylint:
 				await client.execute_command(command)  # type: ignore[no-untyped-call]
 			) or 0
 		except ResponseError as err:
-			from opsiconfd.logging import logger  # pylint: disable=import-outside-toplevel
+			from opsiconfd.logging import logger
 
 			logger.error("Redis command %r failed: %s", command, err, exc_info=True)
 		try:

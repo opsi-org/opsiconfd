@@ -85,7 +85,7 @@ def test_setup_samba_add(tmp_path: Path, version_string: str, samba3: bool) -> N
 	smb_conf = tmp_path / "smb.conf"
 	shutil.copy("tests/data/samba/smb.conf", smb_conf)
 
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = version_string
 
 	with (
@@ -156,7 +156,7 @@ def test_get_smbd_service_name(out_name: str, service_name: str) -> None:
 	get_smbd_service_name.cache_clear()
 	out = LIST_UNITS_OUT.replace("{{service_name}}", out_name)
 
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = out
 
 	with patch("opsiconfd.setup.samba.run", PropertyMock(return_value=Proc())):

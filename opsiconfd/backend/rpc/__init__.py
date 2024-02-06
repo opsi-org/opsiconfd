@@ -11,7 +11,7 @@ backend.rpc
 from __future__ import annotations
 
 import re
-import socket  # Needed for backends/dhcpd.conf # pylint: disable=unused-import
+import socket # Needed for backends/dhcpd.conf  # noqa: F401
 from asyncio import iscoroutinefunction
 from dataclasses import asdict, dataclass
 from functools import wraps
@@ -66,7 +66,7 @@ For string attributes, "*" can be used as a wildcard.
 
 
 @dataclass(slots=True)
-class MethodInterface:  # pylint: disable=too-many-instance-attributes
+class MethodInterface:
 	name: str
 	params: list[str]
 	args: list[str]
@@ -86,7 +86,7 @@ class MethodInterface:  # pylint: disable=too-many-instance-attributes
 COMPLEX_TYPE_RE = re.compile(r"\S+\.\S+")
 
 
-def get_method_interface(  # pylint: disable=too-many-locals
+def get_method_interface(
 	func: Callable, deprecated: bool = False, drop_version: str | None = None, alternative_method: str | None = None
 ) -> MethodInterface:
 	spec = getfullargspec(func)
@@ -135,7 +135,7 @@ def get_method_interface(  # pylint: disable=too-many-locals
 	)
 
 
-def rpc_method(  # pylint:disable=too-many-arguments
+def rpc_method(
 	func: Callable | None = None,
 	/,
 	*,
@@ -174,7 +174,7 @@ def rpc_method(  # pylint:disable=too-many-arguments
 		@wraps(func)
 		def wrapper(*args: Any, **kwargs: Any) -> Any:
 			if check_name:
-				args[0]._get_ace(check_name)  # pylint: disable=protected-access
+				args[0]._get_ace(check_name)
 			if clear_cache:
 				rpc_cache_clear(clear_cache)
 			if use_cache:
@@ -189,7 +189,7 @@ def rpc_method(  # pylint:disable=too-many-arguments
 		@wraps(func)
 		async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
 			if check_name:
-				args[0]._get_ace(check_name)  # pylint: disable=protected-access
+				args[0]._get_ace(check_name)
 			if clear_cache:
 				await run_in_threadpool(rpc_cache_clear, clear_cache)
 			if use_cache:
@@ -252,5 +252,5 @@ def read_backend_config_file(config_file: Path, add_enabled_option: bool = True)
 			config_file.write_text("\n".join(lines), encoding="utf-8")
 
 	loc: dict[str, Any] = {}
-	exec(compile(config_file.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
+	exec(compile(config_file.read_bytes(), "<string>", "exec"), None, loc)
 	return loc.get("config", {})

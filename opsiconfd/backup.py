@@ -134,7 +134,7 @@ def get_config_files() -> dict[str, Path]:
 	return config_files
 
 
-def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+def create_backup(
 	backup_file: Path | None = None,
 	*,
 	config_files: bool = True,
@@ -313,7 +313,7 @@ def read_backup_file_data(backup_file: Path, progress: Progress | None = None, p
 	return data
 
 
-def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
+def restore_backup(
 	data_or_file: dict[str, dict[str, Any]] | Path,
 	*,
 	config_files: bool = False,
@@ -420,7 +420,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 						logger.info("Batch inserting %d objects", len(objects))
 						try:
 							method(objects)
-						except Exception as err:  # pylint: disable=broad-except
+						except Exception as err:
 							if not ignore_errors:
 								raise
 							logger.error(err)
@@ -433,7 +433,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 							logger.trace("Insert %s object: %s", obj_class, obj)
 							try:
 								method(obj)
-							except Exception as err:  # pylint: disable=broad-except
+							except Exception as err:
 								if not ignore_errors:
 									raise
 								logger.error(err)

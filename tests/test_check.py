@@ -64,7 +64,7 @@ from opsiconfd.ssl import (
 	store_local_server_key,
 )
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ACL_CONF_41,
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -103,12 +103,12 @@ def test_check_disk_usage() -> None:
 
 
 def test_check_run_as_user() -> None:
-	class MockUser:  # pylint: disable=too-few-public-methods
+	class MockUser:
 		pw_name = "opsiconfd"
 		pw_gid = 103
 		pw_dir = OPSICONFD_HOME
 
-	class MockGroup:  # pylint: disable=too-few-public-methods
+	class MockGroup:
 		gr_name = "nogroup"
 		gr_gid = 65534
 
@@ -190,7 +190,7 @@ def test_check_opsiconfd_config(tmp_path: Path) -> None:
 		assert ids_found == 3
 
 
-def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {
 		"id": 1,
 		"method": "host_createOpsiDepotserver",
@@ -243,7 +243,7 @@ def test_check_redis_error() -> None:
 		assert "ERROR - Redis memory usage is too high" in captured_output
 
 
-def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
+def test_check_mysql() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	with mock.patch("opsiconfd.check.mysql.MAX_ALLOWED_PACKET", 1):
 		result = check_mysql()
@@ -254,7 +254,7 @@ def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 		assert result.message == "No MySQL issues found."
 
 
-def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
+def test_check_mysql_error() -> None:
 	with mock.patch(
 		"opsiconfd.check.mysql.MySQLConnection.connect",
 		side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'),
@@ -294,7 +294,7 @@ def test_get_repo_versions() -> None:
 			assert result[package] == "4.2.0.183-1"
 
 
-def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-outer-name
+def test_check_system_packages_debian() -> None:
 	# test up to date packages - status sould be ok and output should be green
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	console = Console(log_time=False, force_terminal=False, width=1000)
@@ -303,7 +303,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 		for name, version in installed_versions.items()
 	]
 
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = "\n".join(dpkg_lines) + "\n"
 
 	with (
@@ -357,7 +357,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 			assert f"Package {name!r} is out of date. Installed version {version!r}" in captured_output
 
 
-def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined-outer-name
+def test_check_system_packages_open_suse() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	zypper_lines = [
@@ -368,7 +368,7 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 		for name, version in installed_versions.items()
 	]
 
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = "\n".join(zypper_lines) + "\n"
 
 	with (
@@ -391,14 +391,14 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 			)
 
 
-def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-outer-name
+def test_check_system_packages_redhat() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"] + [
 		f"{name}.x86_64     {version}    @home_uibmz_opsi_4.2_stable " for name, version in installed_versions.items()
 	]
 
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = "\n".join(yum_lines) + "\n"
 
 	with (
@@ -430,7 +430,7 @@ def test_get_available_product_versions() -> None:
 		assert version != "0.0"
 
 
-def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	depot = OpsiDepotserver(id="test-check-depot-1.opsi.test")
 	client = OpsiClient(id="test-check-client-1.opsi.test")
@@ -469,7 +469,7 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disa
 	assert "error" not in res
 
 
-def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	_prepare_products(test_client=test_client)
 	result = check_product_on_depots()
 	# print(result)
@@ -492,7 +492,7 @@ def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # p
 	assert found == 2
 
 
-def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	_prepare_products(test_client=test_client)
 	result = check_product_on_clients()
 	# print(result)
@@ -519,7 +519,7 @@ def test_health_check() -> None:
 		assert result.check_status
 
 
-def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	sync_clean_redis()
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	result = check_deprecated_calls()
@@ -570,13 +570,13 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 	assert len(methods) == 0
 
 
-def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	result = check_opsi_licenses()
 	assert result.check_status == "ok"
 	assert result.partial_results is not None
 
 
-def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [True]]}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
@@ -626,7 +626,7 @@ def test_check_ldap_connection() -> None:
 	assert result.message == "LDAP authentication is not configured."
 
 
-def test_check_ssl(tmpdir: Path) -> None:  # pylint: disable=too-many-statements
+def test_check_ssl(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	ssl_server_cert = tmpdir / "opsi-server-cert.pem"

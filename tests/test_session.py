@@ -19,7 +19,7 @@ from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession, SessionManager, SessionMiddleware
 from opsiconfd.utils import asyncio_create_task, utc_timestamp
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -122,7 +122,7 @@ async def test_session_manager_max_age() -> None:
 		# Session cookie
 		assert "Max-Age" not in cookie
 
-		sess._messagebus_last_used = int(utc_timestamp()) - 60  # pylint: disable=protected-access
+		sess._messagebus_last_used = int(utc_timestamp()) - 60
 		assert sess.max_age == 5
 		cookie = sess.get_cookie()
 		assert cookie
@@ -316,7 +316,7 @@ async def test_session_manager_concurrent() -> None:
 
 
 def test_server_overload(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client as client:

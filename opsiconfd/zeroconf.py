@@ -20,25 +20,25 @@ from opsiconfd.config import FQDN, config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
 
-_zeroconf = None  # pylint: disable=invalid-name
-_info = None  # pylint: disable=invalid-name
+_zeroconf = None
+_info = None
 
 
-async def register_opsi_services() -> None:  # pylint: disable=too-many-branches
-	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement
+async def register_opsi_services() -> None:
+	global _zeroconf, _info
 	if get_server_role() != "configserver":
 		return
 
 	logger.info("Register zeroconf service")
 
-	if not _zeroconf:  # pylint: disable=too-many-nested-blocks
+	if not _zeroconf:
 		iface = None
 		if str(config.interface) not in ("0.0.0.0", "::"):
 			if_address = ipaddress.ip_address(config.interface)
-			iface = netifaces.interfaces()[0]  # pylint: disable=c-extension-no-member
-			for _iface in netifaces.interfaces():  # pylint: disable=c-extension-no-member
-				for addr_type in (netifaces.AF_INET, netifaces.AF_INET6):  # pylint: disable=c-extension-no-member
-					for addr in netifaces.ifaddresses(_iface).get(  # type: ignore  # pylint: disable=c-extension-no-member
+			iface = netifaces.interfaces()[0]
+			for _iface in netifaces.interfaces():
+				for addr_type in (netifaces.AF_INET, netifaces.AF_INET6):
+					for addr in netifaces.ifaddresses(_iface).get(  # type: ignore
 						addr_type, []
 					):
 						try:
@@ -47,9 +47,9 @@ async def register_opsi_services() -> None:  # pylint: disable=too-many-branches
 						except ValueError:
 							continue
 
-		address_family = [netifaces.AF_INET]  # pylint: disable=c-extension-no-member
+		address_family = [netifaces.AF_INET]
 		if isinstance(config.interface, ipaddress.IPv6Address):
-			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
+			address_family.append(netifaces.AF_INET6)
 		_zeroconf = Zeroconf(asyncio.get_running_loop(), address_family=address_family, iface=iface)
 
 	address = None
@@ -89,7 +89,7 @@ async def register_opsi_services() -> None:  # pylint: disable=too-many-branches
 
 
 async def unregister_opsi_services() -> None:
-	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement,global-variable-not-assigned
+	global _zeroconf, _info
 	if not _zeroconf or not _info:
 		return
 	logger.notice("Unregister zeroconf service")

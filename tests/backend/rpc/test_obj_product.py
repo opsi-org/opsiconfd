@@ -9,7 +9,7 @@ test opsiconfd.backend.rpc.obj_product
 """
 import pytest
 
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -20,7 +20,7 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-def create_test_products(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
+def create_test_products(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
 	product1 = {
 		"name": "test-backend-rpc-product-1",
 		"licenseRequired": False,
@@ -62,8 +62,8 @@ def create_test_products(test_client: OpsiconfdTestClient) -> tuple:  # pylint: 
 	return (product1, product2)
 
 
-def test_product_insertObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_insertObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product1, product2 = create_test_products(test_client)
@@ -87,8 +87,8 @@ def test_product_insertObject(  # pylint: disable=invalid-name
 		assert val == product[attr]
 
 
-def test_product_updateObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_updateObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -199,8 +199,8 @@ def test_product_updateObject(  # pylint: disable=invalid-name
 				assert val == product[attr]
 
 
-def test_product_getIdents(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_getIdents(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -215,8 +215,8 @@ def test_product_getIdents(  # pylint: disable=invalid-name
 	]
 
 
-def test_product_delete(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_delete(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -239,8 +239,8 @@ def test_product_delete(  # pylint: disable=invalid-name
 
 
 @pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
-def test_product_get_hashes(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_get_hashes(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product1, product2 = create_test_products(test_client)

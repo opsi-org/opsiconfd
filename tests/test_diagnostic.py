@@ -25,7 +25,7 @@ from opsiconfd.diagnostic import (
 from opsiconfd.diagnostic import get_config as config_info
 
 from .backend.rpc.test_obj_product_on_depot import create_test_pods
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -64,7 +64,7 @@ def test_os_release(tmp_path: Path) -> None:
 
 
 def test_lsb_release() -> None:
-	class Proc:  # pylint: disable=too-few-public-methods
+	class Proc:
 		stdout = (
 			"No LSB modules are available.\n"
 			"Distributor ID:	Debian\n"
@@ -105,7 +105,7 @@ def test_get_processor_info() -> None:
 
 
 def test_get_memory_info() -> None:
-	class MemoryInfo:  # pylint: disable=too-few-public-methods
+	class MemoryInfo:
 		total: int = 8589934592
 		available: int = 4294967296
 		percent: float = 50
@@ -121,7 +121,7 @@ def test_get_memory_info() -> None:
 
 # @pytest.mark.skip(reason="check mockup")
 def test_get_disk_info() -> None:
-	class DiskInfo:  # pylint: disable=too-few-public-methods
+	class DiskInfo:
 		total: int = 8589934592
 		used: int = 4294967296
 		free: int = 4294967296
@@ -142,7 +142,7 @@ def test_get_disk_info() -> None:
 
 
 def test_get_system_info() -> None:
-	class Hostnamectl:  # pylint: disable=too-few-public-methods
+	class Hostnamectl:
 		stdout = """
 			Static hostname: test-t590
 			Icon name: computer-laptop
@@ -190,7 +190,7 @@ def test_get_backendmanager_extension_methods() -> None:
 	assert delete_server["overwrite"]
 
 
-def test_get_opsi_product_versions(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_opsi_product_versions(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	create_test_pods(test_client)
 

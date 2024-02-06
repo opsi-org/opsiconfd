@@ -22,7 +22,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
-from opsiconfd import __version__
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import app
 from opsiconfd.application.admininterface import admin_interface_setup
@@ -82,12 +81,12 @@ async def login_index(request: Request) -> Response:
 
 
 @app.get("/favicon.ico")
-async def favicon(request: Request, response: Response) -> RedirectResponse:  # pylint: disable=unused-argument
+async def favicon(request: Request, response: Response) -> RedirectResponse:
 	return RedirectResponse("/static/favicon.ico", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 
 @app.get("/ssl/opsi-ca-cert.pem")
-def get_ssl_ca_cert(request: Request) -> Response:  # pylint: disable=unused-argument
+def get_ssl_ca_cert(request: Request) -> Response:
 	pem = "".join(as_pem(c) for c in load_certs(config.ssl_ca_cert))
 	return Response(
 		content=pem,
@@ -156,10 +155,10 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 					await websocket.send_bytes(message)
 		except WebSocketDisconnect:
 			pass
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
-	async def on_connect(  # pylint: disable=arguments-differ
+	async def on_connect(
 		self, websocket: WebSocket, client: str | None = None, start_time: str | int | None = None
 	) -> None:
 		start_id = "$"

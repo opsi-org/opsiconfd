@@ -76,7 +76,7 @@ def bool_product_property(value: str | None) -> bool:
 def unicode_product_property(value: str | None) -> list[str]:
 	if value and isinstance(value, str):
 		if value.startswith('["'):
-			return msgspec.json.decode(value.encode("utf-8"))  # pylint: disable=no-member
+			return msgspec.json.decode(value.encode("utf-8"))
 		if value == "[]":
 			return [""]
 		return value.replace('\\"', '"').split(",")

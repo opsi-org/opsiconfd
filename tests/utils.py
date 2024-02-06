@@ -53,8 +53,8 @@ logger = get_logger()
 
 def reset_singleton(cls: Singleton) -> None:
 	"""Constructor will create a new instance afterwards"""
-	if cls in cls._instances:  # pylint: disable=protected-access
-		del cls._instances[cls]  # pylint: disable=protected-access
+	if cls in cls._instances:
+		del cls._instances[cls]
 
 
 class OpsiconfdTestClient(TestClient):
@@ -93,7 +93,7 @@ class OpsiconfdTestClient(TestClient):
 	def get_client_address(self) -> tuple[str, int]:
 		return self._address
 
-	def jsonrpc20(  # pylint: disable=redefined-builtin
+	def jsonrpc20(
 		self, method: str, params: dict[str, Any] | list[Any] | None = None, id: int | str | None = None
 	) -> Any:
 		params = serialize(params or {})
@@ -107,11 +107,11 @@ class OpsiconfdTestClient(TestClient):
 def test_client() -> Generator[OpsiconfdTestClient, None, None]:
 	client = OpsiconfdTestClient()
 
-	def before_send(self: BaseMiddleware, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=unused-argument
+	def before_send(self: BaseMiddleware, scope: Scope, receive: Receive, send: Send) -> None:
 		# Get the context out for later use
 		client.context = contextvars.copy_context()
 
-	def get_client_address(asgi_adapter: Any, scope: Scope) -> tuple[str, int]:  # pylint: disable=unused-argument
+	def get_client_address(asgi_adapter: Any, scope: Scope) -> tuple[str, int]:
 		return client.get_client_address()
 
 	with (
@@ -130,26 +130,26 @@ def config() -> Config:
 @contextmanager
 def get_config(values: dict[str, Any] | list[str], with_env: bool = False) -> Generator[Config, None, None]:
 	environ = os.environ.copy()
-	conf = _config._config.__dict__.copy()  # pylint: disable=protected-access
-	args = _config._args.copy()  # pylint: disable=protected-access
+	conf = _config._config.__dict__.copy()
+	args = _config._args.copy()
 	try:
 		if not with_env:
 			os.environ.clear()
 		if isinstance(values, dict):
 			for key in list(values):
-				if key not in _config._config.__dict__:  # pylint: disable=protected-access
+				if key not in _config._config.__dict__:
 					key2 = key.replace("-", "_")
-					if key2 in _config._config.__dict__:  # pylint: disable=protected-access
+					if key2 in _config._config.__dict__:
 						values[key2] = values.pop(key)
-			_config._config.__dict__.update(values)  # pylint: disable=protected-access
-			_config._update_config()  # pylint: disable=protected-access
+			_config._config.__dict__.update(values)
+			_config._update_config()
 		else:
-			_config._set_args(values)  # pylint: disable=protected-access
-			_config._parse_args()  # pylint: disable=protected-access
+			_config._set_args(values)
+			_config._parse_args()
 		yield _config
 	finally:
-		_config._config.__dict__ = conf  # pylint: disable=protected-access
-		_config._args = args  # pylint: disable=protected-access
+		_config._config.__dict__ = conf
+		_config._args = args
 		if not with_env:
 			os.environ.update(environ)
 
@@ -163,7 +163,7 @@ def opsi_config() -> OpsiConfig:
 def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None, None]:
 	try:
 		for value in values:
-			_opsi_config.set(value["category"], value["config"], value=value["value"])  # pylint: disable=protected-access
+			_opsi_config.set(value["category"], value["config"], value=value["value"])
 		yield _opsi_config
 	finally:
 		_opsi_config.read_config_file()
@@ -188,7 +188,7 @@ def clean_redis() -> None:
 
 @pytest.fixture
 def worker_state() -> None:
-	worker = Worker._instance  # pylint: disable=protected-access
+	worker = Worker._instance
 	if not worker:
 		raise RuntimeError("No worker instance")
 	redis_client().hset(
@@ -199,8 +199,8 @@ def worker_state() -> None:
 	)
 
 
-def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
-	mysql = MySQLConnection()  # pylint: disable=invalid-name
+def delete_mysql_data() -> None:
+	mysql = MySQLConnection()
 	with mysql.connection():
 		with mysql.session() as session:
 			for table in (
@@ -236,7 +236,7 @@ def delete_mysql_data() -> None:  # pylint: disable=redefined-outer-name
 
 
 @pytest.fixture(autouse=True)
-def clean_mysql() -> None:  # pylint: disable=redefined-outer-name
+def clean_mysql() -> None:
 	delete_mysql_data()
 
 
@@ -272,7 +272,7 @@ def depot_jsonrpc(
 
 
 @contextmanager
-def client_jsonrpc(  # pylint: disable=too-many-arguments
+def client_jsonrpc(
 	client: OpsiconfdTestClient,
 	base_url: str,
 	host_id: str,
@@ -333,7 +333,7 @@ def products_jsonrpc(
 		delete_products_jsonrpc(client, base_url, products)
 
 
-def create_poc_jsonrpc(  # pylint: disable=too-many-arguments
+def create_poc_jsonrpc(
 	http_client: OpsiconfdTestClient,
 	base_url: str,
 	opsi_client: str,
@@ -356,7 +356,7 @@ def delete_poc_jsonrpc(http_client: OpsiconfdTestClient, base_url: str, opsi_cli
 
 
 @contextmanager
-def poc_jsonrpc(  # pylint: disable=too-many-arguments
+def poc_jsonrpc(
 	http_client: OpsiconfdTestClient,
 	base_url: str,
 	opsi_client: str,
@@ -402,7 +402,7 @@ def get_dummy_products(count: int) -> list[dict[str, Any]]:
 
 @pytest.fixture
 def database_connection() -> Generator[MySQLConnection, None, None]:
-	mysql = MySQLConnection()  # pylint: disable=invalid-name
+	mysql = MySQLConnection()
 	with mysql.connection():
 		yield mysql
 
@@ -457,7 +457,7 @@ class WebSocketMessageReader(Thread):
 
 	def stop(self) -> None:
 		self.should_stop = True
-		self.websocket._send_queue.put({})  # pylint: disable=protected-access
+		self.websocket._send_queue.put({})
 		self.join(3)
 
 	def purge_messages(self) -> None:

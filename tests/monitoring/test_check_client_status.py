@@ -14,7 +14,7 @@ from fastapi import status
 
 from opsiconfd.application.monitoring.check_client_status import check_client_status
 from opsiconfd.config import get_configserver_id
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
@@ -26,7 +26,7 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-def test_check_client_status(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_check_client_status(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
 	client_id = "test-client0815.uib.local"
 
 	# check client that does not exists -> result sould be UNKNOWN

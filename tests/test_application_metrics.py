@@ -20,7 +20,7 @@ from opsiconfd.application.metrics import (
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import async_delete_recursively, async_redis_client
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
@@ -51,7 +51,7 @@ async def _register_workers(conf: Config) -> tuple[dict[str, str | int], ...]:
 	return workers
 
 
-async def test_get_workers(config: Config) -> None:  # pylint: disable=redefined-outer-name
+async def test_get_workers(config: Config) -> None:  # noqa: F811
 	workers = await _register_workers(config)
 	_workers = await get_workers()
 	for worker in workers:
@@ -64,7 +64,7 @@ async def test_get_workers(config: Config) -> None:  # pylint: disable=redefined
 			raise RuntimeError(f"Worker {worker} not found")
 
 
-async def test_get_nodes(config: Config) -> None:  # pylint: disable=redefined-outer-name
+async def test_get_nodes(config: Config) -> None:  # noqa: F811
 	workers = await _register_workers(config)
 	nodes = await get_nodes()
 	for worker in workers:
@@ -76,14 +76,14 @@ async def test_grafana_dashboard_config() -> None:
 	assert len(conf["panels"]) == 13
 
 
-async def test_grafana_search(config: Config) -> None:  # pylint: disable=redefined-outer-name
+async def test_grafana_search(config: Config) -> None:  # noqa: F811
 	workers = await _register_workers(config)
 	res = await grafana_search()
 	for worker in workers:
 		assert f"Average CPU usage of worker {worker['worker_num']} on {worker['node_name']}" in res
 
 
-async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
+async def create_ts_data(
 	conf: Config, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
 ) -> None:
 	redis_key = f"{conf.redis_key('stats')}:worker:avg_cpu_percent:{conf.node_name}:1{':' + postfix if postfix else ''}"
@@ -117,8 +117,8 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 
 # @pytest.mark.flaky(retries=1, delay=1)
 async def test_grafana_query_start_end(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	config: Config,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -215,8 +215,8 @@ async def test_grafana_query_start_end(
 
 
 async def test_grafana_query_interval_in_past(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	config: Config,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

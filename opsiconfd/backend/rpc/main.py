@@ -29,9 +29,9 @@ from opsicommon.objects import OpsiDepotserver, serialize  # type: ignore[import
 from starlette.concurrency import run_in_threadpool
 
 # server_timing needed for jsonrpc_forward
-from opsiconfd import (  # pylint: disable=unused-import
+from opsiconfd import (
 	contextvar_client_session,
-	server_timing,
+	server_timing,  # noqa: F401
 )
 from opsiconfd.application import app
 from opsiconfd.backend import get_service_client, stop_service_clients
@@ -85,7 +85,7 @@ from .obj_user import RPCUserMixin
 from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
 
 
-def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: disable=too-many-locals
+def describe_interface(instance: Any) -> dict[str, MethodInterface]:
 	"""
 	Describes what public methods are available and the signatures they use.
 
@@ -102,7 +102,7 @@ def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: 
 	return methods
 
 
-class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
+class Backend(
 	RPCGeneralMixin,
 	RPCUserMixin,
 	RPCHostMixin,
@@ -214,7 +214,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		else:
 			logger.info("Configserver %r not found in backend", self._depot_id)
 
-	def _create_jsonrpc_instance_methods(self) -> None:  # pylint: disable=too-many-locals,too-many-branches
+	def _create_jsonrpc_instance_methods(self) -> None:
 		if self._interface_list is None:
 			raise ValueError("No interface specification present for _create_jsonrpc_instance_methods")
 
@@ -250,7 +250,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 					if isinstance(defaults, (tuple, list)) and len(defaults) + i >= len(args):
 						default = defaults[len(defaults) - len(args) + i]
 						if isinstance(default, str):
-							default = "{0!r}".format(default).replace('"', "'")  # pylint: disable=consider-using-f-string
+							default = "{0!r}".format(default).replace('"', "'")
 						arg_list.append(f"{argument}={default}")
 					else:
 						arg_list.append(argument)
@@ -270,16 +270,16 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 
 				logger.trace("%s: arg string is: %s", method_name, arg_string)
 				logger.trace("%s: call string is: %s", method_name, call_string)
-				exec(  # pylint: disable=exec-used
+				exec(
 					f"def {method_name}(self, {arg_string}):\n"
 					'	with server_timing("jsonrpc_forward"):\n'
 					f'		return self._service_client.jsonrpc(method="{method_name}", params=[{call_string}])\n'
 				)
-				func = eval(method_name)  # pylint: disable=eval-used
+				func = eval(method_name)
 				setattr(func, "rpc_interface", self._interface[method_name])
-				setattr(self, method_name, MethodType(func, self))  # pylint: disable=eval-used
+				setattr(self, method_name, MethodType(func, self))
 
-			except Exception as err:  # pylint: disable=broad-except
+			except Exception as err:
 				logger.critical("Failed to create instance method '%s': %s", method, err, exc_info=True)
 
 	def _depot_server_init(self) -> None:
@@ -307,14 +307,14 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			stop_service_clients()
 
 	def reload_config(self) -> None:
-		self._dhcpd_control_reload_config()  # pylint: disable=no-member
-		self._read_host_control_config_file()  # pylint: disable=no-member
-		self._read_opsipxeconfd_control_config_file()  # pylint: disable=no-member
+		self._dhcpd_control_reload_config()
+		self._read_host_control_config_file()
+		self._read_opsipxeconfd_control_config_file()
 
-	def _get_ace(self, method: str) -> list[RPCACE]:  # pylint: disable=unused-argument
+	def _get_ace(self, method: str) -> list[RPCACE]:
 		return []
 
-	def _check_role(self, required_role: str) -> None:  # pylint: disable=unused-argument
+	def _check_role(self, required_role: str) -> None:
 		return None
 
 	def _check_module(self, module: str) -> None:
@@ -365,7 +365,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		return await run_in_threadpool(getattr(self, method), **kwargs)
 
 
-class UnprotectedBackend(Backend):  # pylint: disable=too-many-ancestors
+class UnprotectedBackend(Backend):
 	def _get_ace(self, method: str) -> list[RPCACE]:
 		return [RPCACE_ALLOW_ALL]
 
@@ -373,7 +373,7 @@ class UnprotectedBackend(Backend):  # pylint: disable=too-many-ancestors
 		return None
 
 
-class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
+class ProtectedBackend(Backend):
 	def __init__(self) -> None:
 		super().__init__()
 		if not self._acl:
@@ -388,7 +388,7 @@ class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
 		for method_name in list(self._interface):
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
-	def _get_ace(self, method: str) -> list[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
+	def _get_ace(self, method: str) -> list[RPCACE]:
 		"""
 		Get list of ACEs.
 		"""

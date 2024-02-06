@@ -20,11 +20,11 @@ from opsiconfd.auth.user import User, create_user
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 
-from .utils import backend  # pylint: disable=unused-import
+from .utils import backend  # noqa: F401
 
 
 @pytest_asyncio.fixture(autouse=True)
-def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # pylint: disable=redefined-outer-name
+def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # noqa: F811
 	mysql = MySQLConnection()
 	with mysql.connection():
 		with mysql.session() as session:
@@ -213,7 +213,7 @@ def test_create_user_with_role_object_and_override_values() -> None:
 	assert user.opsi_server_write is False
 
 
-def test_read_configs_for_user(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_read_configs_for_user(backend: UnprotectedBackend) -> None:  # noqa: F811
 	test_configs = [
 		UnicodeConfig(id="user.{admin}.modified", defaultValues=["2022-01-01 00:00:00"]),
 		BoolConfig(id="user.{admin}.privilege.host.all.registered_readonly", defaultValues=[True]),
@@ -298,7 +298,7 @@ def test_create_role_with_default_values() -> None:
 	assert isinstance(role.configs["product_group_access"], UnicodeConfig)
 
 
-def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # noqa: F811
 	test_configs = [
 		UnicodeConfig(id="user.role.{admin}.modified", defaultValues=["2022-01-01 00:00:00"]),
 		BoolConfig(id="user.role.{admin}.privilege.host.all.registered_readonly", defaultValues=[True]),
@@ -350,7 +350,7 @@ def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # pylint: 
 	assert role.product_group_access == ["product1", "product2"]
 
 
-def test_create_user_function(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F811
 	create_user("admin", {"admingroup"})
 
 	configs = backend.config_getObjects(id="user.{admin}.*")
@@ -390,7 +390,7 @@ def test_create_user_function(backend: UnprotectedBackend) -> None:  # pylint: d
 					assert expected_config.possibleValues[0] in config.possibleValues  # type: ignore
 
 
-def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.config_createUnicode(id="opsi.roles", defaultValues=["admingroup"], multiValue=True)
 
 	create_user("admin", {"admingroup"})
@@ -464,7 +464,7 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 				assert config.defaultValues == expected_config.defaultValues
 
 
-def test_create_user_function_register_false(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_create_user_function_register_false(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.config_createBool(id="user.{}.register", defaultValues=False)
 
 	create_user("admin", {"admingroup"})
@@ -474,7 +474,7 @@ def test_create_user_function_register_false(backend: UnprotectedBackend) -> Non
 	assert len(configs) == 0
 
 
-def test_create_user_function_without_register_key(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_create_user_function_without_register_key(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.config_delete(id="user.{}.register")
 
 	create_user("admin", {"admingroup"})

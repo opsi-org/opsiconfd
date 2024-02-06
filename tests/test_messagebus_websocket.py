@@ -41,7 +41,7 @@ from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip
 from opsiconfd.session import OPSISession, session_manager
 from opsiconfd.utils import compress_data, decompress_data
 
-from .utils import (  # pylint: disable=unused-import
+from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	Config,
@@ -58,7 +58,7 @@ logger = get_logger()
 
 
 @pytest.mark.parametrize("compression", ("", "lz4", "gzip"))
-def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: str) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: str) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# "with test_client" will run startup and shutdown event handler
 	# https://fastapi.tiangolo.com/advanced/testing-events/
@@ -87,7 +87,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				assert jsonrpc_response_message.error is None
 
 
-def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,too-many-statements
+def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	connections = get_redis_connections()
 	with test_client as client:
@@ -176,9 +176,9 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 	assert connections == get_redis_connections()
 
 
-def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=too-many-locals,redefined-outer-name
-	config: Config,
-	test_client: OpsiconfdTestClient,
+def test_messagebus_multi_client_session_and_user_channel(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
@@ -256,7 +256,7 @@ def test_messagebus_multi_client_session_and_user_channel(  # pylint: disable=to
 			wait_for_reader_count(redis, channel, 0)
 
 
-def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client as client:
 		with (
@@ -331,7 +331,7 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 						reader.wait_for_message(count=1, timeout=1)
 
 
-def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	with test_client as client:
@@ -404,7 +404,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 						}
 
 
-def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
@@ -461,7 +461,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 				assert data_message.terminal_id == terminal_id
 
 
-def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_trace(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with use_logging_config(stderr_level=LOG_TRACE):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		with test_client as client:
@@ -529,7 +529,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 					)
 
 
-def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	with test_client as client:
@@ -554,7 +554,7 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 					client.auth = (host_id, host_key)
 					test_sess = client.websocket_connect("/messagebus/v1")
 					# Do not use context manager here, because __exit__ will shut down the whole application
-					test_sess.__enter__()  # pylint: disable=unnecessary-dunder-call
+					test_sess.__enter__()
 					sleep(1)
 					test_sess.close()
 
@@ -586,9 +586,9 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # pylint:
 				assert msg["data"] == {"id": "test.config"}
 
 
-async def test_messagebus_close_on_session_deleted(  # pylint: disable=too-many-locals,redefined-outer-name
-	config: Config,
-	test_client: OpsiconfdTestClient,
+async def test_messagebus_close_on_session_deleted(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with (

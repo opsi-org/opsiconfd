@@ -7,14 +7,14 @@
 """
 test opsiconfd.backend.rpc.obj_product_dependency
 """
-# pylint: disable=too-many-lines
+
 
 import pytest
 from opsicommon.objects import LocalbootProduct, ProductDependency, ProductOnClient, ProductOnDepot
 
 from opsiconfd.backend.rpc.obj_product_dependency import OpsiProductNotAvailableOnDepotError
 from opsiconfd.config import get_depotserver_id
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -29,8 +29,8 @@ from tests.utils import (  # pylint: disable=unused-import
 from .test_obj_product import create_test_products
 
 
-def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
-	backend: UnprotectedBackend,
+def test_get_product_action_groups(
+	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
@@ -566,8 +566,8 @@ def test_get_product_action_groups(  # pylint: disable=redefined-outer-name,too-
 	assert res2[3].actionSequence == 3
 
 
-def test_get_product_action_groups_no_dep_always_update(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
-	backend: UnprotectedBackend,
+def test_get_product_action_groups_no_dep_always_update(
+	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
@@ -636,8 +636,8 @@ def test_get_product_action_groups_no_dep_always_update(  # pylint: disable=rede
 	]
 
 
-def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
-	backend: UnprotectedBackend,
+def test_get_product_action_groups_messe(
+	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
@@ -818,8 +818,8 @@ def test_get_product_action_groups_messe(  # pylint: disable=redefined-outer-nam
 	]
 
 
-def test_get_product_action_groups_vmware(  # pylint: disable=redefined-outer-name,too-many-locals,too-many-statements
-	backend: UnprotectedBackend,
+def test_get_product_action_groups_vmware(
+	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
@@ -1169,7 +1169,7 @@ def test_get_product_action_groups_vmware(  # pylint: disable=redefined-outer-na
 		assert res[0].product_on_clients[5].actionSequence == 5
 
 
-def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disable=redefined-outer-name
+def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
 	product1, product2 = create_test_products(test_client)
 
 	product_dependency1 = {
@@ -1204,8 +1204,8 @@ def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:
 	return (product_dependency1, product_dependency2)
 
 
-def check_products_dependencies(  # pylint: disable=redefined-outer-name,unused-argument
-	test_client: OpsiconfdTestClient,
+def check_products_dependencies(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	product_dependencies: list,
 ) -> None:
 	for product_dependency in product_dependencies:
@@ -1223,8 +1223,8 @@ def check_products_dependencies(  # pylint: disable=redefined-outer-name,unused-
 			assert val == dependency[attr]
 
 
-def test_product_dependency_insertObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_dependency_insertObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
@@ -1233,8 +1233,8 @@ def test_product_dependency_insertObject(  # pylint: disable=invalid-name
 	check_products_dependencies(test_client, [product_dependency1, product_dependency2])
 
 
-def test_product_dependency_createObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_dependency_createObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -1267,8 +1267,8 @@ def test_product_dependency_createObject(  # pylint: disable=invalid-name
 	check_products_dependencies(test_client, [product_dependency1, product_dependency2])
 
 
-def test_product_dependency_create(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_dependency_create(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -1323,8 +1323,8 @@ def test_product_dependency_create(  # pylint: disable=invalid-name
 	check_products_dependencies(test_client, [product_dependency1, product_dependency2])
 
 
-def test_product_dependency_updateObject(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_dependency_updateObject(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
@@ -1435,8 +1435,8 @@ def test_product_dependency_updateObject(  # pylint: disable=invalid-name
 
 
 @pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
-def test_product_dependency_getHashes(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_dependency_getHashes(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
@@ -1468,8 +1468,8 @@ def test_product_dependency_getHashes(  # pylint: disable=invalid-name
 		assert val == poc[attr]
 
 
-def test_product_dependency_getIdents(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_dependency_getIdents(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)
@@ -1496,8 +1496,8 @@ def test_product_dependency_getIdents(  # pylint: disable=invalid-name
 	]
 
 
-def test_product_dependency_delete(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_product_dependency_delete(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product_dependency1, product_dependency2 = create_test_product_dependencies(test_client)

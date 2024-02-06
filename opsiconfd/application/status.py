@@ -46,7 +46,7 @@ async def status_overview() -> PlainTextResponse:
 		for key_type in redis_info["key_info"]:
 			redis_mem += redis_info["key_info"][key_type]["memory"]
 		redis_status = "ok"
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		redis_status = "error"
 		status = "error"
 		redis_error = str(err) or "connection error"

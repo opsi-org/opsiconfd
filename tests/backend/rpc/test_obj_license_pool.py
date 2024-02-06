@@ -11,7 +11,7 @@ test opsiconfd.backend.rpc.obj_license_pool
 
 from opsicommon.objects import LicensePool
 
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -24,8 +24,8 @@ from tests.utils import (  # pylint: disable=unused-import
 from .test_obj_product import create_test_products
 
 
-def test_licensePool_insert_get_delete(  # pylint: disable=invalid-name
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+def test_licensePool_insert_get_delete(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	product1, product2 = create_test_products(test_client)

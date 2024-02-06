@@ -31,7 +31,7 @@ from . import file_uploads, get_messagebus_worker_id, terminals
 # from .redis import send_message
 
 
-class FileUpload:  # pylint: disable=too-many-instance-attributes
+class FileUpload:
 	chunk_timeout = 300
 
 	def __init__(self, file_upload_request: FileUploadRequestMessage, sender: str, send_message: Callable) -> None:
@@ -156,7 +156,7 @@ async def process_message(
 			raise RuntimeError("Invalid file id")
 
 		await file_upload.process_message(message)
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning(err, exc_info=True)
 
 		upload_result = FileErrorMessage(

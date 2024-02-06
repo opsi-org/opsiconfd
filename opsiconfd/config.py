@@ -7,7 +7,7 @@
 """
 global config
 """
-# pylint: disable=too-many-lines
+
 
 import getpass
 import ipaddress
@@ -104,7 +104,7 @@ def configure_warnings() -> None:
 
 if running_in_docker():
 	try:
-		ip = socket.gethostbyname(FQDN)  # pylint: disable=invalid-name
+		ip = socket.gethostbyname(FQDN)
 		if ip not in ("127.0.0.1", "::1"):
 			rev = reversename.from_address(ip)
 			DEFAULT_NODE_NAME = str(resolver.resolve(str(rev), "PTR")[0]).split(".", 1)[0].replace("docker_", "")
@@ -184,7 +184,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		text = text.replace("[env var: ", "\n[env var: ")
 		text = text.replace("(default: ", "\n(default: ")
 		lines = []
-		from textwrap import wrap  # pylint: disable=import-outside-toplevel
+		from textwrap import wrap
 
 		for line in text.split("\n"):
 			lines += wrap(line, width)
@@ -244,7 +244,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		return text
 
 
-class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
+class Config(metaclass=Singleton):
 	_initialized = False
 
 	def __init__(self) -> None:
@@ -290,7 +290,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			)
 			if self._sub_command:
 				self._args.remove(self._sub_command)
-		except BaseException:  # pylint: disable=broad-except
+		except BaseException:
 			pass
 
 		self._init_parser()
@@ -322,7 +322,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._config, _unknown = self._parser.parse_known_args(self._args, config_file_contents=self._config_file_contents())
 		self._update_config()
 
-	def _update_config(self) -> None:  # pylint: disable=too-many-branches,too-many-statements
+	def _update_config(self) -> None:
 		if self._sub_command:
 			self._config.action = self._sub_command
 
@@ -378,7 +378,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		if not self._config.skip_setup:
 			self._config.skip_setup = []
 		if self._parser and "all" in self._config.skip_setup:
-			for action in self._parser._actions:  # pylint: disable=protected-access
+			for action in self._parser._actions:
 				if action.dest == "skip_setup":
 					self._config.skip_setup = action.choices
 					break
@@ -479,7 +479,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 	def _upgrade_config_file(self) -> None:
 		if not self._parser:
 			raise RuntimeError("Parser not initialized")
-		defaults = {action.dest: action.default for action in self._parser._actions}  # pylint: disable=protected-access
+		defaults = {action.dest: action.default for action in self._parser._actions}
 		# Do not migrate ssl key/cert
 		mapping = {
 			"backend config dir": "backend-config-dir",
@@ -534,7 +534,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			conf.pop(deprecated, None)
 		self._generate_config_file(conf)
 
-	def _init_parser(self) -> None:  # pylint: disable=too-many-statements
+	def _init_parser(self) -> None:
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))
 
 		self._parser.add(

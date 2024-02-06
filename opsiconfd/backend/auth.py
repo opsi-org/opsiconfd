@@ -24,7 +24,7 @@ class RPCACE:
 
 	method_re: re.Pattern
 	type: Literal["all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"]
-	id: Optional[str] = None  # pylint: disable=invalid-name
+	id: Optional[str] = None
 	allowed_attributes: set[str] = field(default_factory=set)
 	denied_attributes: set[str] = field(default_factory=set)
 
@@ -32,7 +32,7 @@ class RPCACE:
 RPCACE_ALLOW_ALL = RPCACE(method_re=re.compile(".*"), type="all")
 
 
-def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def read_acl_file(acl_file: Path | str) -> list[RPCACE]:
 	acl = []
 	# acl example:
 	#    <method>: <aclType>[(aclTypeParam[(aclTypeParamValue,...)];...)]
@@ -42,7 +42,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-
 	if not isinstance(acl_file, Path):
 		acl_file = Path(acl_file)
 
-	for idx, line in enumerate(acl_file.read_text(encoding="utf-8").split("\n")):  # pylint: disable=too-many-nested-blocks
+	for idx, line in enumerate(acl_file.read_text(encoding="utf-8").split("\n")):
 		position_text = f"at line {idx + 1} in acl file '{acl_file}'"
 		line = line.strip()
 		if not line or line.startswith("#"):

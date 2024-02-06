@@ -45,7 +45,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		return res
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_getValues(  # pylint: disable=invalid-name
+	def productPropertyState_getValues(
 		self: BackendProtocol,
 		product_ids: list[str] | str | None = None,
 		property_ids: list[str] | str | None = None,
@@ -82,32 +82,32 @@ class RPCProductPropertyStateMixin(Protocol):
 
 		return res
 
-	def productPropertyState_bulkInsertObjects(  # pylint: disable=invalid-name
+	def productPropertyState_bulkInsertObjects(
 		self: BackendProtocol,
-		productPropertyStates: list[dict] | list[ProductPropertyState],  # pylint: disable=invalid-name
+		productPropertyStates: list[dict] | list[ProductPropertyState],
 	) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_PROPERTY_STATE", objs=productPropertyStates)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_insertObject(  # pylint: disable=invalid-name
+	def productPropertyState_insertObject(
 		self: BackendProtocol,
-		productPropertyState: dict | ProductPropertyState,  # pylint: disable=invalid-name
+		productPropertyState: dict | ProductPropertyState,
 	) -> None:
 		ace = self._get_ace("productPropertyState_insertObject")
 		productPropertyState = forceObjectClass(productPropertyState, ProductPropertyState)
 		self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=productPropertyState, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_updateObject(  # pylint: disable=invalid-name
+	def productPropertyState_updateObject(
 		self: BackendProtocol,
-		productPropertyState: dict | ProductPropertyState,  # pylint: disable=invalid-name
+		productPropertyState: dict | ProductPropertyState,
 	) -> None:
 		ace = self._get_ace("productPropertyState_updateObject")
 		productPropertyState = forceObjectClass(productPropertyState, ProductPropertyState)
 		self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=productPropertyState, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_createObjects(  # pylint: disable=invalid-name
+	def productPropertyState_createObjects(
 		self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		ace = self._get_ace("productPropertyState_createObjects")
@@ -119,9 +119,9 @@ class RPCProductPropertyStateMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_updateObjects(  # pylint: disable=invalid-name
+	def productPropertyState_updateObjects(
 		self: BackendProtocol,
-		productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState,  # pylint: disable=invalid-name
+		productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState,
 	) -> None:
 		ace = self._get_ace("productPropertyState_updateObjects")
 		with self._mysql.session() as session:
@@ -132,7 +132,7 @@ class RPCProductPropertyStateMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_getObjects(  # pylint: disable=invalid-name,redefined-builtin
+	def productPropertyState_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -143,7 +143,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		)
 
 	@rpc_method(deprecated=True, alternative_method="productPropertyState_getObjects", check_acl=False)
-	def productPropertyState_getHashes(  # pylint: disable=invalid-name,redefined-builtin
+	def productPropertyState_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
@@ -159,7 +159,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def productPropertyState_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -170,7 +170,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_deleteObjects(  # pylint: disable=invalid-name
+	def productPropertyState_deleteObjects(
 		self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		if not productPropertyStates:
@@ -179,7 +179,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		self._mysql.delete_objects(table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, obj=productPropertyStates, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_create(  # pylint: disable=invalid-name
+	def productPropertyState_create(
 		self: BackendProtocol, productId: str, propertyId: str, objectId: str, values: list[Any] | None = None
 	) -> None:
 		_hash = locals()
@@ -187,7 +187,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		self.productPropertyState_createObjects(ProductPropertyState.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_delete(  # pylint: disable=invalid-name
+	def productPropertyState_delete(
 		self: BackendProtocol, productId: list[str] | str, propertyId: list[str] | str, objectId: list[str] | str
 	) -> None:
 		idents = self.productPropertyState_getIdents(returnType="dict", productId=productId, propertyId=propertyId, objectId=objectId)

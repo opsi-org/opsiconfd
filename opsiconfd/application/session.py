@@ -9,7 +9,7 @@ session
 """
 
 from fastapi import APIRouter, FastAPI, Request, status
-from pydantic import BaseModel  # pylint: disable=no-name-in-module
+from pydantic import BaseModel
 
 from opsiconfd.rest import RESTResponse, rest_api
 from opsiconfd.session import OPSISession, authenticate
@@ -21,7 +21,7 @@ def session_setup(app: FastAPI) -> None:
 	app.include_router(router=session_router, prefix="/session")
 
 
-class LoginData(BaseModel):  # pylint: disable=too-few-public-methods
+class LoginData(BaseModel):
 	username: str
 	password: str
 	mfa_otp: str | None = None

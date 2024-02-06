@@ -12,10 +12,10 @@ from inspect import getmembers, ismethod
 from pathlib import Path
 
 from opsiconfd.backend.rpc.extender import RPCExtenderMixin
-from tests.utils import get_config  # pylint: disable=unused-import
+from tests.utils import get_config
 
 
-class Backend(RPCExtenderMixin):  # pylint: disable=too-few-public-methods
+class Backend(RPCExtenderMixin):
 	def __init__(self) -> None:
 		super().__init__()
 		self.ace_called: list[str] = []
@@ -38,8 +38,8 @@ def test_extender_loading(tmp_path: Path) -> None:
 				count_rpc_methods += 1
 		assert count_rpc_methods == 3
 
-		assert extender.extend1() == 1  # type: ignore[attr-defined]  # pylint: disable=no-member
-		assert extender.extend2("a") == 2  # type: ignore[attr-defined]  # pylint: disable=no-member
-		assert extender.extend3("b") == 3  # type: ignore[attr-defined]  # pylint: disable=no-member
+		assert extender.extend1() == 1  # type: ignore[attr-defined]
+		assert extender.extend2("a") == 2  # type: ignore[attr-defined]
+		assert extender.extend3("b") == 3  # type: ignore[attr-defined]
 
 		assert extender.ace_called == ["extend1", "extend2", "extend3"]

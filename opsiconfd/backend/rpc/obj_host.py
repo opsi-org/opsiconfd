@@ -30,7 +30,7 @@ from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import redis_client
-from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
+from opsiconfd.ssl import (
 	as_pem,
 	create_server_cert,
 	get_domain,
@@ -76,7 +76,7 @@ class RPCHostMixin(Protocol):
 		if not self._mysql.unique_hardware_addresses or not host.hardwareAddress or host.hardwareAddress.startswith("00:00:00"):
 			return
 
-		with self._mysql.session() as session:  # pylint: disable=redefined-argument-from-local
+		with self._mysql.session() as session:
 			res = session.execute(
 				"""
 				SELECT hostId FROM `HOST`
@@ -88,11 +88,11 @@ class RPCHostMixin(Protocol):
 			if res:
 				raise ValueError(f"Hardware address {host.hardwareAddress!r} is already used by host {res[0]!r}")
 
-	def host_bulkInsertObjects(self: BackendProtocol, hosts: list[dict] | list[Host]) -> None:  # pylint: disable=invalid-name
+	def host_bulkInsertObjects(self: BackendProtocol, hosts: list[dict] | list[Host]) -> None:
 		self._mysql.bulk_insert_objects(table="HOST", objs=hosts)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:
 		ace = self._get_ace("host_insertObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
@@ -106,7 +106,7 @@ class RPCHostMixin(Protocol):
 			self.dhcpd_control_hosts_updated([host.id])
 
 	@rpc_method(check_acl=False)
-	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:
 		ace = self._get_ace("host_updateObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
@@ -120,7 +120,7 @@ class RPCHostMixin(Protocol):
 			self.dhcpd_control_hosts_updated([host.id])
 
 	@rpc_method(check_acl=False)
-	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		ace = self._get_ace("host_createObjects")
 		hosts = forceObjectClassList(hosts, Host)
 		with self._mysql.session() as session:
@@ -140,7 +140,7 @@ class RPCHostMixin(Protocol):
 			self.dhcpd_control_hosts_updated(client_ids)
 
 	@rpc_method(check_acl=False)
-	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		ace = self._get_ace("host_updateObjects")
 		hosts = forceObjectClassList(hosts, Host)
 		with self._mysql.session() as session:
@@ -160,21 +160,21 @@ class RPCHostMixin(Protocol):
 			self.dhcpd_control_hosts_updated(client_ids)
 
 	@rpc_method(check_acl=False)
-	def host_getObjects(  # pylint: disable=redefined-builtin,invalid-name
+	def host_getObjects(
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[Host]:
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
-	def host_getHashes(  # pylint: disable=redefined-builtin,invalid-name
+	def host_getHashes(
 		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
 	) -> list[dict]:
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def host_getIdents(  # pylint: disable=invalid-name,redefined-builtin
+	def host_getIdents(
 		self: BackendProtocol,
 		returnType: IdentType = "str",
 		**filter: Any,
@@ -183,7 +183,7 @@ class RPCHostMixin(Protocol):
 		return self._mysql.get_idents(table="HOST", object_type=Host, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def host_deleteObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_deleteObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		if not hosts:
 			return
 		ace = self._get_ace("host_deleteObjects")
@@ -203,90 +203,90 @@ class RPCHostMixin(Protocol):
 		self.dhcpd_control_hosts_deleted(host_ids)
 
 	@rpc_method(check_acl=False)
-	def host_delete(self: BackendProtocol, id: list[str] | str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def host_delete(self: BackendProtocol, id: list[str] | str) -> None:
 		idents = self.host_getIdents(returnType="dict", id=id)
 		if idents:
 			self.host_deleteObjects(idents)
 
 	@rpc_method(check_acl=False)
-	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name
+	def host_createOpsiClient(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		opsiHostKey: str | None = None,  # pylint: disable=unused-argument
-		description: str | None = None,  # pylint: disable=unused-argument
-		notes: str | None = None,  # pylint: disable=unused-argument
-		hardwareAddress: str | None = None,  # pylint: disable=unused-argument
-		ipAddress: str | None = None,  # pylint: disable=unused-argument
-		inventoryNumber: str | None = None,  # pylint: disable=unused-argument
-		oneTimePassword: str | None = None,  # pylint: disable=unused-argument
-		created: str | None = None,  # pylint: disable=unused-argument
-		lastSeen: str | None = None,  # pylint: disable=unused-argument
-		systemUUID: str | None = None,  # pylint: disable=unused-argument
+		id: str,
+		opsiHostKey: str | None = None,
+		description: str | None = None,
+		notes: str | None = None,
+		hardwareAddress: str | None = None,
+		ipAddress: str | None = None,
+		inventoryNumber: str | None = None,
+		oneTimePassword: str | None = None,
+		created: str | None = None,
+		lastSeen: str | None = None,
+		systemUUID: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.host_createObjects([OpsiClient.fromHash(_hash)])
 
 	@rpc_method(check_acl=False)
-	def host_createOpsiDepotserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
+	def host_createOpsiDepotserver(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		opsiHostKey: str | None = None,  # pylint: disable=unused-argument
-		depotLocalUrl: str | None = None,  # pylint: disable=unused-argument
-		depotRemoteUrl: str | None = None,  # pylint: disable=unused-argument
-		depotWebdavUrl: str | None = None,  # pylint: disable=unused-argument
-		repositoryLocalUrl: str | None = None,  # pylint: disable=unused-argument
-		repositoryRemoteUrl: str | None = None,  # pylint: disable=unused-argument
-		description: str | None = None,  # pylint: disable=unused-argument
-		notes: str | None = None,  # pylint: disable=unused-argument
-		hardwareAddress: str | None = None,  # pylint: disable=unused-argument
-		ipAddress: str | None = None,  # pylint: disable=unused-argument
-		inventoryNumber: str | None = None,  # pylint: disable=unused-argument
-		networkAddress: str | None = None,  # pylint: disable=unused-argument
-		maxBandwidth: str | None = None,  # pylint: disable=unused-argument
-		isMasterDepot: bool | None = None,  # pylint: disable=unused-argument
-		masterDepotId: str | None = None,  # pylint: disable=unused-argument
-		workbenchLocalUrl: str | None = None,  # pylint: disable=unused-argument
-		workbenchRemoteUrl: str | None = None,  # pylint: disable=unused-argument
-		systemUUID: str | None = None,  # pylint: disable=unused-argument
+		id: str,
+		opsiHostKey: str | None = None,
+		depotLocalUrl: str | None = None,
+		depotRemoteUrl: str | None = None,
+		depotWebdavUrl: str | None = None,
+		repositoryLocalUrl: str | None = None,
+		repositoryRemoteUrl: str | None = None,
+		description: str | None = None,
+		notes: str | None = None,
+		hardwareAddress: str | None = None,
+		ipAddress: str | None = None,
+		inventoryNumber: str | None = None,
+		networkAddress: str | None = None,
+		maxBandwidth: str | None = None,
+		isMasterDepot: bool | None = None,
+		masterDepotId: str | None = None,
+		workbenchLocalUrl: str | None = None,
+		workbenchRemoteUrl: str | None = None,
+		systemUUID: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.host_createObjects([OpsiDepotserver.fromHash(_hash)])
 
 	@rpc_method(check_acl=False)
-	def host_createOpsiConfigserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
+	def host_createOpsiConfigserver(
 		self: BackendProtocol,
-		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		opsiHostKey: str | None = None,  # pylint: disable=unused-argument
-		depotLocalUrl: str | None = None,  # pylint: disable=unused-argument
-		depotRemoteUrl: str | None = None,  # pylint: disable=unused-argument
-		depotWebdavUrl: str | None = None,  # pylint: disable=unused-argument
-		repositoryLocalUrl: str | None = None,  # pylint: disable=unused-argument
-		repositoryRemoteUrl: str | None = None,  # pylint: disable=unused-argument
-		description: str | None = None,  # pylint: disable=unused-argument
-		notes: str | None = None,  # pylint: disable=unused-argument
-		hardwareAddress: str | None = None,  # pylint: disable=unused-argument
-		ipAddress: str | None = None,  # pylint: disable=unused-argument
-		inventoryNumber: str | None = None,  # pylint: disable=unused-argument
-		networkAddress: str | None = None,  # pylint: disable=unused-argument
-		maxBandwidth: str | None = None,  # pylint: disable=unused-argument
-		isMasterDepot: bool | None = None,  # pylint: disable=unused-argument
-		masterDepotId: str | None = None,  # pylint: disable=unused-argument
-		workbenchLocalUrl: str | None = None,  # pylint: disable=unused-argument
-		workbenchRemoteUrl: str | None = None,  # pylint: disable=unused-argument
-		systemUUID: str | None = None,  # pylint: disable=unused-argument
+		id: str,
+		opsiHostKey: str | None = None,
+		depotLocalUrl: str | None = None,
+		depotRemoteUrl: str | None = None,
+		depotWebdavUrl: str | None = None,
+		repositoryLocalUrl: str | None = None,
+		repositoryRemoteUrl: str | None = None,
+		description: str | None = None,
+		notes: str | None = None,
+		hardwareAddress: str | None = None,
+		ipAddress: str | None = None,
+		inventoryNumber: str | None = None,
+		networkAddress: str | None = None,
+		maxBandwidth: str | None = None,
+		isMasterDepot: bool | None = None,
+		masterDepotId: str | None = None,
+		workbenchLocalUrl: str | None = None,
+		workbenchRemoteUrl: str | None = None,
+		systemUUID: str | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.host_createObjects([OpsiConfigserver.fromHash(_hash)])
 
 	@rpc_method(check_acl=False)
-	def host_getTLSCertificate(self: BackendProtocol, hostId: str) -> str:  # pylint: disable=invalid-name,too-many-locals
+	def host_getTLSCertificate(self: BackendProtocol, hostId: str) -> str:
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
-		host = self.host_getObjects(id=hostId)  # pylint: disable=no-member
+		host = self.host_getObjects(id=hostId)
 		if not host or not host[0] or host[0].getType() not in ("OpsiDepotserver", "OpsiClient"):
 			raise BackendPermissionDeniedError(f"Invalid host: {hostId}")
 		host = host[0]
@@ -329,10 +329,10 @@ class RPCHostMixin(Protocol):
 		return as_pem(key) + as_pem(cert)
 
 	@rpc_method(check_acl=False)
-	def host_renameOpsiClient(  # pylint: disable=redefined-builtin,invalid-name,too-many-locals,too-many-branches,too-many-statements
+	def host_renameOpsiClient(
 		self: BackendProtocol, id: str, newId: str
 	) -> None:
-		cur_client_id = forceHostId(id)  # pylint: disable=invalid-name
+		cur_client_id = forceHostId(id)
 		new_client_id = forceHostId(newId)
 
 		logger.info("Renaming client %s to %s...", cur_client_id, new_client_id)
@@ -427,7 +427,7 @@ class RPCHostMixin(Protocol):
 			self.softwareLicense_createObjects(software_licenses)
 
 	@rpc_method(check_acl=False)
-	def host_renameOpsiDepotserver(  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
+	def host_renameOpsiDepotserver(
 		self: BackendProtocol, oldId: str, newId: str
 	) -> None:
 		"""
@@ -581,7 +581,7 @@ class RPCHostMixin(Protocol):
 		setup_metric_downsampling()
 
 	@rpc_method(check_acl=False)
-	async def host_getMessagebusConnectedIds(  # pylint: disable=invalid-name
+	async def host_getMessagebusConnectedIds(
 		self: BackendProtocol, hostIds: list[str] | None = None
 	) -> list[str]:
 		"""

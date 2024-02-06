@@ -7,7 +7,7 @@
 """
 opsiconfd.backend.mysql.schema
 """
-# pylint: disable=too-many-lines
+
 
 from __future__ import annotations
 
@@ -395,16 +395,16 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 """
 
 
-def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def create_audit_hardware_tables(
 	session: Session, tables: dict[str, dict[str, dict[str, str | bool | None]]]
 ) -> None:
-	from opsiconfd.backend.rpc.obj_audit_hardware import (  # pylint: disable=import-outside-toplevel
+	from opsiconfd.backend.rpc.obj_audit_hardware import (
 		get_audit_hardware_database_config,
 	)
 
 	existing_tables = set(tables.keys())
 
-	for hw_class, values in get_audit_hardware_database_config().items():  # pylint: disable=too-many-nested-blocks
+	for hw_class, values in get_audit_hardware_database_config().items():
 		logger.debug("Processing hardware class '%s'", hw_class)
 		hardware_device_table_name = f"HARDWARE_DEVICE_{hw_class}"
 		hardware_config_table_name = f"HARDWARE_CONFIG_{hw_class}"
@@ -505,7 +505,7 @@ def read_schema_version(session: Session) -> int | None:
 		row = session.execute("SELECT MAX(`version`) FROM `OPSI_SCHEMA`").fetchone()
 		if row and row[0] is not None:
 			return int(row[0])
-	except Exception as err:  # pylint: disable=broad-except
+	except Exception as err:
 		logger.warning("Reading database schema version failed: %s", err)
 	return None
 
@@ -521,7 +521,7 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 	return indexes
 
 
-def create_index(  # pylint: disable=too-many-branches,too-many-arguments
+def create_index(
 	session: Session, database: str, table: str, index: str, columns: list[str], cleanup_function: Callable | None = None
 ) -> None:
 	logger.debug("Create index: table=%r, index=%r, columns=%r", table, index, columns)
@@ -681,7 +681,7 @@ def drop_database(mysql: MySQLConnection) -> None:
 		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 
 
-def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pylint: disable=too-many-branches,too-many-statements
+def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 	with mysql.session() as session:
 		session.execute(CREATE_TABLES_SQL)
 		session.commit()

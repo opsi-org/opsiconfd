@@ -13,7 +13,7 @@ from typing import Any
 from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver
 
 from opsiconfd.config import get_configserver_id
-from tests.utils import (  # pylint: disable=unused-import
+from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
@@ -26,7 +26,7 @@ from tests.utils import (  # pylint: disable=unused-import
 
 
 def _create_clients_and_depot(
-	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> tuple(list[dict[str, str], dict[str, str]]):  # type: ignore[valid-type]
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -68,7 +68,7 @@ def _create_clients_and_depot(
 	return (clients, depot)
 
 
-def _create_test_server_config(test_client: OpsiconfdTestClient, config_id: str) -> dict[str, Any]:  # pylint: disable=redefined-outer-name
+def _create_test_server_config(test_client: OpsiconfdTestClient, config_id: str) -> dict[str, Any]:  # noqa: F811
 	# create config on configserver
 	server_conf = {
 		"id": config_id,
@@ -85,8 +85,8 @@ def _create_test_server_config(test_client: OpsiconfdTestClient, config_id: str)
 	return server_conf
 
 
-def _set_config_state(  # pylint: disable=redefined-outer-name
-	test_client: OpsiconfdTestClient,
+def _set_config_state(
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	object_id: str,
 	config_id: str,
 	values: list,
@@ -101,7 +101,7 @@ def _set_config_state(  # pylint: disable=redefined-outer-name
 	return conf
 
 
-def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name, too-many-statements
+def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	clients, depot = _create_clients_and_depot(test_client)
@@ -196,7 +196,7 @@ def test_config_state_get_values(test_client: OpsiconfdTestClient) -> None:  # p
 		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
 
 
-def test_cs_get_values_rename_depot(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name, too-many-statements
+def test_cs_get_values_rename_depot(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	clients, depot = _create_clients_and_depot(test_client)
@@ -234,7 +234,7 @@ def test_cs_get_values_rename_depot(test_client: OpsiconfdTestClient) -> None:  
 	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == ["acpi=off"]
 
 
-def test_configState_getClientToDepotserver(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name
+def test_configState_getClientToDepotserver(backend: UnprotectedBackend) -> None:  # noqa: F811
 	depot1 = OpsiDepotserver(id="test-config-state-depot-1.opsi.test")
 	client1 = OpsiClient(id="test-config-state-client-1.opsi.test")
 	client2 = OpsiClient(id="test-config-state-client-2.opsi.test")

@@ -85,9 +85,9 @@ def test_unload_addon(config: Config, cleanup: FixtureFunction) -> None:  # noqa
 
 
 def test_reload_addon(
-	config: Config,
-	cleanup: FixtureFunction,
-	tmpdir: str,  # noqa: F811
+	config: Config,  # noqa: F811
+	cleanup: FixtureFunction,  # noqa: F811
+	tmpdir: str,
 ) -> None:
 	addon_dir = os.path.join(tmpdir, "test1")
 	shutil.copytree(os.path.abspath("tests/data/addons/test1"), addon_dir)
@@ -125,7 +125,7 @@ def test_reload_addon(
 
 
 def test_addon_static_dir(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	cleanup: FixtureFunction,  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()
@@ -134,7 +134,7 @@ def test_addon_static_dir(
 
 
 def test_addon_public_path(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	cleanup: FixtureFunction,  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()
@@ -146,7 +146,7 @@ def test_addon_public_path(
 
 
 def test_addon_auth(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	cleanup: FixtureFunction,  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()
@@ -167,7 +167,7 @@ def test_addon_auth(
 
 
 def test_addon_exception_handling(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	cleanup: FixtureFunction,  # noqa: F811
 ) -> None:
 	AddonManager().load_addons()

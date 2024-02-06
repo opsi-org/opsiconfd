@@ -205,10 +205,10 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 
 
 @pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
-def test_log_write(  # noqa: F811
-	backend: UnprotectedBackend,
+def test_log_write(
+	backend: UnprotectedBackend,  # noqa: F811
 	tmp_path: Path,
-	log_type: str,  # noqa: F811
+	log_type: str,
 ) -> None:
 	data = "line1\nline2\nüöß\n"
 	with patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)), get_config({"keep_rotated_logs": 2}):
@@ -280,9 +280,9 @@ def test_log_write(  # noqa: F811
 
 @pytest.mark.parametrize("log_type", ("instlog", "bootimage"))
 def test_log_read(
-	backend: UnprotectedBackend,
+	backend: UnprotectedBackend,  # noqa: F811
 	tmp_path: Path,
-	log_type: str,  # noqa: F811
+	log_type: str,
 ) -> None:
 	data = "line1\nline2\nüöß\n"
 	with patch("opsiconfd.backend.rpc.general.LOG_DIR", str(tmp_path)):
@@ -295,9 +295,9 @@ def test_log_read(
 		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=9) == "line1\n"
 
 
-def test_backend_getLicensingInfo(  # noqa: F811
-	backend: UnprotectedBackend,
-	tmp_path: Path,  # noqa: F811
+def test_backend_getLicensingInfo(
+	backend: UnprotectedBackend,  # noqa: F811
+	tmp_path: Path,
 ) -> None:
 	modules_file = tmp_path / "modules"
 	pool = get_default_opsi_license_pool()

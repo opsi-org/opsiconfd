@@ -33,8 +33,8 @@ from tests.utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
-	clean_redis,
 	clean_mysql,
+	clean_redis,
 	config,
 	create_depot_jsonrpc,
 	delete_mysql_data,
@@ -244,11 +244,11 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
 def test_check_disk_usage(
-	backend: UnprotectedBackend,
+	backend: UnprotectedBackend,  # noqa: F811
 	info: dict[str, Any],
 	opsiresource: Any,
 	thresholds: Any,
-	expected_result: Any,  # noqa: F811
+	expected_result: Any,
 ) -> None:
 	def get_disk_usage(path: str) -> DiskUsage:
 		return DiskUsage(**info)
@@ -261,8 +261,8 @@ def test_check_disk_usage(
 
 @pytest.mark.parametrize("return_value", [(None), ({}), ([])])
 def test_check_disk_usage_no_result(
-	backend: UnprotectedBackend,
-	return_value: Any,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+	return_value: Any,
 ) -> None:
 	def get_disk_usage(path: str) -> DiskUsage:
 		return return_value

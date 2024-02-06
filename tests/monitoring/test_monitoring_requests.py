@@ -55,12 +55,12 @@ from tests.utils import (  # noqa: F401
 	],
 )
 def test_check_product_status_none(
-	test_client: OpsiconfdTestClient,
-	config: Config,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 	product_ids: list[str],
 	verbose: bool,
 	strict: bool,
-	expected_result: Any,  # noqa: F811  # noqa: F811
+	expected_result: Any,
 ) -> None:
 	data = json.dumps(
 		{
@@ -141,12 +141,12 @@ def test_check_product_status_none(
 	],
 )
 def test_check_product_status_not_none(
-	test_client: OpsiconfdTestClient,
-	config: Config,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 	products: list[str],
 	verbose: bool,
 	strict: bool,
-	expected_result: Any,  # noqa: F811  # noqa: F811
+	expected_result: Any,
 ) -> None:
 	data = json.dumps(
 		{
@@ -410,11 +410,11 @@ def test_check_product_status_short(
 	],
 )
 def test_check_client_status(
-	test_client: OpsiconfdTestClient,
-	config: Config,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	config: Config,  # noqa: F811
 	client: str,
 	exclude: list[str],
-	expected_result: Any,  # noqa: F811  # noqa: F811
+	expected_result: Any,
 ) -> None:
 	data = json.dumps(
 		{

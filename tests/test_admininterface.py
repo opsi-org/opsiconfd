@@ -191,8 +191,8 @@ def test_get_rpc_list_request(
 
 
 def test_get_blocked_clients_request(
-	config: Config,
-	test_client: OpsiconfdTestClient,  # noqa: F811  # noqa: F811
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
@@ -217,9 +217,9 @@ async def test_get_blocked_clients(
 
 @pytest.mark.parametrize("num_rpcs", [1, 3, 5])
 async def test_get_rpc_list(
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	admininterface: ModuleType,
-	num_rpcs: int,  # noqa: F811
+	num_rpcs: int,
 ) -> None:
 	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
 		for _ in range(num_rpcs):
@@ -249,11 +249,11 @@ async def test_get_rpc_list(
 	],
 )
 async def test_delete_client_sessions(
-	config: Config,
+	config: Config,  # noqa: F811
 	admininterface: ModuleType,
-	test_client: OpsiconfdTestClient,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	rpc_request_data: Any,
-	expected_response: Any,  # noqa: F811  # noqa: F811
+	expected_response: Any,
 ) -> None:
 	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
@@ -473,9 +473,9 @@ def test_get_addon_list(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 
 def test_get_routes(
-	config: Config,
-	test_client: OpsiconfdTestClient,
-	cleanup: Callable,  # noqa: F811  # noqa: F811  # noqa: F811
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	cleanup: Callable,  # noqa: F811
 ) -> None:
 	# uses clean up from addon manager test (auto run is true)
 	response = test_client.get("/admin/routes", auth=(ADMIN_USER, ADMIN_PASS))

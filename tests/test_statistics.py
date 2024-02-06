@@ -171,8 +171,8 @@ async def test_metrics_collector_add_value() -> None:
 
 
 async def test_execute_redis_command(
-	config: Config,
-	metrics_collector: WorkerMetricsCollector,  # noqa: F811
+	config: Config,  # noqa: F811
+	metrics_collector: WorkerMetricsCollector,
 ) -> None:
 	for cmd, res in (
 		(f"SET {config.redis_key('stats')}:num_rpcs 5", b"OK"),

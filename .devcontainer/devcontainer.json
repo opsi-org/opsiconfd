@@ -6,11 +6,6 @@
 	"workspaceFolder": "/workspace",
 	"remoteUser": "${localEnv:USER}",
 	"overrideCommand": false,
-	//"remoteEnv": {
-	//	"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
-	//	"DEV_USER": "${localEnv:USER}",
-	//	"DEV_UID": "${localEnv:UID}"
-	//},
 	"customizations": {
 		"vscode": {
 			"settings": {

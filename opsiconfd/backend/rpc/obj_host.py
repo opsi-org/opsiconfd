@@ -160,16 +160,12 @@ class RPCHostMixin(Protocol):
 			self.dhcpd_control_hosts_updated(client_ids)
 
 	@rpc_method(check_acl=False)
-	def host_getObjects(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[Host]:
+	def host_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Host]:
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
-	def host_getHashes(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[dict]:
+	def host_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter)
 
@@ -329,9 +325,7 @@ class RPCHostMixin(Protocol):
 		return as_pem(key) + as_pem(cert)
 
 	@rpc_method(check_acl=False)
-	def host_renameOpsiClient(
-		self: BackendProtocol, id: str, newId: str
-	) -> None:
+	def host_renameOpsiClient(self: BackendProtocol, id: str, newId: str) -> None:
 		cur_client_id = forceHostId(id)
 		new_client_id = forceHostId(newId)
 
@@ -427,9 +421,7 @@ class RPCHostMixin(Protocol):
 			self.softwareLicense_createObjects(software_licenses)
 
 	@rpc_method(check_acl=False)
-	def host_renameOpsiDepotserver(
-		self: BackendProtocol, oldId: str, newId: str
-	) -> None:
+	def host_renameOpsiDepotserver(self: BackendProtocol, oldId: str, newId: str) -> None:
 		"""
 		Rename OpsiDepotserver with id `oldId` to `newId`.
 
@@ -581,9 +573,7 @@ class RPCHostMixin(Protocol):
 		setup_metric_downsampling()
 
 	@rpc_method(check_acl=False)
-	async def host_getMessagebusConnectedIds(
-		self: BackendProtocol, hostIds: list[str] | None = None
-	) -> list[str]:
+	async def host_getMessagebusConnectedIds(self: BackendProtocol, hostIds: list[str] | None = None) -> list[str]:
 		"""
 		Return a list of host IDs connected to the messagebus.
 		The hostId parameter can be used to limit the list to the IDs passed.

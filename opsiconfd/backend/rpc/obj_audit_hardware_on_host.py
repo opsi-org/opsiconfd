@@ -14,11 +14,11 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.exceptions import BackendPermissionDeniedError
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.objects import (
 	AuditHardware,
 	AuditHardwareOnHost,
 )
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList
 
 from opsiconfd.logging import logger
 
@@ -112,16 +112,12 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 					)
 
 	@rpc_method(check_acl=False)
-	def auditHardwareOnHost_insertObject(
-		self: BackendProtocol, auditHardwareOnHost: dict | AuditHardwareOnHost
-	) -> None:
+	def auditHardwareOnHost_insertObject(self: BackendProtocol, auditHardwareOnHost: dict | AuditHardwareOnHost) -> None:
 		ace = self._get_ace("auditHardwareOnHost_insertObject")
 		self._audit_hardware_on_host_insert(audit_hardware_on_hosts=auditHardwareOnHost, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def auditHardwareOnHost_updateObject(
-		self: BackendProtocol, auditHardwareOnHost: dict | AuditHardwareOnHost
-	) -> None:
+	def auditHardwareOnHost_updateObject(self: BackendProtocol, auditHardwareOnHost: dict | AuditHardwareOnHost) -> None:
 		ace = self._get_ace("auditHardwareOnHost_updateObject")
 		self._audit_hardware_on_host_insert(audit_hardware_on_hosts=auditHardwareOnHost, ace=ace, create=False, set_null=False)
 
@@ -233,9 +229,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		)  # type: ignore[return-value]
 
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects", check_acl=False)
-	def auditHardwareOnHost_getHashes(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[dict]:
+	def auditHardwareOnHost_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(
 			ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter

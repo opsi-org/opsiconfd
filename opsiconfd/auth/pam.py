@@ -16,8 +16,8 @@ from grp import getgrgid
 from os import getgrouplist
 
 import pam  # type: ignore[import]
-from opsicommon.exceptions import BackendAuthenticationError  # type: ignore[import]
-from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
+from opsicommon.exceptions import BackendAuthenticationError
+from opsicommon.system.info import linux_distro_id_like_contains
 
 from ..logging import logger
 from . import AuthenticationModule

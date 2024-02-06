@@ -44,9 +44,7 @@ class Addon:
 		Return true to skip further request processing."""
 		return False
 
-	async def handle_request_exception(
-		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
-	) -> bool:
+	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> bool:
 		"""Called on every request exception where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		return False

@@ -14,7 +14,7 @@ import datetime
 from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
-from opsicommon.types import forceProductIdList  # type: ignore[import]
+from opsicommon.types import forceProductIdList
 
 from .utils import State, generate_response
 
@@ -22,9 +22,7 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def check_client_status(
-	backend: Backend, client_id: str, exclude_product_list: list[str] | None = None
-) -> JSONResponse:
+def check_client_status(backend: Backend, client_id: str, exclude_product_list: list[str] | None = None) -> JSONResponse:
 	state = State.OK
 
 	if not client_id:

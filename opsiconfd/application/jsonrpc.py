@@ -28,14 +28,14 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
 from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus import (
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
 )
-from opsicommon.objects import deserialize, serialize  # type: ignore[import]
+from opsicommon.objects import deserialize, serialize
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
@@ -464,9 +464,7 @@ async def jsonrpc_head() -> Response:
 @jsonrpc_router.post("")
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
-async def process_request(
-	request: Request, response: Response
-) -> Response:
+async def process_request(request: Request, response: Response) -> Response:
 	request_compression = None
 	request_serialization = None
 	response_compression = None

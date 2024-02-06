@@ -15,9 +15,9 @@ import os
 import subprocess
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
-from opsicommon.objects import ProductOnClient  # type: ignore[import]
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.objects import ProductOnClient
+from opsicommon.types import (
 	forceActionRequest,
 	forceHostId,
 	forceProductId,
@@ -34,15 +34,11 @@ if TYPE_CHECKING:
 
 class RPCExtOpsiMixin(Protocol):
 	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def setProductActionRequest(
-		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
-	) -> None:
+	def setProductActionRequest(self: BackendProtocol, productId: str, clientId: str, actionRequest: str) -> None:
 		self.setProductState(productId=productId, objectId=clientId, actionRequest=actionRequest)
 
 	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def setProductActionRequestWithDependencies(
-		self: BackendProtocol, productId: str, clientId: str, actionRequest: str
-	) -> None:
+	def setProductActionRequestWithDependencies(self: BackendProtocol, productId: str, clientId: str, actionRequest: str) -> None:
 		"""
 		Set the action request `actionRequest` for product with id `productId` on client `clientId`.
 

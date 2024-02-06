@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
+from opsicommon.exceptions import BackendMissingDataError
 
 from opsiconfd.logging import logger
 
@@ -65,9 +65,7 @@ class RPCExtGroupActionsMixin(Protocol):
 				self.productOnClient_create(product_id, product_type, client, actionRequest=action_request)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setProductActionRequestForHostGroup(
-		self: BackendProtocol, hostGroupId: str, productId: str, actionRequest: str
-	) -> None:
+	def setProductActionRequestForHostGroup(self: BackendProtocol, hostGroupId: str, productId: str, actionRequest: str) -> None:
 		depots_with_clients = self._get_clients_on_depot_by_host_group(hostGroupId)
 		for depot_id, client_ids in depots_with_clients.items():
 			if not self._is_product_on_depot(productId, depot_id):
@@ -76,9 +74,7 @@ class RPCExtGroupActionsMixin(Protocol):
 			self._update_action_request_on_clients(client_ids, productId, actionRequest)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setProductActionRequestForProductGroup(
-		self: BackendProtocol, hostGroupId: str, productGroupId: str, actionRequest: str
-	) -> None:
+	def setProductActionRequestForProductGroup(self: BackendProtocol, hostGroupId: str, productGroupId: str, actionRequest: str) -> None:
 		depots_with_clients = self._get_clients_on_depot_by_host_group(hostGroupId)
 
 		for product_group_mapping in self.objectToGroup_getObjects(groupType="ProductGroup", groupId=productGroupId):
@@ -89,9 +85,7 @@ class RPCExtGroupActionsMixin(Protocol):
 				self._update_action_request_on_clients(client_ids, product_id, actionRequest)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setProductPropertyForHostGroup(
-		self: BackendProtocol, productId: str, propertyId: str, propertyValue: Any, groupId: str
-	) -> None:
+	def setProductPropertyForHostGroup(self: BackendProtocol, productId: str, propertyId: str, propertyValue: Any, groupId: str) -> None:
 		clients_in_group = [c.objectId for c in self.objectToGroup_getObjects(groupId=groupId, groupType="HostGroup")]
 		product_property_states = self.productPropertyState_getObjects(
 			objectId=clients_in_group, productId=productId, propertyId=propertyId

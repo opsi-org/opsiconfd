@@ -14,9 +14,9 @@ import string
 import time
 from pathlib import Path
 
-import OPSI.Backend.File  # type: ignore[import]
-from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import]
-from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
+import OPSI.Backend.File  # type: ignore[import-untyped]
+from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import-untyped]
+from opsicommon.objects import OpsiConfigserver
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
@@ -36,11 +36,7 @@ from opsiconfd.utils import get_ip_addresses, get_random_string
 def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> None:
 	mysql.address = root_mysql.address
 	mysql.database = root_mysql.database
-	mysql.password = (
-		"opsi"
-		if config._pytest
-		else get_random_string(16, alphabet=string.ascii_letters + string.digits)
-	)
+	mysql.password = "opsi" if config._pytest else get_random_string(16, alphabet=string.ascii_letters + string.digits)
 	secret_filter.add_secrets(mysql.password)
 
 	logger.info("Creating MySQL user %r and granting all rights on %r", mysql.username, mysql.database)
@@ -207,7 +203,6 @@ def file_mysql_migration() -> None:
 		config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
 		opsi_config.set("host", "id", config_server_id, persistent=True)
 
-
 	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()
@@ -232,7 +227,6 @@ def setup_backend(force_server_id: str | None = None) -> None:
 		return
 
 	file_mysql_migration()
-
 
 	from opsiconfd.backend import get_unprotected_backend
 

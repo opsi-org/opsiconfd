@@ -232,9 +232,7 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 			return func(*args, **kwargs)
 
 		@wraps(func)
-		async def create_response(
-			*args: Any, **kwargs: Any
-		) -> JSONResponse:
+		async def create_response(*args: Any, **kwargs: Any) -> JSONResponse:
 			logger.debug("rest_api method name: %s", name)
 			content = None
 			http_status = status.HTTP_200_OK

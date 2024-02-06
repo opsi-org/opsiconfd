@@ -16,10 +16,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 from uuid import UUID
 
-from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
+from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.exceptions import OpsiServiceConnectionError
-from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
-from opsicommon.server.setup import setup_users_and_groups as po_setup_users_and_groups  # type: ignore[import]
+from opsicommon.objects import OpsiDepotserver
+from opsicommon.server.setup import setup_users_and_groups as po_setup_users_and_groups
 from opsicommon.types import forceHostId
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt

@@ -17,15 +17,15 @@ from subprocess import CalledProcessError, run
 from time import sleep
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendIOError  # type: ignore[import]
-from opsicommon.objects import ConfigState, Host  # type: ignore[import]
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.exceptions import BackendIOError
+from opsicommon.objects import ConfigState, Host
+from opsicommon.types import (
 	forceHostIdList,
 	forceList,
 	forceObjectClass,
 )
 
-from opsiconfd.dhcpd import (  # type: ignore[import]
+from opsiconfd.dhcpd import (
 	DHCPDControlConfig,
 	dhcpd_lock,
 	get_dhcpd_control_config,

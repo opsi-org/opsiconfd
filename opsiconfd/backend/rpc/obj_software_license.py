@@ -11,14 +11,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.objects import (
 	ConcurrentSoftwareLicense,
 	OEMSoftwareLicense,
 	RetailSoftwareLicense,
 	SoftwareLicense,
 	VolumeSoftwareLicense,
 )
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList
 
 from . import rpc_method
 

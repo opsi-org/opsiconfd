@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import LicenseContract  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.objects import LicenseContract
+from opsicommon.types import forceList
 
 from . import rpc_method
 
@@ -21,23 +21,17 @@ if TYPE_CHECKING:
 
 
 class RPCLicenseContractMixin(Protocol):
-	def licenseContract_bulkInsertObjects(
-		self: BackendProtocol, licenseContracts: list[dict] | list[LicenseContract]
-	) -> None:
+	def licenseContract_bulkInsertObjects(self: BackendProtocol, licenseContracts: list[dict] | list[LicenseContract]) -> None:
 		self._mysql.bulk_insert_objects(table="LICENSE_CONTRACT", objs=licenseContracts)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def licenseContract_insertObject(
-		self: BackendProtocol, licenseContract: dict | LicenseContract
-	) -> None:
+	def licenseContract_insertObject(self: BackendProtocol, licenseContract: dict | LicenseContract) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("licenseContract_insertObject")
 		self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def licenseContract_updateObject(
-		self: BackendProtocol, licenseContract: dict | LicenseContract
-	) -> None:
+	def licenseContract_updateObject(self: BackendProtocol, licenseContract: dict | LicenseContract) -> None:
 		ace = self._get_ace("licenseContract_updateObject")
 		self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=False, set_null=False)
 

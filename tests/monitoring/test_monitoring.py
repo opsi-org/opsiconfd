@@ -244,7 +244,11 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
 def test_check_disk_usage(
-	backend: UnprotectedBackend, info: dict[str, Any], opsiresource: Any, thresholds: Any, expected_result: Any  # noqa: F811
+	backend: UnprotectedBackend,
+	info: dict[str, Any],
+	opsiresource: Any,
+	thresholds: Any,
+	expected_result: Any,  # noqa: F811
 ) -> None:
 	def get_disk_usage(path: str) -> DiskUsage:
 		return DiskUsage(**info)
@@ -257,7 +261,8 @@ def test_check_disk_usage(
 
 @pytest.mark.parametrize("return_value", [(None), ({}), ([])])
 def test_check_disk_usage_no_result(
-	backend: UnprotectedBackend, return_value: Any  # noqa: F811
+	backend: UnprotectedBackend,
+	return_value: Any,  # noqa: F811
 ) -> None:
 	def get_disk_usage(path: str) -> DiskUsage:
 		return return_value

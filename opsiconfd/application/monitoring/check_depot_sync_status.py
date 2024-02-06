@@ -14,7 +14,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
-from opsicommon.objects import ProductOnDepot  # type: ignore[import]
+from opsicommon.objects import ProductOnDepot
 
 from .utils import State, generate_response
 

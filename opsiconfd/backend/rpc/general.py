@@ -267,9 +267,7 @@ class RPCGeneralMixin(Protocol):
 			delete_file(file_id)
 
 	@rpc_method
-	def service_setAppState(
-		self: BackendProtocol, app_state: dict[str, Any], wait_accomplished: float = 30.0
-	) -> dict[str, Any]:
+	def service_setAppState(self: BackendProtocol, app_state: dict[str, Any], wait_accomplished: float = 30.0) -> dict[str, Any]:
 		self._check_role("admin")
 		self._app.set_app_state(AppState.from_dict(app_state), wait_accomplished=wait_accomplished)
 		return self._app.app_state.to_dict()
@@ -423,9 +421,7 @@ class RPCGeneralMixin(Protocol):
 		return {"opsiVersion": __version__, "modules": modules, "realmodules": realmodules}
 
 	@rpc_method
-	def log_write(
-		self: BackendProtocol, logType: str, data: str, objectId: str | None = None, append: bool = False
-	) -> None:
+	def log_write(self: BackendProtocol, logType: str, data: str, objectId: str | None = None, append: bool = False) -> None:
 		"""
 		Write log data into the corresponding log file.
 

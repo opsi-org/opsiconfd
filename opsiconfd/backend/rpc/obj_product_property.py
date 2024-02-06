@@ -68,17 +68,13 @@ class RPCProductPropertyMixin(Protocol):
 						)
 
 	@rpc_method(check_acl=False)
-	def productProperty_insertObject(
-		self: BackendProtocol, productProperty: dict | ProductProperty
-	) -> None:
+	def productProperty_insertObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:
 		ace = self._get_ace("productProperty_insertObject")
 		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def productProperty_updateObject(
-		self: BackendProtocol, productProperty: dict | ProductProperty
-	) -> None:
+	def productProperty_updateObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:
 		ace = self._get_ace("productProperty_updateObject")
 		productProperty = forceObjectClass(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=False, set_null=False)

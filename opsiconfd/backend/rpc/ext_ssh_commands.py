@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Protocol
 
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList
 from pydantic import (
 	BaseModel,
 	field_validator,
@@ -192,9 +192,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 			self._write_custom_ssh_command_file(list(ssh_commands.values()))
 
 	@rpc_method
-	def SSHCommand_updateObjects(
-		self: BackendProtocol, commandList: list[dict[str, Any]]
-	) -> None:
+	def SSHCommand_updateObjects(self: BackendProtocol, commandList: list[dict[str, Any]]) -> None:
 		ssh_commands = self._read_ssh_commands_files()
 		modified = False
 		for cmd_dict in forceList(commandList):

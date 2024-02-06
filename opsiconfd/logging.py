@@ -29,7 +29,7 @@ import msgspec
 from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]
 from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
 from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
-from opsicommon.logging import (  # type: ignore[import]
+from opsicommon.logging import (
 	DATETIME_FORMAT,
 	LOG_COLORS,
 	OPSI_LEVEL_TO_LEVEL,
@@ -43,8 +43,8 @@ from opsicommon.logging import (  # type: ignore[import]
 	set_filter_from_string,
 	set_format,
 )
-from opsicommon.logging.constants import NONE, SECRET  # type: ignore[import]
-from opsicommon.logging.logging import (  # type: ignore[import]
+from opsicommon.logging.constants import NONE, SECRET
+from opsicommon.logging.logging import (
 	add_context_filter_to_loggers,
 )
 from redis import BusyLoadingError as RedisBusyLoadingError
@@ -517,9 +517,7 @@ def enable_slow_callback_logging(slow_callback_duration: float | None = None) ->
 	asyncio.events.Handle._run = _run  # type: ignore[assignment]
 
 
-def init_logging(
-	log_mode: str = "redis", is_worker: bool = False, console: Console | None = None
-) -> None:
+def init_logging(log_mode: str = "redis", is_worker: bool = False, console: Console | None = None) -> None:
 	redis_error = None
 	try:
 		if log_mode not in ("redis", "local", "rich"):

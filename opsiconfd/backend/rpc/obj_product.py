@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import Product  # type: ignore[import]
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.objects import Product
+from opsicommon.types import forceList, forceObjectClass
 
 from ..mysql.cleanup import (
 	remove_orphans_object_to_group_product,
@@ -43,9 +43,7 @@ class RPCProductMixin(Protocol):
 		self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def product_createObjects(
-		self: BackendProtocol, products: list[dict] | list[Product] | dict | Product
-	) -> None:
+	def product_createObjects(self: BackendProtocol, products: list[dict] | list[Product] | dict | Product) -> None:
 		ace = self._get_ace("product_createObjects")
 		with self._mysql.session() as session:
 			for product in forceList(products):
@@ -53,9 +51,7 @@ class RPCProductMixin(Protocol):
 				self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def product_updateObjects(
-		self: BackendProtocol, products: list[dict] | list[Product] | dict | Product
-	) -> None:
+	def product_updateObjects(self: BackendProtocol, products: list[dict] | list[Product] | dict | Product) -> None:
 		ace = self._get_ace("product_updateObjects")
 		with self._mysql.session() as session:
 			for product in forceList(products):
@@ -92,9 +88,7 @@ class RPCProductMixin(Protocol):
 		return self._mysql.get_idents(table="PRODUCT", object_type=Product, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def product_deleteObjects(
-		self: BackendProtocol, products: list[dict] | list[Product] | dict | Product
-	) -> None:
+	def product_deleteObjects(self: BackendProtocol, products: list[dict] | list[Product] | dict | Product) -> None:
 		if not products:
 			return
 		ace = self._get_ace("product_deleteObjects")

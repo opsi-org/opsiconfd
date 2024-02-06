@@ -158,9 +158,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
-	async def on_connect(
-		self, websocket: WebSocket, client: str | None = None, start_time: str | int | None = None
-	) -> None:
+	async def on_connect(self, websocket: WebSocket, client: str | None = None, start_time: str | int | None = None) -> None:
 		start_id = "$"
 		try:
 			start_time = int(start_time or 0)

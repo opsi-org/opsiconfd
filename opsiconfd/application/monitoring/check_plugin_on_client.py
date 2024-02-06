@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList
 
 from opsiconfd.logging import logger
 

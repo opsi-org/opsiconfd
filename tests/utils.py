@@ -93,9 +93,7 @@ class OpsiconfdTestClient(TestClient):
 	def get_client_address(self) -> tuple[str, int]:
 		return self._address
 
-	def jsonrpc20(
-		self, method: str, params: dict[str, Any] | list[Any] | None = None, id: int | str | None = None
-	) -> Any:
+	def jsonrpc20(self, method: str, params: dict[str, Any] | list[Any] | None = None, id: int | str | None = None) -> Any:
 		params = serialize(params or {})
 		rpc = {"jsonrpc": "2.0", "id": id or str(uuid4()), "method": method, "params": params}
 		res = self.post("/rpc", json=rpc)

@@ -15,7 +15,7 @@ from pathlib import Path
 from time import time
 from typing import Callable
 
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus import (
 	Error,
 	FileChunkMessage,
 	FileErrorMessage,

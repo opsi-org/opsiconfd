@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Generator, Literal
 
 from msgspec import json, msgpack
-from opsicommon.types import forceHostId  # type: ignore[import]
+from opsicommon.types import forceHostId
 from rich.progress import Progress
 
 from opsiconfd import __version__

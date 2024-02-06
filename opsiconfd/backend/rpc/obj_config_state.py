@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ConfigState, ProductOnDepot  # type: ignore[import]
+from opsicommon.objects import ConfigState, ProductOnDepot
 from opsicommon.types import (
 	forceBool,
 	forceHostIdList,
@@ -71,9 +71,7 @@ class RPCConfigStateMixin(Protocol):
 			res[config_state.objectId][config_state.configId] = config_state.values
 		return res
 
-	def configState_bulkInsertObjects(
-		self: BackendProtocol, configStates: list[dict] | list[ConfigState]
-	) -> None:
+	def configState_bulkInsertObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState]) -> None:
 		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
@@ -99,9 +97,7 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
-	def configState_createObjects(
-		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
-	) -> None:
+	def configState_createObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_createObjects")
 		configStates = forceObjectClassList(configStates, ConfigState)
 		with self._mysql.session() as session:
@@ -116,9 +112,7 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_updateObjects(
-		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
-	) -> None:
+	def configState_updateObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObjects")
 		configStates = forceObjectClassList(configStates, ConfigState)
 		with self._mysql.session() as session:
@@ -133,16 +127,12 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_getObjects(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[ConfigState]:
+	def configState_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ConfigState]:
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace, object_type=ConfigState, attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="configState_getObjects", check_acl=False)
-	def configState_getHashes(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[dict]:
+	def configState_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(
 			table="CONFIG_STATE", object_type=ConfigState, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -158,9 +148,7 @@ class RPCConfigStateMixin(Protocol):
 		return self._mysql.get_idents(table="CONFIG_STATE", object_type=ConfigState, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def configState_deleteObjects(
-		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
-	) -> None:
+	def configState_deleteObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		if not configStates:
 			return
 		ace = self._get_ace("configState_deleteObjects")
@@ -173,17 +161,13 @@ class RPCConfigStateMixin(Protocol):
 		self.opsipxeconfd_config_states_deleted(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_create(
-		self: BackendProtocol, configId: str, objectId: str, values: list[Any] | None = None
-	) -> None:
+	def configState_create(self: BackendProtocol, configId: str, objectId: str, values: list[Any] | None = None) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.configState_createObjects(ConfigState.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def configState_delete(
-		self: BackendProtocol, configId: list[str] | str, objectId: list[str] | str
-	) -> None:
+	def configState_delete(self: BackendProtocol, configId: list[str] | str, objectId: list[str] | str) -> None:
 		idents = self.configState_getIdents(returnType="dict", configId=configId, objectId=objectId)
 		if idents:
 			self.configState_deleteObjects(idents)

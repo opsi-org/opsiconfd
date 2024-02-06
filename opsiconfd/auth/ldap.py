@@ -14,7 +14,7 @@ import ldap3  # type: ignore[import]
 from ldap3.core.exceptions import LDAPObjectClassError  # type: ignore[import]
 from opsicommon.exceptions import BackendAuthenticationError
 
-from opsiconfd.utils import ldap3_uri_to_str  # type: ignore[import]
+from opsiconfd.utils import ldap3_uri_to_str
 
 from ..logging import logger
 from . import AuthenticationModule

@@ -61,9 +61,7 @@ WS_PROTOCOLS["wsproto_ping"] = WSProtocolPing  # type: ignore
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
 	# https://bugs.python.org/issue41699
-	pool_executor = ThreadPoolExecutor(
-		max_workers=config.executor_workers, thread_name_prefix="worker-ThreadPoolExecutor"
-	)
+	pool_executor = ThreadPoolExecutor(max_workers=config.executor_workers, thread_name_prefix="worker-ThreadPoolExecutor")
 	loop.set_default_executor(pool_executor)
 
 
@@ -121,9 +119,7 @@ class WorkerState(StrEnum):
 
 
 class WorkerInfo:
-	def __init__(
-		self, node_name: str, worker_num: int, create_time: float = 0.0, pid: int = 0, app_state: str = ""
-	) -> None:
+	def __init__(self, node_name: str, worker_num: int, create_time: float = 0.0, pid: int = 0, app_state: str = "") -> None:
 		self.node_name = node_name
 		self.worker_num = worker_num
 		self.create_time = create_time
@@ -327,9 +323,7 @@ class Worker(WorkerInfo, UvicornServer):
 	def get_connection_count(self) -> int:
 		return len(self.server_state.connections)
 
-	async def close_connections(
-		self, address_exceptions: list[str] | None = None, wait: bool = True
-	) -> None:
+	async def close_connections(self, address_exceptions: list[str] | None = None, wait: bool = True) -> None:
 		address_exceptions = address_exceptions or []
 		logger.info("Closing connections, address exceptions: %s", address_exceptions)
 		keep_connections = set()

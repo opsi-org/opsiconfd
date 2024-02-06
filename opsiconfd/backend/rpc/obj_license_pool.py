@@ -12,8 +12,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from opsicommon.objects import LicensePool  # type: ignore[import]
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.objects import LicensePool
+from opsicommon.types import forceList, forceObjectClass
 
 from ..auth import RPCACE
 from . import rpc_method
@@ -67,9 +67,7 @@ class RPCLicensePoolMixin(Protocol):
 		self._license_pool_insert_object(license_pool=licensePool, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def licensePool_createObjects(
-		self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool
-	) -> None:
+	def licensePool_createObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("licensePool_createObjects")
 		with self._mysql.session() as session:
@@ -81,9 +79,7 @@ class RPCLicensePoolMixin(Protocol):
 					)
 
 	@rpc_method(check_acl=False)
-	def licensePool_updateObjects(
-		self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool
-	) -> None:
+	def licensePool_updateObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool) -> None:
 		ace = self._get_ace("licensePool_updateObjects")
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}):

@@ -13,9 +13,9 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
-from opsicommon.objects import ProductOnClient  # type: ignore[import]
-from opsicommon.types import forceActionRequest, forceProductId  # type: ignore[import]
+from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.objects import ProductOnClient
+from opsicommon.types import forceActionRequest, forceProductId
 
 from opsiconfd.logging import logger
 
@@ -92,9 +92,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return updated_clients
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def setActionRequestWhereOutdatedWithDependencies(
-		self: BackendProtocol, actionRequest: str, productId: str
-	) -> set[str]:
+	def setActionRequestWhereOutdatedWithDependencies(self: BackendProtocol, actionRequest: str, productId: str) -> set[str]:
 		"""
 		Set the specified `actionRequest` for the given `productId` and
 		dependencies at every client that hasn't got the current version

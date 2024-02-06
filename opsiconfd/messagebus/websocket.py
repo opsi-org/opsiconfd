@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Literal
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus import (
 	CONNECTION_SESSION_CHANNEL,
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,

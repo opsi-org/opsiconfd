@@ -93,7 +93,8 @@ def test_raw_file_upload_download_with_delete(
 
 
 def test_multipart_file_upload_download_delete(
-	tmp_path: Path, test_client: OpsiconfdTestClient  # noqa: F811
+	tmp_path: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)

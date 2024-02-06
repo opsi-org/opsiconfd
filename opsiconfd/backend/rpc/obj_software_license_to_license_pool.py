@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import SoftwareLicenseToLicensePool  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.objects import SoftwareLicenseToLicensePool
+from opsicommon.types import forceList
 
 from . import rpc_method
 

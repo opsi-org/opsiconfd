@@ -83,9 +83,7 @@ async def test_grafana_search(config: Config) -> None:  # noqa: F811
 		assert f"Average CPU usage of worker {worker['worker_num']} on {worker['node_name']}" in res
 
 
-async def create_ts_data(
-	conf: Config, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
-) -> None:
+async def create_ts_data(conf: Config, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True) -> None:
 	redis_key = f"{conf.redis_key('stats')}:worker:avg_cpu_percent:{conf.node_name}:1{':' + postfix if postfix else ''}"
 	if delete:
 		await async_delete_recursively(f"{conf.redis_key('stats')}:worker:avg_cpu_percent")

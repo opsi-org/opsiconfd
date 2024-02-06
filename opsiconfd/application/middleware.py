@@ -15,7 +15,7 @@ from time import time
 from urllib.parse import urlparse
 
 from fastapi import FastAPI
-from opsicommon.logging.constants import TRACE  # type: ignore[import]
+from opsicommon.logging.constants import TRACE
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 

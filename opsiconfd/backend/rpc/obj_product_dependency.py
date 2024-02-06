@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import msgspec
 from opsicommon.exceptions import OpsiError
-from opsicommon.logging.constants import TRACE  # type: ignore[import]
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.logging.constants import TRACE
+from opsicommon.objects import (
 	LocalbootProduct,
 	Product,
 	ProductDependency,
@@ -29,7 +29,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	ProductOnDepot,
 	serialize,
 )
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.types import (
 	forceList,
 	forceObjectClass,
 )
@@ -627,9 +627,7 @@ class RPCProductDependencyMixin(Protocol):
 			self.productDependency_deleteObjects(idents)
 
 	@rpc_method(check_acl=False, use_cache="product_ordering")
-	def getProductOrdering(
-		self: BackendProtocol, depotId: str, sortAlgorithm: str | None = None
-	) -> dict[str, list]:
+	def getProductOrdering(self: BackendProtocol, depotId: str, sortAlgorithm: str | None = None) -> dict[str, list]:
 		if sortAlgorithm and sortAlgorithm != "algorithm1":
 			raise ValueError(f"Invalid sort algorithm {sortAlgorithm!r}")
 

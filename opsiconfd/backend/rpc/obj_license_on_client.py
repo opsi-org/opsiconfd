@@ -12,12 +12,12 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.exceptions import (
 	LicenseConfigurationError,
 	LicenseMissingError,
 )
-from opsicommon.objects import LicenseOnClient  # type: ignore[import]
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.objects import LicenseOnClient
+from opsicommon.types import (
 	forceHostId,
 	forceLicensePoolId,
 	forceList,
@@ -34,22 +34,16 @@ if TYPE_CHECKING:
 
 
 class RPCLicenseOnClientMixin(Protocol):
-	def licenseOnClient_bulkInsertObjects(
-		self: BackendProtocol, licenseOnClients: list[dict] | list[LicenseOnClient]
-	) -> None:
+	def licenseOnClient_bulkInsertObjects(self: BackendProtocol, licenseOnClients: list[dict] | list[LicenseOnClient]) -> None:
 		self._mysql.bulk_insert_objects(table="LICENSE_ON_CLIENT", objs=licenseOnClients)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_insertObject(
-		self: BackendProtocol, licenseOnClient: dict | LicenseOnClient
-	) -> None:
+	def licenseOnClient_insertObject(self: BackendProtocol, licenseOnClient: dict | LicenseOnClient) -> None:
 		ace = self._get_ace("licenseOnClient_insertObject")
 		self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_updateObject(
-		self: BackendProtocol, licenseOnClient: dict | LicenseOnClient
-	) -> None:
+	def licenseOnClient_updateObject(self: BackendProtocol, licenseOnClient: dict | LicenseOnClient) -> None:
 		ace = self._get_ace("licenseOnClient_updateObject")
 		self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=False, set_null=False)
 
@@ -76,18 +70,14 @@ class RPCLicenseOnClientMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_getObjects(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[LicenseOnClient]:
+	def licenseOnClient_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[LicenseOnClient]:
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_ON_CLIENT", ace=ace, object_type=LicenseOnClient, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(deprecated=True, alternative_method="licenseOnClient_getObjects", check_acl=False)
-	def licenseOnClient_getHashes(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[dict]:
+	def licenseOnClient_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -227,9 +217,7 @@ class RPCLicenseOnClientMixin(Protocol):
 			self.licenseOnClient_createObjects(license_on_client)
 		return license_on_client
 
-	def _get_usable_software_license(
-		self: BackendProtocol, client_id: str, license_pool_id: str
-	) -> tuple[str, str]:
+	def _get_usable_software_license(self: BackendProtocol, client_id: str, license_pool_id: str) -> tuple[str, str]:
 		software_license_id = ""
 		license_key = ""
 

@@ -148,7 +148,8 @@ def test_acquire_transfer_slot_max_default(test_client: OpsiconfdTestClient) -> 
 
 
 def test_acquire_transfer_slot_max_config(
-	test_client: OpsiconfdTestClient, backend: UnprotectedBackend  # noqa: F811  # noqa: F811
+	test_client: OpsiconfdTestClient,
+	backend: UnprotectedBackend,  # noqa: F811  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -191,7 +192,8 @@ def test_acquire_transfer_slot_max_config(
 
 
 def test_acquire_transfer_slot_max_config_error(
-	test_client: OpsiconfdTestClient, backend: UnprotectedBackend  # noqa: F811  # noqa: F811
+	test_client: OpsiconfdTestClient,
+	backend: UnprotectedBackend,  # noqa: F811  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 20):
@@ -280,7 +282,8 @@ def test_transfer_slot_session_error(backend: UnprotectedBackend) -> None:  # no
 
 
 def test_release_transfer_slot_with_slot_id(
-	test_client: OpsiconfdTestClient, config: Config  # noqa: F811  # noqa: F811
+	test_client: OpsiconfdTestClient,
+	config: Config,  # noqa: F811  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -319,7 +322,8 @@ def test_release_transfer_slot_with_slot_id(
 
 
 def test_return_list_with_valid_input(
-	test_client: OpsiconfdTestClient, backend: UnprotectedBackend  # noqa: F811  # noqa: F811
+	test_client: OpsiconfdTestClient,
+	backend: UnprotectedBackend,  # noqa: F811  # noqa: F811
 ) -> None:
 	backend.config_create(id=TRANSFER_SLOT_CONFIGS[TransferSlotType.OPSICLIENTD_PRODUCT_SYNC], defaultValues=[40])
 
@@ -379,7 +383,8 @@ def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> N
 
 
 def test_acquire_transfer_slot_max_per_type(
-	test_client: OpsiconfdTestClient, backend: UnprotectedBackend  # noqa: F811  # noqa: F811
+	test_client: OpsiconfdTestClient,
+	backend: UnprotectedBackend,  # noqa: F811  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with patch("opsiconfd.backend.rpc.depot.TRANSFER_SLOT_MAX", 3):

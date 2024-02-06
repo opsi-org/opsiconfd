@@ -65,7 +65,6 @@ def inherit_from_super_classes(classes: list[dict[str, Any]], _class: dict[str, 
 
 
 @lru_cache(maxsize=10)
-
 def get_audit_hardware_config(
 	language: str | None = None,
 ) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:
@@ -159,10 +158,10 @@ def get_audit_hardware_config(
 def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]:
 	audit_hardware_config: dict[str, dict[str, dict[str, str]]] = {}
 	for conf in get_audit_hardware_config():
-		hw_class = conf["Class"]["Opsi"]  # type: ignore
+		hw_class = conf["Class"]["Opsi"]  # type: ignore[call-overload]
 		audit_hardware_config[hw_class] = {}
 		for value in conf["Values"]:
-			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore
+			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore[index]
 	return audit_hardware_config
 
 
@@ -196,9 +195,7 @@ class RPCAuditHardwareMixin(Protocol):
 
 		return get_audit_hardware_config(language)
 
-	def auditHardware_bulkInsertObjects(
-		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware]
-	) -> None:
+	def auditHardware_bulkInsertObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware]) -> None:
 		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
 			self._mysql.bulk_insert_objects(table=f"HARDWARE_DEVICE_{hardware_class}", objs=auh)  # type: ignore[arg-type]
 
@@ -217,9 +214,7 @@ class RPCAuditHardwareMixin(Protocol):
 				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def auditHardware_createObjects(
-		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
-	) -> None:
+	def auditHardware_createObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware) -> None:
 		ace = self._get_ace("auditHardware_createObjects")
 		with self._mysql.session() as session:
 			for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
@@ -229,9 +224,7 @@ class RPCAuditHardwareMixin(Protocol):
 					)
 
 	@rpc_method(check_acl=False)
-	def auditHardware_updateObjects(
-		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
-	) -> None:
+	def auditHardware_updateObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware) -> None:
 		ace = self._get_ace("auditHardware_updateObjects")
 		with self._mysql.session() as session:
 			for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
@@ -318,18 +311,14 @@ class RPCAuditHardwareMixin(Protocol):
 		return results  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getObjects(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[AuditHardware]:
+	def auditHardware_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditHardware]:
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(  # type: ignore[return-value]
 			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
 		)
 
 	@rpc_method(deprecated=True, alternative_method="auditHardware_getObjects", check_acl=False)
-	def auditHardware_getHashes(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[dict]:
+	def auditHardware_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
 
@@ -343,9 +332,7 @@ class RPCAuditHardwareMixin(Protocol):
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=True)
-	def auditHardware_deleteObjects(
-		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
-	) -> None:
+	def auditHardware_deleteObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware) -> None:
 		if not auditHardwares:
 			return
 

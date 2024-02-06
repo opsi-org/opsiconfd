@@ -17,7 +17,7 @@ import time
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.exceptions import (
 	BackendAuthenticationError,
 	BackendBadValueError,
 	BackendConfigurationError,
@@ -25,7 +25,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendUnaccomplishableError,
 	LicenseConfigurationError,
 )
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.objects import (
 	AuditHardwareOnHost,
 	AuditSoftware,
 	AuditSoftwareOnClient,
@@ -46,7 +46,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	UnicodeProductProperty,
 	VolumeSoftwareLicense,
 )
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.types import (
 	forceBool,
 	forceDomain,
 	forceFqdn,
@@ -193,9 +193,7 @@ class RPCExtLegacyMixin(Protocol):
 		return self.getGeneralConfig_hash(objectId=objectId).get(key)
 
 	@rpc_method(deprecated=True, alternative_method="configState_create", check_acl=False)
-	def setGeneralConfig(
-		self: BackendProtocol, config: dict[str, str], objectId: str | None = None
-	) -> None:
+	def setGeneralConfig(self: BackendProtocol, config: dict[str, str], objectId: str | None = None) -> None:
 		if objectId:
 			objectId = forceFqdn(objectId)
 			if objectId in self.host_getIdents(type="OpsiDepotserver", returnType="unicode"):
@@ -233,9 +231,7 @@ class RPCExtLegacyMixin(Protocol):
 		self.configState_createObjects(get_new_config_states())
 
 	@rpc_method(deprecated=True, alternative_method="configState_create", check_acl=False)
-	def setGeneralConfigValue(
-		self: BackendProtocol, key: str, value: str, objectId: str | None = None
-	) -> None:
+	def setGeneralConfigValue(self: BackendProtocol, key: str, value: str, objectId: str | None = None) -> None:
 		general_config = self.getGeneralConfig_hash(objectId=objectId)
 		general_config[key] = value
 		return self.setGeneralConfig(general_config, objectId=objectId)
@@ -245,9 +241,7 @@ class RPCExtLegacyMixin(Protocol):
 		return self.configState_delete(configId=[], objectId=forceObjectId(objectId))
 
 	@rpc_method(deprecated=True, alternative_method="configState_create", check_acl=False)
-	def setNetworkConfig(
-		self: BackendProtocol, config: dict[str, str], objectId: str | None = None
-	) -> None:
+	def setNetworkConfig(self: BackendProtocol, config: dict[str, str], objectId: str | None = None) -> None:
 		if objectId and "depotId" in config:
 			return self.setGeneralConfigValue("clientconfig.depot.id", config["depotId"], objectId)
 		raise NotImplementedError("Please use general config to change values")
@@ -885,9 +879,7 @@ class RPCExtLegacyMixin(Protocol):
 		return self._product_to_hash(products[0])
 
 	@rpc_method(deprecated=True, alternative_method="product_getObjects", check_acl=False)
-	def getProducts_hash(
-		self: BackendProtocol, depotIds: list[str] | None = None
-	) -> dict[str, dict[str, dict[str, Any]]]:
+	def getProducts_hash(self: BackendProtocol, depotIds: list[str] | None = None) -> dict[str, dict[str, dict[str, Any]]]:
 		depotIds = depotIds or self.getDepotIds_list()
 		none_product = Product(id="", productVersion="", packageVersion="")
 		products: dict[str, dict[str, dict[str, Product]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: none_product)))
@@ -955,15 +947,11 @@ class RPCExtLegacyMixin(Protocol):
 		return list({ident["id"] for ident in self.product_getIdents(type=product_type, returnType="dict")})
 
 	@rpc_method(deprecated=True, alternative_method="product_getIdents", check_acl=False)
-	def getLocalBootProductIds_list(
-		self: BackendProtocol, objectId: str | None = None, installationStatus: str | None = None
-	) -> list[str]:
+	def getLocalBootProductIds_list(self: BackendProtocol, objectId: str | None = None, installationStatus: str | None = None) -> list[str]:
 		return self.getProductIds_list("localboot", objectId, installationStatus)
 
 	@rpc_method(deprecated=True, alternative_method="product_getIdents", check_acl=False)
-	def getNetBootProductIds_list(
-		self: BackendProtocol, objectId: str | None = None, installationStatus: str | None = None
-	) -> list[str]:
+	def getNetBootProductIds_list(self: BackendProtocol, objectId: str | None = None, installationStatus: str | None = None) -> list[str]:
 		return self.getProductIds_list("netboot", objectId, installationStatus)
 
 	@rpc_method(deprecated=True, alternative_method="productOnDepot_getIdents", check_acl=False)
@@ -1025,9 +1013,7 @@ class RPCExtLegacyMixin(Protocol):
 		]
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_getObjects", check_acl=False)
-	def getProductInstallationStatus_hash(
-		self: BackendProtocol, productId: str, objectId: str
-	) -> dict[str, Any]:
+	def getProductInstallationStatus_hash(self: BackendProtocol, productId: str, objectId: str) -> dict[str, Any]:
 		productId = forceProductId(productId)
 		product_on_clients = self.productOnClient_getObjects(productId=productId, clientId=objectId)
 		if not product_on_clients:
@@ -1039,9 +1025,7 @@ class RPCExtLegacyMixin(Protocol):
 		return poc
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_getObjects", check_acl=False)
-	def getProductInstallationStatus_listOfHashes(
-		self: BackendProtocol, objectId: str
-	) -> list[dict[str, Any]]:
+	def getProductInstallationStatus_listOfHashes(self: BackendProtocol, objectId: str) -> list[dict[str, Any]]:
 		depot_id = self.getDepotId(clientId=objectId)
 		products = {
 			pod.productId: {
@@ -1146,21 +1130,15 @@ class RPCExtLegacyMixin(Protocol):
 		)
 
 	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def setProductInstallationStatus(
-		self: BackendProtocol, productId: str, objectId: str, installationStatus: str
-	) -> None:
+	def setProductInstallationStatus(self: BackendProtocol, productId: str, objectId: str, installationStatus: str) -> None:
 		self.setProductState(productId=productId, objectId=objectId, installationStatus=installationStatus)
 
 	@rpc_method(deprecated=False, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def setProductActionProgress(
-		self: BackendProtocol, productId: str, hostId: str, productActionProgress: dict
-	) -> None:
+	def setProductActionProgress(self: BackendProtocol, productId: str, hostId: str, productActionProgress: dict) -> None:
 		self.setProductState(productId=productId, objectId=hostId, productActionProgress=productActionProgress)
 
 	@rpc_method(deprecated=True, alternative_method="product_getObjects", check_acl=False)
-	def getPossibleProductActions_list(
-		self: BackendProtocol, productId: str | None = None, depotId: str | None = None
-	) -> list[str]:
+	def getPossibleProductActions_list(self: BackendProtocol, productId: str | None = None, depotId: str | None = None) -> list[str]:
 		if not productId:
 			return ["none", "setup", "uninstall", "update", "always", "once", "custom"]
 
@@ -1206,9 +1184,7 @@ class RPCExtLegacyMixin(Protocol):
 		return result
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_getObjects", check_acl=False)
-	def getProductActionRequests_listOfHashes(
-		self: BackendProtocol, clientId: str, options: dict | None = None
-	) -> list[dict]:
+	def getProductActionRequests_listOfHashes(self: BackendProtocol, clientId: str, options: dict | None = None) -> list[dict]:
 		return [
 			{"productId": productOnClient.productId, "actionRequest": productOnClient.actionRequest}
 			for productOnClient in self.productOnClient_getObjects(clientId=clientId)
@@ -1231,15 +1207,11 @@ class RPCExtLegacyMixin(Protocol):
 		return self._get_product_states_hash(client_ids=objectIds, product_type="NetbootProduct")
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_updateObjects", check_acl=False)
-	def getProductStates_hash(
-		self: BackendProtocol, objectIds: list[str] | None = None, options: dict | None = None
-	) -> dict[str, list]:
+	def getProductStates_hash(self: BackendProtocol, objectIds: list[str] | None = None, options: dict | None = None) -> dict[str, list]:
 		return self._get_product_states_hash(client_ids=objectIds)
 
 	@rpc_method(deprecated=True, alternative_method="productProperty_getObjects", check_acl=False)
-	def getProductPropertyDefinitions_hash(
-		self: BackendProtocol, depotId: str | None = None
-	) -> dict[str, list[dict[str, Any]]]:
+	def getProductPropertyDefinitions_hash(self: BackendProtocol, depotId: str | None = None) -> dict[str, list[dict[str, Any]]]:
 		depotId = depotId or None
 		result: dict[str, list[dict[str, Any]]] = {}
 		property_names: dict[str, dict[str, int]] = {}
@@ -1299,9 +1271,7 @@ class RPCExtLegacyMixin(Protocol):
 		return result
 
 	@rpc_method(deprecated=True, alternative_method="productProperty_getObjects", check_acl=False)
-	def getProductPropertyDefinitions_listOfHashes(
-		self: BackendProtocol, productId: str, depotId: str | None = None
-	) -> list[dict]:
+	def getProductPropertyDefinitions_listOfHashes(self: BackendProtocol, productId: str, depotId: str | None = None) -> list[dict]:
 		result = []
 		property_names = {}
 		for product_on_depot in self.productOnDepot_getIdents(depotId=depotId, productId=productId, returnType="dict"):
@@ -1342,9 +1312,7 @@ class RPCExtLegacyMixin(Protocol):
 		return result
 
 	@rpc_method(deprecated=True, alternative_method="productProperty_deleteObjects", check_acl=False)
-	def deleteProductPropertyDefinition(
-		self: BackendProtocol, productId: str, name: str, depotIds: list[str] | None = None
-	) -> None:
+	def deleteProductPropertyDefinition(self: BackendProtocol, productId: str, name: str, depotIds: list[str] | None = None) -> None:
 		product_properties = []
 		for productOnDepot in self.productOnDepot_getObjects(productId=productId, depotId=depotIds or []):
 			product_properties.extend(
@@ -1360,9 +1328,7 @@ class RPCExtLegacyMixin(Protocol):
 			self.productProperty_deleteObjects(product_properties)
 
 	@rpc_method(deprecated=True, alternative_method="productProperty_deleteObjects", check_acl=False)
-	def deleteProductPropertyDefinitions(
-		self: BackendProtocol, productId: str, depotIds: list[str]
-	) -> None:
+	def deleteProductPropertyDefinitions(self: BackendProtocol, productId: str, depotIds: list[str]) -> None:
 		product_properties = []
 		for productOnDepot in self.productOnDepot_getObjects(productId=productId, depotId=depotIds):
 			product_properties.extend(
@@ -1429,9 +1395,7 @@ class RPCExtLegacyMixin(Protocol):
 			self.productPropertyState_createObjects(product_property_states)
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def getProductProperties_hash(
-		self: BackendProtocol, productId: str, objectId: str | None = None
-	) -> dict[str, Any]:
+	def getProductProperties_hash(self: BackendProtocol, productId: str, objectId: str | None = None) -> dict[str, Any]:
 		if not objectId:
 			return {ppd["name"]: ppd["default"] for ppd in self.getProductPropertyDefinitions_listOfHashes(productId=productId)}
 
@@ -1446,9 +1410,7 @@ class RPCExtLegacyMixin(Protocol):
 		}
 
 	@rpc_method(check_acl=False)
-	def setProductProperties(
-		self: BackendProtocol, productId: str, properties: dict[str, str], objectId: str | None = None
-	) -> None:
+	def setProductProperties(self: BackendProtocol, productId: str, properties: dict[str, str], objectId: str | None = None) -> None:
 		"""
 		Create or modify ProductPropertyStates.
 
@@ -1507,9 +1469,7 @@ class RPCExtLegacyMixin(Protocol):
 		self.productPropertyState_createObjects(product_property_states)
 
 	@rpc_method(check_acl=False)
-	def setProductProperty(
-		self: BackendProtocol, productId: str, propertyId: str, value: Any, objectId: str | None = None
-	) -> None:
+	def setProductProperty(self: BackendProtocol, productId: str, propertyId: str, value: Any, objectId: str | None = None) -> None:
 		"""
 		Create or modify ProductPropertyState.
 
@@ -1525,9 +1485,7 @@ class RPCExtLegacyMixin(Protocol):
 		self.setProductProperties(productId, {propertyId: value}, objectId)
 
 	@rpc_method(deprecated=True, alternative_method="productDependency_getObjects", check_acl=False)
-	def getProductDependencies_listOfHashes(
-		self: BackendProtocol, productId: str | None = None, depotId: str | None = None
-	) -> list[dict]:
+	def getProductDependencies_listOfHashes(self: BackendProtocol, productId: str | None = None, depotId: str | None = None) -> list[dict]:
 		productId = productId or None
 		depotId = depotId or None
 		result = []
@@ -1830,9 +1788,7 @@ class RPCExtLegacyMixin(Protocol):
 		return software_licenses
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicense_delete", check_acl=False)
-	def deleteSoftwareLicense(
-		self: BackendProtocol, softwareLicenseId: str, removeFromPools: bool = False
-	) -> None:
+	def deleteSoftwareLicense(self: BackendProtocol, softwareLicenseId: str, removeFromPools: bool = False) -> None:
 		if removeFromPools:
 			self.softwareLicenseToLicensePool_delete(softwareLicenseId=softwareLicenseId)
 		self.softwareLicense_delete(id=softwareLicenseId)
@@ -1951,21 +1907,15 @@ class RPCExtLegacyMixin(Protocol):
 		self.licensePool_delete(id=licensePoolId)
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicenseToLicensePool_create", check_acl=False)
-	def addSoftwareLicenseToLicensePool(
-		self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, licenseKey: str = ""
-	) -> None:
+	def addSoftwareLicenseToLicensePool(self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, licenseKey: str = "") -> None:
 		self.softwareLicenseToLicensePool_create(softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, licenseKey=licenseKey)
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicenseToLicensePool_delete", check_acl=False)
-	def removeSoftwareLicenseFromLicensePool(
-		self: BackendProtocol, softwareLicenseId: str, licensePoolId: str
-	) -> None:
+	def removeSoftwareLicenseFromLicensePool(self: BackendProtocol, softwareLicenseId: str, licensePoolId: str) -> None:
 		self.softwareLicenseToLicensePool_delete(softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId)
 
 	@rpc_method(deprecated=True, alternative_method="licensePool_updateObject", check_acl=False)
-	def addProductIdsToLicensePool(
-		self: BackendProtocol, productIds: list[str], licensePoolId: str
-	) -> None:
+	def addProductIdsToLicensePool(self: BackendProtocol, productIds: list[str], licensePoolId: str) -> None:
 		productIds = forceUnicodeList(productIds)
 		license_pools = self.licensePool_getObjects(id=licensePoolId)
 		if not license_pools:
@@ -1975,9 +1925,7 @@ class RPCExtLegacyMixin(Protocol):
 		self.licensePool_updateObject(license_pools[0])
 
 	@rpc_method(deprecated=True, alternative_method="licensePool_updateObject", check_acl=False)
-	def removeProductIdsFromLicensePool(
-		self: BackendProtocol, productIds: list[str], licensePoolId: str
-	) -> None:
+	def removeProductIdsFromLicensePool(self: BackendProtocol, productIds: list[str], licensePoolId: str) -> None:
 		productIds = forceUnicodeList(productIds)
 		licensePools = self.licensePool_getObjects(id=licensePoolId)
 		if not licensePools:
@@ -1987,9 +1935,7 @@ class RPCExtLegacyMixin(Protocol):
 		self.licensePool_updateObject(licensePools[0])
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareToLicensePool_createObjects", check_acl=False)
-	def setWindowsSoftwareIdsToLicensePool(
-		self: BackendProtocol, windowsSoftwareIds: list[str], licensePoolId: str
-	) -> None:
+	def setWindowsSoftwareIdsToLicensePool(self: BackendProtocol, windowsSoftwareIds: list[str], licensePoolId: str) -> None:
 		windowsSoftwareIds = forceUnicodeList(windowsSoftwareIds)
 		license_pool_ids = self.licensePool_getIdents(id=licensePoolId, returnType="unicode")
 		if not license_pool_ids:

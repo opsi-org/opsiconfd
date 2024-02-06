@@ -17,7 +17,7 @@ import subprocess
 from pathlib import Path
 
 import psutil
-from opsicommon.server.setup import (  # type: ignore[import]
+from opsicommon.server.setup import (
 	add_user_to_group,
 	create_group,
 	create_user,
@@ -117,7 +117,6 @@ def setup_users_and_groups() -> None:
 	server_role = get_server_role()
 	if server_role != "configserver":
 		return
-
 
 	from opsiconfd.backend import get_unprotected_backend
 

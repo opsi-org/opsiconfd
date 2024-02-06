@@ -243,7 +243,6 @@ class RPCDepotserverMixin(Protocol):
 	@rpc_method
 	def depot_librsyncSignature(self: BackendProtocol, filename: str) -> str:
 		try:
-
 			from opsicommon.utils.rsync import librsync_signature
 
 			return librsync_signature(filename)
@@ -253,7 +252,6 @@ class RPCDepotserverMixin(Protocol):
 	@rpc_method
 	def depot_librsyncPatchFile(self: BackendProtocol, oldfile: str, deltafile: str, newfile: str) -> None:
 		try:
-
 			from opsicommon.utils.rsync import librsync_patch_file
 
 			return librsync_patch_file(oldfile, deltafile, newfile)
@@ -261,11 +259,8 @@ class RPCDepotserverMixin(Protocol):
 			raise BackendIOError(f"Failed to patch file: {err}") from err
 
 	@rpc_method
-	def depot_librsyncDeltaFile(
-		self: BackendProtocol, filename: str, signature: str, deltafile: str
-	) -> None:
+	def depot_librsyncDeltaFile(self: BackendProtocol, filename: str, signature: str, deltafile: str) -> None:
 		try:
-
 			from opsicommon.utils.rsync import librsync_delta_file
 
 			# json serialisation cannot handle bytes, expecting base64 encoded string here
@@ -308,9 +303,7 @@ class RPCDepotserverMixin(Protocol):
 			)
 
 	@rpc_method
-	def depot_uninstallPackage(
-		self: BackendProtocol, productId: str, force: bool = False, deleteFiles: bool = True
-	) -> None:
+	def depot_uninstallPackage(self: BackendProtocol, productId: str, force: bool = False, deleteFiles: bool = True) -> None:
 		if not self._package_manager:
 			raise RuntimeError("Not a depotserver")
 
@@ -519,9 +512,7 @@ class RPCDepotserverMixin(Protocol):
 		self.depot_installPackage(str(package_path))
 
 	@rpc_method
-	def network_sendBroadcast(
-		self: BackendProtocol, broadcast_address: str, ports: list[int], data: str
-	) -> None:
+	def network_sendBroadcast(self: BackendProtocol, broadcast_address: str, ports: list[int], data: str) -> None:
 		logger.debug("Sending data to network broadcast %s %s [%s]", broadcast_address, ports, data)
 		payload = base64.b64decode(data)
 		for port in ports:
@@ -907,9 +898,7 @@ class DepotserverPackageManager:
 			logger.error(err, exc_info=True)
 			raise BackendError(f"Failed to install package '{filename}' on depot '{self._depot_id}': {err}") from err
 
-	def uninstall_package(
-		self, product_id: str, force: bool = False, delete_files: bool = True
-	) -> None:
+	def uninstall_package(self, product_id: str, force: bool = False, delete_files: bool = True) -> None:
 		logger.info("=================================================================================================")
 		logger.notice("Uninstalling product '%s' on depot '%s'", product_id, self._depot_id)
 		try:
@@ -918,9 +907,7 @@ class DepotserverPackageManager:
 			delete_files = forceBool(delete_files)
 			allow_remove_used = True
 			try:
-				allow_remove_used = forceBool(
-					self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[0]
-				)
+				allow_remove_used = forceBool(self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[0])
 			except IndexError:
 				pass
 

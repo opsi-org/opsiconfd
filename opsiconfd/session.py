@@ -31,12 +31,12 @@ from fastapi.responses import (
 	RedirectResponse,
 	Response,
 )
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.exceptions import (
 	BackendAuthenticationError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
-from opsicommon.objects import Host, OpsiClient, User  # type: ignore[import]
+from opsicommon.logging import secret_filter, set_context
+from opsicommon.objects import Host, OpsiClient, User
 from opsicommon.utils import ip_address_in_network, timestamp
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
@@ -166,9 +166,7 @@ class SessionMiddleware:
 						return cookie_l[1].strip().lower()
 		return None
 
-	async def handle_request(
-		self, connection: HTTPConnection, receive: Receive, send: Send
-	) -> None:
+	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> None:
 		overload_time_left = self.check_overload()
 		if overload_time_left and connection.scope["client"][0] not in ("127.0.0.1", "::1"):
 			retry_after = int(overload_time_left)
@@ -259,9 +257,7 @@ class SessionMiddleware:
 
 		await self.app(scope, receive, send_wrapper)
 
-	async def handle_request_exception(
-		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
-	) -> None:
+	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:
 		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
 		scope = connection.scope
 		if scope["full_path"].startswith("/addons"):
@@ -485,9 +481,7 @@ class SessionManager:
 
 
 class OPSISession:
-	def __init__(
-		self, client_addr: str, headers: Headers | None = None, session_id: str | None = None
-	) -> None:
+	def __init__(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> None:
 		self._headers = Headers()
 		self._redis_expiration_seconds = 3600
 		self._messagebus_in_use_timeout = MESSAGEBUS_IN_USE_TIMEOUT
@@ -1138,9 +1132,7 @@ async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str 
 		raise
 
 
-async def _authenticate(
-	scope: Scope, username: str, password: str, mfa_otp: str | None = None
-) -> None:
+async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
 	headers = Headers(scope=scope)
 	if not scope["session"]:
 		addr = scope["client"]

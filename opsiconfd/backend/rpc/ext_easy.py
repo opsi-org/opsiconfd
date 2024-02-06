@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.types import (
 	forceActionRequestList,
 	forceHostIdList,
 	forceInstallationStatus,
@@ -90,9 +90,7 @@ class RPCExtEasyMixin(Protocol):
 		return [clientToDepotserver["clientId"] for clientToDepotserver in self.configState_getClientToDepotserver(depotIds=depotIds)]
 
 	@rpc_method(deprecated=True, check_acl=False)
-	def getClientsWithProducts(
-		self: BackendProtocol, productIds: list[str], installationStatus: str | None = None
-	) -> list[str]:
+	def getClientsWithProducts(self: BackendProtocol, productIds: list[str], installationStatus: str | None = None) -> list[str]:
 		"""
 		Returns a list of client IDs with the given productIds independent from
 		their status.

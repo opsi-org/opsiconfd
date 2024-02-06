@@ -113,9 +113,7 @@ class RPCUserMixin(Protocol):
 			self.user_deleteObjects(idents)
 
 	@rpc_method
-	def user_updateMultiFactorAuth(
-		self: BackendProtocol, userId: str, type: str = "totp", returnType: str = "uri"
-	) -> str:
+	def user_updateMultiFactorAuth(self: BackendProtocol, userId: str, type: str = "totp", returnType: str = "uri") -> str:
 		"""
 		Configure multi factor authentication for user `userId`.
 		Currently the only supported `type` is `TOTP` (Time-based One-time Password).
@@ -168,9 +166,7 @@ class RPCUserMixin(Protocol):
 		raise ValueError(f"Invalid returnType {returnType}")
 
 	@rpc_method
-	def user_getCredentials(
-		self: BackendProtocol, username: str | None = None, hostId: str | None = None
-	) -> dict[str, str]:
+	def user_getCredentials(self: BackendProtocol, username: str | None = None, hostId: str | None = None) -> dict[str, str]:
 		"""
 		Get the credentials of an opsi user.
 		The information is stored in ``/etc/opsi/passwd``.
@@ -229,9 +225,7 @@ class RPCUserMixin(Protocol):
 		return result
 
 	@rpc_method
-	def user_setCredentials(
-		self: BackendProtocol, username: str, password: str
-	) -> None:
+	def user_setCredentials(self: BackendProtocol, username: str, password: str) -> None:
 		"""
 		Set the password of an opsi user.
 		The information is stored in ``/etc/opsi/passwd``.

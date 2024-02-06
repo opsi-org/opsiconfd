@@ -40,7 +40,7 @@ from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 from fastapi import APIRouter, FastAPI
-from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
+from opsicommon.logging.logging import OPSILogger
 from opsicommon.types import forceString, forceStringLower
 from starlette.routing import Route
 

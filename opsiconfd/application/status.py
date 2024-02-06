@@ -12,7 +12,7 @@ import datetime
 
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import PlainTextResponse
-from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version
 from starlette.status import HTTP_404_NOT_FOUND
 
 from opsiconfd import __version__

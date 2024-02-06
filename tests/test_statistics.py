@@ -171,7 +171,8 @@ async def test_metrics_collector_add_value() -> None:
 
 
 async def test_execute_redis_command(
-	config: Config, metrics_collector: WorkerMetricsCollector  # noqa: F811
+	config: Config,
+	metrics_collector: WorkerMetricsCollector,  # noqa: F811
 ) -> None:
 	for cmd, res in (
 		(f"SET {config.redis_key('stats')}:num_rpcs 5", b"OK"),
@@ -200,7 +201,6 @@ def test_redis_ts_cmd(
 	value: int,
 	expected_result: str,
 ) -> None:
-
 	expected_result = expected_result.replace("{redis_key_stats}", config.redis_key("stats"))
 	metrics = list(metrics_registry.get_metrics())
 
@@ -219,7 +219,6 @@ def test_redis_ts_cmd_error(metrics_registry: MetricsRegistry, metrics_collector
 
 
 def test_metric_by_redis_key(config: Config, metrics_registry: MetricsRegistry) -> None:  # noqa: F811
-
 	metric = metrics_registry.get_metric_by_redis_key(f"{config.redis_key('stats')}:opsiconfd:pytest:metric")
 
 	assert metric.get_name() == "opsiconfd pytest metric"
@@ -228,7 +227,6 @@ def test_metric_by_redis_key(config: Config, metrics_registry: MetricsRegistry) 
 
 
 def test_metric_by_redis_key_error(config: Config, metrics_registry: MetricsRegistry) -> None:  # noqa: F811
-
 	with pytest.raises(ValueError) as excinfo:
 		metrics_registry.get_metric_by_redis_key(f"{config.redis_key('stats')}:opsiconfd:notinredis:metric")
 

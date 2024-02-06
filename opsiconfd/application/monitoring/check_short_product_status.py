@@ -23,9 +23,7 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def check_short_product_status(
-	backend: Backend, product_id: str | None = None, thresholds: dict[str, str] | None = None
-) -> JSONResponse:
+def check_short_product_status(backend: Backend, product_id: str | None = None, thresholds: dict[str, str] | None = None) -> JSONResponse:
 	thresholds = thresholds or {}
 	if isinstance(product_id, list):
 		try:

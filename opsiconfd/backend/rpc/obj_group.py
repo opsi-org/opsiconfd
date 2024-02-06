@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import Group, HostGroup  # type: ignore[import]
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.objects import Group, HostGroup
+from opsicommon.types import forceList, forceObjectClass
 
 from ..mysql.cleanup import remove_orphans_object_to_group_host
 from . import rpc_method

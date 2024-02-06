@@ -11,4 +11,4 @@ opsiconfd - addon
 from .addon import Addon
 from .manager import AddonManager
 
-__all__ = ['Addon', 'AddonManager']
+__all__ = ["Addon", "AddonManager"]

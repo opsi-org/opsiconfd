@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import AuditSoftware  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.objects import AuditSoftware
+from opsicommon.types import forceList
 
 from . import rpc_method
 
@@ -21,9 +21,7 @@ if TYPE_CHECKING:
 
 
 class RPCAuditSoftwareMixin(Protocol):
-	def auditSoftware_bulkInsertObjects(
-		self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware]
-	) -> None:
+	def auditSoftware_bulkInsertObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware]) -> None:
 		self._mysql.bulk_insert_objects(table="SOFTWARE", objs=auditSoftwares)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
@@ -37,18 +35,14 @@ class RPCAuditSoftwareMixin(Protocol):
 		self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_createObjects(
-		self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware
-	) -> None:
+	def auditSoftware_createObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware) -> None:
 		ace = self._get_ace("auditSoftware_createObjects")
 		with self._mysql.session() as session:
 			for auditSoftware in forceList(auditSoftwares):
 				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_updateObjects(
-		self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware
-	) -> None:
+	def auditSoftware_updateObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware) -> None:
 		ace = self._get_ace("auditSoftware_updateObjects")
 		with self._mysql.session() as session:
 			for auditSoftware in forceList(auditSoftwares):
@@ -84,9 +78,7 @@ class RPCAuditSoftwareMixin(Protocol):
 		return self._mysql.get_idents(table="SOFTWARE", object_type=AuditSoftware, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_deleteObjects(
-		self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware
-	) -> None:
+	def auditSoftware_deleteObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware) -> None:
 		if not auditSoftwares:
 			return
 		ace = self._get_ace("auditSoftware_deleteObjects")
@@ -110,9 +102,7 @@ class RPCAuditSoftwareMixin(Protocol):
 		self.auditSoftware_createObjects(AuditSoftware.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_delete(
-		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str
-	) -> None:
+	def auditSoftware_delete(self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str) -> None:
 		idents = self.auditSoftware_getIdents(
 			returnType="dict", name=name, version=version, subVersion=subVersion, language=language, architecture=architecture
 		)

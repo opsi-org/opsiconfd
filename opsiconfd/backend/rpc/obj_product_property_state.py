@@ -12,8 +12,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ProductPropertyState  # type: ignore[import]
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.objects import ProductPropertyState
+from opsicommon.types import (
 	forceList,
 	forceObjectClass,
 	forceObjectIdList,

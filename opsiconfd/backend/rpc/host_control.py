@@ -28,19 +28,19 @@ from socket import error as socket_error
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Protocol
 
-from OPSI.Util.Thread import KillableThread  # type: ignore[import]
-from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
-from opsicommon.exceptions import (  # type: ignore[import]
+from OPSI.Util.Thread import KillableThread  # type: ignore[import-untyped]
+from opsicommon.client.jsonrpc import JSONRPCClient
+from opsicommon.exceptions import (
 	BackendMissingDataError,
 	BackendUnaccomplishableError,
 )
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus import (
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	timestamp,
 )
-from opsicommon.objects import Host  # type: ignore[import]
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.objects import Host
+from opsicommon.types import (
 	forceBool,
 	forceHostId,
 	forceHostIdList,
@@ -441,9 +441,7 @@ class RPCHostControlMixin(Protocol):
 		return result
 
 	@rpc_method
-	async def hostControl_shutdown(
-		self: BackendProtocol, hostIds: list[str] | None = None
-	) -> dict[str, Any]:
+	async def hostControl_shutdown(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No host ids given")
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
@@ -526,9 +524,7 @@ class RPCHostControlMixin(Protocol):
 		return await run_in_threadpool(self._opsiclientd_rpc, host_ids=hostIds, method="uptime", params=[])
 
 	@rpc_method
-	async def hostControl_getActiveSessions(
-		self: BackendProtocol, hostIds: list[str] | None = None
-	) -> dict[str, Any]:
+	async def hostControl_getActiveSessions(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
@@ -614,9 +610,7 @@ class RPCHostControlMixin(Protocol):
 		result.update(await run_in_threadpool(self._host_control_reachable, client_ids=client_ids, timeout=_timeout))
 		return result
 
-	def _host_control_reachable(
-		self: BackendProtocol, client_ids: list[str], timeout: int
-	) -> dict[str, Any]:
+	def _host_control_reachable(self: BackendProtocol, client_ids: list[str], timeout: int) -> dict[str, Any]:
 		result = {}
 		threads: list[ConnectionThread] = []
 		for host in self.host_getObjects(type="OpsiClient", id=client_ids):
@@ -686,25 +680,19 @@ class RPCHostControlMixin(Protocol):
 		return self.hostControl_start(hostIds)
 
 	@rpc_method(check_acl="hostControl_shutdown")
-	async def hostControlSafe_shutdown(
-		self: BackendProtocol, hostIds: list[str] | None = None
-	) -> dict[str, Any]:
+	async def hostControlSafe_shutdown(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return await self.hostControl_shutdown(hostIds)
 
 	@rpc_method(check_acl="hostControl_reboot")
-	async def hostControlSafe_reboot(
-		self: BackendProtocol, hostIds: list[str] | None = None
-	) -> dict[str, Any]:
+	async def hostControlSafe_reboot(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return await self.hostControl_reboot(hostIds)
 
 	@rpc_method(check_acl="hostControl_fireEvent")
-	async def hostControlSafe_fireEvent(
-		self: BackendProtocol, event: str, hostIds: list[str] | None = None
-	) -> dict[str, Any]:
+	async def hostControlSafe_fireEvent(self: BackendProtocol, event: str, hostIds: list[str] | None = None) -> dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return await self.hostControl_fireEvent(event, hostIds)
@@ -723,17 +711,13 @@ class RPCHostControlMixin(Protocol):
 		return await self.hostControl_showPopup(message, hostIds, mode, addTimestamp, displaySeconds)
 
 	@rpc_method(check_acl="hostControl_uptime")
-	async def hostControlSafe_uptime(
-		self: BackendProtocol, hostIds: list[str] | None = None
-	) -> dict[str, Any]:
+	async def hostControlSafe_uptime(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return await self.hostControl_uptime(hostIds)
 
 	@rpc_method(check_acl="hostControl_getActiveSessions")
-	async def hostControlSafe_getActiveSessions(
-		self: BackendProtocol, hostIds: list[str] | None = None
-	) -> dict[str, Any]:
+	async def hostControlSafe_getActiveSessions(self: BackendProtocol, hostIds: list[str] | None = None) -> dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return await self.hostControl_getActiveSessions(hostIds)

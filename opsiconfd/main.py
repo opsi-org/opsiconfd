@@ -21,10 +21,10 @@ from datetime import datetime
 from pathlib import Path
 
 import uvloop
-from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
-from opsicommon.logging import set_filter_from_string  # type: ignore[import]
-from opsicommon.types import forceHostId  # type: ignore[import]
-from opsicommon.utils import patch_popen  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version
+from opsicommon.logging import set_filter_from_string
+from opsicommon.types import forceHostId
+from opsicommon.utils import patch_popen
 from rich.console import Console
 from rich.progress import Progress
 from rich.prompt import Prompt

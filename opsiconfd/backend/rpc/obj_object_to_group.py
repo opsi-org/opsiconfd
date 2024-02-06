@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ObjectToGroup  # type: ignore[import]
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.objects import ObjectToGroup
+from opsicommon.types import forceList, forceObjectClass
 
 from . import rpc_method
 
@@ -21,9 +21,7 @@ if TYPE_CHECKING:
 
 
 class RPCObjectToGroupMixin(Protocol):
-	def objectToGroup_bulkInsertObjects(
-		self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup]
-	) -> None:
+	def objectToGroup_bulkInsertObjects(self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup]) -> None:
 		self._mysql.bulk_insert_objects(table="OBJECT_TO_GROUP", objs=objectToGroups)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
@@ -39,9 +37,7 @@ class RPCObjectToGroupMixin(Protocol):
 		self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def objectToGroup_createObjects(
-		self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup
-	) -> None:
+	def objectToGroup_createObjects(self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup) -> None:
 		ace = self._get_ace("objectToGroup_createObjects")
 		with self._mysql.session() as session:
 			for objectToGroup in forceList(objectToGroups):
@@ -49,9 +45,7 @@ class RPCObjectToGroupMixin(Protocol):
 				self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
-	def objectToGroup_updateObjects(
-		self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup
-	) -> None:
+	def objectToGroup_updateObjects(self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup) -> None:
 		ace = self._get_ace("objectToGroup_updateObjects")
 		with self._mysql.session() as session:
 			for objectToGroup in forceList(objectToGroups):
@@ -104,7 +98,6 @@ class RPCObjectToGroupMixin(Protocol):
 		self.objectToGroup_createObjects(ObjectToGroup.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-
 	def objectToGroup_delete(
 		self: BackendProtocol, groupType: list[str] | str, groupId: list[str] | str, objectId: list[str] | str
 	) -> None:

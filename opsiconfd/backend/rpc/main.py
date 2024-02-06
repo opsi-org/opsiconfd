@@ -15,8 +15,8 @@ from inspect import getmembers, ismethod
 from types import MethodType
 from typing import Any, Generator
 
-from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.client.opsiservice import ServiceClient
+from opsicommon.exceptions import (
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
@@ -25,7 +25,7 @@ from opsicommon.messagebus import (
 	JSONRPCRequestMessage,
 	timestamp,
 )
-from opsicommon.objects import OpsiDepotserver, serialize  # type: ignore[import]
+from opsicommon.objects import OpsiDepotserver, serialize
 from starlette.concurrency import run_in_threadpool
 
 # server_timing needed for jsonrpc_forward

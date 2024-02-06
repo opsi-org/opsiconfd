@@ -11,7 +11,7 @@ backend.rpc
 from __future__ import annotations
 
 import re
-import socket # Needed for backends/dhcpd.conf  # noqa: F401
+import socket  # Needed for backends/dhcpd.conf  # noqa: F401
 from asyncio import iscoroutinefunction
 from dataclasses import asdict, dataclass
 from functools import wraps

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
 import msgspec
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus import (
 	Message,
 	TraceRequestMessage,
 	TraceResponseMessage,
@@ -340,9 +340,7 @@ class MessageReader:
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
 
-	async def get_messages(
-		self, timeout: float = 0.0
-	) -> AsyncGenerator[tuple[str, Message, Any], None]:
+	async def get_messages(self, timeout: float = 0.0) -> AsyncGenerator[tuple[str, Message, Any], None]:
 		if not self._channels:
 			raise ValueError("No channels to read from")
 

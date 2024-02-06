@@ -395,9 +395,7 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 """
 
 
-def create_audit_hardware_tables(
-	session: Session, tables: dict[str, dict[str, dict[str, str | bool | None]]]
-) -> None:
+def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, dict[str, str | bool | None]]]) -> None:
 	from opsiconfd.backend.rpc.obj_audit_hardware import (
 		get_audit_hardware_database_config,
 	)

@@ -24,15 +24,11 @@ if TYPE_CHECKING:
 
 
 class RPCProductOnClientMixin(Protocol):
-	def productOnClient_bulkInsertObjects(
-		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient]
-	) -> None:
+	def productOnClient_bulkInsertObjects(self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient]) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_ON_CLIENT", objs=productOnClients)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def productOnClient_insertObject(
-		self: BackendProtocol, productOnClient: dict | ProductOnClient
-	) -> None:
+	def productOnClient_insertObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
@@ -42,9 +38,7 @@ class RPCProductOnClientMixin(Protocol):
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_updateObject(
-		self: BackendProtocol, productOnClient: dict | ProductOnClient
-	) -> None:
+	def productOnClient_updateObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:
 		ace = self._get_ace("productOnClient_updateObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
@@ -210,9 +204,7 @@ class RPCProductOnClientMixin(Protocol):
 		return ret_product_on_clients
 
 	@rpc_method(check_acl=False)
-	def productOnClient_generateSequence(
-		self: BackendProtocol, productOnClients: list[ProductOnClient]
-	) -> list[ProductOnClient]:
+	def productOnClient_generateSequence(self: BackendProtocol, productOnClients: list[ProductOnClient]) -> list[ProductOnClient]:
 		"""
 		Takes a list of ProductOnClient objects.
 		Returns the same list of in the order in which the actions must be processed.
@@ -231,9 +223,7 @@ class RPCProductOnClientMixin(Protocol):
 		]
 
 	@rpc_method()
-	def productOnClient_addDependencies(
-		self: BackendProtocol, productOnClients: list[ProductOnClient]
-	) -> list[ProductOnClient]:
+	def productOnClient_addDependencies(self: BackendProtocol, productOnClients: list[ProductOnClient]) -> list[ProductOnClient]:
 		"""
 		Takes a list of ProductOnClient objects.
 		Adds ProductOnClient objects that are needed to fulfill the ProductDependencies.

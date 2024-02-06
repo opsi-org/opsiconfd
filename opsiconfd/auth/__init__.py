@@ -10,7 +10,7 @@ opsiconfd.auth
 
 from __future__ import annotations
 
-from opsicommon.exceptions import BackendAuthenticationError  # type: ignore[import]
+from opsicommon.exceptions import BackendAuthenticationError
 
 from ..config import opsi_config
 

@@ -65,9 +65,7 @@ class RPCConfigMixin(Protocol):
 		self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def config_createObjects(
-		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
-	) -> None:
+	def config_createObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_createObjects")
 		configs = forceObjectClassList(configs, Config)
 		with self._mysql.session() as session:
@@ -80,9 +78,7 @@ class RPCConfigMixin(Protocol):
 			self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def config_updateObjects(
-		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
-	) -> None:
+	def config_updateObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_updateObjects")
 		configs = forceObjectClassList(configs, Config)
 		with self._mysql.session() as session:
@@ -143,9 +139,7 @@ class RPCConfigMixin(Protocol):
 		return self._mysql.get_idents("CONFIG", Config, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def config_deleteObjects(
-		self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config
-	) -> None:
+	def config_deleteObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		if not configs:
 			return
 		# CONFIG_VALUE will be deleted by CASCADE

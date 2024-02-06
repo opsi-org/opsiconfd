@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.types import forceBool, forceHostIdList  # type: ignore[import]
+from opsicommon.types import forceBool, forceHostIdList
 
 from . import rpc_method
 

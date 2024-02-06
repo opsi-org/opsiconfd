@@ -13,7 +13,7 @@ import shutil
 import time
 from pathlib import Path
 
-from opsicommon.server.rights import (  # type: ignore[import]
+from opsicommon.server.rights import (
 	DirPermission,
 	FilePermission,
 	PermissionRegistry,

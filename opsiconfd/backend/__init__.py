@@ -13,7 +13,7 @@ from __future__ import annotations
 from threading import Lock
 from typing import TYPE_CHECKING
 
-from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
+from opsicommon.client.opsiservice import ServiceClient
 
 from opsiconfd import __version__
 from opsiconfd.config import config, get_depotserver_id, opsi_config

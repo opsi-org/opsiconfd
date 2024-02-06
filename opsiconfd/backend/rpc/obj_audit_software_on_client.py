@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import AuditSoftwareOnClient  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.objects import AuditSoftwareOnClient
+from opsicommon.types import forceList
 
 from . import rpc_method
 
@@ -27,16 +27,12 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		self._mysql.bulk_insert_objects(table="SOFTWARE_CONFIG", objs=auditSoftwareOnClients)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_insertObject(
-		self: BackendProtocol, auditSoftwareOnClient: dict | AuditSoftwareOnClient
-	) -> None:
+	def auditSoftwareOnClient_insertObject(self: BackendProtocol, auditSoftwareOnClient: dict | AuditSoftwareOnClient) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_insertObject")
 		self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareOnClient_updateObject(
-		self: BackendProtocol, auditSoftwareOnClient: dict | AuditSoftwareOnClient
-	) -> None:
+	def auditSoftwareOnClient_updateObject(self: BackendProtocol, auditSoftwareOnClient: dict | AuditSoftwareOnClient) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_updateObject")
 		self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=False, set_null=False)
 
@@ -74,9 +70,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		)
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects", check_acl=False)
-	def auditSoftwareOnClient_getHashes(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[dict]:
+	def auditSoftwareOnClient_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("auditSoftwareOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE_CONFIG", object_type=AuditSoftwareOnClient, ace=ace, return_type="dict", attributes=attributes, filter=filter

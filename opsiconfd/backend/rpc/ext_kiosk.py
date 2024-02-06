@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
-from opsicommon.types import forceBool  # type: ignore[import]
+from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.types import forceBool
 
 from opsiconfd.logging import logger
 
@@ -45,9 +45,7 @@ class RPCExtKioskMixin(Protocol):
 		return group_ids
 
 	@rpc_method(deprecated=False, check_acl=False)
-	def getKioskProductInfosForClient(
-		self: BackendProtocol, clientId: str, addConfigs: bool = False
-	) -> dict | list:
+	def getKioskProductInfosForClient(self: BackendProtocol, clientId: str, addConfigs: bool = False) -> dict | list:
 		"""
 		Collect the data as required by the opsi kiosk client.
 

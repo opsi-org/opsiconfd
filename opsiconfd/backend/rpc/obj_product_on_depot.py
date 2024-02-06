@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ProductOnDepot  # type: ignore[import]
-from opsicommon.types import forceList, forceObjectClass  # type: ignore[import]
+from opsicommon.objects import ProductOnDepot
+from opsicommon.types import forceList, forceObjectClass
 
 from . import rpc_method
 
@@ -21,9 +21,7 @@ if TYPE_CHECKING:
 
 
 class RPCProductOnDepotMixin(Protocol):
-	def productOnDepot_bulkInsertObjects(
-		self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot]
-	) -> None:
+	def productOnDepot_bulkInsertObjects(self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot]) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_ON_DEPOT", objs=productOnDepots)  # type: ignore[arg-type]
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -77,16 +75,12 @@ class RPCProductOnDepotMixin(Protocol):
 				)
 
 	@rpc_method(check_acl=False)
-	def productOnDepot_getObjects(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[ProductOnDepot]:
+	def productOnDepot_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ProductOnDepot]:
 		ace = self._get_ace("productOnDepot_getObjects")
 		return self._mysql.get_objects(table="PRODUCT_ON_DEPOT", ace=ace, object_type=ProductOnDepot, attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="productOnDepot_getObjects", check_acl=False)
-	def productOnDepot_getHashes(
-		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any
-	) -> list[dict]:
+	def productOnDepot_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("productOnDepot_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, ace=ace, return_type="dict", attributes=attributes, filter=filter

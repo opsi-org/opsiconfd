@@ -20,7 +20,7 @@ from opsicommon.license import (
 	OPSI_MODULE_IDS,
 	OPSI_OBSOLETE_MODULE_IDS,
 )
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.objects import (
 	BoolConfig,
 	ConfigState,
 	UnicodeConfig,
@@ -99,7 +99,6 @@ def _cleanup_product_on_clients(backend: UnprotectedBackend) -> None:
 def setup_configs() -> None:
 	if get_server_role() != "configserver":
 		return
-
 
 	from opsiconfd.backend import get_unprotected_backend
 

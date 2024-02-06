@@ -17,7 +17,7 @@ from aiohttp import ClientConnectorError, ClientSession
 from fastapi import FastAPI, status
 from fastapi.requests import Request
 from fastapi.responses import Response, StreamingResponse
-from opsicommon.logging.constants import TRACE  # type: ignore[import]
+from opsicommon.logging.constants import TRACE
 from starlette.background import BackgroundTask
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState

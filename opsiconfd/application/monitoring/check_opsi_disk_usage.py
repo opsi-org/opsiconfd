@@ -11,7 +11,7 @@ check opsi disk usage
 from __future__ import annotations
 
 from fastapi.responses import JSONResponse
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceList
 
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 from opsiconfd.utils import get_disk_usage
@@ -19,9 +19,7 @@ from opsiconfd.utils import get_disk_usage
 from .utils import State, generate_response
 
 
-def check_opsi_disk_usage(
-	thresholds: dict[str, str] | None = None, opsiresource: list[str] | None = None
-) -> JSONResponse:
+def check_opsi_disk_usage(thresholds: dict[str, str] | None = None, opsiresource: list[str] | None = None) -> JSONResponse:
 	thresholds = thresholds or {}
 	opsiresource = opsiresource or []
 	warning = thresholds.get("warning", "5G")

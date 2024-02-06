@@ -20,7 +20,7 @@ from time import time
 from typing import Callable
 
 from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus import (
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,

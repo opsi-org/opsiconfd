@@ -12,8 +12,8 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
-from opsicommon.types import (  # type: ignore[import]
+from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.types import (
 	forceDomain,
 	forceHostId,
 	forceHostname,
@@ -31,9 +31,7 @@ class RPCExtDeprecatedMixin(Protocol):
 		self.backend_createBase()
 
 	@rpc_method(deprecated=True, alternative_method="host_createOpsiConfigserver", check_acl=False)
-	def createServer(
-		self: BackendProtocol, serverName: str, domain: str, description: str | None = None, notes: str | None = None
-	) -> str:
+	def createServer(self: BackendProtocol, serverName: str, domain: str, description: str | None = None, notes: str | None = None) -> str:
 		host_id = forceHostId(".".join((forceHostname(serverName), forceDomain(domain))))
 		self.host_createOpsiConfigserver(id=host_id, description=description, notes=notes)
 		return host_id

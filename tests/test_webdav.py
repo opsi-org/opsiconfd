@@ -7,15 +7,13 @@
 """
 webdav tests
 """
-import gc
 import os
 import random
 import shutil
-import time
 from pathlib import Path
 from string import ascii_letters
 from threading import Event, Lock, Thread
-from typing import BinaryIO, Generator, Type
+from typing import BinaryIO, Type
 from unittest.mock import patch
 
 import psutil

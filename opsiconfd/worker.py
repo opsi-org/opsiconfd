@@ -56,7 +56,7 @@ multiprocessing.allow_connection_pickling()
 spawn = multiprocessing.get_context("spawn")
 
 
-WS_PROTOCOLS["wsproto_ping"] = WSProtocolPing
+WS_PROTOCOLS["wsproto_ping"] = WSProtocolPing  # type: ignore
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:

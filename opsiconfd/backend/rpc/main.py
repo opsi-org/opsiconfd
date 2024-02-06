@@ -50,6 +50,7 @@ from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin
 from .ext_easy import RPCExtEasyMixin
+from .ext_group_actions import RPCExtGroupActionsMixin
 from .ext_kiosk import RPCExtKioskMixin
 from .ext_legacy import RPCExtLegacyMixin
 from .ext_opsi import RPCExtOpsiMixin
@@ -129,6 +130,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	RPCExtAdminTasksMixin,
 	RPCExtDeprecatedMixin,
 	RPCExtDynamicDepotMixin,
+	RPCExtGroupActionsMixin,
 	RPCExtEasyMixin,
 	RPCExtKioskMixin,
 	RPCExtSSHCommandsMixin,

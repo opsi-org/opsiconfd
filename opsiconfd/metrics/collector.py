@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 logger = get_logger("opsiconfd.metrics")
 
+
 class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 	_metric_type = Metric
 

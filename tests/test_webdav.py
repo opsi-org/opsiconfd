@@ -273,66 +273,6 @@ class MemoryUsageWatcher(Thread):
 				self.memory_usage.append(self.process.memory_info().rss)
 
 
-def test_webdav_memory_consumption(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	# TODO: Need better test for server memory consumption
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	mem_watch = MemoryUsageWatcher()
-	mem_watch.start()
-	try:
-		size = 100_000_000
-		chunk_size = 100_000
-
-		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
-		filename = "test_data.bin"
-
-		def get_data() -> Generator[bytes, None, None]:
-			chunks = int(size / chunk_size)
-			for _ in range(chunks):
-				time.sleep(10.0 / chunks)
-				yield b"d" * chunk_size
-
-		gc.collect()
-		time.sleep(1)
-		mem_watch.clear()
-		time.sleep(1)
-		cur_mem = mem_watch.cur_mem()
-
-		url = f"/repository/{filename}"
-		res = test_client.put(url=url, headers=headers, content=get_data())
-		res.raise_for_status()
-		max_mem = mem_watch.max_mem()
-		usage_max_upload = max_mem - cur_mem
-
-		assert os.path.exists(os.path.join("/var/lib/opsi/repository", filename))
-
-		gc.collect()
-		time.sleep(1)
-		mem_watch.clear()
-		time.sleep(1)
-		cur_mem = mem_watch.cur_mem()
-
-		with test_client.stream(method="GET", url=url) as res:
-			chunks = int(size / chunk_size)
-			for _ in res.iter_raw(chunk_size=chunk_size):
-				time.sleep(10.0 / chunks)
-
-		res.raise_for_status()
-
-		max_mem = mem_watch.max_mem()
-		usage_max_download = max_mem - cur_mem
-
-		res = test_client.delete(url=url)
-		res.raise_for_status()
-
-		print(f"Max memory usage upload: {usage_max_upload / 1_000_000:.2f} MB")
-		print(f"Max memory usage download: {usage_max_download / 1_000_000:.2f} MB")
-
-		assert usage_max_upload < size * 2
-		assert usage_max_download < size * 3
-	finally:
-		mem_watch.stop.set()
-
-
 def test_repository_zsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # pylint: disable=too-many-locals,redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

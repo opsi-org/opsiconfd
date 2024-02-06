@@ -1,4 +1,4 @@
-FROM docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
+FROM docker.uib.gmbh/opsi/dev/pybuilder:deb10-py3.11
 
 ARG DEV_USER
 ARG DEV_UID

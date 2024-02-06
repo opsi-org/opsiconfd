@@ -17,7 +17,7 @@ import psutil
 from redis import ResponseError
 
 from opsiconfd.config import config
-from opsiconfd.logging import logger
+from opsiconfd.logging import get_logger
 from opsiconfd.metrics.registry import Metric, MetricsRegistry, NodeMetric, WorkerMetric
 from opsiconfd.redis import async_redis_client
 from opsiconfd.utils import utc_timestamp
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 	from opsiconfd.messagebus.websocket import MessagebusWebsocketStatistics
 	from opsiconfd.worker import Worker
 
+logger = get_logger("opsiconfd.metrics")
 
 class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 	_metric_type = Metric

@@ -4,7 +4,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "opsiconfd"
-version = "4.3.6.11"
+version = "4.3.6.12"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
@@ -69,9 +69,6 @@ netifaces = "^0.11"
 werkzeug = "^3.0"
 wsproto = "^1.2"
 pymysql = "^1.1"
-
-#[tool.ruff.lint]
-#ignore = [ "F401", "E402", "F811",]
 
 [tool.ruff.format]
 indent-style = "tab"

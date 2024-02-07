@@ -46,6 +46,7 @@ def run_manager() -> Generator[Manager, None, None]:
 			yield man
 		finally:
 			man.stop()
+			reset_singleton(Manager)
 
 
 def test_manager_signals() -> None:

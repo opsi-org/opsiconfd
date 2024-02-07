@@ -437,6 +437,7 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 	# Use use_logging_config to return to the previous log level
 	with use_logging_config(stderr_level=server_config["log_level_stderr"]):
 		with get_config(server_config, with_env=False) as conf:
+			reset_singleton(Manager)
 			manager = Manager(install_signal_handlers=False)
 			thread = Thread(target=opsiconfd_main, daemon=True)
 			thread.start()
@@ -447,6 +448,7 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 			finally:
 				manager.stop()
 				thread.join(10)
+				reset_singleton(Manager)
 
 
 class WebSocketMessageReader(Thread):

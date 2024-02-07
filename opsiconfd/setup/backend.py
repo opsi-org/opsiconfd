@@ -34,24 +34,25 @@ from opsiconfd.utils import get_ip_addresses, get_random_string
 
 
 def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> None:
-	mysql.address = root_mysql.address
+	address = mysql.address = root_mysql.address
 	mysql.database = root_mysql.database
 	mysql.password = "opsi" if config._pytest else get_random_string(16, alphabet=string.ascii_letters + string.digits)
 	secret_filter.add_secrets(mysql.password)
-
+	if address.startswith("/"):  # Unix socket
+		address = "localhost"
 	logger.info("Creating MySQL user %r and granting all rights on %r", mysql.username, mysql.database)
 	with root_mysql.session() as session:
-		session.execute(f"CREATE USER IF NOT EXISTS '{mysql.username}'@'{mysql.address}'")
+		session.execute(f"CREATE USER IF NOT EXISTS '{mysql.username}'@'{address}'")
 		try:
-			session.execute(f"ALTER USER '{mysql.username}'@'{mysql.address}' IDENTIFIED WITH mysql_native_password BY '{mysql.password}'")
+			session.execute(f"ALTER USER '{mysql.username}'@'{address}' IDENTIFIED WITH mysql_native_password BY '{mysql.password}'")
 		except Exception as err:
 			logger.debug(err)
 			try:
-				session.execute(f"ALTER USER '{mysql.username}'@'{mysql.address}' IDENTIFIED BY '{mysql.password}'")
+				session.execute(f"ALTER USER '{mysql.username}'@'{address}' IDENTIFIED BY '{mysql.password}'")
 			except Exception as err2:
 				logger.debug(err2)
-				session.execute(f"SET PASSWORD FOR '{mysql.username}'@'{mysql.address}' = PASSWORD('{mysql.password}')")
-		session.execute(f"GRANT ALL ON {mysql.database}.* TO '{mysql.username}'@'{mysql.address}'")
+				session.execute(f"SET PASSWORD FOR '{mysql.username}'@'{address}' = PASSWORD('{mysql.password}')")
+		session.execute(f"GRANT ALL ON {mysql.database}.* TO '{mysql.username}'@'{address}'")
 		session.execute("FLUSH PRIVILEGES")
 		logger.notice("MySQL user %r created and privileges set", mysql.username)
 
@@ -80,10 +81,16 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 
 	mysql_root = MySQLConnection()
 	auto_try = False
-	if not force and mysql_root.address in ("localhost", "127.0.0.1", "::1"):
+	if not force and mysql_root.address in ("localhost", "127.0.0.1", "::1") or mysql_root.address.startswith("/"):
 		# Try unix socket connection as user root
+		address = "localhost"
+		for unix_socket in ("/var/run/mysqld/mysqld.sock", "/var/lib/mysql/mysql.sock"):
+			if Path(unix_socket).exists():
+				logger.info("MySQL socket found at %s", unix_socket)
+				address = unix_socket
+				break
 		auto_try = True
-		mysql_root.address = "localhost"
+		mysql_root.address = address
 		mysql_root.database = mysql_root.database or "opsi"
 		mysql_root.username = "root"
 		mysql_root.password = os.environ.get("MYSQL_ROOT_PASSWORD", "")

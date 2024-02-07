@@ -18,6 +18,7 @@ import sys
 import threading
 import time
 from datetime import datetime
+from io import UnsupportedOperation
 from pathlib import Path
 
 import uvloop
@@ -380,7 +381,10 @@ def opsiconfd_main() -> None:
 		# Redirectring sys.stdin to prevent S_ISFIFO(stdin) to return true
 		# This is important for subprocesses like opsi-package postinst scripts
 		stdin = open(os.devnull, "rb")
-		os.dup2(stdin.fileno(), sys.stdin.fileno())
+		try:
+			os.dup2(stdin.fileno(), sys.stdin.fileno())
+		except UnsupportedOperation as err:
+			logger.warning("Failed to redirect stdin: %s", err)
 
 		# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
 		# https://github.com/b2wdigital/aiologger/issues/38

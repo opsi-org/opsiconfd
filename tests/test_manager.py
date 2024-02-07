@@ -131,14 +131,10 @@ def test_worker_manager_and_workers() -> None:
 			wait_for_workers_running(worker_manager, count=2)
 
 			# Assert startup phase not yet set to completed
-			assert worker_manager.startup
-			time.sleep(worker_manager.startup_time)
-			for _ in range(10):
-				if not worker_manager.startup:
-					break
-				time.sleep(1)
+			assert not worker_manager.startup_completed.is_set()
+			worker_manager.startup_completed.wait(worker_manager.startup_time + 10)
 			# Assert startup phase set to completed
-			assert not worker_manager.startup
+			assert worker_manager.startup_completed.is_set()
 
 			assert len(worker_manager.workers) == 2
 			assert worker_manager.workers[f"{worker_manager.node_name}:1"].worker_num == 1

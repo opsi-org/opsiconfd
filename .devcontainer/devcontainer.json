@@ -36,9 +36,6 @@
 				"python.testing.pytestArgs": [
 					"tests"
 				],
-				"pylint.severity": {
-					"refactor": "Information"
-				},
 				"mypy-type-checker.path": [
 					".venv/bin/mypy"
 				],

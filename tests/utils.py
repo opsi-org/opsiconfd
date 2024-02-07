@@ -13,9 +13,10 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import os
+import socket
 import time
 import types
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from queue import Empty, Queue
 from threading import Event, Thread
 from typing import Any, Generator, Type
@@ -26,7 +27,7 @@ import msgpack  # type: ignore[import]
 import pytest
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
-from opsicommon.logging import get_logger
+from opsicommon.logging import LOG_NONE, LOG_WARNING, get_logger, use_logging_config
 from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
@@ -40,6 +41,8 @@ from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config, OpsiConfig, get_configserver_id
 from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config as _opsi_config
+from opsiconfd.main import opsiconfd_main
+from opsiconfd.manager import Manager
 from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import session_manager
 from opsiconfd.utils import Singleton
@@ -408,6 +411,42 @@ def database_connection() -> Generator[MySQLConnection, None, None]:
 @pytest.fixture()
 def backend() -> UnprotectedBackend:
 	return get_unprotected_backend()
+
+
+@contextmanager
+def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[Config, None, None]:
+	with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+		sock.bind(("", 0))
+		sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		port = sock.getsockname()[1]
+
+	defaults = {
+		"action": "start",
+		"port": port,
+		"skip_setup": "all",
+		"workers": 1,
+		"run_as_user": None,
+		"log_mode": "local",
+		"log_level_stderr": LOG_WARNING,
+		"log_level_file": LOG_NONE,
+	}
+	if server_config:
+		defaults.update(server_config)
+	server_config = defaults
+
+	# Use use_logging_config to return to the previous log level
+	with use_logging_config(stderr_level=server_config["log_level_stderr"]):
+		with get_config(server_config, with_env=False) as conf:
+			manager = Manager(install_signal_handlers=False)
+			thread = Thread(target=opsiconfd_main, daemon=True)
+			thread.start()
+			try:
+				if not manager.startup_completed.wait(20):
+					raise RuntimeError("Startup failed")
+				yield conf
+			finally:
+				manager.stop()
+				thread.join(10)
 
 
 class WebSocketMessageReader(Thread):

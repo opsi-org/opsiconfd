@@ -1165,6 +1165,23 @@ class Config(metaclass=Singleton):
 			default=32,
 			help=self._help("expert", "Maximum number of incoming messages in websockets receive buffer."),
 		)
+		self._parser.add(
+			"--websocket-ping-interval",
+			env_var="OPSICONFD_WEBSOCKET_PING_INTERVAL",
+			type=int,
+			default=15,
+			help=self._help(
+				"expert",
+				"Set the websocket ping interval, in seconds.",
+			),
+		)
+		self._parser.add(
+			"--websocket-ping-timeout",
+			env_var="OPSICONFD_WEBSOCKET_PING_TIMEOUT",
+			type=int,
+			default=10,
+			help=self._help("expert", "Set the websocket ping timeout, in seconds."),
+		)
 		# https://www.getpagespeed.com/server-setup/nginx/maximizing-nginx-performance-a-comprehensive-guide-to-tuning-the-backlog-and-net-core-somaxconn-parameters
 		self._parser.add(
 			"--socket-backlog",

@@ -62,7 +62,7 @@ class WorkerManager:
 		self.should_restart_workers = False
 		self.should_stop = Event()
 		self.pid = os.getpid()
-		self.startup = True
+		self.startup_completed = Event()
 
 	def restart_workers(self, wait: bool = False) -> None:
 		pids = [w.pid for w in self.workers.values()]
@@ -133,7 +133,7 @@ class WorkerManager:
 
 			if all_running:
 				logger.info("Startup completed, all workers running")
-				self.startup = False
+				self.startup_completed.set()
 				break
 
 			failed_workers = [
@@ -320,7 +320,8 @@ class DepotserverManagerMessagebusListener(MessagebusListener):
 
 
 class Manager(metaclass=Singleton):
-	def __init__(self) -> None:
+	def __init__(self, install_signal_handlers: bool = True) -> None:
+		self._install_signal_handlers = install_signal_handlers
 		self.pid: int | None = None
 		self._async_main_stopped = Event()
 		self._loop = asyncio.new_event_loop()
@@ -340,6 +341,10 @@ class Manager(metaclass=Singleton):
 		self._service_client: ServiceClient | None = None
 		if not self._is_config_server:
 			self._service_client = get_service_client("manager")
+
+	@property
+	def startup_completed(self) -> Event:
+		return self._worker_manager.startup_completed
 
 	def stop(self, force: bool = False) -> None:
 		self._should_stop = True
@@ -379,9 +384,10 @@ class Manager(metaclass=Singleton):
 		self._should_stop = False
 		self.pid = os.getpid()
 		self._last_reload = int(time.time())
-		signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
-		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
-		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
+		if self._install_signal_handlers:
+			signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
+			signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
+			signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 
 		if self._service_client:
 			listener = DepotserverManagerMessagebusListener(self._service_client.messagebus)

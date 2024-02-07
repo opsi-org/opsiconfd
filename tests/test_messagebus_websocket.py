@@ -15,6 +15,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from opsicommon.client.opsiservice import Messagebus, MessagebusListener, ServiceClient, ServiceVerificationFlags, WebSocket
 from opsicommon.logging import get_logger, use_logging_config
 from opsicommon.logging.constants import LOG_TRACE
 from opsicommon.messagebus import (  # type: ignore[import]
@@ -51,6 +52,7 @@ from .utils import (  # noqa: F401
 	clean_redis,
 	client_jsonrpc,
 	config,
+	opsiconfd_server,
 	test_client,
 )
 
@@ -611,10 +613,43 @@ async def test_messagebus_close_on_session_deleted(
 					assert msg["type"] == "general_error"
 					assert msg["error"]["message"] == "Session deleted"
 					assert session.deleted
-					# message = ChannelSubscriptionRequestMessage(
-					# sender=CONNECTION_USER_CHANNEL,
-					# channel="service:messagebus",
-					# channels=["session:11111111-1111-1111-1111-111111111111"],
-					# operation="add",
-					# )
-					# websocket.send_bytes(message.to_msgpack())
+
+
+def test_messagebus_ping() -> None:
+	with opsiconfd_server({"websocket_ping_interval": 1, "websocket_ping_timeout": 3}) as server_conf:
+		client = ServiceClient(
+			address=f"https://localhost:{server_conf.port}",
+			username=ADMIN_USER,
+			password=ADMIN_PASS,
+			verify=ServiceVerificationFlags.ACCEPT_ALL,
+		)
+
+		class ConFailMessagebusListener(MessagebusListener):
+			connection_failed = 0
+
+			def messagebus_connection_failed(self, messagebus: Messagebus, exception: Exception) -> None:
+				self.connection_failed += 1
+
+		listener = ConFailMessagebusListener()
+
+		ping_received = 0
+
+		def on_ping(websocket: WebSocket, message: bytes) -> None:
+			print("Ping received")
+			nonlocal ping_received
+			ping_received += 1
+
+		client.messagebus._on_ping = on_ping  # type: ignore[method-assign]
+		client.messagebus.register_messagebus_listener(listener)
+		client.connect_messagebus()
+
+		sleep(5)
+		assert ping_received >= 3
+		assert listener.connection_failed == 0
+
+		# Block ServiceClient sending pongs, server should close websocket after ping timeout
+		with patch("websocket._core.WebSocket.pong", lambda *args: None):
+			sleep(5)
+
+		assert listener.connection_failed > 0
+		client.stop()

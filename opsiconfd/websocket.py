@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import multiprocessing
+import random
 import time
 from asyncio import sleep as asyncio_sleep
 from asyncio.events import AbstractEventLoop
@@ -34,6 +35,7 @@ class WSProtocolPing(WSProtocol):
 		self._ping_timeout = config.ws_ping_timeout or 0.0
 		self._last_ping_sent = time.time()
 		self._current_pong_timeout = 0.0
+		self._current_ping_payload = b""
 		super().__init__(config, server_state, app_state, _loop)
 
 	async def _ping_pong_task(self) -> None:
@@ -48,19 +50,29 @@ class WSProtocolPing(WSProtocol):
 						self.logger.info("%s - WebSocket ping timeout", self.scope["client"])
 						self.transport.abort()
 						break
-					if now >= self._last_ping_sent + self._ping_interval:
+					if not self._current_pong_timeout and now >= self._last_ping_sent + self._ping_interval:
 						self.logger.debug("%s - WebSocket send ping", self.scope["client"])
 						self._last_ping_sent = now
 						self._current_pong_timeout = now + self._ping_timeout
-						self.transport.write(self.conn.send(events.Ping(payload=b"")))
-						wait_time = self._ping_timeout + 1
+						self._current_ping_payload = random.randbytes(4)
+						self.transport.write(self.conn.send(events.Ping(payload=self._current_ping_payload)))
+						wait_time = min(self._ping_interval, self._ping_timeout)
 				await asyncio_sleep(wait_time)
 		except Exception as err:
 			self.logger.error(err)
 
 	def handle_pong(self, event: events.Pong) -> None:
 		self.logger.debug("%s - WebSocket reveived pong", self.scope["client"])
-		self._current_pong_timeout = 0.0
+		if not event.payload or not self._current_ping_payload or event.payload == self._current_ping_payload:
+			# Accepting missing payload
+			self._current_pong_timeout = 0.0
+			return
+		self.logger.warning(
+			"%s - WebSocket received pong with wrong payload (%r != %r)",
+			self.scope["client"],
+			event.payload,
+			self._current_ping_payload,
+		)
 
 	def handle_events(self) -> None:
 		for event in self.conn.events():

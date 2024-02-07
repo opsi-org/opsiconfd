@@ -92,8 +92,8 @@ def get_uvicorn_config() -> Config:
 		"timeout_keep_alive": 5,
 		"ws_per_message_deflate": False,
 		"ws_max_queue": config.websocket_queue_size,
-		"ws_ping_interval": 15,
-		"ws_ping_timeout": 10,
+		"ws_ping_interval": config.websocket_ping_interval,
+		"ws_ping_timeout": config.websocket_ping_timeout,
 	}
 
 	if config.ssl_server_key and config.ssl_server_cert:

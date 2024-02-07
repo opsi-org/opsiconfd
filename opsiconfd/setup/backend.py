@@ -84,7 +84,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 	if not force and mysql_root.address in ("localhost", "127.0.0.1", "::1") or mysql_root.address.startswith("/"):
 		# Try unix socket connection as user root
 		address = "localhost"
-		for unix_socket in ("/var/run/mysqld/mysqld.sock", "/var/lib/mysql/mysql.sock"):
+		for unix_socket in ("/run/mysql/mysqld.sock", "/run/mysql/mysql.sock", "/var/lib/mysql/mysql.sock", "/var/run/mysqld/mysqld.sock"):
 			if Path(unix_socket).exists():
 				logger.info("MySQL socket found at %s", unix_socket)
 				address = unix_socket

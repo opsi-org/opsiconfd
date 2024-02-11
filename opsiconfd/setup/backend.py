@@ -185,6 +185,7 @@ def file_mysql_migration() -> None:
 			file_backend_used = True
 			break
 	if not file_backend_used:
+		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
 		return
 
 	logger.notice("Converting File to MySQL backend, please wait...")

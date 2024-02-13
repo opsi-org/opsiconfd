@@ -394,19 +394,37 @@ def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBa
 		depot_jsonrpc(test_client, "", test_depots[1]),
 		products_jsonrpc(test_client, "", test_products, test_depots),
 	):
-		locked_products = backend.getProductLocks_hash()
+		locked_products = backend.productOnDepot_getObjects(locked=True)
 		# check that no products are locked
-		assert locked_products == {}
-		# lock 2 products and check that the proucts are locked
+		assert locked_products == []
+		# lock 2 products and check that the products are locked
 		for product in products:
 			backend.lockProduct(product)
-		locked_products = backend.getProductLocks_hash()
-		assert locked_products == {products[0]: test_depots, products[1]: test_depots}
+		locked_products = backend.productOnDepot_getObjects(depotId=test_depots[0], locked=True)
+		assert len(locked_products) == 2
+		for product in products:
+			assert product in [p.productId for p in locked_products]
+		locked_products = backend.productOnDepot_getObjects(depotId=test_depots[1], locked=True)
+		assert len(locked_products) == 2
+		for product in products:
+			assert product in [p.productId for p in locked_products]
 		# unlock product 1 on one depot and check that product 1 is unlocked on depot 1 and product 2 is still locked
 		result = test_client.post(f"/admin/products/{products[0]}/unlock", auth=(ADMIN_USER, ADMIN_PASS), json={"depots": [test_depots[0]]})
 		assert result.status_code == 200
-		locked_products = backend.getProductLocks_hash()
-		assert locked_products == {products[0]: [test_depots[1]], products[1]: test_depots}
+		locked_products = backend.productOnDepot_getObjects(locked=True)
+		assert len(locked_products) == 3
+		locked_products = backend.productOnDepot_getObjects(depotId=test_depots[0], locked=True)
+		assert len(locked_products) == 1
+		assert locked_products[0].productId == products[1]
+		locked_products = backend.productOnDepot_getObjects(depotId=test_depots[1], locked=True)
+		assert len(locked_products) == 2
+		for product in products:
+			assert product in [p.productId for p in locked_products]
+		# unlock product 1 on all depots
+		result = test_client.post(f"/admin/products/{products[0]}/unlock", auth=(ADMIN_USER, ADMIN_PASS), json={"depots": test_depots})
+		assert result.status_code == 200
+		locked_products = backend.productOnDepot_getObjects(productId=products[0], locked=True)
+		assert locked_products == []
 
 
 def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811  # noqa: F811
@@ -424,17 +442,17 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Unprotec
 		products_jsonrpc(test_client, "", test_products, test_depots),
 	):
 		# check that no products are locked
-		locked_products = backend.getProductLocks_hash()
-		assert locked_products == {}
+		locked_products = backend.productOnDepot_getObjects(locked=True)
+		assert locked_products == []
 		# lock product on all depots and check lock status
 		backend.lockProduct(product)
-		locked_products = backend.getProductLocks_hash()
-		assert locked_products == {product: test_depots}
+		locked_products = backend.productOnDepot_getObjects(locked=True)
+		assert len(locked_products) == 2
 		# unlock all products on all depots and check that all products are unlocked
 		result = test_client.post("/admin/products/unlock", auth=(ADMIN_USER, ADMIN_PASS))
 		assert result.status_code == 200
-		locked_products = backend.getProductLocks_hash()
-		assert locked_products == {}
+		locked_products = backend.productOnDepot_getObjects(locked=True)
+		assert locked_products == []
 
 
 def test_get_locked_products_list(

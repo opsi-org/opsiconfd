@@ -19,7 +19,7 @@ from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.jsonrpc import check_deprecated_calls
-from opsiconfd.check.ldap import check_ldap_connection
+from opsiconfd.check.ldap import check_ldap_connection, check_opsi_depot_user
 from opsiconfd.check.main import CHECKS, health_check
 from opsiconfd.check.mysql import check_mysql
 from opsiconfd.check.opsilicense import check_opsi_licenses
@@ -44,6 +44,7 @@ __all__ = [
 	"check_distro_eol",
 	"check_opsi_licenses",
 	"check_ldap_connection",
+	"check_opsi_depot_user",
 	"check_deprecated_calls",
 	"check_product_on_clients",
 	"check_product_on_depots",

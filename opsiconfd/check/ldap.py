@@ -7,6 +7,8 @@
 """
 health check
 """
+from pathlib import Path
+
 import ldap3  # type: ignore[import]
 
 from opsiconfd.backend import get_unprotected_backend
@@ -17,6 +19,11 @@ from opsiconfd.utils import ldap3_uri_to_str
 
 
 def check_ldap_connection() -> CheckResult:
+	"""
+	## Check LDAP Connection
+
+	Checks whether opsi can connect to the configured LDAP server.
+	"""
 	result = CheckResult(
 		check_id="opsi_ldap_connection",
 		check_name="OPSI LDAP Connection",
@@ -45,4 +52,36 @@ def check_ldap_connection() -> CheckResult:
 		else:
 			result.check_status = CheckStatus.ERROR
 			result.message = "LDAP authentication is configured, but the Directory Connector module is not licensed."
+	return result
+
+
+def check_opsi_depot_user() -> CheckResult:
+	"""
+	## Check Depot user
+
+	Checks if depot user is local system user.
+	"""
+	result = CheckResult(
+		check_id="opsi_depot_user",
+		check_name="OPSI Depot User",
+		check_description="Check if depot user is local system user.",
+		message="opsi depot user is a local system user. LDAP authentication not is configured.",
+		check_status=CheckStatus.OK,
+		details={},
+	)
+	ldap_conf = opsi_config.get("ldap_auth")
+
+	with Path("/etc/passwd").open() as passwd:
+		if opsi_config.get("depot_user", "username") not in passwd.read():
+			if ldap_conf["ldap_url"]:
+				result.message = "LDAP authentication is configured and opsi depot user is a domain user."
+				result.check_status = CheckStatus.OK
+			else:
+				result.message = "LDAP authentication not is configured and opsi depot user is not a local system user."
+				result.check_status = CheckStatus.ERROR
+		else:
+			if ldap_conf["ldap_url"]:
+				result.message = "LDAP authentication is configured. But opsi depot user is a local system user."
+				result.check_status = CheckStatus.ERROR
+
 	return result

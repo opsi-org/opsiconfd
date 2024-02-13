@@ -15,7 +15,7 @@ from opsiconfd.check.common import CheckResult
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.const import CHECKS
 from opsiconfd.check.jsonrpc import check_deprecated_calls
-from opsiconfd.check.ldap import check_ldap_connection
+from opsiconfd.check.ldap import check_ldap_connection, check_opsi_depot_user
 from opsiconfd.check.mysql import check_mysql
 from opsiconfd.check.opsilicense import check_opsi_licenses
 from opsiconfd.check.opsipackages import check_product_on_clients, check_product_on_depots
@@ -40,6 +40,7 @@ __all__ = [
 	"check_deprecated_calls",
 	"check_product_on_clients",
 	"check_product_on_depots",
+	"check_opsi_depot_user",
 	"CHECKS",
 ]
 

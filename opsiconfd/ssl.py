@@ -34,8 +34,8 @@ from opsiconfd.config import (
 	SERVER_KEY_DEFAULT_PASSPHRASE,
 	config,
 	get_depotserver_id,
-	opsi_config,
 	get_server_role,
+	opsi_config,
 )
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
@@ -277,7 +277,7 @@ def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.
 
 def depotserver_setup_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
-	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert())
+	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert().encode("utf-8"))
 	store_ca_cert(ca_crt)
 	install_ca(ca_crt)
 	return False
@@ -618,8 +618,9 @@ def setup_server_cert(force_new: bool = False) -> bool:
 					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
 					time.sleep(5)
 			if pem:
-				srv_crt = x509.load_pem_x509_certificate(pem)
-				private_key = serialization.load_pem_private_key(pem, password=None)
+				pem_bytes = pem.encode("utf-8")
+				srv_crt = x509.load_pem_x509_certificate(pem_bytes)
+				private_key = serialization.load_pem_private_key(pem_bytes, password=None)
 				if not isinstance(private_key, rsa.RSAPrivateKey):
 					raise ValueError(f"Not a RSA private key, but {private_key.__class__.__name__}")
 				srv_key = private_key

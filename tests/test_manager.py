@@ -96,7 +96,7 @@ def test_check_server_cert(cert_changed: bool) -> None:
 
 		with (
 			patch("opsiconfd.manager.WorkerManager.restart_workers", restart_workers),
-			patch("opsiconfd.manager.setup_server_cert", lambda: cert_changed),
+			patch("opsiconfd.manager.setup_ssl", lambda: cert_changed),
 		):
 			with get_config({"ssl_server_cert_check_interval": 0.00001}):
 				time.sleep(2)

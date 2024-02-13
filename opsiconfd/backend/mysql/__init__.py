@@ -60,7 +60,7 @@ from .schema import create_database
 if TYPE_CHECKING:
 	from ..rpc.protocol import IdentType
 
-MAX_ALLOWED_PACKET = 64_000_000
+MAX_ALLOWED_PACKET = 16_000_000
 
 
 @dataclass(slots=True)

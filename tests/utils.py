@@ -135,7 +135,9 @@ def get_config(values: dict[str, Any] | list[str], with_env: bool = False) -> Ge
 	args = _config._args.copy()
 	try:
 		if not with_env:
-			os.environ.clear()
+			for key in list(os.environ):
+				if key.startswith("OPSICONFD_"):
+					del os.environ[key]
 		if isinstance(values, dict):
 			for key in list(values):
 				if key not in _config._config.__dict__:

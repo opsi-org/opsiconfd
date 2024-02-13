@@ -637,16 +637,16 @@ def setup_server_cert(force_new: bool = False) -> bool:
 	return False
 
 
-def setup_ssl() -> None:
+def setup_ssl() -> bool:
+	if "opsi_ca" in config.skip_setup and "server_cert" in config.skip_setup:
+		return False
+
 	logger.info("Setup ssl")
-	server_role = get_server_role()
 	force_new_server_cert = False
+	changed = False
 	if "opsi_ca" not in config.skip_setup:
 		# Create new server cert if CA was created / renewed
 		force_new_server_cert = setup_ca()
 	if "server_cert" not in config.skip_setup:
-		setup_server_cert(force_new_server_cert)
-	if server_role == "configserver":
-		# Read CA key as root to fill key cache
-		# so run_as_user can use key from cache
-		load_ca_key()
+		changed = setup_server_cert(force_new_server_cert)
+	return changed

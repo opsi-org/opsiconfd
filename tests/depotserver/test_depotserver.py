@@ -7,13 +7,16 @@
 """
 test depotserver
 """
+import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
+from types import EllipsisType
 from typing import Generator
+from unittest.mock import patch
 
-from _pytest.fixtures import FixtureFunction
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
-from opsicommon.logging import get_logger, use_logging_config, LOG_TRACE
+from opsicommon.logging import LOG_TRACE, get_logger, use_logging_config
 from opsicommon.messagebus import (
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
@@ -21,20 +24,20 @@ from opsicommon.messagebus import (
 	JSONRPCResponseMessage,
 	Message,
 )
-from pytest import fixture
 
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.setup import setup_depotserver
-from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, get_config, test_client  # noqa: F401
+from opsiconfd.ssl import setup_ssl
+from tests.utils import ADMIN_PASS, ADMIN_USER, Config, OpsiconfdTestClient, get_config, test_client  # noqa: F401
 
 CONFIGSERVER = "opsiserver43-cs"
 
 logger = get_logger()
 
 
-@fixture(autouse=False)
-def depotserver_setup(tmp_path: Path) -> Generator[None, None, None]:
+@contextmanager
+def depotserver_setup(tmp_path: Path) -> Generator[Config, None, None]:
 	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
 	with get_config({"ssl_ca_cert": str(ssl_ca_cert)}) as conf:
 		opsi_config_file = Path(conf.opsi_config)
@@ -50,15 +53,15 @@ def depotserver_setup(tmp_path: Path) -> Generator[None, None, None]:
 		try:
 			setup_depotserver(unattended_configuration)
 			reinit_backend()
-			yield
+			yield conf
 		finally:
 			opsi_config_file.write_bytes(orig_opsi_conf)
 			reinit_backend()
 
 
-def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with test_client as client:
+	with depotserver_setup(tmp_path), test_client as client:
 		backend = get_unprotected_backend()
 		assert backend._server_role == "depotserver"
 		idents = client.jsonrpc20(method="host_getIdents")["result"]
@@ -68,8 +71,8 @@ def test_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestC
 		assert CONFIGSERVER in [ident.split(".")[0] for ident in idents]
 
 
-def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	with use_logging_config(stderr_level=LOG_TRACE):
+def test_messagebus_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	with use_logging_config(stderr_level=LOG_TRACE), depotserver_setup(tmp_path):
 		depot_id = get_depotserver_id()
 		service = ServiceClient(address=CONFIGSERVER, username=ADMIN_USER, password=ADMIN_PASS, verify=ServiceVerificationFlags.ACCEPT_ALL)
 
@@ -114,3 +117,42 @@ def test_messagebus_jsonrpc(depotserver_setup: FixtureFunction, test_client: Ops
 				assert len(listener.messages) == 1
 				assert isinstance(listener.messages[0], JSONRPCResponseMessage)
 				assert listener.messages[0].result["capacity"] > 0
+
+
+def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
+	cmds = []
+
+	def execute(
+		cmd: list[str], allow_exit_codes: list[int | EllipsisType] | tuple[int | EllipsisType] | None = None
+	) -> subprocess.CompletedProcess:
+		nonlocal cmds
+		cmds.append(cmd)
+		return subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+	with patch("opsicommon.ssl.linux.execute", execute), depotserver_setup(tmp_path) as conf:
+		ssl_ca_cert = Path(conf.ssl_ca_cert)  # type: ignore[attr-defined]
+		ssl_server_cert = Path(conf.ssl_server_cert)  # type: ignore[attr-defined]
+		ssl_server_key = Path(conf.ssl_server_key)  # type: ignore[attr-defined]
+
+		assert ssl_ca_cert.exists()
+		assert ssl_server_cert.exists()
+		assert ssl_server_key.exists()
+
+		ssl_ca_cert.unlink()
+		assert setup_ssl()
+		assert len(cmds) == 1
+		assert cmds[0] == ["update-ca-certificates"]
+		assert ssl_ca_cert.exists()
+
+		ssl_server_cert.write_bytes(b"---")
+		assert setup_ssl()
+		assert ssl_server_cert.read_bytes() != b"---"
+
+		ssl_server_cert.unlink()
+		ssl_server_key.unlink()
+		assert setup_ssl()
+		assert ssl_server_cert.exists()
+		assert ssl_server_key.exists()
+
+		# No change
+		assert not setup_ssl()

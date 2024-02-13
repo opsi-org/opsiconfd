@@ -39,7 +39,7 @@ from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import ManagerMetricsCollector
 from opsiconfd.redis import async_get_redis_info, async_redis_client, redis_client
-from opsiconfd.ssl import setup_server_cert
+from opsiconfd.ssl import setup_ssl
 from opsiconfd.utils import Singleton, asyncio_create_task, log_config
 from opsiconfd.worker import Worker, WorkerInfo, WorkerState
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
@@ -408,10 +408,9 @@ class Manager(metaclass=Singleton):
 		pool_executer.shutdown()
 
 	async def check_server_cert(self) -> None:
-		if "server_cert" not in config.skip_setup:
-			if setup_server_cert():
-				logger.notice("Server certificate changed, restarting all workers")
-				self._worker_manager.restart_workers()
+		if setup_ssl():
+			logger.notice("Server certificate changed, restarting all workers")
+			self._worker_manager.restart_workers()
 		self._server_cert_check_time = time.time()
 
 	async def check_redis(self) -> None:

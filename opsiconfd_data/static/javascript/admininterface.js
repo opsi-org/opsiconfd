@@ -275,8 +275,8 @@ function loadLockedProductsTable() {
 }
 
 
-function unlockProduct(product) {
-	let req = ajaxRequest("POST", "/admin/products/" + product + "/unlock");
+function unlockProduct(product, depots = null) {
+	let req = ajaxRequest("POST", "/admin/products/" + product + "/unlock", { "depots": depots.split(",") });
 	req.then((result) => {
 		loadLockedProductsTable();
 		return result
@@ -794,7 +794,7 @@ function printLockedProductsTable(data, htmlId) {
 				htmlStr += element + "<br>"
 			});
 			htmlStr += "</td>"
-			htmlStr += "<td class=\"locked-products-td\"><input type=\"button\" onclick=\"unlockProduct('" + key + "')\" value=\"Unlock\"</td>"
+			htmlStr += "<td class=\"locked-products-td\"><input type=\"button\" onclick=\"unlockProduct('" + key + "','" + data[key] + "')\" value=\"Unlock\"</td>"
 			htmlStr += "</tr>";
 		}
 		htmlStr += "</table>";

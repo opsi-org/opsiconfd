@@ -455,7 +455,7 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 		await _unlock_products([product], depot_ids)
 		return RESTResponse({"product": product, "action": "unlock"})
 	except Exception as err:
-		logger.error("Error while removing redis session keys: %s", err)
+		logger.error("Error while unlocking product: %s", err)
 		return RESTErrorResponse(
 			message="Error while unlocking product",
 			http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,

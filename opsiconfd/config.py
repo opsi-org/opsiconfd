@@ -443,7 +443,9 @@ class Config(metaclass=Singleton):
 	def _generate_config_file(self, conf: dict[str, Any]) -> None:
 		conf = conf.copy()
 		path = Path(self._config.config_file)
-		data = path.read_text(encoding="utf-8")
+		data = ""
+		if path.exists():
+			data = path.read_text(encoding="utf-8")
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		new_lines = []
 		for line in data.split("\n"):
@@ -500,6 +502,8 @@ class Config(metaclass=Singleton):
 		}
 
 		path = Path(self._config.config_file)
+		if not path.exists():
+			return
 		data = path.read_text(encoding="utf-8")
 		if "[global]" not in data:
 			# Config file not in opsi 4.1 format
@@ -507,7 +511,7 @@ class Config(metaclass=Singleton):
 
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 
-		with open(str(path), "w", encoding="utf-8") as file:
+		with open(path, "w", encoding="utf-8") as file:
 			file.write(CONFIG_FILE_HEADER.lstrip())
 			for line in data.split("\n"):
 				match = re_opt.match(line)

@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-health check
+health check users
 """
 import grp
 import os
@@ -60,18 +60,7 @@ def check_opsi_users() -> CheckResult:
 			result.message = "A required user does not exist."
 			return result
 
-	domain_bind = None
-	nsswitch_conf = Path("/etc/nsswitch.conf")
-	if nsswitch_conf.exists():
-		with nsswitch_conf.open() as nsswitch:
-			if "sss" in nsswitch.read():
-				domain_bind = "sss"
-			if "winbind" in nsswitch.read():
-				domain_bind = "winbind"
-			if "ldap" in nsswitch.read():
-				domain_bind = "ldap"
-	if is_ucs():
-		domain_bind = "ucs"
+	domain_bind = get_domain_bind()
 
 	logger.debug("Domain bind: %s", domain_bind)
 
@@ -80,6 +69,8 @@ def check_opsi_users() -> CheckResult:
 		return result
 
 	for user in (depot_user, opsiconfd_user):
+		user = pwd.getpwnam(user)
+
 		partial_result = PartialCheckResult(
 			check_id=f"opsi_users:domain:{user}",
 			check_name=f"OPSI Users domain {user}",
@@ -88,30 +79,8 @@ def check_opsi_users() -> CheckResult:
 			details={},
 		)
 
-		local_user = is_local_user(user)
-		domain_user = False
-
-		user = pwd.getpwnam(user)
-		user_groups = [grp.getgrgid(g).gr_name for g in os.getgrouplist(user.pw_name, user.pw_gid)]
-
-		# https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-groups#domain-users
-		if "domain users" in user_groups:
-			domain_user = True
-
-		if domain_bind == "ucs":
-			try:
-				univention_ldapsearch = subprocess.run(
-					["univention-ldapsearch", "-LLL", f"uid={user.pw_name}"],
-					check=True,
-					capture_output=True,
-				).stdout.decode("utf-8")
-			except subprocess.CalledProcessError as e:
-				logger.error("Failed to run univention-ldapsearch: %s", e)
-				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = "Failed to run univention-ldapsearch"
-				partial_result.details = {"error": str(e)}
-			if f"dn: uid={user.pw_name}" in univention_ldapsearch:
-				domain_user = True
+		local_user = is_local_user(user.pw_name)
+		domain_user = is_domain_user(user.pw_name)
 
 		if local_user and not domain_user:
 			partial_result.check_status = CheckStatus.WARNING
@@ -119,16 +88,7 @@ def check_opsi_users() -> CheckResult:
 				f"{domain_bind} found in /etc/nsswitch.conf, but opsi user '{user.pw_name} - id: {user.pw_uid}' is a local system user. "
 				"Please check if this is intended."
 			)
-			partial_result.details = {
-				"domain_bind": domain_bind,
-				"groups": user_groups,
-				"user": user.pw_name,
-				"uid": user.pw_uid,
-				"gid": user.pw_gid,
-				"home": user.pw_dir,
-				"shell": user.pw_shell,
-				"comment": user.pw_gecos,
-			}
+			partial_result.details = {"domain_bind": domain_bind, "user": user.pw_name, "uid": user.pw_uid, "gid": user.pw_gid}
 		elif not local_user and domain_user:
 			partial_result.check_status = CheckStatus.OK
 			partial_result.message = f"opsi user '{user.pw_name} - id: {user.pw_uid}' is a domain user."
@@ -141,3 +101,58 @@ def check_opsi_users() -> CheckResult:
 	if result.check_status != CheckStatus.OK:
 		result.message = "Problems found with opsi users. Please check the details."
 	return result
+
+
+def get_domain_bind() -> str:
+	"""
+	Returns the domain bind found in /etc/nsswitch.conf
+	"""
+	if is_ucs():
+		return "ucs"
+
+	nsswitch_conf = Path("/etc/nsswitch.conf")
+	if not nsswitch_conf.is_file():
+		return ""
+
+	with open(nsswitch_conf, "r", encoding="utf-8") as handle:
+		for line in handle:
+			if "sss" in line:
+				return "sss"
+			if "winbind" in line:
+				return "winbind"
+			if "ldap" in line:
+				return "ldap"
+
+	return ""
+
+
+def is_domain_user(username: str) -> bool:
+	"""
+	Returns True if the user is a domain user
+	"""
+	try:
+		user = pwd.getpwnam(username)
+	except KeyError:
+		return False
+
+	user_groups = [grp.getgrgid(g).gr_name for g in os.getgrouplist(user.pw_name, user.pw_gid)]
+
+	# https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-groups#domain-users
+	if "domain users" in user_groups:
+		return True
+
+	if is_ucs():
+		try:
+			univention_ldapsearch = subprocess.run(
+				["univention-ldapsearch", "-LLL", f"uid={user.pw_name}"],
+				check=True,
+				capture_output=True,
+			).stdout.decode("utf-8")
+		except subprocess.CalledProcessError as err:
+			logger.error("Failed to run univention-ldapsearch: %s", err)
+			return False
+
+		if f"dn: uid={user.pw_name}" in univention_ldapsearch:
+			return True
+
+	return False

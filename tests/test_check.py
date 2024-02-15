@@ -41,6 +41,7 @@ from opsiconfd.check.main import (
 	check_mysql,
 	check_opsi_config,
 	check_opsi_licenses,
+	check_opsi_users,
 	check_opsiconfd_config,
 	check_product_on_clients,
 	check_product_on_depots,
@@ -513,7 +514,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 15
+	assert len(results) == 16
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status
@@ -708,3 +709,50 @@ def test_checks_and_skip_checks() -> None:
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		list_of_checks = list(health_check())
 		assert len(list_of_checks) == 12
+
+
+def test_check_opsi_users() -> None:
+	result = check_opsi_users()
+	assert result.check_status == CheckStatus.OK
+
+	# If the server  is part of a domain and the opsi users are local users, a warning should be issued.
+	with (
+		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("winbind")),
+		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(False)),
+		mock.patch("opsiconfd.check.users.is_local_user", return_value=(True)),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.WARNING
+
+	# If the server  is part of a domain and the opsi users are only domain users, no warning should be issued.
+	with (
+		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("winbind")),
+		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(True)),
+		mock.patch("opsiconfd.check.users.is_local_user", return_value=(False)),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.OK
+
+	# If the server is part of a domain and the opsi users are local and domain users, an error should be issued.
+	with (
+		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("sss")),
+		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(True)),
+		mock.patch("opsiconfd.check.users.is_local_user", return_value=(True)),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.ERROR
+
+	# If the server is not part of a domain and the opsi users are local users, no warning should be issued.
+	with (
+		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("")),
+		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(False)),
+		mock.patch("opsiconfd.check.users.is_local_user", return_value=(True)),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.OK
+
+	# check for missing user
+	with get_opsi_config([{"category": "depot_user", "config": "username", "value": "pcpatch-local"}]):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.ERROR
+		assert result.message == "A required user does not exist."

@@ -41,14 +41,14 @@ def check_opsi_users() -> CheckResult:
 	opsiconfd_user = config.run_as_user
 
 	for user in (depot_user, opsiconfd_user):
+		partial_result = PartialCheckResult(
+			check_id=f"opsi_user:exist:{user}",
+			check_name=f"OPSI User exist {user}",
+			check_status=CheckStatus.OK,
+			message=(f"opsi user '{user}' does exist."),
+			details={},
+		)
 		try:
-			partial_result = PartialCheckResult(
-				check_id=f"opsi_user:exist:{user}",
-				check_name=f"OPSI User exist {user}",
-				check_status=CheckStatus.OK,
-				message=(f"opsi user '{user}' does exist."),
-				details={},
-			)
 			pwd.getpwnam(user)
 		except KeyError:
 			partial_result.message = f"opsi user '{user}' does not exist."
@@ -56,24 +56,25 @@ def check_opsi_users() -> CheckResult:
 
 		result.add_partial_result(partial_result)
 
-		if result.check_status != CheckStatus.OK:
-			result.message = "A required user does not exist."
-			return result
+	if result.check_status != CheckStatus.OK:
+		result.message = "A required user does not exist."
+		return result
 
 	domain_bind = get_domain_bind()
-
 	logger.debug("Domain bind: %s", domain_bind)
 
+	# If the system is not part of a domain and the users exist, then they are local users and we can stop here.
 	if not domain_bind:
-		result.details = {"domain_bind": "No domain bind found."}
+		result.details = {"domain": "System is not part of a domain."}
 		return result
+	result.details = {"domain": f"System is part of a domain. ('{domain_bind}' in /etc/nsswitch.conf found.)"}
 
 	for user in (depot_user, opsiconfd_user):
 		user = pwd.getpwnam(user)
 
 		partial_result = PartialCheckResult(
-			check_id=f"opsi_users:domain:{user}",
-			check_name=f"OPSI Users domain {user}",
+			check_id=f"opsi_user:domain:{user}",
+			check_name=f"OPSI users domain {user}",
 			check_status=CheckStatus.OK,
 			message=(f"opsi user '{user.pw_name} - id: {user.pw_uid}' is a domain user."),
 			details={},
@@ -88,7 +89,7 @@ def check_opsi_users() -> CheckResult:
 				f"{domain_bind} found in /etc/nsswitch.conf, but opsi user '{user.pw_name} - id: {user.pw_uid}' is a local system user. "
 				"Please check if this is intended."
 			)
-			partial_result.details = {"domain_bind": domain_bind, "user": user.pw_name, "uid": user.pw_uid, "gid": user.pw_gid}
+			partial_result.details = {"domain": domain_bind, "user": user.pw_name, "uid": user.pw_uid, "gid": user.pw_gid}
 		elif not local_user and domain_user:
 			partial_result.check_status = CheckStatus.OK
 			partial_result.message = f"opsi user '{user.pw_name} - id: {user.pw_uid}' is a domain user."
@@ -104,9 +105,6 @@ def check_opsi_users() -> CheckResult:
 
 
 def get_domain_bind() -> str:
-	"""
-	Returns the domain bind found in /etc/nsswitch.conf
-	"""
 	if is_ucs():
 		return "ucs"
 
@@ -122,7 +120,6 @@ def get_domain_bind() -> str:
 				return "winbind"
 			if "ldap" in line:
 				return "ldap"
-
 	return ""
 
 

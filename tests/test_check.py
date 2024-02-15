@@ -708,7 +708,7 @@ def test_checks_and_skip_checks() -> None:
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		list_of_checks = list(health_check())
-		assert len(list_of_checks) == 12
+		assert len(list_of_checks) == 13
 
 
 def test_check_opsi_users() -> None:

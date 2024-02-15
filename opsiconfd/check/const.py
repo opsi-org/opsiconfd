@@ -24,5 +24,5 @@ CHECKS = [
 	"product_on_clients",
 	"deprecated_calls",
 	"ldap_connection",
-	"opsi_depot_user",
+	"opsi_users",
 ]

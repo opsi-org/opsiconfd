@@ -437,3 +437,10 @@ def forceNodename(var: Any) -> str:
 	if not _NODENAME_REGEX.search(var):
 		raise ValueError(f"Bad nodename: '{var}'")
 	return var
+
+
+def is_local_user(username: str) -> bool:
+	for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
+		if line.startswith(f"{username}:"):
+			return True
+	return False

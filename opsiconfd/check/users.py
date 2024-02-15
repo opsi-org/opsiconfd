@@ -26,7 +26,7 @@ def check_opsi_users() -> CheckResult:
 	## Check users
 
 	Checks if opsi depot user and opsiconfd user exist.
-	If the system is bound to a domain, it checks if the users are domain users.
+	If the system is part of a domain, it checks if the users are domain users.
 	Searches sssd, winbind, ldap in /etc/nsswitch.conf to determine the domain bind.
 	"""
 	result = CheckResult(

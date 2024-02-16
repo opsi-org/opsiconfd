@@ -881,8 +881,7 @@ class RPCExtLegacyMixin(Protocol):
 	@rpc_method(deprecated=True, alternative_method="product_getObjects", check_acl=False)
 	def getProducts_hash(self: BackendProtocol, depotIds: list[str] | None = None) -> dict[str, dict[str, dict[str, Any]]]:
 		depotIds = depotIds or self.getDepotIds_list()
-		none_product = Product(id="", productVersion="", packageVersion="")
-		products: dict[str, dict[str, dict[str, Product]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: none_product)))
+		products: dict[str, dict[str, dict[str, Product]]] = defaultdict(lambda: defaultdict(lambda: defaultdict()))
 		for product in self.product_getObjects():
 			products[product.id][product.productVersion][product.packageVersion] = product
 

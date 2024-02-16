@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import codecs
 import copy
 import getpass
 import gzip
+import os
 import shutil
 import signal
 import sys
@@ -55,6 +55,8 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		print_responses: bool = False,
 		jsonrpc_methods: Optional[list[str]] = None,
 		write_results: str | None = None,
+		bencher_results: str | None = None,
+		bencher_measure: str | None = None,
 		max_avg_seconds_per_request: float = 0,
 		max_errors: int = -1,
 	) -> None:
@@ -68,6 +70,8 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		self.print_responses = print_responses
 		self.test_cases = []
 		self.write_results = write_results
+		self.bencher_results = bencher_results
+		self.bencher_measure = bencher_measure
 		self.max_avg_seconds_per_request = max_avg_seconds_per_request
 		self.max_errors = max_errors
 		if self.write_results:
@@ -211,6 +215,8 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 		self.display_results()
 		if self.perftest.write_results:
 			self.write_results()
+		if self.perftest.bencher_results and self.perftest.bencher_measure:
+			self.write_bencher_results()
 		print("")
 
 	def add_result(  # pylint: disable=too-many-arguments
@@ -276,11 +282,32 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 	def write_results(self) -> None:
 		if not self.perftest.write_results:
 			return
-		with codecs.open(self.perftest.write_results, "a", "utf-8") as file:
+		with open(self.perftest.write_results, "a", encoding="utf-8") as file:
 			file.write(f"[{self.name}]\n")
 			for key, val in self.calc_results().items():
 				file.write(f"{key}={val}\n")
 			file.write("\n")
+
+	def write_bencher_results(self) -> None:
+		if not self.perftest.bencher_results or not self.perftest.bencher_measure:
+			return
+		bencher_results = {}
+		benchmark_name = "opsiconfd-perftest"
+		if os.path.exists(self.perftest.bencher_results):
+			with open(self.perftest.bencher_results, "rb") as file:
+				bencher_results = json.decode(file.read())
+
+		results = self.calc_results()
+		bencher_results[benchmark_name] = {
+			self.perftest.bencher_measure: {
+				"value": results["avg_seconds_per_request"] * 1000,
+				"lower_value": results["min_seconds_per_request"] * 1000,
+				"upper_value": results["max_seconds_per_request"] * 1000,
+			}
+		}
+
+		with open(self.perftest.bencher_results, "wb") as file:
+			file.write(json.encode(bencher_results))
 
 	def display_results(self) -> None:
 		res = self.calc_results()
@@ -460,7 +487,7 @@ class Client:
 				params[idx] = "o" * size
 			if isinstance(param, str) and param.startswith("{file:"):
 				filename = param.split(":")[1].strip("}")
-				with codecs.open(filename, "r", "utf-8") as file:  # pylint: disable=dotted-import-in-loop
+				with open(filename, "r", encoding="utf-8") as file:  # pylint: disable=dotted-import-in-loop
 					params[idx] = file.read()
 		return {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 
@@ -582,6 +609,9 @@ def main() -> None:
 	arg_parser.add_argument("-r", "--print-responses", action="store_true", default=None, help="Print server responses")
 	arg_parser.add_argument("-l", "--load", action="store", nargs="+", metavar="FILE", help="Load test from FILE")
 	arg_parser.add_argument("-w", "--write-results", action="store", metavar="FILE", help="Write results to FILE")
+	arg_parser.add_argument("--bencher-results", action="store", metavar="FILE", help="Write bencher results to FILE")
+	arg_parser.add_argument("--bencher-measure", action="store", metavar="MEASURE_SLUG", help="Add this measure to bencher results")
+
 	arg_parser.add_argument(
 		"--max-avg-seconds-per-request",
 		action="store",

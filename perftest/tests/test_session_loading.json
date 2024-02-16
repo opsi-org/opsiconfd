@@ -3,7 +3,8 @@
 	"username": "adminuser",
 	"password": "adminuser",
 	"clients": 1,
-	"iterations": 100,
+	"iterations": 500,
+	"bencher_measure": "session-loading-duration",
 	"test_cases": [
 		{
 			"name": "JSONRPC",

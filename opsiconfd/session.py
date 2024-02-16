@@ -51,7 +51,7 @@ from opsiconfd.application import app as opsiconfd_app
 from opsiconfd.auth import AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
-from opsiconfd.auth.user import create_user
+from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import (
 	get_unprotected_backend,
 )
@@ -1083,7 +1083,7 @@ async def authenticate_user_passwd(scope: Scope) -> None:
 		raise BackendAuthenticationError(f"Authentication failed for user {session.username}")
 
 
-async def authenticate_user_auth_module(scope: Scope) -> None:
+async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
 	session = scope["session"]
 	authm = get_auth_module()
 
@@ -1097,24 +1097,7 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 	except Exception as err:
 		raise BackendAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
 
-	# Authentication did not throw exception => authentication successful
-	session.authenticated = True
-	session.user_groups = authm.get_groupnames(session.username)
-	session.is_admin = authm.user_is_admin(session.username)
-	session.is_read_only = authm.user_is_read_only(session.username)
-
-	if session.is_admin:
-		create_user(session.username, session.user_groups)
-
-	logger.info(
-		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
-		session.username,
-		",".join(session.user_groups),
-		authm.get_admin_groupname(),
-		session.is_admin,
-		authm.get_read_only_groupnames(),
-		session.is_read_only,
-	)
+	return authm
 
 
 async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
@@ -1153,6 +1136,8 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		raise BackendAuthenticationError("No password specified")
 
 	if session.username == config.monitoring_user:
+		if config.multi_factor_auth == "totp_mandatory":
+			raise BackendAuthenticationError("Monitoring user not available with TOTP mandatory")
 		await authenticate_user_passwd(scope=scope)
 	elif (
 		re.search(r"^[^.]+\.[^.]+\.\S+$", session.username)
@@ -1161,7 +1146,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	):
 		await authenticate_host(scope=scope)
 	else:
-		if config.multi_factor_auth in ("totp_optional", "totp_mandatory"):
+		if config.multi_factor_auth in ("totp_mandatory", "totp_optional"):
 			if not mfa_otp:
 				mfa_otp = headers.get("x-opsi-mfa-otp")
 			if not mfa_otp:
@@ -1172,30 +1157,46 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 					secret_filter.add_secrets(session.password)
 					mfa_otp = match.group(2)
 
+		auth_module = await authenticate_user_auth_module(scope=scope)
+		# Authentication did not throw exception => authentication successful
+
 		backend = get_unprotected_backend()
-		now = timestamp()
-		users = await backend.async_call("user_getObjects", id=session.username)
-		if users:
+		if users := await backend.async_call("user_getObjects", id=session.username):
 			user = users[0]
 		else:
-			user = User(id=username, created=now)
+			user = User(id=session.username, created=timestamp())
 			await backend.async_call("user_insertObject", user=user)
 
-		if config.multi_factor_auth in ("totp_optional", "totp_mandatory"):
-			if config.multi_factor_auth == "totp_mandatory" or user.mfaState == "totp_active":
-				if not user.otpSecret:
-					raise BackendAuthenticationError("MFA OTP configuration error")
-				if not mfa_otp:
-					raise BackendAuthenticationError("MFA one-time password missing")
-				totp = pyotp.TOTP(user.otpSecret)
-				if not totp.verify(mfa_otp):
-					raise BackendAuthenticationError("Incorrect one-time password")
-				logger.info("OTP MFA successful")
+		if config.multi_factor_auth == "totp_mandatory" or (config.multi_factor_auth == "totp_optional" and user.mfaState == "totp_active"):
+			if not user.otpSecret:
+				raise BackendAuthenticationError("MFA OTP configuration error")
+			if not mfa_otp:
+				raise BackendAuthenticationError("MFA one-time password missing")
+			totp = pyotp.TOTP(user.otpSecret)
+			if not totp.verify(mfa_otp):
+				raise BackendAuthenticationError("Incorrect one-time password")
+			logger.info("OTP MFA successful")
 
-		await authenticate_user_auth_module(scope=scope)
+		session.authenticated = True
+		session.user_groups = auth_module.get_groupnames(session.username)
+		session.is_admin = auth_module.user_is_admin(session.username)
+		session.is_read_only = auth_module.user_is_read_only(session.username)
 
-		user.lastLogin = now
+		logger.info(
+			"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
+			session.username,
+			",".join(session.user_groups),
+			auth_module.get_admin_groupname(),
+			session.is_admin,
+			auth_module.get_read_only_groupnames(),
+			session.is_read_only,
+		)
+
+		user.lastLogin = timestamp()
 		await backend.async_call("user_updateObject", user=user)
+
+		if session.is_admin:
+			create_user_roles(session.username, session.user_groups)
 
 	await session.store(wait=True)
 

@@ -88,7 +88,7 @@ class User(Rights):
 		self.create_configs()
 
 
-def create_user(name: str, groups: set) -> None:
+def create_user_roles(name: str, groups: set) -> None:
 	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()

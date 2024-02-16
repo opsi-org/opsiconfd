@@ -16,7 +16,7 @@ from opsicommon.objects import BoolConfig, HostGroup, OpsiDepotserver, ProductGr
 from sqlalchemy.orm import Session  # type: ignore
 
 from opsiconfd.auth.role import Role
-from opsiconfd.auth.user import User, create_user
+from opsiconfd.auth.user import User, create_user_roles
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 
@@ -351,7 +351,7 @@ def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # noqa: F8
 
 
 def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F811
-	create_user("admin", {"admingroup"})
+	create_user_roles("admin", {"admingroup"})
 
 	configs = backend.config_getObjects(id="user.{admin}.*")
 
@@ -393,7 +393,7 @@ def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F81
 def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.config_createUnicode(id="opsi.roles", defaultValues=["admingroup"], multiValue=True)
 
-	create_user("admin", {"admingroup"})
+	create_user_roles("admin", {"admingroup"})
 
 	configs = backend.config_getObjects(id="user.{admin}.*")
 
@@ -467,7 +467,7 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 def test_create_user_function_register_false(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.config_createBool(id="user.{}.register", defaultValues=False)
 
-	create_user("admin", {"admingroup"})
+	create_user_roles("admin", {"admingroup"})
 
 	configs = backend.config_getObjects(id="user.{admin}.*")
 
@@ -477,6 +477,6 @@ def test_create_user_function_register_false(backend: UnprotectedBackend) -> Non
 def test_create_user_function_without_register_key(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.config_delete(id="user.{}.register")
 
-	create_user("admin", {"admingroup"})
+	create_user_roles("admin", {"admingroup"})
 	configs = backend.config_getObjects(id="user.{admin}.*")
 	assert len(configs) == 0

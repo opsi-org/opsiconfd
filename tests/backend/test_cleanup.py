@@ -13,7 +13,7 @@ from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import convert_config_objects, remove_orphans_clientconfig_depot_id
 from opsiconfd.backend.rpc.main import UnprotectedBackend
-from tests.utils import OpsiconfdTestClient, backend, client_jsonrpc, depot_jsonrpc  # noqa: F401
+from tests.utils import backend  # noqa: F401
 
 
 def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F811

@@ -99,9 +99,9 @@ test:pylint-pytest:
         exit 1
       )
 
-    #- wget -q https://github.com/bencherdev/bencher/releases/download/v0.4.2/bencher-v0.4.2-linux-x86-64 -O bencher
-    #- chmod +x bencher
-    #- $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --host "$BENCHER_HOST" --token "$BENCHER_API_TOKEN" --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
+    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.4.2/bencher-v0.4.2-linux-x86-64 -O bencher
+    - chmod +x bencher
+    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --host "$BENCHER_HOST" --token "$BENCHER_API_TOKEN" --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

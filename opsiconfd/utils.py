@@ -18,6 +18,7 @@ import random
 import re
 import secrets
 import string
+import subprocess
 import threading
 import time
 import zlib
@@ -444,3 +445,76 @@ def is_local_user(username: str) -> bool:
 		if line.startswith(f"{username}:"):
 			return True
 	return False
+
+
+@dataclass(unsafe_hash=True)
+class PasswdInfo:
+	username: str
+	uid: int
+	gid: int
+	gecos: str  # https://en.wikipedia.org/wiki/Gecos_field
+	home: str
+	shell: str
+
+
+@dataclass
+class UserDetails:
+	passwd_info: dict[str, PasswdInfo]
+	domain_user: str | None
+	local_user: str | None
+
+
+PASSWD_DOMAIN_SERVICES = ("sss", "winbind", "ldap", "nisplus")
+PASSED_LOCAL_SERVICES = ("files", "compat", "nis", "systemd")
+
+
+###
+# One of the following exit values can be returned by getent:
+#           0      Command completed successfully.
+#           1      Missing arguments, or database unknown.
+#           2      One or more supplied key could not be found in the database.
+#           3      Enumeration not supported on this database.
+###
+def get_user_passwd_details(username: str) -> UserDetails:
+	user_details = UserDetails(passwd_info={}, domain_user=None, local_user=None)
+	services = get_passwd_services()
+	for service in services:
+		try:
+			getent_result = subprocess.run(
+				["getent", "passwd", "--service", service, username], check=True, capture_output=True, timeout=5
+			).stdout.decode("utf-8")
+		except subprocess.CalledProcessError as err:
+			get_logger().debug("getent passwd --service %s %s failed: %s", service, username, err)
+			continue
+		if getent_result:
+			user_info = getent_result.strip().split(":")
+			user_details.passwd_info[service] = PasswdInfo(
+				username=user_info[0],
+				uid=int(user_info[2]),
+				gid=int(user_info[3]),
+				gecos=user_info[4],
+				home=user_info[5],
+				shell=user_info[6],
+			)
+
+			if service in PASSWD_DOMAIN_SERVICES:
+				user_details.domain_user = service
+			if service in PASSED_LOCAL_SERVICES:
+				user_details.local_user = service
+
+	return user_details
+
+
+def get_passwd_services() -> list:
+	nsswitch_conf = Path("/etc/nsswitch.conf")
+	if not nsswitch_conf.is_file():
+		return []
+
+	passwd_service = []
+
+	with open(nsswitch_conf, "r", encoding="utf-8") as handle:
+		for line in handle:
+			if "passwd:" in line:
+				passwd_service = line.split()[1:]
+				break
+	return passwd_service

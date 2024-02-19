@@ -18,7 +18,7 @@ from opsicommon.system.info import is_ucs
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import is_local_user
+from opsiconfd.utils import PASSWD_DOMAIN_SERVICES, get_passwd_services, get_user_passwd_details
 
 
 def check_opsi_users() -> CheckResult:
@@ -60,47 +60,48 @@ def check_opsi_users() -> CheckResult:
 		result.message = "A required user does not exist."
 		return result
 
-	domain_bind = get_domain_bind()
-	logger.debug("Domain bind: %s", domain_bind)
-
-	# If the system is not part of a domain and the users exist, then they are local users and we can stop here.
-	if not domain_bind:
-		result.details = {"domain": "System is not part of a domain."}
-		return result
-	result.details = {"domain": f"System is part of a domain. ('{domain_bind}' in /etc/nsswitch.conf found.)"}
-
 	for user in (depot_user, opsiconfd_user):
-		user = pwd.getpwnam(user)
-
+		user_details = get_user_passwd_details(user)
 		partial_result = PartialCheckResult(
-			check_id=f"opsi_user:domain:{user}",
-			check_name=f"OPSI users domain {user}",
+			check_id=f"opsi_user:uid:{user}",
+			check_name=f"OPSI User UID {user}",
 			check_status=CheckStatus.OK,
-			message=(f"opsi user '{user.pw_name} - id: {user.pw_uid}' is a domain user."),
-			details={},
+			message=(f"Only one passwd entry for opsi user '{user}' found."),
+			details={"passwd_info": user_details.passwd_info},
 		)
 
-		local_user = is_local_user(user.pw_name)
-		domain_user = is_domain_user(user.pw_name)
+		uid = 0
+		for info in user_details.passwd_info.values():
+			if uid != 0 and uid == info.uid:
+				partial_result.check_status = CheckStatus.ERROR
+				partial_result.message = f"opsi user '{user}' found multiple times with the same ID: {uid} == {info.uid}"
+				break
+			elif uid != 0 and uid != info.uid:
+				partial_result.check_status = CheckStatus.WARNING
+				partial_result.message = f"opsi user '{user}' with different UIDs found: {uid} != {info.uid}"
+				break
+			uid = info.uid
 
-		if local_user and not domain_user:
+		if partial_result.check_status != CheckStatus.OK:
+			result.add_partial_result(partial_result)
+			break
+
+		passwd_services = get_passwd_services()
+		logger.debug("passwd_services: %s", passwd_services)
+
+		if (
+			any(service in PASSWD_DOMAIN_SERVICES for service in passwd_services)
+			and not user_details.domain_user
+			and user_details.local_user
+		):
 			partial_result.check_status = CheckStatus.WARNING
 			partial_result.message = (
-				f"{domain_bind} found in /etc/nsswitch.conf, but opsi user '{user.pw_name} - id: {user.pw_uid}' is a local system user. "
+				f"opsi user '{user} - id: {user_details.passwd_info[user_details.local_user].uid}' is a local system user, "
+				f"but found domain service in /etc/nsswitch.conf (passwd services: {passwd_services}). "
 				"Please check if this is intended."
 			)
-			partial_result.details = {"domain": domain_bind, "user": user.pw_name, "uid": user.pw_uid, "gid": user.pw_gid}
-		elif not local_user and domain_user:
-			partial_result.check_status = CheckStatus.OK
-			partial_result.message = f"opsi user '{user.pw_name} - id: {user.pw_uid}' is a domain user."
-		else:
-			partial_result.check_status = CheckStatus.ERROR
-			partial_result.message = f"opsi user '{user.pw_name} - id: {user.pw_uid}' is a local system user and a domain user."
 
 		result.add_partial_result(partial_result)
-
-	if result.check_status != CheckStatus.OK:
-		result.message = "Problems found with opsi users. Please check the details."
 	return result
 
 

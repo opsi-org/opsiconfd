@@ -24,6 +24,7 @@ import time
 import zlib
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from enum import StrEnum
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from hashlib import md5
 from ipaddress import IPv4Network, IPv6Address, ip_address, ip_interface
@@ -447,25 +448,37 @@ def is_local_user(username: str) -> bool:
 	return False
 
 
+class NameService(StrEnum):
+	SSS = "sss"
+	WINBIND = "winbind"
+	LDAP = "ldap"
+	NISPLUS = "nisplus"
+	NIS = "nis"
+	COMPAT = "compat"
+	SYSTEMD = "systemd"
+	FILES = "files"
+
+	@property
+	def is_local(self) -> bool:
+		return self in (NameService.SYSTEMD, NameService.COMPAT, NameService.FILES)
+
+
 @dataclass(unsafe_hash=True)
-class PasswdInfo:
+class UserInfo:
 	username: str
 	uid: int
 	gid: int
 	gecos: str  # https://en.wikipedia.org/wiki/Gecos_field
 	home: str
 	shell: str
+	service: NameService
 
 
 @dataclass
 class UserDetails:
-	passwd_info: dict[str, PasswdInfo]
+	user_info: dict[str, UserInfo]
 	domain_services: List[str]
 	local_services: List[str]
-
-
-PASSWD_DOMAIN_SERVICES = ("sss", "winbind", "ldap", "nisplus")
-PASSED_LOCAL_SERVICES = ("files", "compat", "nis", "systemd")
 
 
 ###
@@ -476,7 +489,7 @@ PASSED_LOCAL_SERVICES = ("files", "compat", "nis", "systemd")
 #           3      Enumeration not supported on this database.
 ###
 def get_user_passwd_details(username: str) -> UserDetails:
-	user_details = UserDetails(passwd_info={}, domain_services=[], local_services=[])
+	user_details = UserDetails(user_info={}, domain_services=[], local_services=[])
 	services = get_passwd_services()
 	for service in services:
 		try:
@@ -488,24 +501,25 @@ def get_user_passwd_details(username: str) -> UserDetails:
 			continue
 		if getent_result:
 			user_info = getent_result.strip().split(":")
-			user_details.passwd_info[service] = PasswdInfo(
+			user_details.user_info[str(service)] = UserInfo(
 				username=user_info[0],
 				uid=int(user_info[2]),
 				gid=int(user_info[3]),
 				gecos=user_info[4],
 				home=user_info[5],
 				shell=user_info[6],
+				service=service,
 			)
 
-			if service in PASSWD_DOMAIN_SERVICES:
-				user_details.domain_services.append(service)
-			if service in PASSED_LOCAL_SERVICES:
+			if service.is_local:
 				user_details.local_services.append(service)
+			else:
+				user_details.domain_services.append(service)
 
 	return user_details
 
 
-def get_passwd_services() -> list:
+def get_passwd_services() -> List[NameService]:
 	nsswitch_conf = Path("/etc/nsswitch.conf")
 	if not nsswitch_conf.is_file():
 		return []
@@ -515,6 +529,6 @@ def get_passwd_services() -> list:
 	with open(nsswitch_conf, "r", encoding="utf-8") as handle:
 		for line in handle:
 			if "passwd:" in line:
-				passwd_service = line.split()[1:]
+				passwd_service = [NameService(service) for service in line.split()[1:]]
 				break
 	return passwd_service

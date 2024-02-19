@@ -64,6 +64,7 @@ from opsiconfd.ssl import (
 	store_local_server_cert,
 	store_local_server_key,
 )
+from opsiconfd.utils import NameService, UserDetails, UserInfo
 
 from .utils import (  # noqa: F401
 	ACL_CONF_41,
@@ -715,38 +716,121 @@ def test_check_opsi_users() -> None:
 	result = check_opsi_users()
 	assert result.check_status == CheckStatus.OK
 
-	# If the server  is part of a domain and the opsi users are local users, a warning should be issued.
+	# If the server is part of a domain and the opsi users are local users, a warning should be issued.
 	with (
-		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("winbind")),
-		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(False)),
-		mock.patch("opsiconfd.check.users.is_local_user", return_value=(True)),
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				UserDetails(
+					user_info={
+						"files": UserInfo(
+							username="pcpatch",
+							uid=1000,
+							gid=1000,
+							gecos="PCPatch",
+							home="/home/pcpatch",
+							shell="/bin/bash",
+							service=NameService(NameService.FILES),
+						)
+					},
+					domain_services=[],
+					local_services=[NameService.FILES],
+				)
+			),
+		),
+		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
 	):
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.WARNING
 
 	# If the server  is part of a domain and the opsi users are only domain users, no warning should be issued.
 	with (
-		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("winbind")),
-		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(True)),
-		mock.patch("opsiconfd.check.users.is_local_user", return_value=(False)),
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				UserDetails(
+					user_info={
+						"winbind": UserInfo(
+							username="pcpatch",
+							uid=1000,
+							gid=1000,
+							gecos="PCPatch",
+							home="/home/pcpatch",
+							shell="/bin/bash",
+							service=NameService.WINBIND,
+						)
+					},
+					domain_services=[NameService.WINBIND],
+					local_services=[],
+				)
+			),
+		),
+		mock.patch(
+			"opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SYSTEMD, NameService.WINBIND])
+		),
 	):
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.OK
 
 	# If the server is part of a domain and the opsi users are local and domain users, an error should be issued.
 	with (
-		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("sss")),
-		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(True)),
-		mock.patch("opsiconfd.check.users.is_local_user", return_value=(True)),
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				UserDetails(
+					user_info={
+						"ldap": UserInfo(
+							username="pcpatch",
+							uid=1000,
+							gid=1000,
+							gecos="PCPatch",
+							home="/home/pcpatch",
+							shell="/bin/bash",
+							service=NameService.LDAP,
+						),
+						"compat": UserInfo(
+							username="pcpatch",
+							uid=111111,
+							gid=111111,
+							gecos="PCPatch",
+							home="/home/pcpatch",
+							shell="/bin/bash",
+							service=NameService.COMPAT,
+						),
+					},
+					domain_services=[NameService.LDAP],
+					local_services=[NameService.COMPAT],
+				)
+			),
+		),
+		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD, NameService.LDAP])),
 	):
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.ERROR
 
 	# If the server is not part of a domain and the opsi users are local users, no warning should be issued.
 	with (
-		mock.patch("opsiconfd.check.users.get_domain_bind", return_value=("")),
-		mock.patch("opsiconfd.check.users.is_domain_user", return_value=(False)),
-		mock.patch("opsiconfd.check.users.is_local_user", return_value=(True)),
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				UserDetails(
+					user_info={
+						"compat": UserInfo(
+							username="pcpatch",
+							uid=1000,
+							gid=1000,
+							gecos="PCPatch",
+							home="/home/pcpatch",
+							shell="/bin/bash",
+							service=NameService.COMPAT,
+						)
+					},
+					domain_services=[],
+					local_services=[NameService.COMPAT],
+				)
+			),
+		),
+		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD])),
 	):
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.OK

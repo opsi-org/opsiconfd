@@ -64,7 +64,7 @@ from opsiconfd.ssl import (
 	store_local_server_cert,
 	store_local_server_key,
 )
-from opsiconfd.utils import NameService, UserDetails, UserInfo
+from opsiconfd.utils import NameService, UserInfo
 
 from .utils import (  # noqa: F401
 	ACL_CONF_41,
@@ -721,21 +721,17 @@ def test_check_opsi_users() -> None:
 		mock.patch(
 			"opsiconfd.check.users.get_user_passwd_details",
 			return_value=(
-				UserDetails(
-					user_info={
-						"files": UserInfo(
-							username="pcpatch",
-							uid=1000,
-							gid=1000,
-							gecos="PCPatch",
-							home="/home/pcpatch",
-							shell="/bin/bash",
-							service=NameService(NameService.FILES),
-						)
-					},
-					domain_services=[],
-					local_services=[NameService.FILES],
-				)
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService(NameService.FILES),
+					)
+				]
 			),
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
@@ -748,21 +744,17 @@ def test_check_opsi_users() -> None:
 		mock.patch(
 			"opsiconfd.check.users.get_user_passwd_details",
 			return_value=(
-				UserDetails(
-					user_info={
-						"winbind": UserInfo(
-							username="pcpatch",
-							uid=1000,
-							gid=1000,
-							gecos="PCPatch",
-							home="/home/pcpatch",
-							shell="/bin/bash",
-							service=NameService.WINBIND,
-						)
-					},
-					domain_services=[NameService.WINBIND],
-					local_services=[],
-				)
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.WINBIND,
+					)
+				]
 			),
 		),
 		mock.patch(
@@ -777,30 +769,26 @@ def test_check_opsi_users() -> None:
 		mock.patch(
 			"opsiconfd.check.users.get_user_passwd_details",
 			return_value=(
-				UserDetails(
-					user_info={
-						"ldap": UserInfo(
-							username="pcpatch",
-							uid=1000,
-							gid=1000,
-							gecos="PCPatch",
-							home="/home/pcpatch",
-							shell="/bin/bash",
-							service=NameService.LDAP,
-						),
-						"compat": UserInfo(
-							username="pcpatch",
-							uid=111111,
-							gid=111111,
-							gecos="PCPatch",
-							home="/home/pcpatch",
-							shell="/bin/bash",
-							service=NameService.COMPAT,
-						),
-					},
-					domain_services=[NameService.LDAP],
-					local_services=[NameService.COMPAT],
-				)
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.LDAP,
+					),
+					UserInfo(
+						username="pcpatch",
+						uid=111111,
+						gid=111111,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.COMPAT,
+					),
+				]
 			),
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD, NameService.LDAP])),
@@ -813,21 +801,17 @@ def test_check_opsi_users() -> None:
 		mock.patch(
 			"opsiconfd.check.users.get_user_passwd_details",
 			return_value=(
-				UserDetails(
-					user_info={
-						"compat": UserInfo(
-							username="pcpatch",
-							uid=1000,
-							gid=1000,
-							gecos="PCPatch",
-							home="/home/pcpatch",
-							shell="/bin/bash",
-							service=NameService.COMPAT,
-						)
-					},
-					domain_services=[],
-					local_services=[NameService.COMPAT],
-				)
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.COMPAT,
+					)
+				]
 			),
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD])),

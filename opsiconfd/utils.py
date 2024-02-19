@@ -474,13 +474,6 @@ class UserInfo:
 	service: NameService
 
 
-@dataclass
-class UserDetails:
-	user_info: dict[str, UserInfo]
-	domain_services: List[str]
-	local_services: List[str]
-
-
 ###
 # One of the following exit values can be returned by getent:
 #           0      Command completed successfully.
@@ -488,8 +481,8 @@ class UserDetails:
 #           2      One or more supplied key could not be found in the database.
 #           3      Enumeration not supported on this database.
 ###
-def get_user_passwd_details(username: str) -> UserDetails:
-	user_details = UserDetails(user_info={}, domain_services=[], local_services=[])
+def get_user_passwd_details(username: str) -> List[UserInfo]:
+	user_details = []
 	services = get_passwd_services()
 	for service in services:
 		try:
@@ -501,20 +494,17 @@ def get_user_passwd_details(username: str) -> UserDetails:
 			continue
 		if getent_result:
 			user_info = getent_result.strip().split(":")
-			user_details.user_info[str(service)] = UserInfo(
-				username=user_info[0],
-				uid=int(user_info[2]),
-				gid=int(user_info[3]),
-				gecos=user_info[4],
-				home=user_info[5],
-				shell=user_info[6],
-				service=service,
+			user_details.append(
+				UserInfo(
+					username=user_info[0],
+					uid=int(user_info[2]),
+					gid=int(user_info[3]),
+					gecos=user_info[4],
+					home=user_info[5],
+					shell=user_info[6],
+					service=service,
+				)
 			)
-
-			if service.is_local:
-				user_details.local_services.append(service)
-			else:
-				user_details.domain_services.append(service)
 
 	return user_details
 

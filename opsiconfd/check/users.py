@@ -61,20 +61,20 @@ def check_opsi_users() -> CheckResult:
 			check_name=f"OPSI User UID {user}",
 			check_status=CheckStatus.OK,
 			message=(f"Only one passwd entry for opsi user '{user}' found."),
-			details={"user_info": user_details.user_info},
+			details={"user_info": user_details},
 		)
 
 		uid = 0
-		for info in user_details.user_info.values():
-			if uid != 0 and uid == info.uid:
+		for user_info in user_details:
+			if uid != 0 and uid == user_info.uid:
 				partial_result.check_status = CheckStatus.WARNING
-				partial_result.message = f"opsi user '{user}' found multiple times with the same ID: {uid} == {info.uid}"
+				partial_result.message = f"opsi user '{user}' found multiple times with the same ID: {uid} == {user_info.uid}"
 				break
-			elif uid != 0 and uid != info.uid:
+			elif uid != 0 and uid != user_info.uid:
 				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = f"opsi user '{user}' with different UIDs found: {uid} != {info.uid}"
+				partial_result.message = f"opsi user '{user}' with different UIDs found: {uid} != {user_info.uid}"
 				break
-			uid = info.uid
+			uid = user_info.uid
 
 		if partial_result.check_status != CheckStatus.OK:
 			result.add_partial_result(partial_result)
@@ -83,15 +83,16 @@ def check_opsi_users() -> CheckResult:
 		passwd_services = get_passwd_services()
 		logger.debug("passwd_services: %s", passwd_services)
 
+		local_infos = [user_info for user_info in user_details if NameService(user_info.service).is_local]
 		if (
 			any(not NameService(service).is_local for service in passwd_services)
-			and not user_details.domain_services
-			and user_details.local_services
+			and not [user_info for user_info in user_details if not NameService(user_info.service).is_local]
+			and local_infos
 		):
 			partial_result.check_status = CheckStatus.WARNING
-			for service in user_details.local_services:
+			for info in local_infos:
 				partial_result.message = (
-					f"opsi user '{user} - id: {user_details.user_info[str(service)].uid}' is a local system user (service: '{service}'), "
+					f"opsi user '{user} - id: {info.uid}' is a local system user (service: '{info.service}'), "
 					f"but found domain service in /etc/nsswitch.conf (passwd services: {[str(passwd_service) for passwd_service in passwd_services]}). "
 					"Please check if this is intended."
 				)

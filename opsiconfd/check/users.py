@@ -92,7 +92,7 @@ def check_opsi_users() -> CheckResult:
 			for service in user_details.local_services:
 				partial_result.message = (
 					f"opsi user '{user} - id: {user_details.user_info[str(service)].uid}' is a local system user (service: '{service}'), "
-					f"but found domain service in /etc/nsswitch.conf (passwd services: {passwd_services}). "
+					f"but found domain service in /etc/nsswitch.conf (passwd services: {[str(passwd_service) for passwd_service in passwd_services]}). "
 					"Please check if this is intended."
 				)
 

@@ -18,11 +18,13 @@ import random
 import re
 import secrets
 import string
+import subprocess
 import threading
 import time
 import zlib
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from enum import StrEnum
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from hashlib import md5
 from ipaddress import IPv4Network, IPv6Address, ip_address, ip_interface
@@ -30,7 +32,7 @@ from logging import INFO  # type: ignore[import]
 from pathlib import Path
 from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Optional, TextIO
+from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, List, Optional, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -437,3 +439,86 @@ def forceNodename(var: Any) -> str:
 	if not _NODENAME_REGEX.search(var):
 		raise ValueError(f"Bad nodename: '{var}'")
 	return var
+
+
+def is_local_user(username: str) -> bool:
+	for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
+		if line.startswith(f"{username}:"):
+			return True
+	return False
+
+
+class NameService(StrEnum):
+	SSS = "sss"
+	WINBIND = "winbind"
+	LDAP = "ldap"
+	NISPLUS = "nisplus"
+	NIS = "nis"
+	COMPAT = "compat"
+	SYSTEMD = "systemd"
+	FILES = "files"
+
+	@property
+	def is_local(self) -> bool:
+		return self in (NameService.SYSTEMD, NameService.COMPAT, NameService.FILES)
+
+
+@dataclass(unsafe_hash=True)
+class UserInfo:
+	username: str
+	uid: int
+	gid: int
+	gecos: str  # https://en.wikipedia.org/wiki/Gecos_field
+	home: str
+	shell: str
+	service: NameService
+
+
+###
+# One of the following exit values can be returned by getent:
+#           0      Command completed successfully.
+#           1      Missing arguments, or database unknown.
+#           2      One or more supplied key could not be found in the database.
+#           3      Enumeration not supported on this database.
+###
+def get_user_passwd_details(username: str) -> List[UserInfo]:
+	user_details = []
+	services = get_passwd_services()
+	for service in services:
+		try:
+			getent_result = subprocess.run(
+				["getent", "passwd", "--service", service, username], check=True, capture_output=True, timeout=5
+			).stdout.decode("utf-8")
+		except subprocess.CalledProcessError as err:
+			get_logger().debug("getent passwd --service %s %s failed: %s", service, username, err)
+			continue
+		if getent_result:
+			user_info = getent_result.strip().split(":")
+			user_details.append(
+				UserInfo(
+					username=user_info[0],
+					uid=int(user_info[2]),
+					gid=int(user_info[3]),
+					gecos=user_info[4],
+					home=user_info[5],
+					shell=user_info[6],
+					service=service,
+				)
+			)
+
+	return user_details
+
+
+def get_passwd_services() -> List[NameService]:
+	nsswitch_conf = Path("/etc/nsswitch.conf")
+	if not nsswitch_conf.is_file():
+		return []
+
+	passwd_service = []
+
+	with open(nsswitch_conf, "r", encoding="utf-8") as handle:
+		for line in handle:
+			if "passwd:" in line:
+				passwd_service = [NameService(service) for service in line.split()[1:]]
+				break
+	return passwd_service

@@ -13,7 +13,6 @@ import os
 import pwd
 import re
 from io import StringIO
-from pathlib import Path
 from subprocess import run
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -27,7 +26,7 @@ from qrcode import QRCode  # type: ignore[import]
 
 from opsiconfd.config import OPSI_PASSWD_FILE, get_configserver_id, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import blowfish_decrypt, blowfish_encrypt, lock_file
+from opsiconfd.utils import blowfish_decrypt, blowfish_encrypt, is_local_user, lock_file
 
 from . import rpc_method
 
@@ -35,13 +34,6 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
-
-
-def is_local_user(username: str) -> bool:
-	for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
-		if line.startswith(f"{username}:"):
-			return True
-	return False
 
 
 class RPCUserMixin(Protocol):

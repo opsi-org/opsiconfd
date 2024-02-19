@@ -41,6 +41,7 @@ from opsiconfd.check.main import (
 	check_mysql,
 	check_opsi_config,
 	check_opsi_licenses,
+	check_opsi_users,
 	check_opsiconfd_config,
 	check_product_on_clients,
 	check_product_on_depots,
@@ -63,6 +64,7 @@ from opsiconfd.ssl import (
 	store_local_server_cert,
 	store_local_server_key,
 )
+from opsiconfd.utils import NameService, UserInfo
 
 from .utils import (  # noqa: F401
 	ACL_CONF_41,
@@ -513,7 +515,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 15
+	assert len(results) == 16
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status
@@ -707,4 +709,118 @@ def test_checks_and_skip_checks() -> None:
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		list_of_checks = list(health_check())
-		assert len(list_of_checks) == 12
+		assert len(list_of_checks) == 13
+
+
+def test_check_opsi_users() -> None:
+	result = check_opsi_users()
+	assert result.check_status == CheckStatus.OK
+
+	# If the server is part of a domain and the opsi users are local users, a warning should be issued.
+	with (
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService(NameService.FILES),
+					)
+				]
+			),
+		),
+		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.WARNING
+
+	# If the server  is part of a domain and the opsi users are only domain users, no warning should be issued.
+	with (
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.WINBIND,
+					)
+				]
+			),
+		),
+		mock.patch(
+			"opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SYSTEMD, NameService.WINBIND])
+		),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.OK
+
+	# If the server is part of a domain and the opsi users are local and domain users, an error should be issued.
+	with (
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.LDAP,
+					),
+					UserInfo(
+						username="pcpatch",
+						uid=111111,
+						gid=111111,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.COMPAT,
+					),
+				]
+			),
+		),
+		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD, NameService.LDAP])),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.ERROR
+
+	# If the server is not part of a domain and the opsi users are local users, no warning should be issued.
+	with (
+		mock.patch(
+			"opsiconfd.check.users.get_user_passwd_details",
+			return_value=(
+				[
+					UserInfo(
+						username="pcpatch",
+						uid=1000,
+						gid=1000,
+						gecos="PCPatch",
+						home="/home/pcpatch",
+						shell="/bin/bash",
+						service=NameService.COMPAT,
+					)
+				]
+			),
+		),
+		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD])),
+	):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.OK
+
+	# check for missing user
+	with get_opsi_config([{"category": "depot_user", "config": "username", "value": "pcpatch-local"}]):
+		result = check_opsi_users()
+		assert result.check_status == CheckStatus.ERROR
+		assert result.message == "A required user does not exist."

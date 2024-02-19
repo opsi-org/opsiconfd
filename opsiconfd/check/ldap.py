@@ -7,6 +7,7 @@
 """
 health check
 """
+
 import ldap3  # type: ignore[import]
 
 from opsiconfd.backend import get_unprotected_backend
@@ -17,6 +18,11 @@ from opsiconfd.utils import ldap3_uri_to_str
 
 
 def check_ldap_connection() -> CheckResult:
+	"""
+	## Check LDAP Connection
+
+	Checks whether opsi can connect to the configured LDAP server.
+	"""
 	result = CheckResult(
 		check_id="opsi_ldap_connection",
 		check_name="OPSI LDAP Connection",

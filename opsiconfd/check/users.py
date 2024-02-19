@@ -33,7 +33,7 @@ def check_opsi_users() -> CheckResult:
 		check_id="opsi_users",
 		check_name="OPSI Users ",
 		check_description="Checks opsi users.",
-		message="No Problems found with opsi users.",
+		message="No problems found with opsi users.",
 		details={},
 	)
 
@@ -73,11 +73,11 @@ def check_opsi_users() -> CheckResult:
 		uid = 0
 		for info in user_details.passwd_info.values():
 			if uid != 0 and uid == info.uid:
-				partial_result.check_status = CheckStatus.ERROR
+				partial_result.check_status = CheckStatus.WARNING
 				partial_result.message = f"opsi user '{user}' found multiple times with the same ID: {uid} == {info.uid}"
 				break
 			elif uid != 0 and uid != info.uid:
-				partial_result.check_status = CheckStatus.WARNING
+				partial_result.check_status = CheckStatus.ERROR
 				partial_result.message = f"opsi user '{user}' with different UIDs found: {uid} != {info.uid}"
 				break
 			uid = info.uid
@@ -91,17 +91,21 @@ def check_opsi_users() -> CheckResult:
 
 		if (
 			any(service in PASSWD_DOMAIN_SERVICES for service in passwd_services)
-			and not user_details.domain_user
-			and user_details.local_user
+			and not user_details.domain_services
+			and user_details.local_services
 		):
 			partial_result.check_status = CheckStatus.WARNING
-			partial_result.message = (
-				f"opsi user '{user} - id: {user_details.passwd_info[user_details.local_user].uid}' is a local system user, "
-				f"but found domain service in /etc/nsswitch.conf (passwd services: {passwd_services}). "
-				"Please check if this is intended."
-			)
+			for service in user_details.local_services:
+				partial_result.message = (
+					f"opsi user '{user} - id: {user_details.passwd_info[service].uid}' is a local system user (service: '{service}'), "
+					f"but found domain service in /etc/nsswitch.conf (passwd services: {passwd_services}). "
+					"Please check if this is intended."
+				)
 
 		result.add_partial_result(partial_result)
+	if result.check_status != CheckStatus.OK:
+		result.message = "Possible issues with opsi users. Please check the details."
+		return result
 	return result
 
 

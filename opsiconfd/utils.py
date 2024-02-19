@@ -31,7 +31,7 @@ from logging import INFO  # type: ignore[import]
 from pathlib import Path
 from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Optional, TextIO
+from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, List, Optional, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -460,8 +460,8 @@ class PasswdInfo:
 @dataclass
 class UserDetails:
 	passwd_info: dict[str, PasswdInfo]
-	domain_user: str | None
-	local_user: str | None
+	domain_services: List[str]
+	local_services: List[str]
 
 
 PASSWD_DOMAIN_SERVICES = ("sss", "winbind", "ldap", "nisplus")
@@ -476,7 +476,7 @@ PASSED_LOCAL_SERVICES = ("files", "compat", "nis", "systemd")
 #           3      Enumeration not supported on this database.
 ###
 def get_user_passwd_details(username: str) -> UserDetails:
-	user_details = UserDetails(passwd_info={}, domain_user=None, local_user=None)
+	user_details = UserDetails(passwd_info={}, domain_services=[], local_services=[])
 	services = get_passwd_services()
 	for service in services:
 		try:
@@ -498,9 +498,9 @@ def get_user_passwd_details(username: str) -> UserDetails:
 			)
 
 			if service in PASSWD_DOMAIN_SERVICES:
-				user_details.domain_user = service
+				user_details.domain_services.append(service)
 			if service in PASSED_LOCAL_SERVICES:
-				user_details.local_user = service
+				user_details.local_services.append(service)
 
 	return user_details
 

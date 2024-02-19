@@ -653,41 +653,51 @@ async def test_messagebus_close_on_session_deleted(
 					assert session.deleted
 
 
-def test_messagebus_ping() -> None:
-	with opsiconfd_server({"websocket_ping_interval": 1, "websocket_ping_timeout": 3}) as server_conf:
-		client = ServiceClient(
+@pytest.mark.parametrize("websocket_protocol", ("websockets_opsiconfd", "wsproto_opsiconfd"))
+def test_messagebus_ping(websocket_protocol: str) -> None:
+	with opsiconfd_server(
+		{"websocket_protocol": websocket_protocol, "websocket_ping_interval": 1, "websocket_ping_timeout": 3}
+	) as server_conf:
+		with ServiceClient(
 			address=f"https://localhost:{server_conf.port}",
 			username=ADMIN_USER,
 			password=ADMIN_PASS,
 			verify=ServiceVerificationFlags.ACCEPT_ALL,
-		)
+		) as client:
 
-		class ConFailMessagebusListener(MessagebusListener):
-			connection_failed = 0
+			class ConFailMessagebusListener(MessagebusListener):
+				connection_failed = 0
+				connection_closed = 0
 
-			def messagebus_connection_failed(self, messagebus: Messagebus, exception: Exception) -> None:
-				self.connection_failed += 1
+				def messagebus_connection_failed(self, messagebus: Messagebus, exception: Exception) -> None:
+					print("messagebus_connection_failed:", exception)
+					self.connection_failed += 1
 
-		listener = ConFailMessagebusListener()
+				def messagebus_connection_closed(self, messagebus: Messagebus) -> None:
+					print("messagebus_connection_closed")
+					self.connection_closed += 1
 
-		ping_received = 0
+			listener = ConFailMessagebusListener()
 
-		def on_ping(websocket: WebSocket, message: bytes) -> None:
-			print("Ping received")
-			nonlocal ping_received
-			ping_received += 1
+			ping_received = 0
 
-		client.messagebus._on_ping = on_ping  # type: ignore[method-assign]
-		client.messagebus.register_messagebus_listener(listener)
-		client.connect_messagebus()
+			def on_ping(websocket: WebSocket, message: bytes) -> None:
+				print("Ping received")
+				nonlocal ping_received
+				ping_received += 1
 
-		sleep(5)
-		assert ping_received >= 3
-		assert listener.connection_failed == 0
+			client.messagebus._on_ping = on_ping  # type: ignore[method-assign]
+			client.messagebus.register_messagebus_listener(listener)
+			client.connect_messagebus()
 
-		# Block ServiceClient sending pongs, server should close websocket after ping timeout
-		with patch("websocket._core.WebSocket.pong", lambda *args: None):
+			sleep(5)
+			assert ping_received >= 3
+			assert listener.connection_failed == 0
+			assert listener.connection_closed == 0
+
+			print("Block pong")
+			# Block ServiceClient sending pongs, server should close websocket after ping timeout
+			client.messagebus._app.sock.pong = lambda *args: None  # type: ignore
 			sleep(5)
 
-		assert listener.connection_failed > 0
-		client.stop()
+			assert listener.connection_closed > 0

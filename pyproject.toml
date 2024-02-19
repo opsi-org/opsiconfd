@@ -69,6 +69,7 @@ netifaces = "^0.11"
 werkzeug = "^3.0"
 wsproto = "^1.2"
 pymysql = "^1.1"
+websockets = "^12.0"
 
 [tool.ruff.format]
 indent-style = "tab"

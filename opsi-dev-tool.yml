@@ -57,6 +57,9 @@ pyinstaller-poetry:
     # Collecting both modules so that they can be used depending on the configuration
     - mysqldb
     - pymysql
+    # Collecting both modules so that they can be used depending on the configuration
+    - websockets
+    - wsproto
   scripts:
     - script: run-opsiconfd
       binaries:

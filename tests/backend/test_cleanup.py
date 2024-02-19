@@ -11,7 +11,7 @@ cleanup backend
 from opsicommon.objects import BoolConfig, UnicodeConfig
 
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.backend.mysql.cleanup import convert_config_objects
+from opsiconfd.backend.mysql.cleanup import convert_config_objects, remove_orphans_clientconfig_depot_id
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from tests.utils import backend  # noqa: F401
 
@@ -71,3 +71,35 @@ def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F
 
 	for obj in backend.config_getObjects(configId="test-convert-unicodeconfig*"):
 		assert obj.getType() == "UnicodeConfig"
+
+
+def test_cleanup_clientconfig_depot_id(backend: UnprotectedBackend) -> None:  # noqa: F811
+	depot_id = "test-clientconfig-depot.uib.gmbh"
+	client_id = "test-clientconfig-client.uib.gmbh"
+	backend.host_createOpsiDepotserver(id=depot_id)
+	backend.host_createOpsiClient(id=client_id)
+	backend.configState_create(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+
+	config_states = backend.configState_getObjects(configId="clientconfig.depot.id", objectId=client_id)
+	assert len(config_states) == 1
+	assert config_states[0].getValues() == [depot_id]
+
+	mysql = MySQLConnection()
+	mysql.connect()
+	with mysql.session() as session:
+		remove_orphans_clientconfig_depot_id(session)
+
+	config_states = backend.configState_getObjects(configId="clientconfig.depot.id", objectId=client_id)
+	assert len(config_states) == 1
+	assert config_states[0].getValues() == [depot_id]
+
+	backend.host_delete(id=depot_id)
+	mysql = MySQLConnection()
+	mysql.connect()
+	with mysql.session() as session:
+		remove_orphans_clientconfig_depot_id(session)
+
+	config_states = backend.configState_getObjects(configId="clientconfig.depot.id", objectId=client_id)
+	assert len(config_states) == 0
+
+	backend.host_delete(id=client_id)

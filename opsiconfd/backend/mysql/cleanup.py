@@ -284,6 +284,19 @@ def add_missing_version_info_to_product_on_client(session: Session) -> None:
 		logger.notice("Added %d versions to ProductOnClients.", result.rowcount)
 
 
+def remove_orphans_clientconfig_depot_id(session: Session) -> None:
+	result = session.execute(
+		"""
+			DELETE FROM CONFIG_STATE
+			WHERE
+				configId = "clientconfig.depot.id" AND
+				`values` NOT IN (SELECT CONCAT('["',hostId,'"]') FROM HOST WHERE type in ("OpsiConfigserver", "OpsiDepotserver"))
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from CONFIG_STATE (clientconfig.depot.id)", result.rowcount)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		remove_orphans_config_value(session)
@@ -301,3 +314,4 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_hardware_config(mysql, session)
 		convert_config_objects(session)
 		add_missing_version_info_to_product_on_client(session)
+		remove_orphans_clientconfig_depot_id(session)

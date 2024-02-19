@@ -21,13 +21,15 @@ test:pylint-pytest:
     - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml -p opsiconfd-test-$CI_JOB_ID"
 
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
-    - env | grep "OPSILICSRV_TOKEN=" >> docker/opsiconfd-dev/.env
+    - echo "OPSILICSRV_TOKEN=${OPSILICSRV_TOKEN}" >> docker/opsiconfd-dev/.env
     #- echo "LOCAL_WORKSPACE_DIR=../.." >> docker/opsiconfd-dev/.env
     - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}" >> docker/opsiconfd-dev/.env
     - echo "OPSISERVER_DEV_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
     - echo "OPSISERVER_CS_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
     - echo "DEV_USER=" >> docker/opsiconfd-dev/.env
     - echo "DEV_UID=" >> docker/opsiconfd-dev/.env
+    - echo "BENCHER_HOST=${BENCHER_HOST}" >> docker/opsiconfd-dev/.env
+    - echo "BENCHER_API_TOKEN=${BENCHER_API_TOKEN}" >> docker/opsiconfd-dev/.env
 
     - echo -e "${TXT_HEAD}Build docker images${TXT_CLEAR}"
     - $DOCKER_COMPOSE build --pull
@@ -45,6 +47,8 @@ test:pylint-pytest:
     - $DOCKER_COMPOSE down -v
   script:
     - echo -e "${TXT_HEAD}Fetch bencher${TXT_CLEAR}"
+    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.4.2/bencher-v0.4.2-linux-x86-64 -O bencher
+    - chmod +x bencher
 
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 120
@@ -99,9 +103,7 @@ test:pylint-pytest:
         exit 1
       )
 
-    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.4.2/bencher-v0.4.2-linux-x86-64 -O bencher
-    - chmod +x bencher
-    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --host "$BENCHER_HOST" --token "$BENCHER_API_TOKEN" --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
+    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

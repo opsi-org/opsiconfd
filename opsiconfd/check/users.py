@@ -12,7 +12,7 @@ import pwd
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import NameService, get_passwd_services, get_user_passwd_details
+from opsiconfd.utils import get_passwd_services, get_user_passwd_details
 
 
 def check_opsi_users() -> CheckResult:
@@ -25,7 +25,7 @@ def check_opsi_users() -> CheckResult:
 	"""
 	result = CheckResult(
 		check_id="opsi_users",
-		check_name="OPSI Users ",
+		check_name="opsi users",
 		check_description="Checks opsi users.",
 		message="No problems found with opsi users.",
 		details={},
@@ -37,7 +37,7 @@ def check_opsi_users() -> CheckResult:
 	for user in (depot_user, opsiconfd_user):
 		partial_result = PartialCheckResult(
 			check_id=f"opsi_user:exist:{user}",
-			check_name=f"OPSI User exist {user}",
+			check_name=f"opsi user exist: {user}",
 			check_status=CheckStatus.OK,
 			message=(f"opsi user '{user}' does exist."),
 			details={},
@@ -83,19 +83,16 @@ def check_opsi_users() -> CheckResult:
 		passwd_services = get_passwd_services()
 		logger.debug("passwd_services: %s", passwd_services)
 
-		local_infos = [user_info for user_info in user_details if NameService(user_info.service).is_local]
-		if (
-			any(not NameService(service).is_local for service in passwd_services)
-			and not [user_info for user_info in user_details if not NameService(user_info.service).is_local]
-			and local_infos
-		):
+		local_infos = [user_info for user_info in user_details if user_info.service.is_local]
+		non_local_infos = [user_info for user_info in user_details if not user_info.service.is_local]
+		if any(not service.is_local for service in passwd_services) and local_infos and not non_local_infos:
+			# User is only local, but a non local service was found in /etc/nsswitch.conf
 			partial_result.check_status = CheckStatus.WARNING
-			for info in local_infos:
-				partial_result.message = (
-					f"opsi user '{user} - id: {info.uid}' is a local system user (service: '{info.service}'), "
-					f"but found domain service in /etc/nsswitch.conf (passwd services: {[str(passwd_service) for passwd_service in passwd_services]}). "
-					"Please check if this is intended."
-				)
+			partial_result.message = (
+				f"opsi user '{user}' (uid: {local_infos[0].uid}) is a local system user (service: '{local_infos[0].service}'), "
+				f"but found a domain service in /etc/nsswitch.conf (passwd services: {[str(s) for s in passwd_services]}). "
+				"Please check if this is intended."
+			)
 
 		result.add_partial_result(partial_result)
 	if result.check_status != CheckStatus.OK:

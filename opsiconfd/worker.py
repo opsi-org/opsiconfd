@@ -44,7 +44,7 @@ from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client, pool_disconnect_connections
 from opsiconfd.ssl import opsi_ca_is_self_signed
 from opsiconfd.utils import asyncio_create_task
-from opsiconfd.websocket import WSProtocolPing
+from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
 
 if TYPE_CHECKING:
 	from uvicorn.protocols.http.h11_impl import H11Protocol
@@ -56,7 +56,8 @@ multiprocessing.allow_connection_pickling()
 spawn = multiprocessing.get_context("spawn")
 
 
-WS_PROTOCOLS["wsproto_ping"] = WSProtocolPing  # type: ignore
+WS_PROTOCOLS["wsproto_opsiconfd"] = WSProtocolOpsiconfd  # type: ignore
+WS_PROTOCOLS["websockets_opsiconfd"] = WebSocketProtocolOpsiconfd  # type: ignore
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
@@ -75,11 +76,7 @@ def get_uvicorn_config() -> Config:
 		"loop": "uvloop",
 		"interface": "asgi3",
 		"http": "h11",  # "httptools"
-		# Using wsproto instead of websockets because of error:
-		# Websocket connection closed with error: no close frame received or sent
-		# Reproducable with one worker and:
-		#  perftest/messagebus-clients.py --clients 500 --events 0 --start-gap 20 --keep-connection
-		"ws": "wsproto_ping",  # wsproto_ping / wsproto / websockets
+		"ws": config.websocket_protocol,  # wsproto_opsiconfd / wsproto / websockets_opsiconfd / websockets
 		"host": config.interface,
 		"port": config.port,
 		"workers": config.workers,

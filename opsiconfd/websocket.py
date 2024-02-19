@@ -19,15 +19,26 @@ from asyncio.events import AbstractEventLoop
 from typing import Any
 
 from uvicorn.config import Config  # type: ignore[import]
+from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
 from uvicorn.protocols.websockets.wsproto_impl import ConnectionState, WSProtocol
 from uvicorn.server import ServerState
 from wsproto import events
+
+from opsiconfd.config import config as opsiconfd_config
 
 multiprocessing.allow_connection_pickling()
 spawn = multiprocessing.get_context("spawn")
 
 
-class WSProtocolPing(WSProtocol):
+class WebSocketProtocolOpsiconfd(WebSocketProtocol):
+	def __init__(
+		self, config: Config, server_state: ServerState, app_state: dict[str, Any], _loop: AbstractEventLoop | None = None
+	) -> None:
+		super().__init__(config, server_state, app_state, _loop)
+		self.open_timeout = opsiconfd_config.websocket_open_timeout
+
+
+class WSProtocolOpsiconfd(WSProtocol):
 	def __init__(
 		self, config: Config, server_state: ServerState, app_state: dict[str, Any], _loop: AbstractEventLoop | None = None
 	) -> None:

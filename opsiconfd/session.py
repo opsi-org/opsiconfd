@@ -376,6 +376,7 @@ class SessionManager:
 	def __init__(self, session_check_interval: int = 5, session_store_interval_min: int = 60) -> None:
 		self._session_check_interval = session_check_interval
 		self._session_store_interval_min = session_store_interval_min
+		self._development_option_delay_get_session = "delay-get-session" in config.development_options
 		self._manager_task: asyncio.Task | None = None
 		self._should_stop = False
 		self._stopped = asyncio.Event()
@@ -443,6 +444,9 @@ class SessionManager:
 	async def get_session(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> OPSISession:
 		if self._should_stop:
 			raise RuntimeError("Shutting down")
+
+		if self._development_option_delay_get_session:
+			await asyncio.sleep(3)
 
 		session: OPSISession | None = None
 		if session_id:

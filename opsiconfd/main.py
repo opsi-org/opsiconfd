@@ -311,7 +311,7 @@ def restore_main() -> None:
 
 def opsiconfd_main() -> None:
 	manager_pid = get_manager_pid(ignore_self=True)
-	if config.action == "start" and manager_pid:
+	if config.action == "start" and manager_pid and config.check_running:
 		raise RuntimeError(f"Opsiconfd manager process already running (pid {manager_pid})")
 
 	if config.action in ("restart", "status"):

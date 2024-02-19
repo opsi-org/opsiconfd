@@ -391,6 +391,8 @@ class Config(metaclass=Singleton):
 			self._config.disabled_features = []
 		if not self._config.debug_options:
 			self._config.debug_options = []
+		if not self._config.development_options:
+			self._config.development_options = []
 
 		for attr in "networks", "admin_networks":
 			conf = getattr(self._config, attr)
@@ -997,6 +999,18 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--check-running",
+			env_var="OPSICONFD_CHECK_RUNNING",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"expert",
+				"Check if other opsiconfd manager instance already running on startup.",
+			),
+		)
+		self._parser.add(
 			"--skip-setup",
 			nargs="+",
 			env_var="OPSICONFD_SKIP_SETUP",
@@ -1141,6 +1155,17 @@ class Config(metaclass=Singleton):
 			choices=("asyncio", "rpc-log", "rpc-error-log", "prod-dep-log"),
 		)
 		self._parser.add(
+			"--development-options",
+			nargs="+",
+			env_var="OPSICONFD_DEVELOPMENT_OPTIONS",
+			default=None,
+			help=self._help(
+				"expert",
+				"A list of development options (possible options are: delay-get-session).",
+			),
+			choices=("delay-get-session"),
+		)
+		self._parser.add(
 			"--profiler",
 			env_var="OPSICONFD_PROFILER",
 			type=str2bool,
@@ -1161,6 +1186,20 @@ class Config(metaclass=Singleton):
 			type=int,
 			default=10,
 			help=self._help("expert", "Number of thread pool workers for asyncio."),
+		)
+		self._parser.add(
+			"--websocket-protocol",
+			env_var="OPSICONFD_WEBSOCKET_PROTOCOL",
+			default="wsproto_opsiconfd",
+			help=self._help("expert", "Set the websocket protocol."),
+			choices=("wsproto_opsiconfd", "websockets_opsiconfd", "wsproto", "websockets"),
+		)
+		self._parser.add(
+			"--websocket-open-timeout",
+			env_var="OPSICONFD_WEBSOCKET_OPEN_TIMEOUT",
+			type=int,
+			default=30,
+			help=self._help("expert", "Set the websocket open timeout, in seconds."),
 		)
 		self._parser.add(
 			"--websocket-queue-size",

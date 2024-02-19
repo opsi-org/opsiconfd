@@ -432,6 +432,7 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 		"log_level_stderr": LOG_WARNING,
 		"log_level_file": LOG_NONE,
 		"zeroconf": False,
+		"check_running": False,
 	}
 	if server_config:
 		defaults.update(server_config)

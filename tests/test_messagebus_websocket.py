@@ -15,7 +15,14 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from opsicommon.client.opsiservice import Messagebus, MessagebusListener, ServiceClient, ServiceVerificationFlags, WebSocket
+from opsicommon.client.opsiservice import (
+	Messagebus,
+	MessagebusListener,
+	OpsiServiceConnectionError,
+	ServiceClient,
+	ServiceVerificationFlags,
+	WebSocket,
+)
 from opsicommon.logging import get_logger, use_logging_config
 from opsicommon.logging.constants import LOG_TRACE
 from opsicommon.messagebus import (  # type: ignore[import]
@@ -57,6 +64,37 @@ from .utils import (  # noqa: F401
 )
 
 logger = get_logger()
+
+
+@pytest.mark.parametrize(
+	"websocket_protocol, websocket_open_timeout, expect_timeout",
+	[
+		("websockets_opsiconfd", 2, True),
+		("websockets_opsiconfd", 5, False),
+		# Cannot set timeout for wsproto
+		("wsproto_opsiconfd", 5, False),
+	],
+)
+def test_websocket_open_timeout(websocket_protocol: str, websocket_open_timeout: int, expect_timeout: bool) -> None:  # noqa: F811
+	with opsiconfd_server(
+		{
+			"websocket_protocol": websocket_protocol,
+			"websocket_open_timeout": websocket_open_timeout,
+			"development_options": ["delay-get-session"],  # Delays get_session for 3 seconds
+		}
+	) as server_conf:
+		with ServiceClient(
+			address=f"https://localhost:{server_conf.port}",
+			username=ADMIN_USER,
+			password=ADMIN_PASS,
+			verify=ServiceVerificationFlags.ACCEPT_ALL,
+			connect_timeout=5,
+		) as client:
+			if expect_timeout:
+				with pytest.raises(OpsiServiceConnectionError):
+					client.connect_messagebus()
+			else:
+				client.connect_messagebus()
 
 
 @pytest.mark.parametrize("compression", ("", "lz4", "gzip"))

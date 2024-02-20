@@ -65,6 +65,11 @@ LINUX_DISTRO_EOL = {
 		"8": date(2024, 5, 1),
 		"9": date(2027, 5, 31),
 	},
+	"oracle": {
+		"7": date(2024, 12, 1),
+		"8": date(2029, 6, 1),
+		"9": date(2032, 6, 1),
+	},
 }
 
 LINUX_DISTRO_REPO_NAMES = {
@@ -97,6 +102,11 @@ LINUX_DISTRO_REPO_NAMES = {
 		"8": "RockyLinux_8",
 		"9": "RockyLinux_9",
 	},
+	"oracle": {
+		"7": "OracleLinux_7",
+		"8": "OracleLinux_8",
+		"9": "OracleLinux_9",
+	},
 }
 
 
@@ -120,7 +130,7 @@ def check_distro_eol() -> CheckResult:
 	with exc_to_result(result):
 		distro = linux_distro_id()
 		version = linux_distro_version_id()
-		if distro == "rocky":
+		if distro in ("rocky", "ol"):
 			version = version.split(".")[0]
 		if version_info := LINUX_DISTRO_EOL.get(distro):
 			if eol := version_info.get(version):
@@ -177,7 +187,7 @@ def get_repo_versions() -> dict[str, str | None]:
 
 def get_installed_packages(packages: dict | None = None) -> dict:
 	installed_versions: dict[str, str] = {}
-	if linux_distro_id_like_contains("rhel"):
+	if linux_distro_id_like_contains(("rhel", "fedora")):
 		cmd = ["yum", "list", "installed"]
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
 		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
@@ -397,8 +407,8 @@ def check_system_repos() -> CheckResult:
 						result.check_status = CheckStatus.ERROR
 						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split()[1]}"
 
-		elif distro in ("almalinux", "centos", "rocky", "rhel"):
-			if distro == "rocky":
+		elif distro in ("almalinux", "centos", "rocky", "rhel", "ol"):
+			if distro in ("rocky", "ol"):
 				version = version.split(".")[0]
 			cmd = ["yum", "repolist"]
 			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout

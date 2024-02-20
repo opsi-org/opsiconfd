@@ -31,7 +31,7 @@ class LDAPAuthentication(AuthenticationModule):
 		:param ldap_url: The ldap connection url.
 		:param bind_user: (optional) The simple bind is performed with this user.
 		        The ``bind_user`` has to contain the placeholder ``{username}`` which will be
-		        replaced by the username auth autenticating user.
+		        replaced by the username auth authenticating user.
 		        The placeholder ``{base}`` will be replaced by the base dn.
 		        For active directory ``{username}@your.realm`` should work.
 		        For OpenLDAP a dn like ``uid={username},ou=Users,{base}`` should be used.

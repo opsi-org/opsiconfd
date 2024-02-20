@@ -16,6 +16,7 @@ import gc
 import multiprocessing
 import os
 import socket
+import ssl
 import sys
 import time
 from asyncio import sleep as asyncio_sleep
@@ -30,7 +31,8 @@ from opsicommon.utils import (
 	ip_address_in_network,
 	patch_popen,  # type: ignore[import]
 )
-from uvicorn.config import WS_PROTOCOLS, Config  # type: ignore[import]
+from uvicorn.config import HTTP_PROTOCOLS, WS_PROTOCOLS, Config  # type: ignore[import]
+from uvicorn.protocols.http.h11_impl import H11Protocol
 from uvicorn.protocols.websockets.wsproto_impl import WSProtocol
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
@@ -47,7 +49,6 @@ from opsiconfd.utils import asyncio_create_task
 from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
 
 if TYPE_CHECKING:
-	from uvicorn.protocols.http.h11_impl import H11Protocol
 	from uvicorn.protocols.http.httptools_impl import HttpToolsProtocol
 	from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
 
@@ -56,8 +57,17 @@ multiprocessing.allow_connection_pickling()
 spawn = multiprocessing.get_context("spawn")
 
 
+class H11ProtocolOpsiconfd(H11Protocol):
+	def _get_upgrade(self) -> bytes | None:
+		if "extensions" not in self.scope:
+			self.scope["extensions"] = {}
+		self.scope["extensions"]["peer_cert"] = self.transport.get_extra_info("ssl_object").getpeercert()
+		return super()._get_upgrade()
+
+
 WS_PROTOCOLS["wsproto_opsiconfd"] = WSProtocolOpsiconfd  # type: ignore
 WS_PROTOCOLS["websockets_opsiconfd"] = WebSocketProtocolOpsiconfd  # type: ignore
+HTTP_PROTOCOLS["h11_opsiconfd"] = H11ProtocolOpsiconfd  # type: ignore
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
@@ -75,7 +85,7 @@ def get_uvicorn_config() -> Config:
 	options = {
 		"loop": "uvloop",
 		"interface": "asgi3",
-		"http": "h11",  # "httptools"
+		"http": "h11_opsiconfd",  # h11_opsiconfd / h11 / httptools
 		"ws": config.websocket_protocol,  # wsproto_opsiconfd / wsproto / websockets_opsiconfd / websockets
 		"host": config.interface,
 		"port": config.port,
@@ -102,6 +112,10 @@ def get_uvicorn_config() -> Config:
 			# Only send the ca cert if it is not self-signed otherwise it can lead to SSL error:
 			# self signed certificate in certificate chain
 			options["ssl_ca_certs"] = config.ssl_ca_cert
+
+	if config.client_cert_auth:
+		options["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
+		options["ssl_ca_certs"] = config.ssl_ca_cert
 
 	return Config("opsiconfd.application:app", **options)
 

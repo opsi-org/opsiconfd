@@ -377,6 +377,8 @@ class Config(metaclass=Singleton):
 				secret_filter.add_secrets(unquote(url.password))
 		if not self._config.skip_setup:
 			self._config.skip_setup = []
+		if not self._config.client_cert_auth:
+			self._config.client_cert_auth = []
 		if self._parser and "all" in self._config.skip_setup:
 			for action in self._parser._actions:
 				if action.dest == "skip_setup":
@@ -957,6 +959,14 @@ class Config(metaclass=Singleton):
 			default="inactive",
 			help=self._help("opsiconfd", "The multi factor authentication mode to use."),
 			choices=("inactive", "totp_optional", "totp_mandatory"),
+		)
+		self._parser.add(
+			"--client-cert-auth",
+			env_var="OPSICONFD_CLIENT_AUTH",
+			nargs="+",
+			default=None,
+			help=self._help("expert", "HTTPS client certificate authentication settings."),
+			choices=("client", "depot", "user"),
 		)
 		self._parser.add(
 			"--client-block-time",

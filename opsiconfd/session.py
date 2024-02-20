@@ -1005,6 +1005,16 @@ def get_auth_module() -> AuthenticationModule:
 	return auth_module.get_instance()
 
 
+def get_peer_cert_common_name(scope: Scope) -> str | None:
+	peer_cert = scope.get("extensions", {}).get("peer_cert")
+	if not peer_cert:
+		return None
+	for value in peer_cert["subject"]:
+		if value[0][0] == "commonName":
+			return value[0][1]
+	return None
+
+
 async def authenticate_host(scope: Scope) -> None:
 	session = scope["session"]
 	backend = get_unprotected_backend()
@@ -1032,13 +1042,24 @@ async def authenticate_host(scope: Scope) -> None:
 	if not host.opsiHostKey:
 		raise BackendAuthenticationError(f"OpsiHostKey missing for host '{host.id}'")
 
+	peer_cert_cn = get_peer_cert_common_name(scope)
+
 	logger.confidential(
-		"Host '%s' authentication: password sent '%s', host key '%s', onetime password '%s'",
+		"Host '%s' authentication: password sent '%s', host key '%s', onetime password '%s', client tls certificate CN '%s'",
 		host.id,
 		session.password,
 		host.opsiHostKey,
 		host.oneTimePassword if host.getType() == "OpsiClient" else "n.a.",
+		peer_cert_cn,
 	)
+
+	if ("depot" in config.client_cert_auth and host.getType() in ("OpsiConfigserver", "OpsiDepotserver")) or (
+		"client" in config.client_cert_auth and host.getType() == "OpsiClient"
+	):
+		if not peer_cert_cn:
+			raise BackendAuthenticationError(f"Client certificate missing for host '{host.id}'")
+		if peer_cert_cn != host.id:
+			raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
 
 	if host.opsiHostKey and session.password == host.opsiHostKey:
 		logger.info("Host '%s' authenticated by host key", host.id)
@@ -1093,6 +1114,14 @@ async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
 
 	if not authm:
 		raise BackendAuthenticationError("Authentication module unavailable")
+
+	peer_cert_cn = get_peer_cert_common_name(scope)
+
+	if "user" in config.client_cert_auth:
+		if not peer_cert_cn:
+			raise BackendAuthenticationError(f"Client certificate missing for user '{session.username}'")
+		if peer_cert_cn != session.username:
+			raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'")
 
 	logger.debug("Trying to authenticate by user authentication module %s", authm)
 

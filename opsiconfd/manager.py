@@ -255,16 +255,17 @@ class WorkerManager:
 					any_alive = True
 					if diff < self.worker_stop_timeout:
 						continue
+
 					logger.warning(
-						"Timed out after %d seconds while waiting for worker %s to stop, forcing worker to stop", diff, worker.pid
+						"Timed out after %d seconds while waiting for worker %d to stop, stopping worker process (SIGKILL)",
+						diff,
+						worker.pid,
 					)
-					if diff > self.worker_stop_timeout + 5:
-						worker.process.kill()
-					else:
-						worker.process.terminate()
+					worker.process.kill()
+					break
 				if not any_alive:
 					break
-				time.sleep(0.2)
+				time.sleep(0.5)
 
 		if remove_worker:
 			for worker in workers:

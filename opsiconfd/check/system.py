@@ -401,7 +401,7 @@ def check_system_repos() -> CheckResult:
 				if "http://download.opensuse.org" in line or "https://download.opensuse.org" in line:
 					if LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version, "") in line:
 						result.check_status = CheckStatus.OK
-						result.message = "System and opsi repositories are compatible."
+						result.message = "No issues found with the system repositories."
 						break
 					else:
 						result.check_status = CheckStatus.ERROR
@@ -417,7 +417,7 @@ def check_system_repos() -> CheckResult:
 				if "opsi" in line:
 					if LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version, "") in line:
 						result.check_status = CheckStatus.OK
-						result.message = "System and opsi repositories are compatible."
+						result.message = "No issues found with the system repositories."
 						break
 					else:
 						result.check_status = CheckStatus.ERROR
@@ -432,7 +432,7 @@ def check_system_repos() -> CheckResult:
 				if "opsi" in line:
 					if LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version, "") in line:
 						result.check_status = CheckStatus.OK
-						result.message = "System and opsi repositories are compatible."
+						result.message = "No issues found with the system repositories."
 						break
 					else:
 						result.check_status = CheckStatus.ERROR

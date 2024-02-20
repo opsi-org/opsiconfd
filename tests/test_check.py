@@ -20,6 +20,7 @@ from unittest import mock
 from warnings import catch_warnings, simplefilter
 
 import requests
+from mock import Mock
 from MySQLdb import OperationalError  # type: ignore[import]
 from opsicommon.objects import (
 	LocalbootProduct,
@@ -52,7 +53,7 @@ from opsiconfd.check.main import (
 	health_check,
 )
 from opsiconfd.check.opsipackages import get_available_product_versions
-from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, get_repo_versions
+from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, check_system_repos, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 from opsiconfd.redis import redis_client
 from opsiconfd.ssl import (
@@ -824,3 +825,50 @@ def test_check_opsi_users() -> None:
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "A required user does not exist."
+
+
+def test_check_system_repos() -> None:
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "debian"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "10"
+			with mock.patch("opsiconfd.check.system.run") as mock_run:
+				mock_run.return_value = Mock(
+					stdout="""
+Package files:
+100 /var/lib/dpkg/status
+	release a=now
+500 https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11  Packages
+	release o=obs://build.opensuse.org/home:uibmz:opsi:4.3:stable/Debian_11,n=Debian_11,l=home:uibmz:opsi:4.3:stable,c=
+	origin download.opensuse.org
+500 https://apt.grafana.com stable/main amd64 Packages
+	release o=. stable,a=stable,n=stable,l=. stable,c=main,b=amd64
+	origin apt.grafana.com
+Pinned packages:
+"""
+				)
+				result = check_system_repos()
+				assert result.check_status == CheckStatus.ERROR
+				assert (
+					result.message
+					== "System and opsi repositories are incompatible. System 'debian 10' using repository: https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11"
+				)
+
+		with mock.patch("opsiconfd.check.system.run") as mock_run:
+			mock_run.return_value = Mock(
+				stdout="""
+Package files:
+100 /var/lib/dpkg/status
+	release a=now
+500 https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_10  Packages
+	release o=obs://build.opensuse.org/home:uibmz:opsi:4.3:stable/Debian_11,n=Debian_10,l=home:uibmz:opsi:4.3:stable,c=
+	origin download.opensuse.org
+500 https://apt.grafana.com stable/main amd64 Packages
+	release o=. stable,a=stable,n=stable,l=. stable,c=main,b=amd64
+	origin apt.grafana.com
+Pinned packages:
+"""
+			)
+			result = check_system_repos()
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "No issues found with the system repositories."

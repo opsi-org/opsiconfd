@@ -518,7 +518,7 @@ def get_passwd_services() -> List[NameService]:
 
 	with open(nsswitch_conf, "r", encoding="utf-8") as handle:
 		for line in handle:
-			if "passwd:" in line:
+			if line.startswith("passwd:"):
 				passwd_service = [NameService(service) for service in line.split()[1:]]
 				break
 	return passwd_service

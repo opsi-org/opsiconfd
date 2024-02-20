@@ -25,7 +25,7 @@ def check_opsi_users() -> CheckResult:
 	"""
 	result = CheckResult(
 		check_id="opsi_users",
-		check_name="opsi users",
+		check_name="OPSI Users",
 		check_description="Checks opsi users.",
 		message="No problems found with opsi users.",
 		details={},

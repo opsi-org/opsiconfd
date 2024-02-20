@@ -45,6 +45,7 @@ from opsiconfd.main import opsiconfd_main
 from opsiconfd.manager import Manager
 from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import session_manager
+from opsiconfd.ssl import setup_ca, setup_server_cert
 from opsiconfd.utils import Singleton
 from opsiconfd.worker import Worker
 
@@ -432,6 +433,7 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 		"log_level_stderr": LOG_WARNING,
 		"log_level_file": LOG_NONE,
 		"zeroconf": False,
+		"collect_metrics": False,
 		"check_running": False,
 	}
 	if server_config:
@@ -441,6 +443,8 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 	# Use use_logging_config to return to the previous log level
 	with use_logging_config(stderr_level=server_config["log_level_stderr"]):
 		with get_config(server_config, with_env=False) as conf:
+			setup_ca()
+			setup_server_cert()
 			reset_singleton(Manager)
 			manager = Manager(install_signal_handlers=False)
 			thread = Thread(target=opsiconfd_main, daemon=True)

@@ -308,8 +308,20 @@ class SessionMiddleware:
 			error = str(err)
 
 		headers = headers or {}
+		headers["x-opsi-error"] = str(error)[:64]
 
 		if scope["type"] == "websocket":
+			if connection.headers.get("upgrade") == "websocket":
+				# Websocket not opened yet, tested with wsproto only
+				await send(
+					{
+						"type": "websocket.http.response.start",
+						"status": status_code,
+						"headers": [(k.encode("latin-1"), v.encode("latin-1")) for k, v in headers.items()],
+					}
+				)
+				await send({"type": "websocket.http.response.body", "body": b"ERROR XYZ AAAA"})
+
 			# Uvicorn (0.20.0) always closes websockets with code 403
 			# There is currently no way to send a custom status code or headers
 			websocket_close_code = status.WS_1008_POLICY_VIOLATION
@@ -319,19 +331,15 @@ class SessionMiddleware:
 			elif status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
 				websocket_close_code = status.WS_1013_TRY_AGAIN_LATER
 				reason = f"{reason[:100]}\nRetry-After: {headers.get('Retry-After')}"
+
 			# reason max length 123 bytes
 			logger.debug("Closing websocket with code=%r and reason=%r", websocket_close_code, reason)
 			try:
-				# Need to open (accept) websocket before close
-				await send({"type": "websocket.accept"})
-			except RuntimeError:
-				# Alread accepted
-				pass
-			try:
-				return await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
+				await send({"type": "websocket.close", "code": websocket_close_code, "reason": reason})
 			except RuntimeError:
 				# Alread closed (can happen on shutdown)
 				pass
+			return
 
 		if scope.get("session"):
 			scope["session"].add_cookie_to_headers(headers)

@@ -10,12 +10,16 @@ login tests
 
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import patch
 
 import pyotp
 import pytest
 from fastapi import status
 from opsicommon import objects
+from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
+from opsicommon.exceptions import OpsiServiceAuthenticationError
+from opsicommon.logging import LOG_TRACE, use_logging_config
 from packaging.version import Version
 
 from opsiconfd import (
@@ -25,6 +29,7 @@ from opsiconfd import (
 	set_contextvars_from_contex,
 )
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
+from opsiconfd.session import OPSISession
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -40,6 +45,7 @@ from .utils import (  # noqa: F401
 	database_connection,
 	depot_jsonrpc,
 	get_config,
+	opsiconfd_server,
 	test_client,
 )
 
@@ -669,3 +675,44 @@ def test_min_configed_version(
 			res = test_client.get("/admin/")
 		assert res.status_code == status_code
 		assert response_text_match in res.text
+
+
+def test_client_certificate(
+	tmp_path: Path,
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	client_cert_file = tmp_path / "client-cert.pem"
+	opsi_client = objects.OpsiClient(id="client1.opsi.test", opsiHostKey="cde58508cc5e229d9ec04d94710f020d")
+	backend.host_createObjects([opsi_client])
+	sess = OPSISession("localhost")
+	sess.is_admin = True
+	contextvar_client_session.set(sess)
+	with opsiconfd_server({"client_cert_auth": ["client"]}) as server_conf:
+		pem = backend.host_getTLSCertificate(opsi_client.id)
+		client_cert_file.write_text(pem, encoding="utf-8")
+
+		with use_logging_config(stderr_level=LOG_TRACE):
+			with ServiceClient(
+				address=f"https://localhost:{server_conf.port}",
+				username=opsi_client.id,
+				password=opsi_client.opsiHostKey,
+				verify=ServiceVerificationFlags.ACCEPT_ALL,
+			) as client:
+				with pytest.raises(OpsiServiceAuthenticationError):
+					assert client.jsonrpc("accessControl_authenticated")
+				with pytest.raises(OpsiServiceAuthenticationError):
+					client.messagebus.connect()
+
+			with ServiceClient(
+				address=f"https://localhost:{server_conf.port}",
+				username=opsi_client.id,
+				password=opsi_client.opsiHostKey,
+				verify=ServiceVerificationFlags.ACCEPT_ALL,
+				client_cert_file=client_cert_file,
+			) as client:
+				assert client.jsonrpc("accessControl_authenticated")
+				# Delete session and connect messagebus without valid cookie
+				# so that the client has to authenticate again with the client certificate
+				client.get("/session/logout")
+				client.messagebus.connect()
+				assert client.messagebus.jsonrpc("accessControl_authenticated")

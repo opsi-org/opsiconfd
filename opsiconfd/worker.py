@@ -114,6 +114,8 @@ def get_uvicorn_config() -> Config:
 			options["ssl_ca_certs"] = config.ssl_ca_cert
 
 	if config.client_cert_auth:
+		if config.websocket_protocol != "wsproto_opsiconfd":
+			raise ValueError("Client certificate authentication is only supported with wsproto_opsiconfd")
 		options["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
 		options["ssl_ca_certs"] = config.ssl_ca_cert
 
@@ -355,6 +357,7 @@ class Worker(WorkerInfo, UvicornServer):
 					if logger.isEnabledFor(DEBUG):
 						logger.debug("Closing connection: %s", self.get_connection_info(connection))
 					connection.shutdown()
+
 			except Exception as err:
 				logger.warning("Failed to close connection %s: %s", connection, err)
 
@@ -375,17 +378,13 @@ class Worker(WorkerInfo, UvicornServer):
 
 			start = time.time()
 			while not self.force_exit:
-				if not self.server_state.connections:
-					break
-
-				if keep_connections:
-					wait_done = True
-					for con in self.server_state.connections:
-						if con not in keep_connections:
-							wait_done = False
-							break
-					if wait_done:
+				wait_done = True
+				for con in self.server_state.connections:
+					if con not in keep_connections:
+						wait_done = False
 						break
+				if wait_done:
+					break
 
 				if time.time() - start >= self.connection_close_wait_timeout:
 					logger.notice("Timed out while waiting for connections to close")

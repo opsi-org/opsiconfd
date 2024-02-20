@@ -106,3 +106,9 @@ class WSProtocolOpsiconfd(WSProtocol):
 			task = self.loop.create_task(self._ping_pong_task())
 			task.add_done_callback(self.on_task_complete)
 			self.tasks.add(task)
+
+	async def run_asgi(self) -> None:
+		if "extensions" not in self.scope:
+			self.scope["extensions"] = {}
+		self.scope["extensions"]["peer_cert"] = self.transport.get_extra_info("ssl_object").getpeercert()
+		await super().run_asgi()

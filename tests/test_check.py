@@ -20,7 +20,7 @@ from unittest import mock
 from warnings import catch_warnings, simplefilter
 
 import requests
-from mock import Mock
+from mock import Mock  # type: ignore[import]
 from MySQLdb import OperationalError  # type: ignore[import]
 from opsicommon.objects import (
 	LocalbootProduct,

@@ -25,4 +25,5 @@ CHECKS = [
 	"deprecated_calls",
 	"ldap_connection",
 	"opsi_users",
+	"system_repos",
 ]

@@ -15,6 +15,7 @@ from typing import Generator
 
 import pytest
 from fastapi import status
+from fastapi.websockets import WebSocketDisconnect
 from msgspec import msgpack
 
 from opsiconfd.application import (
@@ -131,12 +132,11 @@ def test_maintenance(
 		assert response.headers["Retry-After"] == "11"
 		assert response.text == "pytest"
 
-		with test_client.websocket_connect("/messagebus/v1") as websocket:
-			assert websocket
-			data = websocket.receive()
-			assert data["type"] == "websocket.close"
-			assert data["code"] == status.WS_1013_TRY_AGAIN_LATER
-			assert data["reason"] == "pytest\nRetry-After: 11"
+		with pytest.raises(WebSocketDisconnect) as excinfo:
+			with test_client.websocket_connect("/messagebus/v1") as websocket:
+				pass
+		assert excinfo.value.code == status.WS_1013_TRY_AGAIN_LATER
+		assert excinfo.value.reason == "pytest\nRetry-After: 11"
 
 		app.set_app_state(NormalState())
 		time.sleep(1)

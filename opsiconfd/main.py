@@ -132,7 +132,11 @@ def diagnostic_data_main() -> None:
 
 			data_file.write_bytes(data)
 			console.print(f"Diagnostic data file '{str(data_file)}' successfully created.")
-
+	except KeyboardInterrupt:
+		logger.error("Generation of diagnostic data interrupted")
+		console.quiet = False
+		console.print("[bold red]Generation of diagnostic data interrupted[/bold red]")
+		sys.exit(2)
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		console.quiet = False

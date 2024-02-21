@@ -7,8 +7,10 @@
 """
 The opsi configuration service.
 """
+from __future__ import annotations
 
 __version__ = "4.3.7.2"
+
 
 from contextlib import contextmanager
 from contextvars import Context, ContextVar
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
 
 contextvar_request_id: ContextVar[Optional[int]] = ContextVar("request_id", default=None)
-contextvar_client_session: ContextVar[Optional["OPSISession"]] = ContextVar("client_session", default=None)
+contextvar_client_session: ContextVar[Optional[OPSISession]] = ContextVar("client_session", default=None)
 contextvar_client_address: ContextVar[Optional[str]] = ContextVar("client_address", default=None)
 contextvar_server_timing: ContextVar[Dict[str, float]] = ContextVar("server_timing", default={})
 

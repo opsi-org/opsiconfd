@@ -686,33 +686,37 @@ def test_client_certificate(
 	backend.host_createObjects([opsi_client])
 	sess = OPSISession("localhost")
 	sess.is_admin = True
+	contextvar_client_session_org = contextvar_client_session.get()
 	contextvar_client_session.set(sess)
-	with opsiconfd_server({"client_cert_auth": ["client"]}) as server_conf:
-		pem = backend.host_getTLSCertificate(opsi_client.id)
-		client_cert_file.write_text(pem, encoding="utf-8")
+	try:
+		with opsiconfd_server({"client_cert_auth": ["client"]}) as server_conf:
+			pem = backend.host_getTLSCertificate(opsi_client.id)
+			client_cert_file.write_text(pem, encoding="utf-8")
 
-		with use_logging_config(stderr_level=LOG_TRACE):
-			with ServiceClient(
-				address=f"https://localhost:{server_conf.port}",
-				username=opsi_client.id,
-				password=opsi_client.opsiHostKey,
-				verify=ServiceVerificationFlags.ACCEPT_ALL,
-			) as client:
-				with pytest.raises(OpsiServiceAuthenticationError):
+			with use_logging_config(stderr_level=LOG_TRACE):
+				with ServiceClient(
+					address=f"https://localhost:{server_conf.port}",
+					username=opsi_client.id,
+					password=opsi_client.opsiHostKey,
+					verify=ServiceVerificationFlags.ACCEPT_ALL,
+				) as client:
+					with pytest.raises(OpsiServiceAuthenticationError):
+						assert client.jsonrpc("accessControl_authenticated")
+					with pytest.raises(OpsiServiceAuthenticationError):
+						client.messagebus.connect()
+
+				with ServiceClient(
+					address=f"https://localhost:{server_conf.port}",
+					username=opsi_client.id,
+					password=opsi_client.opsiHostKey,
+					verify=ServiceVerificationFlags.ACCEPT_ALL,
+					client_cert_file=client_cert_file,
+				) as client:
 					assert client.jsonrpc("accessControl_authenticated")
-				with pytest.raises(OpsiServiceAuthenticationError):
+					# Delete session and connect messagebus without valid cookie
+					# so that the client has to authenticate again with the client certificate
+					client.get("/session/logout")
 					client.messagebus.connect()
-
-			with ServiceClient(
-				address=f"https://localhost:{server_conf.port}",
-				username=opsi_client.id,
-				password=opsi_client.opsiHostKey,
-				verify=ServiceVerificationFlags.ACCEPT_ALL,
-				client_cert_file=client_cert_file,
-			) as client:
-				assert client.jsonrpc("accessControl_authenticated")
-				# Delete session and connect messagebus without valid cookie
-				# so that the client has to authenticate again with the client certificate
-				client.get("/session/logout")
-				client.messagebus.connect()
-				assert client.messagebus.jsonrpc("accessControl_authenticated")
+					assert client.messagebus.jsonrpc("accessControl_authenticated")
+	finally:
+		contextvar_client_session.set(contextvar_client_session_org)

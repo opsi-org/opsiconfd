@@ -401,7 +401,8 @@ def check_system_repos() -> CheckResult:
 			logger.debug("apt-cache policy: %s", res)
 			for line in res.split("\n"):
 				if "http://download.opensuse.org" in line or "https://download.opensuse.org" in line:
-					if LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version, "") in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
 						result.check_status = CheckStatus.OK
 						result.message = "No issues found with the system repositories."
 						break
@@ -417,7 +418,8 @@ def check_system_repos() -> CheckResult:
 			logger.debug("yum repolist: %s", res)
 			for line in res.split("\n"):
 				if "opsi" in line:
-					if LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version, "") in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
 						result.check_status = CheckStatus.OK
 						result.message = "No issues found with the system repositories."
 						break
@@ -432,7 +434,8 @@ def check_system_repos() -> CheckResult:
 			logger.debug("zypper repos: %s", res)
 			for line in res.split("\n"):
 				if "opsi" in line:
-					if LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version, "") in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
 						result.check_status = CheckStatus.OK
 						result.message = "No issues found with the system repositories."
 						break

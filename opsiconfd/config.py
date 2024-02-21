@@ -288,7 +288,9 @@ class Config(metaclass=Singleton):
 			if self._ex_help and "--help" not in self._args:
 				self._args.append("--help")
 			self._sub_command = (
-				conf.action if conf.action in ("health-check", "log-viewer", "setup", "backup", "backup-info", "restore") else None
+				conf.action
+				if conf.action in ("health-check", "diagnostic-data", "log-viewer", "setup", "backup", "backup-info", "restore")
+				else None
 			)
 			if self._sub_command:
 				self._args.remove(self._sub_command)
@@ -1340,6 +1342,7 @@ class Config(metaclass=Singleton):
 					"setup",
 					"log-viewer",
 					"health-check",
+					"diagnostic-data",
 					"backup",
 					"backup-info",
 					"restore",
@@ -1349,18 +1352,19 @@ class Config(metaclass=Singleton):
 				help=self._help(
 					"opsiconfd",
 					"The ACTION to perform:\n"
-					"start:         Start opsiconfd.\n"
-					"stop:          Stop opsiconfd, wait for connections to complete.\n"
-					"force-stop:    Force stop opsiconfd, close all connections.\n"
-					"status:        Get opsiconfd running status.\n"
-					"restart:       Restart opsiconfd.\n"
-					"reload:        Reload config from file.\n"
-					"setup:         Run setup tasks.\n"
-					"log-viewer:    Show log stream on console.\n"
-					"health-check:  Run a health-check.\n"
-					"backup:        Run backup.\n"
-					"backup-info:   Show backup info.\n"
-					"restore:       Restore backup.\n",
+					"start:           Start opsiconfd.\n"
+					"stop:            Stop opsiconfd, wait for connections to complete.\n"
+					"force-stop:      Force stop opsiconfd, close all connections.\n"
+					"status:          Get opsiconfd running status.\n"
+					"restart:         Restart opsiconfd.\n"
+					"reload:          Reload config from file.\n"
+					"setup:           Run setup tasks.\n"
+					"log-viewer:      Show log stream on console.\n"
+					"health-check:    Run a health-check.\n"
+					"diagnostic-data: Collect diagnostic data.\n"
+					"backup:          Run backup.\n"
+					"backup-info:     Show backup info.\n"
+					"restore:         Restore backup.\n",
 				),
 			)
 			return
@@ -1413,6 +1417,23 @@ class Config(metaclass=Singleton):
 				"--documentation",
 				action="store_true",
 				help=self._help("health-check", "Outputs a description of each check on the console."),
+			)
+
+		if self._sub_command == "diagnostic-data":
+			self._parser.add(
+				"target",
+				nargs="?",
+				default=None,
+				metavar="TARGET",
+				help=self._help(
+					"diagnostic-data",
+					(
+						"The TARGET (file or directory) to write to.\n"
+						"If no file name is specified, the name of the file is selected automatically.\n"
+						"The compression format is determined by the file extension.\n"
+						"Valid compressions are: 'lz4' and 'gz'\n"
+					),
+				),
 			)
 
 		if self._sub_command in ("backup", "backup-info", "restore"):

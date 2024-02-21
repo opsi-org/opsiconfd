@@ -9,8 +9,10 @@ opsiconfd main
 """
 
 import asyncio
+import dataclasses
 import gc
 import getpass
+import json
 import os
 import pwd
 import signal
@@ -20,6 +22,7 @@ import time
 from datetime import datetime
 from io import UnsupportedOperation
 from pathlib import Path
+from typing import Any
 
 import uvloop
 from opsicommon import __version__ as python_opsi_common_version
@@ -41,6 +44,7 @@ from opsiconfd.config import (
 	get_depotserver_id,
 	get_server_role,
 )
+from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import (
 	AsyncRedisLogAdapter,
 	init_logging,
@@ -52,7 +56,7 @@ from opsiconfd.patch import apply_patches
 from opsiconfd.redis import delete_recursively, redis_client
 from opsiconfd.setup import setup
 from opsiconfd.setup.backend import setup_mysql
-from opsiconfd.utils import get_manager_pid, log_config
+from opsiconfd.utils import compress_data, get_manager_pid, log_config
 
 REDIS_CONECTION_TIMEOUT = 30
 
@@ -96,6 +100,42 @@ def log_viewer_main() -> None:
 def health_check_main() -> None:
 	init_logging(log_mode="local")
 	sys.exit(console_health_check())
+
+
+def diagnostic_data_main() -> None:
+	try:
+		init_logging(log_mode="local")
+
+		def data_filename() -> str:
+			now = datetime.now().strftime("%Y%m%d-%H%M%S")
+			return f"opsiconfd-diagnostic-data-{now}.json.lz4"
+
+		data_file = Path(config.target if config.target else data_filename())
+		if not data_file.is_absolute():
+			data_file = Path.cwd() / data_file
+
+		if data_file.exists() and data_file.is_dir():
+			data_file = data_file / data_filename()
+
+		class EnhancedJSONEncoder(json.JSONEncoder):
+			def default(self, obj: Any) -> Any:
+				if dataclasses.is_dataclass(obj):
+					return dataclasses.asdict(obj)
+				return super().default(obj)
+
+		data = json.dumps(get_diagnostic_data(), cls=EnhancedJSONEncoder, indent=2).encode("utf-8")
+		if (suffix := data_file.suffix.strip(".").lower()) in ("lz4", "gz"):
+			data = compress_data(data, compression=suffix)
+
+		data_file.write_bytes(data)
+		print(f"Diagnostic data file '{str(data_file)}' successfully created.")
+
+	except Exception as err:
+		logger.error(err, exc_info=True)
+		print(f"Failed to create diagnostic data file: {err}")
+		sys.exit(1)
+
+	sys.exit(0)
 
 
 def backup_main() -> None:
@@ -420,6 +460,9 @@ def main() -> None:
 
 	if config.action == "health-check":
 		return health_check_main()
+
+	if config.action == "diagnostic-data":
+		return diagnostic_data_main()
 
 	if config.action == "backup":
 		return backup_main()

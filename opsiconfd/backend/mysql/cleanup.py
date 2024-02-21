@@ -309,9 +309,22 @@ def cleanup_groups(session: Session) -> None:
 		logger.notice("Cleaned up %d entries in GROUP", result.rowcount)
 
 
+def cleanup_users(session: Session) -> None:
+	result = session.execute(
+		"""
+			DELETE u.*
+			FROM `USER` AS u
+			WHERE u.lastLogin IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Deleted %d entries from USER", result.rowcount)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		cleanup_groups(session)
+		cleanup_users(session)
 		remove_orphans_config_value(session)
 		remove_orphans_config_state(session)
 		remove_orphans_product_property_value(session)

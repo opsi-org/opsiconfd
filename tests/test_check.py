@@ -828,24 +828,25 @@ def test_check_opsi_users() -> None:
 
 
 def test_check_system_repos() -> None:
+	# Test debian 10 with debian 11 repository and debian 10 repository
 	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
 		mock_distro_id.return_value = "debian"
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
 			mock_distro_version.return_value = "10"
 			with mock.patch("opsiconfd.check.system.run") as mock_run:
 				mock_run.return_value = Mock(
-					stdout="""
-Package files:
-100 /var/lib/dpkg/status
-	release a=now
-500 https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11  Packages
-	release o=obs://build.opensuse.org/home:uibmz:opsi:4.3:stable/Debian_11,n=Debian_11,l=home:uibmz:opsi:4.3:stable,c=
-	origin download.opensuse.org
-500 https://apt.grafana.com stable/main amd64 Packages
-	release o=. stable,a=stable,n=stable,l=. stable,c=main,b=amd64
-	origin apt.grafana.com
-Pinned packages:
-"""
+					stdout=(
+						"Package files:\n"
+						"100 /var/lib/dpkg/status\n"
+						"	release a=now\n"
+						"500 https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11  Packages\n"
+						"	release o=obs://build.opensuse.org/home:uibmz:opsi:4.3:stable/Debian_11,n=Debian_11,l=home:uibmz:opsi:4.3:stable,c=\n"
+						"	origin download.opensuse.org\n"
+						"500 https://apt.grafana.com stable/main amd64 Packages\n"
+						"	release o=. stable,a=stable,n=stable,l=. stable,c=main,b=amd64\n"
+						"	origin apt.grafana.com\n"
+						"Pinned packages:\n"
+					)
 				)
 				result = check_system_repos()
 				assert result.check_status == CheckStatus.ERROR
@@ -856,19 +857,107 @@ Pinned packages:
 
 		with mock.patch("opsiconfd.check.system.run") as mock_run:
 			mock_run.return_value = Mock(
-				stdout="""
-Package files:
-100 /var/lib/dpkg/status
-	release a=now
-500 https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_10  Packages
-	release o=obs://build.opensuse.org/home:uibmz:opsi:4.3:stable/Debian_11,n=Debian_10,l=home:uibmz:opsi:4.3:stable,c=
-	origin download.opensuse.org
-500 https://apt.grafana.com stable/main amd64 Packages
-	release o=. stable,a=stable,n=stable,l=. stable,c=main,b=amd64
-	origin apt.grafana.com
-Pinned packages:
-"""
+				stdout=(
+					"Package files:\n"
+					"100 /var/lib/dpkg/status\n"
+					"	release a=now\n"
+					"500 https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_10  Packages\n"
+					"	release o=obs://build.opensuse.org/home:uibmz:opsi:4.3:stable/Debian_11,n=Debian_10,l=home:uibmz:opsi:4.3:stable,c=\n"
+					"	origin download.opensuse.org\n"
+					"500 https://apt.grafana.com stable/main amd64 Packages\n"
+					"	release o=. stable,a=stable,n=stable,l=. stable,c=main,b=amd64\n"
+					"	origin apt.grafana.com\n"
+					"Pinned packages:\n"
+				)
 			)
 			result = check_system_repos()
 			assert result.check_status == CheckStatus.OK
 			assert result.message == "No issues found with the system repositories."
+	# test rocky 9 with rocky 8 repository and rocky 9 repository
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "rocky"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "9"
+			with mock.patch("opsiconfd.check.system.run") as mock_run:
+				mock_run.return_value = Mock(
+					stdout=(
+						"Paketquellenkennung        Paketquellenname\n"
+						"appstream                  Rocky Linux 9 - AppStream\n"
+						"baseos                     Rocky Linux 9 - BaseOS\n"
+						"epel                       Extra Packages for Enterprise Linux 9 - x86_64\n"
+						"epel-cisco-openh264        Extra Packages for Enterprise Linux 9 openh264 (From Cisco) - x86_64\n"
+						"extras                     Rocky Linux 9 - Extras\n"
+						"grafana                    grafana\n"
+						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_8)\n"
+					)
+				)
+				result = check_system_repos()
+				assert result.check_status == CheckStatus.ERROR
+				assert (
+					result.message
+					== "System and opsi repositories are incompatible. System 'rocky 9' using repository: home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_8)"
+				)
+			with mock.patch("opsiconfd.check.system.run") as mock_run:
+				mock_run.return_value = Mock(
+					stdout=(
+						"Paketquellenkennung        Paketquellenname\n"
+						"appstream                  Rocky Linux 9 - AppStream\n"
+						"baseos                     Rocky Linux 9 - BaseOS\n"
+						"epel                       Extra Packages for Enterprise Linux 9 - x86_64\n"
+						"epel-cisco-openh264        Extra Packages for Enterprise Linux 9 openh264 (From Cisco) - x86_64\n"
+						"extras                     Rocky Linux 9 - Extras\n"
+						"grafana                    grafana\n"
+						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_9)\n"
+					)
+				)
+				result = check_system_repos()
+				assert result.check_status == CheckStatus.OK
+				assert result.message == "No issues found with the system repositories."
+	# Test openSUSE 15.5 with openSUSE 15.4 repository and openSUSE 15.5 repository
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "opensuse-leap"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "15.5"
+			with mock.patch("opsiconfd.check.system.run") as mock_run:
+				mock_run.return_value = Mock(
+					stdout=(
+						"Die Repository-Prioritäten sind ohne Effekt. Alle aktivierten Repositorys teilen sich die gleiche Priorität.\n"
+						" \n"
+						"#  | Alias                               | Name                                                         | Enabled | GPG Check | Refresh\n"
+						"---+-------------------------------------+--------------------------------------------------------------+---------+-----------+--------\n"
+						"1 | grafana                             | grafana                                                      | Ja      | (r ) Ja   | Nein\n"
+						"2 | home_uibmz_opsi_4.3_stable          | opsi 4.3 stable (openSUSE_Leap_15.4)                         | Ja      | ( p) Ja   | Nein\n"
+						"3 | http-download.opensuse.org-0b97f368 | openSUSE 15.5-update-non-oss                                 | Ja      | (r ) Ja   | Ja\n"
+						"4 | http-download.opensuse.org-1152c701 | openSUSE 15.5-update-oss                                     | Ja      | (r ) Ja   | Ja\n"
+						"5 | non-oss-addon-15.5-0                | openSUSE 15.5-non-oss                                        | Ja      | (r ) Ja   | Ja\n"
+						"6 | openSUSE-Leap-15.5-1_0              | openSUSE 15.5-oss                                            | Ja      | (r ) Ja   | Ja\n"
+						"8 | repo-backports-update               | Update repository of openSUSE Backports                      | Ja      | (r ) Ja   | Ja\n"
+						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
+					)
+				)
+				result = check_system_repos()
+				assert result.check_status == CheckStatus.ERROR
+				assert (
+					result.message
+					== "System and opsi repositories are incompatible. System 'opensuse-leap 15.5' using repository: opsi 4.3 stable (openSUSE_Leap_15.4)"
+				)
+			with mock.patch("opsiconfd.check.system.run") as mock_run:
+				mock_run.return_value = Mock(
+					stdout=(
+						"Die Repository-Prioritäten sind ohne Effekt. Alle aktivierten Repositorys teilen sich die gleiche Priorität.\n"
+						" \n"
+						"#  | Alias                               | Name                                                         | Enabled | GPG Check | Refresh\n"
+						"---+-------------------------------------+--------------------------------------------------------------+---------+-----------+--------\n"
+						"1 | grafana                             | grafana                                                      | Ja      | (r ) Ja   | Nein\n"
+						"2 | home_uibmz_opsi_4.3_stable          | opsi 4.3 stable (openSUSE_Leap_15.5)                         | Ja      | ( p) Ja   | Nein\n"
+						"3 | http-download.opensuse.org-0b97f368 | openSUSE 15.5-update-non-oss                                 | Ja      | (r ) Ja   | Ja\n"
+						"4 | http-download.opensuse.org-1152c701 | openSUSE 15.5-update-oss                                     | Ja      | (r ) Ja   | Ja\n"
+						"5 | non-oss-addon-15.5-0                | openSUSE 15.5-non-oss                                        | Ja      | (r ) Ja   | Ja\n"
+						"6 | openSUSE-Leap-15.5-1_0              | openSUSE 15.5-oss                                            | Ja      | (r ) Ja   | Ja\n"
+						"8 | repo-backports-update               | Update repository of openSUSE Backports                      | Ja      | (r ) Ja   | Ja\n"
+						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
+					)
+				)
+				result = check_system_repos()
+				assert result.check_status == CheckStatus.OK
+				assert result.message == "No issues found with the system repositories."

@@ -436,7 +436,7 @@ def check_system_repos() -> CheckResult:
 						break
 					else:
 						result.check_status = CheckStatus.ERROR
-						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split('|')[2]}"
+						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split('|')[2].strip()}"
 		else:
 			result.check_status = CheckStatus.ERROR
 			result.message = "Could not determine system distribution."

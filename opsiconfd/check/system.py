@@ -50,6 +50,8 @@ LINUX_DISTRO_EOL = {
 	"opensuse-leap": {
 		"15.3": date(2022, 12, 31),
 		"15.4": date(2023, 11, 1),
+		"15.5": date(2024, 11, 1),
+		"15.6": date(2025, 11, 1),
 	},
 	"almalinux": {
 		"8": date(2024, 5, 1),
@@ -58,6 +60,52 @@ LINUX_DISTRO_EOL = {
 	"centos": {
 		"7": date(2024, 5, 1),
 		"8": date(2021, 12, 31),
+	},
+	"rocky": {
+		"8": date(2024, 5, 1),
+		"9": date(2027, 5, 31),
+	},
+	"oracle": {
+		"7": date(2024, 12, 1),
+		"8": date(2029, 6, 1),
+		"9": date(2032, 6, 1),
+	},
+}
+
+LINUX_DISTRO_REPO_NAMES = {
+	"debian": {
+		"9": "Debian_9.0",
+		"10": "Debian_10",
+		"11": "Debian_11",
+		"12": "Debian_11",
+	},
+	"ubuntu": {
+		"18.04": "Ubuntu_18.04",
+		"20.04": "Ubuntu_20.04",
+		"22.04": "Ubuntu_22.04",
+	},
+	"opensuse-leap": {
+		"15.3": "openSUSE_Leap_15.3",
+		"15.4": "openSUSE_Leap_15.4",
+		"15.5": "openSUSE_Leap_15.5",
+		"15.6": "openSUSE_Leap_15.6",
+	},
+	"almalinux": {
+		"8": "AlmaLinux_8",
+		"9": "AlmaLinux_9",
+	},
+	"centos": {
+		"7": "CentOS_7",
+		"8": "CentOS_8",
+	},
+	"rocky": {
+		"8": "RockyLinux_8",
+		"9": "RockyLinux_9",
+	},
+	"oracle": {
+		"7": "OracleLinux_7",
+		"8": "OracleLinux_8",
+		"9": "OracleLinux_9",
 	},
 }
 
@@ -82,6 +130,8 @@ def check_distro_eol() -> CheckResult:
 	with exc_to_result(result):
 		distro = linux_distro_id()
 		version = linux_distro_version_id()
+		if distro in ("rocky", "ol"):
+			version = version.split(".")[0]
 		if version_info := LINUX_DISTRO_EOL.get(distro):
 			if eol := version_info.get(version):
 				today = date.today()
@@ -137,7 +187,7 @@ def get_repo_versions() -> dict[str, str | None]:
 
 def get_installed_packages(packages: dict | None = None) -> dict:
 	installed_versions: dict[str, str] = {}
-	if linux_distro_id_like_contains(("sles", "rhel")):
+	if linux_distro_id_like_contains(("rhel", "fedora")):
 		cmd = ["yum", "list", "installed"]
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
 		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
@@ -154,7 +204,7 @@ def get_installed_packages(packages: dict | None = None) -> dict:
 				if p_name in packages:
 					logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
 					installed_versions[p_name] = match.group(2)
-	elif linux_distro_id_like_contains("opensuse"):
+	elif linux_distro_id_like_contains(("opensuse", "sles", "suse")):
 		cmd = ["zypper", "search", "-is", "opsi*"]
 		regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
 		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
@@ -322,4 +372,78 @@ def check_disk_usage() -> CheckResult:
 
 		if result.check_status != CheckStatus.OK:
 			result.message = f"Insufficient free space on {count} file system{'s' if count > 1 else ''}."
+	return result
+
+
+def check_system_repos() -> CheckResult:
+	"""
+	## System Repositories
+
+	Check if system and opsi repository are compatible.
+
+	- For Debian/Ubuntu, the check is carried out against the apt-cache policy.
+	- For CentOS/RHEL/Rocky/Alma Linux/Orcale Linux, the check is carried out against the yum repolist.
+	- For openSUSE/SLES, the check is carried out against the zypper repos.
+	"""
+	result = CheckResult(
+		check_id="system_repos",
+		check_name="System Repositories",
+		check_description="Check system repositories",
+		check_status=CheckStatus.WARNING,
+		message="Could not find opsi repository.",
+	)
+	with exc_to_result(result):
+		distro = linux_distro_id()
+		version = linux_distro_version_id()
+		if distro in ("debian", "ubuntu"):
+			cmd = ["apt-cache", "policy"]
+			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			logger.debug("apt-cache policy: %s", res)
+			for line in res.split("\n"):
+				if "http://download.opensuse.org" in line or "https://download.opensuse.org" in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
+						result.check_status = CheckStatus.OK
+						result.message = "No issues found with the system repositories."
+						break
+					else:
+						result.check_status = CheckStatus.ERROR
+						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split()[1]}"
+
+		elif distro in ("almalinux", "centos", "rocky", "rhel", "ol"):
+			if distro in ("rocky", "ol"):
+				version = version.split(".")[0]
+			cmd = ["yum", "repolist"]
+			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			logger.debug("yum repolist: %s", res)
+			for line in res.split("\n"):
+				if "opsi" in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
+						result.check_status = CheckStatus.OK
+						result.message = "No issues found with the system repositories."
+						break
+					else:
+						result.check_status = CheckStatus.ERROR
+						result.message = (
+							f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line}"
+						)
+		elif distro in ("opensuse-leap", "sles"):
+			cmd = ["zypper", "repos", "-E"]
+			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			logger.debug("zypper repos: %s", res)
+			for line in res.split("\n"):
+				if "opsi" in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
+						result.check_status = CheckStatus.OK
+						result.message = "No issues found with the system repositories."
+						break
+					else:
+						result.check_status = CheckStatus.ERROR
+						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split('|')[2].strip()}"
+		else:
+			result.check_status = CheckStatus.ERROR
+			result.message = "Could not determine system distribution."
+
 	return result

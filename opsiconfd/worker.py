@@ -289,6 +289,10 @@ class Worker(WorkerInfo, UvicornServer):
 		await redis.expire(self.redis_state_key, self.redis_state_key_expire)
 
 	def _run(self, sockets: Optional[list[socket.socket]] = None) -> None:
+		if "tracemalloc" in config.profiler:
+			from opsiconfd.application.memoryprofiler import start_tracemalloc
+
+			start_tracemalloc()
 		self.pid = os.getpid()
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)

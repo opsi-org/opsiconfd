@@ -57,7 +57,7 @@ from opsiconfd.backend import (
 )
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
+from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task, utc_timestamp
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
@@ -727,7 +727,7 @@ class OPSISession:
 		self.is_admin = False
 		self.is_read_only = False
 
-	def _init_new_session(self) -> None:
+	async def init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
 		self._reset_auth_data()
 
@@ -746,13 +746,13 @@ class OPSISession:
 
 		session_count = 0
 		try:
-			redis = redis_client()
+			redis = await async_redis_client()
 			now = utc_timestamp()
 			session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
-			for redis_key in redis.scan_iter(session_key):
+			async for redis_key in redis.scan_iter(session_key):
 				validity = 0
 				try:
-					vals = redis.hmget(redis_key, (b"max_age", b"last_used"))
+					vals = await redis.hmget(redis_key, (b"max_age", b"last_used"))
 					if vals and vals[0] and vals[1]:
 						validity = int(int(vals[0]) - (now - int(vals[1])))
 				except Exception as err:
@@ -760,7 +760,7 @@ class OPSISession:
 				if validity > 0:
 					session_count += 1
 				else:
-					redis.delete(redis_key)
+					await redis.delete(redis_key)
 
 			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}"
@@ -773,9 +773,6 @@ class OPSISession:
 		self.version = str(uuid.uuid4())
 		self.created = int(utc_timestamp())
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
-
-	async def init_new_session(self) -> None:
-		await run_in_threadpool(self._init_new_session)
 
 	async def init(self) -> None:
 		if self.session_id is None:
@@ -885,25 +882,19 @@ class OPSISession:
 	def in_use_by_messagebus(self) -> bool:
 		return int(utc_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
 
-	def _is_stored(self) -> bool:
-		return redis_client().exists(self.redis_key) > 0
-
 	async def is_stored(self) -> bool:
-		# aioredis is sometimes slow ~300ms load, using redis for now
-		return await run_in_threadpool(self._is_stored)
+		redis = await async_redis_client()
+		return bool(await redis.exists(self.redis_key))
 
-	def _get_version_from_redis(self) -> str | None:
-		version = redis_client().hget(self.redis_key, b"version")
+	async def get_version_from_redis(self) -> str | None:
+		redis = await async_redis_client()
+		version = await redis.hget(self.redis_key, b"version")
 		if not version:
 			return None
 		return version.decode("utf-8")
 
-	async def get_version_from_redis(self) -> str | None:
-		# aioredis is sometimes slow ~300ms load, using redis for now
-		return await run_in_threadpool(self._get_version_from_redis)
-
-	def _refresh(self) -> bool:
-		version = self._get_version_from_redis()
+	async def refresh(self) -> bool:
+		version = await self.get_version_from_redis()
 		if not version:
 			# Deleted
 			return False
@@ -911,17 +902,14 @@ class OPSISession:
 			logger.debug("Version %s unchanged, cache up-to-date", self.version)
 			return True
 		logger.debug("Version %s changed to %s, reload", self.version, version)
-		return self._load()
+		return await self.load()
 
-	async def refresh(self) -> bool:
-		# aioredis is sometimes slow ~300ms load, using redis for now
-		return await run_in_threadpool(self._refresh)
-
-	def _load(self) -> bool:
+	async def load(self) -> bool:
 		logger.debug("Load session")
+		redis = await async_redis_client()
 		data = {}
 		try:
-			data = self.deserialize(redis_client().hgetall(self.redis_key))
+			data = self.deserialize(await redis.hgetall(self.redis_key))
 		except Exception as err:
 			logger.warning("Failed to load session: %s (%s / %s)", err, self.client_addr, self.user_agent)
 
@@ -940,11 +928,7 @@ class OPSISession:
 		self._modifications = {}
 		return True
 
-	async def load(self) -> bool:
-		# aioredis is sometimes slow ~300ms load, using redis for now
-		return await run_in_threadpool(self._load)
-
-	def _store(self, modifications_only: bool = False) -> None:
+	async def _store(self, modifications_only: bool = False) -> None:
 		if self.deleted or self.expired or not self.persistent:
 			return
 		if modifications_only and not self._modifications:
@@ -954,39 +938,35 @@ class OPSISession:
 		self.last_stored = int(utc_timestamp())
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
-		redis = redis_client()
+		redis = await async_redis_client()
 		data = self.serialize()
-		if modifications_only and redis.exists(self.redis_key):
+		if modifications_only and await redis.exists(self.redis_key):
 			data = {a: v for a, v in data.items() if a in self._modifications}
 		if data:
-			with redis.pipeline() as pipe:
+			async with redis.pipeline() as pipe:
 				pipe.hset(self.redis_key, mapping=data)  # type: ignore
 				pipe.expire(self.redis_key, self._redis_expiration_seconds)
-				pipe.execute()
+				await pipe.execute()
 
 		self._modifications = {}
 
 	async def store(self, wait: bool = True, modifications_only: bool = False) -> None:
-		# aioredis is sometimes slow ~300ms load, using redis for now
-		task = run_in_threadpool(self._store, modifications_only)
+		task = self._store(modifications_only)
 		if wait:
 			await task
 		else:
 			asyncio_create_task(task)
 
-	def sync_delete(self) -> None:
+	async def delete(self) -> None:
 		logger.debug("Delete session")
-		redis = redis_client()
+		redis = await async_redis_client()
 		for _ in range(10):
-			redis.delete(self.redis_key)
+			await redis.delete(self.redis_key)
 			time_sleep(0.01)
 			# Be sure to delete key
-			if not redis.exists(self.redis_key):
+			if not await redis.exists(self.redis_key):
 				break
 		self.deleted = True
-
-	async def delete(self) -> None:
-		return await run_in_threadpool(self.sync_delete)
 
 
 auth_module: AuthenticationModule | None = None

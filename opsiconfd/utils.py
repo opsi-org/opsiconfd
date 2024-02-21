@@ -86,8 +86,12 @@ def log_config(log_level: int = INFO) -> None:
 	get_logger().log(log_level, "Config: %s", conf)
 
 
+_now = datetime.datetime.now
+_utc = datetime.timezone.utc
+
+
 def utc_timestamp() -> float:
-	return datetime.datetime.now(tz=datetime.timezone.utc).timestamp()
+	return _now(tz=_utc).timestamp()
 
 
 def running_in_docker() -> bool:

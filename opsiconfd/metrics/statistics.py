@@ -132,10 +132,10 @@ def get_time_bucket_duration(name: str) -> int:
 
 
 class StatisticsMiddleware:
-	def __init__(self, app: FastAPI, profiler_enabled: bool = False, log_func_stats: bool = False) -> None:
+	def __init__(self, app: FastAPI) -> None:
 		self.app = app
-		self._profiler_enabled = profiler_enabled
-		self._log_func_stats = log_func_stats
+		self._profiler_enabled = "yappi" in config.profiler
+		self._log_func_stats = self._profiler_enabled
 		self._write_callgrind_file = True
 
 		if self._profiler_enabled:
@@ -162,7 +162,7 @@ class StatisticsMiddleware:
 			logger.essential(
 				"---------------------------------------------------------------------------------------------------------------------------------"
 			)
-			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
+			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope.get('method')} {scope['path']}")
 			logger.essential(f"{'module':<55} | {'function':<45} | {'calls':>5} | {'total time':>10} | {'nosub time':>10}")
 			logger.essential(
 				"---------------------------------------------------------------------------------------------------------------------------------"
@@ -181,7 +181,8 @@ class StatisticsMiddleware:
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace("StatisticsMiddleware scope=%s", scope)
 
-		if scope["type"] not in ("http", "websocket"):
+		scope_type = scope["type"]
+		if scope_type not in ("http", "websocket"):
 			await self.app(scope, receive, send)
 			return
 
@@ -191,7 +192,8 @@ class StatisticsMiddleware:
 
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
-			if scope["type"] == "http" and message["type"] == "http.response.start":
+			message_type = message["type"]
+			if scope_type == "http" and message_type == "http.response.start":
 				# Start of response (first message / package)
 				if worker.metrics_collector:
 					await worker.metrics_collector.add_value("worker:sum_http_request_number", 1)
@@ -210,11 +212,14 @@ class StatisticsMiddleware:
 				headers.append("Server-Timing", ",".join([f"{k};dur={v:.3f}" for k, v in server_timing.items()]))
 				if self._profiler_enabled:
 					self.yappi(scope)
+			elif scope_type == "websocket" and message_type == "websocket.accept":
+				if self._profiler_enabled:
+					self.yappi(scope)
 
 			logger.trace(message)
 			await send(message)
 
-			if scope["type"] == "http" and message["type"] == "http.response.body" and not message.get("more_body"):
+			if scope_type == "http" and message_type == "http.response.body" and not message.get("more_body"):
 				# End of response (last message / package)
 				end = time.perf_counter()
 				if worker.metrics_collector:

@@ -274,7 +274,7 @@ async def create_depot(request: Request) -> RESTResponse:
 
 	depot = OpsiDepotserver(id=depot_id, description=request_body.get("description"))
 	auto_fill_depotserver_urls(depot)
-	backend.host_createOpsiDepotserver(depot)
+	backend.host_createObjects(depot)
 	return RESTResponse("ok")
 
 

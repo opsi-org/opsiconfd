@@ -17,7 +17,6 @@ import re
 import time
 import uuid
 from collections import namedtuple
-from time import sleep as time_sleep
 from typing import Any, Optional
 
 import msgspec
@@ -57,7 +56,7 @@ from opsiconfd.backend import (
 )
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
+from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
 from opsiconfd.utils import asyncio_create_task, utc_timestamp
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
@@ -962,14 +961,21 @@ class OPSISession:
 		redis = await async_redis_client()
 		for _ in range(10):
 			await redis.delete(self.redis_key)
-			time_sleep(0.01)
+			await asyncio.sleep(0.01)
 			# Be sure to delete key
 			if not await redis.exists(self.redis_key):
 				break
 		self.deleted = True
 
-
-auth_module: AuthenticationModule | None = None
+	def sync_delete(self) -> None:
+		redis = redis_client()
+		for _ in range(10):
+			redis.delete(self.redis_key)
+			time.sleep(0.01)
+			# Be sure to delete key
+			if not redis.exists(self.redis_key):
+				break
+		self.deleted = True
 
 
 def get_auth_module() -> AuthenticationModule:

@@ -1448,11 +1448,11 @@ class Config(metaclass=Singleton):
 				),
 			)
 
-		if self._sub_command in ("backup", "restore"):
+		if self._sub_command in ("diagnostic-data", "backup", "restore"):
 			self._parser.add(
 				"--quiet",
 				action="store_true",
-				help=self._help(("backup", "restore"), "Do not show output or progress except errors."),
+				help=self._help(("diagnostic-data", "backup", "restore"), "Do not show output or progress except errors."),
 			)
 
 		if self._sub_command == "backup":

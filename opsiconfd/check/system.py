@@ -377,10 +377,12 @@ def check_disk_usage() -> CheckResult:
 
 def check_system_repos() -> CheckResult:
 	"""
+	## System Repositories
+
 	Check if system and opsi repository are compatible.
 
 	- For Debian/Ubuntu, the check is carried out against the apt-cache policy.
-	- For CentOS/RHEL/Rocky/AlmaLinux, the check is carried out against the yum repolist.
+	- For CentOS/RHEL/Rocky/Alma Linux/Orcale Linux, the check is carried out against the yum repolist.
 	- For openSUSE/SLES, the check is carried out against the zypper repos.
 	"""
 	result = CheckResult(

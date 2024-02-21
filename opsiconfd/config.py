@@ -78,6 +78,8 @@ SUDOERS_CONF = "/etc/sudoers"
 PACKAGE_SCRIPT_TIMEOUT = 600  # Seconds
 AUDIT_HARDWARE_CONFIG_FILE = "/etc/opsi/hwaudit/opsihwaudit.conf"
 AUDIT_HARDWARE_CONFIG_LOCALES_DIR = "/etc/opsi/hwaudit/locales"
+MANAGER_THREAD_POOL_WORKERS = 8
+REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS = 4
 
 try:
 	FQDN = get_fqdn()
@@ -1194,7 +1196,7 @@ class Config(metaclass=Singleton):
 			"--executor-workers",
 			env_var="OPSICONFD_EXECUTOR_WORKERS",
 			type=int,
-			default=10,
+			default=16,
 			help=self._help("expert", "Number of thread pool workers for asyncio."),
 		)
 		self._parser.add(

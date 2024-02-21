@@ -51,14 +51,13 @@ from redis import BusyLoadingError as RedisBusyLoadingError
 from redis import ConnectionError as RedisConnectionError
 from rich.console import Console
 
+from opsiconfd.config import REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS, config, opsi_config
 from opsiconfd.redis import (
 	async_redis_client,
 	redis_client,
 	retry_redis_call,
 )
 from opsiconfd.utils import asyncio_create_task
-
-from .config import config, opsi_config
 
 # 1 log record ~= 550 bytes
 LOG_STREAM_MAX_RECORDS = 50000
@@ -626,7 +625,9 @@ class RedisLogAdapterThread(threading.Thread):
 		try:
 			self._loop = asyncio.new_event_loop()
 			self._loop.set_default_executor(
-				ThreadPoolExecutor(max_workers=5, thread_name_prefix="RedisLogAdapterThread-ThreadPoolExecutor")
+				ThreadPoolExecutor(
+					max_workers=REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS, thread_name_prefix="RedisLogAdapterThread-ThreadPoolExecutor"
+				)
 			)
 			self._loop.set_debug("asyncio" in config.debug_options)
 			asyncio.set_event_loop(self._loop)

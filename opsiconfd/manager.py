@@ -34,7 +34,7 @@ from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, 
 from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.backend import get_service_client, get_unprotected_backend
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
-from opsiconfd.config import config, get_server_role
+from opsiconfd.config import MANAGER_THREAD_POOL_WORKERS, config, get_server_role
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import ManagerMetricsCollector
@@ -401,7 +401,7 @@ class Manager(metaclass=Singleton):
 			logger.error(exc, exc_info=True)
 
 	def run_loop(self) -> None:
-		pool_executer = ThreadPoolExecutor(max_workers=10, thread_name_prefix="manager-ThreadPoolExecutor")
+		pool_executer = ThreadPoolExecutor(max_workers=MANAGER_THREAD_POOL_WORKERS, thread_name_prefix="manager-ThreadPoolExecutor")
 		self._loop.set_default_executor(pool_executer)
 		self._loop.set_debug("asyncio" in config.debug_options)
 		asyncio.set_event_loop(self._loop)

@@ -978,7 +978,7 @@ class OPSISession:
 		self.deleted = True
 
 
-auth_module = None
+auth_module: AuthenticationModule | None = None
 
 
 def get_auth_module() -> AuthenticationModule:

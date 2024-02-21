@@ -399,7 +399,8 @@ class Config(metaclass=Singleton):
 			self._config.debug_options = []
 		if not self._config.development_options:
 			self._config.development_options = []
-
+		if not self._config.profiler:
+			self._config.profiler = []
 		for attr in "networks", "admin_networks":
 			conf = getattr(self._config, attr)
 			add = True
@@ -1177,16 +1178,15 @@ class Config(metaclass=Singleton):
 				"expert",
 				"A list of development options (possible options are: delay-get-session).",
 			),
-			choices=("delay-get-session"),
+			choices=("delay-get-session",),
 		)
 		self._parser.add(
 			"--profiler",
+			nargs="+",
 			env_var="OPSICONFD_PROFILER",
-			type=str2bool,
-			nargs="?",
-			const=True,
-			default=False,
-			help=self._help("expert", "Turn profiler on. This will slow down requests, never use in production."),
+			default=None,
+			help=self._help("expert", "Turn profilers on. This will slow down requests, never use in production."),
+			choices=("yappi", "tracemalloc"),
 		)
 		self._parser.add(
 			"--node-name",

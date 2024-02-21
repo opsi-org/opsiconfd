@@ -36,43 +36,48 @@ MEMORY_TRACKER: Optional[tracker.SummaryTracker] = None
 CLASS_TRACKER: Optional[classtracker.ClassTracker] = None
 HEAP = None
 
-TRACEMALLOC_PREV_SNAPSHOT: Optional[tracemalloc.Snapshot] = None
-TRACEMALLOC_RSS_START = 0
-TRACEMALLOC_RSS_PREV = 0
+tracemalloc_prev_snapshot: Optional[tracemalloc.Snapshot] = None
+tracemalloc_rss_start = 0
+tracemalloc_rss_prev = 0
+
+
+def start_tracemalloc() -> None:
+	tracemalloc.start(1)
 
 
 @memory_profiler_router.get("/tracemalloc-snapshot-new")
-def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
-	global TRACEMALLOC_PREV_SNAPSHOT, TRACEMALLOC_RSS_PREV, TRACEMALLOC_RSS_START
+def memory_tracemalloc_snapshot_new(num_stats: int = 25) -> JSONResponse:
+	global tracemalloc_prev_snapshot, tracemalloc_rss_prev, tracemalloc_rss_start
 	gc.collect()
 	mem_info = psutil.Process().memory_info()
 
-	if not TRACEMALLOC_PREV_SNAPSHOT or not tracemalloc.is_tracing():
-		tracemalloc.start(25)
-		TRACEMALLOC_PREV_SNAPSHOT = tracemalloc.take_snapshot()
-		TRACEMALLOC_RSS_START = mem_info.rss
+	if not tracemalloc.is_tracing():
+		start_tracemalloc()
+	if not tracemalloc_prev_snapshot:
+		tracemalloc_prev_snapshot = tracemalloc.take_snapshot()
+		tracemalloc_rss_start = mem_info.rss
 
 	current = tracemalloc.take_snapshot()
 	data = {
 		"time": time.time(),
 		"memory_info_rss": mem_info.rss,
-		"memory_info_rss_diff_prev": mem_info.rss - TRACEMALLOC_RSS_PREV,
-		"memory_info_rss_diff_start": mem_info.rss - TRACEMALLOC_RSS_START,
+		"memory_info_rss_diff_prev": mem_info.rss - tracemalloc_rss_prev,
+		"memory_info_rss_diff_start": mem_info.rss - tracemalloc_rss_start,
 		"start": {"size": 0, "stats": []},
 		"prev": {"size": 0, "stats": []},
 	}
 	for num, stat in enumerate(current.statistics("filename"), 1):
 		data["start"]["size"] += stat.size
-		if num <= limit:
+		if num <= num_stats:
 			data["start"]["stats"].append(str(stat))
 
-	for num, stat_diff in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):
+	for num, stat_diff in enumerate(current.compare_to(tracemalloc_prev_snapshot, "filename"), 1):
 		data["prev"]["size"] += stat_diff.size_diff
-		if num <= limit:
+		if num <= num_stats:
 			data["prev"]["stats"].append(str(stat_diff))
 
-	TRACEMALLOC_PREV_SNAPSHOT = current
-	TRACEMALLOC_RSS_PREV = mem_info.rss
+	tracemalloc_prev_snapshot = current
+	tracemalloc_rss_prev = mem_info.rss
 
 	return JSONResponse({"status": 200, "error": None, "data": data})
 

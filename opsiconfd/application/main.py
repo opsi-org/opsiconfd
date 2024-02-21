@@ -280,7 +280,7 @@ def setup_app() -> None:
 
 	app.add_middleware(SessionMiddleware, public_path=public_path)
 	# app.add_middleware(GZipMiddleware, minimum_size=1000)
-	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
+	app.add_middleware(StatisticsMiddleware)
 	app.add_middleware(BaseMiddleware)
 	if os.path.isdir(config.static_dir):
 		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")

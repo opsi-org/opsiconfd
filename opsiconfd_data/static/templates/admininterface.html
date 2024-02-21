@@ -613,7 +613,10 @@
 					backrefs</button>
 
 				<br /><br />
-				<button id="button-tracemalloc-snapshot" onclick="tracemallocSnapshot()">Tracemalloc
+				<label>Number of stas: </label>
+				<input id="tracemalloc-num-stats" type="number" value="25" style="width: 50px" />
+				<button id="button-tracemalloc-snapshot"
+					onclick="tracemallocSnapshot(document.getElementById('tracemalloc-num-stats').value)">tracemalloc
 					snapshot</button>
 			</div>
 			<div class="adminpage-box" id="memory-info">

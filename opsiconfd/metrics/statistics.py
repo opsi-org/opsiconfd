@@ -132,10 +132,10 @@ def get_time_bucket_duration(name: str) -> int:
 
 
 class StatisticsMiddleware:
-	def __init__(self, app: FastAPI, profiler_enabled: bool = False, log_func_stats: bool = False) -> None:
+	def __init__(self, app: FastAPI) -> None:
 		self.app = app
-		self._profiler_enabled = profiler_enabled
-		self._log_func_stats = log_func_stats
+		self._profiler_enabled = "yappi" in config.profiler
+		self._log_func_stats = self._profiler_enabled
 		self._write_callgrind_file = True
 
 		if self._profiler_enabled:

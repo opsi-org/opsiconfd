@@ -1,17 +1,13 @@
-function tracemallocSnapshot() {
-	let limit = 25;
+function tracemallocSnapshot(num_stats = 25) {
 	document.getElementById("button-tracemalloc-snapshot").disabled = true;
-	let req = ajaxRequest("GET", `/admin/memory/tracemalloc-snapshot-new?limit=${limit}`);
+	let req = ajaxRequest("GET", `/admin/memory/tracemalloc-snapshot-new?limit=${num_stats}`);
 	req.then((result) => {
-		result = request.responseText;
-		result = JSON.parse(result);
 		outputToHTML(result, "memory-values");
 		document.getElementById("button-tracemalloc-snapshot").disabled = false;
-		return result
 	}).catch((error) => {
-		console.warn(request.status, error.message);
+		console.error(error);
+		outputToHTML(error, "memory-values");
 		document.getElementById("button-tracemalloc-snapshot").disabled = false;
-		return error.status;
 	});
 }
 

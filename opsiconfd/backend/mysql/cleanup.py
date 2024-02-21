@@ -297,8 +297,21 @@ def remove_orphans_clientconfig_depot_id(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from CONFIG_STATE (clientconfig.depot.id)", result.rowcount)
 
 
+def cleanup_groups(session: Session) -> None:
+	result = session.execute(
+		"""
+			UPDATE `GROUP` as g
+			SET g.parentGroupId = NULL
+			WHERE g.parentGroupId = ""
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Cleaned up %d entries in GROUP", result.rowcount)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
+		cleanup_groups(session)
 		remove_orphans_config_value(session)
 		remove_orphans_config_state(session)
 		remove_orphans_product_property_value(session)

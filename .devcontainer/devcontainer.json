@@ -34,6 +34,13 @@
 				"python.testing.pytestEnabled": true,
 				"python.testing.pytestPath": ".venv/bin/pytest",
 				"python.testing.pytestArgs": [
+					"--cov-append",
+					"--cov",
+					"opsiconfd",
+					"--cov-report",
+					"term",
+					"--cov-report",
+					"xml",
 					"tests"
 				],
 				"mypy-type-checker.path": [

@@ -253,7 +253,7 @@ class Config(metaclass=Singleton):
 		if self._initialized:
 			return
 		self._initialized = True
-		self._pytest = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
+		self._pytest = "pytest" in sys.argv[0] or "pytest" in sys.argv
 		self._args: list[str] = []
 		self._ex_help = False
 		self._parser: configargparse.ArgParser | None = None

@@ -52,7 +52,7 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 					data = lz4.frame.decompress(msg.data)
 					Message.from_msgpack(data)
 					self.messages_in += 1
-					print(".", end="")
+					print(".", end="", flush=True)
 				else:
 					if self.should_exit.is_set():
 						return
@@ -154,7 +154,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 
 	def add_client_connected(self) -> None:
 		self.clients_connected += 1
-		print("+", end="")
+		print("+", end="", flush=True)
 		if self.args.verbose:
 			print(self.clients_connected)
 		if self.clients_connected == self.args.clients:
@@ -162,7 +162,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 
 	def remove_client_connected(self) -> None:
 		self.clients_connected -= 1
-		print("-", end="")
+		print("-", end="", flush=True)
 		if self.args.verbose:
 			print(self.clients_connected)
 

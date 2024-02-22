@@ -13,7 +13,7 @@ from asyncio import gather
 from typing import Callable
 from urllib.parse import urljoin, urlparse
 
-from aiohttp import ClientConnectorError, ClientSession
+from aiohttp import ClientConnectorError, ClientSession, WSServerHandshakeError
 from fastapi import FastAPI, status
 from fastapi.requests import Request
 from fastapi.responses import Response, StreamingResponse
@@ -179,7 +179,7 @@ class ReverseProxy:
 				if client_websocket.client_state == WebSocketState.CONNECTED:
 					await client_websocket.close()
 				await server_websocket.close()
-		except ClientConnectorError as err:
+		except (ClientConnectorError, WSServerHandshakeError) as err:
 			proxy_logger.error(err)
 			await client_websocket.close(status.WS_1014_BAD_GATEWAY)
 		finally:

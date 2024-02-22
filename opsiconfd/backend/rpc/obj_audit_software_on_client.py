@@ -154,6 +154,5 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: list[str] | str) -> None:
-		idents = self.auditSoftwareOnClient_getIdents(returnType="dict", clientId=clientId)
-		if idents:
-			self.auditSoftwareOnClient_deleteObjects(idents)
+		with self._mysql.session() as session:
+			session.execute("DELETE FROM `SOFTWARE_CONFIG` WHERE clientId in :client_ids", params={"client_ids": forceList(clientId)})

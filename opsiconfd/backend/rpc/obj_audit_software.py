@@ -48,7 +48,7 @@ class RPCAuditSoftwareMixin(Protocol):
 			for auditSoftware in forceList(auditSoftwares):
 				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=False, session=session)
 
-	@rpc_method(deprecated=True, alternative_method="auditSoftware_getObjects", check_acl=False)
+	@rpc_method(check_acl=False)
 	def auditSoftware_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
@@ -57,7 +57,7 @@ class RPCAuditSoftwareMixin(Protocol):
 		ace = self._get_ace("auditSoftware_getObjects")
 		return self._mysql.get_objects(table="SOFTWARE", ace=ace, object_type=AuditSoftware, attributes=attributes, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(deprecated=True, alternative_method="auditSoftware_getObjects", check_acl=False)
 	def auditSoftware_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,

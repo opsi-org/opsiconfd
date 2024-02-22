@@ -579,7 +579,7 @@ class Config(metaclass=Singleton):
 			"--worker-stop-timeout",
 			env_var="OPSICONFD_WORKER_STOP_TIMEOUT",
 			type=int,
-			default=120,
+			default=15,
 			help=self._help(
 				"opsiconfd",
 				"A worker terminates only when all open client connections have been closed."

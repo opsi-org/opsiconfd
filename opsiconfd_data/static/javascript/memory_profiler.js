@@ -43,14 +43,6 @@ function objgraphShowBackrefs() {
 	win.focus();
 }
 
-function loadMemoryInfo() {
-	let req = ajaxRequest("GET", "/admin/memory-summary");
-	req.then((result) => {
-		outputToHTML(result, "memory-values");
-		return result
-	});
-}
-
 function takeMemorySnapshot() {
 	document.getElementById("memory-info").style.visibility = 'visible';
 	document.getElementById("memory-values").innerHTML = "loading...";

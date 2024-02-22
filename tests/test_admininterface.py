@@ -569,3 +569,24 @@ def test_welcome_page(config: Config, test_client: OpsiconfdTestClient) -> None:
 	res = test_client.get("/welcome", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert "<h1>Welcome to opsi!</h1>" in res.content.decode("utf8")
+
+
+def test_create_depot(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	res = test_client.post("/admin/depot-create", auth=(ADMIN_USER, ADMIN_PASS), json={"id": "test-depot.uib.local"})
+	assert res.status_code == 200
+
+	data = [{"id": 1, "method": "host_getObjects", "params": [[], {"id": "test-depot.uib.local"}]}]
+	result = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data)
+	assert result.status_code == 200
+	assert len(result.json().get("result")) == 1
+	depot = result.json().get("result")[0]
+	assert depot.get("id") == "test-depot.uib.local"
+	assert depot.get("depotRemoteUrl") == "smb://test-depot.uib.local/opsi_depot"
+
+	res = test_client.post("/admin/depot-create", auth=(ADMIN_USER, ADMIN_PASS), json={})
+	assert res.status_code == 422
+	assert res.json()["message"] == "Depot ID missing"
+
+	res = test_client.post("/admin/depot-create", auth=(ADMIN_USER, ADMIN_PASS), json={"id": "test-depot.uib.local"})
+	assert res.status_code == 422
+	assert res.json()["message"] == "Depot already exists"

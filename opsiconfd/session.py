@@ -1146,10 +1146,9 @@ async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str 
 
 
 async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
-	headers = Headers(scope=scope)
 	if not scope["session"]:
 		addr = scope["client"]
-		scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=headers)
+		scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=scope["request_headers"])
 	session = scope["session"]
 	session.authenticated = False
 
@@ -1178,7 +1177,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	else:
 		if config.multi_factor_auth in ("totp_mandatory", "totp_optional"):
 			if not mfa_otp:
-				mfa_otp = headers.get("x-opsi-mfa-otp")
+				mfa_otp = scope["request_headers"].get("x-opsi-mfa-otp")
 			if not mfa_otp:
 				match = re.search(r"^(.+)(\d{6})$", session.password)
 				if match:

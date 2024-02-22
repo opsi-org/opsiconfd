@@ -242,6 +242,19 @@ def _get_metrics() -> tuple[Metric, ...]:
 			],
 		),
 		WorkerMetric(
+			id="worker:avg_http_request_bytes",
+			name="Average HTTP request size of worker {worker_num} on {node_name}",
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing="one",
+			grafana_config=GrafanaPanelConfig(title="HTTP request size", units=["decbytes"], stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		WorkerMetric(
 			id="worker:avg_http_response_bytes",
 			name="Average HTTP response size of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,

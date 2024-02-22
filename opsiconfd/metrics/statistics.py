@@ -190,6 +190,14 @@ class StatisticsMiddleware:
 		contextvar_server_timing.set({})
 		worker = Worker.get_instance()
 
+		if scope_type == "http" and worker.metrics_collector:
+			try:
+				await worker.metrics_collector.add_value(
+					"worker:avg_http_request_bytes", int(scope["request_headers"].get("Content-Length") or 0)
+				)
+			except Exception as err:
+				logger.error("Failed to add avg_http_request_bytes value to metrics collector: %s", err)
+
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
 			message_type = message["type"]

@@ -15,15 +15,10 @@ from unittest.mock import patch
 
 from starlette.types import Receive, Scope, Send
 
+from opsiconfd import contextvar_client_address
 from opsiconfd.application.main import BaseMiddleware
 
-from .utils import (  # noqa: F401
-	ADMIN_PASS,
-	ADMIN_USER,
-	OpsiconfdTestClient,
-	clean_redis,
-	test_client,
-)
+from .utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, clean_redis, get_config, test_client  # noqa: F401
 
 
 def test_http_1_0_warning(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -55,3 +50,24 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 	server_date = res.headers["date"]
 	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
 	assert now < server_dt
+
+
+def test_trusted_proxy(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	with get_config({"trusted_proxies": ["192.168.1.1", "192.168.2.1"]}):
+		test_client.set_client_address("192.168.100.1", 12345)
+		test_client.get("/")
+		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.100.1"
+
+		test_client.get("/", headers={"x-forwarded-for": "192.168.200.1"})
+		# x-forwarded-for must not be accepted
+		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.100.1"
+
+		test_client.set_client_address("192.168.1.1", 12345)
+		test_client.get("/", headers={"x-forwarded-for": "192.168.200.1"})
+		# x-forwarded-for must be accepted from trusted proxy
+		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.200.1"
+
+		test_client.set_client_address("192.168.2.1", 12345)
+		test_client.get("/", headers={"x-forwarded-for": "192.168.200.2"})
+		# x-forwarded-for must be accepted from trusted proxy
+		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.200.2"

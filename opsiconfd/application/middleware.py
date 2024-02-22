@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from opsicommon.logging.constants import TRACE
-from starlette.datastructures import MutableHeaders
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
 from opsiconfd import contextvar_client_address, contextvar_request_id
@@ -78,12 +78,13 @@ class BaseMiddleware:
 		# Generate request id and store in contextvar
 		request_id = id(scope)
 
+		scope["request_headers"] = Headers(scope=scope)
+
 		# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
 		# Ensure it fits inside a long, truncating if necessary
 		request_id = abs(c_long(request_id).value)
 		scope["request_id"] = request_id
 		contextvar_request_id.set(request_id)
-		req_headers = dict(scope["headers"])
 
 		# scope["path"] can change while processing, keep original value in scope["full_path"]
 		# Wrong path will still appear in log: GET /boot/ HTTP/1.1" 200   (h11_impl.py:477)
@@ -109,7 +110,7 @@ class BaseMiddleware:
 
 		if scope.get("http_version") and scope["http_version"] != "1.1":
 			warnings.warn(
-				f"Client {client_host!r} ({req_headers.get('user-agent', '')!r}) is using http version {scope.get('http_version')}",
+				f"Client {client_host!r} ({scope['request_headers'].get('user-agent', '')!r}) is using http version {scope.get('http_version')}",
 				RuntimeWarning,
 			)
 
@@ -117,11 +118,10 @@ class BaseMiddleware:
 			proxy_host = client_host
 			# from uvicorn/middleware/proxy_headers.py
 
-			if b"x-forwarded-for" in req_headers:
+			if x_forwarded_for := scope["request_headers"].get("x-forwarded-for"):
 				# Determine the client address from the last trusted IP in the
 				# X-Forwarded-For header. We've lost the connecting client's port
 				# information by now, so only include the host.
-				x_forwarded_for = req_headers[b"x-forwarded-for"].decode("ascii")
 				client_host = x_forwarded_for.split(",")[-1].strip()
 				client_port = 0
 				logger.debug("Accepting x-forwarded-for header (host=%s) from trusted proxy %s", client_host, proxy_host)
@@ -131,11 +131,11 @@ class BaseMiddleware:
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				host = req_headers.get(b"host", b"localhost:4447").decode().split(":")[0]
+				host = scope["request_headers"].get("host", "localhost:4447").split(":")[0]
 				origin_scheme = "https"
 				origin_port = 4447
 				try:
-					origin = urlparse(req_headers[b"origin"].decode())
+					origin = urlparse(scope["request_headers"]["origin"])
 					origin_scheme = origin.scheme
 					origin_port = int(origin.port)
 				except Exception:
@@ -152,8 +152,8 @@ class BaseMiddleware:
 
 				if header_logger.isEnabledFor(TRACE):
 					header_logger.trace("<<< HTTP/%s %s %s", scope.get("http_version"), scope.get("method"), scope.get("path"))
-					for header, value in req_headers.items():
-						header_logger.trace("<<< %s: %s", header.decode("utf-8", "replace"), value.decode("utf-8", "replace"))
+					for header, value in scope["request_headers"].items():
+						header_logger.trace("<<< %s: %s", header, value)
 					header_logger.trace(">>> HTTP/%s %s", scope.get("http_version"), message.get("status"))
 					for header, value in dict(headers).items():
 						header_logger.trace(">>> %s: %s", header, value)
@@ -164,7 +164,7 @@ class BaseMiddleware:
 				if (
 					scope["full_path"]
 					and scope["full_path"].startswith("/public/boot")
-					and req_headers.get("user-agent", "").startswith("UefiHttpBoot")
+					and scope["request_headers"].get("user-agent", "").startswith("UefiHttpBoot")
 				):
 					# Grub 2.06 needs titled headers (Content-Length instead of content-length)
 					message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]

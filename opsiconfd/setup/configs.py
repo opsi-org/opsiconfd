@@ -27,7 +27,7 @@ from opsicommon.objects import (
 )
 
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
-from opsiconfd.config import config, get_configserver_id, opsi_config, get_server_role
+from opsiconfd.config import config, get_configserver_id, get_server_role, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import running_in_docker
 
@@ -170,7 +170,7 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="clientconfig.depot.selection_mode",
 				description="Depot selection mode.",
-				possibleValues=["master_and_latency", "latency", "network_address", "network_address_best_match", "random"],
+				possibleValues=["master_and_latency", "latency", "network_address", "random"],
 				defaultValues=["network_address"],
 				editable=False,
 				multiValue=False,

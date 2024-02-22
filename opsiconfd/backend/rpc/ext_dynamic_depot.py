@@ -156,7 +156,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	{SHOW_DEPOT_INFO_FUNCTION}
 
 	showDepotInfo()
-
+	logger.debug("Alternative Depots are: %s", alternativeDepots)
 	selectedDepot = masterDepot
 	if alternativeDepots:
 		try:
@@ -167,41 +167,6 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 		depots = [masterDepot]
 		depots.extend(alternativeDepots)
 		for depot in depots:
-			if not depot.networkAddress:
-				logger.warning("Network address of depot '%s' not known", depot)
-				continue
-
-			if ip_address_in_network(clientConfig['ipAddress'], depot.networkAddress):
-				logger.notice("Choosing depot with networkAddress %s for ip %s", depot.networkAddress, clientConfig['ipAddress'])
-				selectedDepot = depot
-				break
-			else:
-				logger.info("IP %s does not match networkAddress %s of depot %s", clientConfig['ipAddress'], depot.networkAddress, depot)
-
-	return selectedDepot
-"""
-
-DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS_BEST_MATCH = f"""
-def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
-	{SHOW_DEPOT_INFO_FUNCTION}
-
-	showDepotInfo()
-	logger.debug("Alternative Depots are: %s", alternativeDepots)
-	selectedDepot = masterDepot
-	if alternativeDepots:
-		try:
-			from opsicommon.utils import ip_address_in_network
-		except ImportError:
-			from OPSI.Util import ipAddressInNetwork as ip_address_in_network
-		import ipaddress
-
-		depots = [masterDepot]
-		depots.extend(alternativeDepots)
-		logger.debug("All considered Depots are: %s",depots)
-		sorted_depots = sorted(depots, key=lambda depot: ipaddress.ip_network(depot.networkAddress), reverse=True)
-		logger.debug("Sorted depots: %s", sorted_depots)
-		for depot in sorted_depots:
-			logger.debug("Considering Depot %s with NetworkAddress %s", depot, depot.networkAddress)
 			if not depot.networkAddress:
 				logger.warning("Network address of depot '%s' not known", depot)
 				continue
@@ -236,7 +201,8 @@ class RPCExtDynamicDepotMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithmByNetworkAddressBestMatch(self) -> str:
-		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS_BEST_MATCH
+		# Legacy method, same as getDepotSelectionAlgorithmByNetworkAddress
+		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS
 
 	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithm(self: BackendProtocol) -> str:
@@ -250,10 +216,8 @@ class RPCExtDynamicDepotMixin(Protocol):
 			return self.getDepotSelectionAlgorithmByMasterDepotAndLatency()
 		if mode == "latency":
 			return self.getDepotSelectionAlgorithmByLatency()
-		if mode == "network_address":
+		if mode in ("network_address", "network_address_best_match"):
 			return self.getDepotSelectionAlgorithmByNetworkAddress()
-		if mode == "network_address_best_match":
-			return self.getDepotSelectionAlgorithmByNetworkAddressBestMatch()
 		if mode == "random":
 			return self.getDepotSelectionAlgorithmByRandom()
 

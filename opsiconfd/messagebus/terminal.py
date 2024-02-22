@@ -84,7 +84,7 @@ def start_pty(
 	env.update({"TERM": "xterm-256color"})
 	logger.info("Starting new pty with shell %r, rows %r, cols %r, cwd %r", shell, rows, cols, cwd)
 	try:
-		return spawn(shell, dimensions=(rows, cols), env=env, cwd=cwd)
+		return spawn(shell, dimensions=(rows, cols), env=env, cwd=cwd, use_poll=True)
 	except ExceptionPexpect as err:
 		raise RuntimeError(f"Failed to start pty with shell {shell!r}: {err}") from err
 

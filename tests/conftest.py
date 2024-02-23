@@ -65,7 +65,7 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 @hookimpl()
 def pytest_sessionstart(session: Session) -> None:
 	# print(sys.argv)
-	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
+	if len(sys.argv) >= 2 and sys.argv[1] == "discover" or "--collect-only" in sys.argv:
 		# vscode test discovery running
 		return
 
@@ -130,7 +130,7 @@ def pytest_sessionstart(session: Session) -> None:
 @hookimpl()
 def pytest_sessionfinish(session: Session, exitstatus: int) -> None:
 	# print(sys.argv)
-	if len(sys.argv) >= 2 and sys.argv[1] == "discover":
+	if len(sys.argv) >= 2 and sys.argv[1] == "discover" or "--collect-only" in sys.argv:
 		# vscode test discovery running
 		return
 

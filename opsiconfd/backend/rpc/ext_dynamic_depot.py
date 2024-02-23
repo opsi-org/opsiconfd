@@ -21,9 +21,12 @@ if TYPE_CHECKING:
 SHOW_DEPOT_INFO_FUNCTION = """
 	def showDepotInfo():
 		logger.info("Choosing depot from list of depots:")
-		logger.info("   Master depot: %s", masterDepot)
+		logger.info("   Master depot: %r (networkAddress=%r)", masterDepot.id, masterDepot.networkAddress)
 		for alternativeDepot in alternativeDepots:
-			logger.info("   Alternative depot: %s", alternativeDepot)
+			logger.info(
+				"   Alternative depot: %r (masterDepotId=%r, networkAddress=%r)",
+				alternativeDepot.id, alternativeDepot.masterDepotId, alternativeDepot.networkAddress
+			)
 """
 
 GET_LATENCY_INFORMATION_FUNCTION = '''
@@ -38,15 +41,16 @@ GET_LATENCY_INFORMATION_FUNCTION = '''
 
 		latency = []
 		for depot in depots:
-			if not depot.repositoryRemoteUrl:
-				logger.info("Skipping %r because repositoryRemoteUrl is missing.", depot)
+			if not depot.depotWebdavUrl:
+				logger.info("Skipping %r because depotWebdavUrl is missing", depot)
 				continue
 
 			try:
-				host = urlparse(depot.repositoryRemoteUrl).hostname
+				host = urlparse(depot.depotWebdavUrl).hostname
 				# To increase the timeout (in seconds) for the ping you
 				# can implement it in the following way:
 				#  depotLatency = ping(host, timeout=5)
+				logger.info("Ping %r (host: %r)", depot, host)
 				depotLatency = ping(host)
 
 				if depotLatency is None:
@@ -86,20 +90,11 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	if not alternativeDepots:
 		return masterDepot
 
-	from collections import defaultdict
+	depots = [masterDepot] + [d for d in alternativeDepots if d.masterDepotId == masterDepot.id]
+	if len(depots) == 1:
+		return masterDepot
 
-	# Mapping of depots to its master.
-	# key: Master depot
-	# value: All slave depots + master
-	depotsByMaster = defaultdict(list)
-
-	for depot in [masterDepot] + alternativeDepots:
-		if depot.masterDepotId:
-			depotsByMaster[depot.masterDepotId].append(depot)
-		else:
-			depotsByMaster[depot.id].append(depot)
-
-	depotsWithLatency = getLatencyInformation(depotsByMaster[masterDepot.id])
+	depotsWithLatency = getLatencyInformation(depots)
 	depotWithLowestLatency = getDepotWithLowestLatency(depotsWithLatency)
 	if depotWithLowestLatency:
 		return depotWithLowestLatency
@@ -146,11 +141,11 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	{SHOW_DEPOT_INFO_FUNCTION}
 
 	showDepotInfo()
-	logger.debug("Alternative Depots are: %s", alternativeDepots)
 
 	if not alternativeDepots:
 		return masterDepot
 
+	import ipaddress
 	try:
 		from opsicommon.utils import ip_address_in_network
 	except ImportError:
@@ -158,7 +153,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 	for depot in sorted([d for d in ([masterDepot] + alternativeDepots) if d.networkAddress], key=lambda x: ipaddress.ip_network(x.networkAddress).prefixlen, reverse=True):
 		if ip_address_in_network(clientConfig['ipAddress'], depot.networkAddress):
-			logger.notice("Choosing depot with networkAddress %s for ip %s", depot.networkAddress, clientConfig['ipAddress'])
+			logger.notice("Choosing depot with network address %r for client address %r", depot.networkAddress, clientConfig['ipAddress'])
 			return depot
 		logger.info("IP %s does not match networkAddress %s of depot %s", clientConfig['ipAddress'], depot.networkAddress, depot)
 

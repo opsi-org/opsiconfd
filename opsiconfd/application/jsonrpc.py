@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 COMPRESS_MIN_SIZE = 10000
 AWAIT_STORE_RPC_INFO = False
 
+
 jsonrpc_router = APIRouter()
 jsonrpc_message_reader = None
 
@@ -428,6 +429,7 @@ async def process_rpcs(
 ) -> AsyncGenerator[JSONRPC20Response | JSONRPC20ErrorResponse | JSONRPCResponse | JSONRPCErrorResponse, None]:
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
+	worker.active_jsonrpc_requests = worker.active_jsonrpc_requests + len(requests)
 	if metrics_collector:
 		await metrics_collector.add_value("worker:sum_jsonrpc_number", len(requests))
 
@@ -452,6 +454,9 @@ async def process_rpcs(
 			asyncio_create_task(coro)
 
 		yield response
+		worker.active_jsonrpc_requests = worker.active_jsonrpc_requests - 1
+	# coro = store_active_jsonrpc_requests()
+	# asyncio_create_task(coro)
 
 
 @jsonrpc_router.head("")

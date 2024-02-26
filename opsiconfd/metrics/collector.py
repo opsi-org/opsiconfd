@@ -219,6 +219,7 @@ class WorkerMetricsCollector(MetricsCollector):
 			("worker:avg_thread_number", self._proc.num_threads()),
 			("worker:avg_filehandle_number", self._proc.num_fds()),
 			("worker:avg_connection_number", self._worker.get_connection_count()),
+			("worker:active_jsonrpc_requests", self._worker.active_jsonrpc_requests),
 		):
 			# Do not add 0-values
 			if value:

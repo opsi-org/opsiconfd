@@ -140,6 +140,7 @@ class WorkerInfo:
 		self.pid = pid
 		self.app_state = app_state
 		self.redis_state_key_expire = 60
+		self._active_jsonrpc_requests = 0
 
 	@classmethod
 	def from_dict(cls, data: dict) -> WorkerInfo:
@@ -159,6 +160,14 @@ class WorkerInfo:
 				continue
 			kwargs[key] = val
 		return WorkerInfo(**kwargs)
+
+	@property
+	def active_jsonrpc_requests(self) -> int:
+		return self._active_jsonrpc_requests
+
+	@active_jsonrpc_requests.setter
+	def active_jsonrpc_requests(self, value: int) -> None:
+		self._active_jsonrpc_requests = value
 
 	@property
 	def id(self) -> str:

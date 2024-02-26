@@ -60,7 +60,7 @@ class Metric:
 		if self._initialized:
 			return
 		self._initialized = True
-		assert aggregation in ("sum", "avg")
+		assert aggregation in ("sum", "avg", "max", "min", "range", "count")
 		assert zero_if_missing in (None, "one", "continuous")
 		self.id = id
 		self.name = name
@@ -129,6 +129,20 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation="avg",
 			zero_if_missing=None,
 			grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		WorkerMetric(
+			id="worker:active_jsonrpc_requests",
+			name="Average active JSONRPC requests by worker {worker_num} on {node_name}",
+			retention=24 * 3600 * 1000,
+			aggregation="max",
+			zero_if_missing="continuous",
+			time_related=True,
+			grafana_config=GrafanaPanelConfig(title="JSONRPC Requests", units=["short"], decimals=0, stack=False, yaxis_min=0),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],

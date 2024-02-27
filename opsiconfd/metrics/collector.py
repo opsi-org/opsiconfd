@@ -212,6 +212,7 @@ class WorkerMetricsCollector(MetricsCollector):
 	async def _fetch_values(self) -> None:
 		if not self._proc:
 			self._proc = psutil.Process()
+
 		for metric_id, value in (
 			("worker:avg_mem_allocated", self._proc.memory_info().rss),
 			("worker:avg_cpu_percent", self._proc.cpu_percent()),

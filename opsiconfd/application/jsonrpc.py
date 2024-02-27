@@ -60,7 +60,6 @@ if TYPE_CHECKING:
 COMPRESS_MIN_SIZE = 10000
 AWAIT_STORE_RPC_INFO = False
 
-
 jsonrpc_router = APIRouter()
 jsonrpc_message_reader = None
 
@@ -455,8 +454,6 @@ async def process_rpcs(
 
 		yield response
 		worker.active_jsonrpc_requests = worker.active_jsonrpc_requests - 1
-	# coro = store_active_jsonrpc_requests()
-	# asyncio_create_task(coro)
 
 
 @jsonrpc_router.head("")

@@ -60,7 +60,7 @@ class Metric:
 		if self._initialized:
 			return
 		self._initialized = True
-		assert aggregation in ("sum", "avg", "max", "min", "range", "count")
+		assert aggregation in ("sum", "avg")
 		assert zero_if_missing in (None, "one", "continuous")
 		self.id = id
 		self.name = name

@@ -428,7 +428,6 @@ async def process_rpcs(
 ) -> AsyncGenerator[JSONRPC20Response | JSONRPC20ErrorResponse | JSONRPCResponse | JSONRPCErrorResponse, None]:
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
-	worker.active_jsonrpc_requests = worker.active_jsonrpc_requests + len(requests)
 	if metrics_collector:
 		await metrics_collector.add_value("worker:sum_jsonrpc_number", len(requests))
 
@@ -453,7 +452,6 @@ async def process_rpcs(
 			asyncio_create_task(coro)
 
 		yield response
-		worker.active_jsonrpc_requests = worker.active_jsonrpc_requests - 1
 
 
 @jsonrpc_router.head("")
@@ -473,6 +471,11 @@ async def process_request(request: Request, response: Response) -> Response:
 	response_serialization = None
 	client = ""
 	session = contextvar_client_session.get()
+	worker = Worker.get_instance()
+	metrics_collector = worker.metrics_collector
+	if metrics_collector:
+		await metrics_collector.add_value("worker:sum_jsonrpc_requests", 1)
+
 	if session:
 		client = f"{session.client_addr}/{session.user_agent}"
 	try:

@@ -471,6 +471,11 @@ async def process_request(request: Request, response: Response) -> Response:
 	response_serialization = None
 	client = ""
 	session = contextvar_client_session.get()
+	worker = Worker.get_instance()
+	metrics_collector = worker.metrics_collector
+	if metrics_collector:
+		await metrics_collector.add_value("worker:sum_jsonrpc_requests", 1)
+
 	if session:
 		client = f"{session.client_addr}/{session.user_agent}"
 	try:

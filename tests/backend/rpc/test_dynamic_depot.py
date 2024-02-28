@@ -9,12 +9,9 @@ test opsiconfd.backend.rpc.ext_dynamic_depot
 """
 
 from opsicommon.logging import LOG_DEBUG, get_logger, use_logging_config
-from opsicommon.objects import OpsiClient, OpsiDepotserver
+from opsicommon.objects import OpsiClient, OpsiDepotserver, UnicodeConfig
 
-from tests.utils import (  # noqa: F401
-	UnprotectedBackend,
-	backend,
-)
+from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
 
 logger = get_logger()
 
@@ -58,7 +55,18 @@ async def test_algorithms(
 		"defaultGateway": "10.1.1.254",
 	}
 
-	code = backend.getDepotSelectionAlgorithmByMasterDepotAndLatency()
+	selection_mode_config = UnicodeConfig(
+		id="clientconfig.depot.selection_mode",
+		description="Depot selection mode.",
+		possibleValues=["master_and_latency", "latency", "network_address", "random"],
+		defaultValues=["network_address"],
+		editable=False,
+		multiValue=False,
+	)
+
+	selection_mode_config.defaultValues = ["master_and_latency"]
+	backend.config_createObjects([selection_mode_config])
+	code = backend.getDepotSelectionAlgorithm()
 	current_locals = locals()
 	exec(code, None, current_locals)
 	selectDepot = current_locals["selectDepot"]
@@ -66,7 +74,9 @@ async def test_algorithms(
 		selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
 	assert selectedDepot in [depot1, depot2]
 
-	code = backend.getDepotSelectionAlgorithmByLatency()
+	selection_mode_config.defaultValues = ["latency"]
+	backend.config_createObjects([selection_mode_config])
+	code = backend.getDepotSelectionAlgorithm()
 	current_locals = locals()
 	exec(code, None, current_locals)
 	selectDepot = current_locals["selectDepot"]
@@ -74,7 +84,9 @@ async def test_algorithms(
 		selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
 	assert selectedDepot in [depot1, depot2, depot4]
 
-	code = backend.getDepotSelectionAlgorithmByNetworkAddress()
+	selection_mode_config.defaultValues = ["network_address"]
+	backend.config_createObjects([selection_mode_config])
+	code = backend.getDepotSelectionAlgorithm()
 	current_locals = locals()
 	exec(code, None, current_locals)
 	selectDepot = current_locals["selectDepot"]
@@ -82,7 +94,9 @@ async def test_algorithms(
 		selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
 	assert selectedDepot == depot4
 
-	code = backend.getDepotSelectionAlgorithmByRandom()
+	selection_mode_config.defaultValues = ["random"]
+	backend.config_createObjects([selection_mode_config])
+	code = backend.getDepotSelectionAlgorithm()
 	current_locals = locals()
 	exec(code, None, current_locals)
 	selectDepot = current_locals["selectDepot"]

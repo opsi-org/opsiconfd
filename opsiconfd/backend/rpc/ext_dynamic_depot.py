@@ -162,22 +162,6 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 
 class RPCExtDynamicDepotMixin(Protocol):
-	def getDepotSelectionAlgorithmByMasterDepotAndLatency(self) -> str:
-		return DEPOT_SELECTION_ALGORITHM_BY_MASTER_DEPOT_AND_LATENCY
-
-	def getDepotSelectionAlgorithmByLatency(self) -> str:
-		return DEPOT_SELECTION_ALGORITHM_BY_LATENCY
-
-	def getDepotSelectionAlgorithmByRandom(self) -> str:
-		return DEPOT_SELECTION_ALGORITHM_BY_RANDOM
-
-	def getDepotSelectionAlgorithmByNetworkAddress(self) -> str:
-		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS
-
-	def getDepotSelectionAlgorithmByNetworkAddressBestMatch(self) -> str:
-		# Legacy method, same as getDepotSelectionAlgorithmByNetworkAddress
-		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS
-
 	@rpc_method(check_acl=False)
 	def getDepotSelectionAlgorithm(self: BackendProtocol) -> str:
 		"""Returns the selected depot selection algorithm."""
@@ -187,13 +171,13 @@ class RPCExtDynamicDepotMixin(Protocol):
 			mode = configs[0].defaultValues[0]
 
 		if mode == "master_and_latency":
-			return self.getDepotSelectionAlgorithmByMasterDepotAndLatency()
+			return DEPOT_SELECTION_ALGORITHM_BY_MASTER_DEPOT_AND_LATENCY
 		if mode == "latency":
-			return self.getDepotSelectionAlgorithmByLatency()
+			return DEPOT_SELECTION_ALGORITHM_BY_LATENCY
 		if mode in ("network_address", "network_address_best_match"):
-			return self.getDepotSelectionAlgorithmByNetworkAddress()
+			return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS
 		if mode == "random":
-			return self.getDepotSelectionAlgorithmByRandom()
+			return DEPOT_SELECTION_ALGORITHM_BY_RANDOM
 
 		logger.error("Invalid 'clientconfig.depot.selection_mode': %r", mode)
-		return self.getDepotSelectionAlgorithmByNetworkAddress()
+		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS

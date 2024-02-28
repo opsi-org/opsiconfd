@@ -137,7 +137,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 		),
 		WorkerMetric(
 			id="worker:sum_jsonrpc_requests",
-			name="Incomming JSONRPC requests by worker {worker_num} on {node_name}",
+			name="Incoming JSONRPC requests by worker {worker_num} on {node_name}",
 			retention=24 * 3600 * 1000,
 			aggregation="sum",
 			zero_if_missing="continuous",

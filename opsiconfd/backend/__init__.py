@@ -10,6 +10,7 @@ opsiconfd.backend.rpc
 
 from __future__ import annotations
 
+import os
 from threading import Lock
 from typing import TYPE_CHECKING
 
@@ -68,6 +69,19 @@ def get_mysql() -> MySQLConnection:
 
 
 def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
+	client_cert_file = None
+	client_key_file = None
+	client_key_password = None
+	if (
+		config.ssl_server_key
+		and os.path.exists(config.ssl_server_key)
+		and config.ssl_server_cert
+		and os.path.exists(config.ssl_server_cert)
+	):
+		client_cert_file = config.ssl_server_cert
+		client_key_file = config.ssl_server_key
+		client_key_password = config.ssl_server_key_passphrase
+
 	return ServiceClient(
 		address=opsi_config.get("service", "url"),
 		username=get_depotserver_id(),
@@ -75,6 +89,9 @@ def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
 		user_agent=user_agent,
 		verify="opsi_ca",
 		ca_cert_file=config.ssl_ca_cert,
+		client_cert_file=client_cert_file,
+		client_key_file=client_key_file,
+		client_key_password=client_key_password,
 		jsonrpc_create_objects=True,
 	)
 

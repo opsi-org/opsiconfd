@@ -16,7 +16,7 @@ from typing import Generator
 from unittest.mock import patch
 
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
-from opsicommon.logging import LOG_TRACE, get_logger, use_logging_config
+from opsicommon.logging import get_logger
 from opsicommon.messagebus import (
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
@@ -72,7 +72,7 @@ def test_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # n
 
 
 def test_messagebus_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	with use_logging_config(stderr_level=LOG_TRACE), depotserver_setup(tmp_path):
+	with depotserver_setup(tmp_path):
 		depot_id = get_depotserver_id()
 		service = ServiceClient(address=CONFIGSERVER, username=ADMIN_USER, password=ADMIN_PASS, verify=ServiceVerificationFlags.ACCEPT_ALL)
 
@@ -150,6 +150,7 @@ def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
 
 		ssl_server_cert.unlink()
 		ssl_server_key.unlink()
+		reinit_backend()
 		assert setup_ssl()
 		assert ssl_server_cert.exists()
 		assert ssl_server_key.exists()

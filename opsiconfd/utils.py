@@ -482,7 +482,7 @@ class UserInfo:
 def user_exists(username: str) -> bool:
 	try:
 		subprocess.run(["id", username], check=True, timeout=5)
-	except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
+	except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as err:
 		get_logger().debug("id %s failed: %s", username, err)
 		return False
 	return True
@@ -507,7 +507,7 @@ def get_user_passwd_details(username: str) -> List[UserInfo]:
 			getent_result = subprocess.run(
 				["getent", "passwd", "--service", service, username], check=True, capture_output=True, timeout=5
 			).stdout.decode("utf-8")
-		except subprocess.CalledProcessError as err:
+		except (subprocess.CalledProcessError, FileNotFoundError) as err:
 			get_logger().warning("getent passwd --service %s %s failed: %s", service, username, err)
 			continue
 		except subprocess.TimeoutExpired as err:

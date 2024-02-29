@@ -7,12 +7,12 @@
 """
 health check users
 """
-import pwd
+
 
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_passwd_services, get_user_passwd_details
+from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_exists
 
 
 def check_opsi_users() -> CheckResult:
@@ -42,9 +42,7 @@ def check_opsi_users() -> CheckResult:
 			message=(f"opsi user '{user}' does exist."),
 			details={},
 		)
-		try:
-			pwd.getpwnam(user)
-		except KeyError:
+		if not user_exists(user):
 			partial_result.message = f"opsi user '{user}' does not exist."
 			partial_result.check_status = CheckStatus.ERROR
 

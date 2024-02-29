@@ -570,6 +570,9 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 	except subprocess.CalledProcessError as err:
 		get_logger().warning("univention-ldapsearch failed: %s", err)
 		return None
+	except subprocess.TimeoutExpired as err:
+		get_logger().warning("univention-ldapsearch timed out: %s", err)
+		return None
 
 
 def get_passwd_services() -> List[NameService]:

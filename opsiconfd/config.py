@@ -967,7 +967,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--client-cert-auth",
-			env_var="OPSICONFD_CLIENT_AUTH",
+			env_var="OPSICONFD_CLIENT_CERT_AUTH",
 			nargs="+",
 			default=None,
 			help=self._help("expert", "HTTPS client certificate authentication settings."),

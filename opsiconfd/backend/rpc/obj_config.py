@@ -270,7 +270,7 @@ class RPCConfigMixin(Protocol):
 			}
 			client_ids = [client_id async for client_id in get_websocket_connected_users(user_type="client")]
 			if client_ids:
-				return await self._messagebus_rpc(
+				await self._messagebus_rpc(
 					client_ids=client_ids,
 					method="messageOfTheDayUpdated",
 					params=[

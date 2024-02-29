@@ -261,7 +261,7 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 	assert sorted(read_confs, key=lambda c: c.id) == sorted(configs, key=lambda c: c.id)
 
 
-async def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # noqa: F811
+async def test_config_updateMessageOfTheDay(backend: UnprotectedBackend) -> None:  # noqa: F811
 	rpcs = []
 
 	async def _messagebus_rpc(
@@ -273,8 +273,9 @@ async def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> No
 		messagebus_only: bool = False,
 	) -> dict[str, dict[str, Any]]:
 		rpcs.append((client_ids, method, params, timeout, messagebus_only))
+		return {}
 
-	async def get_websocket_connected_users(*args, **kwargs) -> AsyncGenerator[str, None]:
+	async def get_websocket_connected_users(*args: Any, **kwargs: Any) -> AsyncGenerator[str, None]:
 		yield "client1.opsi.org"
 
 	assert (

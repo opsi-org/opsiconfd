@@ -125,7 +125,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 					inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
 
-				hosts = service.host_getObjects(id=depot.id)
+				hosts = service.host_getObjects(id=depot.id)  # type: ignore[attr-defined]
 				if hosts:
 					depot = hosts[0]
 					if depot.getType() != "OpsiDepotserver":
@@ -153,7 +153,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 					logger.debug(err)
 
 				rich_print("[b]Registering depot[/b]")
-				service.host_createObjects([depot])
+				service.host_createObjects([depot])  # type: ignore[attr-defined]
 				service.fetch_opsi_ca()
 				(srv_crt, srv_key) = fetch_server_cert(service)
 				store_local_server_key(srv_key)
@@ -161,7 +161,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 
 				rich_print("[b][green]Depot succesfully registered[/green][/b]")
 
-				depot = service.host_getObjects(id=depot.id)[0]
+				depot = service.host_getObjects(id=depot.id)[0]  # type: ignore[attr-defined]
 
 				opsi_config.set("host", "server-role", "depotserver")
 				opsi_config.set("host", "id", depot_id)
@@ -169,10 +169,10 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				opsi_config.set("service", "url", service.base_url)
 				opsi_config.write_config_file()
 
-				configs = service.config_getObjects(id="clientconfig.depot.id")
+				configs = service.config_getObjects(id="clientconfig.depot.id")  # type: ignore[attr-defined]
 				if configs and depot.id not in configs[0].defaultValues:
 					configs[0].defaultValues.append(depot.id)
-					service.config_updateObjects(configs)
+					service.config_updateObjects(configs)  # type: ignore[attr-defined]
 
 				return True
 			except KeyboardInterrupt:

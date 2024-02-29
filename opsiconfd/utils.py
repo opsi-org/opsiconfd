@@ -43,6 +43,7 @@ from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger
+from opsicommon.system.info import is_ucs
 from opsicommon.types import forceString, forceStringLower
 from starlette.routing import Route
 
@@ -478,6 +479,17 @@ class UserInfo:
 	service: NameService
 
 
+def user_exists(username: str) -> bool:
+	try:
+		return_code = subprocess.run(["id", username], check=True, capture_output=True, timeout=5).returncode
+		if return_code != 0:
+			return False
+	except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
+		get_logger().debug("id %s failed: %s", username, err)
+		return False
+	return True
+
+
 ###
 # One of the following exit values can be returned by getent:
 #           0      Command completed successfully.
@@ -487,6 +499,10 @@ class UserInfo:
 ###
 def get_user_passwd_details(username: str) -> List[UserInfo]:
 	user_details = []
+	if is_ucs():
+		usc_details = get_ucs_user_details(username)
+		if usc_details:
+			user_details.append(usc_details)
 	services = get_passwd_services()
 	for service in services:
 		try:
@@ -494,7 +510,10 @@ def get_user_passwd_details(username: str) -> List[UserInfo]:
 				["getent", "passwd", "--service", service, username], check=True, capture_output=True, timeout=5
 			).stdout.decode("utf-8")
 		except subprocess.CalledProcessError as err:
-			get_logger().debug("getent passwd --service %s %s failed: %s", service, username, err)
+			get_logger().warning("getent passwd --service %s %s failed: %s", service, username, err)
+			continue
+		except subprocess.TimeoutExpired as err:
+			get_logger().warning("getent passwd --service %s %s timed out: %s", service, username, err)
 			continue
 		if getent_result:
 			user_info = getent_result.strip().split(":")
@@ -511,6 +530,46 @@ def get_user_passwd_details(username: str) -> List[UserInfo]:
 			)
 
 	return user_details
+
+
+def get_ucs_user_details(username: str) -> UserInfo | None:
+	try:
+		result = (
+			subprocess.run(
+				[
+					"univention-ldapsearch",
+					"-LLL",
+					f"uid={username}",
+					"uid",
+					"gidNumber",
+					"uidNumber",
+					"gecos",
+					"homeDirectory",
+					"loginShell",
+				],
+				check=True,
+				capture_output=True,
+				timeout=10,
+			)
+			.stdout.decode("utf-8")
+			.strip()
+		)
+
+		get_logger().debug("univention-ldapsearch result: %s", result)
+		ldap_data = {line.split(":")[0].strip(): line.split(":")[1].strip() for line in result.splitlines() if ":" in line}
+
+		return UserInfo(
+			username=ldap_data.get("uid", username),
+			uid=int(ldap_data.get("uidNumber", -1)),
+			gid=int(ldap_data.get("gidNumber", -1)),
+			gecos=ldap_data.get("gecos", ""),
+			home=ldap_data.get("homeDirectory", ""),
+			shell=ldap_data.get("loginShell", ""),
+			service=NameService.LDAP,
+		)
+	except subprocess.CalledProcessError as err:
+		get_logger().warning("univention-ldapsearch failed: %s", err)
+		return None
 
 
 def get_passwd_services() -> List[NameService]:

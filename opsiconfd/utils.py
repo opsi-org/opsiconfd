@@ -481,7 +481,7 @@ class UserInfo:
 
 def user_exists(username: str) -> bool:
 	try:
-		return_code = subprocess.run(["id", username], check=True, capture_output=True, timeout=5).returncode
+		return_code = subprocess.run(["id", username], check=True, timeout=5).returncode
 		if return_code != 0:
 			return False
 	except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:

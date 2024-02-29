@@ -38,7 +38,7 @@ from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, set
 from opsiconfd.setup.samba import setup_samba
 from opsiconfd.setup.sudo import setup_sudoers
 from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups, systemd_running
-from opsiconfd.ssl import setup_ssl
+from opsiconfd.ssl import setup_ssl, fetch_server_cert, store_local_server_key, store_local_server_cert
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -66,10 +66,13 @@ def setup_redis() -> None:
 
 
 def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
-	service = ServiceClient(
-		opsi_config.get("service", "url"), verify="accept_all", ca_cert_file=config.ssl_ca_cert, jsonrpc_create_objects=True
-	)
-	try:
+	with ServiceClient(
+		opsi_config.get("service", "url"),
+		verify="accept_all",
+		ca_cert_file=config.ssl_ca_cert,
+		jsonrpc_create_objects=True,
+		jsonrpc_create_methods=True,
+	) as service:
 		while True:
 			try:
 				if not unattended_configuration:
@@ -122,7 +125,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 					inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
 
-				hosts = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})
+				hosts = service.host_getObjects(id=depot.id)
 				if hosts:
 					depot = hosts[0]
 					if depot.getType() != "OpsiDepotserver":
@@ -150,11 +153,15 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 					logger.debug(err)
 
 				rich_print("[b]Registering depot[/b]")
-				service.jsonrpc("host_createObjects", params=[depot])
+				service.host_createObjects([depot])
 				service.fetch_opsi_ca()
+				(srv_crt, srv_key) = fetch_server_cert(service)
+				store_local_server_key(srv_key)
+				store_local_server_cert(srv_crt)
+
 				rich_print("[b][green]Depot succesfully registered[/green][/b]")
 
-				depot = service.jsonrpc("host_getObjects", params={"filter": {"id": depot.id}})[0]
+				depot = service.host_getObjects(id=depot.id)[0]
 
 				opsi_config.set("host", "server-role", "depotserver")
 				opsi_config.set("host", "id", depot_id)
@@ -162,10 +169,10 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				opsi_config.set("service", "url", service.base_url)
 				opsi_config.write_config_file()
 
-				configs = service.jsonrpc("config_getObjects", params={"filter": {"id": "clientconfig.depot.id"}})
+				configs = service.config_getObjects(id="clientconfig.depot.id")
 				if configs and depot.id not in configs[0].defaultValues:
 					configs[0].defaultValues.append(depot.id)
-					service.jsonrpc("config_updateObjects", params=configs)
+					service.config_updateObjects(configs)
 
 				return True
 			except KeyboardInterrupt:
@@ -173,8 +180,6 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				return False
 			except Exception as err:
 				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
-	finally:
-		service.disconnect()
 
 
 def setup(explicit: bool = True) -> None:

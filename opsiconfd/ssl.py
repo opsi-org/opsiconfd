@@ -7,6 +7,8 @@
 """
 opsiconfd.ssl
 """
+from __future__ import annotations
+
 import datetime
 import os
 import re
@@ -17,7 +19,7 @@ from ipaddress import ip_address
 from pathlib import Path
 from re import DOTALL, finditer
 from socket import gethostbyaddr
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -39,6 +41,10 @@ from opsiconfd.config import (
 )
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
+
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.main import Backend
+	from opsicommon.client.opsiservice import ServiceClient
 
 
 def get_ips() -> set[str]:
@@ -504,6 +510,16 @@ def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
 	return True
 
 
+def fetch_server_cert(backend: ServiceClient | Backend) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
+	pem = backend.host_getTLSCertificate(get_depotserver_id())
+	pem_bytes = pem.encode("utf-8")
+	srv_crt = x509.load_pem_x509_certificate(pem_bytes)
+	srv_key = serialization.load_pem_private_key(pem_bytes, password=None)
+	if not isinstance(srv_key, rsa.RSAPrivateKey):
+		raise ValueError(f"Not a RSA private key, but {srv_key.__class__.__name__}")
+	return (srv_crt, srv_key)
+
+
 def setup_server_cert(force_new: bool = False) -> bool:
 	logger.info("Checking server cert")
 	server_role = get_server_role()
@@ -601,7 +617,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 
 	if create:
 		logger.info("Creating new server cert")
-		(srv_crt, srv_key, pem) = (None, None, None)
+		(srv_crt, srv_key) = (None, None)
 		if server_role == "configserver":
 			# It is safer to create a new server cert with a new key pair
 			# For cases where the server key got compromised
@@ -610,20 +626,13 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			for attempt in (1, 2, 3, 4, 5):
 				try:
 					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
-					pem = get_unprotected_backend().host_getTLSCertificate(get_depotserver_id())
+					(srv_crt, srv_key) = fetch_server_cert(get_unprotected_backend())
 					break
 				except RequestsConnectionError as err:
 					if attempt == 5:
 						raise
 					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
 					time.sleep(5)
-			if pem:
-				pem_bytes = pem.encode("utf-8")
-				srv_crt = x509.load_pem_x509_certificate(pem_bytes)
-				private_key = serialization.load_pem_private_key(pem_bytes, password=None)
-				if not isinstance(private_key, rsa.RSAPrivateKey):
-					raise ValueError(f"Not a RSA private key, but {private_key.__class__.__name__}")
-				srv_key = private_key
 
 		if srv_key:
 			store_local_server_key(srv_key)

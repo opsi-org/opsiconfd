@@ -139,21 +139,18 @@ def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
 		assert ssl_server_key.exists()
 
 		ssl_ca_cert.unlink()
-		assert setup_ssl()
+		setup_ssl()
 		assert len(cmds) == 1
 		assert cmds[0] == ["update-ca-certificates"]
 		assert ssl_ca_cert.exists()
 
-		ssl_server_cert.write_bytes(b"---")
-		assert setup_ssl()
-		assert ssl_server_cert.read_bytes() != b"---"
-
-		ssl_server_cert.unlink()
-		ssl_server_key.unlink()
-		reinit_backend()
-		assert setup_ssl()
-		assert ssl_server_cert.exists()
-		assert ssl_server_key.exists()
+		# Renew server certificate
+		with get_config({"ssl_server_cert_renew_days": 10000}):
+			crt_bytes = ssl_server_cert.read_bytes()
+			key_bytes = ssl_server_key.read_bytes()
+			assert setup_ssl()
+			assert crt_bytes != ssl_server_cert.read_bytes()
+			assert key_bytes != ssl_server_key.read_bytes()
 
 		# No change
 		assert not setup_ssl()

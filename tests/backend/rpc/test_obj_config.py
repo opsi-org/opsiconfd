@@ -8,10 +8,11 @@
 test opsiconfd.backend.rpc.obj_config
 """
 
+import time
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Generator
+from typing import Any, AsyncGenerator, Generator
 from unittest.mock import patch
 
 import pytest
@@ -28,24 +29,12 @@ from tests.utils import (  # noqa: F401
 	MySQLConnection,
 	OpsiconfdTestClient,
 	backend,
+	clean_mysql,
 	clean_redis,
 	database_connection,
 	get_config,
 	test_client,
 )
-
-
-@pytest.fixture(autouse=True)
-def clean_mysql(database_connection: MySQLConnection) -> Generator[None, None, None]:  # noqa: F811
-	with database_connection.session() as session:
-		session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-		session.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-		session.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
-	yield
-	with database_connection.session() as session:
-		session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-		session.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-		session.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
 
 
 @pytest.fixture()
@@ -270,3 +259,52 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 
 	read_confs = backend.config_getObjects(attributes=[], id=[c.id for c in configs])
 	assert sorted(read_confs, key=lambda c: c.id) == sorted(configs, key=lambda c: c.id)
+
+
+async def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # noqa: F811
+	rpcs = []
+
+	async def _messagebus_rpc(
+		self: UnprotectedBackend,
+		client_ids: list[str],
+		method: str,
+		params: list[Any] | None = None,
+		timeout: float | int | None = None,
+		messagebus_only: bool = False,
+	) -> dict[str, dict[str, Any]]:
+		rpcs.append((client_ids, method, params, timeout, messagebus_only))
+
+	async def get_websocket_connected_users(*args, **kwargs) -> AsyncGenerator[str, None]:
+		yield "client1.opsi.org"
+
+	assert (
+		len(
+			backend.config_getObjects(
+				id=[
+					"message_of_the_day.device.message",
+					"message_of_the_day.device.message_valid_until",
+					"message_of_the_day.user.message",
+					"message_of_the_day.user.message_valid_until",
+				],
+			)
+		)
+		== 0
+	)
+	with (
+		patch("opsiconfd.backend.rpc.host_control.RPCHostControlMixin._messagebus_rpc", _messagebus_rpc),
+		patch("opsiconfd.backend.rpc.obj_config.get_websocket_connected_users", get_websocket_connected_users),
+	):
+		await backend.config_updateMessageOfTheDay(device_message="motd device", user_message="motd user")
+		assert len(rpcs) == 1
+		assert rpcs[0] == (["client1.opsi.org"], "messageOfTheDayUpdated", ["motd device", 0, "motd user", 0], 5, True)
+
+		user_message_valid_until = time.time() + 60
+		await backend.config_updateMessageOfTheDay(device_message="", user_message_valid_until=user_message_valid_until)
+		assert len(rpcs) == 2
+		assert rpcs[1] == (
+			["client1.opsi.org"],
+			"messageOfTheDayUpdated",
+			["", 0, "motd user", int(user_message_valid_until)],
+			5,
+			True,
+		)

@@ -218,7 +218,12 @@ class RPCHostControlMixin(Protocol):
 		return address
 
 	async def _messagebus_rpc(
-		self: BackendProtocol, client_ids: list[str], method: str, params: list[Any] | None = None, timeout: float | int | None = None
+		self: BackendProtocol,
+		client_ids: list[str],
+		method: str,
+		params: list[Any] | None = None,
+		timeout: float | int | None = None,
+		messagebus_only: bool = False,
 	) -> dict[str, dict[str, Any]]:
 		if not timeout:
 			timeout = self._host_control_host_rpc_timeout
@@ -229,7 +234,7 @@ class RPCHostControlMixin(Protocol):
 
 		not_connected_client_ids = list(set(client_ids).difference(set(connected_client_ids)))
 		if not_connected_client_ids:
-			if self._host_control_use_messagebus == "hybrid":
+			if not messagebus_only and self._host_control_use_messagebus == "hybrid":
 				result = await run_in_threadpool(
 					self._opsiclientd_rpc, host_ids=not_connected_client_ids, method=method, params=params, timeout=int(timeout)
 				)
@@ -577,7 +582,7 @@ class RPCHostControlMixin(Protocol):
 		hostIds: list[str] | None = None,
 		timeout: int | None = None,
 	) -> dict[str, Any]:
-		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
+		hostIds = await run_in_threadpool(self.host_getIdents, returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 

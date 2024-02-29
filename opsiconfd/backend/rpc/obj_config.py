@@ -14,6 +14,9 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import BoolConfig, Config, UnicodeConfig
 from opsicommon.types import forceObjectClass, forceObjectClassList
+from starlette.concurrency import run_in_threadpool
+
+from opsiconfd.messagebus.redis import get_websocket_connected_users
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_config_state
@@ -197,3 +200,85 @@ class RPCConfigMixin(Protocol):
 		idents = self.config_getIdents(returnType="dict", id=id)
 		if idents:
 			self.config_deleteObjects(idents)
+
+	@rpc_method(check_acl=False)
+	async def config_updateMessageOfTheDay(
+		self: BackendProtocol,
+		device_message: str | None = None,
+		device_message_valid_until: int | None = None,
+		user_message: str | None = None,
+		user_message_valid_until: int | None = None,
+	) -> None:
+		configs = []
+		if device_message is not None:
+			configs.append(
+				UnicodeConfig(
+					id="message_of_the_day.device.message",
+					description="Message of the day to show on device when no user is logged in",
+					possibleValues=[device_message],
+					defaultValues=[device_message],
+					editable=True,
+					multiValue=False,
+				)
+			)
+		if device_message_valid_until is not None:
+			configs.append(
+				UnicodeConfig(
+					id="message_of_the_day.device.message_valid_until",
+					description="Timestamp until the device message of the day is valid",
+					possibleValues=[str(int(device_message_valid_until))],
+					defaultValues=[str(int(device_message_valid_until))],
+					editable=True,
+					multiValue=False,
+				)
+			)
+		if user_message is not None:
+			configs.append(
+				UnicodeConfig(
+					id="message_of_the_day.user.message",
+					description="Message of the day to show on device when a user is logged in",
+					possibleValues=[user_message],
+					defaultValues=[user_message],
+					editable=True,
+					multiValue=False,
+				)
+			)
+		if user_message_valid_until is not None:
+			configs.append(
+				UnicodeConfig(
+					id="message_of_the_day.user.message_valid_until",
+					description="Timestamp until the user message of the day is valid",
+					possibleValues=[str(int(user_message_valid_until))],
+					defaultValues=[str(int(user_message_valid_until))],
+					editable=True,
+					multiValue=False,
+				)
+			)
+		if configs:
+			await run_in_threadpool(self.config_createObjects, configs)
+			config_values = {
+				config.id: config.defaultValues[0]
+				for config in await run_in_threadpool(
+					self.config_getObjects,
+					id=[
+						"message_of_the_day.device.message",
+						"message_of_the_day.device.message_valid_until",
+						"message_of_the_day.user.message",
+						"message_of_the_day.user.message_valid_until",
+					],
+				)
+			}
+			client_ids = [client_id async for client_id in get_websocket_connected_users(user_type="client")]
+			if client_ids:
+				return await self._messagebus_rpc(
+					client_ids=client_ids,
+					method="messageOfTheDayUpdated",
+					params=[
+						config_values.get("message_of_the_day.device.message") or "",
+						int(config_values.get("message_of_the_day.device.message_valid_until") or "0"),
+						config_values.get("message_of_the_day.user.message") or "",
+						int(config_values.get("message_of_the_day.user.message_valid_until") or "0"),
+					],
+					timeout=5,
+					messagebus_only=True,
+				)

@@ -556,10 +556,13 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 		get_logger().debug("univention-ldapsearch result: %s", result)
 		ldap_data = {line.split(":")[0].strip(): line.split(":")[1].strip() for line in result.splitlines() if ":" in line}
 
+		if any(key not in ldap_data for key in ("uid", "uidNumber", "gidNumber")):
+			return None
+
 		return UserInfo(
-			username=ldap_data.get("uid", username),
-			uid=int(ldap_data.get("uidNumber", -1)),
-			gid=int(ldap_data.get("gidNumber", -1)),
+			username=ldap_data["uid"],
+			uid=int(ldap_data["uidNumber"]),
+			gid=int(ldap_data["gidNumber"]),
 			gecos=ldap_data.get("gecos", ""),
 			home=ldap_data.get("homeDirectory", ""),
 			shell=ldap_data.get("loginShell", ""),

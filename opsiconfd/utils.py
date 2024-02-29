@@ -500,9 +500,9 @@ def user_exists(username: str) -> bool:
 def get_user_passwd_details(username: str) -> List[UserInfo]:
 	user_details = []
 	if is_ucs():
-		usc_details = get_ucs_user_details(username)
-		if usc_details:
-			user_details.append(usc_details)
+		ucs_details = get_ucs_user_details(username)
+		if ucs_details:
+			user_details.append(ucs_details)
 	services = get_passwd_services()
 	for service in services:
 		try:

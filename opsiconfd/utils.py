@@ -481,9 +481,7 @@ class UserInfo:
 
 def user_exists(username: str) -> bool:
 	try:
-		return_code = subprocess.run(["id", username], check=True, timeout=5).returncode
-		if return_code != 0:
-			return False
+		subprocess.run(["id", username], check=True, timeout=5)
 	except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
 		get_logger().debug("id %s failed: %s", username, err)
 		return False
@@ -567,7 +565,7 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 			shell=ldap_data.get("loginShell", ""),
 			service=NameService.LDAP,
 		)
-	except subprocess.CalledProcessError as err:
+	except (subprocess.CalledProcessError, FileNotFoundError) as err:
 		get_logger().warning("univention-ldapsearch failed: %s", err)
 		return None
 	except subprocess.TimeoutExpired as err:

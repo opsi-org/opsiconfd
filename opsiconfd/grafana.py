@@ -432,6 +432,14 @@ def set_grafana_root_url() -> None:
 	with open(GRAFANA_INI, "r", encoding="utf-8") as config_file:
 		data += config_file.read()
 	grafana_config.read_string(data)
+
+	for section in grafana_config.sections():
+		if section == "server":
+			continue
+		for option in grafana_config[section]:
+			if option == "root_url":
+				del grafana_config[section][option]
+
 	try:
 		if grafana_config["server"]["root_url"].value == root_url:
 			return

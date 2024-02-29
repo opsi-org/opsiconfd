@@ -18,7 +18,7 @@ import pytest
 from opsiconfd.grafana import set_grafana_root_url
 
 
-@pytest.mark.parametrize("filename", ("tests/data/grafana/defaults.ini", "tests/data/grafana/sample.ini"))
+@pytest.mark.parametrize("filename", ("tests/data/grafana/defaults.ini", "tests/data/grafana/sample.ini", "tests/data/grafana/faulty.ini"))
 def test_set_grafana_root_url(tmp_path: Path, filename: str) -> None:
 	grafana_ini = tmp_path / "grafana.ini"
 	grafana_ini_orig = Path(filename)
@@ -38,3 +38,7 @@ def test_set_grafana_root_url(tmp_path: Path, filename: str) -> None:
 	new_config = RawConfigParser()
 	new_config.read_string("[DEFAULT]\n" + new)
 	assert new_config["server"]["root_url"] == r"%(protocol)s://%(domain)s:%(http_port)s/grafana"
+	for section in new_config:
+		if section == "server":
+			continue
+		assert "root_url" not in new_config[section]

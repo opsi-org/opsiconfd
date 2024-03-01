@@ -16,6 +16,7 @@ from opsicommon.objects import BoolConfig, Config, UnicodeConfig
 from opsicommon.types import forceObjectClass, forceObjectClassList
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
 
 from ..auth import RPCACE
@@ -269,8 +270,9 @@ class RPCConfigMixin(Protocol):
 				)
 			}
 			client_ids = [client_id async for client_id in get_websocket_connected_users(user_type="client")]
+			logger.info("Sending messageOfTheDayUpdated to %d messagebus connected clients", len(client_ids))
 			if client_ids:
-				await self._messagebus_rpc(
+				result = await self._messagebus_rpc(
 					client_ids=client_ids,
 					method="messageOfTheDayUpdated",
 					params=[
@@ -282,3 +284,4 @@ class RPCConfigMixin(Protocol):
 					timeout=5,
 					messagebus_only=True,
 				)
+				logger.debug("messageOfTheDayUpdated result: %s", result)

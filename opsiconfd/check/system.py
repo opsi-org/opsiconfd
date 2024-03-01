@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from subprocess import run
+from subprocess import CalledProcessError, run
 
 import psutil
 from opsicommon.system.info import (
@@ -397,10 +397,15 @@ def check_system_repos() -> CheckResult:
 		version = linux_distro_version_id()
 		if distro in ("debian", "ubuntu"):
 			cmd = ["apt-cache", "policy"]
-			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			try:
+				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Could not check system repositories: {err}"
+				return result
 			logger.debug("apt-cache policy: %s", res)
 			for line in res.split("\n"):
-				if "http://download.opensuse.org" in line or "https://download.opensuse.org" in line:
+				if "opsi" in line:
 					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
 					if name and name in line:
 						result.check_status = CheckStatus.OK
@@ -414,7 +419,12 @@ def check_system_repos() -> CheckResult:
 			if distro in ("rocky", "ol"):
 				version = version.split(".")[0]
 			cmd = ["yum", "repolist"]
-			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			try:
+				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Could not check system repositories: {err}"
+				return result
 			logger.debug("yum repolist: %s", res)
 			for line in res.split("\n"):
 				if "opsi" in line:
@@ -430,7 +440,12 @@ def check_system_repos() -> CheckResult:
 						)
 		elif distro in ("opensuse-leap", "sles"):
 			cmd = ["zypper", "repos", "-E"]
-			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			try:
+				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Could not check system repositories: {err}"
+				return result
 			logger.debug("zypper repos: %s", res)
 			for line in res.split("\n"):
 				if "opsi" in line:

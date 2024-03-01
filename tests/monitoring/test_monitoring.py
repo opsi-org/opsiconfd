@@ -28,6 +28,8 @@ from opsiconfd.application.monitoring.check_short_product_status import (
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.utils import DiskUsage
 from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
 	Config,
 	MySQLConnection,
 	OpsiconfdTestClient,
@@ -38,6 +40,7 @@ from tests.utils import (  # noqa: F401
 	config,
 	create_depot_jsonrpc,
 	delete_mysql_data,
+	get_config,
 	test_client,
 )
 
@@ -502,3 +505,36 @@ def test_check_client_plugin(
 	)
 
 	assert json.loads(result.body) == expected_result
+
+
+def test_monitoring_user_permissions(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
+	backend.user_setCredentials("monitoring", "monitoring123")
+
+	res = test_client.post("/rpc", auth=("monitoring", "monitoring123"), json={"method": "host_getObjects", "params": []})
+	print(res.json())
+	print(res.status_code)
+	result_json = res.json()
+	assert res.status_code == 200
+	assert result_json.get("error")
+	assert result_json["error"].get("class") == "OpsiServicePermissionError"
+	assert result_json["error"].get("message") == "Opsi service permission error: No permission for method 'host_getObjects'"
+
+	with get_config({"multi-factor-auth": "totp_mandatory"}):
+		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		print("admin login: ", res.json())
+		assert res.status_code == 401
+		assert "MFA OTP configuration error" in res.json()["message"]
+
+		res = test_client.post("/session/login", json={"username": "monitoring", "password": "monitoring123"})
+		print("monitoring login: ", res.json())
+		assert res.status_code == 200
+		assert res.json().get("is_admin") is False
+
+		res = test_client.post("/monitoring", auth=("monitoring", "monitoring123"), json={})
+		print(res.json())
+		print(res.status_code)
+		assert res.status_code == 200
+		assert res.json()["state"] == 3
+		assert res.json()["message"] == "No matching task found."
+
+	backend.user_delete("monitoring")

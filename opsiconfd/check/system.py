@@ -77,7 +77,7 @@ LINUX_DISTRO_REPO_NAMES = {
 		"9": "Debian_9.0",
 		"10": "Debian_10",
 		"11": "Debian_11",
-		"12": "Debian_11",
+		"12": "Debian_12",
 	},
 	"ubuntu": {
 		"18.04": "Ubuntu_18.04",
@@ -405,7 +405,15 @@ def check_system_repos() -> CheckResult:
 				return result
 			logger.debug("apt-cache policy: %s", res)
 			for line in res.split("\n"):
-				if "opsi" in line:
+				if any(
+					value in line
+					for value in (
+						"https://download.opensuse.org",
+						"http://download.opensuse.org",
+						"http://obs.uib.gmbh",
+						"https://obs.uib.gmbh",
+					)
+				):
 					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
 					if name and name in line:
 						result.check_status = CheckStatus.OK

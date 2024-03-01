@@ -43,8 +43,16 @@ def repr_pieces(self: Connection | AsyncConnection) -> list[tuple[str, str | int
 	return pieces
 
 
+def __async_con_del__(self: AsyncConnection) -> None:
+	try:
+		self._close()  # type: ignore[attr-defined]
+	except RuntimeError:
+		pass
+
+
 AsyncConnection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 Connection.repr_pieces = repr_pieces  # type: ignore[method-assign]
+AsyncConnection.__del__ = __async_con_del__  # type: ignore[method-assign,attr-defined]
 
 
 def get_redis_connections() -> list[Connection | AsyncConnection]:

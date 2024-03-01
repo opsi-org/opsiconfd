@@ -11,6 +11,7 @@ opsiconfd.auth
 from __future__ import annotations
 
 from enum import StrEnum
+
 from opsicommon.exceptions import BackendAuthenticationError
 
 from ..config import opsi_config

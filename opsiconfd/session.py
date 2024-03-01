@@ -36,9 +36,8 @@ from opsicommon.exceptions import (
 )
 from opsicommon.logging import secret_filter, set_context
 from opsicommon.objects import Host, OpsiClient, User
+from opsicommon.types import forceHardwareAddress, forceUUIDString
 from opsicommon.utils import ip_address_in_network, timestamp
-from opsicommon.types import forceUUIDString, forceHardwareAddress
-
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
@@ -1137,7 +1136,7 @@ async def authenticate_user_passwd(scope: Scope) -> None:
 	credentials = await backend.async_call("user_getCredentials", username=session.username)
 	if credentials and session.password == credentials.get("password"):
 		session.authenticated = True
-		session.is_read_only = False
+		session.is_read_only = True
 		session.is_admin = False
 		session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_FILE)
 	else:
@@ -1206,8 +1205,6 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		raise BackendAuthenticationError("No password specified")
 
 	if session.username == config.monitoring_user:
-		if config.multi_factor_auth == "totp_mandatory":
-			raise BackendAuthenticationError("Monitoring user not available with TOTP mandatory")
 		await authenticate_user_passwd(scope=scope)
 	elif (
 		not session.username

@@ -279,7 +279,9 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 
 	result = check_locked_products(backend, depot_ids=[])
 	assert json.loads(result.body) == {
-		"message": (f"OK: No products locked on depots: {get_depotserver_id()}," "pytest-test-depot.opsi.test,pytest-test-depot2.opsi.test"),
+		"message": (
+			f"OK: No products locked on depots: {get_depotserver_id()}," "pytest-test-depot.opsi.test,pytest-test-depot2.opsi.test"
+		),
 		"state": 0,
 	}
 	mysql = MySQLConnection()

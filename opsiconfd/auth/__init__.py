@@ -15,6 +15,7 @@ from opsicommon.exceptions import BackendAuthenticationError
 
 from ..config import opsi_config
 
+
 class AuthenticationMethod(StrEnum):
 	ADMIN_NETWORKS = "admin_networks"
 	HARDWARE_ADDRESS = "hardware_address"

@@ -76,7 +76,7 @@ def test_cache_expiration() -> None:
 
 
 def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	depot_id = "test-product-ordering-depot.uib.gmbh"
+	depot_id = "test-product-ordering-depot.opsi.test"
 	products = get_dummy_products(100)
 
 	with (
@@ -118,7 +118,7 @@ def test_renew_cache_on_delete_products(test_client: OpsiconfdTestClient) -> Non
 
 
 def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	depot_id = "test-product-ordering-depot.uib.gmbh"
+	depot_id = "test-product-ordering-depot.opsi.test"
 	products = get_dummy_products(100)
 	additional_products = [
 		{
@@ -169,7 +169,7 @@ def test_renew_cache_on_create_products(test_client: OpsiconfdTestClient) -> Non
 
 
 def test_get_product_ordering(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	depot_id = "test-product-ordering-depot.uib.gmbh"
+	depot_id = "test-product-ordering-depot.opsi.test"
 	products = [
 		{
 			"id": "test_product1",

@@ -20,10 +20,12 @@ from opsicommon.exceptions import BackendAuthenticationError
 from opsicommon.system.info import linux_distro_id_like_contains
 
 from ..logging import logger
-from . import AuthenticationModule
+from . import AuthenticationModule, AuthenticationMethod
 
 
 class PAMAuthentication(AuthenticationModule):
+	authentication_method = AuthenticationMethod.PASSWORD_PAM
+
 	def __init__(self, pam_service: str | None = None):
 		super().__init__()
 		self._pam_service = pam_service

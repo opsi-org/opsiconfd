@@ -18,6 +18,7 @@ from opsiconfd.application import app
 from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession, SessionManager, SessionMiddleware
 from opsiconfd.utils import asyncio_create_task, utc_timestamp
+from opsiconfd.auth import AuthenticationMethod
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -46,6 +47,7 @@ async def test_session_store_and_load() -> None:
 	sess1.username = "test"
 	sess1.user_groups = {"group1", "group2", "group3"}
 	sess1.max_age = 123
+	sess1.auth_methods = {AuthenticationMethod.PASSWORD_LDAP, AuthenticationMethod.TOTP}
 
 	await sess1.init()
 
@@ -67,6 +69,7 @@ async def test_session_store_and_load() -> None:
 	assert sess2.max_age == sess1.max_age
 	assert sess2.last_used == sess1.last_used
 	assert sess2.messagebus_last_used == sess1.messagebus_last_used
+	assert sess2.auth_methods == sess1.auth_methods
 
 	await redis.delete(sess2.redis_key)
 	await sleep(1)

@@ -170,8 +170,8 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 				f'("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}");'
 			)
 
-			create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot.uib.gmbh")
-			create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot2.uib.gmbh")
+			create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot.opsi.test")
+			create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot2.opsi.test")
 
 			# Product on client
 			session.execute(
@@ -192,14 +192,14 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 			# Product on depot
 			session.execute(
 				"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
-				'("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-				'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-				'("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
-				'("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
-				'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-				'("pytest-prod-4", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct"),'
-				'("pytest-prod-3", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"),'
-				'("pytest-prod-4", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
+				'("pytest-prod-1", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct"),'
+				'("pytest-prod-2", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct"),'
+				'("pytest-prod-1", "2.0", "1", "pytest-test-depot2.opsi.test", "LocalbootProduct"),'
+				'("pytest-prod-2", "1.0", "1", "pytest-test-depot2.opsi.test", "LocalbootProduct"),'
+				'("pytest-prod-3", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct"),'
+				'("pytest-prod-4", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct"),'
+				'("pytest-prod-3", "1.0", "1", "pytest-test-depot2.opsi.test", "LocalbootProduct"),'
+				'("pytest-prod-4", "2.0", "1", "pytest-test-depot2.opsi.test", "LocalbootProduct");'
 			)
 
 			# Product Group
@@ -231,10 +231,10 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 			# Clients to Depots
 			session.execute(
 				"INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) VALUES "
-				'("clientconfig.depot.id", "pytest-client-1.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
-				'("clientconfig.depot.id", "pytest-client-2.uib.local", \'["pytest-test-depot.uib.gmbh"]\'),'
-				'("clientconfig.depot.id", "pytest-client-3.uib.local",	\'["pytest-test-depot2.uib.gmbh"]\'),'
-				'("clientconfig.depot.id", "pytest-client-4.uib.local", \'["pytest-test-depot2.uib.gmbh"]\');'
+				'("clientconfig.depot.id", "pytest-client-1.uib.local", \'["pytest-test-depot.opsi.test"]\'),'
+				'("clientconfig.depot.id", "pytest-client-2.uib.local", \'["pytest-test-depot.opsi.test"]\'),'
+				'("clientconfig.depot.id", "pytest-client-3.uib.local",	\'["pytest-test-depot2.opsi.test"]\'),'
+				'("clientconfig.depot.id", "pytest-client-4.uib.local", \'["pytest-test-depot2.opsi.test"]\');'
 			)
 
 	yield
@@ -274,12 +274,12 @@ def test_check_disk_usage_no_result(
 
 
 def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F811
-	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
-	assert json.loads(result.body) == {"message": "OK: No products locked on depots: pytest-test-depot.uib.gmbh", "state": 0}
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test"])
+	assert json.loads(result.body) == {"message": "OK: No products locked on depots: pytest-test-depot.opsi.test", "state": 0}
 
 	result = check_locked_products(backend, depot_ids=[])
 	assert json.loads(result.body) == {
-		"message": (f"OK: No products locked on depots: {get_depotserver_id()}," "pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh"),
+		"message": (f"OK: No products locked on depots: {get_depotserver_id()}," "pytest-test-depot.opsi.test,pytest-test-depot2.opsi.test"),
 		"state": 0,
 	}
 	mysql = MySQLConnection()
@@ -288,36 +288,36 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 			session.execute(
 				(
 					"REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES "
-					'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
-					'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+					'("pytest-prod-3", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct", true),'
+					'("pytest-prod-2", "1.0", "1", "pytest-test-depot.opsi.test", "LocalbootProduct", true);'
 				)
 			)
 
 	time.sleep(2)
 
-	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test"])
 	assert json.loads(result.body) == {
 		"message": (
 			"WARNING: 2 products are in locked state.\n"
-			"Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n"
-			"Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh"
+			"Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test\n"
+			"Product pytest-prod-3 locked on depot pytest-test-depot.opsi.test"
 		),
 		"state": 1,
 	}
 
-	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", get_depotserver_id()])
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test", get_depotserver_id()])
 	assert json.loads(result.body) == {
 		"message": (
 			"WARNING: 2 products are in locked state.\n"
-			"Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n"
-			"Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh"
+			"Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test\n"
+			"Product pytest-prod-3 locked on depot pytest-test-depot.opsi.test"
 		),
 		"state": 1,
 	}
 
-	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", get_depotserver_id()], product_ids=["pytest-prod-2"])
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test", get_depotserver_id()], product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
-		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh"),
+		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test"),
 		"state": 1,
 	}
 
@@ -325,21 +325,21 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 	assert json.loads(result.body) == {
 		"message": (
 			"WARNING: 2 products are in locked state.\n"
-			"Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n"
-			"Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh"
+			"Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test\n"
+			"Product pytest-prod-3 locked on depot pytest-test-depot.opsi.test"
 		),
 		"state": 1,
 	}
 
 	result = check_locked_products(backend, depot_ids=None, product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
-		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh"),
+		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test"),
 		"state": 1,
 	}
 
 	result = check_locked_products(backend, depot_ids=["all"], product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
-		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh"),
+		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test"),
 		"state": 1,
 	}
 

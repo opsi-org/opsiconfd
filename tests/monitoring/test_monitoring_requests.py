@@ -179,10 +179,10 @@ def test_check_product_status_not_none(
 			False,
 			{
 				"message": (
-					"CRITICAL: \nResult for Depot: 'pytest-test-depot.uib.gmbh':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+					"CRITICAL: \nResult for Depot: 'pytest-test-depot.opsi.test':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
 					"For product 'pytest-prod-2' problems found on 1 clients!\n"
 					"\n"
-					"Result for Depot: 'pytest-test-depot2.uib.gmbh':\n"
+					"Result for Depot: 'pytest-test-depot2.opsi.test':\n"
 					"For product 'pytest-prod-4' action set on 1 clients!\n"
 					"For product 'pytest-prod-4' version difference problems found on 1 clients!\n"
 				),
@@ -196,10 +196,10 @@ def test_check_product_status_not_none(
 			False,
 			{
 				"message": (
-					"CRITICAL: \nResult for Depot: 'pytest-test-depot.uib.gmbh':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+					"CRITICAL: \nResult for Depot: 'pytest-test-depot.opsi.test':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
 					"For product 'pytest-prod-2' problems found on 1 clients!\n"
 					"\n"
-					"Result for Depot: 'pytest-test-depot2.uib.gmbh':\n"
+					"Result for Depot: 'pytest-test-depot2.opsi.test':\n"
 					"For product 'pytest-prod-4' action set on 1 clients!\n"
 					"For product 'pytest-prod-4' version difference problems found on 1 clients!\n"
 				),
@@ -213,7 +213,7 @@ def test_check_product_status_not_none(
 			False,
 			{
 				"message": (
-					"CRITICAL: \nResult for Depot: 'pytest-test-depot.uib.gmbh':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+					"CRITICAL: \nResult for Depot: 'pytest-test-depot.opsi.test':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
 					"For product 'pytest-prod-2' problems found on 1 clients!\n"
 				),
 				"state": 2,
@@ -240,7 +240,7 @@ def test_check_product_status_groupids(
 				"user": ADMIN_USER,
 				"productIds": products,
 				"groupIds": group,
-				"depotIds": ["pytest-test-depot.uib.gmbh", "pytest-test-depot2.uib.gmbh"],
+				"depotIds": ["pytest-test-depot.opsi.test", "pytest-test-depot2.opsi.test"],
 				"verbose": verbose,
 				"strict": strict,
 				"password": ADMIN_PASS,
@@ -441,39 +441,39 @@ def test_check_client_status(
 	"depot_ids, product_ids, exclude, strict, verbose, expected_result",
 	[
 		(
-			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.opsi.test"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
 			False,
-			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.opsi.test", "state": 0},
 		),
 		(
-			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.opsi.test"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			True,
 			False,
-			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.opsi.test", "state": 0},
 		),
 		(
-			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.opsi.test"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
 			True,
-			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.opsi.test", "state": 0},
 		),
 		(
-			[get_depotserver_id(), "pytest-test-depot.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot.opsi.test"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			True,
 			True,
-			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.uib.gmbh", "state": 0},
+			{"message": f"OK: Syncstate ok for depots {get_depotserver_id()}, pytest-test-depot.opsi.test", "state": 0},
 		),
 		(
-			[get_depotserver_id(), "pytest-test-depot2.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot2.opsi.test"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
@@ -481,7 +481,7 @@ def test_check_client_status(
 			{"message": "WARNING: Differences found for 1 products", "state": 1},
 		),
 		(
-			[get_depotserver_id(), "pytest-test-depot2.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot2.opsi.test"],
 			["pytest-prod-1", "pytest-prod-2"],
 			[],
 			False,
@@ -490,13 +490,13 @@ def test_check_client_status(
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
 					f"product 'pytest-prod-1': {get_depotserver_id()} (1.0-1) \n"
-					"pytest-test-depot2.uib.gmbh (2.0-1) \n"
+					"pytest-test-depot2.opsi.test (2.0-1) \n"
 				),
 				"state": 1,
 			},
 		),
 		(
-			[get_depotserver_id(), "pytest-test-depot2.uib.gmbh"],
+			[get_depotserver_id(), "pytest-test-depot2.opsi.test"],
 			["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 			[],
 			True,
@@ -505,13 +505,13 @@ def test_check_client_status(
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
 					f"product 'pytest-prod-1': {get_depotserver_id()} (1.0-1) \n"
-					"pytest-test-depot2.uib.gmbh (2.0-1) \n"
+					"pytest-test-depot2.opsi.test (2.0-1) \n"
 				),
 				"state": 1,
 			},
 		),
 		(
-			["pytest-test-depot2.uib.gmbh", get_depotserver_id()],
+			["pytest-test-depot2.opsi.test", get_depotserver_id()],
 			["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 			[],
 			True,
@@ -519,14 +519,14 @@ def test_check_client_status(
 			{
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
-					"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
+					"product 'pytest-prod-1': pytest-test-depot2.opsi.test (2.0-1) \n"
 					f"{get_depotserver_id()} (1.0-1) \n"
 				),
 				"state": 1,
 			},
 		),
 		(
-			["pytest-test-depot2.uib.gmbh", get_depotserver_id()],
+			["pytest-test-depot2.opsi.test", get_depotserver_id()],
 			["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 			["pytest-prod-3"],
 			True,
@@ -534,7 +534,7 @@ def test_check_client_status(
 			{
 				"message": (
 					"WARNING: Differences found for 1 products:\n"
-					"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
+					"product 'pytest-prod-1': pytest-test-depot2.opsi.test (2.0-1) \n"
 					f"{get_depotserver_id()} (1.0-1) \n"
 				),
 				"state": 1,

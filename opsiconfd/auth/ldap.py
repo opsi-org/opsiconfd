@@ -17,10 +17,12 @@ from opsicommon.exceptions import BackendAuthenticationError
 from opsiconfd.utils import ldap3_uri_to_str
 
 from ..logging import logger
-from . import AuthenticationModule
+from . import AuthenticationModule, AuthenticationMethod
 
 
 class LDAPAuthentication(AuthenticationModule):
+	authentication_method = AuthenticationMethod.PASSWORD_LDAP
+
 	def __init__(self, ldap_url: str, bind_user: str | None = None, group_filter: str | None = None) -> None:
 		"""
 		Authentication module using LDAP.

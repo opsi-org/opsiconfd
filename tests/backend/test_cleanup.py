@@ -74,8 +74,8 @@ def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F
 
 
 def test_cleanup_clientconfig_depot_id(backend: UnprotectedBackend) -> None:  # noqa: F811
-	depot_id = "test-clientconfig-depot.uib.gmbh"
-	client_id = "test-clientconfig-client.uib.gmbh"
+	depot_id = "test-clientconfig-depot.opsi.test"
+	client_id = "test-clientconfig-client.opsi.test"
 	backend.host_createOpsiDepotserver(id=depot_id)
 	backend.host_createOpsiClient(id=client_id)
 	backend.configState_create(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])

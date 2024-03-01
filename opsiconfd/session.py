@@ -37,6 +37,8 @@ from opsicommon.exceptions import (
 from opsicommon.logging import secret_filter, set_context
 from opsicommon.objects import Host, OpsiClient, User
 from opsicommon.utils import ip_address_in_network, timestamp
+from opsicommon.types import forceUUIDString, forceHardwareAddress
+
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
@@ -47,7 +49,7 @@ from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import MaintenanceState
 from opsiconfd.application import app as opsiconfd_app
-from opsiconfd.auth import AuthenticationModule
+from opsiconfd.auth import AuthenticationMethod, AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
 from opsiconfd.auth.user import create_user_roles
@@ -79,6 +81,8 @@ ACCESS_ROLE_ADMIN = "admin"
 SESSION_COOKIE_NAME = "opsiconfd-session"
 SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
 MESSAGEBUS_IN_USE_TIMEOUT = 60
+HARDWARE_ADDRESS_RE = re.compile(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$")
+HOST_ID_RE = re.compile(r"^[^.]+\.[^.]+\.\S+$")
 # Zsync2 will send "curl/<curl-version>" as User-Agent.
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
 # Do not keep sessions because they will never send a cookie (session id).
@@ -516,6 +520,7 @@ class OPSISession:
 		self._user_groups: set[str] = set()
 		self._host: Host | None = None
 		self._authenticated = False
+		self._auth_methods: set[AuthenticationMethod] = set()
 		self._is_admin = False
 		self._is_read_only = False
 
@@ -682,6 +687,22 @@ class OPSISession:
 		self._set_modified("authenticated")
 
 	@property
+	def auth_methods(self) -> set[AuthenticationMethod]:
+		return self._auth_methods
+
+	@auth_methods.setter
+	def auth_methods(self, value: set[AuthenticationMethod]) -> None:
+		if self._auth_methods == value:
+			return
+		self._auth_methods = value
+		self._set_modified("auth_methods")
+
+	def add_auth_methods(self, *value: AuthenticationMethod) -> None:
+		for method in value:
+			self._auth_methods.add(method)
+		self._set_modified("auth_methods")
+
+	@property
 	def is_admin(self) -> bool:
 		return self._is_admin
 
@@ -723,6 +744,7 @@ class OPSISession:
 		self.user_groups = set()
 		self.host = None
 		self.authenticated = False
+		self.auth_methods = set()
 		self.is_admin = False
 		self.is_read_only = False
 
@@ -803,6 +825,7 @@ class OPSISession:
 			"user_groups",
 			"host",
 			"authenticated",
+			"auth_methods",
 			"is_admin",
 			"is_read_only",
 		):
@@ -834,6 +857,8 @@ class OPSISession:
 					val = None  # type: ignore
 			elif attr == "user_groups":
 				val = set(msgspec.msgpack.decode(val))  # type: ignore
+			elif attr == "auth_methods":
+				val = set(AuthenticationMethod(v) for v in msgspec.msgpack.decode(val))  # type: ignore
 			elif attr in ("authenticated", "is_admin", "is_read_only"):
 				val = bool(int(val))
 			elif isinstance(val, bytes):
@@ -1013,22 +1038,29 @@ def get_peer_cert_common_name(scope: Scope) -> str | None:
 
 
 async def authenticate_host(scope: Scope) -> None:
-	session = scope["session"]
+	session: OPSISession = scope["session"]
 	backend = get_unprotected_backend()
 
 	hosts = []
 	host_filter = {}
+	auth_method = None
 	if config.allow_host_key_only_auth:
 		session.username = "<host-key-only-auth>"
 		logger.debug("Trying to authenticate host by opsi host key only")
 		host_filter["opsiHostKey"] = session.password
-	elif re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", session.username):
+	elif session.username.startswith("{hardware_address}") or HARDWARE_ADDRESS_RE.search(session.username):
 		logger.debug("Trying to authenticate host by mac address and opsi host key")
-		host_filter["hardwareAddress"] = session.username
+		host_filter["hardwareAddress"] = forceHardwareAddress(session.username.replace("{hardware_address}", ""))
+		auth_method = AuthenticationMethod.HARDWARE_ADDRESS
+	elif session.username.startswith("{system_uuid}"):
+		logger.debug("Trying to authenticate host by system UUID and opsi host key")
+		host_filter["systemUUID"] = forceUUIDString(session.username.replace("{system_uuid}", ""))
+		auth_method = AuthenticationMethod.SYSTEM_UUID
 	else:
 		logger.debug("Trying to authenticate host by host id and opsi host key")
 		session.username = session.username.rstrip(".")
 		host_filter["id"] = session.username
+		auth_method = AuthenticationMethod.HOST_ID
 
 	hosts = await backend.async_call("host_getObjects", **host_filter)
 	if not hosts:
@@ -1036,6 +1068,9 @@ async def authenticate_host(scope: Scope) -> None:
 	if len(hosts) > 1:
 		raise BackendAuthenticationError(f"More than one matching host object found '{session.username}'")
 	host = hosts[0]
+	if auth_method:
+		session.add_auth_methods(auth_method)
+
 	if not host.opsiHostKey:
 		raise BackendAuthenticationError(f"OpsiHostKey missing for host '{host.id}'")
 
@@ -1057,10 +1092,13 @@ async def authenticate_host(scope: Scope) -> None:
 			raise BackendAuthenticationError(f"Client certificate missing for host '{host.id}'")
 		if peer_cert_cn != host.id:
 			raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
+		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 
 	if host.opsiHostKey and session.password == host.opsiHostKey:
+		session.add_auth_methods(AuthenticationMethod.HOST_KEY)
 		logger.info("Host '%s' authenticated by host key", host.id)
 	elif isinstance(host, OpsiClient) and host.oneTimePassword and session.password == host.oneTimePassword:
+		session.add_auth_methods(AuthenticationMethod.PASSWORD_ONETIME)
 		logger.info("Host '%s' authenticated by onetime password", host.id)
 		host.oneTimePassword = ""
 		# Update immediately
@@ -1094,19 +1132,20 @@ async def authenticate_host(scope: Scope) -> None:
 
 
 async def authenticate_user_passwd(scope: Scope) -> None:
-	session = scope["session"]
+	session: OPSISession = scope["session"]
 	backend = get_unprotected_backend()
 	credentials = await backend.async_call("user_getCredentials", username=session.username)
 	if credentials and session.password == credentials.get("password"):
 		session.authenticated = True
 		session.is_read_only = False
 		session.is_admin = False
+		session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_FILE)
 	else:
 		raise BackendAuthenticationError(f"Authentication failed for user {session.username}")
 
 
 async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
-	session = scope["session"]
+	session: OPSISession = scope["session"]
 	authm = get_auth_module()
 
 	if not authm:
@@ -1119,11 +1158,13 @@ async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
 			raise BackendAuthenticationError(f"Client certificate missing for user '{session.username}'")
 		if peer_cert_cn != session.username:
 			raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'")
+		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 
 	logger.debug("Trying to authenticate by user authentication module %s", authm)
 
 	try:
-		await run_in_threadpool(authm.authenticate, session.username, session.password)
+		await run_in_threadpool(authm.authenticate, session.username, session.password or "")
+		session.add_auth_methods(AuthenticationMethod.USERNAME, authm.authentication_method)
 	except Exception as err:
 		raise BackendAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
 
@@ -1169,9 +1210,12 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 			raise BackendAuthenticationError("Monitoring user not available with TOTP mandatory")
 		await authenticate_user_passwd(scope=scope)
 	elif (
-		re.search(r"^[^.]+\.[^.]+\.\S+$", session.username)
-		or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", session.username)
-		or not session.username
+		not session.username
+		or session.username.startswith("{hardware_address}")
+		or session.username.startswith("{system_uuid}")
+		or HOST_ID_RE.search(session.username)
+		or HARDWARE_ADDRESS_RE.search(session.username)
+		or session.username.count(".") >= 2
 	):
 		await authenticate_host(scope=scope)
 	else:
@@ -1204,6 +1248,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 			totp = pyotp.TOTP(user.otpSecret)
 			if not totp.verify(mfa_otp):
 				raise BackendAuthenticationError("Incorrect one-time password")
+			session.add_auth_methods(AuthenticationMethod.TOTP)
 			logger.info("OTP MFA successful")
 
 		session.authenticated = True
@@ -1245,6 +1290,7 @@ async def check_admin_networks(session: OPSISession) -> None:
 	for network in config.admin_networks:
 		if ip_address_in_network(session.client_addr, network):
 			is_admin_network = True
+			session.add_auth_methods(AuthenticationMethod.ADMIN_NETWORKS)
 			break
 
 	if not is_admin_network:

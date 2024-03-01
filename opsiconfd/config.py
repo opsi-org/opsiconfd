@@ -403,12 +403,13 @@ class Config(metaclass=Singleton):
 			self._config.profiler = []
 		for attr in "networks", "admin_networks":
 			conf = getattr(self._config, attr)
-			add = True
-			for network in conf:
-				if ip_address_in_network("127.0.0.1", network):
-					add = False
-			if add:
-				conf.append("127.0.0.1/32")
+			if conf:
+				add = True
+				for network in conf:
+					if ip_address_in_network("127.0.0.1", network):
+						add = False
+				if add:
+					conf.append("127.0.0.1/32")
 
 	def redis_key(self, prefix_type: str | None = None) -> str:
 		if not prefix_type:
@@ -627,7 +628,7 @@ class Config(metaclass=Singleton):
 			"--networks",
 			nargs="+",
 			env_var="OPSICONFD_NETWORKS",
-			default=["0.0.0.0/0", "::/0"],
+			default=[],
 			type=network_address,
 			help=self._help("opsiconfd", "A list of network addresses from which connections are allowed."),
 		)
@@ -635,7 +636,7 @@ class Config(metaclass=Singleton):
 			"--admin-networks",
 			nargs="+",
 			env_var="OPSICONFD_ADMIN_NETWORKS",
-			default=["0.0.0.0/0", "::/0"],
+			default=[],
 			type=network_address,
 			help=self._help("opsiconfd", "A list of network addresses from which administrative connections are allowed."),
 		)

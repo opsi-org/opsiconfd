@@ -394,6 +394,7 @@ async def get_session_list() -> RESTResponse:
 				"user_agent": sess.user_agent,
 				"authenticated": sess.authenticated,
 				"username": sess.username,
+				"auth_methods": list(sess.auth_methods or []),
 				"address": client_addr,
 				"session_id": tmp[-1][:6] + "...",
 			}

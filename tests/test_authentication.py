@@ -262,7 +262,7 @@ def test_update_client_object(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	database_connection: MySQLConnection,  # noqa: F811
 ) -> None:
-	host_id = "test-client-update.uib.gmbh"
+	host_id = "test-client-update.opsi.test"
 	host_key = "0dc5e29e2994c04de5108508cdd7cf02"
 
 	with database_connection.session() as session:
@@ -557,22 +557,57 @@ def test_onetime_password_host_id(
 			INSERT INTO HOST
 				(hostId, type, opsiHostKey, oneTimePassword)
 			VALUES
-				("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1me");
+				("onetimepasswd.opsi.test", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1me");
 		"""
 		)
 
 	try:
 		rpc = {"id": 1, "method": "backend_info", "params": []}
-		res = test_client.post("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
+		res = test_client.post("/rpc", auth=("onetimepasswd.opsi.test", "onet1me"), json=rpc)
 		assert res.status_code == 200
 		assert res.json()
+		assert test_client.context
+		sess = test_client.context.get(contextvar_client_session)
+		assert sess and sess.auth_methods == {"host_id", "password_onetime"}
 
 		test_client.reset_cookies()
-		res = test_client.post("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
+		res = test_client.post("/rpc", auth=("onetimepasswd.opsi.test", "onet1me"), json=rpc)
 		assert res.status_code == 401
 	finally:
 		with database_connection.session() as session:
-			session.execute('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
+			session.execute('DELETE FROM HOST WHERE hostId = "onetimepasswd.opsi.test"')
+
+
+def test_auth_system_uuid_hardware_address_and_hostkey(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	opsi_client = objects.OpsiClient(
+		id="onlyhostkey.opsi.test",
+		opsiHostKey="f020dcde5108508cd947c5e229d9ec04",
+		systemUUID="69bdfe1a-55df-4392-95ab-85715cd0e77e",
+		hardwareAddress="aa:bb:aa:bb:cc:dd",
+	)
+	assert opsi_client.opsiHostKey
+	backend.host_createObjects([opsi_client])
+
+	rpc = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+
+	res = test_client.post("/rpc", auth=("{system_uuid}" + (opsi_client.systemUUID or ""), opsi_client.opsiHostKey), json=rpc)
+	assert res.status_code == 200
+	test_client.reset_cookies()
+	assert test_client.context
+	sess = test_client.context.get(contextvar_client_session)
+	assert sess and sess.auth_methods == {"system_uuid", "host_key"}
+
+	test_client.reset_cookies()
+
+	res = test_client.post("/rpc", auth=("{hardware_address}" + (opsi_client.hardwareAddress or ""), opsi_client.opsiHostKey), json=rpc)
+	assert res.status_code == 200
+	test_client.reset_cookies()
+	assert test_client.context
+	sess = test_client.context.get(contextvar_client_session)
+	assert sess and sess.auth_methods == {"hardware_address", "host_key"}
 
 
 def test_onetime_password_hardware_address(
@@ -585,7 +620,7 @@ def test_onetime_password_hardware_address(
 			INSERT INTO HOST
 				(hostId, type, opsiHostKey, oneTimePassword, hardwareAddress)
 			VALUES
-				("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1mac", "01:02:aa:bb:cc:dd");
+				("onetimepasswd.opsi.test", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1mac", "01:02:aa:bb:cc:dd");
 		"""
 		)
 	try:
@@ -593,45 +628,51 @@ def test_onetime_password_hardware_address(
 		res = test_client.post("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
 		assert res.status_code == 200
 		assert res.json()
+		assert test_client.context
+		sess = test_client.context.get(contextvar_client_session)
+		assert sess and sess.auth_methods == {"hardware_address", "password_onetime"}
 
 		test_client.reset_cookies()
 		res = test_client.post("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
 		assert res.status_code == 401
 	finally:
 		with database_connection.session() as session:
-			session.execute('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
+			session.execute('DELETE FROM HOST WHERE hostId = "onetimepasswd.opsi.test"')
 
 
 def test_auth_only_hostkey(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
-	opsi_client = objects.OpsiClient(id="onlyhostkey.uib.gmbh", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
+	opsi_client = objects.OpsiClient(id="onlyhostkey.opsi.test", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
-	data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
+	rpc = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
 
 	with get_config({"allow_host_key_only_auth": False}):
-		res = test_client.post("/rpc", auth=("", opsi_client.opsiHostKey), json=data)
+		res = test_client.post("/rpc", auth=("", opsi_client.opsiHostKey), json=rpc)
 		assert res.status_code == 401
 		test_client.reset_cookies()
 
 	with get_config({"allow_host_key_only_auth": True}):
-		res = test_client.post("/rpc", auth=(ADMIN_USER, opsi_client.opsiHostKey), json=data)
+		res = test_client.post("/rpc", auth=(ADMIN_USER, opsi_client.opsiHostKey), json=rpc)
 		assert res.status_code == 401
 		test_client.reset_cookies()
 
-		res = test_client.post("/rpc", auth=("", ADMIN_PASS), json=data)
+		res = test_client.post("/rpc", auth=("", ADMIN_PASS), json=rpc)
 		assert res.status_code == 401
 		test_client.reset_cookies()
 
-		res = test_client.post("/rpc", auth=("", opsi_client.opsiHostKey), json=data)
+		res = test_client.post("/rpc", auth=("", opsi_client.opsiHostKey), json=rpc)
 		assert res.status_code == 200
 		assert res.headers["x-opsi-new-host-id"] == opsi_client.id
 		test_client.reset_cookies()
+		assert test_client.context
+		sess = test_client.context.get(contextvar_client_session)
+		assert sess and sess.auth_methods == {"host_key"}
 
-		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data)
+		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 		assert res.status_code == 200
 
 

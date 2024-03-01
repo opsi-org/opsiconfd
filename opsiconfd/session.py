@@ -1136,10 +1136,7 @@ async def authenticate_user_passwd(scope: Scope) -> None:
 	credentials = await backend.async_call("user_getCredentials", username=session.username)
 	if credentials and session.password == credentials.get("password"):
 		session.authenticated = True
-		if session.username == config.monitoring_user:
-			session.is_read_only = True
-		else:
-			session.is_read_only = False
+		session.is_read_only = True
 		session.is_admin = False
 		session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_FILE)
 	else:

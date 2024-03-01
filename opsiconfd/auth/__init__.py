@@ -14,7 +14,7 @@ from enum import StrEnum
 
 from opsicommon.exceptions import BackendAuthenticationError
 
-from ..config import config, opsi_config
+from ..config import opsi_config
 
 
 class AuthenticationMethod(StrEnum):
@@ -59,8 +59,6 @@ class AuthenticationModule:
 
 	def user_is_read_only(self, username: str, forced_user_groupnames: set[str] | None = None) -> bool:
 		user_groupnames = set()
-		if username == config.monitoring_user:
-			return True
 		if forced_user_groupnames is None:
 			user_groupnames = self.get_groupnames(username)
 		else:

@@ -50,7 +50,7 @@ def check_redis() -> CheckResult:
 
 		redis_info = decode_redis_result(redis.execute_command("INFO"))
 		logger.debug("Redis info: %s", redis_info)
-		for module in redis_info["modules"]:
+		for module in redis_info.get("modules", []):
 			if module["name"] == "timeseries":
 				partial_result.check_status = CheckStatus.OK
 				partial_result.message = f"RedisTimeSeries version {module['ver']!r} is loaded."

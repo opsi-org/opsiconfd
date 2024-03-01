@@ -507,10 +507,12 @@ def test_check_client_plugin(
 	assert json.loads(result.body) == expected_result
 
 
-def test_monitoring_user_permissions(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
-	backend.user_setCredentials("monitoring", "monitoring123")
+def test_monitoring_user_permissions(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	monitoring_user = "monitoring"
+	monitoring_password = "monitoring123"
+	backend.user_setCredentials(monitoring_user, monitoring_password)
 
-	res = test_client.post("/rpc", auth=("monitoring", "monitoring123"), json={"method": "host_getObjects", "params": []})
+	res = test_client.post("/rpc", auth=(monitoring_user, monitoring_password), json={"method": "host_getObjects", "params": []})
 	print(res.json())
 	print(res.status_code)
 	result_json = res.json()
@@ -525,16 +527,16 @@ def test_monitoring_user_permissions(backend: UnprotectedBackend, test_client: O
 		assert res.status_code == 401
 		assert "MFA OTP configuration error" in res.json()["message"]
 
-		res = test_client.post("/session/login", json={"username": "monitoring", "password": "monitoring123"})
+		res = test_client.post("/session/login", json={"username": monitoring_user, "password": monitoring_password})
 		print("monitoring login: ", res.json())
 		assert res.status_code == 200
 		assert res.json().get("is_admin") is False
 
-		res = test_client.post("/monitoring", auth=("monitoring", "monitoring123"), json={})
+		res = test_client.post("/monitoring", auth=(monitoring_user, monitoring_password), json={})
 		print(res.json())
 		print(res.status_code)
 		assert res.status_code == 200
 		assert res.json()["state"] == 3
 		assert res.json()["message"] == "No matching task found."
 
-	backend.user_delete("monitoring")
+	backend.user_delete(monitoring_user)

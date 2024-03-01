@@ -24,6 +24,7 @@ from cryptography.x509 import verification  # type: ignore[attr-defined]
 
 import opsiconfd.ssl
 from opsiconfd.application.main import get_ssl_ca_cert
+from opsiconfd.config import get_configserver_id
 from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
@@ -675,15 +676,18 @@ def test_create_local_server_cert(tmpdir: Path) -> None:
 				assert isinstance(key, rsa.RSAPrivateKey)
 				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
 					key = load_key(conf.ssl_server_key, "wrong")
-				cert = load_local_server_cert()
-				assert isinstance(cert, x509.Certificate)
+
 				cert = load_cert(conf.ssl_server_cert)
 				assert isinstance(cert, x509.Certificate)
 
-				srv_crt = load_local_server_cert()
+				cert = load_local_server_cert()
+				assert isinstance(cert, x509.Certificate)
+
 				assert (
-					srv_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)
+					cert.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)
 				).days == conf.ssl_server_cert_valid_days - 1
+				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == get_configserver_id()
+				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
 
 def test_recreate_server_key(tmpdir: Path) -> None:

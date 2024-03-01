@@ -19,14 +19,14 @@ from ipaddress import ip_address
 from pathlib import Path
 from re import DOTALL, finditer
 from socket import gethostbyaddr
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 from opsicommon.server.rights import FilePermission, PermissionRegistry, set_rights
-from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca, is_self_signed, x509_name_to_dict
+from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca, is_self_signed, load_key, x509_name_to_dict
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from opsiconfd.backend import get_unprotected_backend
@@ -43,8 +43,9 @@ from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.main import Backend
 	from opsicommon.client.opsiservice import ServiceClient
+
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def get_ips() -> set[str]:
@@ -147,20 +148,6 @@ def store_key(key_file: str | Path, passphrase: str, key: rsa.RSAPrivateKey) -> 
 	key_file.parent.mkdir(parents=True, exist_ok=True)
 	key_file.write_text(as_pem(key, passphrase), encoding="utf-8")
 	setup_ssl_file_permissions()
-
-
-def load_key(key_file: str | Path, passphrase: str) -> rsa.RSAPrivateKey:
-	if not isinstance(key_file, Path):
-		key_file = Path(key_file)
-	try:
-		private_key = serialization.load_pem_private_key(
-			key_file.read_text(encoding="utf-8").encode("utf-8"), password=passphrase.encode("utf-8")
-		)
-		if not isinstance(private_key, rsa.RSAPrivateKey):
-			raise ValueError(f"Not a RSA private key, but {private_key.__class__.__name__}")
-		return private_key
-	except ValueError as err:
-		raise RuntimeError(f"Failed to load private key from '{key_file}': {err}") from err
 
 
 def store_cert(cert_file: str | Path, cert: x509.Certificate, keep_others: bool = False) -> None:

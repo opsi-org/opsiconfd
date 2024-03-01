@@ -427,7 +427,7 @@ async def create_dashboard_user() -> tuple[str, str]:
 def set_grafana_root_url() -> None:
 	root_url = r"%(protocol)s://%(domain)s:%(http_port)s/grafana"
 
-	grafana_config = ConfigUpdater()
+	grafana_config = ConfigUpdater(empty_lines_in_values=False)
 	data = "[DEFAULT]\n"
 	with open(GRAFANA_INI, "r", encoding="utf-8") as config_file:
 		data += config_file.read()
@@ -440,15 +440,17 @@ def set_grafana_root_url() -> None:
 			if option == "root_url":
 				del grafana_config[section][option]
 
+	print(grafana_config["server"].has_option("root_url"))
 	try:
-		if grafana_config["server"]["root_url"].value == root_url:
+		if grafana_config["server"].has_option("root_url") and grafana_config["server"]["root_url"].value == root_url:
 			return
 	except KeyError:
 		pass
 
 	logger.notice("Changing root_url in %s", GRAFANA_INI)
-	grafana_config["server"]["root_url"] = "%(protocol)s://%(domain)s:%(http_port)s/grafana"
+	grafana_config["server"].insert_at(0).option("root_url", "%(protocol)s://%(domain)s:%(http_port)s/grafana")
 	data = str(grafana_config)
+	print(data)
 	with open(GRAFANA_INI, "w", encoding="utf-8") as config_file:
 		config_file.write(data.split("\n", 1)[1])
 

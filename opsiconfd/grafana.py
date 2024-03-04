@@ -432,15 +432,24 @@ def set_grafana_root_url() -> None:
 	with open(GRAFANA_INI, "r", encoding="utf-8") as config_file:
 		data += config_file.read()
 	grafana_config.read_string(data)
-	try:
+
+	for section in grafana_config.sections():
+		if section == "server":
+			continue
+		if grafana_config[section].has_option("root_url"):
+			logger.notice("Removing root_url from %s in section '%s'", GRAFANA_INI, section)
+			del grafana_config[section]["root_url"]
+
+	if grafana_config["server"].has_option("root_url"):
 		if grafana_config["server"]["root_url"].value == root_url:
 			return
-	except KeyError:
-		pass
-
-	logger.notice("Changing root_url in %s", GRAFANA_INI)
-	grafana_config["server"]["root_url"] = "%(protocol)s://%(domain)s:%(http_port)s/grafana"
+		logger.notice("Changing root_url in %s", GRAFANA_INI)
+		grafana_config["server"]["root_url"].value = root_url
+	else:
+		logger.notice("Adding root_url to %s", GRAFANA_INI)
+		grafana_config["server"].insert_at(0).option("root_url", root_url)
 	data = str(grafana_config)
+
 	with open(GRAFANA_INI, "w", encoding="utf-8") as config_file:
 		config_file.write(data.split("\n", 1)[1])
 

@@ -436,21 +436,20 @@ def set_grafana_root_url() -> None:
 	for section in grafana_config.sections():
 		if section == "server":
 			continue
-		for option in grafana_config[section]:
-			if option == "root_url":
-				del grafana_config[section][option]
+		if grafana_config[section].has_option("root_url"):
+			logger.notice("Removing root_url from %s in section '%s'", GRAFANA_INI, section)
+			del grafana_config[section]["root_url"]
 
-	print(grafana_config["server"].has_option("root_url"))
-	try:
-		if grafana_config["server"].has_option("root_url") and grafana_config["server"]["root_url"].value == root_url:
+	if grafana_config["server"].has_option("root_url"):
+		if grafana_config["server"]["root_url"].value == root_url:
 			return
-	except KeyError:
-		pass
-
-	logger.notice("Changing root_url in %s", GRAFANA_INI)
-	grafana_config["server"].insert_at(0).option("root_url", "%(protocol)s://%(domain)s:%(http_port)s/grafana")
+		logger.notice("Changing root_url in %s", GRAFANA_INI)
+		grafana_config["server"]["root_url"].value = root_url
+	else:
+		logger.notice("Adding root_url to %s", GRAFANA_INI)
+		grafana_config["server"].insert_at(0).option("root_url", "%(protocol)s://%(domain)s:%(http_port)s/grafana")
 	data = str(grafana_config)
-	print(data)
+
 	with open(GRAFANA_INI, "w", encoding="utf-8") as config_file:
 		config_file.write(data.split("\n", 1)[1])
 

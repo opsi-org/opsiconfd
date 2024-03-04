@@ -427,7 +427,7 @@ async def create_dashboard_user() -> tuple[str, str]:
 def set_grafana_root_url() -> None:
 	root_url = r"%(protocol)s://%(domain)s:%(http_port)s/grafana"
 
-	grafana_config = ConfigUpdater(empty_lines_in_values=False)
+	grafana_config = ConfigUpdater()
 	data = "[DEFAULT]\n"
 	with open(GRAFANA_INI, "r", encoding="utf-8") as config_file:
 		data += config_file.read()

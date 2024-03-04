@@ -447,7 +447,7 @@ def set_grafana_root_url() -> None:
 		grafana_config["server"]["root_url"].value = root_url
 	else:
 		logger.notice("Adding root_url to %s", GRAFANA_INI)
-		grafana_config["server"].insert_at(0).option("root_url", "%(protocol)s://%(domain)s:%(http_port)s/grafana")
+		grafana_config["server"].insert_at(0).option("root_url", root_url)
 	data = str(grafana_config)
 
 	with open(GRAFANA_INI, "w", encoding="utf-8") as config_file:

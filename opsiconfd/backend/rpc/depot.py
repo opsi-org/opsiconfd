@@ -882,10 +882,12 @@ class DepotserverPackageManager:
 										)
 							self.backend.productPropertyState_createObjects(product_property_states)
 
-						if not suppress_package_content_file_generation:
-							create_package_content_file(product_path)
-						else:
+						if product.getType() == "NetbootProduct":
+							logger.debug("Not creating package content file for NetbootProduct")
+						elif suppress_package_content_file_generation:
 							logger.debug("Suppressed generation of package content file")
+						else:
+							create_package_content_file(product_path)
 						set_rights(product_path)
 
 				clean_up_products(product_on_depot.productId)

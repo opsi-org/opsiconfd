@@ -11,6 +11,7 @@ test application.proxy
 import json
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 import mock  # type: ignore[import]
 from opsicommon.testing.helpers import http_test_server  # type: ignore[import]
@@ -21,8 +22,10 @@ from opsiconfd.application.proxy import ReverseProxy
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
+	Config,
 	OpsiconfdTestClient,
 	WebSocketMessageReader,
+	config,
 	get_config,
 	test_client,
 )
@@ -150,3 +153,23 @@ def test_websocket(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  #
 	assert request["headers"]["x-forwarded-host"] == "testserver"
 	assert request["headers"]["x-forwarded-server"] == "testserver"
 	assert request["headers"]["x-forwarded-for"] == request["headers"]["x-real-ip"]
+
+
+def test_grafana_reverse_proxy(test_client: OpsiconfdTestClient, config: Config) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with test_client as client:
+		client.auth = (ADMIN_USER, ADMIN_PASS)
+
+		grafana_internal_url = urlparse(config.grafana_internal_url)
+		print(grafana_internal_url)
+
+		res = client.post("/grafana/login", data={"user": grafana_internal_url.username, "password": grafana_internal_url.password})
+		print(res.json())
+		assert res.status_code == 200
+		assert res.json()["message"] == "Logged in"
+
+		assert client.cookies.get("grafana_session") is not None
+		assert client.cookies.get("grafana_session_expiry") is not None
+
+		res = client.get("/grafana/api/dashboards/home")
+		assert res.status_code == 200

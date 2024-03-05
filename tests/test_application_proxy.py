@@ -163,7 +163,7 @@ def test_grafana_reverse_proxy(test_client: OpsiconfdTestClient, config: Config)
 		grafana_internal_url = urlparse(config.grafana_internal_url)
 		print(grafana_internal_url)
 
-		res = client.post("/grafana/login", data={"user": grafana_internal_url.username, "password": grafana_internal_url.password})
+		res = client.post("/grafana/login", json={"user": grafana_internal_url.username, "password": grafana_internal_url.password})
 		print(res.json())
 		assert res.status_code == 200
 		assert res.json()["message"] == "Logged in"
@@ -172,4 +172,5 @@ def test_grafana_reverse_proxy(test_client: OpsiconfdTestClient, config: Config)
 		assert client.cookies.get("grafana_session_expiry") is not None
 
 		res = client.get("/grafana/api/dashboards/home")
+
 		assert res.status_code == 200

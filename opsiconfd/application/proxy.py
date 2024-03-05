@@ -28,7 +28,20 @@ from opsiconfd.session import SESSION_COOKIE_NAME
 
 
 def reverse_proxy_setup(_app: FastAPI) -> None:
-	ReverseProxy(_app, "/grafana", config.grafana_internal_url, forward_cookies=["grafana_session"], preserve_host=True)
+	ReverseProxy(
+		_app,
+		"/grafana",
+		config.grafana_internal_url,
+		forward_cookies=["grafana_session", "grafana_session_expiry"],
+		preserve_host=True,
+		forward_response_headers=[
+			"Content-Type",
+			"Content-Length",
+			"Content-Encoding",
+			"Last-Modified",
+			"Location",
+		],
+	)
 
 
 proxy_logger = get_logger("opsiconfd.reverse_proxy")
@@ -137,12 +150,25 @@ class ReverseProxy:
 
 		request.scope["reverse_proxy"] = True
 
-		return StreamingResponse(
+		streaming_response = StreamingResponse(
 			status_code=resp.status,
 			headers=response_headers,
 			content=resp.content.iter_any(),
 			background=BackgroundTask(client.close),
 		)
+
+		for cookie in resp.cookies.keys():
+			if self.forward_cookies and cookie in self.forward_cookies:
+				proxy_logger.debug("Forwarding cookie: %s", cookie)
+				streaming_response.set_cookie(
+					key=cookie,
+					value=resp.cookies[cookie].value,
+					expires=resp.cookies[cookie].get("expires"),
+					max_age=resp.cookies[cookie].get("max-age"),
+					path=resp.cookies[cookie].get("path", "/"),
+				)
+
+		return streaming_response
 
 	async def _websocket_reader(self, name: str, reader: Callable, writer: Callable, state: WebSocketState) -> None:
 		trace_log = proxy_logger.isEnabledFor(TRACE)

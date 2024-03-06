@@ -157,16 +157,17 @@ class ReverseProxy:
 			background=BackgroundTask(client.close),
 		)
 
-		for cookie in resp.cookies.keys():
-			if self.forward_cookies and cookie in self.forward_cookies:
-				proxy_logger.debug("Forwarding cookie: %s", cookie)
-				streaming_response.set_cookie(
-					key=cookie,
-					value=resp.cookies[cookie].value,
-					expires=resp.cookies[cookie].get("expires"),
-					max_age=resp.cookies[cookie].get("max-age"),
-					path=resp.cookies[cookie].get("path", "/"),
-				)
+		if self.forward_cookies:
+			for cookie in resp.cookies.keys():
+				if cookie in self.forward_cookies:
+					proxy_logger.debug("Forwarding cookie: %s", cookie)
+					streaming_response.set_cookie(
+						key=cookie,
+						value=resp.cookies[cookie].value,
+						expires=resp.cookies[cookie].get("expires"),
+						max_age=resp.cookies[cookie].get("max-age"),
+						path=resp.cookies[cookie].get("path", "/"),
+					)
 
 		return streaming_response
 

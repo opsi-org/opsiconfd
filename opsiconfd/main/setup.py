@@ -8,11 +8,16 @@
 opsiconfd setup.main
 """
 
-from opsiconfd.config import config
+from opsicommon.utils import patch_popen
+
+from opsiconfd.config import config, configure_warnings
 from opsiconfd.logging import init_logging
 from opsiconfd.redis import delete_locks
 from opsiconfd.setup import setup
 from opsiconfd.utils import log_config
+
+patch_popen()
+configure_warnings()
 
 
 def setup_main() -> None:

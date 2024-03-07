@@ -9,19 +9,12 @@ opsiconfd main
 """
 
 from opsicommon import __version__ as python_opsi_common_version
-from opsicommon.utils import patch_popen
 
 from opsiconfd import __version__
-from opsiconfd.config import (
-	config,
-	configure_warnings,
-)
+from opsiconfd.config import config
 
 
 def main() -> None:
-	patch_popen()
-	configure_warnings()
-
 	if config.version:
 		print(f"{__version__} [python-opsi-common={python_opsi_common_version}]")
 		return None

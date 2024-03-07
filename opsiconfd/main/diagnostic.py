@@ -15,13 +15,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from opsicommon.utils import patch_popen
 from rich.console import Console
 
 from opsiconfd.check.cli import console_health_check
-from opsiconfd.config import config
+from opsiconfd.config import config, configure_warnings
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.utils import compress_data
+
+patch_popen()
+configure_warnings()
 
 
 def health_check_main() -> None:

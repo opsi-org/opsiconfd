@@ -18,6 +18,7 @@ import asyncio
 import copy
 import getpass
 import gzip
+import json as pyjson
 import os
 import shutil
 import signal
@@ -294,20 +295,24 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 		bencher_results = {}
 		benchmark_name = "opsiconfd-perftest"
 		if os.path.exists(self.perftest.bencher_results):
-			with open(self.perftest.bencher_results, "rb") as file:
-				bencher_results = json.decode(file.read())
+			with open(self.perftest.bencher_results, "r", encoding="utf-8") as file:
+				bencher_results = pyjson.loads(file.read())
 
 		results = self.calc_results()
-		bencher_results[benchmark_name] = {
-			self.perftest.bencher_measure: {
-				"value": results["avg_seconds_per_request"] * 1000,
-				"lower_value": results["min_seconds_per_request"] * 1000,
-				"upper_value": results["max_seconds_per_request"] * 1000,
+		if benchmark_name not in bencher_results:
+			bencher_results[benchmark_name] = {}
+		bencher_results[benchmark_name].update(
+			{
+				self.perftest.bencher_measure: {
+					"value": results["avg_seconds_per_request"] * 1000,
+					"lower_value": results["min_seconds_per_request"] * 1000,
+					"upper_value": results["max_seconds_per_request"] * 1000,
+				}
 			}
-		}
+		)
 
-		with open(self.perftest.bencher_results, "wb") as file:
-			file.write(json.encode(bencher_results))
+		with open(self.perftest.bencher_results, "w", encoding="utf-8") as file:
+			file.write(pyjson.dumps(bencher_results, indent=2))
 
 	def display_results(self) -> None:
 		res = self.calc_results()

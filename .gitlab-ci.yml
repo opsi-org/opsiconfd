@@ -98,8 +98,15 @@ test:pylint-pytest:
     - echo -e "${TXT_HEAD}Run messagebus websocket load test${TXT_CLEAR}"
     - |
       $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/messagebus-clients.py --clients 1000 --event-interval 30 --start-gap 20 || (
-        echo -e "${TXT_ERROR}messagebus-clients.py failed (range-requests)${TXT_CLEAR}"
+        echo -e "${TXT_ERROR}messagebus-clients.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
+        exit 1
+      )
+
+    - echo -e "${TXT_HEAD}Run opsiconfd get-config duration test${TXT_CLEAR}"
+    - |
+      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration poetry run opsiconfd get-config || (
+        echo -e "${TXT_ERROR}bencher-command.py failed${TXT_CLEAR}"
         exit 1
       )
 

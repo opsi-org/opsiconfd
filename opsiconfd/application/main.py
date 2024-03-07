@@ -19,6 +19,7 @@ from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -55,6 +56,8 @@ from opsiconfd.session import SessionMiddleware, session_manager
 from opsiconfd.ssl import as_pem, load_certs
 from opsiconfd.utils import asyncio_create_task
 
+jinja_templates = Jinja2Templates(directory=config.jinja_templates_dir)
+
 
 @app.get("/")
 async def index() -> RedirectResponse:
@@ -77,7 +80,7 @@ async def index_head() -> Response:
 @app.get("/login")
 async def login_index(request: Request) -> Response:
 	context = {"request": request, "multi_factor_auth": config.multi_factor_auth}
-	return config.jinja_templates.TemplateResponse(request=request, name="login.html", context=context)
+	return jinja_templates.TemplateResponse(request=request, name="login.html", context=context)
 
 
 @app.get("/favicon.ico")

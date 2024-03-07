@@ -26,7 +26,8 @@ from qrcode import QRCode  # type: ignore[import]
 
 from opsiconfd.config import OPSI_PASSWD_FILE, get_configserver_id, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import blowfish_decrypt, blowfish_encrypt, is_local_user, lock_file
+from opsiconfd.utils import is_local_user, lock_file
+from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
 
 from . import rpc_method
 

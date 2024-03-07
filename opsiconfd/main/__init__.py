@@ -20,7 +20,7 @@ def main() -> None:
 		return None
 
 	if config.action == "get-config":
-		from opsiconfd.main.config import get_config_main
+		from opsiconfd.main.get_config import get_config_main
 
 		return get_config_main()
 

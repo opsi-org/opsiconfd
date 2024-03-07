@@ -23,7 +23,7 @@ from starlette.types import Receive, Send
 
 from opsiconfd.addon import Addon
 from opsiconfd.session import ACCESS_ROLE_AUTHENTICATED, ACCESS_ROLE_PUBLIC
-from opsiconfd.utils import remove_route_path
+from opsiconfd.utils.fastapi import remove_route_path
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 from .rest import api_router

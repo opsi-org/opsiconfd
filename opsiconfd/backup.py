@@ -42,12 +42,8 @@ from opsiconfd.config import (
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_lock, restore
-from opsiconfd.utils import (
-	aes_decrypt_with_password,
-	aes_encrypt_with_password,
-	compress_data,
-	decompress_data,
-)
+from opsiconfd.utils import compress_data, decompress_data
+from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
 OBJECT_CLASSES = (
 	"User",

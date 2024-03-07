@@ -36,16 +36,9 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, List, Opt
 
 import lz4.frame  # type: ignore[import]
 import psutil
-from Crypto.Cipher import AES, Blowfish
-from Crypto.Cipher._mode_gcm import GcmMode
-from Crypto.Hash import SHA256
-from Crypto.Protocol.KDF import PBKDF2
-from Crypto.Random import get_random_bytes
-from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger
 from opsicommon.system.info import is_ucs
-from opsicommon.types import forceString, forceStringLower
-from starlette.routing import Route
+from opsicommon.types import forceStringLower
 
 logger: OPSILogger | None = None
 config = None
@@ -58,18 +51,14 @@ if TYPE_CHECKING:
 def get_logger() -> OPSILogger:
 	global logger
 	if not logger:
-		from .logging import (
-			logger,
-		)
+		from opsiconfd.logging import logger
 	return logger  # type: ignore[return-value]
 
 
 def get_config() -> Config:
 	global config
 	if not config:
-		from .config import (  # type: ignore[assignment]
-			config,
-		)
+		from opsiconfd.config import config  # type: ignore[assignment]
 	return config
 
 
@@ -215,21 +204,6 @@ def get_random_string(length: int, *, alphabet: str | None = None, mandatory_alp
 	return result_str
 
 
-def remove_router(app: FastAPI, router: APIRouter, router_prefix: str) -> None:
-	paths = [f"{router_prefix}{route.path}" for route in router.routes if isinstance(route, Route)]
-	for route in app.routes:
-		if isinstance(route, Route) and route.path in paths:
-			app.routes.remove(route)
-
-
-def remove_route_path(app: FastAPI, path: str) -> None:
-	# Needs to be done twice to work for unknown reason
-	for _ in range(2):
-		for route in app.routes:
-			if isinstance(route, Route) and route.path.lower().startswith(path.lower()):
-				app.routes.remove(route)
-
-
 def decompress_data(data: bytes, compression: str) -> bytes:
 	compressed_size = len(data)
 
@@ -280,76 +254,6 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 		1000 * (compress_end - compress_start),
 	)
 	return data
-
-
-def aes_encryption_key_from_password(password: str, salt: bytes) -> bytes:
-	if not password:
-		raise ValueError("Empty password")
-	return PBKDF2(password=password, salt=salt, dkLen=32, count=200_000, hmac_hash_module=SHA256)
-
-
-def aes_encrypt_with_password(plaintext: bytes, password: str) -> tuple[bytes, bytes, bytes, bytes]:
-	if not isinstance(plaintext, bytes):
-		raise TypeError("Plaintext must be bytes")
-	if not isinstance(password, str):
-		raise TypeError("Password must be string")
-	key_salt = get_random_bytes(32)
-	key = aes_encryption_key_from_password(password, salt=key_salt)
-	cipher = AES.new(key=key, mode=AES.MODE_GCM)
-	assert isinstance(cipher, GcmMode)
-	ciphertext, mac_tag = cipher.encrypt_and_digest(plaintext=plaintext)
-	return ciphertext, key_salt, mac_tag, cipher.nonce
-
-
-def aes_decrypt_with_password(ciphertext: bytes, key_salt: bytes, mac_tag: bytes, nonce: bytes, password: str) -> bytes:
-	if not isinstance(ciphertext, bytes):
-		raise TypeError("Plaintext must be bytes")
-	if not isinstance(password, str):
-		raise TypeError("Password must be string")
-	key = aes_encryption_key_from_password(password, salt=key_salt)
-	cipher = AES.new(key=key, mode=AES.MODE_GCM, nonce=nonce)
-	assert isinstance(cipher, GcmMode)
-	try:
-		plaintext = cipher.decrypt_and_verify(ciphertext=ciphertext, received_mac_tag=mac_tag)
-	except ValueError as err:
-		raise ValueError(f"Failed to decrypt, password incorrect or file corrupted ({err})") from err
-	return plaintext
-
-
-BLOWFISH_IV = b"OPSI1234"
-
-
-def blowfish_encrypt(key: str, cleartext: str) -> str:
-	"""
-	Takes `cleartext` string, returns hex-encoded,
-	blowfish-encrypted string.
-	`key` must a string of hexadecimal numbers.
-	"""
-	if not key:
-		raise ValueError("Missing key")
-
-	bkey = bytes.fromhex(key)
-	btext = forceString(cleartext).encode("utf-8")
-	while len(btext) % 8 != 0:
-		# Fill up with \0 until length is a mutiple of 8
-		btext += b"\x00"
-
-	blowfish = Blowfish.new(bkey, Blowfish.MODE_CBC, BLOWFISH_IV)
-	return blowfish.encrypt(btext).hex()
-
-
-def blowfish_decrypt(key: str, crypt: str) -> str:
-	"""
-	Takes hex-encoded, blowfish-encrypted string, returns cleartext string.
-	"""
-	if not key:
-		raise ValueError("Missing key")
-
-	bkey = bytes.fromhex(key)
-	bcrypt = bytes.fromhex(crypt)
-	blowfish = Blowfish.new(bkey, Blowfish.MODE_CBC, BLOWFISH_IV)
-	# Remove possible \0-chars
-	return blowfish.decrypt(bcrypt).rstrip(b"\0").decode("utf-8")
 
 
 @contextmanager

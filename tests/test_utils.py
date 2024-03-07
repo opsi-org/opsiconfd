@@ -14,12 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from opsiconfd.utils import (
-	aes_decrypt_with_password,
-	aes_encrypt_with_password,
-	get_file_md5sum,
-	get_ip_addresses,
-)
+from opsiconfd.utils import get_file_md5sum, get_ip_addresses
+from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
 
 def test_get_ip_addresses() -> None:

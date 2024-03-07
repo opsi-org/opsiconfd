@@ -20,7 +20,7 @@ import pytest
 from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicensePool, get_default_opsi_license_pool
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
-from opsiconfd.utils import blowfish_encrypt
+from opsiconfd.utils.cryptography import blowfish_encrypt
 from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # noqa: F401
 
 

@@ -23,6 +23,7 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
+from fastapi.templating import Jinja2Templates
 from opsicommon import __version__ as python_opsi_common_version
 from opsicommon.license import OpsiLicenseFile
 from opsicommon.objects import OpsiDepotserver
@@ -57,6 +58,7 @@ from opsiconfd.utils import get_manager_pid
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
+jinja_templates = Jinja2Templates(directory=config.jinja_templates_dir)
 
 
 def admin_interface_setup(app: FastAPI) -> None:
@@ -85,7 +87,7 @@ async def welcome_interface_index(request: Request) -> Response:
 		"webgui": webgui,
 		"welcome_page": welcome_page,
 	}
-	return config.jinja_templates.TemplateResponse(request=request, name="welcome.html", context=context)
+	return jinja_templates.TemplateResponse(request=request, name="welcome.html", context=context)
 
 
 @welcome_interface_router.post("/deactivate")
@@ -125,7 +127,7 @@ async def admin_interface_index(request: Request) -> Response:
 		"multi_factor_auth": config.multi_factor_auth,
 	}
 
-	return config.jinja_templates.TemplateResponse(request=request, name="admininterface.html", context=context)
+	return jinja_templates.TemplateResponse(request=request, name="admininterface.html", context=context)
 
 
 @admin_interface_router.get("/app-state")

@@ -23,10 +23,8 @@ from urllib.parse import unquote, urlparse
 import certifi
 import configargparse  # type: ignore[import]
 import psutil
-import sqlalchemy.util.deprecations  # type: ignore[import]
 from dns import resolver, reversename
 from dns.exception import DNSException
-from fastapi.templating import Jinja2Templates
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.system.network import get_fqdn
@@ -93,6 +91,9 @@ opsi_config = OpsiConfig()
 
 def configure_warnings() -> None:
 	# Disable sqlalchemy 2.0 deprecation warnings
+	# Import here because import is slow
+	import sqlalchemy.util.deprecations  # type: ignore[import]
+
 	sqlalchemy.util.deprecations.SILENCE_UBER_WARNING = True
 	warnings.filterwarnings(
 		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
@@ -260,7 +261,7 @@ class Config(metaclass=Singleton):
 		self._sub_command = None
 		self._config = configargparse.Namespace()
 		self._config.config_file = DEFAULT_CONFIG_FILE
-		self.jinja_templates = Jinja2Templates(directory=".")
+		self.jinja_templates_dir = "."
 
 		self._set_args()
 
@@ -332,7 +333,7 @@ class Config(metaclass=Singleton):
 
 		opsi_config.config_file = os.path.abspath(self._config.opsi_config)
 
-		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))
+		self.jinja_templates_dir = os.path.join(self.static_dir, "templates")
 
 		if not self._config.ssl_ca_key_passphrase:
 			# Use None if empty string

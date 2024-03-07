@@ -43,7 +43,7 @@ def test_get_config(capsys: CaptureFixture[str]) -> None:
 
 
 def test_setup() -> None:
-	with patch("opsiconfd.main.setup.setup_main") as mock_setup:
+	with patch("opsiconfd.setup.setup") as mock_setup:
 		with get_config({"action": "setup"}):
 			main()
 			mock_setup.assert_called_once_with(explicit=True)

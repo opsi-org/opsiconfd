@@ -22,7 +22,7 @@ from urllib.parse import unquote, urlparse
 
 import certifi
 import configargparse  # type: ignore[import]
-import DNS
+import DNS  # type: ignore[import]
 import psutil
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter

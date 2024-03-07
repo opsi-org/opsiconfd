@@ -22,9 +22,8 @@ from urllib.parse import unquote, urlparse
 
 import certifi
 import configargparse  # type: ignore[import]
+import DNS
 import psutil
-from dns import resolver, reversename
-from dns.exception import DNSException
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.system.network import get_fqdn
@@ -109,9 +108,9 @@ if running_in_docker():
 	try:
 		ip = socket.gethostbyname(FQDN)
 		if ip not in ("127.0.0.1", "::1"):
-			rev = reversename.from_address(ip)
-			DEFAULT_NODE_NAME = str(resolver.resolve(str(rev), "PTR")[0]).split(".", 1)[0].replace("docker_", "")
-	except DNSException:
+			if name := DNS.revlookup(ip).split(".", 1)[0].replace("docker_", ""):
+				DEFAULT_NODE_NAME = name
+	except DNS.DNSError:
 		pass
 
 

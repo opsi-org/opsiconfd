@@ -7,6 +7,7 @@
 """
 opsiconfd - logging
 """
+from __future__ import annotations
 
 import asyncio
 import glob
@@ -22,7 +23,7 @@ from asyncio import Event, get_running_loop
 from concurrent.futures import ThreadPoolExecutor
 from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
-from typing import Any, Callable, Dict, TextIO
+from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO
 
 import colorlog
 import msgspec
@@ -49,7 +50,6 @@ from opsicommon.logging.logging import (
 )
 from redis import BusyLoadingError as RedisBusyLoadingError
 from redis import ConnectionError as RedisConnectionError
-from rich.console import Console
 
 from opsiconfd.config import REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS, config, opsi_config
 from opsiconfd.redis import (
@@ -58,6 +58,9 @@ from opsiconfd.redis import (
 	retry_redis_call,
 )
 from opsiconfd.utils import asyncio_create_task
+
+if TYPE_CHECKING:
+	from rich.console import Console
 
 # 1 log record ~= 550 bytes
 LOG_STREAM_MAX_RECORDS = 50000
@@ -542,6 +545,9 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False, console: Cons
 			log_handler = StreamHandler(stream=sys.stderr)
 		elif log_mode == "rich":
 			if not console:
+				# Import is slow, only import if needed
+				from rich.console import Console
+
 				console = Console()
 			log_handler = RichConsoleHandler(console=console)
 

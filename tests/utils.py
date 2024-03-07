@@ -41,7 +41,7 @@ from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config, OpsiConfig, get_configserver_id
 from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config as _opsi_config
-from opsiconfd.main import opsiconfd_main
+from opsiconfd.main.opsiconfd import opsiconfd_main
 from opsiconfd.manager import Manager
 from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import session_manager

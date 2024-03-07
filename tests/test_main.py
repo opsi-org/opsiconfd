@@ -20,7 +20,8 @@ from opsicommon import __version__ as python_opsi_common_version  # type: ignore
 
 from opsiconfd import __version__
 from opsiconfd.logging import RedisLogHandler
-from opsiconfd.main import main, stop_log_viewer
+from opsiconfd.main import main
+from opsiconfd.main.log_viewer import stop_log_viewer
 from opsiconfd.utils import get_manager_pid
 
 from .utils import get_config
@@ -42,7 +43,7 @@ def test_get_config(capsys: CaptureFixture[str]) -> None:
 
 
 def test_setup() -> None:
-	with patch("opsiconfd.main.setup") as mock_setup:
+	with patch("opsiconfd.main.setup.setup_main") as mock_setup:
 		with get_config({"action": "setup"}):
 			main()
 			mock_setup.assert_called_once_with(explicit=True)

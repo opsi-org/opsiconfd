@@ -19,7 +19,7 @@ import pytest
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backup import create_backup, restore_backup
-from opsiconfd.main import backup_main
+from opsiconfd.main.backup import backup_main
 
 from .test_application import (  # noqa: F401
 	AppStateReaderThread,
@@ -124,7 +124,7 @@ def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dic
 		nonlocal kwargs
 		kwargs = kws
 
-	with patch("opsiconfd.main.create_backup", mock_create_backup):
+	with patch("opsiconfd.main.backup.create_backup", mock_create_backup):
 		with get_config(conf):
 			with pytest.raises(SystemExit, match="0"):
 				backup_main()

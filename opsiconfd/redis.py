@@ -8,7 +8,6 @@
 opsiconfd redis utils
 """
 
-
 from __future__ import annotations
 
 import asyncio
@@ -27,7 +26,7 @@ from redis.asyncio import Connection as AsyncConnection
 from redis.asyncio import ConnectionPool as AsyncConnectionPool
 from redis.asyncio import Redis as AsyncRedis
 
-from opsiconfd.config import config
+from opsiconfd.config import REDIS_CONECTION_TIMEOUT, config
 from opsiconfd.utils import normalize_ip_address
 
 redis_pool_lock = threading.Lock()
@@ -441,3 +440,8 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 		for key_type, info in key_info.items()
 	}
 	return redis_info
+
+
+def delete_locks() -> None:
+	redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True)
+	delete_recursively(config.redis_key("locks"))

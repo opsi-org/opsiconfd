@@ -8,7 +8,6 @@
 global config
 """
 
-
 import getpass
 import ipaddress
 import os
@@ -289,7 +288,7 @@ class Config(metaclass=Singleton):
 				self._args.append("--help")
 			self._sub_command = (
 				conf.action
-				if conf.action in ("health-check", "diagnostic-data", "log-viewer", "setup", "backup", "backup-info", "restore")
+				if conf.action in ("health-check", "diagnostic-data", "log-viewer", "setup", "backup", "backup-info", "restore", "config")
 				else None
 			)
 			if self._sub_command:
@@ -1347,6 +1346,7 @@ class Config(metaclass=Singleton):
 					"backup",
 					"backup-info",
 					"restore",
+					"get-config",
 				),
 				default="start",
 				metavar="ACTION",
@@ -1365,7 +1365,8 @@ class Config(metaclass=Singleton):
 					"diagnostic-data: Collect diagnostic data.\n"
 					"backup:          Run backup.\n"
 					"backup-info:     Show backup info.\n"
-					"restore:         Restore backup.\n",
+					"restore:         Restore backup.\n"
+					"get-config:      Show opsiconfd config.\n",
 				),
 			)
 			return

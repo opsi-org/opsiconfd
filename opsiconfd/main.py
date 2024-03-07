@@ -82,6 +82,10 @@ def delete_locks() -> None:
 	delete_recursively(config.redis_key("locks"))
 
 
+def get_config_main() -> None:
+	print(json.dumps(config.items(), indent=2))
+
+
 def setup_main() -> None:
 	init_logging(log_mode="local")
 	log_config()
@@ -460,6 +464,9 @@ def main() -> None:
 	if config.version:
 		print(f"{__version__} [python-opsi-common={python_opsi_common_version}]")
 		return None
+
+	if config.action == "get-config":
+		return get_config_main()
 
 	if config.action == "setup":
 		return setup_main()

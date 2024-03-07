@@ -8,6 +8,7 @@
 test main
 """
 
+import json
 import signal
 import threading
 import time
@@ -30,6 +31,14 @@ def test_version(capsys: CaptureFixture[str]) -> None:
 		main()
 	captured = capsys.readouterr()
 	assert captured.out == f"{__version__} [python-opsi-common={python_opsi_common_version}]\n"
+
+
+def test_get_config(capsys: CaptureFixture[str]) -> None:
+	with get_config({"action": "get-config"}) as conf:
+		main()
+		captured = capsys.readouterr()
+		conf_out = json.loads(captured.out)
+		assert conf_out == conf.items()
 
 
 def test_setup() -> None:

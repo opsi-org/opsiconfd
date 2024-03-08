@@ -89,8 +89,8 @@ def setup_ssl_file_permissions() -> None:
 	permissions = (
 		FilePermission(config.ssl_ca_cert, config.run_as_user, admin_group, 0o644),
 		FilePermission(config.ssl_ca_key, config.run_as_user, admin_group, 0o600),
-		FilePermission(config.ssl_server_cert, config.run_as_user, admin_group, 0o600),
-		FilePermission(config.ssl_server_key, config.run_as_user, admin_group, 0o600),
+		FilePermission(config.ssl_server_cert, config.run_as_user, admin_group, 0o640),
+		FilePermission(config.ssl_server_key, config.run_as_user, admin_group, 0o640),
 	)
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:

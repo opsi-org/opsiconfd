@@ -34,6 +34,8 @@ test:pylint-pytest:
     - echo -e "${TXT_HEAD}Build docker images${TXT_CLEAR}"
     - $DOCKER_COMPOSE build --pull
 
+    - rm -rf .venv
+
   after_script:
     # Unfortunatly after_script is currently not executed when a job is canceled
     # https://gitlab.com/groups/gitlab-org/-/epics/10158

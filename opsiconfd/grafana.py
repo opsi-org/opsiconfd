@@ -37,7 +37,7 @@ GRAFANA_CLI = "/usr/sbin/grafana-cli"
 GRAFANA_DB = "/var/lib/grafana/grafana.db"
 GRAFANA_INI = "/etc/grafana/grafana.ini"
 PLUGIN_DIR = "/var/lib/grafana/plugins"
-PLUGIN_ID = "grafana-simple-json-datasource"
+PLUGIN_ID = "simpod-json-datasource"
 PLUGIN_MIN_VERSION = "1.4.2"
 
 GRAFANA_DASHBOARD_UID = "opsiconfd_main"
@@ -45,8 +45,8 @@ GRAFANA_DASHBOARD_UID = "opsiconfd_main"
 GRAFANA_DATASOURCE_TEMPLATE = {
 	"orgId": 1,
 	"name": "opsiconfd",
-	"type": "grafana-simple-json-datasource",
-	"typeLogoUrl": "public/plugins/grafana-simple-json-datasource/img/simpleJson_logo.svg",
+	"type": "simpod-json-datasource",
+	"typeLogoUrl": "plugins/yesoreyeram-infinity-datasource/img/icon.img",
 	"access": "proxy",
 	"url": None,
 	"password": "",
@@ -136,7 +136,7 @@ GRAFANA_GRAPH_PANEL_TEMPLATE = {
 	"timeShift": None,
 	"title": "",
 	"tooltip": {"shared": True, "sort": 0, "value_type": "individual"},
-	"type": "graph",
+	"type": "timeseries",
 	"xaxis": {"buckets": None, "mode": "time", "name": None, "show": True, "values": []},
 	"yaxes": [
 		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
@@ -185,7 +185,7 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 class GrafanaPanelConfig:
 	def __init__(
 		self,
-		type: str = "graph",
+		type: str = "timeseries",
 		title: str = "",
 		units: list[str] | None = None,
 		decimals: int = 0,
@@ -199,7 +199,7 @@ class GrafanaPanelConfig:
 		self.stack = stack
 		self._template = {}
 		self.yaxis_min = yaxis_min
-		if self.type == "graph":
+		if self.type == "timeseries":
 			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
 		elif self.type == "heatmap":
 			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE  # type: ignore[assignment]
@@ -210,7 +210,7 @@ class GrafanaPanelConfig:
 		panel["gridPos"]["x"] = pos_x  # type: ignore[index]
 		panel["gridPos"]["y"] = pos_y  # type: ignore[index]
 		panel["title"] = self.title
-		if self.type == "graph":
+		if self.type == "timeseries":
 			panel["stack"] = self.stack
 			panel["decimals"] = self.decimals
 			for i, unit in enumerate(self.units):
@@ -295,7 +295,10 @@ async def async_grafana_session(
 @asynccontextmanager
 async def async_grafana_admin_session() -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
 	url = urlparse(config.grafana_internal_url)
-	async with async_grafana_session(url.username, unquote(url.password)) as (base_url, session):
+	password = None
+	if url.password:
+		password = unquote(url.password)
+	async with async_grafana_session(url.username, password) as (base_url, session):
 		yield (base_url, session)
 
 

@@ -1101,7 +1101,7 @@ async def authenticate_host(scope: Scope) -> None:
 		logger.info("Host '%s' authenticated by onetime password", host.id)
 		host.oneTimePassword = ""
 		# Update immediately
-		await backend.async_call("host_updateObject", host=host)
+		await backend.async_call("host_updateObjectOnAuthenticate", host=host)
 	else:
 		raise BackendAuthenticationError(f"Authentication of host '{host.id}' failed")
 
@@ -1123,7 +1123,7 @@ async def authenticate_host(scope: Scope) -> None:
 		else:
 			# Value None on update means no change!
 			host.ipAddress = None
-		await backend.async_call("host_updateObject", host=host)
+		await backend.async_call("host_updateObjectOnAuthenticate", host=host)
 
 	elif host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
 		logger.debug("Storing depot server address: %s", session.client_addr)

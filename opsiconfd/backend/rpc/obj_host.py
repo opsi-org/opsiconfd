@@ -119,6 +119,14 @@ class RPCHostMixin(Protocol):
 			self.opsipxeconfd_hosts_updated([host.id])
 			self.dhcpd_control_hosts_updated([host.id])
 
+	def host_updateObjectOnAuthenticate(self: BackendProtocol, host: dict | Host) -> None:
+		host = forceObjectClass(host, Host)
+		self._mysql.insert_object(table="HOST", obj=host, ace=[], create=False, set_null=False)
+		if not self.events_enabled:
+			return
+
+		self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
+
 	@rpc_method(check_acl=False)
 	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		ace = self._get_ace("host_createObjects")

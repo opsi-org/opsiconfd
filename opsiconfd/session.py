@@ -1100,7 +1100,7 @@ async def authenticate_host(scope: Scope) -> None:
 	if ("depot" in config.client_cert_auth and host.getType() in ("OpsiConfigserver", "OpsiDepotserver")) or (
 		"client" in config.client_cert_auth and host.getType() == "OpsiClient"
 	):
-		if vpn_module_available():
+		if vpn_module_available(backend):
 			if not peer_cert_cn:
 				raise BackendAuthenticationError(f"Client certificate missing for host '{host.id}'")
 			if peer_cert_cn != host.id:

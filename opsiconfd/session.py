@@ -17,7 +17,8 @@ import re
 import time
 import uuid
 from collections import namedtuple
-from typing import Any, Optional
+from functools import lru_cache
+from typing import TYPE_CHECKING, Any, Optional
 
 import msgspec
 import pyotp
@@ -52,9 +53,7 @@ from opsiconfd.auth import AuthenticationMethod, AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
 from opsiconfd.auth.user import create_user_roles
-from opsiconfd.backend import (
-	get_unprotected_backend,
-)
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
@@ -94,6 +93,9 @@ session_data_msgpack_encoder = msgspec.msgpack.Encoder()
 session_data_msgpack_decoder = msgspec.msgpack.Decoder()
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
+
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def get_basic_auth(headers: Headers) -> BasicAuth:
@@ -1037,6 +1039,16 @@ def get_peer_cert_common_name(scope: Scope) -> str | None:
 	return None
 
 
+@lru_cache(maxsize=1)
+def vpn_module_available(backend: Backend) -> bool:
+	try:
+		backend._check_module("vpn")
+		return True
+	except Exception as err:
+		logger.debug(err)
+	return False
+
+
 async def authenticate_host(scope: Scope) -> None:
 	session: OPSISession = scope["session"]
 	backend = get_unprotected_backend()
@@ -1088,11 +1100,14 @@ async def authenticate_host(scope: Scope) -> None:
 	if ("depot" in config.client_cert_auth and host.getType() in ("OpsiConfigserver", "OpsiDepotserver")) or (
 		"client" in config.client_cert_auth and host.getType() == "OpsiClient"
 	):
-		if not peer_cert_cn:
-			raise BackendAuthenticationError(f"Client certificate missing for host '{host.id}'")
-		if peer_cert_cn != host.id:
-			raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
-		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
+		if vpn_module_available():
+			if not peer_cert_cn:
+				raise BackendAuthenticationError(f"Client certificate missing for host '{host.id}'")
+			if peer_cert_cn != host.id:
+				raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
+			session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
+		else:
+			logger.error("VPN module not available, client certificate authentication disabled")
 
 	if host.opsiHostKey and session.password == host.opsiHostKey:
 		session.add_auth_methods(AuthenticationMethod.HOST_KEY)

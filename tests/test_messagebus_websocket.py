@@ -33,6 +33,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
+	GeneralErrorMessage,
+	ProcessStartRequestMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
 	TerminalOpenEventMessage,
@@ -442,6 +444,27 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 							"message": "Opsi service permission error: No permission for method 'hostControl_start'",
 							"data": {"class": "OpsiServicePermissionError", "details": None},
 						}
+
+
+def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	target_channel = "service:config:jsonrpc"  # nonsense, but doesnt matter
+	with test_client as client:
+		with client.websocket_connect("/messagebus/v1") as websocket:
+			with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
+				reader.wait_for_message(count=1)
+				messages = list(reader.get_messages())
+				assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+				process_message1 = ProcessStartRequestMessage(
+					sender=CONNECTION_USER_CHANNEL, channel=target_channel, command=("echo", "test")
+				)
+				websocket.send_bytes(process_message1.to_msgpack())
+				reader.wait_for_message(count=1, timeout=10.0)
+
+				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+				print(responses[0])
+				assert isinstance(responses[0], GeneralErrorMessage)
+				assert responses[0].error.message == "Access to message type 'process_start_request' denied - check license"
 
 
 def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

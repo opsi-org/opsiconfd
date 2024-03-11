@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from opsicommon.types import forceHostId, forceStringLower, forceUnsignedInt, forceUserId
+from opsicommon.messagebus import MessageType
 
 from opsiconfd.utils import forceNodename
 from opsiconfd.worker import Worker
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
 file_uploads: dict[str, FileUpload] = {}
 terminals: dict[str, Terminal] = {}
 messagebus_worker_id = ""
+
+RESTRICTED_MESSAGE_TYPES = {MessageType.PROCESS_START_REQUEST.value: "vpn"}
 
 
 def get_messagebus_worker_id() -> str:

@@ -449,25 +449,26 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	target_channel = "service:config:jsonrpc"  # nonsense, but doesnt matter
-	with patch("opsiconfd.messagebus.RESTRICTED_MESSAGE_TYPES", {"process_start_request": "nonexisting_module"}):
-		# not checking against the actual value here, as we might use a license file for testing
-		with test_client as client:
-			with client.websocket_connect("/messagebus/v1") as websocket:
-				with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
-					reader.wait_for_message(count=1)
-					assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-					process_message1 = ProcessStartRequestMessage(
-						sender=CONNECTION_USER_CHANNEL, channel=target_channel, command=("echo", "test")
-					)
-					print("Reader queue size:", reader.messages.qsize())
+	with test_client as client:
+		with client.websocket_connect("/messagebus/v1") as websocket:
+			with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
+				reader.wait_for_message(count=1)
+				assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+				process_message1 = ProcessStartRequestMessage(
+					sender=CONNECTION_USER_CHANNEL, channel=target_channel, command=("echo", "test")
+				)
+				print("Reader queue size:", reader.messages.qsize())
+				with patch("opsiconfd.backend.unprotected_backend.available_modules", []):
+					# not checking against the actual value here, as we might use a license file for testing
+
 					websocket.send_bytes(process_message1.to_msgpack())
 					print("Reader queue size:", reader.messages.qsize())
 					reader.wait_for_message(count=1, timeout=10.0)
 
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					print(responses[0])
-					assert isinstance(responses[0], GeneralErrorMessage)
-					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check license"
+				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+				print(responses[0])
+				assert isinstance(responses[0], GeneralErrorMessage)
+				assert responses[0].error.message == "Access to message type 'process_start_request' denied - check license"
 
 
 def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

@@ -30,10 +30,10 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	GeneralErrorMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
-	GeneralErrorMessage,
 	ProcessStartRequestMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
@@ -452,6 +452,8 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
+				reader.running.wait(3.0)
+				sleep(2)
 				reader.wait_for_message(count=1)
 				messages = list(reader.get_messages())
 				assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]

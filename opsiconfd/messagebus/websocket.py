@@ -12,6 +12,7 @@ import re
 import traceback
 from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
+from functools import lru_cache
 from time import time
 from typing import TYPE_CHECKING, Literal
 
@@ -44,16 +45,16 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
-from opsiconfd.backend import get_unprotected_backend
 
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import UnprotectedBackend
 
 
-from . import check_channel_name, get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user, RESTRICTED_MESSAGE_TYPES
+from . import RESTRICTED_MESSAGE_TYPES, check_channel_name, get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
 from .redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
@@ -200,6 +201,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].username, exc_info=True)
 		return False
 
+	@lru_cache
 	def _check_message_type_access(self, message_type: str) -> bool:
 		if message_type not in RESTRICTED_MESSAGE_TYPES:
 			return True

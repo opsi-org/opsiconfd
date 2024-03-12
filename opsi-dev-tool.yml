@@ -50,6 +50,7 @@ pyinstaller-poetry:
       - OPSI.Util.WIM
       - opsiconfd.application.utils
       - opsiconfd.rest
+      - opsiconfd.utils.fastapi
   collect_submodules:
     - pydantic_core
     - pydantic

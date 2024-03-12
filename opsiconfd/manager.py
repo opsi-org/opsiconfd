@@ -20,14 +20,14 @@ from typing import Optional
 
 import psutil
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
-from opsicommon.messagebus import (
-	CONNECTION_USER_CHANNEL,
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	Message,
 	TraceRequestMessage,
 	TraceResponseMessage,
 )
-from opsicommon.messagebus import timestamp as mb_timestamp
+from opsicommon.messagebus.message import timestamp as mb_timestamp
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app

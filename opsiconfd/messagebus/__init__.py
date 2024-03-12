@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from opsicommon.messagebus.message import MessageType
 from opsicommon.types import forceHostId, forceStringLower, forceUnsignedInt, forceUserId
-from opsicommon.messagebus import MessageType
 
 from opsiconfd.utils import forceNodename
 from opsiconfd.worker import Worker

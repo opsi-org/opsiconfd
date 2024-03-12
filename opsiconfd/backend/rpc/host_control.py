@@ -34,7 +34,7 @@ from opsicommon.exceptions import (
 	BackendMissingDataError,
 	BackendUnaccomplishableError,
 )
-from opsicommon.messagebus import (
+from opsicommon.messagebus.message import (
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	timestamp,

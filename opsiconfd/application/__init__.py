@@ -22,7 +22,7 @@ from typing import Any, AsyncGenerator, Callable, Type, TypeVar
 from fastapi import FastAPI
 from msgspec import msgpack
 from opsicommon import __version__ as python_opsi_common_version
-from opsicommon.messagebus import EventMessage
+from opsicommon.messagebus.message import EventMessage
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp

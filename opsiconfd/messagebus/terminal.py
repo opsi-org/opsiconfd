@@ -20,8 +20,8 @@ from time import time
 from typing import Callable
 
 from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.messagebus import (
-	CONNECTION_USER_CHANNEL,
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	Error,

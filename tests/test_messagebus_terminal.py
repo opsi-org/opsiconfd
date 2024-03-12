@@ -14,7 +14,7 @@ import uuid
 from pathlib import Path
 
 import pytest
-from opsicommon.messagebus import (
+from opsicommon.messagebus.message import (
 	Error,
 	Message,
 	TerminalCloseEventMessage,

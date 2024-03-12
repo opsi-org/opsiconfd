@@ -17,8 +17,8 @@ from unittest.mock import patch
 
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
 from opsicommon.logging import get_logger
-from opsicommon.messagebus import (
-	CONNECTION_USER_CHANNEL,
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,

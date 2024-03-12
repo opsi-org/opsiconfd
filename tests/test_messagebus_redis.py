@@ -11,7 +11,8 @@ opsiconfd.messagebus.redis tests
 import asyncio
 from typing import Any
 
-from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, Message  # type: ignore[import]
+from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL
+from opsicommon.messagebus.message import Message
 
 from opsiconfd.messagebus.redis import MAX_STREAM_LENGTH, ConsumerGroupMessageReader, MessageReader, send_message
 from opsiconfd.redis import async_redis_client, get_redis_connections

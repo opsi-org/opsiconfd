@@ -28,8 +28,8 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
 from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.messagebus import (
-	CONNECTION_USER_CHANNEL,
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,

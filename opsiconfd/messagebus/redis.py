@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
 import msgspec
-from opsicommon.messagebus import (
+from opsicommon.messagebus.message import (
 	Message,
 	TraceRequestMessage,
 	TraceResponseMessage,

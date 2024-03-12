@@ -20,8 +20,8 @@ from opsicommon.exceptions import (
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.messagebus import (
-	EventMessage,  # type: ignore[import]
+from opsicommon.messagebus.message import (
+	EventMessage,
 	JSONRPCRequestMessage,
 	timestamp,
 )

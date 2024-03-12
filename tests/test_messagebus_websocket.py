@@ -25,9 +25,8 @@ from opsicommon.client.opsiservice import (
 )
 from opsicommon.logging import get_logger, use_logging_config
 from opsicommon.logging.constants import LOG_TRACE
-from opsicommon.messagebus import (  # type: ignore[import]
-	CONNECTION_SESSION_CHANNEL,
-	CONNECTION_USER_CHANNEL,
+from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	GeneralErrorMessage,

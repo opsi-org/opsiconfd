@@ -136,6 +136,52 @@ GRAFANA_GRAPH_PANEL_TEMPLATE = {
 	"timeShift": None,
 	"title": "",
 	"tooltip": {"shared": True, "sort": 0, "value_type": "individual"},
+	"type": "graph",
+	"xaxis": {"buckets": None, "mode": "time", "name": None, "show": True, "values": []},
+	"yaxes": [
+		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
+		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
+	],
+	"yaxis": {"align": False, "alignLevel": None},
+}
+
+GRAFANA_TIMESERIES_PANEL_TEMPLATE = {
+	"datasource": "opsiconfd",
+	"aliasColors": {},
+	"dashLength": 10,
+	"decimals": 0,
+	"fill": 1,
+	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
+	"id": None,
+	"legend": {
+		"alignAsTable": True,
+		"avg": True,
+		"current": True,
+		"hideEmpty": True,
+		"hideZero": False,
+		"max": True,
+		"min": True,
+		"show": True,
+		"total": False,
+		"values": True,
+	},
+	"lines": True,
+	"linewidth": 1,
+	"nullPointMode": "null",
+	"options": {
+		"tooltip": {"mode": "single", "sort": "none"},
+		"legend": {"showLegend": True, "displayMode": "list", "placement": "bottom", "calcs": []},
+		"dataLinks": [],
+	},
+	"pointradius": 2,
+	"renderer": "flot",
+	"seriesOverrides": [],
+	"spaceLength": 10,
+	"targets": [],
+	"thresholds": [],
+	"timeRegions": [],
+	"title": "",
+	"tooltip": {"shared": True, "sort": 0, "value_type": "individual"},
 	"type": "timeseries",
 	"xaxis": {"buckets": None, "mode": "time", "name": None, "show": True, "values": []},
 	"yaxes": [
@@ -143,6 +189,48 @@ GRAFANA_GRAPH_PANEL_TEMPLATE = {
 		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
 	],
 	"yaxis": {"align": False, "alignLevel": None},
+	"fieldConfig": {
+		"defaults": {
+			"custom": {
+				"drawStyle": "line",
+				"lineInterpolation": "linear",
+				"barAlignment": 0,
+				"lineWidth": 1,
+				"fillOpacity": 0,
+				"gradientMode": "none",
+				"spanNulls": False,
+				"insertNulls": False,
+				"showPoints": "never",
+				"pointSize": 5,
+				"stacking": {"mode": "none", "group": "A"},
+				"axisPlacement": "auto",
+				"axisLabel": "",
+				"axisColorMode": "text",
+				"axisBorderShow": False,
+				"scaleDistribution": {"type": "linear"},
+				"axisCenteredZero": False,
+				"hideFrom": {"tooltip": False, "viz": False, "legend": False},
+				"thresholdsStyle": {"mode": "off"},
+				"axisSoftMin": 0,
+				"lineStyle": {"fill": "solid"},
+			},
+			"color": {"mode": "palette-classic"},
+			"mappings": [],
+			"thresholds": {"mode": "absolute", "steps": [{"value": None, "color": "green"}, {"value": 80, "color": "red"}]},
+		},
+		"overrides": [],
+	},
+	"bars": False,
+	"dashes": False,
+	"description": "",
+	"fillGradient": 0,
+	"hiddenSeries": False,
+	"percentage": False,
+	"points": False,
+	"stack": False,
+	"steppedLine": False,
+	"timeFrom": None,
+	"timeShift": None,
 }
 
 GRAFANA_HEATMAP_PANEL_TEMPLATE = {
@@ -200,6 +288,8 @@ class GrafanaPanelConfig:
 		self._template = {}
 		self.yaxis_min = yaxis_min
 		if self.type == "timeseries":
+			self._template = GRAFANA_TIMESERIES_PANEL_TEMPLATE
+		elif self.type == "graph":
 			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
 		elif self.type == "heatmap":
 			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE  # type: ignore[assignment]
@@ -211,6 +301,11 @@ class GrafanaPanelConfig:
 		panel["gridPos"]["y"] = pos_y  # type: ignore[index]
 		panel["title"] = self.title
 		if self.type == "timeseries":
+			panel["stack"] = self.stack
+			panel["decimals"] = self.decimals
+			for i, unit in enumerate(self.units):
+				panel["yaxes"][i]["format"] = unit  # type: ignore[index]
+		elif self.type == "graph":
 			panel["stack"] = self.stack
 			panel["decimals"] = self.decimals
 			for i, unit in enumerate(self.units):

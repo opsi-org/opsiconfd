@@ -11,9 +11,9 @@ git:
   hooks:
     pre-push: |
       echo "Running ruff..."
-      poetry run ruff opsiconfd tests
+      poetry run ruff check opsiconfd tests perftest
       echo "Running mypy..."
-      poetry run mypy opsiconfd tests
+      poetry run mypy opsiconfd tests perftest
 
 transifex:
   upload_resources:

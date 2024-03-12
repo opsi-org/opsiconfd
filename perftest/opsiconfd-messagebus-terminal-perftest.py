@@ -11,6 +11,8 @@
 opsiconfd backend performance tests
 """
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import gzip
@@ -24,12 +26,13 @@ from uuid import uuid4
 
 import aiohttp
 import lz4.frame  # type: ignore[import]
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus.message import (
 	Message,
-	MessageType,
-	TerminalCloseRequest,
-	TerminalDataWrite,
-	TerminalOpenRequest,
+	TerminalCloseRequestMessage,
+	TerminalDataReadMessage,
+	TerminalDataWriteMessage,
+	TerminalOpenEventMessage,
+	TerminalOpenRequestMessage,
 )
 
 CHANNEL = "service:config:terminal"
@@ -51,8 +54,8 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 	raise ValueError(f"Unhandled compression {compression!r}")
 
 
-class TerminalClient:  # pylint: disable=too-many-instance-attributes
-	def __init__(self, test_manager: "TestManager", name: str) -> None:
+class TerminalClient:
+	def __init__(self, test_manager: TestManager, name: str) -> None:
 		self.test_manager = test_manager
 		self.name = name
 		self.loop: Optional[asyncio.AbstractEventLoop] = None
@@ -61,7 +64,7 @@ class TerminalClient:  # pylint: disable=too-many-instance-attributes
 		self.websocket_reader_task: Optional[asyncio.Task] = None
 		self.websocker_writer_task: Optional[asyncio.Task] = None
 		self.terminal_id = str(uuid4())
-		self.back_channel = None
+		self.back_channel: str | None = None
 		self.should_exit = False
 		self.received_nums: Set[int] = set()
 		self.time_started: Optional[datetime] = None
@@ -69,7 +72,8 @@ class TerminalClient:  # pylint: disable=too-many-instance-attributes
 
 	async def websocker_writer(self) -> None:
 		for num in range(self.test_manager.args.commands):
-			msg = TerminalDataWrite(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+			assert self.back_channel
+			msg = TerminalDataWriteMessage(
 				sender="*",
 				channel=self.back_channel,
 				terminal_id=self.terminal_id,
@@ -90,16 +94,17 @@ class TerminalClient:  # pylint: disable=too-many-instance-attributes
 			if not hasattr(message, "terminal_id") or message.terminal_id != self.terminal_id:
 				continue
 
-			if message.type == MessageType.TERMINAL_OPEN_EVENT:
+			if isinstance(message, TerminalOpenEventMessage):
 				self.back_channel = message.back_channel
-			elif message.type == MessageType.TERMINAL_DATA_READ:
-				for match in re.findall(  # pylint: disable=dotted-import-in-loop
-					r"###(\d+)###", message.data.decode("utf-8")  # pylint: disable=loop-invariant-statement
+			elif isinstance(message, TerminalDataReadMessage):
+				for match in re.findall(
+					r"###(\d+)###",
+					message.data.decode("utf-8"),
 				):
 					self.received_nums.add(int(match))
-				if len(self.received_nums) == self.test_manager.args.commands:  # pylint: disable=loop-invariant-statement
+				if len(self.received_nums) == self.test_manager.args.commands:
 					self.time_ended = datetime.utcnow()
-					self.should_exit = True  # pylint: disable=loop-invariant-statement
+					self.should_exit = True
 
 	async def send_message(self, message: Message) -> None:
 		if not self.websocket:
@@ -125,21 +130,13 @@ class TerminalClient:  # pylint: disable=too-many-instance-attributes
 			url=self.test_manager.args.messagebus_url, params={"compression": self.test_manager.args.compression or ""}
 		)
 		self.websocket_reader_task = create_task(self.websocket_reader())
-		await self.send_message(
-			TerminalOpenRequest(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender="@", channel=CHANNEL, terminal_id=self.terminal_id, rows=30, cols=120
-			)
-		)
+		await self.send_message(TerminalOpenRequestMessage(sender="@", channel=CHANNEL, terminal_id=self.terminal_id, rows=30, cols=120))
 		while not self.back_channel:
 			await sleep(0.1)
 
 	async def teardown(self) -> None:
 		if self.websocket and self.back_channel:
-			await self.send_message(
-				TerminalCloseRequest(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-					sender="*", channel=self.back_channel, terminal_id=self.terminal_id
-				)
-			)
+			await self.send_message(TerminalCloseRequestMessage(sender="*", channel=self.back_channel, terminal_id=self.terminal_id))
 		if self.websocker_writer_task:
 			self.websocker_writer_task.cancel()
 		if self.websocket_reader_task:
@@ -150,7 +147,7 @@ class TerminalClient:  # pylint: disable=too-many-instance-attributes
 			await self.session.close()
 
 
-class TestManager:  # pylint: disable=too-few-public-methods
+class TestManager:
 	def __init__(self) -> None:
 		arg_parser = argparse.ArgumentParser()
 		arg_parser.add_argument("--server", action="store", type=str, help="Configserver url / address", default="https://localhost:4447")

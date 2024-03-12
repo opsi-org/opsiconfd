@@ -11,17 +11,17 @@
 webdav performance test util
 """
 
-import os
-import sys
-import time
-import shutil
 import argparse
+import os
+import shutil
+import sys
 import tempfile
+import time
 
-from OPSI.System import mount, umount
+from OPSI.System import mount, umount  # type: ignore[import]
 
 
-def main():
+def main() -> None:
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--username", default="adminuser", help="Username")
 	parser.add_argument("--password", default="adminuser", help="Password")

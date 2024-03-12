@@ -36,7 +36,7 @@ import aiohttp
 import lz4.frame  # type: ignore[import]
 import uvloop
 from msgspec import json, msgpack
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus.message import (
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 )
@@ -44,8 +44,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 executor = ProcessPoolExecutor(max_workers=25)
 
 
-class Perftest:  # pylint: disable=too-many-instance-attributes
-	def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+class Perftest:
+	def __init__(
 		self,
 		server: str,
 		username: str,
@@ -86,7 +86,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 				method = tmp[0]
 				params = []
 				if len(tmp) > 1:
-					params = json.decode(("[" + tmp[1]).encode("utf-8"))  # pylint: disable=dotted-import-in-loop
+					params = json.decode(("[" + tmp[1]).encode("utf-8"))
 				requests.append(["jsonrpc", method, params])
 			self.test_cases = [TestCase(self, "JSONRPC", {"test": requests})]
 
@@ -116,7 +116,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		loop = asyncio.get_event_loop()
 		signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
 		for sig in signals:
-			loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(self.signal_handler(sig)))
+			loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(self.signal_handler(sig)))  # type: ignore[misc]
 
 		for test_case in self.test_cases:
 			await test_case.run()
@@ -133,10 +133,8 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 			await test_case.stop()
 
 
-class TestCase:  # pylint: disable=too-many-instance-attributes
-	def __init__(  # pylint: disable=too-many-arguments
-		self, perftest: Perftest, name: str, requests: dict[str, list], compression: str | None = None, encoding: str = "json"
-	):
+class TestCase:
+	def __init__(self, perftest: Perftest, name: str, requests: dict[str, list], compression: str | None = None, encoding: str = "json"):
 		self.perftest = perftest
 		self.name = name
 		self.requests = requests
@@ -199,8 +197,8 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			self.start = time.perf_counter()
 			if self.requests.get("test"):
 				for _i in range(self.iterations):
-					tasks = [client.execute_requests(self.requests["test"]) for client in self.clients]  # pylint: disable=loop-invariant-statement
-					await asyncio.gather(*tasks, return_exceptions=False)  # pylint: disable=dotted-import-in-loop
+					tasks = [client.execute_requests(self.requests["test"]) for client in self.clients]
+					await asyncio.gather(*tasks, return_exceptions=False)
 					if self._should_stop:
 						break
 			self.end = time.perf_counter()
@@ -220,9 +218,7 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			self.write_bencher_results()
 		print("")
 
-	def add_result(  # pylint: disable=too-many-arguments
-		self, error: None, seconds: float, bytes_sent: int, bytes_received: int, round_trip_time: float
-	) -> None:
+	def add_result(self, error: None, seconds: float, bytes_sent: int, bytes_received: int, round_trip_time: float) -> None:
 		res = {
 			"error": error,
 			"seconds": seconds,
@@ -257,21 +253,21 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 
 		sum_round_trip_time = 0.0
 		for res in self.results:
-			result["requests"] += 1  # pylint: disable=loop-invariant-statement
+			result["requests"] += 1
 			if res["error"]:
-				result["errors"] += 1  # pylint: disable=loop-invariant-statement
-			result["total_request_seconds"] += res["seconds"]  # pylint: disable=loop-invariant-statement
-			result["bytes_sent"] += res["bytes_sent"]  # pylint: disable=loop-invariant-statement
-			result["bytes_received"] += res["bytes_received"]  # pylint: disable=loop-invariant-statement
-			if result["min_seconds_per_request"] == 0 or result["min_seconds_per_request"] > res["seconds"]:  # pylint: disable=loop-invariant-statement
-				result["min_seconds_per_request"] = res["seconds"]  # pylint: disable=loop-invariant-statement
-			if result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]:  # pylint: disable=loop-invariant-statement
-				result["max_seconds_per_request"] = res["seconds"]  # pylint: disable=loop-invariant-statement
+				result["errors"] += 1
+			result["total_request_seconds"] += res["seconds"]
+			result["bytes_sent"] += res["bytes_sent"]
+			result["bytes_received"] += res["bytes_received"]
+			if result["min_seconds_per_request"] == 0 or result["min_seconds_per_request"] > res["seconds"]:
+				result["min_seconds_per_request"] = res["seconds"]
+			if result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]:
+				result["max_seconds_per_request"] = res["seconds"]
 			sum_round_trip_time += res["round_trip_time"]
-			if result["min_round_trip_time"] == 0 or result["min_round_trip_time"] > res["round_trip_time"]:  # pylint: disable=loop-invariant-statement
-				result["min_round_trip_time"] = res["round_trip_time"]  # pylint: disable=loop-invariant-statement
-			if result["max_round_trip_time"] == 0 or result["max_round_trip_time"] < res["round_trip_time"]:  # pylint: disable=loop-invariant-statement
-				result["max_round_trip_time"] = res["round_trip_time"]  # pylint: disable=loop-invariant-statement
+			if result["min_round_trip_time"] == 0 or result["min_round_trip_time"] > res["round_trip_time"]:
+				result["min_round_trip_time"] = res["round_trip_time"]
+			if result["max_round_trip_time"] == 0 or result["max_round_trip_time"] < res["round_trip_time"]:
+				result["max_round_trip_time"] = res["round_trip_time"]
 
 		result["avg_seconds_per_request"] = result["total_request_seconds"] / result["requests"]
 		result["avg_requests_per_second"] = result["requests"] / result["total_seconds"]
@@ -349,7 +345,7 @@ class Client:
 
 	async def messagebus_ws(self) -> aiohttp.ClientWebSocketResponse:
 		if not self._messagebus_ws:
-			self._messagebus_ws = await self.session._ws_connect(  # pylint: disable=protected-access
+			self._messagebus_ws = await self.session._ws_connect(
 				url=f"{self.perftest.base_url}/messagebus/v1",
 				params={"compression": self.test_case.compression if self.test_case.compression else ""},
 			)
@@ -407,7 +403,7 @@ class Client:
 			if add_results:
 				self.test_case.add_result(*result)
 
-	async def websocket(  # pylint: disable=too-many-branches,too-many-locals
+	async def websocket(
 		self, path: str, params: dict[str, str] | None = None, data: Any = None, send_data_count: int = 1
 	) -> tuple[Optional[str], float, int, int, float]:
 		url = f"{self.perftest.base_url}/{path.lstrip('/')}"
@@ -426,9 +422,9 @@ class Client:
 			async with self.session.ws_connect(url=url, params=params) as websocket:
 				for _ in range(send_data_count):
 					if data:
-						if isinstance(data, str):  # pylint: disable=loop-invariant-statement
+						if isinstance(data, str):
 							await websocket.send_str(data)
-						if isinstance(data, bytes):  # pylint: disable=loop-invariant-statement
+						if isinstance(data, bytes):
 							await websocket.send_bytes(data)
 						else:
 							await websocket.send_json(data)
@@ -492,11 +488,11 @@ class Client:
 				params[idx] = "o" * size
 			if isinstance(param, str) and param.startswith("{file:"):
 				filename = param.split(":")[1].strip("}")
-				with open(filename, "r", encoding="utf-8") as file:  # pylint: disable=dotted-import-in-loop
+				with open(filename, "r", encoding="utf-8") as file:
 					params[idx] = file.read()
 		return {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 
-	async def execute_jsonrpc_request(self, request: dict[str, Any]) -> tuple[Any | None, Any, int, int]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def execute_jsonrpc_request(self, request: dict[str, Any]) -> tuple[Any | None, Any, int, int]:
 		headers = {}
 
 		if self.test_case.encoding == "json":
@@ -555,7 +551,7 @@ class Client:
 		end = time.perf_counter()
 		return (error, end - start, request_data_len, response_data_len, end - start)
 
-	async def messagebus_jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def messagebus_jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:
 		params = params or []
 		req = self.jsonrpc_request(method, params)
 		messagebus_ws = await self.messagebus_ws()

@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 import httpx
 
 
-class TestManager:  # pylint: disable=too-few-public-methods
+class TestManager:
 	def __init__(self) -> None:
 		arg_parser = argparse.ArgumentParser()
 		arg_parser.add_argument("--server", action="store", type=str, help="Configserver url / address", default="https://localhost:4447")
@@ -152,7 +152,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			sys.exit(1)
 
 
-class TestClient:  # pylint: disable=too-few-public-methods
+class TestClient:
 	def __init__(self, test_manager: TestManager, client_id: str) -> None:
 		self.test_manager = test_manager
 		self.client_id = client_id

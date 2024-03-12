@@ -19,16 +19,16 @@ import random
 import statistics
 import sys
 import time
-from datetime import datetime, timezone
 import traceback
 from asyncio import get_event_loop
+from datetime import datetime, timezone
 from typing import AsyncGenerator
 from urllib.parse import urlparse
 
 import httpx
 
 
-class FileDownloadClient:  # pylint: disable=too-many-instance-attributes
+class FileDownloadClient:
 	def __init__(self, test_manager: TestManager, name: str) -> None:
 		self.test_manager = test_manager
 		self.name = name
@@ -67,7 +67,7 @@ class FileDownloadClient:  # pylint: disable=too-many-instance-attributes
 							start = time.time()
 			if self.bytes_received != self.test_manager.args.file_size:
 				raise RuntimeError(f"Received {self.bytes_received} bytes, expected {self.test_manager.args.file_size} bytes")
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			print(f"Exception in {self.name}: {err}")
 			traceback.print_exc()
 			self.exception = err
@@ -75,7 +75,7 @@ class FileDownloadClient:  # pylint: disable=too-many-instance-attributes
 			self.should_exit.set()
 
 
-class TestManager:  # pylint: disable=too-few-public-methods
+class TestManager:
 	def __init__(self) -> None:
 		arg_parser = argparse.ArgumentParser()
 		arg_parser.add_argument("--server", action="store", type=str, help="Configserver url / address", default="https://localhost:4447")

@@ -22,14 +22,14 @@ from urllib.parse import urlparse
 
 import aiohttp
 import lz4.frame  # type: ignore[import]
-from opsicommon.messagebus import (  # type: ignore[import]
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionRequestMessage,
 	EventMessage,
 	Message,
 )
 
 
-class MessagebusClient:  # pylint: disable=too-many-instance-attributes
+class MessagebusClient:
 	def __init__(self, test_manager: TestManager, name: str, start_wait: int = 0) -> None:
 		self.test_manager = test_manager
 		self.name = name
@@ -57,7 +57,7 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 					if self.should_exit.is_set():
 						return
 					raise RuntimeError(f"Unexpected message type: {msg.type}")
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			print(f"Exception in {self.name}: {err}")
 			self.exception = err
 			self.should_exit.set()
@@ -70,7 +70,7 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 					if self.should_exit.is_set():
 						return
 				await self.send_message(EventMessage(sender="@", event="test", channel="event:test", data={"test": "testdata"}))
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			print(f"Exception in {self.name}: {err}")
 			self.exception = err
 			self.should_exit.set()
@@ -114,7 +114,7 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 				if self.should_exit.is_set():
 					return
 				await asyncio.sleep(1)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			print(f"Exception in {self.name}: {err}")
 			self.exception = err
 		finally:
@@ -126,7 +126,7 @@ class MessagebusClient:  # pylint: disable=too-many-instance-attributes
 			self.test_manager.remove_client_connected()
 
 
-class TestManager:  # pylint: disable=too-few-public-methods
+class TestManager:
 	def __init__(self) -> None:
 		arg_parser = argparse.ArgumentParser()
 		arg_parser.add_argument("--server", action="store", type=str, help="Configserver url / address", default="https://localhost:4447")
@@ -171,8 +171,8 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			MessagebusClient(self, name=f"messagebus client{c+1}", start_wait=c * self.args.start_gap) for c in range(self.args.clients)
 		]
 		await asyncio.gather(*[client.run() for client in test_clients])
-		out = sum([client.messages_out for client in test_clients])  # pylint: disable=consider-using-generator
-		_in = sum([client.messages_in for client in test_clients])  # pylint: disable=consider-using-generator
+		out = sum([client.messages_out for client in test_clients])
+		_in = sum([client.messages_in for client in test_clients])
 		print(f"\nMessages out={out}, in={_in}")
 		exceptions = [client.exception for client in test_clients if client.exception]
 		if exceptions:

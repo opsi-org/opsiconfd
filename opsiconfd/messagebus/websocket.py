@@ -12,6 +12,7 @@ import re
 import traceback
 from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
+from functools import lru_cache
 from time import time
 from typing import TYPE_CHECKING, Literal
 
@@ -44,11 +45,16 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
 
-from . import check_channel_name, get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.main import UnprotectedBackend
+
+
+from . import RESTRICTED_MESSAGE_TYPES, check_channel_name, get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
 from .redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
@@ -100,6 +106,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		self._messagebus_reader: list[MessageReader] = []
 		self._manager_task: Task | None = None
 		self._message_decoder = msgspec.msgpack.Decoder()
+		self._backend: UnprotectedBackend = get_unprotected_backend()
 
 	@property
 	def _user_channel(self) -> str:
@@ -192,6 +199,14 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			return True
 
 		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].username, exc_info=True)
+		return False
+
+	@lru_cache
+	def _check_message_type_access(self, message_type: str) -> bool:
+		if message_type not in RESTRICTED_MESSAGE_TYPES:
+			return True
+		if RESTRICTED_MESSAGE_TYPES[message_type] in self._backend.available_modules:
+			return True
 		return False
 
 	async def _get_subscribed_channels(self) -> dict[str, MessageReader]:
@@ -369,6 +384,8 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):
 				raise RuntimeError(f"Read access to channel {message.channel!r} denied")
+			if not self._check_message_type_access(message.type):
+				raise RuntimeError(f"Access to message type {message.type!r} denied - check license")
 			logger.debug("Message from websocket: %r", message)
 			statistics.messages_received += 1
 

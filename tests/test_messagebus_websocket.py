@@ -455,12 +455,13 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 				reader.running.wait(3.0)
 				sleep(2)
 				reader.wait_for_message(count=1)
-				messages = list(reader.get_messages())
-				assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+				assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
 				process_message1 = ProcessStartRequestMessage(
 					sender=CONNECTION_USER_CHANNEL, channel=target_channel, command=("echo", "test")
 				)
+				print("Reader queue size:", reader.messages.qsize())
 				websocket.send_bytes(process_message1.to_msgpack())
+				print("Reader queue size:", reader.messages.qsize())
 				reader.wait_for_message(count=1, timeout=10.0)
 
 				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]

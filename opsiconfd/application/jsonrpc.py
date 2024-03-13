@@ -591,7 +591,7 @@ async def messagebus_jsonrpc_request_worker_configserver() -> None:
 
 	worker = Worker.get_instance()
 	messagebus_worker_id = get_user_id_for_service_worker(worker.id)
-	channel = "service:config:jsonrpc"
+	channel = f"service:depot:{get_depotserver_id()}:jsonrpc"
 
 	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 	jsonrpc_message_reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id)
@@ -605,10 +605,12 @@ async def messagebus_jsonrpc_request_worker_configserver() -> None:
 
 async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 	unprotected_backend = get_unprotected_backend()
-	depot_id = get_depotserver_id()
 	service_client = await run_in_threadpool(get_service_client, "messagebus jsonrpc")
 	message = ChannelSubscriptionRequestMessage(
-		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[f"service:depot:{depot_id}:jsonrpc"], operation="set"
+		sender=CONNECTION_USER_CHANNEL,
+		channel="service:messagebus",
+		channels=[f"service:depot:{get_depotserver_id()}:jsonrpc"],
+		operation="set",
 	)
 	try:
 		await service_client.messagebus.async_send_message(message)

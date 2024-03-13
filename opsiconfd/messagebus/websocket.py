@@ -53,7 +53,14 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import UnprotectedBackend
 
 
-from . import RESTRICTED_MESSAGE_TYPES, check_channel_name, get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
+from . import (
+	RESTRICTED_MESSAGE_TYPES,
+	check_channel_name,
+	get_config_service_channel,
+	get_user_id_for_host,
+	get_user_id_for_service_worker,
+	get_user_id_for_user,
+)
 from .redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
@@ -188,11 +195,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			return True
 		if channel == self._user_channel:
 			return True
-		if (
-			channel.startswith("service:")
-			and channel in ("service:messagebus", "service:config:jsonrpc", "service:config:terminal")
-			and operation == "write"
-		):
+		if channel.startswith("service:") and channel.endswith((":messagebus", ":jsonrpc")) and operation == "write":
 			return True
 		if self.scope["session"].is_admin:
 			return True
@@ -241,6 +244,9 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				channel = self._user_channel
 			elif channel == CONNECTION_SESSION_CHANNEL:
 				channel = self._session_channel
+			elif channel.startswith("service:config:"):
+				# Rewrite service:config:... to service:depot:<configserver_id>:...
+				channel = get_config_service_channel(channel)
 			channels[idx] = channel
 
 		remove_channels = []
@@ -380,6 +386,9 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				message.channel = self._session_channel
 			elif message.channel == CONNECTION_USER_CHANNEL:
 				message.channel = self._user_channel
+			elif message.channel.startswith("service:config:"):
+				# Rewrite service:config:... to service:depot:<configserver_id>:...
+				message.channel = get_config_service_channel(message.channel)
 
 			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):
 				raise RuntimeError(f"Read access to channel {message.channel!r} denied")

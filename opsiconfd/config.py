@@ -8,6 +8,8 @@
 global config
 """
 
+from __future__ import annotations
+
 import getpass
 import ipaddress
 import os
@@ -16,8 +18,9 @@ import socket
 import sys
 import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 from urllib.parse import unquote, urlparse
 
 import certifi
@@ -33,6 +36,9 @@ from packaging.version import Version
 from opsiconfd.check.const import CHECKS
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
+
+if TYPE_CHECKING:
+	from fastapi.templating import Jinja2Templates
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 CONFIG_FILE_HEADER = """
@@ -130,6 +136,13 @@ def get_depotserver_id() -> str:
 	if server_role not in ("depotserver", "configserver"):
 		raise ValueError(f"Not a depotsever (no server-role configured in {opsi_config.config_file!r})")
 	return opsi_config.get("host", "id")
+
+
+@lru_cache
+def jinja_templates() -> Jinja2Templates:
+	from fastapi.templating import Jinja2Templates
+
+	return Jinja2Templates(directory=config.jinja_templates_dir)
 
 
 def network_address(value: str) -> str:
@@ -410,6 +423,8 @@ class Config(metaclass=Singleton):
 						add = False
 				if add:
 					conf.append("127.0.0.1/32")
+
+		jinja_templates.cache_clear()
 
 	def redis_key(self, prefix_type: str | None = None) -> str:
 		if not prefix_type:

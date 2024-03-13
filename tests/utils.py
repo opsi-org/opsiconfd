@@ -28,6 +28,7 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from opsicommon.logging import LOG_NONE, LOG_WARNING, get_logger, use_logging_config
+from opsicommon.messagebus.message import Message
 from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
@@ -460,13 +461,15 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 
 
 class WebSocketMessageReader(Thread):
-	def __init__(self, websocket: WebSocketTestSession, decode: bool = True, print_raw_data: int = 32) -> None:
-		super().__init__()
+	def __init__(
+		self, websocket: WebSocketTestSession, decode: bool = True, messagebus_messages: bool = False, print_raw_data: int = 32
+	) -> None:
+		super().__init__(daemon=True)
 		self.decode = decode
-		self.daemon = True
+		self.messagebus_messages = messagebus_messages
 		self.print_raw_data = print_raw_data
 		self.websocket = websocket
-		self.messages: Queue[dict[str, Any] | bytes] = Queue()
+		self.messages: Queue[dict[str, Any] | bytes | Message] = Queue()
 		self.should_stop = False
 		self.running = Event()
 
@@ -491,7 +494,9 @@ class WebSocketMessageReader(Thread):
 				break
 			if data["type"] == "websocket.send":
 				raw = data["bytes"]
-				if self.decode:
+				if self.messagebus_messages:
+					msg = Message.from_dict(msgpack.loads(raw))
+				elif self.decode:
 					msg = msgpack.loads(raw)
 				else:
 					msg = raw
@@ -561,6 +566,15 @@ class WebSocketMessageReader(Thread):
 				print(f"Timed out while waiting for messages (got {self.messages.qsize()}, expected {count} max)")
 				return
 			await asyncio.sleep(0.1)
+
+	def get_messagbus_messages(self) -> Generator[Message, None, None]:
+		try:
+			while True:
+				msg = self.messages.get_nowait()
+				assert isinstance(msg, Message)
+				yield msg
+		except Empty:
+			pass
 
 	def get_messages(self) -> Generator[dict[str, Any], None, None]:
 		try:

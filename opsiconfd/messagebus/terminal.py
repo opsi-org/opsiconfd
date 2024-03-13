@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-application.teminal
+opsiconfd.messagebus.terminal
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from time import time
 from typing import Callable
 
 from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
@@ -66,12 +66,12 @@ async def async_terminal_startup() -> None:
 
 
 async def async_terminal_shutdown() -> None:
-	for terminal in list(terminals.values()):
-		await terminal.close()
 	if terminal_request_reader:
 		await terminal_request_reader.stop()
 	if terminal_instance_reader:
 		await terminal_instance_reader.stop()
+	for terminal in list(terminals.values()):
+		await terminal.close()
 
 
 def start_pty(
@@ -292,7 +292,7 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 
 	channel = f"{get_messagebus_worker_id()}:terminal"
 	terminal_instance_reader = MessageReader()
-	await terminal_instance_reader.set_channels({channel: "$"})
+	await terminal_instance_reader.set_channels({channel: CONNECTION_SESSION_CHANNEL})
 	async for _redis_id, message, _context in terminal_instance_reader.get_messages():
 		try:
 			if isinstance(

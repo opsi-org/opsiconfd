@@ -67,13 +67,13 @@ def check_channel_name(channel: str) -> str:
 
 	if channel.startswith("service:"):
 		channel = channel.lower()
-		if channel in ("service:messagebus", "service:config:jsonrpc", "service:config:terminal"):
+		if channel in ("service:messagebus", "service:config:jsonrpc", "service:config:terminal", "service:config:process"):
 			return channel
 		if channel.startswith("service:depot:"):
 			parts = channel.split(":")
 			if len(parts) != 4:
 				raise ValueError(f"Invalid service channel: {channel!r}")
-			if parts[3] not in ("jsonrpc", "terminal"):
+			if parts[3] not in ("jsonrpc", "terminal", "process"):
 				raise ValueError(f"Invalid service channel: {channel!r}")
 			try:
 				parts[2] = forceHostId(parts[2])

@@ -2,13 +2,13 @@
 
 [[package]]
 name = "a2wsgi"
-version = "1.10.2"
+version = "1.10.3"
 description = "Convert WSGI app to ASGI app or ASGI app to WSGI app."
 optional = false
 python-versions = ">=3.8.0"
 files = [
-    {file = "a2wsgi-1.10.2-py3-none-any.whl", hash = "sha256:d29b91d9b18c9308c65e26e0e2bd0cd6af8135ced2bc1d2d03a2b18cc4e32f0c"},
-    {file = "a2wsgi-1.10.2.tar.gz", hash = "sha256:46b2ca427cf9ad538c145e32eb36857e1cbf477b72fe1ed0e3d35e98c06061b9"},
+    {file = "a2wsgi-1.10.3-py3-none-any.whl", hash = "sha256:6ccb58b14a46a25f5ff9ada30247bd99bf78a799417a10230a9760a44aac216f"},
+    {file = "a2wsgi-1.10.3.tar.gz", hash = "sha256:7af32e7d18d498e2e1b835079302577d3ec1d789185582e8158ecb83618d9444"},
 ]
 
 [package.source]
@@ -2740,13 +2740,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.7.5"
+version = "4.3.7.6"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.7.5-py3-none-any.whl", hash = "sha256:3d0c028ee70d6e04e439bf794a8be9d1c1eb9f9f6ab4a7eb6b6a4fb824d0abcf"},
-    {file = "python_opsi_common-4.3.7.5.tar.gz", hash = "sha256:0bc85d8261ed75ad47d86d194a55759d03b3c37139d377c61d76446bcf3e6598"},
+    {file = "python_opsi_common-4.3.7.6-py3-none-any.whl", hash = "sha256:62fb588b34fbe3408450fcd5bdee9a5d63bb6f45aa2ce670f4140778330162e3"},
+    {file = "python_opsi_common-4.3.7.6.tar.gz", hash = "sha256:ecf8117993401558bc53bcd23eee5993a4ddbe2134c8ef20e3b23c2973454e18"},
 ]
 
 [package.dependencies]

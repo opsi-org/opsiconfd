@@ -121,7 +121,7 @@ async def messagebus_process_instance_worker() -> None:
 async def messagebus_process_start_request_worker_configserver() -> None:
 	global process_request_reader
 
-	channel = "service:config:process"
+	channel = f"service:depot:{get_depotserver_id()}:process"
 
 	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 	process_request_reader = ConsumerGroupMessageReader(
@@ -146,10 +146,12 @@ async def messagebus_process_start_request_worker_configserver() -> None:
 
 
 async def messagebus_process_start_request_worker_depotserver() -> None:
-	depot_id = get_depotserver_id()
 	service_client = await run_in_threadpool(get_service_client, "messagebus process")
 	message = ChannelSubscriptionRequestMessage(
-		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[f"service:depot:{depot_id}:process"], operation="set"
+		sender=CONNECTION_USER_CHANNEL,
+		channel="service:messagebus",
+		channels=[f"service:depot:{get_depotserver_id()}:process"],
+		operation="set",
 	)
 	try:
 		await service_client.messagebus.async_send_message(message)

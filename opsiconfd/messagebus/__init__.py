@@ -10,12 +10,14 @@ opsiconfd.messagebus
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from opsicommon.messagebus.message import MessageType
 from opsicommon.types import forceHostId, forceStringLower, forceUnsignedInt, forceUserId
 
+from opsiconfd.config import get_configserver_id
 from opsiconfd.utils import forceNodename
 from opsiconfd.worker import Worker
 
@@ -45,12 +47,22 @@ def get_user_id_for_user(user_id: str) -> str:
 	return f"user:{forceUserId(user_id)}"
 
 
+@lru_cache()
 def get_user_id_for_service_node(node_name: str) -> str:
 	return f"service_node:{forceStringLower(node_name)}"
 
 
+@lru_cache()
 def get_user_id_for_service_worker(worker_id: str) -> str:
 	return f"service_worker:{forceStringLower(worker_id)}"
+
+
+@lru_cache()
+def get_config_service_channel(channel: str) -> str:
+	if not channel.startswith("service:config:"):
+		raise ValueError(f"Invalid config service channel: {channel!r}")
+	configserver_id = get_configserver_id()
+	return channel.replace("service:config:", f"service:depot:{configserver_id}:")
 
 
 def check_channel_name(channel: str) -> str:
@@ -67,7 +79,7 @@ def check_channel_name(channel: str) -> str:
 
 	if channel.startswith("service:"):
 		channel = channel.lower()
-		if channel in ("service:messagebus", "service:config:jsonrpc", "service:config:terminal", "service:config:process"):
+		if channel == "service:messagebus":
 			return channel
 		if channel.startswith("service:depot:"):
 			parts = channel.split(":")

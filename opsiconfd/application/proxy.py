@@ -32,6 +32,7 @@ def reverse_proxy_setup(_app: FastAPI) -> None:
 		_app,
 		"/grafana",
 		config.grafana_internal_url,
+		methods=("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"),
 		forward_cookies=["grafana_session", "grafana_session_expiry"],
 		preserve_host=True,
 		forward_response_headers=[

@@ -37,7 +37,7 @@ GRAFANA_CLI = "/usr/sbin/grafana-cli"
 GRAFANA_DB = "/var/lib/grafana/grafana.db"
 GRAFANA_INI = "/etc/grafana/grafana.ini"
 PLUGIN_DIR = "/var/lib/grafana/plugins"
-PLUGIN_ID = "grafana-simple-json-datasource"
+PLUGIN_ID = "simpod-json-datasource"
 PLUGIN_MIN_VERSION = "1.4.2"
 
 GRAFANA_DASHBOARD_UID = "opsiconfd_main"
@@ -45,8 +45,7 @@ GRAFANA_DASHBOARD_UID = "opsiconfd_main"
 GRAFANA_DATASOURCE_TEMPLATE = {
 	"orgId": 1,
 	"name": "opsiconfd",
-	"type": "grafana-simple-json-datasource",
-	"typeLogoUrl": "public/plugins/grafana-simple-json-datasource/img/simpleJson_logo.svg",
+	"type": PLUGIN_ID,
 	"access": "proxy",
 	"url": None,
 	"password": "",
@@ -92,92 +91,87 @@ GRAFANA_DASHBOARD_TEMPLATE: dict[str, Any] = {
 	"variables": {"list": []},
 }
 
-GRAFANA_GRAPH_PANEL_TEMPLATE = {
-	"aliasColors": {},
-	"bars": False,
-	"dashLength": 10,
-	"dashes": False,
-	"datasource": "opsiconfd",
-	"decimals": 0,
-	"description": "",
-	"fill": 1,
-	"fillGradient": 0,
-	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
-	"hiddenSeries": False,
-	"id": None,
-	"legend": {
-		"alignAsTable": True,
-		"avg": True,
-		"current": True,
-		"hideEmpty": True,
-		"hideZero": False,
-		"max": True,
-		"min": True,
-		"show": True,
-		"total": False,
-		"values": True,
-	},
-	"lines": True,
-	"linewidth": 1,
-	"nullPointMode": "null",
-	"options": {"dataLinks": []},
-	"percentage": False,
-	"pointradius": 2,
-	"points": False,
-	"renderer": "flot",
-	"seriesOverrides": [],
-	"spaceLength": 10,
-	"stack": True,
-	"steppedLine": False,
-	"targets": [],
-	"thresholds": [],
-	"timeFrom": None,
-	"timeRegions": [],
-	"timeShift": None,
+
+GRAFANA_TIMESERIES_PANEL_TEMPLATE = {
+	"type": "timeseries",
 	"title": "",
-	"tooltip": {"shared": True, "sort": 0, "value_type": "individual"},
-	"type": "graph",
-	"xaxis": {"buckets": None, "mode": "time", "name": None, "show": True, "values": []},
-	"yaxes": [
-		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
-		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
-	],
-	"yaxis": {"align": False, "alignLevel": None},
+	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
+	"datasource": "opsiconfd",
+	"id": 0,
+	"targets": [],
+	"options": {
+		"tooltip": {"mode": "single", "sort": "none"},
+		"legend": {"showLegend": True, "displayMode": "list", "placement": "bottom", "calcs": []},
+	},
+	"fieldConfig": {
+		"defaults": {
+			"custom": {
+				"drawStyle": "line",
+				"lineInterpolation": "linear",
+				"barAlignment": 0,
+				"lineWidth": 1,
+				"fillOpacity": 17,
+				"gradientMode": "none",
+				"spanNulls": False,
+				"insertNulls": False,
+				"showPoints": "auto",
+				"pointSize": 5,
+				"stacking": {"mode": "none", "group": "A"},
+				"axisPlacement": "auto",
+				"axisLabel": "",
+				"axisColorMode": "text",
+				"axisBorderShow": False,
+				"scaleDistribution": {"type": "linear"},
+				"axisCenteredZero": False,
+				"hideFrom": {"tooltip": False, "viz": False, "legend": False},
+				"thresholdsStyle": {"mode": "off"},
+			},
+			"color": {"mode": "palette-classic"},
+			"mappings": [],
+			"thresholds": {"mode": "absolute", "steps": [{"value": None, "color": "green"}, {"value": 80, "color": "red"}]},
+			"unit": "decbytes",
+		},
+		"overrides": [],
+		"renderer": "flot",
+	},
 }
+
 
 GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 	"datasource": "opsiconfd",
-	"description": "",
-	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
-	"id": None,
-	"targets": [],
-	"timeFrom": None,
-	"timeShift": None,
-	"title": "Duration of remote procedure calls",
-	"type": "heatmap",
-	"heatmap": {},
-	"cards": {"cardPadding": None, "cardRound": None},
-	"color": {
-		"mode": "opacity",
-		"cardColor": "#73BF69",
-		"colorScale": "sqrt",
-		"exponent": 0.5,
-		# "colorScheme": "interpolateSpectral",
-		"min": None,
+	"fieldConfig": {
+		"defaults": {
+			"custom": {"scaleDistribution": {"type": "linear"}, "hideFrom": {"tooltip": False, "viz": False, "legend": False}},
+			"fieldMinMax": False,
+		},
+		"overrides": [],
 	},
-	"legend": {"show": False},
-	"dataFormat": "timeseries",
-	"yBucketBound": "auto",
-	"reverseYBuckets": False,
-	"xAxis": {"show": True},
-	"yAxis": {"show": True, "format": "s", "decimals": 2, "logBase": 2, "splitFactor": None, "min": "0", "max": None},
-	"xBucketSize": None,
-	"xBucketNumber": None,
-	"yBucketSize": None,
-	"yBucketNumber": None,
-	"tooltip": {"show": False, "showHistogram": False},
-	"highlightCards": True,
-	"hideZeroBuckets": False,
+	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
+	"id": 0,
+	"options": {
+		"calculate": True,
+		"yAxis": {"axisPlacement": "left", "reverse": False, "unit": "s", "min": 0},
+		"rowsFrame": {"layout": "auto"},
+		"color": {
+			"mode": "opacity",
+			"fill": "green",
+			"scale": "exponential",
+			"exponent": 0.5,
+			"scheme": "Greens",
+			"steps": 128,
+			"reverse": False,
+			"min": 0,
+		},
+		"cellGap": 0.5,
+		"filterValues": {"le": 1e-9},
+		"tooltip": {"mode": "none", "yHistogram": False, "showColorScale": False},
+		"legend": {"show": True, "showLegend": True},
+		"exemplars": {"color": "rgba(255,0,255,0.7)"},
+		"calculation": {"xBuckets": {"mode": "count", "value": "4"}, "yBuckets": {"scale": {"type": "log", "log": 2}}},
+	},
+	"targets": [],
+	"title": "",
+	"type": "heatmap",
 	"tooltipDecimals": 0,
 }
 
@@ -185,22 +179,22 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 class GrafanaPanelConfig:
 	def __init__(
 		self,
-		type: str = "graph",
+		type: str = "timeseries",
 		title: str = "",
-		units: list[str] | None = None,
+		unit: str | None = None,
 		decimals: int = 0,
 		stack: bool = False,
 		yaxis_min: int | str = "auto",
 	) -> None:
 		self.type = type
 		self.title = title
-		self.units = units or ["short", "short"]
+		self.unit = unit or "short"
 		self.decimals = decimals
 		self.stack = stack
 		self._template = {}
 		self.yaxis_min = yaxis_min
-		if self.type == "graph":
-			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
+		if self.type == "timeseries":
+			self._template = GRAFANA_TIMESERIES_PANEL_TEMPLATE
 		elif self.type == "heatmap":
 			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE  # type: ignore[assignment]
 
@@ -210,17 +204,15 @@ class GrafanaPanelConfig:
 		panel["gridPos"]["x"] = pos_x  # type: ignore[index]
 		panel["gridPos"]["y"] = pos_y  # type: ignore[index]
 		panel["title"] = self.title
-		if self.type == "graph":
-			panel["stack"] = self.stack
-			panel["decimals"] = self.decimals
-			for i, unit in enumerate(self.units):
-				panel["yaxes"][i]["format"] = unit  # type: ignore[index]
+		if self.type == "timeseries":
+			if self.stack:
+				panel["fieldConfig"]["defaults"]["custom"]["stacking"]["mode"] = "normal"  # type: ignore[index]
+			panel["fieldConfig"]["defaults"]["decimals"] = self.decimals  # type: ignore[index]
+			panel["fieldConfig"]["defaults"]["unit"] = self.unit  # type: ignore[index]
 		elif self.type == "heatmap":
-			panel["yAxis"]["format"] = self.units[0]  # type: ignore[index]
-			panel["tooltipDecimals"] = self.decimals
+			panel["options"]["yAxis"]["format"] = self.unit  # type: ignore[index]
 		if self.yaxis_min != "auto":
-			for axis in panel["yaxes"]:  # type: ignore[attr-defined]
-				axis["min"] = self.yaxis_min
+			panel["fieldConfig"]["defaults"] = self.yaxis_min  # type: ignore[index]
 		return panel
 
 
@@ -295,7 +287,10 @@ async def async_grafana_session(
 @asynccontextmanager
 async def async_grafana_admin_session() -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
 	url = urlparse(config.grafana_internal_url)
-	async with async_grafana_session(url.username, unquote(url.password)) as (base_url, session):
+	password = None
+	if url.password:
+		password = unquote(url.password)
+	async with async_grafana_session(url.username, password) as (base_url, session):
 		yield (base_url, session)
 
 

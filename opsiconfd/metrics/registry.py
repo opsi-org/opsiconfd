@@ -128,7 +128,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing=None,
-			grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
+			grafana_config=GrafanaPanelConfig(title="System load", unit="short", decimals=2, stack=False),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -142,7 +142,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation="sum",
 			zero_if_missing="continuous",
 			time_related=True,
-			grafana_config=GrafanaPanelConfig(title="JSONRPC Requests", units=["short"], decimals=0, stack=True, yaxis_min=0),
+			grafana_config=GrafanaPanelConfig(title="JSONRPC Requests", unit="short", decimals=0, stack=True, yaxis_min=0),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -156,7 +156,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation="sum",
 			zero_if_missing="continuous",
 			time_related=True,
-			grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),
+			grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", unit="short", decimals=0, stack=True, yaxis_min=0),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -169,7 +169,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=24 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing="one",
-			grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
+			grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", unit="s", decimals=0),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -182,7 +182,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing=None,
-			grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], decimals=2, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Worker memory usage", unit="decbytes", decimals=2, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -195,7 +195,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing=None,
-			grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Worker CPU usage", unit="percent", decimals=1, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -208,7 +208,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing=None,
-			grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Worker threads", unit="short", decimals=0, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -221,7 +221,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing=None,
-			grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Worker filehandles", unit="short", decimals=0, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -234,7 +234,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing=None,
-			grafana_config=GrafanaPanelConfig(title="Worker connections", units=["short"], decimals=0, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Worker connections", unit="short", decimals=0, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -248,7 +248,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation="sum",
 			zero_if_missing="continuous",
 			time_related=True,
-			grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
+			grafana_config=GrafanaPanelConfig(title="HTTP requests/s", unit="short", decimals=0, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -261,7 +261,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing="one",
-			grafana_config=GrafanaPanelConfig(title="HTTP request size", units=["decbytes"], stack=True),
+			grafana_config=GrafanaPanelConfig(title="HTTP request size", unit="decbytes", stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -274,7 +274,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing="one",
-			grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
+			grafana_config=GrafanaPanelConfig(title="HTTP response size", unit="decbytes", stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -287,7 +287,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			retention=2 * 3600 * 1000,
 			aggregation="avg",
 			zero_if_missing="one",
-			grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
+			grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", unit="s", decimals=0),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -301,7 +301,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation="sum",
 			zero_if_missing="continuous",
 			time_related=True,
-			grafana_config=GrafanaPanelConfig(title="Messagebus messages sent/s", units=["short"], decimals=0, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Messagebus messages sent/s", unit="short", decimals=0, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],
@@ -315,7 +315,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation="sum",
 			zero_if_missing="continuous",
 			time_related=True,
-			grafana_config=GrafanaPanelConfig(title="Messagebus messages received/s", units=["short"], decimals=0, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Messagebus messages received/s", unit="short", decimals=0, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],

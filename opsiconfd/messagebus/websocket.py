@@ -244,6 +244,9 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				channel = self._user_channel
 			elif channel == CONNECTION_SESSION_CHANNEL:
 				channel = self._session_channel
+			elif channel.startswith("service:config:"):
+				# Rewrite service:config:... to service:depot:<configserver_id>:...
+				channel = get_config_service_channel(channel)
 			channels[idx] = channel
 
 		remove_channels = []

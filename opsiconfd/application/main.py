@@ -19,7 +19,6 @@ from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
@@ -42,7 +41,7 @@ from opsiconfd.application.status import status_setup
 from opsiconfd.application.utils import OpsiconfdWebSocketEndpoint
 from opsiconfd.application.webdav import webdav_setup
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
-from opsiconfd.config import config, get_server_role
+from opsiconfd.config import config, get_server_role, jinja_templates
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.process import async_process_shutdown, async_process_startup
 from opsiconfd.messagebus.terminal import async_terminal_shutdown, async_terminal_startup
@@ -53,8 +52,6 @@ from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware, session_manager
 from opsiconfd.ssl import as_pem, load_certs
 from opsiconfd.utils import asyncio_create_task
-
-jinja_templates = Jinja2Templates(directory=config.jinja_templates_dir)
 
 
 @app.get("/")
@@ -78,7 +75,7 @@ async def index_head() -> Response:
 @app.get("/login")
 async def login_index(request: Request) -> Response:
 	context = {"request": request, "multi_factor_auth": config.multi_factor_auth}
-	return jinja_templates.TemplateResponse(request=request, name="login.html", context=context)
+	return jinja_templates().TemplateResponse(request=request, name="login.html", context=context)
 
 
 @app.get("/favicon.ico")

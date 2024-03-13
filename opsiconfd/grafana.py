@@ -46,7 +46,6 @@ GRAFANA_DATASOURCE_TEMPLATE = {
 	"orgId": 1,
 	"name": "opsiconfd",
 	"type": "simpod-json-datasource",
-	"typeLogoUrl": "plugins/yesoreyeram-infinity-datasource/img/icon.img",
 	"access": "proxy",
 	"url": None,
 	"password": "",
@@ -97,7 +96,7 @@ GRAFANA_TIMESERIES_PANEL_TEMPLATE = {
 	"type": "timeseries",
 	"title": "",
 	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
-	"datasource": {"uid": "adf1wmuty6whse", "type": "simpod-json-datasource"},
+	"datasource": "opsiconfd",
 	"id": 0,
 	"targets": [],
 	"options": {

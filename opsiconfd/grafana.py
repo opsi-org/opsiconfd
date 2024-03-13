@@ -160,6 +160,7 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 			"scheme": "Greens",
 			"steps": 128,
 			"reverse": False,
+			"min": 0,
 		},
 		"cellGap": 0.5,
 		"filterValues": {"le": 1e-9},

@@ -4,14 +4,13 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "opsiconfd"
-version = "4.3.11.3"
+version = "4.3.12.0"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
 maintainers = [ "uib GmbH <info@uib.de>",]
 authors = [ "uib GmbH <info@uib.de>",]
 include = [ "run-opsiconfd", "opsiconfd_data/**/*",]
-
 [[tool.poetry.source]]
 name = "uibpypi"
 url = "https://pypi.uib.gmbh/simple"

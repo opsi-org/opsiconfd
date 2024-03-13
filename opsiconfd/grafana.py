@@ -45,7 +45,7 @@ GRAFANA_DASHBOARD_UID = "opsiconfd_main"
 GRAFANA_DATASOURCE_TEMPLATE = {
 	"orgId": 1,
 	"name": "opsiconfd",
-	"type": "simpod-json-datasource",
+	"type": PLUGIN_ID,
 	"access": "proxy",
 	"url": None,
 	"password": "",

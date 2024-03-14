@@ -94,3 +94,8 @@ def test_setup_sudoers(conf_file: str, tmp_path: Path) -> None:
 		data2 = sudoers.read_text(encoding="utf-8")
 		assert data == data2
 		assert sudoers.stat().st_mtime == mtime
+		with patch("opsiconfd.setup.sudo.opsi_config.get", return_value="admin group"):
+			setup_sudoers()
+			data2 = sudoers.read_text(encoding="utf-8")
+			assert data == data2
+			assert sudoers.stat().st_mtime == mtime

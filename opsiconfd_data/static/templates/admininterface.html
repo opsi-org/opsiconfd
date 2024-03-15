@@ -99,6 +99,7 @@
 			}
 			else if (tabName == "addons") {
 				loadAddons();
+				loadFailedAddons();
 			}
 			else if (tabName == "memory-profiler") {
 			}
@@ -425,6 +426,8 @@
 				<h4>Addons:</h4>
 				<div id="addon-table-div">
 					loading...
+				</div>
+				<div id="failed-addon-table-div">
 				</div>
 				<div style="margin-top: 25px">
 					<input id="addon-file" type="file" name="addon-file" />

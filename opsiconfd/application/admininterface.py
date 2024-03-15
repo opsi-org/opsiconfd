@@ -47,6 +47,7 @@ from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
 from opsiconfd.redis import (
 	async_redis_client,
+	decode_redis_result,
 	ip_address_from_redis_key,
 	ip_address_to_redis_key,
 )
@@ -286,6 +287,23 @@ async def get_addon_list() -> RESTResponse:
 		for addon in AddonManager().addons
 	]
 	return RESTResponse(sorted(addon_list, key=itemgetter("id")))
+
+
+@admin_interface_router.get("/addons/failed")
+@rest_api
+async def get_failed_addons() -> RESTResponse:
+	return RESTResponse(await _get_failed_addons())
+
+
+async def _get_failed_addons() -> list:
+	redis = await async_redis_client()
+	failed_addons = decode_redis_result(await redis.lrange(f"{config.redis_key('state')}:application:addons:errors", 0, -1))
+	errors = []
+	for failed_addon in failed_addons:
+		error = {"name": failed_addon}
+		error.update(decode_redis_result(await redis.hgetall(f"{config.redis_key('state')}:application:addons:errors:{failed_addon}")))
+		errors.append(error)
+	return errors
 
 
 def _install_addon(data: bytes) -> None:

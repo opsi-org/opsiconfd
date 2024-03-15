@@ -10,6 +10,7 @@ check tests
 
 
 import io
+import os
 import pprint
 import sys
 import time
@@ -20,6 +21,7 @@ from unittest import mock
 from warnings import catch_warnings, simplefilter
 
 import requests
+from _pytest.fixtures import FixtureFunction
 from mock import Mock  # type: ignore[import]
 from MySQLdb import OperationalError  # type: ignore[import]
 from opsicommon.objects import (
@@ -32,6 +34,8 @@ from opsicommon.objects import (
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
+from opsiconfd.addon.manager import AddonManager
+from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.cli import process_check_result
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.main import (
@@ -67,16 +71,21 @@ from opsiconfd.ssl import (
 )
 from opsiconfd.utils import NameService, UserInfo
 
+from .test_addon_manager import cleanup  # noqa: F401
 from .utils import (  # noqa: F401
 	ACL_CONF_41,
 	ADMIN_PASS,
 	ADMIN_USER,
+	Config,
 	OpsiconfdTestClient,
 	clean_mysql,
 	get_config,
 	get_opsi_config,
 	sync_clean_redis,
 	test_client,
+)
+from .utils import (
+	config as test_config,  # noqa: F401
 )
 
 DEPRECATED_METHOD = "getClientIds_list"
@@ -961,3 +970,21 @@ def test_check_system_repos() -> None:
 				result = check_system_repos()
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
+
+
+def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction) -> None:  # noqa: F811
+	test_config.addon_dirs = [os.path.abspath("tests/data/addons")]
+
+	addon_manager = AddonManager()
+	addon_manager.load_addons()
+
+	result = check_opsi_failed_addons()
+	assert result.check_status == CheckStatus.ERROR
+
+	test_config.addon_dirs = []
+
+	addon_manager = AddonManager()
+	addon_manager.load_addons()
+
+	result = check_opsi_failed_addons()
+	assert result.check_status == CheckStatus.OK

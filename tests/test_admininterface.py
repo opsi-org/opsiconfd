@@ -17,6 +17,7 @@ from typing import Any, Callable
 from unittest.mock import patch
 
 import pytest
+from _pytest.fixtures import FixtureFunction
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
 from starlette.requests import Request
@@ -488,6 +489,19 @@ def test_get_addon_list(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	addons = AddonManager().addons
 	print(addons)
 	assert len(response.json()) == len(addons)
+
+
+def test_get_failed_addons(test_client: OpsiconfdTestClient, config: Config, cleanup: FixtureFunction) -> None:  # noqa: F811
+	config.addon_dirs = [os.path.abspath("tests/data/addons")]
+
+	addon_manager = AddonManager()
+	addon_manager.load_addons()
+
+	response = test_client.get("/admin/addons/failed", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+	assert len(response.json()) == 1
+	assert response.json()[0].get("name") == "test3"
+	assert response.json()[0].get("error") == "name 'error' is not defined"
 
 
 def test_get_routes(

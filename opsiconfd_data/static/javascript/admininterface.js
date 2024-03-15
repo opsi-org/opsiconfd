@@ -416,6 +416,14 @@ function loadAddons() {
 	});
 }
 
+function loadFailedAddons() {
+	let req = ajaxRequest("GET", "/admin/addons/failed");
+	req.then((result) => {
+		printFailedAddonTable(result, "failed-addon-table-div");
+		return result
+	});
+}
+
 
 function installAddon() {
 	const file = document.getElementById("addon-file").files[0];
@@ -829,6 +837,33 @@ function printAddonTable(data, htmlId) {
 				"<td class=\"addon-td\">" + element.name + "</td>" +
 				"<td class=\"addon-td\">" + element.version + "</td>" +
 				"<td class=\"addon-td\">" + element.install_path + "</td>" +
+				"</tr>";
+		});
+		htmlStr += "</table>";
+	}
+	div = document.getElementById(htmlId);
+	div.innerHTML = htmlStr;
+	return htmlStr;
+}
+
+function printFailedAddonTable(data, htmlId) {
+	if (data == undefined) {
+		htmlStr = "";
+	}
+	else if (data.length == 0) {
+		htmlStr = "";
+	} else {
+		htmlStr = "<h4>Addons that failed to load:</h4><table class=\"failed-addon-table\" id=\"failed-addon-table\">" +
+			"<tr>" +
+			"<th class='failed-addon-th'>Name</th>" +
+			"<th class='failed-addon-th'>Path</th>" +
+			"<th class='failed-addon-th'>Error</th>" +
+			"</tr>";
+		data.forEach(element => {
+			htmlStr += "<tr>" +
+				"<td class=\"failed-addon-td\">" + element.name + "</td>" +
+				"<td class=\"failed-addon-td\">" + element.addon_path + "</td>" +
+				"<td class=\"error-addon-td\">" + element.error + "</td>" +
 				"</tr>";
 		});
 		htmlStr += "</table>";

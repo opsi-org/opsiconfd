@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-addon test2
+addon test3
 """
 
 from opsiconfd.addon import Addon

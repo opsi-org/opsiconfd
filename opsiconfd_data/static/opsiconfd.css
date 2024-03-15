@@ -144,7 +144,7 @@ select {
 
 #jsonrpc-request-error {
 	font-size: 14px;
-	color: var(--error);
+	color: #dc322b;
 	margin: 5px 0px 0px 5px;
 }
 

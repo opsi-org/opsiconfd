@@ -500,6 +500,7 @@ def test_get_failed_addons(test_client: OpsiconfdTestClient, config: Config, cle
 	response = test_client.get("/admin/addons/failed", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	assert len(response.json()) == 1
+	print(response.json())
 	assert response.json()[0].get("name") == "test3"
 	assert response.json()[0].get("error") == "name 'error' is not defined"
 

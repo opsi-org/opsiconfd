@@ -10,6 +10,7 @@ health check
 
 from typing import Iterator
 
+from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.common import CheckResult
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
@@ -43,6 +44,7 @@ __all__ = [
 	"check_product_on_clients",
 	"check_product_on_depots",
 	"check_opsi_users",
+	"check_opsi_failed_addons",
 	"CHECKS",
 ]
 

@@ -292,6 +292,10 @@ async def get_addon_list() -> RESTResponse:
 @admin_interface_router.get("/addons/failed")
 @rest_api
 async def get_failed_addons() -> RESTResponse:
+	return RESTResponse(await _get_failed_addons())
+
+
+async def _get_failed_addons() -> list:
 	redis = await async_redis_client()
 	failed_addons = decode_redis_result(await redis.lrange(f"{config.redis_key('state')}:application:addons:errors", 0, -1))
 	errors = []
@@ -299,7 +303,7 @@ async def get_failed_addons() -> RESTResponse:
 		error = {"name": failed_addon}
 		error.update(decode_redis_result(await redis.hgetall(f"{config.redis_key('state')}:application:addons:errors:{failed_addon}")))
 		errors.append(error)
-	return RESTResponse(errors)
+	return errors
 
 
 def _install_addon(data: bytes) -> None:

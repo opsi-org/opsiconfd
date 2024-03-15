@@ -14,7 +14,8 @@ from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 
 
 class FailAddonTest(Addon):
-	error  # addon can not be loaded
+	# addon can not be loaded
+	error  # type: ignore[name-defined] # noqa: F821
 	id = ADDON_ID
 	name = ADDON_NAME
 	version = ADDON_VERSION

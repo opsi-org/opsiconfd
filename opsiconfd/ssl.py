@@ -25,7 +25,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import verification  # type: ignore[attr-defined]
-from opsicommon.server.rights import FilePermission, PermissionRegistry, set_rights
+from opsicommon.server.rights import DirPermission, FilePermission, PermissionRegistry, set_rights
 from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca, is_self_signed, load_key, x509_name_to_dict
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
@@ -87,6 +87,7 @@ def get_domain() -> str:
 def setup_ssl_file_permissions() -> None:
 	admin_group = opsi_config.get("groups", "admingroup")
 	permissions = (
+		DirPermission("/etc/opsi/ssl", config.run_as_user, admin_group, 0o600, 0o750, recursive=False),
 		FilePermission(config.ssl_ca_cert, config.run_as_user, admin_group, 0o644),
 		FilePermission(config.ssl_ca_key, config.run_as_user, admin_group, 0o600),
 		FilePermission(config.ssl_server_cert, config.run_as_user, admin_group, 0o640),

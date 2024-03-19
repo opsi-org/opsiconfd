@@ -15,6 +15,7 @@ from functools import lru_cache
 from importlib._bootstrap import BuiltinImporter, ModuleSpec  # type: ignore[import]
 from os import listdir
 from os.path import abspath, exists, isdir, join
+from pathlib import Path
 from typing import Optional
 from urllib.parse import quote, unquote
 
@@ -22,6 +23,7 @@ from opsiconfd.addon.addon import Addon
 from opsiconfd.application import app
 from opsiconfd.config import config
 from opsiconfd.logging import logger
+from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import Singleton
 
 
@@ -81,6 +83,12 @@ class AddonManager(metaclass=Singleton):
 	def load_addons(self) -> None:
 		logger.debug("Loading addons")
 		self._addons = {}
+		redis = redis_client()
+		failed_addons = decode_redis_result(redis.lrange(f"{config.redis_key('state')}:application:addons:errors", 0, -1))
+		logger.devel("Failed addons: %s", failed_addons)
+		for failed_addon in failed_addons:
+			redis.delete(f"{config.redis_key('state')}:application:addons:errors:{failed_addon}")
+		redis.delete(f"{config.redis_key('state')}:application:addons:errors")
 		for addon_dir in config.addon_dirs:
 			if not isdir(addon_dir):
 				logger.debug("Addon dir '%s' not found", addon_dir)
@@ -93,6 +101,12 @@ class AddonManager(metaclass=Singleton):
 				try:
 					self.load_addon(addon_path=addon_path)
 				except Exception as err:
+					addon_folder = Path(addon_path).name
+					redis.lpush(f"{config.redis_key('state')}:application:addons:errors", addon_folder)
+					redis.hset(
+						f"{config.redis_key('state')}:application:addons:errors:{addon_folder}",
+						mapping={"addon_path": addon_path, "error": str(err)},
+					)
 					logger.error("Failed to load addon from %s: %s", addon_path, err, exc_info=True)
 
 	def unload_addon(self, addon_id: str) -> None:

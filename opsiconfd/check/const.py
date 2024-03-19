@@ -26,4 +26,5 @@ CHECKS = [
 	"ldap_connection",
 	"opsi_users",
 	"system_repos",
+	"opsi_failed_addons",
 ]

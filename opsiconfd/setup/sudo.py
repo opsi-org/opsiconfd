@@ -39,7 +39,15 @@ def setup_sudoers() -> None:
 	if not sudoers_conf.exists():
 		return
 	admin_group = opsi_config.get("groups", "admingroup")
+	if not admin_group or " " in admin_group:
+		logger.error("Invalid admin group '%s'. Skip setup sudoers.", admin_group)
+		return
 	file_admin_group = opsi_config.get("groups", "fileadmingroup")
+	if not file_admin_group or " " in file_admin_group:
+		logger.error("Invalid file admin group '%s'. Skip setup sudoers.", file_admin_group)
+		return
+
+
 	add_lines = [
 		START_COMMENT,
 		f"Defaults:{user} !requiretty",

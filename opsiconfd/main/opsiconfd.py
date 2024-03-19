@@ -22,7 +22,7 @@ import uvloop
 from opsicommon.utils import patch_popen
 
 from opsiconfd import __version__
-from opsiconfd.config import GC_THRESHOLDS, REDIS_CONECTION_TIMEOUT, config, configure_warnings, get_depotserver_id, get_server_role
+from opsiconfd.config import GC_THRESHOLDS, REDIS_CONECTION_TIMEOUT, config, opsi_config, configure_warnings, get_depotserver_id, get_server_role
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.manager import Manager
 from opsiconfd.patch import apply_patches
@@ -79,6 +79,11 @@ def opsiconfd_main() -> None:
 
 		if config.delete_locks:
 			delete_locks()
+		try:
+			opsi_config.read_config_file()
+		except ValueError as err:
+			logger.error("Failed to read opsi config file (%s): %s", opsi_config.config_file, err)
+			sys.exit(1)
 
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
 

@@ -59,6 +59,9 @@ from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
 from opsiconfd.utils import asyncio_create_task, utc_timestamp
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.main import Backend
+
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
 # You can add middleware to FastAPI applications.
@@ -93,9 +96,7 @@ session_data_msgpack_encoder = msgspec.msgpack.Encoder()
 session_data_msgpack_decoder = msgspec.msgpack.Decoder()
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
-
-if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.main import Backend
+AUTH_HEADERS = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 
 
 def get_basic_auth(headers: Headers) -> BasicAuth:
@@ -103,7 +104,7 @@ def get_basic_auth(headers: Headers) -> BasicAuth:
 
 	headers_401 = {}
 	if headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
-		headers_401 = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+		headers_401 = AUTH_HEADERS
 
 	if not auth_header:
 		raise HTTPException(
@@ -289,7 +290,7 @@ class SessionMiddleware:
 
 			status_code = status.HTTP_401_UNAUTHORIZED
 			if connection.headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
-				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+				headers = AUTH_HEADERS
 			error = "Authentication error"
 			if isinstance(err, BackendPermissionDeniedError):
 				error = "Permission denied"

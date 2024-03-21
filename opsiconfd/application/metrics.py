@@ -11,10 +11,10 @@ metrics
 import copy
 from datetime import datetime
 from operator import itemgetter
-from time import time
 from typing import Any
 
 from fastapi import APIRouter, FastAPI
+from opsicommon.utils import unix_timestamp
 from pydantic import BaseModel, ConfigDict, Field
 from redis import ResponseError as RedisResponseError
 
@@ -185,7 +185,7 @@ async def grafana_query(
 	query_bucket_duration_ms = round(query.intervalMs)
 	sorted_downsampling = {}
 
-	timestamp_now = round(time() * 1000)
+	timestamp_now = round(unix_timestamp(millis=True))
 	for target in query.targets:
 		if target.type != "timeserie":
 			logger.warning("Unhandled target type: %s", target.type)

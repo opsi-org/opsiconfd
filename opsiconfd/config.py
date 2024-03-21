@@ -83,6 +83,25 @@ AUDIT_HARDWARE_CONFIG_LOCALES_DIR = "/etc/opsi/hwaudit/locales"
 MANAGER_THREAD_POOL_WORKERS = 8
 REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS = 4
 REDIS_CONECTION_TIMEOUT = 30
+SKIP_SETUP_ACTIONS = [
+	"limits",
+	"users",
+	"groups",
+	"grafana",
+	"backend",
+	"redis",
+	"ssl",
+	"server_cert",
+	"opsi_ca",
+	"systemd",
+	"files",
+	"file_permissions",
+	"log_files",
+	"metric_downsampling",
+	"samba",
+	"dhcpd",
+	"sudoers",
+]
 
 try:
 	FQDN = get_fqdn()
@@ -394,18 +413,15 @@ class Config(metaclass=Singleton):
 				secret_filter.add_secrets(unquote(url.password))
 		if not self._config.skip_setup:
 			self._config.skip_setup = []
-		if not self._config.client_cert_auth:
-			self._config.client_cert_auth = []
-		if self._parser and "all" in self._config.skip_setup:
-			for action in self._parser._actions:
-				if action.dest == "skip_setup":
-					self._config.skip_setup = action.choices
-					break
+		elif "all" in self._config.skip_setup:
+			self._config.skip_setup = SKIP_SETUP_ACTIONS
 		elif "ssl" in self._config.skip_setup:
 			if "opsi_ca" not in self._config.skip_setup:
 				self._config.skip_setup.append("opsi_ca")
 			if "server_cert" not in self._config.skip_setup:
 				self._config.skip_setup.append("server_cert")
+		if not self._config.client_cert_auth:
+			self._config.client_cert_auth = []
 		if not self._config.disabled_features:
 			self._config.disabled_features = []
 		if not self._config.debug_options:
@@ -1048,29 +1064,9 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				("opsiconfd", "setup"),
-				"A list of setup tasks to skip "
-				"(tasks: all, limits, users, groups, grafana, backend, ssl, server_cert, opsi_ca, "
-				"systemd, files, file_permissions, log_files, metric_downsampling, samba, dhcpd, sudoers).",
+				"A list of setup tasks to skip " f"(tasks: {','.join(['all'] + SKIP_SETUP_ACTIONS)}).",
 			),
-			choices=[
-				"all",
-				"limits",
-				"users",
-				"groups",
-				"grafana",
-				"backend",
-				"ssl",
-				"server_cert",
-				"opsi_ca",
-				"systemd",
-				"files",
-				"file_permissions",
-				"log_files",
-				"metric_downsampling",
-				"samba",
-				"dhcpd",
-				"sudoers",
-			],
+			choices=["all"] + SKIP_SETUP_ACTIONS,
 		)
 
 		self._parser.add(
@@ -1424,7 +1420,7 @@ class Config(metaclass=Singleton):
 				nargs="?",
 				const=True,
 				default=False,
-				help=self._help("setup", "Rename configserver if needed. Takes provided ID or host.id from opsi.conf."),
+				help=self._help("setup", "Rename server if needed. Takes provided ID or host.id from opsi.conf."),
 			)
 
 		if self._sub_command == "health-check":

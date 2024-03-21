@@ -254,7 +254,7 @@ class RPCHostControlMixin(Protocol):
 			message_reader = MessageReader()
 			await message_reader.set_channels({channel: "$"})
 
-			expires = timestamp() + int(timeout * 1000)
+			expires = timestamp(timeout)
 			coros = []
 			for client_id in connected_client_ids:
 				jsonrpc_request = JSONRPCRequestMessage(

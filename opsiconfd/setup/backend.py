@@ -28,7 +28,17 @@ from opsiconfd.backend.mysql.schema import (
 	drop_database,
 	update_database,
 )
-from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_configserver_id, get_server_role, opsi_config
+from opsiconfd.config import (
+	DEPOT_DIR,
+	FQDN,
+	REPOSITORY_DIR,
+	WORKBENCH_DIR,
+	config,
+	get_configserver_id,
+	get_depotserver_id,
+	get_server_role,
+	opsi_config,
+)
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_ip_addresses, get_random_string
 
@@ -230,21 +240,18 @@ def file_mysql_migration() -> None:
 		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
 
 
-def setup_backend(force_server_id: str | None = None) -> None:
-	if get_server_role() != "configserver":
-		return
-
+def setup_backend_configserver(new_server_id: str | None = None) -> None:
 	file_mysql_migration()
 
 	from opsiconfd.backend import get_unprotected_backend
 
-	config_server_id = force_server_id or get_configserver_id()
+	configserver_id = new_server_id or get_configserver_id()
 
 	backend = get_unprotected_backend()
 	with backend.events_disabled():
 		conf_servers = backend.host_getObjects(type="OpsiConfigserver")
 		if not conf_servers:
-			logger.notice("Creating config server %r", config_server_id)
+			logger.notice("Creating config server %r", configserver_id)
 
 			ip_address = None
 			network_address = None
@@ -258,7 +265,7 @@ def setup_backend(force_server_id: str | None = None) -> None:
 
 			conf_servers = [
 				OpsiConfigserver(
-					id=config_server_id,
+					id=configserver_id,
 					opsiHostKey=None,
 					depotLocalUrl=f"file://{DEPOT_DIR}",
 					depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
@@ -279,18 +286,46 @@ def setup_backend(force_server_id: str | None = None) -> None:
 				)
 			]
 			backend.host_createObjects(conf_servers)
-		elif conf_servers[0].id != config_server_id:
-			if force_server_id:
-				logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, config_server_id)
-				backend.host_renameOpsiDepotserver(conf_servers[0].id, config_server_id)
-				opsi_config.set("host", "id", config_server_id, persistent=True)
+		elif conf_servers[0].id != configserver_id:
+			if new_server_id:
+				logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, configserver_id)
+				backend.host_renameOpsiDepotserver(conf_servers[0].id, configserver_id)
+				opsi_config.set("host", "id", configserver_id, persistent=True)
 			else:
 				raise ValueError(
 					f"Config server ID {conf_servers[0].id!r} in database differs from "
-					f"host.id {config_server_id!r} in /etc/opsi/opsi.conf. "
+					f"host.id {configserver_id!r} in /etc/opsi/opsi.conf. "
 					f"Please change host.id in /etc/opsi/opsi.conf to {conf_servers[0].id!r} "
 					"or use `opsiconfd setup --rename-server` to fix this issue."
 				)
 		backend.exit()
 
 		opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
+
+
+def setup_backend_depotserver(new_server_id: str | None = None) -> None:
+	if not new_server_id:
+		return
+	depotserver_id = get_depotserver_id()
+	if depotserver_id == new_server_id:
+		return
+
+	from opsiconfd.backend import get_unprotected_backend
+
+	backend = get_unprotected_backend()
+	backend.host_renameOpsiDepotserver(depotserver_id, new_server_id)
+	backend.exit()
+
+	opsi_config.set("host", "id", new_server_id, persistent=True)
+	opsi_config.write_config_file()
+
+
+def setup_backend(new_server_id: str | None = None) -> None:
+	if get_server_role() == "configserver":
+		setup_backend_configserver(new_server_id)
+	else:
+		setup_backend_depotserver(new_server_id)
+	if new_server_id:
+		from opsiconfd.backend import reinit_backend
+
+		reinit_backend()

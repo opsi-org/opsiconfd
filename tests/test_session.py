@@ -12,13 +12,14 @@ import time
 import uuid
 from asyncio import sleep
 
+from opsicommon.utils import unix_timestamp
 from starlette.datastructures import Headers
 
 from opsiconfd.application import app
+from opsiconfd.auth import AuthenticationMethod
 from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession, SessionManager, SessionMiddleware
-from opsiconfd.utils import asyncio_create_task, utc_timestamp
-from opsiconfd.auth import AuthenticationMethod
+from opsiconfd.utils import asyncio_create_task
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -125,7 +126,7 @@ async def test_session_manager_max_age() -> None:
 		# Session cookie
 		assert "Max-Age" not in cookie
 
-		sess._messagebus_last_used = int(utc_timestamp()) - 60
+		sess._messagebus_last_used = int(unix_timestamp()) - 60
 		assert sess.max_age == 5
 		cookie = sess.get_cookie()
 		assert cookie

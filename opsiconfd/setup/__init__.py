@@ -38,7 +38,7 @@ from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, set
 from opsiconfd.setup.samba import setup_samba
 from opsiconfd.setup.sudo import setup_sudoers
 from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups, systemd_running
-from opsiconfd.ssl import setup_ssl, fetch_server_cert, store_local_server_key, store_local_server_cert
+from opsiconfd.ssl import fetch_server_cert, setup_ssl, store_local_server_cert, store_local_server_key
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -191,13 +191,15 @@ def setup(explicit: bool = True) -> None:
 	set_depot_user_password = getattr(config, "set_depot_user_password", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
 	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and explicit
-	force_server_id = None
+	new_server_id = None
 	rename_server = getattr(config, "rename_server", False)
 	if rename_server:
+		if "backend" in config.skip_setup:
+			config.skip_setup.remove("backend")
 		if isinstance(rename_server, str):
-			force_server_id = forceHostId(rename_server)
+			new_server_id = forceHostId(rename_server)
 		else:
-			force_server_id = opsi_config.get("host", "id")
+			new_server_id = opsi_config.get("host", "id")
 
 	if register_depot:
 		unattended_configuration = None
@@ -261,12 +263,9 @@ def setup(explicit: bool = True) -> None:
 	if config.skip_setup:
 		logger.notice("Skipping setup tasks: %s", ", ".join(config.skip_setup))
 
-	if "all" in config.skip_setup:
-		return
-
 	if "backend" not in config.skip_setup and backend_available:
 		try:
-			setup_backend(force_server_id)
+			setup_backend(new_server_id)
 		except Exception as err:
 			# This can happen during package installation
 			# where backend config files are missing
@@ -301,7 +300,7 @@ def setup(explicit: bool = True) -> None:
 	if "log_files" not in config.skip_setup:
 		cleanup_log_files()
 
-	if backend_available:
+	if "backend" not in config.skip_setup and backend_available:
 		setup_configs()
 
 	if "grafana" not in config.skip_setup:
@@ -310,10 +309,11 @@ def setup(explicit: bool = True) -> None:
 		except Exception as err:
 			logger.warning("Failed to setup grafana: %s", err, exc_info=True)
 
-	try:
-		setup_redis()
-	except Exception as err:
-		logger.warning("Failed to setup redis: %s", err, exc_info=True)
+	if "redis" not in config.skip_setup:
+		try:
+			setup_redis()
+		except Exception as err:
+			logger.warning("Failed to setup redis: %s", err, exc_info=True)
 
 	if "metric_downsampling" not in config.skip_setup:
 		try:
@@ -321,11 +321,12 @@ def setup(explicit: bool = True) -> None:
 		except Exception as err:
 			logger.warning("Failed to setup redis downsampling: %s", err, exc_info=True)
 
-	try:
-		setup_ssl()
-	except Exception as err:
-		# This can fail if fqdn is not valid
-		logger.error("Failed to setup ssl: %s", err, exc_info=True)
+	if "opsi_ca" not in config.skip_setup or "server_cert" not in config.skip_setup:
+		try:
+			setup_ssl()
+		except Exception as err:
+			# This can fail if fqdn is not valid
+			logger.error("Failed to setup ssl: %s", err, exc_info=True)
 
 	if "samba" not in config.skip_setup:
 		try:

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import patch
 
+from opsiconfd.config import SKIP_SETUP_ACTIONS
 from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_systemd
 from opsiconfd.setup import setup as opsiconfd_setup
 from opsiconfd.setup.files import migrate_acl_conf_if_default
@@ -103,25 +104,7 @@ def test_setup_skip_all() -> None:
 	with mock_all() as funcs:
 		with get_config({"skip_setup": ["all"]}) as config:
 			opsiconfd_setup()
-			assert config.skip_setup == [
-				"all",
-				"limits",
-				"users",
-				"groups",
-				"grafana",
-				"backend",
-				"ssl",
-				"server_cert",
-				"opsi_ca",
-				"systemd",
-				"files",
-				"file_permissions",
-				"log_files",
-				"metric_downsampling",
-				"samba",
-				"dhcpd",
-				"sudoers",
-			]
+			assert config.skip_setup == SKIP_SETUP_ACTIONS
 			for mock in funcs.values():
 				mock.assert_not_called()
 

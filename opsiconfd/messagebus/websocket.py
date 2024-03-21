@@ -365,6 +365,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 	async def on_receive(self, websocket: WebSocket, data: bytes) -> None:
 		message_id = None
+		msg_dict = {}
 		try:
 			receive_timestamp = timestamp()
 			if self._compression:
@@ -375,8 +376,8 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 			message_id = msg_dict["id"]
 			msg_dict["sender"] = self._messagebus_user_id
-
 			message = Message.from_dict(msg_dict)
+
 			if not message.back_channel or message.back_channel == CONNECTION_SESSION_CHANNEL:
 				message.back_channel = self._session_channel
 			elif message.back_channel == CONNECTION_USER_CHANNEL:
@@ -407,7 +408,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				await send_message(message, self.scope["session"].serialize())
 
 		except Exception as err:
-			logger.warning(err, exc_info=True)
+			logger.warning("%s (msg_dict=%s)", err, msg_dict, exc_info=True)
 			await self._send_message_to_websocket(
 				websocket,
 				GeneralErrorMessage(

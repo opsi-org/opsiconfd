@@ -54,9 +54,15 @@ class CheckResult(PartialCheckResult):
 				self.upgrade_issue = partial_result.upgrade_issue
 
 	def to_checkmk(self) -> str:
+		newline = "\\n"
 		message = self.message.replace("\n", " ")
 		if details := self.details or "":
-			details = "\\n" + "\\n".join(f"{key}: {value}" for key, value in self.details.items())
+			details = newline + newline.join(f"{key}: {value}" for key, value in self.details.items())
+
+		for partial_result in self.partial_results:
+			details += newline + partial_result.message.replace("\n", newline)
+			if partial_result.details:
+				details += newline + newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
 
 		if self.check_status == CheckStatus.OK:
 			return f"0 'opsi-server: {self.check_name}' - {message if message else 'OK'} {details}"

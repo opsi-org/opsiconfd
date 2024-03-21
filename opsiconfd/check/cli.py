@@ -145,7 +145,15 @@ def console_health_check() -> int:
 		else:
 			check_version = config.upgrade_check
 
+	if config.format == "checkmk":
+		for check in health_check():
+			print(check.to_checkmk())
+		return 0
 	console = Console(log_time=False)
+	if config.format == "json":
+		console.print(list(health_check()))
+		return 0
+
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
 		if config.documentation:

@@ -53,6 +53,19 @@ class CheckResult(PartialCheckResult):
 			if not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue):
 				self.upgrade_issue = partial_result.upgrade_issue
 
+	def to_checkmk(self) -> str:
+		message = self.message.replace("\n", " ")
+		if details := self.details or "":
+			details = "\\n" + "\\n".join(f"{key}: {value}" for key, value in self.details.items())
+
+		if self.check_status == CheckStatus.OK:
+			return f"0 'opsi-server: {self.check_name}' - {message if message else 'OK'} {details}"
+		if self.check_status == CheckStatus.WARNING:
+			return f"1 'opsi-server: {self.check_name}' - {message if message else 'WARNING'} {details}"
+		if self.check_status == CheckStatus.ERROR:
+			return f"2 'opsi-server: {self.check_name}' - {message if message else 'ERROR'} {details}"
+		return f"3 'opsi-server: {self.check_name}' - {message if message else 'UNKNOWN'} {details}"
+
 
 @contextmanager
 def exc_to_result(result: CheckResult) -> Generator[None, None, None]:

@@ -257,12 +257,12 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 
 	current_timestamp = 0
 
-	def _get_timestamp(self: ManagerMetricsCollector) -> int:
+	def mock_unix_timestamp(millis: bool = False) -> int:
 		# Return unix timestamp (UTC) in millis
 		return current_timestamp
 
 	collector = ManagerMetricsCollector()
-	with patch("opsiconfd.metrics.collector.ManagerMetricsCollector._get_timestamp", _get_timestamp):
+	with patch("opsiconfd.metrics.collector.unix_timestamp", mock_unix_timestamp):
 		now_ts = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 		num_values = 7200
 		start_ts = now_ts - num_values * 1000

@@ -315,13 +315,13 @@ def setup_backend_depotserver(new_server_id: str | None = None) -> None:
 
 	backend = get_unprotected_backend()
 	backend.host_renameOpsiDepotserver(depotserver_id, new_server_id)
+	opsi_config.set("host", "id", new_server_id, persistent=True)
+	opsi_config.write_config_file()
+
 	(srv_crt, srv_key) = fetch_server_cert(backend)
 	store_local_server_key(srv_key)
 	store_local_server_cert(srv_crt)
 	backend.exit()
-
-	opsi_config.set("host", "id", new_server_id, persistent=True)
-	opsi_config.write_config_file()
 
 
 def setup_backend(new_server_id: str | None = None) -> None:

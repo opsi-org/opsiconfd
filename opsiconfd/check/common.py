@@ -27,6 +27,14 @@ class CheckStatus(StrEnum):
 	WARNING = "warning"
 	ERROR = "error"
 
+	def checkmk(self) -> int:
+		if self == CheckStatus.OK:
+			return 0
+		if self == CheckStatus.WARNING:
+			return 1
+		if self == CheckStatus.ERROR:
+			return 2
+
 
 @dataclass(slots=True, kw_only=True)
 class PartialCheckResult:
@@ -56,7 +64,8 @@ class CheckResult(PartialCheckResult):
 	def to_checkmk(self) -> str:
 		newline = "\\n"
 		message = self.message.replace("\n", " ")
-		if details := self.details or "":
+		details = ""
+		if self.details:
 			details = "{newline} {details}".format(
 				newline=newline, details=newline.join(f"{key}: {value}" for key, value in self.details.items())
 			)
@@ -68,13 +77,8 @@ class CheckResult(PartialCheckResult):
 				details += "{newline} {details}".format(
 					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
 				)
-		if self.check_status == CheckStatus.OK:
-			return f"0 'opsi-server: {self.check_name}' - {message if message else 'OK'} {details}"
-		if self.check_status == CheckStatus.WARNING:
-			return f"1 'opsi-server: {self.check_name}' - {message if message else 'WARNING'} {details}"
-		if self.check_status == CheckStatus.ERROR:
-			return f"2 'opsi-server: {self.check_name}' - {message if message else 'ERROR'} {details}"
-		return f"3 'opsi-server: {self.check_name}' - {message if message else 'UNKNOWN'} {details}"
+
+		return f"{self.check_status.checkmk()} 'opsi-server: {self.check_name}' - {message if message else self.check_status.value.upper()}{details}"
 
 
 @contextmanager

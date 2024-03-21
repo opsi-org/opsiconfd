@@ -1093,6 +1093,14 @@ class Config(metaclass=Singleton):
 			choices=CHECKS,
 		)
 		self._parser.add(
+			"--format",
+			env_var="OPSICONFD_HEALTH_CHECK_FORMAT",
+			default="cli",
+			help=self._help(("opsiconfd", "health-check"), "Health-Check output format."),
+			choices=("cli", "checkmk", "json"),
+		)
+
+		self._parser.add(
 			"--mysql-internal-url",
 			env_var="OPSICONFD_MYSQL_INTERNAL_URL",
 			default=None,

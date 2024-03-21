@@ -511,6 +511,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 	assert result.check_status == CheckStatus.ERROR
 	assert "are out of date" in result.message
 	assert result.upgrade_issue == "4.3"
+
 	found = 0
 	for partial_result in result.partial_results:
 		# print(partial_result)
@@ -988,3 +989,36 @@ def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction)
 
 	result = check_opsi_failed_addons()
 	assert result.check_status == CheckStatus.OK
+
+
+def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [True]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	checkmk = result.to_checkmk()
+	assert checkmk.startswith("0")
+	assert result.check_name in checkmk
+	assert "No issues found in the opsi configuration." in checkmk
+	assert "Configuration opsiclientd.global.verify_server_cert is set to default." in checkmk
+
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [False]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	checkmk = result.to_checkmk()
+	assert checkmk.startswith("1")
+	assert "1 issues found in the opsi configuration." in checkmk
+	assert "Configuration opsiclientd.global.verify_server_cert is set to [False] - default is [True]." in checkmk
+
+	rpc = {"id": 1, "method": "config_delete", "params": ["opsiclientd.global.verify_server_cert"]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	checkmk = result.to_checkmk()
+	assert checkmk.startswith("2")
+	assert "1 issues found in the opsi configuration." in checkmk
+	assert "Configuration opsiclientd.global.verify_server_cert does not exist." in checkmk

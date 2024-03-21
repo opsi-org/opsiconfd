@@ -21,11 +21,21 @@ from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
+from opsiconfd.utils.modules import check_module
+
 
 class CheckStatus(StrEnum):
 	OK = "ok"
 	WARNING = "warning"
 	ERROR = "error"
+
+	def checkmk(self) -> int:
+		if self == CheckStatus.OK:
+			return 0
+		if self == CheckStatus.WARNING:
+			return 1
+		if self == CheckStatus.ERROR:
+			return 2
 
 
 @dataclass(slots=True, kw_only=True)
@@ -52,6 +62,27 @@ class CheckResult(PartialCheckResult):
 		if partial_result.upgrade_issue:
 			if not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue):
 				self.upgrade_issue = partial_result.upgrade_issue
+
+	def to_checkmk(self) -> str:
+		if not check_module("monitoring"):
+			return "You need to enable the monitoring module to use checkmk output. Please check your opsi licenses."
+		newline = "\\n"
+		message = self.message.replace("\n", " ")
+		details = ""
+		if self.details:
+			details = "{newline} {details}".format(
+				newline=newline, details=newline.join(f"{key}: {value}" for key, value in self.details.items())
+			)
+		for partial_result in self.partial_results:
+			details += "{newline} '{name}': {message}".format(
+				newline=newline, name=partial_result.check_name, message=partial_result.message.replace("\n", newline)
+			)
+			if partial_result.details:
+				details += "{newline} {details}".format(
+					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
+				)
+
+		return f"{self.check_status.checkmk()} 'opsi-server: {self.check_name}' - {message if message else self.check_status.value.upper()}{details}"
 
 
 @contextmanager

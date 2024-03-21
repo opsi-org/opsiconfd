@@ -58,6 +58,7 @@ from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
 from opsiconfd.utils import asyncio_create_task
+from opsiconfd.utils.modules import check_module
 
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
@@ -1222,6 +1223,8 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		raise BackendAuthenticationError("No password specified")
 
 	if session.username == config.monitoring_user:
+		if not check_module("monitoring"):
+			raise BackendPermissionDeniedError("Monitoring module not available. Please check your opsi licenses.")
 		await authenticate_user_passwd(scope=scope)
 	elif (
 		not session.username

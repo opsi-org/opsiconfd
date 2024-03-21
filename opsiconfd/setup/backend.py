@@ -40,6 +40,7 @@ from opsiconfd.config import (
 	opsi_config,
 )
 from opsiconfd.logging import logger, secret_filter
+from opsiconfd.ssl import fetch_server_cert, store_local_server_cert, store_local_server_key
 from opsiconfd.utils import get_ip_addresses, get_random_string
 
 
@@ -314,6 +315,9 @@ def setup_backend_depotserver(new_server_id: str | None = None) -> None:
 
 	backend = get_unprotected_backend()
 	backend.host_renameOpsiDepotserver(depotserver_id, new_server_id)
+	(srv_crt, srv_key) = fetch_server_cert(backend)
+	store_local_server_key(srv_key)
+	store_local_server_cert(srv_crt)
 	backend.exit()
 
 	opsi_config.set("host", "id", new_server_id, persistent=True)

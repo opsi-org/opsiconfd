@@ -316,7 +316,7 @@ def setup_backend_depotserver(force_server_id: str | None = None) -> None:
 	backend.host_renameOpsiDepotserver(depotserver_id, force_server_id)
 	backend.exit()
 
-	opsi_config.set("host", "id", depotserver_id, persistent=True)
+	opsi_config.set("host", "id", force_server_id, persistent=True)
 	opsi_config.write_config_file()
 
 

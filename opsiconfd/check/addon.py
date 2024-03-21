@@ -36,9 +36,9 @@ def check_opsi_failed_addons() -> CheckResult:
 		failed_addons = asyncio.run(_get_failed_addons())
 	if failed_addons:
 		result.check_status = CheckStatus.ERROR
-		result.message = "Errors occurred while loading opsiconfd addons."
+		result.message = "Errors occurred while loading opsiconfd addons: "
 		result.details["failed_addons"] = failed_addons
 		for addon in failed_addons:
-			result.message = result.message + f"\n\t {addon.get('name')}: \n\t ERROR: {addon.get('error')}"
+			result.message = result.message + f"{addon.get('name')} "
 
 	return result

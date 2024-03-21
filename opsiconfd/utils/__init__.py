@@ -385,7 +385,7 @@ class UserInfo:
 
 def user_exists(username: str) -> bool:
 	try:
-		subprocess.run(["id", username], check=True, timeout=5)
+		subprocess.run(["id", username], check=True, capture_output=True, timeout=5)
 	except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as err:
 		get_logger().debug("id %s failed: %s", username, err)
 		return False

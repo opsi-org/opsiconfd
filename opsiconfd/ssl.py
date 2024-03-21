@@ -498,8 +498,8 @@ def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
 	return True
 
 
-def fetch_server_cert(backend: ServiceClient | Backend) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
-	pem = backend.host_getTLSCertificate(get_depotserver_id())  # type: ignore[union-attr]
+def fetch_server_cert(backend: ServiceClient | Backend, server_id: str | None = None) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
+	pem = backend.host_getTLSCertificate(server_id or get_depotserver_id())  # type: ignore[union-attr]
 	pem_bytes = pem.encode("utf-8")
 	srv_crt = x509.load_pem_x509_certificate(pem_bytes)
 	srv_key = serialization.load_pem_private_key(pem_bytes, password=None)

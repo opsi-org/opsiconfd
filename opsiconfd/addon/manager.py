@@ -85,7 +85,6 @@ class AddonManager(metaclass=Singleton):
 		self._addons = {}
 		redis = redis_client()
 		failed_addons = decode_redis_result(redis.lrange(f"{config.redis_key('state')}:application:addons:errors", 0, -1))
-		logger.devel("Failed addons: %s", failed_addons)
 		for failed_addon in failed_addons:
 			redis.delete(f"{config.redis_key('state')}:application:addons:errors:{failed_addon}")
 		redis.delete(f"{config.redis_key('state')}:application:addons:errors")

@@ -30,7 +30,7 @@ from opsicommon.messagebus.message import (
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
 from opsiconfd.setup import setup_depotserver
-from opsiconfd.setup.backend import setup_backend_depotserver
+from opsiconfd.setup.backend import setup_backend
 from opsiconfd.ssl import setup_ssl
 from tests.utils import ADMIN_PASS, ADMIN_USER, Config, OpsiconfdTestClient, get_config, test_client  # noqa: F401
 
@@ -175,12 +175,11 @@ def test_rename_depotserver(tmp_path: Path) -> None:  # noqa: F811
 		backend.config_createObjects([config1])
 		backend.configState_createObjects([config_state1])
 
-		setup_backend_depotserver(force_server_id=new_depot_id)
+		setup_backend(new_server_id=new_depot_id)
 
 		opsi_conf = tomllib.loads(opsi_config_file.read_text(encoding="utf-8"))
 		assert opsi_conf["host"]["id"] == new_depot_id
 
-		reinit_backend()
 		backend = get_unprotected_backend()
 		host_ids = backend.host_getIdents()
 		assert depot_id not in host_ids

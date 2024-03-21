@@ -240,12 +240,12 @@ def file_mysql_migration() -> None:
 		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))
 
 
-def setup_backend_configserver(force_server_id: str | None = None) -> None:
+def setup_backend_configserver(new_server_id: str | None = None) -> None:
 	file_mysql_migration()
 
 	from opsiconfd.backend import get_unprotected_backend
 
-	configserver_id = force_server_id or get_configserver_id()
+	configserver_id = new_server_id or get_configserver_id()
 
 	backend = get_unprotected_backend()
 	with backend.events_disabled():
@@ -287,7 +287,7 @@ def setup_backend_configserver(force_server_id: str | None = None) -> None:
 			]
 			backend.host_createObjects(conf_servers)
 		elif conf_servers[0].id != configserver_id:
-			if force_server_id:
+			if new_server_id:
 				logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, configserver_id)
 				backend.host_renameOpsiDepotserver(conf_servers[0].id, configserver_id)
 				opsi_config.set("host", "id", configserver_id, persistent=True)
@@ -303,25 +303,29 @@ def setup_backend_configserver(force_server_id: str | None = None) -> None:
 		opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
 
 
-def setup_backend_depotserver(force_server_id: str | None = None) -> None:
-	if not force_server_id:
+def setup_backend_depotserver(new_server_id: str | None = None) -> None:
+	if not new_server_id:
 		return
 	depotserver_id = get_depotserver_id()
-	if depotserver_id == force_server_id:
+	if depotserver_id == new_server_id:
 		return
 
 	from opsiconfd.backend import get_unprotected_backend
 
 	backend = get_unprotected_backend()
-	backend.host_renameOpsiDepotserver(depotserver_id, force_server_id)
+	backend.host_renameOpsiDepotserver(depotserver_id, new_server_id)
 	backend.exit()
 
-	opsi_config.set("host", "id", force_server_id, persistent=True)
+	opsi_config.set("host", "id", new_server_id, persistent=True)
 	opsi_config.write_config_file()
 
 
-def setup_backend(force_server_id: str | None = None) -> None:
+def setup_backend(new_server_id: str | None = None) -> None:
 	if get_server_role() == "configserver":
-		setup_backend_configserver(force_server_id)
+		setup_backend_configserver(new_server_id)
 	else:
-		setup_backend_depotserver(force_server_id)
+		setup_backend_depotserver(new_server_id)
+	if new_server_id:
+		from opsiconfd.backend import reinit_backend
+
+		reinit_backend()

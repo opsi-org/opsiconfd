@@ -191,15 +191,15 @@ def setup(explicit: bool = True) -> None:
 	set_depot_user_password = getattr(config, "set_depot_user_password", False)
 	configure_mysql = getattr(config, "configure_mysql", False)
 	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and explicit
-	force_server_id = None
+	new_server_id = None
 	rename_server = getattr(config, "rename_server", False)
 	if rename_server:
 		if "backend" in config.skip_setup:
 			config.skip_setup.remove("backend")
 		if isinstance(rename_server, str):
-			force_server_id = forceHostId(rename_server)
+			new_server_id = forceHostId(rename_server)
 		else:
-			force_server_id = opsi_config.get("host", "id")
+			new_server_id = opsi_config.get("host", "id")
 
 	if register_depot:
 		unattended_configuration = None
@@ -265,7 +265,7 @@ def setup(explicit: bool = True) -> None:
 
 	if "backend" not in config.skip_setup and backend_available:
 		try:
-			setup_backend(force_server_id)
+			setup_backend(new_server_id)
 		except Exception as err:
 			# This can happen during package installation
 			# where backend config files are missing

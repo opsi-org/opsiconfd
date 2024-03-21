@@ -38,7 +38,7 @@ from opsicommon.exceptions import (
 from opsicommon.logging import secret_filter, set_context
 from opsicommon.objects import Host, OpsiClient, User
 from opsicommon.types import forceHardwareAddress, forceUUIDString
-from opsicommon.utils import ip_address_in_network, timestamp
+from opsicommon.utils import ip_address_in_network, timestamp, unix_timestamp
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
@@ -57,7 +57,7 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
-from opsiconfd.utils import asyncio_create_task, utc_timestamp
+from opsiconfd.utils import asyncio_create_task
 
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
@@ -533,7 +533,7 @@ class OPSISession:
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
 	def _set_modified(self, attribute: str) -> None:
-		self._modifications[attribute] = utc_timestamp()
+		self._modifications[attribute] = unix_timestamp()
 
 	@property
 	def modifications(self) -> dict[str, float]:
@@ -573,7 +573,7 @@ class OPSISession:
 
 	@property
 	def validity(self) -> int:
-		return int(self.max_age - (utc_timestamp() - self.last_used))
+		return int(self.max_age - (unix_timestamp() - self.last_used))
 
 	@property
 	def version(self) -> str | None:
@@ -771,7 +771,7 @@ class OPSISession:
 		session_count = 0
 		try:
 			redis = await async_redis_client()
-			now = utc_timestamp()
+			now = unix_timestamp()
 			session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
 			async for redis_key in redis.scan_iter(session_key):
 				validity = 0
@@ -795,7 +795,7 @@ class OPSISession:
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		self.version = str(uuid.uuid4())
-		self.created = int(utc_timestamp())
+		self.created = int(unix_timestamp())
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init(self) -> None:
@@ -900,14 +900,14 @@ class OPSISession:
 			headers["set-cookie"] = cookie
 
 	async def update_last_used(self) -> None:
-		self.last_used = int(utc_timestamp())
+		self.last_used = int(unix_timestamp())
 
 	async def update_messagebus_last_used(self) -> None:
-		self.last_used = self.messagebus_last_used = int(utc_timestamp())
+		self.last_used = self.messagebus_last_used = int(unix_timestamp())
 
 	@property
 	def in_use_by_messagebus(self) -> bool:
-		return int(utc_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
+		return int(unix_timestamp()) - self._messagebus_last_used < self._messagebus_in_use_timeout
 
 	async def is_stored(self) -> bool:
 		redis = await async_redis_client()
@@ -950,7 +950,7 @@ class OPSISession:
 				pass
 
 		if not self.last_stored:
-			self.last_stored = int(utc_timestamp())
+			self.last_stored = int(unix_timestamp())
 
 		self._modifications = {}
 		return True
@@ -962,7 +962,7 @@ class OPSISession:
 			return
 		logger.debug("Store session")
 		self.version = str(uuid.uuid4())
-		self.last_stored = int(utc_timestamp())
+		self.last_stored = int(unix_timestamp())
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
 		redis = await async_redis_client()
@@ -1329,7 +1329,7 @@ async def check_blocked(ip_address: str) -> None:
 		logger.info("Client '%s' is blocked", ip_address)
 		raise ConnectionRefusedError(f"Client '{ip_address}' is blocked")
 
-	now = int(utc_timestamp() * 1000)
+	now = int(unix_timestamp(millis=True))
 	cmd = (
 		f"ts.range {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(ip_address)} "
 		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"

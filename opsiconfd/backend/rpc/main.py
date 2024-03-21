@@ -349,7 +349,7 @@ class Backend(
 		jsonrpc_request = JSONRPCRequestMessage(
 			sender=get_user_id_for_service_worker(worker.id),
 			channel=f"service:depot:{depot_id}:jsonrpc",
-			expires=timestamp() + int(30_000),
+			expires=timestamp(30),
 			method=method,
 			params=tuple(serialize(params) or []),
 		)

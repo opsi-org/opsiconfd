@@ -12,7 +12,6 @@ from __future__ import annotations
 import os
 import re
 import tempfile
-import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -33,6 +32,7 @@ from opsicommon.types import (
 	forceList,
 	forceObjectClass,
 )
+from opsicommon.utils import unix_timestamp
 
 from opsiconfd.config import PROD_DEP_DEBUG_DIR
 from opsiconfd.logging import logger
@@ -488,7 +488,7 @@ class RPCProductDependencyMixin(Protocol):
 	def _write_debug_log(self, prefix: str, client_id: str, product_action_groups: list[ProductActionGroup]) -> None:
 		debug_dir = Path(PROD_DEP_DEBUG_DIR)
 		debug_dir.mkdir(parents=True, exist_ok=True)
-		now = int(time.time() * 1_000_000)
+		now = int(unix_timestamp() * 1_000_000)
 		prefix = f"{prefix}-" if prefix else ""
 		prefix = re.sub(r"[\s\./]", "_", f"{prefix}{client_id}-{now}-")
 		with tempfile.NamedTemporaryFile(delete=False, dir=PROD_DEP_DEBUG_DIR, prefix=prefix, suffix=".log") as log_file:

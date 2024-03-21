@@ -21,6 +21,7 @@ import objgraph  # type: ignore[import]
 import psutil
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from opsicommon.utils import unix_timestamp
 from pympler import classtracker, tracker  # type: ignore[import]
 from pympler.classtracker import Snapshot  # type: ignore[import]
 from pympler.classtracker_stats import ConsoleStats  # type: ignore[import]
@@ -169,7 +170,7 @@ async def memory_info() -> JSONResponse:
 	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
 
 	redis = await async_redis_client()
-	timestamp = int(time.time() * 1000)
+	timestamp = int(unix_timestamp())
 	node = config.node_name
 
 	redis_prefix_stats = config.redis_key("stats")

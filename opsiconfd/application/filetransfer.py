@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 import aiofiles  # type: ignore[import]
 from fastapi import APIRouter, FastAPI, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
+from opsicommon.utils import unix_timestamp
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from werkzeug.http import parse_options_header
@@ -24,7 +25,6 @@ from werkzeug.http import parse_options_header
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FILE_TRANSFER_STORAGE_DIR
 from opsiconfd.logging import logger
-from opsiconfd.utils import utc_timestamp
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
@@ -64,7 +64,7 @@ class FileMetaData(BaseModel):
 def _prepare_file(
 	filename: str | None = None, content_type: str | None = None, validity: int = 24 * 3600, session: OPSISession | None = None
 ) -> FileMetaData:
-	now = int(utc_timestamp())
+	now = int(unix_timestamp())
 	file_meta = FileMetaData(
 		file_id=str(uuid4()),
 		created=now,
@@ -91,7 +91,7 @@ def prepare_file(filename: str | None = None, content_type: str | None = None, v
 
 
 def cleanup_file_storage() -> None:
-	now = utc_timestamp()
+	now = unix_timestamp()
 	all_files = set()
 	keep_files = set()
 	storage_dir = Path(FILE_TRANSFER_STORAGE_DIR)
@@ -175,7 +175,7 @@ async def filetransfer_get_file(file_id: UUID, delete: bool = False) -> FileResp
 	if not file_path.exists() or not file_path.exists():
 		raise ValueError("Invalid file ID")
 	file_meta = FileMetaData.model_validate_json(meta_path.read_bytes())
-	if file_meta.expires <= utc_timestamp():
+	if file_meta.expires <= unix_timestamp():
 		raise ValueError("Invalid file ID")
 	background = BackgroundTask(delete_file, file_id) if delete else None
 	return FileResponse(path=file_path, filename=file_meta.filename, media_type=file_meta.content_type, background=background)

@@ -14,13 +14,13 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 import psutil
+from opsicommon.utils import unix_timestamp
 from redis import ResponseError
 
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
 from opsiconfd.metrics.registry import Metric, MetricsRegistry, NodeMetric, WorkerMetric
 from opsiconfd.redis import async_redis_client
-from opsiconfd.utils import utc_timestamp
 
 if TYPE_CHECKING:
 	from opsiconfd.messagebus.websocket import MessagebusWebsocketStatistics
@@ -46,15 +46,11 @@ class MetricsCollector:
 	def stop(self) -> None:
 		self._should_stop = True
 
-	def _get_timestamp(self) -> int:
-		# Return unix timestamp (UTC) in millis
-		return int(utc_timestamp() * 1000)
-
 	async def _fetch_values(self) -> None:
 		pass
 
 	async def add_value(self, metric_id: str, value: float, timestamp: int | None = None) -> None:
-		timestamp = timestamp or self._get_timestamp()
+		timestamp = timestamp or int(unix_timestamp(millis=True))
 
 		logger.trace("add_value metric_id=%r, value=%r, timestamp=%r", metric_id, value, timestamp)
 
@@ -64,7 +60,7 @@ class MetricsCollector:
 			self._values[metric_id][timestamp] += value
 
 	async def _write_values_to_redis(self) -> None:
-		timestamp = self._get_timestamp()
+		timestamp = int(unix_timestamp(millis=True))
 
 		values: dict[str, list[float]] = {}
 		# lock self._values as short as possible, to not block add_value

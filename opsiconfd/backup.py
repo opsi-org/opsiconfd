@@ -10,7 +10,7 @@ backup
 
 import time
 from contextlib import contextmanager, nullcontext
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator, Literal
 
@@ -147,7 +147,7 @@ def create_backup(
 			raise RuntimeError("Not a config server")
 
 		backend = get_unprotected_backend()
-		now = datetime.utcnow()
+		now = datetime.now(tz=timezone.utc)
 		server_ids = backend.host_getIdents(returnType="str", type="OpsiConfigserver")
 		if not server_ids:
 			raise ValueError("No configserver in database")

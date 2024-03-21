@@ -18,7 +18,7 @@ from unittest.mock import patch
 import tomllib
 from opsicommon import objects
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
-from opsicommon.logging import get_logger
+from opsicommon.logging import LOG_TRACE, get_logger, use_logging_config
 from opsicommon.messagebus import CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
@@ -160,32 +160,33 @@ def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
 
 
 def test_rename_depotserver(tmp_path: Path) -> None:  # noqa: F811
-	with depotserver_setup(tmp_path) as conf:
-		opsi_config_file = Path(conf.opsi_config)
-		depot_id = get_depotserver_id()
-		new_depot_id = "new-depot-id.opsi.test"
-		config1 = objects.UnicodeConfig(id="test1")
-		config_state1 = objects.ConfigState(configId="test1", objectId=depot_id, values=["depotserver-value"])
+	with use_logging_config(stderr_level=LOG_TRACE):
+		with depotserver_setup(tmp_path) as conf:
+			opsi_config_file = Path(conf.opsi_config)
+			depot_id = get_depotserver_id()
+			new_depot_id = "new-depot-id.opsi.test"
+			config1 = objects.UnicodeConfig(id="test1")
+			config_state1 = objects.ConfigState(configId="test1", objectId=depot_id, values=["depotserver-value"])
 
-		backend = get_unprotected_backend()
-		host_ids = backend.host_getIdents()
-		assert depot_id in host_ids
-		assert new_depot_id not in host_ids
+			backend = get_unprotected_backend()
+			host_ids = backend.host_getIdents()
+			assert depot_id in host_ids
+			assert new_depot_id not in host_ids
 
-		backend.config_createObjects([config1])
-		backend.configState_createObjects([config_state1])
+			backend.config_createObjects([config1])
+			backend.configState_createObjects([config_state1])
 
-		setup_backend(new_server_id=new_depot_id)
+			setup_backend(new_server_id=new_depot_id)
 
-		opsi_conf = tomllib.loads(opsi_config_file.read_text(encoding="utf-8"))
-		assert opsi_conf["host"]["id"] == new_depot_id
+			opsi_conf = tomllib.loads(opsi_config_file.read_text(encoding="utf-8"))
+			assert opsi_conf["host"]["id"] == new_depot_id
 
-		backend = get_unprotected_backend()
-		host_ids = backend.host_getIdents()
-		assert depot_id not in host_ids
-		assert new_depot_id in host_ids
+			backend = get_unprotected_backend()
+			host_ids = backend.host_getIdents()
+			assert depot_id not in host_ids
+			assert new_depot_id in host_ids
 
-		config_states = backend.configState_getObjects(objectId=new_depot_id, configId="test1")
-		assert len(config_states) == 1
-		assert config_states[0].objectId == new_depot_id
-		assert config_states[0].values == ["depotserver-value"]
+			config_states = backend.configState_getObjects(objectId=new_depot_id, configId="test1")
+			assert len(config_states) == 1
+			assert config_states[0].objectId == new_depot_id
+			assert config_states[0].values == ["depotserver-value"]

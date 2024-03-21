@@ -15,6 +15,9 @@ import time
 from pathlib import Path
 
 import OPSI.Backend.File  # type: ignore[import-untyped]
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import-untyped]
 from opsicommon.objects import OpsiConfigserver
 from rich import print as rich_print
@@ -40,7 +43,7 @@ from opsiconfd.config import (
 	opsi_config,
 )
 from opsiconfd.logging import logger, secret_filter
-from opsiconfd.ssl import fetch_server_cert, store_local_server_cert, store_local_server_key
+from opsiconfd.ssl import store_local_server_cert, store_local_server_key
 from opsiconfd.utils import get_ip_addresses, get_random_string
 
 
@@ -315,9 +318,11 @@ def setup_backend_depotserver(new_server_id: str | None = None) -> None:
 
 	backend = get_unprotected_backend()
 
-	(srv_crt, srv_key) = fetch_server_cert(backend, new_server_id)
-	backend.host_renameOpsiDepotserver(depotserver_id, new_server_id)
-
+	pem = backend.host_renameOpsiDepotserver(depotserver_id, new_server_id)
+	pem_bytes = pem.encode("utf-8")
+	srv_crt = x509.load_pem_x509_certificate(pem_bytes)
+	srv_key = serialization.load_pem_private_key(pem_bytes, password=None)
+	assert isinstance(srv_key, rsa.RSAPrivateKey)
 	store_local_server_key(srv_key)
 	store_local_server_cert(srv_crt)
 

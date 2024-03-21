@@ -333,7 +333,7 @@ class RPCHostMixin(Protocol):
 		return as_pem(key) + as_pem(cert)
 
 	@rpc_method(check_acl=False)
-	def host_renameOpsiClient(self: BackendProtocol, id: str, newId: str) -> None:
+	def host_renameOpsiClient(self: BackendProtocol, id: str, newId: str) -> str:
 		cur_client_id = forceHostId(id)
 		new_client_id = forceHostId(newId)
 
@@ -428,8 +428,10 @@ class RPCHostMixin(Protocol):
 			logger.info("Updating software licenses...")
 			self.softwareLicense_createObjects(software_licenses)
 
+		return self.host_getTLSCertificate(new_client_id)
+
 	@rpc_method(check_acl=False)
-	def host_renameOpsiDepotserver(self: BackendProtocol, oldId: str, newId: str) -> None:
+	def host_renameOpsiDepotserver(self: BackendProtocol, oldId: str, newId: str) -> str:
 		"""
 		Rename OpsiDepotserver with id `oldId` to `newId`.
 
@@ -579,6 +581,8 @@ class RPCHostMixin(Protocol):
 			if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):
 				redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))  # type: ignore[no-untyped-call]
 		setup_metric_downsampling()
+
+		return self.host_getTLSCertificate(new_server_id)
 
 	@rpc_method(check_acl=False)
 	async def host_getMessagebusConnectedIds(self: BackendProtocol, hostIds: list[str] | None = None) -> list[str]:

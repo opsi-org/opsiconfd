@@ -1223,13 +1223,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "hypothesis"
-version = "6.99.8"
+version = "6.99.11"
 description = "A library for property-based testing"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "hypothesis-6.99.8-py3-none-any.whl", hash = "sha256:8b5175a906c0a11967c3a04eeb17c42b4b395cacd02a246ce926613189a14279"},
-    {file = "hypothesis-6.99.8.tar.gz", hash = "sha256:1274abcc12137645a1bcb8453063060cf38f949a90b31d08bea45e1818e05b8b"},
+    {file = "hypothesis-6.99.11-py3-none-any.whl", hash = "sha256:9c010b219ec611c995bac7e11a3edc96cea3c2c0b04a9d08ec586a7981715353"},
+    {file = "hypothesis-6.99.11.tar.gz", hash = "sha256:3df99ecf501e056c7e2c6ac7a9e3726f4fe8d2139dcce068aceffdab58265f1e"},
 ]
 
 [package.dependencies]
@@ -2593,13 +2593,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.23.5.post1"
+version = "0.23.6"
 description = "Pytest support for asyncio"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pytest-asyncio-0.23.5.post1.tar.gz", hash = "sha256:b9a8806bea78c21276bc34321bbf234ba1b2ea5b30d9f0ce0f2dea45e4685813"},
-    {file = "pytest_asyncio-0.23.5.post1-py3-none-any.whl", hash = "sha256:30f54d27774e79ac409778889880242b0403d09cabd65b727ce90fe92dd5d80e"},
+    {file = "pytest-asyncio-0.23.6.tar.gz", hash = "sha256:ffe523a89c1c222598c76856e76852b787504ddb72dd5d9b6617ffa8aa2cde5f"},
+    {file = "pytest_asyncio-0.23.6-py3-none-any.whl", hash = "sha256:68516fdd1018ac57b846c9846b954f0393b26f094764a28c955eabb0536a4e8a"},
 ]
 
 [package.dependencies]
@@ -2736,13 +2736,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.7.8"
+version = "4.3.8.1"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.7.8-py3-none-any.whl", hash = "sha256:c0603d5e0879abf6ff0f59fce8710b912ba2fc6013e7cc5fb7fe7409422d2b07"},
-    {file = "python_opsi_common-4.3.7.8.tar.gz", hash = "sha256:c4892ad98524c0d53d874d94d4aa91796b88c3ef3e78794fb3b8815b9a65e42a"},
+    {file = "python_opsi_common-4.3.8.1-py3-none-any.whl", hash = "sha256:da0e7e96bd3057db21cba39b68e1f2a9e25e901b485631e915490dc544c5807e"},
+    {file = "python_opsi_common-4.3.8.1.tar.gz", hash = "sha256:7bba5933cc1d8725ba8b33271a6d7d836123ba3d3659b887110b63d181ae670b"},
 ]
 
 [package.dependencies]

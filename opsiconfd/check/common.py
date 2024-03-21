@@ -21,6 +21,8 @@ from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
+from opsiconfd.utils.modules import check_module
+
 
 class CheckStatus(StrEnum):
 	OK = "ok"
@@ -62,6 +64,8 @@ class CheckResult(PartialCheckResult):
 				self.upgrade_issue = partial_result.upgrade_issue
 
 	def to_checkmk(self) -> str:
+		if not check_module("monitoring"):
+			return "You need to enable the monitoring module to use checkmk output. Please check your opsi licenses."
 		newline = "\\n"
 		message = self.message.replace("\n", " ")
 		details = ""

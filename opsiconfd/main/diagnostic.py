@@ -8,12 +8,10 @@
 opsiconfd main.diagnostic
 """
 
-import dataclasses
 import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from opsicommon.utils import patch_popen
 from rich.console import Console
@@ -22,7 +20,7 @@ from opsiconfd.check.cli import console_health_check
 from opsiconfd.config import config, configure_warnings
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import init_logging, logger
-from opsiconfd.utils import compress_data
+from opsiconfd.utils import DataclassCapableJSONEncoder, compress_data
 
 patch_popen()
 configure_warnings()
@@ -51,13 +49,7 @@ def diagnostic_data_main() -> None:
 			if data_file.exists() and data_file.is_dir():
 				data_file = data_file / data_filename()
 
-			class EnhancedJSONEncoder(json.JSONEncoder):
-				def default(self, obj: Any) -> Any:
-					if dataclasses.is_dataclass(obj):
-						return dataclasses.asdict(obj)
-					return super().default(obj)
-
-			data = json.dumps(get_diagnostic_data(), cls=EnhancedJSONEncoder, indent=2).encode("utf-8")
+			data = json.dumps(get_diagnostic_data(), cls=DataclassCapableJSONEncoder, indent=2).encode("utf-8")
 			if (suffix := data_file.suffix.strip(".").lower()) in ("lz4", "gz"):
 				data = compress_data(data, compression=suffix)
 

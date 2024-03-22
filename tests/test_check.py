@@ -10,6 +10,7 @@ check tests
 
 
 import io
+import json
 import os
 import pprint
 import sys
@@ -20,7 +21,9 @@ from typing import Any, Callable
 from unittest import mock
 from warnings import catch_warnings, simplefilter
 
+import pytest
 import requests
+from _pytest.capture import CaptureFixture
 from _pytest.fixtures import FixtureFunction
 from mock import Mock  # type: ignore[import]
 from MySQLdb import OperationalError  # type: ignore[import]
@@ -36,7 +39,7 @@ from rich.console import Console
 
 from opsiconfd.addon.manager import AddonManager
 from opsiconfd.check.addon import check_opsi_failed_addons
-from opsiconfd.check.cli import process_check_result
+from opsiconfd.check.cli import console_health_check, process_check_result
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.main import (
 	check_depotservers,
@@ -1022,3 +1025,24 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	assert checkmk.startswith("2")
 	assert "1 issues found in the opsi configuration." in checkmk
 	assert "Configuration opsiclientd.global.verify_server_cert does not exist." in checkmk
+
+
+@pytest.mark.parametrize("format", ("cli", "json", "checkmk"))
+def test_check_console_health_check(capsys: CaptureFixture[str], format: str) -> None:
+	with get_config({"upgrade_check": False, "documentation": False, "detailed": True, "format": format}):
+		console_health_check()
+		captured = capsys.readouterr()
+		if format == "json":
+			data = json.loads(captured.out)
+			assert isinstance(data, list)
+			assert len(data) > 10
+			assert isinstance(data[0], dict)
+			assert data[0]["check_id"]
+			assert data[0]["check_description"]
+		elif format == "checkmk":
+			services = captured.out.split("\n")
+			assert len(services) > 10
+			status, _ = services[0].split(" ", 1)
+			assert 0 <= int(status) <= 2
+		else:
+			assert "● Redis server" in captured.out

@@ -10,6 +10,8 @@ health check
 
 from __future__ import annotations
 
+import json
+
 from opsicommon.utils import compare_versions
 from rich.console import Console
 from rich.markdown import Markdown
@@ -29,6 +31,7 @@ from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
 from opsiconfd.check.users import check_opsi_users
 from opsiconfd.config import config
+from opsiconfd.utils import DataclassCapableJSONEncoder
 
 STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", CheckStatus.ERROR: "bold red"}
 
@@ -149,9 +152,10 @@ def console_health_check() -> int:
 		for check in health_check():
 			print(check.to_checkmk())
 		return 0
+
 	console = Console(log_time=False)
 	if config.format == "json":
-		console.print(list(health_check()))
+		console.print_json(json.dumps(list(health_check()), cls=DataclassCapableJSONEncoder, indent=2))
 		return 0
 
 	styles = STYLES

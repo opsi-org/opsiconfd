@@ -11,6 +11,7 @@ utils
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import gzip
 import os
 import random
@@ -27,6 +28,7 @@ from enum import StrEnum
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from hashlib import md5
 from ipaddress import IPv4Network, IPv6Address, ip_address, ip_interface
+from json import JSONEncoder
 from logging import INFO  # type: ignore[import]
 from pathlib import Path
 from pprint import pformat
@@ -484,3 +486,10 @@ def get_passwd_services() -> List[NameService]:
 				passwd_service = [NameService(service) for service in line.split()[1:]]
 				break
 	return passwd_service
+
+
+class DataclassCapableJSONEncoder(JSONEncoder):
+	def default(self, obj: Any) -> Any:
+		if dataclasses.is_dataclass(obj):
+			return dataclasses.asdict(obj)
+		return super().default(obj)

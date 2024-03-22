@@ -17,7 +17,7 @@ from opsicommon.messagebus.message import MessageType
 from opsicommon.types import forceHostId, forceStringLower, forceUnsignedInt, forceUserId
 
 from opsiconfd.config import get_configserver_id
-from opsiconfd.utils import forceNodename
+from opsiconfd.utils import force_nodename
 from opsiconfd.worker import Worker
 
 RESTRICTED_MESSAGE_TYPES = {MessageType.PROCESS_START_REQUEST.value: "vpn"}
@@ -111,7 +111,7 @@ def check_channel_name(channel: str) -> str:
 		if len(parts) != 2:
 			raise ValueError(f"Invalid service_node channel: {channel!r}")
 		try:
-			parts[1] = forceNodename(parts[1])
+			parts[1] = force_nodename(parts[1])
 			return ":".join(parts)
 		except ValueError as err:
 			raise ValueError(f"Invalid service_node channel: {channel!r}") from err
@@ -122,7 +122,7 @@ def check_channel_name(channel: str) -> str:
 		if len(parts) < 3:
 			raise ValueError(f"Invalid service_worker channel: {channel!r}")
 		try:
-			parts[1] = forceNodename(parts[1])
+			parts[1] = force_nodename(parts[1])
 			parts[2] = str(forceUnsignedInt(parts[2]))
 			return ":".join(parts)
 		except ValueError as err:

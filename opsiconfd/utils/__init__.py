@@ -336,7 +336,7 @@ def ldap3_uri_to_str(ldap_url: dict) -> str:
 _NODENAME_REGEX = re.compile(r"^[a-z0-9][a-z0-9\-_]*$")
 
 
-def forceNodename(var: Any) -> str:
+def force_nodename(var: Any) -> str:
 	var = forceStringLower(var)
 	if not _NODENAME_REGEX.search(var):
 		raise ValueError(f"Bad nodename: '{var}'")

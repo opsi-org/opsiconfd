@@ -214,6 +214,42 @@ def test_product_getIdents(
 		f"{product2['id']};{product2['productVersion']};{product2['packageVersion']}",
 	]
 
+	# test mysql wildcard _ should be escaped
+	product3 = {
+		"name": "test-backend-rpc-product_3",
+		"licenseRequired": False,
+		"setupScript": "setup.opsiscript",
+		"uninstallScript": "uninstall.opsiscript",
+		"updateScript": "update.opsiscript",
+		"priority": 0,
+		"description": "test-backend-rpc-product 3",
+		"advice": "Some advice ",
+		"id": "test-backend-rpc-product_3",
+		"productVersion": "5.3.0",
+		"packageVersion": "2",
+		"type": "LocalbootProduct",
+	}
+
+	# Create product 3
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_insertObject", "params": [product3]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_getIdents", "params": [[], {"id": "test-backend-rpc-product_*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	assert res["result"] == [f"{product3['id']};{product3['productVersion']};{product3['packageVersion']}"]
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_getIdents", "params": [[], {"id": "test-backend-rpc-product-*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	assert res["result"] == [
+		f"{product1['id']};{product1['productVersion']};{product1['packageVersion']}",
+		f"{product2['id']};{product2['productVersion']};{product2['packageVersion']}",
+	]
+
 
 def test_product_delete(
 	test_client: OpsiconfdTestClient,  # noqa: F811

@@ -125,6 +125,7 @@ package:
     install -m 755 ${SRC}/opsiconfd_data/opsiconfd-pre-start ${DST}/rootfs/usr/lib/opsiconfd/
     cp -a ${SRC}/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
     cp -a ${SRC}/opsiconfd_data/etc/* ${DST}/rootfs/etc/opsi/
+    cp -a ${SRC}/opsiconfd_data/usr/lib/* ${DST}/rootfs/usr/lib/opsiconfd/
     cp -a ${SRC}/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
 
 

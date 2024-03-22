@@ -153,10 +153,10 @@ def test_rename_server() -> None:
 		with pytest.raises(ValueError):
 			opsiconfd_setup(explicit=True)
 
-	cur_server_id = backend.host_getIdents(type="OpsiConfigserver")[0]
+	old_server_id = backend.host_getIdents(type="OpsiConfigserver")[0]
 
 	config1 = objects.UnicodeConfig(id="test1")
-	config_state1 = objects.ConfigState(configId="test1", objectId=cur_server_id, values=["configserver-value"])
+	config_state1 = objects.ConfigState(configId="test1", objectId=old_server_id, values=["configserver-value"])
 	backend.config_createObjects([config1])
 	backend.configState_createObjects([config_state1])
 
@@ -169,3 +169,7 @@ def test_rename_server() -> None:
 		assert config_states[0].objectId == new_server_id
 		assert config_states[0].values == ["configserver-value"]
 		assert mock.called
+
+	with get_config({"rename_server": old_server_id}):
+		opsiconfd_setup(explicit=True)
+		assert backend.host_getIdents(type="OpsiConfigserver")[0] == old_server_id

@@ -82,7 +82,9 @@ class CheckResult(PartialCheckResult):
 					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
 				)
 
-		return f"{self.check_status.checkmk()} 'opsi-server: {self.check_name}' - {message if message else self.check_status.value.upper()}{details}"
+		return (
+			f"{self.check_status.checkmk()} 'opsi: {self.check_name}' - {message if message else self.check_status.value.upper()}{details}"
+		)
 
 
 @contextmanager

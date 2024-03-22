@@ -43,6 +43,7 @@ from opsiconfd.application.webdav import webdav_setup
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.config import config, get_server_role, jinja_templates
 from opsiconfd.logging import logger
+from opsiconfd.messagebus.file_transfer import async_file_transfer_shutdown
 from opsiconfd.messagebus.process import async_process_shutdown, async_process_startup
 from opsiconfd.messagebus.terminal import async_terminal_shutdown, async_terminal_startup
 from opsiconfd.messagebus.websocket import messagebus_setup
@@ -243,6 +244,7 @@ async def async_application_shutdown() -> None:
 	await async_jsonrpc_shutdown()
 	await async_terminal_shutdown()
 	await async_process_shutdown()
+	await async_file_transfer_shutdown()
 	await session_manager.stop()
 
 

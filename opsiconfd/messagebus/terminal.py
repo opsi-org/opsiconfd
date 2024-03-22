@@ -21,6 +21,7 @@ from typing import Callable
 
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.file_transfer import process_messagebus_message as process_file_message
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
@@ -48,8 +49,7 @@ from opsiconfd.config import config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.utils import asyncio_create_task
 
-from . import get_messagebus_worker_id, terminals
-from .filetransfer import process_message as process_file_message
+from . import get_messagebus_worker_id
 from .redis import ConsumerGroupMessageReader, MessageReader
 from .redis import send_message as redis_send_message
 
@@ -57,6 +57,7 @@ PTY_READER_BLOCK_SIZE = 16 * 1024
 
 terminal_instance_reader = None
 terminal_request_reader = None
+terminals: dict[str, Terminal] = {}
 
 
 async def async_terminal_startup() -> None:
@@ -300,7 +301,13 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 			):
 				await _process_message(message, redis_send_message)
 			elif isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
-				await process_file_message(message, redis_send_message)
+				if isinstance(message, FileUploadRequestMessage):
+					if message.terminal_id and not message.destination_dir:
+						terminal = terminals.get(message.terminal_id)
+						if terminal:
+							destination_dir = terminal.get_cwd()
+							message.destination_dir = str(destination_dir)
+				await process_file_message(message, redis_send_message, sender=get_messagebus_worker_id())
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:
@@ -361,7 +368,13 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 			except Empty:
 				continue
 			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
-				await process_file_message(message, service_client.messagebus.async_send_message)
+				if isinstance(message, FileUploadRequestMessage):
+					if message.terminal_id and not message.destination_dir:
+						terminal = terminals.get(message.terminal_id)
+						if terminal:
+							destination_dir = terminal.get_cwd()
+							message.destination_dir = str(destination_dir)
+				await process_file_message(message, service_client.messagebus.async_send_message, sender=get_messagebus_worker_id())
 			else:
 				await _process_message(message, service_client.messagebus.async_send_message)
 		except Exception as err:

@@ -11,7 +11,6 @@ opsiconfd.messagebus
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from opsicommon.messagebus.message import MessageType
@@ -21,22 +20,12 @@ from opsiconfd.config import get_configserver_id
 from opsiconfd.utils import forceNodename
 from opsiconfd.worker import Worker
 
-if TYPE_CHECKING:
-	from .filetransfer import FileUpload
-	from .terminal import Terminal
-
-file_uploads: dict[str, FileUpload] = {}
-terminals: dict[str, Terminal] = {}
-messagebus_worker_id = ""
-
 RESTRICTED_MESSAGE_TYPES = {MessageType.PROCESS_START_REQUEST.value: "vpn"}
 
 
+@lru_cache()
 def get_messagebus_worker_id() -> str:
-	global messagebus_worker_id
-	if not messagebus_worker_id:
-		messagebus_worker_id = get_user_id_for_service_worker(Worker.get_instance().id)
-	return messagebus_worker_id
+	return get_user_id_for_service_worker(Worker.get_instance().id)
 
 
 def get_user_id_for_host(host_id: str) -> str:

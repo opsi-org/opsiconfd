@@ -1291,6 +1291,9 @@ function messagebusConnect() {
 				}
 			}
 		}
+		else if (message.type == "file_upload_response") {
+			messagebusFileUploadReadChunk(message.file_id);
+		}
 		else if (message.type == "file_upload_result") {
 			document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 			let utf8Encode = new TextEncoder();
@@ -1305,12 +1308,18 @@ function messagebusConnect() {
 				data: utf8Encode.encode('"' + message.path + '"' + ("\x1b[D".repeat(message.path.length + 2)))
 			}
 			messagebusSend(dataMessage);
+			if (fileUploads[message.file_id]) {
+				delete fileUploads[message.file_id];
+			}
 		}
-		else if (message.type == "general_error" || message.type == "file_error") {
+		else if (message.type == "general_error" || message.type == "file_upload_error") {
 			console.error(message.error);
 			showNotifcation(message.error.message + "\n" + message.error.details, "", "error", 10);
-			if (message.type == "general_error" || message.type == "file_error") {
+			if (message.type == "general_error" || message.type == "file_upload_error") {
 				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
+				if ((message.type == "file_upload_error") && message.file_id && fileUploads[message.file_id]) {
+					delete fileUploads[message.file_id];
+				}
 			}
 		}
 
@@ -1680,50 +1689,55 @@ function messagebusConnectTerminal() {
 	}, 100);
 }
 
-function messagebusFileUpload(file, channel, terminalId = null) {
-	console.log("messagebusFileUpload:", file, channel);
+let fileUploads = {};
 
-	let chunkSize = 100000;
-	let fileId = createUUID();
-	let chunk = 0;
-	let offset = 0;
-
-	var readChunk = function () {
-		var reader = new FileReader();
-		var blob = file.slice(offset, offset + chunkSize);
-		reader.onload = function () {
-			document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
-			//console.log(offset);
-			offset += chunkSize;
-			chunk += 1;
-			const last = (offset >= file.size);
-
-			let message = {
-				type: "file_chunk",
-				id: createUUID(),
-				sender: "@",
-				channel: channel,
-				created: Date.now(),
-				expires: Date.now() + 10000,
-				file_id: fileId,
-				number: chunk,
-				data: new Uint8Array(reader.result),
-				last: last
-			}
-			messagebusSend(message);
-
-			if (!last) {
-				// Do not send the next chunk immediately
-				// to keep some resources for further messages
-				setTimeout(function () {
-					readChunk();
-				}, 5);
-			}
-		}
-		reader.readAsArrayBuffer(blob);
+function messagebusFileUploadReadChunk(fileId) {
+	let fu = fileUploads[fileId];
+	if (!fu) {
+		console.error("File upload not found", fileId);
+		return;
 	}
+	let blob = fu["file"].slice(fu["offset"], fu["offset"] + fu["chunkSize"]);
+	fu["offset"] += fu["chunkSize"];
+	fileUploads[fileId]["chunk"] += 1;
+	fu["reader"].readAsArrayBuffer(blob);
+}
 
+function messagebusFileUpload(file, channel, terminalId = null) {
+	let fileId = createUUID();
+	var reader = new FileReader();
+
+	reader.onload = function () {
+		const last = (fileUploads[fileId]["offset"] >= file.size);
+
+		let message = {
+			type: "file_chunk",
+			id: createUUID(),
+			sender: "@",
+			channel: channel,
+			created: Date.now(),
+			expires: Date.now() + 10000,
+			file_id: fileId,
+			number: fileUploads[fileId]["chunk"],
+			data: new Uint8Array(reader.result),
+			last: last
+		}
+		messagebusSend(message);
+		if (!last) {
+			// Do not send the next chunk immediately
+			// to keep some resources for further messages
+			setTimeout(function () {
+				messagebusFileUploadReadChunk(fileId);
+			}, 5);
+		}
+	}
+	fileUploads[fileId] = {
+		"chunk": 0, "offset": 0, "chunkSize": 10000, "file": file, "reader": reader
+	};
+
+	console.log("messagebusFileUpload:", file, channel);
 	document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
+
 	let message = {
 		type: "file_upload_request",
 		id: createUUID(),
@@ -1738,7 +1752,6 @@ function messagebusFileUpload(file, channel, terminalId = null) {
 		terminal_id: terminalId
 	}
 	messagebusSend(message);
-	readChunk();
 }
 
 var resizeObserver = new ResizeObserver(entries => {

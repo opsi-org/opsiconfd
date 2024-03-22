@@ -1312,12 +1312,12 @@ function messagebusConnect() {
 				delete fileUploads[message.file_id];
 			}
 		}
-		else if (message.type == "general_error" || message.type == "file_upload_error") {
+		else if (message.type == "general_error" || message.type == "file_transfer_error") {
 			console.error(message.error);
 			showNotifcation(message.error.message + "\n" + message.error.details, "", "error", 10);
-			if (message.type == "general_error" || message.type == "file_upload_error") {
+			if (message.type == "general_error" || message.type == "file_transfer_error") {
 				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
-				if ((message.type == "file_upload_error") && message.file_id && fileUploads[message.file_id]) {
+				if ((message.type == "file_transfer_error") && message.file_id && fileUploads[message.file_id]) {
 					delete fileUploads[message.file_id];
 				}
 			}

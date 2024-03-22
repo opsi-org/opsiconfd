@@ -15,6 +15,10 @@ from pathlib import Path
 from typing import Generator
 from unittest.mock import patch
 
+import pytest
+from opsicommon import objects
+
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import SKIP_SETUP_ACTIONS
 from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_systemd
 from opsiconfd.setup import setup as opsiconfd_setup
@@ -140,3 +144,28 @@ def test_migrate_acl_conf_if_default(tmp_path: Path) -> None:
 	with get_config({"acl_file": str(acl_file)}):
 		migrate_acl_conf_if_default()
 	assert acl_file.read_text(encoding="utf-8") == acl_conf_43
+
+
+def test_rename_server() -> None:
+	backend = get_unprotected_backend()
+
+	with get_config({"rename_server": "new-server-id"}):
+		with pytest.raises(ValueError):
+			opsiconfd_setup(explicit=True)
+
+	cur_server_id = backend.host_getIdents(type="OpsiConfigserver")[0]
+
+	config1 = objects.UnicodeConfig(id="test1")
+	config_state1 = objects.ConfigState(configId="test1", objectId=cur_server_id, values=["configserver-value"])
+	backend.config_createObjects([config1])
+	backend.configState_createObjects([config_state1])
+
+	with patch("opsiconfd.setup.restart_opsiconfd_if_running") as mock, get_config({"rename_server": "new-server-id.opsi.test"}):
+		opsiconfd_setup(explicit=True)
+		new_server_id = backend.host_getIdents(type="OpsiConfigserver")[0]
+		assert new_server_id == "new-server-id.opsi.test"
+		config_states = backend.configState_getObjects(objectId=new_server_id, configId="test1")
+		assert len(config_states) == 1
+		assert config_states[0].objectId == new_server_id
+		assert config_states[0].values == ["configserver-value"]
+		assert mock.called

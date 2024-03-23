@@ -54,6 +54,7 @@ from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
 
 if TYPE_CHECKING:
 	from opsiconfd.application import OpsiconfdApp
+
 	from ..auth import RPCACE
 	from ..mysql import MySQLConnection
 
@@ -108,6 +109,10 @@ class BackendProtocol(
 
 	@property
 	def _mysql(self) -> MySQLConnection:
+		...
+
+	@property
+	def _server_role(self) -> str:
 		...
 
 	@property

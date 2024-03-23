@@ -74,6 +74,26 @@ def test_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # n
 		assert CONFIGSERVER in [ident.split(".")[0] for ident in idents]
 
 
+def test_webdav(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	client_id = "test-webdav-client.opsi.test"
+	client_key = "f8cd947c5ede510850229d9ec0020dc4"
+	test_client.auth = (client_id, client_key)
+	test_file = Path("/var/lib/opsi/depot/test.txt")
+	data = b"opsi" * 1000
+	test_file.write_bytes(data)
+	try:
+		with depotserver_setup(tmp_path), test_client as client:
+			backend = get_unprotected_backend()
+			backend.host_createOpsiClient(id=client_id, opsiHostKey=client_key)
+
+			url = "/depot/test.txt"
+			res = client.get(url=url)
+			res.raise_for_status()
+			assert data == res.content
+	finally:
+		test_file.unlink()
+
+
 def test_messagebus_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with depotserver_setup(tmp_path):
 		depot_id = get_depotserver_id()

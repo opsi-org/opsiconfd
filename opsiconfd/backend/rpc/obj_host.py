@@ -120,6 +120,9 @@ class RPCHostMixin(Protocol):
 			self.dhcpd_control_hosts_updated([host.id])
 
 	def host_updateObjectOnAuthenticate(self: BackendProtocol, host: dict | Host) -> None:
+		if self._server_role == "depotserver":
+			return
+
 		host = forceObjectClass(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=[], create=False, set_null=False)
 		if not self.events_enabled:

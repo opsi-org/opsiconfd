@@ -65,10 +65,14 @@ jsonrpc_router = APIRouter()
 jsonrpc_message_reader = None
 
 
+def utcnow() -> datetime:
+	return datetime.now(tz=timezone.utc)
+
+
 @dataclass(kw_only=True)
 class RequestInfo:
 	client: str = ""
-	date: datetime = field(default_factory=datetime.now(tz=timezone.utc))
+	date: datetime = field(default_factory=utcnow)
 	deprecated: bool = False
 	duration: float = 0.0
 

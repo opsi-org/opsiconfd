@@ -19,7 +19,7 @@ import traceback
 import urllib.parse
 import warnings
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from os import makedirs
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, AsyncGenerator, cast
@@ -68,7 +68,7 @@ jsonrpc_message_reader = None
 @dataclass(kw_only=True)
 class RequestInfo:
 	client: str = ""
-	date: datetime = field(default_factory=datetime.utcnow)
+	date: datetime = field(default_factory=datetime.now(tz=timezone.utc))
 	deprecated: bool = False
 	duration: float = 0.0
 

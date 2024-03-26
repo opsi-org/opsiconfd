@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from os import makedirs
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional, cast
+from typing import TYPE_CHECKING, Any, AsyncGenerator, cast
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
@@ -138,7 +138,7 @@ async def async_jsonrpc_shutdown() -> None:
 		await jsonrpc_message_reader.stop()
 
 
-def get_compression(content_encoding: str) -> Optional[str]:
+def get_compression(content_encoding: str) -> str | None:
 	if not content_encoding:
 		return None
 	content_encoding = content_encoding.lower()
@@ -153,19 +153,19 @@ def get_compression(content_encoding: str) -> Optional[str]:
 	raise ValueError(f"Unhandled Content-Encoding {content_encoding!r}")
 
 
-def get_request_compression(request: Request) -> Optional[str]:
+def get_request_compression(request: Request) -> str | None:
 	content_encoding = request.headers.get("content-encoding", "")
 	logger.debug("Content-Encoding: %r", content_encoding)
 	return get_compression(content_encoding)
 
 
-def get_response_compression(request: Request) -> Optional[str]:
+def get_response_compression(request: Request) -> str | None:
 	content_encoding = request.headers.get("accept-encoding", "")
 	logger.debug("Accept-Encoding: %r", content_encoding)
 	return get_compression(content_encoding)
 
 
-def get_request_serialization(request: Request) -> Optional[str]:
+def get_request_serialization(request: Request) -> str | None:
 	content_type = request.headers.get("content-type")
 	logger.debug("Content-Type: %r", content_type)
 	if content_type:
@@ -177,7 +177,7 @@ def get_request_serialization(request: Request) -> Optional[str]:
 	return None
 
 
-def get_response_serialization(request: Request) -> Optional[str]:
+def get_response_serialization(request: Request) -> str | None:
 	accept = request.headers.get("accept")
 	logger.debug("Accept: %r", accept)
 	if accept:

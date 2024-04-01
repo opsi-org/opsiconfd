@@ -28,10 +28,10 @@ import msgpack  # type: ignore[import]
 import pytest
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
+from httpx._models import Cookies
 from opsicommon.logging import LOG_NONE, LOG_WARNING, get_logger, use_logging_config
 from opsicommon.messagebus.message import Message
 from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
-from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
 
@@ -91,7 +91,7 @@ class OpsiconfdTestClient(TestClient):
 			self._auth = BasicAuth(self._username, self._password)
 
 	def reset_cookies(self) -> None:
-		self.cookies = cookiejar_from_dict({})  # type: ignore[no-untyped-call]
+		self.cookies = Cookies()
 
 	def set_client_address(self, host: str, port: int) -> None:
 		self._address = (host, port)

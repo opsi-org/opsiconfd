@@ -25,6 +25,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.logging import logger
+from opsiconfd.session import OPSISession
 
 
 def get_username() -> str:
@@ -123,13 +124,17 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 		self._check_session_task: Task
 
 	async def _check_authorization(self) -> None:
-		if not self.scope.get("session"):
+		session = self.scope.get("session")
+		if not session or not isinstance(session, OPSISession):
 			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
 
-		if self.admin_only and not self.scope["session"].is_admin:
+		if not session.authenticated:
+			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, not authenticated")
+
+		if self.admin_only and not session.is_admin:
 			raise HTTPException(
 				status_code=HTTP_403_FORBIDDEN,
-				detail=f"Access to {self} denied for user {self.scope['session'].username!r}",
+				detail=f"Access to {self} denied for user {session.username!r}",
 			)
 
 	async def check_session_task(self, websocket: WebSocket) -> None:

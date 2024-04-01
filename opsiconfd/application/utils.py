@@ -10,6 +10,7 @@ application utils
 """
 
 from asyncio import Task, create_task, sleep
+from typing import TYPE_CHECKING
 
 import msgspec
 from fastapi import HTTPException
@@ -25,7 +26,9 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.logging import logger
-from opsiconfd.session import OPSISession
+
+if TYPE_CHECKING:
+	from opsiconfd.session import OPSISession
 
 
 def get_username() -> str:
@@ -124,8 +127,8 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 		self._check_session_task: Task
 
 	async def _check_authorization(self) -> None:
-		session = self.scope.get("session")
-		if not session or not isinstance(session, OPSISession):
+		session: OPSISession = self.scope.get("session")  # type: ignore[assignment]
+		if not session:
 			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
 
 		if not session.authenticated:

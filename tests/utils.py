@@ -31,7 +31,7 @@ from httpx._auth import BasicAuth
 from httpx._models import Cookies
 from opsicommon.logging import LOG_NONE, LOG_WARNING, get_logger, use_logging_config
 from opsicommon.messagebus.message import Message
-from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize  # type: ignore[import]
+from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
 

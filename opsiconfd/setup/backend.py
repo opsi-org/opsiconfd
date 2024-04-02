@@ -292,7 +292,6 @@ def setup_backend_configserver(new_server_id: str | None = None) -> None:
 			if new_server_id:
 				logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, configserver_id)
 				backend.host_renameOpsiDepotserver(conf_servers[0].id, configserver_id)
-				opsi_config.set("host", "id", configserver_id, persistent=True)
 			else:
 				raise ValueError(
 					f"Config server ID {conf_servers[0].id!r} in database differs from "
@@ -302,6 +301,7 @@ def setup_backend_configserver(new_server_id: str | None = None) -> None:
 				)
 		backend.exit()
 
+		opsi_config.set("host", "id", configserver_id, persistent=True)
 		opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
 
 

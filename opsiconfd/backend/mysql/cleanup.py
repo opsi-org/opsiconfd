@@ -228,11 +228,12 @@ def convert_config_objects(session: Session) -> None:
 			UPDATE CONFIG as c
 			JOIN CONFIG_VALUE AS cv ON c.configId=cv.configId
 			SET c.`type` = "BoolConfig"
-			WHERE cv.value in ("0","1") AND c.type = "Config" AND editable is FALSE AND multiValue is FALSE;
+			WHERE c.type = "Config" AND c.editable is FALSE AND c.multiValue is FALSE AND cv.value in ("0","1");
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Changed %d Configs to BoolConfigs.", result.rowcount)
+		logger.notice("Changed some Configs to BoolConfigs.")
+
 	result = session.execute(
 		"""
 			UPDATE CONFIG as c
@@ -241,7 +242,34 @@ def convert_config_objects(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Changed %d Configes to UnicodeConfigs.", result.rowcount)
+		logger.notice("Changed some Configs to UnicodeConfigs.")
+
+
+def convert_product_property_objects(session: Session) -> None:
+	result = session.execute(
+		"""
+			UPDATE PRODUCT_PROPERTY as p
+			JOIN PRODUCT_PROPERTY_VALUE AS pv ON
+				p.productId = pv.productId AND
+				p.productVersion = pv.productVersion AND
+				p.packageVersion = pv.packageVersion AND
+				p.propertyId = pv.propertyId
+			SET p.`type` = "BoolProductProperty"
+			WHERE p.type = "ProductProperty" AND p.editable is FALSE AND p.multiValue is FALSE AND pv.value in ("0","1");
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Changed some ProductProperties to BoolProductProperties.")
+
+	result = session.execute(
+		"""
+			UPDATE PRODUCT_PROPERTY as p
+			SET p.`type` = "UnicodeProductProperty"
+			WHERE p.type = "ProductProperty";
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Changed some ProductProperties to UnicodeProductProperties.")
 
 
 def add_missing_version_info_to_product_on_client(session: Session) -> None:
@@ -340,5 +368,6 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_hardware_device(mysql, session)
 		remove_orphans_hardware_config(mysql, session)
 		convert_config_objects(session)
+		convert_product_property_objects(session)
 		add_missing_version_info_to_product_on_client(session)
 		remove_orphans_clientconfig_depot_id(session)

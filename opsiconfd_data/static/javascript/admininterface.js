@@ -1107,6 +1107,7 @@ function formateDate(date) {
 var messagebusWS;
 var messagebusAutoReconnect = true;
 var mbTerminal;
+const utf8Encoder = new TextEncoder();
 
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
 function syntaxHighlightMessage(message) {
@@ -1296,7 +1297,6 @@ function messagebusConnect() {
 		}
 		else if (message.type == "file_upload_result") {
 			document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
-			let utf8Encode = new TextEncoder();
 			let dataMessage = {
 				type: "terminal_data_write",
 				id: createUUID(),
@@ -1305,7 +1305,7 @@ function messagebusConnect() {
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,
-				data: utf8Encode.encode('"' + message.path + '"' + ("\x1b[D".repeat(message.path.length + 2)))
+				data: utf8Encoder.encode('"' + message.path + '"' + ("\x1b[D".repeat(message.path.length + 2)))
 			}
 			messagebusSend(dataMessage);
 			if (fileUploads[message.file_id]) {
@@ -1648,7 +1648,6 @@ function messagebusConnectTerminal() {
 		messagebusSend(message);
 
 		mbTerminal.onData(function (data) {
-			let utf8Encode = new TextEncoder();
 			let message = {
 				type: "terminal_data_write",
 				id: createUUID(),
@@ -1657,7 +1656,7 @@ function messagebusConnectTerminal() {
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,
-				data: utf8Encode.encode(data)
+				data: utf8Encoder.encode(data)
 			}
 			messagebusSend(message);
 		})

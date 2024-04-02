@@ -46,7 +46,12 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
 	now = datetime.now(tz=timezone.utc)
 	assert abs((now - server_dt).total_seconds()) < 2
+
+	server_timestamp = int(res.headers["x-date-unix-timestamp"])
+	assert abs(now.timestamp() - server_timestamp) < 2
+
 	sleep(1)
+
 	res = test_client.get("/")
 	server_date = res.headers["date"]
 	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)

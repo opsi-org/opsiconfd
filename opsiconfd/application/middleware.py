@@ -87,14 +87,9 @@ class BaseMiddleware:
 		scope["request_id"] = request_id
 		contextvar_request_id.set(request_id)
 
-		# scope["path"] can change while processing, keep original value in scope["full_path"]
-		# Wrong path will still appear in log: GET /boot/ HTTP/1.1" 200   (h11_impl.py:477)
-		# Remove full_path and replace with path when the following issue is fixed:
-		# https://github.com/encode/starlette/issues/1336
-		scope["full_path"] = scope.get("path")
-		if scope["full_path"]:
+		if scope.get("path"):
 			new_path: str | None = None
-			if scope["full_path"].startswith("/grafana/api/datasources/proxy"):
+			if scope["path"].startswith("/grafana/api/datasources/proxy"):
 				# Redirect grafana proxy calls to simplify and avoid authentication grafana server => opsiconfd
 				# Without redirect:
 				#   browser => opsiconfd (reverse proxy) => grafana server (simple json) => opsiconfd (/metrics)
@@ -102,9 +97,9 @@ class BaseMiddleware:
 				#   browser => opsiconfd (/metrics)
 				new_path = f"/metrics/grafana/{scope['full_path'].rsplit('/')[-1]}"
 			else:
-				new_path = PATH_MAPPINGS.get(scope["full_path"])
+				new_path = PATH_MAPPINGS.get(scope["path"])
 			if new_path:
-				scope["full_path"] = scope["path"] = new_path
+				scope["path"] = scope["path"] = new_path
 				scope["raw_path"] = new_path.encode("utf-8")
 
 		client_host, client_port = self.get_client_address(scope)
@@ -163,8 +158,8 @@ class BaseMiddleware:
 
 			if "headers" in message:
 				if (
-					scope["full_path"]
-					and scope["full_path"].startswith("/public/boot")
+					scope["path"]
+					and scope["path"].startswith("/public/boot")
 					and scope["request_headers"].get("user-agent", "").startswith("UefiHttpBoot")
 				):
 					# Grub 2.06 needs titled headers (Content-Length instead of content-length)

@@ -209,17 +209,17 @@ class SessionMiddleware:
 			# Set default access role
 			required_access_role = ACCESS_ROLE_ADMIN
 			access_role_public = ACCESS_ROLE_PUBLIC
-			if scope["full_path"]:
-				if scope["full_path"] == "/":
+			if scope["path"]:
+				if scope["path"] == "/":
 					required_access_role = access_role_public
 				for pub_path in self._public_path:
-					if scope["full_path"].startswith(pub_path):
+					if scope["path"].startswith(pub_path):
 						required_access_role = access_role_public
 						break
 			scope["required_access_role"] = required_access_role
 
-			if scope["full_path"].startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer")) or (
-				scope["full_path"].startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
+			if scope["path"].startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer")) or (
+				scope["path"].startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
 			):
 				scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
@@ -232,10 +232,10 @@ class SessionMiddleware:
 			started_authenticated = scope["session"] and scope["session"].authenticated
 
 			# Addon request processing
-			if scope["full_path"].startswith("/addons"):
-				addon = AddonManager().get_addon_by_path("/".join(scope["full_path"].split("/", 3)[:3]))
+			if scope["path"].startswith("/addons"):
+				addon = AddonManager().get_addon_by_path("/".join(scope["path"].split("/", 3)[:3]))
 				if addon:
-					logger.debug("Calling %s.handle_request for path '%s'", addon, scope["full_path"])
+					logger.debug("Calling %s.handle_request for path '%s'", addon, scope["path"])
 					if await addon.handle_request(connection, receive, send):
 						return
 
@@ -244,7 +244,7 @@ class SessionMiddleware:
 				scope["session"]
 				and required_access_role == ACCESS_ROLE_ADMIN
 				and not scope["session"].host
-				and scope["full_path"].startswith("/depot")
+				and scope["path"].startswith("/depot")
 				and opsi_config.get("groups", "fileadmingroup") not in scope["session"].user_groups
 			):
 				raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].username}'")
@@ -267,10 +267,10 @@ class SessionMiddleware:
 	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:
 		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
 		scope = connection.scope
-		if scope["full_path"].startswith("/addons"):
-			addon = AddonManager().get_addon_by_path(scope["full_path"])
+		if scope["path"].startswith("/addons"):
+			addon = AddonManager().get_addon_by_path(scope["path"])
 			if addon:
-				logger.debug("Calling %s.handle_request_exception for path '%s'", addon, scope["full_path"])
+				logger.debug("Calling %s.handle_request_exception for path '%s'", addon, scope["path"])
 				if await addon.handle_request_exception(err, connection, receive, send):
 					return
 
@@ -352,7 +352,7 @@ class SessionMiddleware:
 			scope["session"].add_cookie_to_headers(headers)
 
 		response: Optional[Response] = None
-		if scope["full_path"].startswith("/rpc"):
+		if scope["path"].startswith("/rpc"):
 			logger.debug("Returning jsonrpc response because path startswith /rpc")
 			content = {"id": None, "result": None, "error": error}
 			if scope.get("jsonrpc20"):
@@ -366,8 +366,8 @@ class SessionMiddleware:
 		if (
 			not response
 			and status_code == status.HTTP_401_UNAUTHORIZED
-			and scope["full_path"]
-			and scope["full_path"].lower().split("#", 1)[0].rstrip("/") in ("/admin", "/admin/grafana")
+			and scope["path"]
+			and scope["path"].lower().split("#", 1)[0].rstrip("/") in ("/admin", "/admin/grafana")
 		):
 			response = RedirectResponse(f"/login?redirect={scope['full_path']}", headers=headers)
 		if not response:

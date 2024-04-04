@@ -238,7 +238,7 @@ class StatisticsMiddleware:
 				logger.info(
 					"Server-Timing %s %s: %s",
 					scope["method"],
-					scope["full_path"],
+					scope["path"],
 					", ".join([f"{k}={v:.1f}ms" for k, v in server_timing.items()]),
 				)
 

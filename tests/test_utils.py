@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from opsiconfd.utils import get_file_md5sum, get_ip_addresses
+from opsiconfd.utils import NameService, get_file_md5sum, get_ip_addresses, get_user_passwd_details
 from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
 
@@ -61,3 +61,11 @@ def test_get_file_md5sum(tmp_path: Path) -> None:
 	test_file = tmp_path / "file"
 	test_file.write_bytes(b"opsi" * 1_000_000)
 	assert get_file_md5sum(test_file) == "ec80d22881b1da0e1869957931545495"
+
+
+def test_get_user_passwd_details() -> None:
+	info = get_user_passwd_details("root")[0]
+	assert info.uid == 0
+	assert info.gid == 0
+	assert info.home == "/root"
+	assert info.service == NameService.FILES

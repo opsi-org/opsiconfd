@@ -401,15 +401,14 @@ def get_user_passwd_details(username: str) -> List[UserInfo]:
 			user_details.append(ucs_details)
 	services = get_passwd_services()
 	for service in services:
+		cmd = ["getent", "passwd", "--service", service.value, username]
 		try:
-			getent_result = subprocess.run(
-				["getent", "passwd", "--service", service, username], check=True, capture_output=True, timeout=5
-			).stdout.decode("utf-8")
+			getent_result = subprocess.run(cmd, check=True, capture_output=True, timeout=5).stdout.decode("utf-8")
 		except (subprocess.CalledProcessError, FileNotFoundError) as err:
-			get_logger().warning("getent passwd --service %s %s failed: %s", service, username, err)
+			get_logger().warning("Command %s failed: %s", cmd, err)
 			continue
 		except subprocess.TimeoutExpired as err:
-			get_logger().warning("getent passwd --service %s %s timed out: %s", service, username, err)
+			get_logger().warning("Command %s timed out: %s", cmd, err)
 			continue
 		if getent_result:
 			user_info = getent_result.strip().split(":")

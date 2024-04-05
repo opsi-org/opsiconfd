@@ -95,7 +95,7 @@ class BaseMiddleware:
 				#   browser => opsiconfd (reverse proxy) => grafana server (simple json) => opsiconfd (/metrics)
 				# With redirect:
 				#   browser => opsiconfd (/metrics)
-				new_path = f"/metrics/grafana/{scope['full_path'].rsplit('/')[-1]}"
+				new_path = f"/metrics/grafana/{scope['path'].rsplit('/')[-1]}"
 			else:
 				new_path = PATH_MAPPINGS.get(scope["path"])
 			if new_path:

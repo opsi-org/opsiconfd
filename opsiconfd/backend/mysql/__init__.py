@@ -149,6 +149,11 @@ class MySQLConnection:
 		self.database = "opsi"
 		self._driver = "mysqldb"  # pymysql
 		self._database_charset = "utf8mb4"
+		self._ssl = False
+		self._ssl_ca = None
+		self._ssl_key = None
+		self._ssl_cert = None
+		self._ssl_check_hostname = False
 		self._connection_pool_size = 20
 		self._connection_pool_max_overflow = 10
 		self._connection_pool_timeout = 30
@@ -182,20 +187,18 @@ class MySQLConnection:
 	def _parse_config(self, conf: dict[str, Any]) -> None:
 		for key, val in conf.items():
 			attr = "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
-			if attr == "unique_hardware_addresses":
-				val = val in (True, "true", "1")
-			if hasattr(self, attr):
-				_type = type(getattr(self, attr))
-				if _type is NoneType:
-					_type = str
-				setattr(self, attr, _type(val))
-			elif hasattr(self, f"_{attr}"):
-				_type = type(getattr(self, f"_{attr}"))
-				if _type is NoneType:
-					_type = str
-				setattr(self, f"_{attr}", _type(val))
-			else:
+			if not hasattr(self, attr):
+				attr = f"_{attr}"
+			if not hasattr(self, attr):
 				logger.warning("Skipping invalid config option %s", key)
+				continue
+
+			_type = type(getattr(self, attr))
+			if _type is NoneType:
+				_type = str
+			if _type is bool and isinstance(val, str):
+				val = val.lower() in ("true", "1")
+			setattr(self, attr, _type(val))
 
 		if self._database_charset.replace("-", "").lower() == "utf8":
 			self._database_charset = "utf8mb4"
@@ -238,6 +241,17 @@ class MySQLConnection:
 		mysql_conf.write_text("\n".join(lines), encoding="utf-8")
 
 	def _create_engine(self, uri: str) -> None:
+		ssl_args: dict[str, str | bool] = {}
+		if self._ssl_ca:
+			ssl_args["ca"] = self._ssl_ca
+		if self._ssl_key:
+			ssl_args["key"] = self._ssl_key
+		if self._ssl_cert:
+			ssl_args["cert"] = self._ssl_cert
+		if self._ssl_check_hostname:
+			ssl_args["check_hostname"] = True
+		logger.debug("Using ssl_args: %r", ssl_args)
+
 		self._engine = create_engine(
 			uri,
 			pool_pre_ping=True,  # auto reconnect
@@ -245,6 +259,7 @@ class MySQLConnection:
 			max_overflow=self._connection_pool_max_overflow,
 			pool_timeout=self._connection_pool_timeout,
 			pool_recycle=self._connection_pool_recycling,
+			connect_args={"ssl": ssl_args},
 		)
 		if not self._engine:
 			raise RuntimeError("Failed to create engine")
@@ -284,15 +299,15 @@ class MySQLConnection:
 			password = password.encode("utf-8").decode("latin-1")
 		password = quote(password)
 		secret_filter.add_secrets(password)
-		properties: dict[str, str | int] = {
-			"charset": self._database_charset,
-		}
+		properties: dict[str, str | int] = {"charset": self._database_charset}
 		if self._driver == "pymysql":
 			properties["client_flag"] = 1 << 16  # MULTI_STATEMENTS
 		address = self.address
 		if address.startswith("/"):
 			properties["unix_socket"] = address
 			address = "localhost"
+		if self._ssl:
+			properties["ssl"] = "true"
 
 		params = f"?{urlencode(properties)}" if properties else ""
 

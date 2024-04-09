@@ -1110,7 +1110,7 @@ class Config(metaclass=Singleton):
 				"MySQL connection url."
 				"By default the config from /etc/opsi/backends/mysql.conf will be used!\n"
 				"Examples:\n"
-				"mysql://<username>:<password>@mysql-server:3306/opsi?\n"
+				"mysql://<username>:<password>@mysql-server:3306/opsi?ssl=true\n"
 				"mysql://<username>:<password>@mysql-server\n",
 			),
 		)

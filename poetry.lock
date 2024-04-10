@@ -2621,8 +2621,8 @@ description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.10.4-py3-none-any.whl", hash = "sha256:0276eef142adf52ff8aad7d77ce42bc23b0788d43cc6b94fa7b8f903bfbae2c6"},
-    {file = "python_opsi_common-4.3.10.4.tar.gz", hash = "sha256:71c8c88681540376e584cc04df539109f4dffd5d51919c84c10f1d5ea4ac51c0"},
+    {file = "python_opsi_common-4.3.10.4-py3-none-any.whl", hash = "sha256:cd647e3df4de28402de82bf183d8f2a02e8e94f6b347a2cb7238ba4744a47330"},
+    {file = "python_opsi_common-4.3.10.4.tar.gz", hash = "sha256:e1875755267e5b6791728ec805708c3e3e5ac7ee1bef9a31506d63efa194369c"},
 ]
 
 [package.dependencies]
@@ -3126,6 +3126,28 @@ postgresql-psycopg2binary = ["psycopg2-binary"]
 postgresql-psycopg2cffi = ["psycopg2cffi"]
 pymysql = ["pymysql", "pymysql (<1)"]
 sqlcipher = ["sqlcipher3-binary"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
+name = "starlette"
+version = "0.37.2"
+description = "The little ASGI library that shines."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "starlette-0.37.2-py3-none-any.whl", hash = "sha256:6fe59f29268538e5d0d182f2791a479a0c64638e6935d1c6989e63fb2699c6ee"},
+    {file = "starlette-0.37.2.tar.gz", hash = "sha256:9af890290133b79fc3db55474ade20f6220a364a0402e0b556e7cd5e1e093823"},
+]
+
+[package.dependencies]
+anyio = ">=3.4.0,<5"
+
+[package.extras]
+full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.7)", "pyyaml"]
 
 [package.source]
 type = "legacy"
@@ -3894,4 +3916,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "ace6cacb54b1de67de753d5ccd31db0e296d4b82ecb25d03781f7c35a3380f91"
+content-hash = "7461d9619e86e07f15e431d74087436de9f8380578f55177bfabbaa75a0fcad5"

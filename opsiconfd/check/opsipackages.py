@@ -152,7 +152,7 @@ def check_product_on_clients() -> CheckResult:
 	If an older version is installed, the Health Check issues a warning.
 	"""
 	result = CheckResult(
-		check_id="products_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
+		check_id="product_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
 	)
 	with exc_to_result(result):
 		result.message = "All important products are up to date on all clients."

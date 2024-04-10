@@ -9,27 +9,27 @@
 webdav tests
 """
 
-from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
-
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import]
+
 from opsiconfd.backend import (
 	get_mysql,
 	get_unprotected_backend,
 )
 
-
 from ..utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
 	clean_redis,
 	client_jsonrpc,
 	config,
 	depot_jsonrpc,
 	get_config,
 	test_client,
-	backend,
-	UnprotectedBackend,
 )
 
 
@@ -82,9 +82,11 @@ def test_opsiconfd_backend_host_get_tls_certificate_depot(test_client: Opsiconfd
 			res.raise_for_status()
 			res_dict = res.json()
 
-			load_privatekey(FILETYPE_PEM, res_dict["result"])
-			cert = load_certificate(FILETYPE_PEM, res_dict["result"])
-			assert cert.get_subject().CN == host_id
+			pem_bytes = res_dict["result"].encode("utf-8")
+			cert = x509.load_pem_x509_certificate(pem_bytes)
+			serialization.load_pem_private_key(pem_bytes, password=None)
+
+			assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == host_id
 		finally:
 			test_client.reset_cookies()
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -110,14 +112,21 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 			res.raise_for_status()
 			res_dict = res.json()
 
-			load_privatekey(FILETYPE_PEM, res_dict["result"])
-			cert = load_certificate(FILETYPE_PEM, res_dict["result"])
-			sub_alt_name = ""
-			for idx in range(cert.get_extension_count()):
-				ext = cert.get_extension(idx)
-				if ext.get_short_name() == b"subjectAltName":
-					sub_alt_name = str(ext)
-			assert f"IP Address:{ip_address}" in sub_alt_name
+			pem_bytes = res_dict["result"].encode("utf-8")
+			cert = x509.load_pem_x509_certificate(pem_bytes)
+			serialization.load_pem_private_key(pem_bytes, password=None)
+
+			alt_names = [extension for extension in cert.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+			alt_names_str = (
+				[
+					str(a)
+					for a in alt_names[0].value.get_values_for_type(x509.DNSName) + alt_names[0].value.get_values_for_type(x509.IPAddress)
+				]
+				if alt_names
+				else []
+			)
+			assert host_id in alt_names_str
+			assert ip_address in alt_names_str
 
 			rpc = {"id": 1, "method": "host_getTLSCertificate", "params": ["test-client2-cert.opsi.org"]}
 			res = test_client.post("/rpc", json=rpc)

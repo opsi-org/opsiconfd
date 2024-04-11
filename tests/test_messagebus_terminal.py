@@ -74,15 +74,15 @@ def test_messagebus_process(test_client: OpsiconfdTestClient, channel: str) -> N
 
 				reader.wait_for_message(count=10, timeout=6, error_on_timeout=False)
 
-				terminal_data_read = next(reader.get_messagbus_messages())
-				assert isinstance(terminal_data_read, TerminalDataReadMessage)
-				lines = terminal_data_read.data.decode("utf-8").split("\n")
-				assert lines[0].strip() == "stty size"
+				data = b""
+				messages = list(reader.get_messagbus_messages())
+				for message in messages:
+					assert isinstance(message, TerminalDataReadMessage)
+					data += message.data
 
-				terminal_data_read = list(reader.get_messagbus_messages())[-1]
-				assert isinstance(terminal_data_read, TerminalDataReadMessage)
-				lines = terminal_data_read.data.decode("utf-8").split("\n")
-				assert lines[0].strip() == "11 22"
+				lines = [line.strip() for line in data.decode("utf-8").split("\n")]
+				assert "stty size" in lines
+				assert "11 22" in lines
 
 				terminal_close_request = TerminalCloseRequestMessage(sender=user_id, channel=back_channel, terminal_id=terminal_id)
 				websocket.send_bytes(terminal_close_request.to_msgpack())

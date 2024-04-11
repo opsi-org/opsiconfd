@@ -47,7 +47,7 @@ def test_messagebus_process(test_client: OpsiconfdTestClient, channel: str) -> N
 	terminal_id = str(uuid.uuid4())
 	with test_client:
 		with test_client.websocket_connect("/messagebus/v1") as websocket:
-			with WebSocketMessageReader(websocket, messagebus_messages=True) as reader:
+			with WebSocketMessageReader(websocket, messagebus_messages=True, print_raw_data=256) as reader:
 				reader.wait_for_message(count=1)
 				message = next(reader.get_messagbus_messages())
 				assert isinstance(message, ChannelSubscriptionEventMessage)
@@ -72,21 +72,16 @@ def test_messagebus_process(test_client: OpsiconfdTestClient, channel: str) -> N
 				)
 				websocket.send_bytes(terminal_data_write.to_msgpack())
 
-				reader.wait_for_message(count=2)
+				reader.wait_for_message(count=10, timeout=6, error_on_timeout=False)
 
 				terminal_data_read = next(reader.get_messagbus_messages())
 				assert isinstance(terminal_data_read, TerminalDataReadMessage)
 				lines = terminal_data_read.data.decode("utf-8").split("\n")
 				assert lines[0].strip() == "stty size"
 
-				terminal_data_read = next(reader.get_messagbus_messages())
+				terminal_data_read = list(reader.get_messagbus_messages())[-1]
 				assert isinstance(terminal_data_read, TerminalDataReadMessage)
 				lines = terminal_data_read.data.decode("utf-8").split("\n")
-				if lines[0].strip() != "11 22":
-					reader.wait_for_message(count=1)
-					terminal_data_read = next(reader.get_messagbus_messages())
-					assert isinstance(terminal_data_read, TerminalDataReadMessage)
-					lines = terminal_data_read.data.decode("utf-8").split("\n")
 				assert lines[0].strip() == "11 22"
 
 				terminal_close_request = TerminalCloseRequestMessage(sender=user_id, channel=back_channel, terminal_id=terminal_id)

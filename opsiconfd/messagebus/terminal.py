@@ -39,6 +39,9 @@ from . import get_messagebus_worker_id
 from .redis import ConsumerGroupMessageReader, MessageReader
 from .redis import send_message as redis_send_message
 
+terminal_request_reader: ConsumerGroupMessageReader | None = None
+terminal_instance_reader: MessageReader | None = None
+
 
 async def async_terminal_startup() -> None:
 	if "terminal" not in config.disabled_features:

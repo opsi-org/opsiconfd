@@ -1184,13 +1184,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "idna"
-version = "3.6"
+version = "3.7"
 description = "Internationalized Domain Names in Applications (IDNA)"
 optional = false
 python-versions = ">=3.5"
 files = [
-    {file = "idna-3.6-py3-none-any.whl", hash = "sha256:c05567e9c24a6b9faaa835c4821bad0590fbb9d5779e7caa6e1cc4978e7eb24f"},
-    {file = "idna-3.6.tar.gz", hash = "sha256:9ecdbbd083b06798ae1e86adcbfe8ab1479cf864e4ee30fe4e46a003d12491ca"},
+    {file = "idna-3.7-py3-none-any.whl", hash = "sha256:82fee1fc78add43492d3a1898bfa6d8a904cc97d8427f683ed8e798d07761aa0"},
+    {file = "idna-3.7.tar.gz", hash = "sha256:028ff3aadf0609c1fd278d8ea3089299412a7a8b9bd005dd08b9f8285bcb5cfc"},
 ]
 
 [package.source]
@@ -2616,13 +2616,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.10.4"
+version = "4.3.11.0"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.10.4-py3-none-any.whl", hash = "sha256:cd647e3df4de28402de82bf183d8f2a02e8e94f6b347a2cb7238ba4744a47330"},
-    {file = "python_opsi_common-4.3.10.4.tar.gz", hash = "sha256:e1875755267e5b6791728ec805708c3e3e5ac7ee1bef9a31506d63efa194369c"},
+    {file = "python_opsi_common-4.3.11.0-py3-none-any.whl", hash = "sha256:e36a54e1facbe908c0f3b536a3b6c7cce1d33c9abb331da097cb533a62a422de"},
+    {file = "python_opsi_common-4.3.11.0.tar.gz", hash = "sha256:3e36641f1eee7583a81d348f8604c9e2326be898b283ac1f1bb29fb8586ae81b"},
 ]
 
 [package.dependencies]
@@ -2633,9 +2633,11 @@ lz4 = ">=4.0"
 msgpack = ">=1.0"
 msgspec = ">=0.15"
 psutil = ">=5.8"
+ptyprocess = ">=0.7,<0.8"
 pycryptodome = ">=3.10"
 pydantic = ">=2.5,<3.0"
 pywin32 = {version = ">=303", markers = "sys_platform == \"win32\""}
+pywinpty = {version = ">=2.0,<3.0", markers = "sys_platform == \"win32\""}
 pyzsync = ">=1.2"
 requests = ">=2.26"
 rich = ">=13.0"
@@ -2702,6 +2704,26 @@ python-versions = ">=3.6"
 files = [
     {file = "pywin32-ctypes-0.2.2.tar.gz", hash = "sha256:3426e063bdd5fd4df74a14fa3cf80a0b42845a87e1d1e81f6549f9daec593a60"},
     {file = "pywin32_ctypes-0.2.2-py3-none-any.whl", hash = "sha256:bf490a1a709baf35d688fe0ecf980ed4de11d2b3e37b51e5442587a75d9957e7"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
+name = "pywinpty"
+version = "2.0.13"
+description = "Pseudo terminal support for Windows from Python."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "pywinpty-2.0.13-cp310-none-win_amd64.whl", hash = "sha256:697bff211fb5a6508fee2dc6ff174ce03f34a9a233df9d8b5fe9c8ce4d5eaf56"},
+    {file = "pywinpty-2.0.13-cp311-none-win_amd64.whl", hash = "sha256:b96fb14698db1284db84ca38c79f15b4cfdc3172065b5137383910567591fa99"},
+    {file = "pywinpty-2.0.13-cp312-none-win_amd64.whl", hash = "sha256:2fd876b82ca750bb1333236ce98488c1be96b08f4f7647cfdf4129dfad83c2d4"},
+    {file = "pywinpty-2.0.13-cp38-none-win_amd64.whl", hash = "sha256:61d420c2116c0212808d31625611b51caf621fe67f8a6377e2e8b617ea1c1f7d"},
+    {file = "pywinpty-2.0.13-cp39-none-win_amd64.whl", hash = "sha256:71cb613a9ee24174730ac7ae439fd179ca34ccb8c5349e8d7b72ab5dea2c6f4b"},
+    {file = "pywinpty-2.0.13.tar.gz", hash = "sha256:c34e32351a3313ddd0d7da23d27f835c860d32fe4ac814d372a3ea9594f41dde"},
 ]
 
 [package.source]
@@ -3916,4 +3938,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "7461d9619e86e07f15e431d74087436de9f8380578f55177bfabbaa75a0fcad5"
+content-hash = "bf9bed3eb2f18847cf297101a0e249472b10143c24aa2e0719951bd8b8cbf128"

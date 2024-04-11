@@ -26,6 +26,7 @@ from redis import ConnectionError as RedisConnectionError
 from redis.asyncio import Connection as AsyncConnection
 from redis.asyncio import ConnectionPool as AsyncConnectionPool
 from redis.asyncio import Redis as AsyncRedis
+from redis.asyncio.connection import AbstractConnection
 
 from opsiconfd.config import REDIS_CONECTION_TIMEOUT, config
 from opsiconfd.utils import normalize_ip_address
@@ -43,7 +44,7 @@ def repr_pieces(self: Connection | AsyncConnection) -> list[tuple[str, str | int
 	return pieces
 
 
-def __async_con_del__(self: AsyncConnection) -> None:
+def __con_del__(self: AbstractConnection) -> None:
 	try:
 		self._close()  # type: ignore[attr-defined]
 	except RuntimeError:
@@ -52,7 +53,7 @@ def __async_con_del__(self: AsyncConnection) -> None:
 
 AsyncConnection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 Connection.repr_pieces = repr_pieces  # type: ignore[method-assign]
-AsyncConnection.__del__ = __async_con_del__  # type: ignore[method-assign,attr-defined]
+AbstractConnection.__del__ = __con_del__  # type: ignore[method-assign,attr-defined]
 
 
 def get_redis_connections() -> list[Connection | AsyncConnection]:

@@ -122,6 +122,10 @@ def get_service_client(name: str = "", register_messagebus_listener: MessagebusL
 			service_clients[name] = service_client
 		elif register_messagebus_listener:
 			service_clients[name].messagebus.register_messagebus_listener(register_messagebus_listener)
+			if service_clients[name].messagebus.connected:
+				service_clients[name].messagebus._run_listener_callback(
+					register_messagebus_listener, "messagebus_connection_established", messagebus=service_clients[name].messagebus
+				)
 
 		return service_clients[name]
 

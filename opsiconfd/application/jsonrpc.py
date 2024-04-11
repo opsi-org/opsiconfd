@@ -235,7 +235,7 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 async def store_deprecated_call(method_name: str, client: str) -> None:
 	redis_prefix_stats = config.redis_key("stats")
 	redis = await async_redis_client()
-	expire_time = 90 * 24 * 3600  # 90 days
+	expire_time = 30 * 24 * 3600  # 30 days
 	async with redis.pipeline() as pipe:
 		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)  # type: ignore[attr-defined]
 		pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")  # type: ignore[attr-defined]
@@ -245,7 +245,7 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)  # type: ignore[attr-defined]
 		pipe.set(  # type: ignore[attr-defined]
 			f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call",
-			datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+			datetime.now(timezone=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
 			ex=expire_time,
 		)
 		await pipe.execute()  # type: ignore[attr-defined]

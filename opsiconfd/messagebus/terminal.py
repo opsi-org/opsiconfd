@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from queue import Empty, Queue
 
-from opsicommon.client.opsiservice import MessagebusListener
+from opsicommon.client.opsiservice import Messagebus, MessagebusListener
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.file_transfer import process_messagebus_message as process_file_message
 from opsicommon.messagebus.message import (
@@ -85,18 +85,7 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 
 
 async def messagebus_terminal_instance_worker_depotserver() -> None:
-	channel = f"{get_messagebus_worker_id()}:terminal"
-
 	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
-	subscription_message = ChannelSubscriptionRequestMessage(
-		sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[channel], operation="set"
-	)
-	try:
-		await service_client.messagebus.async_send_message(subscription_message)
-	except Exception as err:
-		logger.error("Failed to send message to messagebus: %s", err)
-		return
-
 	message_queue: Queue[
 		TerminalDataWriteMessage
 		| TerminalResizeRequestMessage
@@ -107,6 +96,15 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 	] = Queue()
 
 	class TerminalMessageListener(MessagebusListener):
+		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
+			subscription_message = ChannelSubscriptionRequestMessage(
+				sender=CONNECTION_USER_CHANNEL,
+				channel="service:messagebus",
+				channels=[f"{get_messagebus_worker_id()}:terminal"],
+				operation="set",
+			)
+			messagebus.send_message(subscription_message)
+
 		def message_received(self, message: Message) -> None:
 			try:
 				if isinstance(
@@ -188,21 +186,18 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 
 async def messagebus_terminal_open_request_worker_depotserver() -> None:
 	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
-	message = ChannelSubscriptionRequestMessage(
-		sender=CONNECTION_USER_CHANNEL,
-		channel="service:messagebus",
-		channels=[f"service:depot:{get_depotserver_id()}:terminal"],
-		operation="set",
-	)
-	try:
-		await service_client.messagebus.async_send_message(message)
-	except Exception as err:
-		logger.error("Failed to send message to messagebus: %s", err)
-		return
-
 	message_queue: Queue[TerminalOpenRequestMessage] = Queue()
 
 	class TerminalOpenRequestMessageListener(MessagebusListener):
+		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
+			message = ChannelSubscriptionRequestMessage(
+				sender=CONNECTION_USER_CHANNEL,
+				channel="service:messagebus",
+				channels=[f"service:depot:{get_depotserver_id()}:terminal"],
+				operation="set",
+			)
+			messagebus.send_message(message)
+
 		def message_received(self, message: Message) -> None:
 			if isinstance(message, TerminalOpenRequestMessage):
 				message_queue.put(message, block=True)

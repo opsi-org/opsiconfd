@@ -85,7 +85,6 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 
 
 async def messagebus_terminal_instance_worker_depotserver() -> None:
-	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
 	message_queue: Queue[
 		TerminalDataWriteMessage
 		| TerminalResizeRequestMessage
@@ -126,9 +125,8 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 			except Exception as err:
 				logger.error(err, exc_info=True)
 
-	listener = TerminalMessageListener()
+	service_client = await run_in_threadpool(get_service_client, "messagebus terminal", TerminalMessageListener())
 
-	service_client.messagebus.register_messagebus_listener(listener)
 	while True:
 		try:
 			try:
@@ -185,7 +183,6 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 
 
 async def messagebus_terminal_open_request_worker_depotserver() -> None:
-	service_client = await run_in_threadpool(get_service_client, "messagebus terminal")
 	message_queue: Queue[TerminalOpenRequestMessage] = Queue()
 
 	class TerminalOpenRequestMessageListener(MessagebusListener):
@@ -202,9 +199,7 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 			if isinstance(message, TerminalOpenRequestMessage):
 				message_queue.put(message, block=True)
 
-	listener = TerminalOpenRequestMessageListener()
-
-	service_client.messagebus.register_messagebus_listener(listener)
+	service_client = await run_in_threadpool(get_service_client, "messagebus terminal", TerminalOpenRequestMessageListener())
 	while True:
 		try:
 			term_message: TerminalOpenRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)

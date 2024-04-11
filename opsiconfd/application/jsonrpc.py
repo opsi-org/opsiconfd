@@ -28,7 +28,7 @@ import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
-from opsicommon.client.opsiservice import MessagebusListener
+from opsicommon.client.opsiservice import Messagebus, MessagebusListener
 from opsicommon.messagebus import CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionRequestMessage,
@@ -610,29 +610,24 @@ async def messagebus_jsonrpc_request_worker_configserver() -> None:
 
 async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 	unprotected_backend = get_unprotected_backend()
-	service_client = await run_in_threadpool(get_service_client, "messagebus jsonrpc")
-	message = ChannelSubscriptionRequestMessage(
-		sender=CONNECTION_USER_CHANNEL,
-		channel="service:messagebus",
-		channels=[f"service:depot:{get_depotserver_id()}:jsonrpc"],
-		operation="set",
-	)
-	try:
-		await service_client.messagebus.async_send_message(message)
-	except Exception as err:
-		logger.error("Failed to send message to messagebus: %s", err)
-		return
-
 	message_queue: Queue[JSONRPCRequestMessage] = Queue()
 
 	class JSONRPCRequestMessageListener(MessagebusListener):
+		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
+			message = ChannelSubscriptionRequestMessage(
+				sender=CONNECTION_USER_CHANNEL,
+				channel="service:messagebus",
+				channels=[f"service:depot:{get_depotserver_id()}:jsonrpc"],
+				operation="set",
+			)
+			messagebus.send_message(message)
+
 		def message_received(self, message: Message) -> None:
 			if isinstance(message, JSONRPCRequestMessage):
 				message_queue.put(message, block=True)
 
-	listener = JSONRPCRequestMessageListener()
+	service_client = await run_in_threadpool(get_service_client, "messagebus jsonrpc", JSONRPCRequestMessageListener())
 
-	service_client.messagebus.register_messagebus_listener(listener)
 	while True:
 		try:
 			request: JSONRPCRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)

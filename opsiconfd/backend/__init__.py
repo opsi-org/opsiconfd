@@ -15,7 +15,7 @@ import os
 from threading import Lock
 from typing import TYPE_CHECKING
 
-from opsicommon.client.opsiservice import ServiceClient
+from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
 
 from opsiconfd import __version__
 from opsiconfd.config import config, get_depotserver_id, opsi_config
@@ -97,7 +97,7 @@ def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
 	)
 
 
-def get_service_client(name: str = "") -> ServiceClient:
+def get_service_client(name: str = "", register_messagebus_listener: MessagebusListener | None = None) -> ServiceClient:
 	with service_clients_lock:
 		if name not in service_clients:
 			from opsiconfd.worker import Worker
@@ -112,12 +112,16 @@ def get_service_client(name: str = "") -> ServiceClient:
 				user_agent = f"{user_agent} {name}"
 
 			service_client = new_service_client(user_agent)
+			if register_messagebus_listener:
+				service_client.messagebus.register_messagebus_listener(register_messagebus_listener)
 			service_client.messagebus.threaded_callbacks = False
 			service_client.messagebus.reconnect_wait_min = 15
 			service_client.messagebus.reconnect_wait_max = 30
 			service_client.connect()
 			service_client.connect_messagebus()
 			service_clients[name] = service_client
+		elif register_messagebus_listener:
+			service_clients[name].messagebus.register_messagebus_listener(register_messagebus_listener)
 		return service_clients[name]
 
 

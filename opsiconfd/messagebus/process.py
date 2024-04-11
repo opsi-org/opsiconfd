@@ -69,7 +69,6 @@ async def messagebus_process_instance_worker_configserver() -> None:
 
 
 async def messagebus_process_instance_worker_depotserver() -> None:
-	service_client = await run_in_threadpool(get_service_client, "messagebus process")
 	message_queue: Queue[ProcessDataWriteMessage | ProcessStartRequestMessage | ProcessStopRequestMessage] = Queue()
 
 	class ProcessMessageListener(MessagebusListener):
@@ -96,9 +95,8 @@ async def messagebus_process_instance_worker_depotserver() -> None:
 			except Exception as err:
 				logger.error(err, exc_info=True)
 
-	listener = ProcessMessageListener()
+	service_client = await run_in_threadpool(get_service_client, "messagebus process", ProcessMessageListener())
 
-	service_client.messagebus.register_messagebus_listener(listener)
 	while True:
 		try:
 			try:
@@ -146,7 +144,6 @@ async def messagebus_process_start_request_worker_configserver() -> None:
 
 
 async def messagebus_process_start_request_worker_depotserver() -> None:
-	service_client = await run_in_threadpool(get_service_client, "messagebus process")
 	message_queue: Queue[ProcessStartRequestMessage] = Queue()
 
 	class ProcessStartRequestMessageListener(MessagebusListener):
@@ -163,9 +160,8 @@ async def messagebus_process_start_request_worker_depotserver() -> None:
 			if isinstance(message, ProcessStartRequestMessage):
 				message_queue.put(message, block=True)
 
-	listener = ProcessStartRequestMessageListener()
+	service_client = await run_in_threadpool(get_service_client, "messagebus process", ProcessStartRequestMessageListener())
 
-	service_client.messagebus.register_messagebus_listener(listener)
 	while True:
 		try:
 			start_message: ProcessStartRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)

@@ -614,13 +614,16 @@ async def messagebus_jsonrpc_request_worker_depotserver() -> None:
 
 	class JSONRPCRequestMessageListener(MessagebusListener):
 		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
-			message = ChannelSubscriptionRequestMessage(
-				sender=CONNECTION_USER_CHANNEL,
-				channel="service:messagebus",
-				channels=[f"service:depot:{get_depotserver_id()}:jsonrpc"],
-				operation="set",
-			)
-			messagebus.send_message(message)
+			channel = f"service:depot:{get_depotserver_id()}:jsonrpc"
+			if channel not in messagebus._subscribed_channels:
+				message = ChannelSubscriptionRequestMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel="service:messagebus",
+					channels=[channel],
+					operation="add",
+				)
+				logger.info("Messagebus connection established, subscribing %s", message.channels)
+				messagebus.send_message(message)
 
 		def message_received(self, message: Message) -> None:
 			if isinstance(message, JSONRPCRequestMessage):

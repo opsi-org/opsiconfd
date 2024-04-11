@@ -96,13 +96,16 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 
 	class TerminalMessageListener(MessagebusListener):
 		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
-			subscription_message = ChannelSubscriptionRequestMessage(
-				sender=CONNECTION_USER_CHANNEL,
-				channel="service:messagebus",
-				channels=[f"{get_messagebus_worker_id()}:terminal"],
-				operation="set",
-			)
-			messagebus.send_message(subscription_message)
+			channel = f"{get_messagebus_worker_id()}:terminal"
+			if channel not in messagebus._subscribed_channels:
+				message = ChannelSubscriptionRequestMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel="service:messagebus",
+					channels=[channel],
+					operation="add",
+				)
+				logger.info("Messagebus connection established, subscribing %s", message.channels)
+				messagebus.send_message(message)
 
 		def message_received(self, message: Message) -> None:
 			try:
@@ -187,13 +190,16 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 
 	class TerminalOpenRequestMessageListener(MessagebusListener):
 		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
-			message = ChannelSubscriptionRequestMessage(
-				sender=CONNECTION_USER_CHANNEL,
-				channel="service:messagebus",
-				channels=[f"service:depot:{get_depotserver_id()}:terminal"],
-				operation="set",
-			)
-			messagebus.send_message(message)
+			channel = f"service:depot:{get_depotserver_id()}:terminal"
+			if channel not in messagebus._subscribed_channels:
+				message = ChannelSubscriptionRequestMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel="service:messagebus",
+					channels=[channel],
+					operation="add",
+				)
+				logger.info("Messagebus connection established, subscribing %s", message.channels)
+				messagebus.send_message(message)
 
 		def message_received(self, message: Message) -> None:
 			if isinstance(message, TerminalOpenRequestMessage):

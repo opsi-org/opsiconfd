@@ -82,6 +82,11 @@ def test_messagebus_process(test_client: OpsiconfdTestClient, channel: str) -> N
 				terminal_data_read = next(reader.get_messagbus_messages())
 				assert isinstance(terminal_data_read, TerminalDataReadMessage)
 				lines = terminal_data_read.data.decode("utf-8").split("\n")
+				if lines[0].strip() != "11 22":
+					reader.wait_for_message(count=1)
+					terminal_data_read = next(reader.get_messagbus_messages())
+					assert isinstance(terminal_data_read, TerminalDataReadMessage)
+					lines = terminal_data_read.data.decode("utf-8").split("\n")
 				assert lines[0].strip() == "11 22"
 
 				terminal_close_request = TerminalCloseRequestMessage(sender=user_id, channel=back_channel, terminal_id=terminal_id)

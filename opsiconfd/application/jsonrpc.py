@@ -245,7 +245,7 @@ async def store_deprecated_call(method_name: str, client: str) -> None:
 		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)  # type: ignore[attr-defined]
 		pipe.set(  # type: ignore[attr-defined]
 			f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call",
-			datetime.now(timezone=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+			datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
 			ex=expire_time,
 		)
 		await pipe.execute()  # type: ignore[attr-defined]

@@ -14,6 +14,7 @@ import grp
 import os
 import pwd
 import re
+from pathlib import Path
 from typing import Any
 
 from opsicommon.logging.constants import (
@@ -52,9 +53,9 @@ def check_run_as_user() -> CheckResult:
 			message=(f"Home directory of user '{config.run_as_user}' is {user.pw_dir}"),
 			details={"user": config.run_as_user, "home_directory": user.pw_dir},
 		)
-
-		if user.pw_dir != OPSICONFD_HOME:
+		if Path(user.pw_dir).resolve() != Path(OPSICONFD_HOME).resolve():
 			partial_result.check_status = CheckStatus.WARNING
+
 		result.add_partial_result(partial_result)
 
 		gids = os.getgrouplist(user.pw_name, user.pw_gid)

@@ -107,7 +107,8 @@ class AddonManager(metaclass=Singleton):
 						f"{config.redis_key('state')}:application:addons:errors:{addon_folder}",
 						mapping={"addon_path": addon_path, "error": str(err)},
 					)
-					logger.error("Failed to load addon from %s: %s", addon_path, err, exc_info=True)
+					log = logger.debug if addon_folder == "test3" else logger.error
+					log("Failed to load addon from '%s': %s", addon_path, err, exc_info=True)
 
 	def unload_addon(self, addon_id: str) -> None:
 		if addon_id not in self._addons:

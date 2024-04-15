@@ -26,7 +26,7 @@ from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
-from opsiconfd.backend import get_unprotected_backend, new_service_client
+from opsiconfd.backend import new_service_client
 from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
 from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.grafana import setup_grafana
@@ -40,6 +40,7 @@ from opsiconfd.setup.samba import setup_samba
 from opsiconfd.setup.sudo import setup_sudoers
 from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups, systemd_running
 from opsiconfd.ssl import fetch_server_cert, setup_ssl, store_local_server_cert, store_local_server_key
+from opsiconfd.utils.user import user_set_credentials
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -222,9 +223,10 @@ def setup(explicit: bool = True) -> None:
 		if not password:
 			logger.error("Can not use empty password!")
 			return
-		backend = get_unprotected_backend()
+		# backend = get_unprotected_backend()
 
-		backend.user_setCredentials(opsi_config.get("depot_user", "username"), password)
+		# backend.user_setCredentials(opsi_config.get("depot_user", "username"), password)
+		user_set_credentials(opsi_config.get("depot_user", "username"), password)
 		rich_print(f"Password for user {opsi_config.get('depot_user', 'username')} set.")
 		return
 

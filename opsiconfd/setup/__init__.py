@@ -223,9 +223,7 @@ def setup(explicit: bool = True) -> None:
 		if not password:
 			logger.error("Can not use empty password!")
 			return
-		# backend = get_unprotected_backend()
 
-		# backend.user_setCredentials(opsi_config.get("depot_user", "username"), password)
 		user_set_credentials(opsi_config.get("depot_user", "username"), password)
 		rich_print(f"Password for user {opsi_config.get('depot_user', 'username')} set.")
 		return

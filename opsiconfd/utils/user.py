@@ -8,6 +8,7 @@
 """
 utils user
 """
+import os
 import pwd
 import re
 from subprocess import run
@@ -15,11 +16,12 @@ from subprocess import run
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import secret_filter
 from opsicommon.server.rights import set_rights
+from opsicommon.types import forceHostId
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, is_local_user, lock_file
-from opsiconfd.utils.cryptography import blowfish_encrypt
+from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
 
 OPSI_PASSWD_FILE = None
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
@@ -171,3 +173,65 @@ def user_set_credentials(username: str, password: str) -> None:
 			logger.debug(out)
 		except Exception as err:
 			logger.debug("Setting password using smbpasswd failed: %s", err)
+
+
+def user_get_credentials(username: str | None = None, hostId: str | None = None) -> dict:
+	"""
+	Get the credentials of an opsi user.
+	The information is stored in ``/etc/opsi/passwd``.
+
+	:param hostId: Optional value that should be the calling host.
+	:return: Dict with the keys *password* and *rsaPrivateKey*.
+	If this is called with an valid hostId the data will be encrypted with the opsi host key.
+	:rtype: dict
+	"""
+
+	username = username or get_opsi_config().get("depot_user", "username")
+	if hostId:
+		hostId = forceHostId(hostId)
+
+	backend = get_unprotected_backend()
+
+	result = {"password": "", "rsaPrivateKey": ""}
+
+	if os.path.exists(get_passwd_file()):
+		with open(get_passwd_file(), "r", encoding="utf-8") as file:
+			with lock_file(file):
+				for line in file.readlines():
+					match = PASSWD_LINE_REGEX.search(line)
+					if match and match.group(1) == username:
+						result["password"] = match.group(2)
+						break
+
+	if not result["password"]:
+		raise BackendMissingDataError(f"Username '{username}' not found in '{get_passwd_file()}'")
+
+	depot = backend.host_getObjects(id=backend._depot_id)
+	if not depot:
+		raise BackendMissingDataError(f"Depot '{backend._depot_id}'' not found in backend")
+	depot = depot[0]
+	if not depot.opsiHostKey:
+		raise BackendMissingDataError(f"Host key for depot '{backend._depot_id}' not found")
+
+	result["password"] = blowfish_decrypt(depot.opsiHostKey, result["password"])
+
+	if username == get_opsi_config().get("depot_user", "username"):
+		try:
+			id_rsa = os.path.join(pwd.getpwnam(username)[5], ".ssh", "id_rsa")
+			with open(id_rsa, encoding="utf-8") as file:
+				result["rsaPrivateKey"] = file.read()
+		except Exception as err:
+			logger.debug(err)
+
+	if hostId:
+		host = backend.host_getObjects(id=hostId)
+		try:
+			host = host[0]
+		except IndexError as err:
+			raise BackendMissingDataError(f"Host '{hostId}' not found in backend") from err
+
+		result["password"] = blowfish_encrypt(host.opsiHostKey, result["password"])
+		if result["rsaPrivateKey"]:
+			result["rsaPrivateKey"] = blowfish_encrypt(host.opsiHostKey, result["rsaPrivateKey"])
+
+	return result

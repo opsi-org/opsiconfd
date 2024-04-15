@@ -10,22 +10,17 @@ opsiconfd.backend.rpc.user
 """
 from __future__ import annotations
 
-import os
-import pwd
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Protocol
 
 import pyotp
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.objects import User
-from opsicommon.types import forceHostId, forceList
+from opsicommon.types import forceList
 from qrcode import QRCode  # type: ignore[import]
 
-from opsiconfd.config import OPSI_PASSWD_FILE, get_configserver_id, opsi_config
-from opsiconfd.logging import logger
-from opsiconfd.utils import lock_file
-from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
-from opsiconfd.utils.user import PASSWD_LINE_REGEX, user_set_credentials
+from opsiconfd.config import get_configserver_id
+from opsiconfd.utils.user import user_get_credentials, user_set_credentials
 
 from . import rpc_method
 
@@ -165,53 +160,7 @@ class RPCUserMixin(Protocol):
 		If this is called with an valid hostId the data will be encrypted with the opsi host key.
 		:rtype: dict
 		"""
-		username = username or opsi_config.get("depot_user", "username")
-		if hostId:
-			hostId = forceHostId(hostId)
-
-		result = {"password": "", "rsaPrivateKey": ""}
-
-		if os.path.exists(OPSI_PASSWD_FILE):
-			with open(OPSI_PASSWD_FILE, "r", encoding="utf-8") as file:
-				with lock_file(file):
-					for line in file.readlines():
-						match = PASSWD_LINE_REGEX.search(line)
-						if match and match.group(1) == username:
-							result["password"] = match.group(2)
-							break
-
-		if not result["password"]:
-			raise BackendMissingDataError(f"Username '{username}' not found in '{OPSI_PASSWD_FILE}'")
-
-		depot = self.host_getObjects(id=self._depot_id)
-		if not depot:
-			raise BackendMissingDataError(f"Depot '{self._depot_id}'' not found in backend")
-		depot = depot[0]
-		if not depot.opsiHostKey:
-			raise BackendMissingDataError(f"Host key for depot '{self._depot_id}' not found")
-
-		result["password"] = blowfish_decrypt(depot.opsiHostKey, result["password"])
-
-		if username == opsi_config.get("depot_user", "username"):
-			try:
-				id_rsa = os.path.join(pwd.getpwnam(username)[5], ".ssh", "id_rsa")
-				with open(id_rsa, encoding="utf-8") as file:
-					result["rsaPrivateKey"] = file.read()
-			except Exception as err:
-				logger.debug(err)
-
-		if hostId:
-			host = self.host_getObjects(id=hostId)
-			try:
-				host = host[0]
-			except IndexError as err:
-				raise BackendMissingDataError(f"Host '{hostId}' not found in backend") from err
-
-			result["password"] = blowfish_encrypt(host.opsiHostKey, result["password"])
-			if result["rsaPrivateKey"]:
-				result["rsaPrivateKey"] = blowfish_encrypt(host.opsiHostKey, result["rsaPrivateKey"])
-
-		return result
+		return user_get_credentials(username, hostId)
 
 	@rpc_method
 	def user_setCredentials(self: BackendProtocol, username: str, password: str) -> None:

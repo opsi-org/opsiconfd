@@ -60,6 +60,7 @@ from opsiconfd.check.main import (
 	check_system_packages,
 	health_check,
 )
+from opsiconfd.check.mysql import check_unique_hardware_addresses
 from opsiconfd.check.opsipackages import get_available_product_versions
 from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, check_system_repos, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
@@ -287,6 +288,31 @@ def test_check_mysql_error() -> None:
 		result = check_mysql()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 		assert "is too small (should be at least 1000000000)" in captured_output
+
+
+def test_check_unique_hardware_addresses(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client = OpsiClient(id="test-check-client-1.opsi.test")
+	client.setDefaults()
+	client.hardwareAddress = "00:00:00:00:00:00"
+	client2 = OpsiClient(id="test-check-client-2.opsi.test")
+	client2.setDefaults()
+	client2.hardwareAddress = "00:00:00:00:00:00"
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client.to_hash(), client2.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	result = check_unique_hardware_addresses()
+	assert result.check_status == CheckStatus.ERROR
+
+	client2.hardwareAddress = "00:00:00:00:00:01"
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client2.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	result = check_unique_hardware_addresses()
+	assert result.check_status == CheckStatus.OK
 
 
 def test_get_repo_versions() -> None:

@@ -18,7 +18,7 @@ from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, ch
 from opsiconfd.check.const import CHECKS
 from opsiconfd.check.jsonrpc import check_deprecated_calls
 from opsiconfd.check.ldap import check_ldap_connection
-from opsiconfd.check.mysql import check_mysql
+from opsiconfd.check.mysql import check_mysql, check_unique_hardware_addresses
 from opsiconfd.check.opsilicense import check_opsi_licenses
 from opsiconfd.check.opsipackages import check_product_on_clients, check_product_on_depots
 from opsiconfd.check.redis import check_redis
@@ -46,6 +46,7 @@ __all__ = [
 	"check_product_on_depots",
 	"check_opsi_users",
 	"check_opsi_failed_addons",
+	"check_unique_hardware_addresses",
 	"CHECKS",
 ]
 

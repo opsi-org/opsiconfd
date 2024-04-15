@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.logging import logger
 
 
 def check_mysql() -> CheckResult:
@@ -60,4 +61,46 @@ def check_mysql() -> CheckResult:
 
 				if result.check_status != CheckStatus.OK:
 					result.message = "Some issues found with MySQL."
+	return result
+
+
+def check_unique_hardware_addresses() -> CheckResult:
+	"""
+	## Check Unique Hardware Addresses
+
+	Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
+	"""
+	result = CheckResult(
+		check_id="unique_hardware_addresses",
+		check_name="Unique hardware addresses",
+		check_description="Check if all hardware addresses are unique",
+		message="All hardware addresses are unique.",
+	)
+
+	mysql = MySQLConnection()
+	if not mysql.unique_hardware_addresses:
+		result.message = "Unique hardware addresses check is disabled."
+		return result
+	with mysql.connection():
+		with mysql.session() as session:
+			res = session.execute("SELECT COUNT(DISTINCT `hardwareAddress`) FROM `HOST`").fetchone()
+			unique_hardware_addresses = res[0]
+			res = session.execute("SELECT COUNT(*) FROM `HOST` WHERE `hardwareAddress` != ''").fetchone()
+			hosts_with_hardware_addresse = res[0]
+			res = session.execute("SELECT COUNT(*) FROM `HOST` WHERE `hardwareAddress` = '' or `hardwareAddress` is NULL").fetchone()
+			hosts_without_hardware_addresse = res[0]
+
+			logger.debug("unique_hardware_addresses: %s", unique_hardware_addresses)
+			logger.debug("hosts_with_hardware_addresse: %s", hosts_with_hardware_addresse)
+			logger.debug("hosts_without_hardware_addresse: %s", hosts_without_hardware_addresse)
+
+			if unique_hardware_addresses < hosts_with_hardware_addresse:
+				result.message = "Some hardware addresses are not unique."
+				result.check_status = CheckStatus.ERROR
+
+			result.details = {
+				"unique_hardware_addresses": unique_hardware_addresses,
+				"hosts_with_hardware_addresse": hosts_with_hardware_addresse,
+				"hosts_without_hardware_addresse": hosts_without_hardware_addresse,
+			}
 	return result

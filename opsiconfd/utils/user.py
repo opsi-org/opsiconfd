@@ -21,7 +21,7 @@ from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, is_local_user, lock_file
 from opsiconfd.utils.cryptography import blowfish_encrypt
 
-OPSI_PASSWD_FILE = ""
+OPSI_PASSWD_FILE = None
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 
 
@@ -29,7 +29,7 @@ def get_passwd_file() -> str:
 	global OPSI_PASSWD_FILE
 	if not OPSI_PASSWD_FILE:
 		from opsiconfd.config import OPSI_PASSWD_FILE  # type: ignore[assignment]
-	return OPSI_PASSWD_FILE
+	return OPSI_PASSWD_FILE  # type: ignore[return-value]
 
 
 def user_set_credentials(username: str, password: str) -> None:
@@ -55,7 +55,7 @@ def user_set_credentials(username: str, password: str) -> None:
 
 	encoded_password = blowfish_encrypt(depot.opsiHostKey, password)
 
-	with open(OPSI_PASSWD_FILE, "a+", encoding="utf-8") as file:
+	with open(get_passwd_file(), "a+", encoding="utf-8") as file:
 		with lock_file(file):
 			file.seek(0)
 			lines = []
@@ -75,7 +75,7 @@ def user_set_credentials(username: str, password: str) -> None:
 			file.truncate()
 			file.write("\n".join(lines) + "\n")
 
-	set_rights(OPSI_PASSWD_FILE)
+	set_rights(get_passwd_file())
 
 	if username != get_opsi_config().get("depot_user", "username"):
 		return

@@ -154,7 +154,7 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 	opsi_passwd_file = tmp_path / "passwd"
 	with (
 		patch("opsiconfd.backend.rpc.obj_user.OPSI_PASSWD_FILE", opsi_passwd_file),
-		patch("opsiconfd.backend.rpc.obj_user.is_local_user", lambda x: True),
+		patch("opsiconfd.utils.is_local_user", lambda x: True),
 		patch("opsiconfd.backend.rpc.obj_user.run", run),
 		patch("opsiconfd.backend.rpc.obj_user.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):

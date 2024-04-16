@@ -173,12 +173,18 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 				# Subscribe for 2 new session channels
 				other_channel1 = "session:11111111-1111-1111-1111-111111111111"
 				other_channel2 = "session:22222222-2222-2222-2222-222222222222"
+
 				message = ChannelSubscriptionRequestMessage(
 					sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[other_channel1, other_channel2], operation="add"
 				)
 				websocket.send_bytes(message.to_msgpack())
 
+				start = time()
 				reader.wait_for_message(count=1)
+				diff = time() - start
+				print(f"Channel subscription took {diff:0.3f} seconfds")
+				assert diff < 1
+
 				message = Message.from_msgpack(next(reader.get_raw_messages()))
 				assert isinstance(message, ChannelSubscriptionEventMessage)
 				assert len(message.subscribed_channels) == 4

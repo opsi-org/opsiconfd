@@ -44,10 +44,13 @@ from opsicommon.types import forceStringLower
 
 logger: OPSILogger | None = None
 config = None
+opsi_config = None
+
 if TYPE_CHECKING:
-	from config import Config  # type: ignore[import]
+	from config import Config, OpsiConfig  # type: ignore[import]
 
 	config: "Config" | None = None  # type: ignore[no-redef]
+	opsi_config: "OpsiConfig" | None = None  # type: ignore[no-redef]
 
 
 def get_logger() -> OPSILogger:
@@ -62,6 +65,13 @@ def get_config() -> Config:
 	if not config:
 		from opsiconfd.config import config  # type: ignore[assignment]
 	return config
+
+
+def get_opsi_config() -> OpsiConfig:
+	global opsi_config
+	if not opsi_config:
+		from opsiconfd.config import opsi_config  # type: ignore[assignment]
+	return opsi_config
 
 
 class Singleton(type):

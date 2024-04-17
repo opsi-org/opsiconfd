@@ -458,3 +458,22 @@ def setup_configs() -> None:
 			remove_configs.append({"id": config_id})
 	if remove_configs:
 		backend.config_deleteObjects(remove_configs)
+
+	if "opsi.check.enabled" not in config_ids:
+		logger.info("Creating config 'opsi.check.enabled'")
+		backend.config_createObjects([BoolConfig(id="opsi.check.enabled", description="Enable check", defaultValues=[True])])
+
+	if "opsi.check.downtime" not in config_ids:
+		logger.info("Creating config 'opsi.check.downtime'")
+		backend.config_createObjects(
+			[
+				UnicodeConfig(
+					id="opsi.check.downtime",
+					description="Check downtime",
+					possibleValues=["-1"],
+					defaultValues=[],
+					editable=True,
+					multiValue=False,
+				)
+			],
+		)

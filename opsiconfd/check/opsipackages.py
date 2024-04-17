@@ -45,6 +45,21 @@ def get_available_product_versions(product_ids: list[str]) -> dict:
 	return available_packages
 
 
+def get_enabled_hosts() -> list[str]:
+	backend = get_unprotected_backend()
+	check_enabled = backend.configState_getValues("opsi.check.enabled")
+	check_downtime = backend.configState_getValues("opsi.check.downtime")
+	downtime_hosts = []
+	for host in check_downtime:
+		if not check_downtime[host]["opsi.check.downtime"]:
+			continue
+		downtime = check_downtime[host]["opsi.check.downtime"][0]
+		if downtime == "-1" or datetime.fromisoformat(downtime) > datetime.now():
+			downtime_hosts.append(host)
+
+	return [host for host in check_enabled if check_enabled[host]["opsi.check.enabled"][0] and host not in downtime_hosts]
+
+
 def check_product_on_depots() -> CheckResult:
 	"""
 	## Products on depots
@@ -77,7 +92,11 @@ def check_product_on_depots() -> CheckResult:
 
 		depots = backend.host_getIdents(type="OpsiDepotserver")
 		packages_not_on_repo = []
+
+		enabled_hosts = get_enabled_hosts()
 		for depot_id in depots:
+			if depot_id not in enabled_hosts:
+				continue
 			for product_id, available_version in available_packages.items():
 				partial_result = PartialCheckResult(
 					check_id=f"product_on_depots:{depot_id}:{product_id}",
@@ -158,12 +177,13 @@ def check_product_on_clients() -> CheckResult:
 		result.message = "All important products are up to date on all clients."
 		backend = get_unprotected_backend()
 		now = datetime.now()
+
+		enabled_hosts = get_enabled_hosts()
 		client_ids = [
 			host.id
 			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
-			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 90
+			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 90 and host.id in enabled_hosts
 		]
-
 		if not client_ids:
 			return result
 

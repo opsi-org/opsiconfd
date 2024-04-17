@@ -446,7 +446,7 @@ class MySQLConnection:
 				if attributes and attr not in attributes:
 					continue
 
-				selected = not ace  # select if no ACEs given
+				selected = not ace  # Select if no ACEs given
 				self_selected = False
 				self_ace = None
 				for _ace in ace:
@@ -496,6 +496,18 @@ class MySQLConnection:
 				continue
 			if f_val is None:
 				continue
+
+			allowed = not ace  # Allowed if no ACEs given
+			for _ace in ace:
+				if _ace.type == "self":
+					continue
+				if _ace.allowed_attributes and f_attr not in _ace.allowed_attributes:
+					continue
+				if _ace.denied_attributes and f_attr in _ace.denied_attributes:
+					continue
+				allowed = True
+			if not allowed:
+				raise BackendPermissionDeniedError(f"No permission for attribute {f_attr}")
 
 			values = []
 			if isinstance(f_val, list):

@@ -140,12 +140,12 @@ def process_check_result(
 	console.print("")
 
 
-def return_code(summary: dict[CheckStatus, int]) -> int:
+def overall_check_status(summary: dict[CheckStatus, int]) -> CheckStatus:
 	if summary[CheckStatus.ERROR]:
-		return 2
+		return CheckStatus.ERROR
 	elif summary[CheckStatus.WARNING]:
-		return 1
-	return 0
+		return CheckStatus.WARNING
+	return CheckStatus.OK
 
 
 def console_health_check() -> int:
@@ -161,7 +161,7 @@ def console_health_check() -> int:
 		for check in health_check():
 			summary[check.check_status] += 1
 			print(check.to_checkmk())
-		return return_code(summary)
+		return overall_check_status(summary).return_code()
 
 	console = Console(log_time=False)
 
@@ -177,13 +177,9 @@ def console_health_check() -> int:
 			return 0
 		for result in health_check():
 			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary)
-	status = CheckStatus.OK
-	if summary[CheckStatus.ERROR]:
-		status = CheckStatus.ERROR
-	elif summary[CheckStatus.WARNING]:
-		status = CheckStatus.WARNING
 
+	status = overall_check_status(summary)
 	style = styles[status]
 	res = f"Check completed with {summary[CheckStatus.ERROR]} errors and {summary[CheckStatus.WARNING]} warnings."
 	console.print(f"[{style}]{status.upper()}[/{style}]: [b]{res}[/b]")
-	return return_code(summary)
+	return status.return_code()

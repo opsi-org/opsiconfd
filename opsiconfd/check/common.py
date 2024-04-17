@@ -15,7 +15,7 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Generator
+from typing import Any, Generator, Iterator
 
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.utils import compare_versions
@@ -30,7 +30,7 @@ class CheckStatus(StrEnum):
 	WARNING = "warning"
 	ERROR = "error"
 
-	def checkmk(self) -> int:
+	def return_code(self) -> int:
 		if self == CheckStatus.OK:
 			return 0
 		if self == CheckStatus.WARNING:
@@ -83,9 +83,7 @@ class CheckResult(PartialCheckResult):
 					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
 				)
 
-		return (
-			f"{self.check_status.checkmk()} 'opsi: {self.check_name}' - {message if message else self.check_status.value.upper()}{details}"
-		)
+		return f"{self.check_status.return_code()} 'opsi: {self.check_name}' - {message if message else self.check_status.value.upper()}{details}"
 
 
 @contextmanager
@@ -105,3 +103,16 @@ def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
 	except Exception as err:
 		result.check_status = CheckStatus.ERROR
 		result.message = str(err)
+
+
+def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
+	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
+	json_result: dict["str" | CheckStatus, Any] = {}
+	json_result["check_status"] = CheckStatus.OK
+	for result in results:
+		json_result[result.check_id] = result
+		if result.check_status.return_code() > json_result["check_status"].return_code():
+			json_result["check_status"] = result.check_status
+		summary[result.check_status] += 1
+	json_result["summary"] = summary  # type: ignore
+	return json_result

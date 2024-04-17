@@ -1035,11 +1035,13 @@ def test_check_console_health_check(capsys: CaptureFixture[str], format: str) ->
 		captured = capsys.readouterr()
 		if format == "json":
 			data = json.loads(captured.out)
-			assert isinstance(data, list)
+			assert isinstance(data, dict)
 			assert len(data) > 10
-			assert isinstance(data[0], dict)
-			assert data[0]["check_id"]
-			assert data[0]["check_description"]
+			assert data["check_status"]
+			assert data["summary"]
+			assert isinstance(data["system_repos"], dict)
+			assert data["system_repos"]["check_id"]
+			assert data["system_repos"]["check_description"]
 		elif format == "checkmk":
 			services = captured.out.split("\n")
 			assert len(services) > 10

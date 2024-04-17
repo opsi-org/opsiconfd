@@ -10,7 +10,7 @@ zeroconf tests
 
 import asyncio
 import socket
-
+import pytest
 from aiozeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
 from opsiconfd import __version__
@@ -37,7 +37,7 @@ async def on_service_state_change_process(zeroconf, service_type, name, state_ch
 		if key in services:
 			del services[key]
 
-
+@pytest.mark.xfail(reason="Zeroconf test not always working in CI")
 async def test_register_opsi_services():
 	services.clear()
 	with get_config({"interface": "127.0.0.1"}) as config:

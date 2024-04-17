@@ -37,6 +37,7 @@ async def on_service_state_change_process(zeroconf, service_type, name, state_ch
 		if key in services:
 			del services[key]
 
+
 @pytest.mark.xfail(reason="Zeroconf test not always working in CI")
 async def test_register_opsi_services():
 	services.clear()

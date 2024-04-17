@@ -43,6 +43,7 @@ from opsiconfd import __version__, contextvar_client_address, contextvar_client_
 from opsiconfd.application import AppState
 from opsiconfd.application.filetransfer import delete_file, prepare_file
 from opsiconfd.backup import create_backup, restore_backup
+from opsiconfd.check.common import get_json_result
 from opsiconfd.check.main import CheckResult, health_check
 from opsiconfd.config import (
 	FILE_TRANSFER_STORAGE_DIR,
@@ -161,9 +162,9 @@ class RPCGeneralMixin(Protocol):
 		return list(session.user_groups)
 
 	@rpc_method
-	def service_healthCheck(self: BackendProtocol) -> list[CheckResult]:
+	def service_healthCheck(self: BackendProtocol) -> dict[str, CheckResult]:
 		self._check_role("admin")
-		return list(health_check())
+		return get_json_result(health_check())
 
 	@rpc_method
 	def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:

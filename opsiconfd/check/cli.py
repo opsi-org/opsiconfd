@@ -19,7 +19,7 @@ from rich.markdown import Markdown
 from rich.padding import Padding
 
 from opsiconfd.check.backend import check_depotservers
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.jsonrpc import check_deprecated_calls
 from opsiconfd.check.ldap import check_ldap_connection
@@ -140,6 +140,14 @@ def process_check_result(
 	console.print("")
 
 
+def return_code(summary: dict[CheckStatus, int]) -> int:
+	if summary[CheckStatus.ERROR]:
+		return 2
+	elif summary[CheckStatus.WARNING]:
+		return 1
+	return 0
+
+
 def console_health_check() -> int:
 	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
 	check_version = None
@@ -151,13 +159,16 @@ def console_health_check() -> int:
 
 	if config.format == "checkmk":
 		for check in health_check():
+			summary[check.check_status] += 1
 			print(check.to_checkmk())
-		return 0
+		return return_code(summary)
 
 	console = Console(log_time=False)
+
 	if config.format == "json":
-		console.print_json(json.dumps(list(health_check()), cls=DataclassCapableJSONEncoder, indent=2))
-		return 0
+		json_result = get_json_result(health_check())
+		console.print_json(json.dumps(json_result, cls=DataclassCapableJSONEncoder, indent=2))
+		return json_result.get("check_status", CheckStatus.ERROR).return_code()  # type: ignore[union-attr]
 
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
@@ -167,15 +178,12 @@ def console_health_check() -> int:
 		for result in health_check():
 			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary)
 	status = CheckStatus.OK
-	return_code = 0
 	if summary[CheckStatus.ERROR]:
 		status = CheckStatus.ERROR
-		return_code = 1
 	elif summary[CheckStatus.WARNING]:
 		status = CheckStatus.WARNING
-		return_code = 2
 
 	style = styles[status]
 	res = f"Check completed with {summary[CheckStatus.ERROR]} errors and {summary[CheckStatus.WARNING]} warnings."
 	console.print(f"[{style}]{status.upper()}[/{style}]: [b]{res}[/b]")
-	return return_code
+	return return_code(summary)

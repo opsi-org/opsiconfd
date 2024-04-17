@@ -94,8 +94,6 @@ def check_product_on_depots() -> CheckResult:
 		packages_not_on_repo = []
 
 		enabled_hosts = get_enabled_hosts()
-		print(enabled_hosts)
-		logger.devel("Enabled hosts: %s", enabled_hosts)
 		for depot_id in depots:
 			if depot_id not in enabled_hosts:
 				continue

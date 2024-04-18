@@ -67,7 +67,8 @@ def get_server_cn() -> str:
 
 
 def get_hostnames() -> set[str]:
-	names = {"localhost"}
+	names = set(config.alias_names)
+	names.add("localhost")
 	names.add(FQDN)
 	names.add(get_server_cn())
 	for addr in get_ips():

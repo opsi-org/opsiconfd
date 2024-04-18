@@ -958,6 +958,13 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--alias-names",
+			nargs="+",
+			env_var="OPSICONFD_ALIAS_NAMES",
+			default=[],
+			help=self._help("opsiconfd", "Alternative names for the opsi server."),
+		)
+		self._parser.add(
 			"--update-ip",
 			env_var="OPSICONFD_UPDATE_IP",
 			type=str2bool,

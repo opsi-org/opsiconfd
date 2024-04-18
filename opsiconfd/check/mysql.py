@@ -83,24 +83,15 @@ def check_unique_hardware_addresses() -> CheckResult:
 		return result
 	with mysql.connection():
 		with mysql.session() as session:
-			res = session.execute("SELECT COUNT(DISTINCT `hardwareAddress`) FROM `HOST`").fetchone()
-			unique_hardware_addresses = res[0]
-			res = session.execute("SELECT COUNT(*) FROM `HOST` WHERE `hardwareAddress` != ''").fetchone()
-			hosts_with_hardware_addresse = res[0]
-			res = session.execute("SELECT COUNT(*) FROM `HOST` WHERE `hardwareAddress` = '' or `hardwareAddress` is NULL").fetchone()
-			hosts_without_hardware_addresse = res[0]
+			res = session.execute(
+				'SELECT COUNT(h.hardwareAddress) - COUNT(DISTINCT h.hardwareAddress) AS duplicate_values FROM HOST AS h WHERE h.hardwareaddress != "" AND h.hardwareAddress IS NOT NULL;'
+			).fetchone()
+			duplicate_values = res[0]
 
-			logger.debug("unique_hardware_addresses: %s", unique_hardware_addresses)
-			logger.debug("hosts_with_hardware_addresse: %s", hosts_with_hardware_addresse)
-			logger.debug("hosts_without_hardware_addresse: %s", hosts_without_hardware_addresse)
-
-			if unique_hardware_addresses < hosts_with_hardware_addresse:
+			logger.debug("duplicate_values: %s", duplicate_values)
+			if duplicate_values > 0:
 				result.message = "Some hardware addresses are not unique."
 				result.check_status = CheckStatus.ERROR
 
-			result.details = {
-				"unique_hardware_addresses": unique_hardware_addresses,
-				"hosts_with_hardware_addresse": hosts_with_hardware_addresse,
-				"hosts_without_hardware_addresse": hosts_without_hardware_addresse,
-			}
+			result.details = {"duplicate_values": duplicate_values}
 	return result

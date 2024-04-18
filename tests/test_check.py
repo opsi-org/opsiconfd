@@ -1063,18 +1063,6 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	enabled_hosts = get_enabled_hosts()
 	assert hosts == enabled_hosts
 
-	# set infinite downtime for client 1 and check if it is disabled
-	downtime = ConfigState(configId="opsi.check.downtime", objectId=client.id, values=["-1"])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
-
-	enabled_hosts = get_enabled_hosts()
-	assert len(hosts) > len(enabled_hosts)
-
 	# set downtime for client 1 for tomorrow and check if it is disabled
 	tomorrow = datetime.now() + timedelta(days=1)
 	downtime = ConfigState(configId="opsi.check.downtime", objectId=client.id, values=[tomorrow.isoformat()])

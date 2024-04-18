@@ -470,8 +470,8 @@ def setup_configs() -> None:
 				UnicodeConfig(
 					id="opsi.check.downtime",
 					description="Check downtime",
-					possibleValues=["-1"],
-					defaultValues=[],
+					possibleValues=["2024-01-01T00:00:00"],
+					defaultValues=[""],
 					editable=True,
 					multiValue=False,
 				)

@@ -47,17 +47,15 @@ def get_available_product_versions(product_ids: list[str]) -> dict:
 
 def get_enabled_hosts() -> list[str]:
 	backend = get_unprotected_backend()
-	check_enabled = backend.configState_getValues("opsi.check.enabled")
-	check_downtime = backend.configState_getValues("opsi.check.downtime")
+	config_states = backend.configState_getValues(["opsi.check.enabled", "opsi.check.downtime"])
 	downtime_hosts = []
-	for host in check_downtime:
-		if not check_downtime[host].get("opsi.check.downtime"):
+	for host in config_states:
+		if not config_states[host].get("opsi.check.downtime"):
 			continue
-		downtime = check_downtime[host].get("opsi.check.downtime")[0]
-		if downtime == "-1" or datetime.fromisoformat(downtime) > datetime.now():
+		downtime = config_states[host].get("opsi.check.downtime")[0]
+		if datetime.fromisoformat(downtime) > datetime.now():
 			downtime_hosts.append(host)
-
-	return [host for host in check_enabled if check_enabled[host].get("opsi.check.enabled", [True])[0] and host not in downtime_hosts]
+	return [host for host in config_states if config_states[host].get("opsi.check.enabled", [True])[0] and host not in downtime_hosts]
 
 
 def check_product_on_depots() -> CheckResult:

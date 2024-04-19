@@ -463,14 +463,29 @@ def setup_configs() -> None:
 		logger.info("Creating config 'opsi.check.enabled'")
 		backend.config_createObjects([BoolConfig(id="opsi.check.enabled", description="Enable check", defaultValues=[True])])
 
-	if "opsi.check.downtime" not in config_ids:
+	if "opsi.check.downtime.start" not in config_ids:
 		logger.info("Creating config 'opsi.check.downtime'")
 		backend.config_createObjects(
 			[
 				UnicodeConfig(
-					id="opsi.check.downtime",
-					description="Check downtime",
-					possibleValues=["2024-01-01T00:00:00"],
+					id="opsi.check.downtime.start",
+					description="Check downtime start",
+					possibleValues=["2024-01-01 00:00:00"],
+					defaultValues=[""],
+					editable=True,
+					multiValue=False,
+				)
+			],
+		)
+
+	if "opsi.check.downtime.end" not in config_ids:
+		logger.info("Creating config 'opsi.check.downtime'")
+		backend.config_createObjects(
+			[
+				UnicodeConfig(
+					id="opsi.check.downtime.end",
+					description="Check downtime end",
+					possibleValues=["2024-01-01 00:00:00"],
 					defaultValues=[""],
 					editable=True,
 					multiValue=False,

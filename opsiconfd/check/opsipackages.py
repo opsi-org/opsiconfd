@@ -11,7 +11,7 @@ health check
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 from opsicommon.package.repo_meta import RepoMetaPackageCollection
@@ -47,13 +47,23 @@ def get_available_product_versions(product_ids: list[str]) -> dict:
 
 def get_enabled_hosts() -> list[str]:
 	backend = get_unprotected_backend()
-	config_states = backend.configState_getValues(["opsi.check.enabled", "opsi.check.downtime"])
+	config_states = backend.configState_getValues(["opsi.check.enabled", "opsi.check.downtime.start", "opsi.check.downtime.end"])
 	downtime_hosts = []
+	now = datetime.now().astimezone()
+	server_timezone = now.tzinfo
 	for host in config_states:
-		if not config_states[host].get("opsi.check.downtime"):
+		if not config_states[host].get("opsi.check.downtime.end"):
 			continue
-		downtime = config_states[host].get("opsi.check.downtime")[0]
-		if datetime.fromisoformat(downtime) > datetime.now():
+		if config_states[host].get("opsi.check.downtime.start"):
+			downtime_start = datetime.fromisoformat(config_states[host].get("opsi.check.downtime.start")[0])
+		else:
+			downtime_start = datetime(year=2024, month=1, day=1, tzinfo=timezone.utc)
+		downtime_end = datetime.fromisoformat(config_states[host].get("opsi.check.downtime.end")[0])
+		if downtime_start.tzinfo is None:
+			downtime_start = downtime_start.replace(tzinfo=server_timezone)
+		if downtime_end.tzinfo is None:
+			downtime_end = downtime_end.replace(tzinfo=server_timezone)
+		if downtime_start < now and downtime_end > now:
 			downtime_hosts.append(host)
 	return [host for host in config_states if config_states[host].get("opsi.check.enabled", [True])[0] and host not in downtime_hosts]
 
@@ -177,6 +187,7 @@ def check_product_on_clients() -> CheckResult:
 		now = datetime.now()
 
 		enabled_hosts = get_enabled_hosts()
+		logger.debug("Enabled hosts: %s", enabled_hosts)
 		client_ids = [
 			host.id
 			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")

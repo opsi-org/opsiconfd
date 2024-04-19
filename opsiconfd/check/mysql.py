@@ -94,12 +94,19 @@ def check_unique_hardware_addresses() -> CheckResult:
 					HOST AS h
 				"""
 			).fetchone()
-			distinct_values = res[0]
-			empty_values = res[1]
-			non_empty_values = res[2]
-			total_values = res[3]
+			distinct_values = int(res[0])
+			empty_values = int(res[1])
+			non_empty_values = int(res[2])
+			total_values = int(res[3])
 
 			logger.debug(
+				"Unique hardware addresses: distinct_values=%d empty_values=%d non_empty_values=%d total_values=%d",
+				distinct_values,
+				empty_values,
+				non_empty_values,
+				total_values,
+			)
+			logger.devel(
 				"Unique hardware addresses: distinct_values=%d empty_values=%d non_empty_values=%d total_values=%d",
 				distinct_values,
 				empty_values,
@@ -116,4 +123,5 @@ def check_unique_hardware_addresses() -> CheckResult:
 				"non_empty_values": non_empty_values,
 				"total_values": total_values,
 			}
+			logger.devel(result)
 	return result

@@ -84,14 +84,36 @@ def check_unique_hardware_addresses() -> CheckResult:
 	with mysql.connection():
 		with mysql.session() as session:
 			res = session.execute(
-				'SELECT COUNT(h.hardwareAddress) - COUNT(DISTINCT h.hardwareAddress) AS duplicate_values FROM HOST AS h WHERE h.hardwareaddress != "" AND h.hardwareAddress IS NOT NULL;'
+				"""
+				SELECT
+					COUNT(DISTINCT IF(h.hardwareAddress = "", NULL, h.hardwareAddress)),
+					SUM(IF(IFNULL(h.hardwareAddress, "") = "", 1, 0)),
+					SUM(IF(IFNULL(h.hardwareAddress, "") = "", 0, 1)),
+					COUNT(*)
+				FROM
+					HOST AS h
+				"""
 			).fetchone()
-			duplicate_values = res[0]
+			distinct_values = res[0]
+			empty_values = res[1]
+			non_empty_values = res[2]
+			total_values = res[3]
 
-			logger.debug("duplicate_values: %s", duplicate_values)
-			if duplicate_values > 0:
+			logger.debug(
+				"Unique hardware addresses: distinct_values=%d empty_values=%d non_empty_values=%d total_values=%d",
+				distinct_values,
+				empty_values,
+				non_empty_values,
+				total_values,
+			)
+			if non_empty_values != distinct_values:
 				result.message = "Some hardware addresses are not unique."
 				result.check_status = CheckStatus.ERROR
 
-			result.details = {"duplicate_values": duplicate_values}
+			result.details = {
+				"distinct_values": distinct_values,
+				"empty_values": empty_values,
+				"non_empty_values": non_empty_values,
+				"total_values": total_values,
+			}
 	return result

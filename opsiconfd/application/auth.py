@@ -22,11 +22,11 @@ from opsiconfd.logging import get_logger
 from opsiconfd.rest import RESTResponse, rest_api
 from opsiconfd.session import (
 	OPSISession,
-	_post_authenticate,
 	_post_failed_authenticate,
-	_post_user_authenticate,
-	_pre_authenticate,
 	authenticate,
+	post_authenticate,
+	post_user_authenticate,
+	pre_authenticate,
 )
 
 logger = get_logger()
@@ -88,7 +88,7 @@ async def saml_logout(request: Request) -> RedirectResponse:
 @auth_router.post("/saml/login_callback")
 async def saml_login_callback(request: Request) -> Response:
 	# TODO: https://github.com/SAML-Toolkits/python3-saml#avoiding-replay-attacks
-	await _pre_authenticate(request.scope)
+	await pre_authenticate(request.scope)
 	session: OPSISession = request.scope["session"]
 
 	request_data = await saml_auth_request_data(request)
@@ -108,8 +108,8 @@ async def saml_login_callback(request: Request) -> Response:
 			session.is_admin = is_admin
 			session.authenticated = True
 
-			await _post_user_authenticate(request.scope)
-			await _post_authenticate(request.scope)
+			await post_user_authenticate(request.scope)
+			await post_authenticate(request.scope)
 			return await admin_interface_index(request)
 
 		logger.info("Not an admin user '%s'", auth.get_nameid())

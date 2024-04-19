@@ -78,18 +78,18 @@ def test_login_error(
 	expected_status_code: int,
 	expected_text: str,
 ) -> None:
-	res = test_client.get("/session/authenticated", auth=auth_data)
+	res = test_client.get("/auth/authenticated", auth=auth_data)
 	assert res.status_code == expected_status_code
 	assert res.text == expected_text
 	assert res.headers.get("set-cookie", None) is not None
 
 
 def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	res = test_client.get("/session/authenticated")
+	res = test_client.get("/auth/authenticated")
 	assert res.status_code == 401
 	assert res.headers.get("www-authenticate", None) is not None
 
-	res = test_client.get("/session/authenticated", headers={"X-Requested-With": "XMLHttpRequest"})
+	res = test_client.get("/auth/authenticated", headers={"X-Requested-With": "XMLHttpRequest"})
 	assert res.status_code == 401
 	assert res.headers.get("www-authenticate", None) is None
 
@@ -100,22 +100,23 @@ def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert str(res.url).rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
 
 
-def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": "invalid"})
+@pytest.mark.parametrize("base_path", ("/auth", "/session"))  # /session is deprecated
+def test_login_endpoint(test_client: OpsiconfdTestClient, base_path: str) -> None:  # noqa: F811
+	res = test_client.post(f"{base_path}/login", json={"username": ADMIN_USER, "password": "invalid"})
 	assert res.status_code == 401
 	assert "Authentication failed for user" in res.json()["message"]
 
-	res = test_client.get("/session/authenticated")
+	res = test_client.get(f"{base_path}/authenticated")
 	assert res.status_code == 401
 
 	res = test_client.get("/admin", follow_redirects=False)
 	assert res.status_code == 307
 
-	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+	res = test_client.post(f"{base_path}/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 	assert res.json()["session_id"]
 	assert res.status_code == 200
 
-	res = test_client.get("/session/authenticated")
+	res = test_client.get(f"{base_path}/authenticated")
 	assert res.status_code == 200
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "user_getObjects", "params": [[], {"id": ADMIN_USER}]}
@@ -135,14 +136,14 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 	client_addr = "192.168.1.1"
 	test_client.set_client_address(client_addr, 12345)
 
-	res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
+	res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 
 	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
 	assert len(keys) == 1
 	assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
-	res = test_client.get("/session/logout")
+	res = test_client.get("/auth/logout")
 	assert res.status_code == 200
 	assert "opsiconfd-session" in res.headers["set-cookie"]
 	assert "Max-Age=0" in res.headers["set-cookie"]
@@ -152,7 +153,7 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 
 def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with get_config({"multi_factor_auth": "totp_mandatory"}):
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 401
 		# Mandatory but no secret
 		assert "MFA OTP configuration error" in res.json()["message"]
@@ -160,7 +161,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with get_config({"multi_factor_auth": "totp_optional"}):
 		test_client.reset_cookies()
 
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 200
 
 		rpc = {
@@ -176,16 +177,16 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		assert resp["result"]
 		totp = pyotp.parse_uri(resp["result"])
 
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 401
 		assert "MFA one-time password missing" in res.json()["message"]
 
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": "123456"})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": "123456"})
 		assert res.status_code == 401
 		assert "Incorrect one-time password" in res.json()["message"]
 
 		res = test_client.post(
-			"/session/login",
+			"/auth/login",
 			json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()},  # type: ignore[attr-defined]
 		)
 		assert res.status_code == 200
@@ -196,13 +197,13 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with get_config({"multi_factor_auth": "inactive"}):
 		test_client.reset_cookies()
 
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 200
 
 	with get_config({"multi_factor_auth": "totp_optional"}):
 		test_client.reset_cookies()
 
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 401
 		# test session session.authenticated is still false
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
@@ -211,7 +212,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with get_config({"multi_factor_auth": "inactive"}):
 		test_client.reset_cookies()
 
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 200
 
 		rpc = {
@@ -228,7 +229,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with get_config({"multi_factor_auth": "totp_optional"}):
 		test_client.reset_cookies()
 
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 200
 
 
@@ -248,10 +249,10 @@ def test_change_session_ip(
 
 	client_addr = "192.168.2.2"
 	test_client.set_client_address(client_addr, 12345)
-	res = test_client.get("/session/authenticated")
+	res = test_client.get("/auth/authenticated")
 	assert res.status_code == 401
 
-	res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
+	res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 
 	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
@@ -279,7 +280,7 @@ def test_update_client_object(
 	client_addr = "192.168.2.2"
 	with get_config({"update-ip": True}):
 		test_client.set_client_address(client_addr, 12345)
-		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
+		res = test_client.post("/auth/login", json={"username": host_id, "password": host_key})
 		assert res.status_code == 200
 
 		with database_connection.session() as session:
@@ -289,7 +290,7 @@ def test_update_client_object(
 		assert ip_address == client_addr
 
 		test_client.set_client_address("127.0.0.1", 12345)
-		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
+		res = test_client.post("/auth/login", json={"username": host_id, "password": host_key})
 		assert res.status_code == 200
 
 		with database_connection.session() as session:
@@ -298,7 +299,7 @@ def test_update_client_object(
 
 	with get_config({"update-ip": False}):
 		test_client.set_client_address("4.3.2.1", 12345)
-		res = test_client.post("/session/login", json={"username": host_id, "password": host_key})
+		res = test_client.post("/auth/login", json={"username": host_id, "password": host_key})
 		assert res.status_code == 200
 
 		with database_connection.session() as session:
@@ -400,11 +401,11 @@ def test_max_sessions_not_for_depot(
 	"url, method",
 	(
 		(
-			"/session/authenticated",
+			"/auth/authenticated",
 			"get",
 		),
 		(
-			"/session/login",
+			"/auth/login",
 			"post",
 		),
 	),
@@ -445,7 +446,7 @@ def test_max_auth_failures(
 					assert res.status_code == status.HTTP_401_UNAUTHORIZED
 					assert res.text == "Authentication error"
 			else:
-				res = test_client.post("/session/login", json={"username": "adminuser", "password": "false"})
+				res = test_client.post("/auth/login", json={"username": "adminuser", "password": "false"})
 				assert res.status_code == status.HTTP_401_UNAUTHORIZED
 				body = res.json()
 				if num > max_auth_failures + 1:
@@ -493,14 +494,14 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	# Keep session alive
 	for _ in range(lifetime + 3):
 		time.sleep(1)
-		res = test_client.get("/session/authenticated")
+		res = test_client.get("/auth/authenticated")
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]
 		assert session_id == cookie.value
 
 	# Let session expire
 	time.sleep(lifetime + 1)
-	res = test_client.get("/session/authenticated")
+	res = test_client.get("/auth/authenticated")
 	assert res.status_code == 401
 
 
@@ -679,11 +680,11 @@ def test_auth_only_hostkey(
 
 test_urls = (
 	(
-		"/session/authenticated",
+		"/auth/authenticated",
 		"get",
 	),
 	(
-		"/session/login",
+		"/auth/login",
 		"post",
 	),
 )
@@ -757,7 +758,7 @@ def test_client_certificate(
 					assert client.jsonrpc("accessControl_authenticated")
 					# Delete session and connect messagebus without valid cookie
 					# so that the client has to authenticate again with the client certificate
-					client.get("/session/logout")
+					client.get("/auth/logout")
 					client.messagebus.connect()
 					assert client.messagebus.jsonrpc("accessControl_authenticated")
 	finally:

@@ -24,7 +24,7 @@ def get_saml_settings() -> dict[str, Any]:
 	if not config.saml_idp_x509_cert:
 		raise ValueError("saml-idp-x509-cert not set in config")
 
-	settings = {
+	settings: dict[str, Any] = {
 		"strict": False,
 		"debug": True,
 		"security": {"allowRepeatAttributeName": True},
@@ -59,7 +59,9 @@ def get_saml_settings() -> dict[str, Any]:
 
 
 async def saml_auth_request_data(request: Request) -> dict[str, Any]:
-	params = {
+	assert request.client
+	assert request.url
+	params: dict[str, Any] = {
 		"http_host": request.client.host,
 		"server_port": request.url.port,
 		"script_name": request.url.path,

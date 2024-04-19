@@ -1320,7 +1320,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 			session.is_read_only,
 		)
 
-		await _post_user_authenticate()
+		await _post_user_authenticate(scope)
 
 	await _post_authenticate(scope)
 

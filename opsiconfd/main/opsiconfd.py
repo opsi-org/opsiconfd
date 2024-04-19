@@ -23,7 +23,15 @@ import uvloop
 from opsicommon.utils import patch_popen
 
 from opsiconfd import __version__
-from opsiconfd.config import GC_THRESHOLDS, REDIS_CONECTION_TIMEOUT, config, opsi_config, configure_warnings, get_depotserver_id, get_server_role
+from opsiconfd.config import (
+	GC_THRESHOLDS,
+	REDIS_CONECTION_TIMEOUT,
+	config,
+	opsi_config,
+	configure_warnings,
+	get_depotserver_id,
+	get_server_role,
+)
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.manager import Manager
 from opsiconfd.patch import apply_patches

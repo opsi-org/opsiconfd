@@ -11,7 +11,7 @@ session
 
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.responses import PlainTextResponse, RedirectResponse
-from onelogin.saml2.auth import OneLogin_Saml2_Auth
+from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import]
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
@@ -104,7 +104,7 @@ async def saml_login_callback(request: Request) -> Response:
 		is_admin = (opsi_config.get("groups", "admingroup") or "").lower() in roles
 		if auth.get_nameid() and is_admin:
 			session.username = auth.get_nameid()
-			session.user_groups = roles
+			session.user_groups = set(roles)
 			session.is_admin = is_admin
 			session.authenticated = True
 

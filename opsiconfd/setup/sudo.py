@@ -48,7 +48,6 @@ def setup_sudoers() -> None:
 		logger.error("Invalid file admin group '%s'. Skip setup sudoers.", file_admin_group)
 		return
 
-
 	add_lines = [
 		START_COMMENT,
 		f"Defaults:{user} !requiretty",

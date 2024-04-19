@@ -663,6 +663,8 @@ class OPSISession:
 
 	@user_groups.setter
 	def user_groups(self, value: set[str]) -> None:
+		if not isinstance(value, set):
+			value = set(value)
 		if self._user_groups == value:
 			return
 		self._user_groups = value
@@ -1189,31 +1191,67 @@ async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
 	return authm
 
 
+async def _post_failed_authenticate(scope: Scope) -> None:
+	cmd = (
+		f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
+		f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
+	)
+	logger.trace(cmd)
+	redis = await async_redis_client()
+	await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
+
+
 async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
 	try:
 		await _authenticate(scope, username, password, mfa_otp)
 	except BackendAuthenticationError:
-		cmd = (
-			f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
-			f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
-		)
-		logger.trace(cmd)
-		redis = await async_redis_client()
-		await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
+		await _post_failed_authenticate(scope)
 		await asyncio.sleep(0.2)
 		raise
 
 
-async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
+async def _pre_authenticate(scope: Scope) -> None:
 	if not scope["session"]:
 		addr = scope["client"]
 		scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=scope["request_headers"])
-	session = scope["session"]
-	session.authenticated = False
+	scope["session"].authenticated = False
 
-	await check_min_configed_version(session.user_agent)
+	await check_min_configed_version(scope["session"].user_agent)
 	# Check if client address is blocked
-	await check_blocked(session.client_addr)
+	await check_blocked(scope["session"].client_addr)
+
+
+async def _post_user_authenticate(scope: Scope) -> None:
+	session: OPSISession = scope["session"]
+	backend = get_unprotected_backend()
+	if users := await backend.async_call("user_getObjects", id=session.username):
+		user = users[0]
+	else:
+		user = User(id=session.username, created=timestamp())
+	user.lastLogin = timestamp()
+	await backend.async_call("user_updateObject", user=user)
+
+	if session.is_admin:
+		create_user_roles(session.username, session.user_groups)
+
+
+async def _post_authenticate(scope: Scope) -> None:
+	session: OPSISession = scope["session"]
+
+	await session.store(wait=True)
+
+	if not session.username or not session.authenticated:
+		raise BackendPermissionDeniedError("Not authenticated")
+
+	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.username)
+
+	await check_admin_networks(session)
+
+
+async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
+	await _pre_authenticate(scope)
+
+	session: OPSISession = scope["session"]
 
 	username = session.username = (username or "").lower()
 	password = session.password = password or ""
@@ -1252,18 +1290,16 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		# Authentication did not throw exception => authentication successful
 
 		backend = get_unprotected_backend()
-		if users := await backend.async_call("user_getObjects", id=session.username):
-			user = users[0]
-		else:
-			user = User(id=session.username, created=timestamp())
-			await backend.async_call("user_insertObject", user=user)
+		users = await backend.async_call("user_getObjects", id=session.username)
 
-		if config.multi_factor_auth == "totp_mandatory" or (config.multi_factor_auth == "totp_optional" and user.mfaState == "totp_active"):
-			if not user.otpSecret:
+		if config.multi_factor_auth == "totp_mandatory" or (
+			config.multi_factor_auth == "totp_optional" and users and users[0].mfaState == "totp_active"
+		):
+			if not users or not users[0].otpSecret:
 				raise BackendAuthenticationError("MFA OTP configuration error")
 			if not mfa_otp:
 				raise BackendAuthenticationError("MFA one-time password missing")
-			totp = pyotp.TOTP(user.otpSecret)
+			totp = pyotp.TOTP(users[0].otpSecret)
 			if not totp.verify(mfa_otp):
 				raise BackendAuthenticationError("Incorrect one-time password")
 			session.add_auth_methods(AuthenticationMethod.TOTP)
@@ -1284,20 +1320,9 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 			session.is_read_only,
 		)
 
-		user.lastLogin = timestamp()
-		await backend.async_call("user_updateObject", user=user)
+		await _post_user_authenticate()
 
-		if session.is_admin:
-			create_user_roles(session.username, session.user_groups)
-
-	await session.store(wait=True)
-
-	if not session.username or not session.authenticated:
-		raise BackendPermissionDeniedError("Not authenticated")
-
-	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.username)
-
-	await check_admin_networks(session)
+	await _post_authenticate(scope)
 
 
 async def check_admin_networks(session: OPSISession) -> None:

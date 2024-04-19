@@ -74,6 +74,7 @@ six = "^1.16"
 starlette = "^0.37"
 annotated-types = "^0.6"
 pydantic-core = "^2.18"
+python3-saml = "^1.16.0"
 
 [tool.ruff.format]
 indent-style = "tab"

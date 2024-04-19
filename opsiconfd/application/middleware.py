@@ -36,6 +36,7 @@ PATH_MAPPINGS = {
 	"/workbench": "/workbench/",
 	"/session/login": "/auth/login",
 	"/session/logout": "/auth/logout",
+	"/session/authenticated": "/auth/authenticated",
 }
 
 

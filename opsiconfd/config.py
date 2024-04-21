@@ -421,6 +421,8 @@ class Config(metaclass=Singleton):
 				self._config.skip_setup.append("opsi_ca")
 			if "server_cert" not in self._config.skip_setup:
 				self._config.skip_setup.append("server_cert")
+		if not self._config.ssl_server_cert_sans:
+			self._config.ssl_server_cert_sans = []
 		if not self._config.client_cert_auth:
 			self._config.client_cert_auth = []
 		if not self._config.disabled_features:
@@ -941,6 +943,13 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--ssl-server-cert-sans",
+			nargs="+",
+			env_var="OPSICONFD_SSL_SERVER_CERT_SANS",
+			default=[],
+			help=self._help("opsiconfd", "Subject alternative names for the opsi server certificate."),
+		)
+		self._parser.add(
 			"--ssl-client-cert-valid-days",
 			env_var="OPSICONFD_SSL_CLIENT_CERT_VALID_DAYS",
 			type=int,
@@ -956,13 +965,6 @@ class Config(metaclass=Singleton):
 				"expert",
 				"The interval in seconds at which the server certificate is checked for validity.",
 			),
-		)
-		self._parser.add(
-			"--alias-names",
-			nargs="+",
-			env_var="OPSICONFD_ALIAS_NAMES",
-			default=[],
-			help=self._help("opsiconfd", "Alternative names for the opsi server."),
 		)
 		self._parser.add(
 			"--update-ip",

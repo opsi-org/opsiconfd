@@ -59,6 +59,11 @@ def get_ips() -> set[str]:
 				ips.add(ip_address(addr["address"]).compressed)
 			except ValueError as err:
 				logger.warning(err)
+	for san in config.ssl_server_cert_sans:
+		try:
+			ips.add(ip_address(san).compressed)
+		except ValueError:
+			pass
 	return ips
 
 
@@ -67,10 +72,7 @@ def get_server_cn() -> str:
 
 
 def get_hostnames() -> set[str]:
-	names = set(config.alias_names)
-	names.add("localhost")
-	names.add(FQDN)
-	names.add(get_server_cn())
+	names = {"localhost", FQDN, get_server_cn()}
 	for addr in get_ips():
 		try:
 			(hostname, aliases, _addr) = gethostbyaddr(addr)
@@ -79,6 +81,11 @@ def get_hostnames() -> set[str]:
 				names.add(alias)
 		except socket.error as err:
 			logger.info("No hostname for %s: %s", addr, err)
+	for san in config.ssl_server_cert_sans:
+		try:
+			ip_address(san)
+		except ValueError:
+			names.add(san)
 	return names
 
 

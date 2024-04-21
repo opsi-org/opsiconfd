@@ -817,7 +817,7 @@ def test_change_hostname(tmpdir: Path) -> None:
 					)
 					with get_config(
 						{
-							"alias_names": ["alias1.domain.tld", "alias2.domain.tld"],
+							"ssl_server_cert_sans": ["alias1.domain.tld", "alias2.domain.tld", "172.16.1.2", "2001:db8:a0b:12f0::1"],
 						}
 					):
 						setup_server_cert()
@@ -829,8 +829,11 @@ def test_change_hostname(tmpdir: Path) -> None:
 
 						alt_names = [extension for extension in cert3.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
 						cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
+						cert_ips = [str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)]
 						assert "alias1.domain.tld" in cert_hns
 						assert "alias2.domain.tld" in cert_hns
+						assert "172.16.1.2" in cert_ips
+						assert "2001:db8:a0b:12f0::1" in cert_ips
 
 						assert key2.private_bytes(
 							encoding=serialization.Encoding.PEM,

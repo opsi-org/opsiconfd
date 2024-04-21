@@ -815,6 +815,32 @@ def test_change_hostname(tmpdir: Path) -> None:
 						format=serialization.PrivateFormat.TraditionalOpenSSL,
 						encryption_algorithm=serialization.NoEncryption(),
 					)
+					with get_config(
+						{
+							"alias_names": ["alias1.domain.tld", "alias2.domain.tld"],
+						}
+					):
+						setup_server_cert()
+
+						cert3 = load_local_server_cert()
+						key3 = load_local_server_key()
+
+						assert cert3.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "new-host.domain.tld"
+
+						alt_names = [extension for extension in cert3.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
+						cert_hns = [str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)]
+						assert "alias1.domain.tld" in cert_hns
+						assert "alias2.domain.tld" in cert_hns
+
+						assert key2.private_bytes(
+							encoding=serialization.Encoding.PEM,
+							format=serialization.PrivateFormat.TraditionalOpenSSL,
+							encryption_algorithm=serialization.NoEncryption(),
+						) != key3.private_bytes(
+							encoding=serialization.Encoding.PEM,
+							format=serialization.PrivateFormat.TraditionalOpenSSL,
+							encryption_algorithm=serialization.NoEncryption(),
+						)
 
 
 def test_change_ip(tmpdir: Path) -> None:

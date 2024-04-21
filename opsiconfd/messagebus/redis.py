@@ -358,8 +358,7 @@ class MessageReader:
 
 			while not self._should_stop:
 				try:
-					async with self._channels_lock:
-						stream_entries = await self._get_stream_entries(redis)
+					stream_entries = await self._get_stream_entries(redis)
 					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
 						if end_ts and now_ts > end_ts:

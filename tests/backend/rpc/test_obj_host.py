@@ -461,6 +461,15 @@ def test_host_createObjects(
 			else:
 				assert client["opsiHostKey"] is None
 
+		rpc = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": method,
+			"params": [None, {"inventoryNumber": ["123*"]}],
+		}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "No permission for attribute inventoryNumber" in res["error"]["message"]
+
 
 def test_host_createObjects_with_systemUUID(
 	acl_file: Path,

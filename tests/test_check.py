@@ -54,6 +54,7 @@ from opsiconfd.check.main import (
 	check_system_packages,
 	health_check,
 )
+from opsiconfd.check.mysql import check_unique_hardware_addresses
 from opsiconfd.check.opsipackages import get_available_product_versions, get_enabled_hosts
 from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, check_system_repos, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, get_configserver_id, opsi_config

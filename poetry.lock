@@ -2605,13 +2605,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.12.0"
+version = "4.3.12.1"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.12.0-py3-none-any.whl", hash = "sha256:ee8879e63f6895829843af650f50ca52abf33c1f1dd7bb9efc1cf6c061520c37"},
-    {file = "python_opsi_common-4.3.12.0.tar.gz", hash = "sha256:2d86adeff5c98d153e35eb950e71dede1e72ce4fc4900e41fc8be924bae18d3f"},
+    {file = "python_opsi_common-4.3.12.1-py3-none-any.whl", hash = "sha256:5971095f8f03edb8ce88521ce48b777bb62fd28094e325664ba57508f21105b3"},
+    {file = "python_opsi_common-4.3.12.1.tar.gz", hash = "sha256:34d80d76929911ccc947d043c15bbb24f2d49b3a2204f0c7c75d4a9f0b27c9ff"},
 ]
 
 [package.dependencies]

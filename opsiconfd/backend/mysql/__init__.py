@@ -374,7 +374,7 @@ class MySQLConnection:
 			self._engine.dispose()
 
 	@contextmanager
-	def session(self, session: Session | None = None, commit: bool = True) -> Generator[MySQLSession, None, None]:
+	def session(self, session: MySQLSession | None = None, commit: bool = True) -> Generator[MySQLSession, None, None]:
 		if session:
 			yield session
 			return
@@ -383,6 +383,7 @@ class MySQLConnection:
 			raise RuntimeError("Not initialized")
 
 		session = self._Session()
+		assert session
 		try:
 			yield session
 			if commit:
@@ -394,7 +395,7 @@ class MySQLConnection:
 			self._Session.remove()
 
 	@contextmanager
-	def table_lock(self, session: Session, locks: dict[str, str]) -> Generator[None, None, None]:
+	def table_lock(self, session: MySQLSession, locks: dict[str, str]) -> Generator[None, None, None]:
 		qlock = []
 		for table, lock in locks.items():
 			if lock.upper() not in ("READ", "WRITE"):
@@ -895,7 +896,7 @@ class MySQLConnection:
 		create: bool = True,
 		set_null: bool = True,
 		additional_data: dict[str, Any] | None = None,
-		session: Session | None = None,
+		session: MySQLSession | None = None,
 	) -> Any:
 		if not self.connected:
 			raise RuntimeError("Not connected to MySQL server")
@@ -910,7 +911,7 @@ class MySQLConnection:
 		self,
 		table: str,
 		objs: list[BaseObject | dict[str, Any]],
-		session: Session | None = None,
+		session: MySQLSession | None = None,
 	) -> Any:
 		if not self.connected:
 			raise RuntimeError("Not connected to MySQL server")

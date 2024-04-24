@@ -75,6 +75,7 @@ class ColumnInfo:
 class MySQLSession(Session):
 	retry_on_server_has_gone_away = 3
 	retry_on_deadlock = 3
+	retry_on_concurrent_ddl = 10
 
 	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
@@ -104,6 +105,10 @@ class MySQLSession(Session):
 						if attempt > self.retry_on_server_has_gone_away:
 							raise
 						self.rollback()
+					elif "concurrent ddl statement" in str_err:
+						retry_wait = 1.0
+						if attempt > self.retry_on_concurrent_ddl:
+							raise
 					else:
 						raise
 					sleep(retry_wait)
@@ -369,7 +374,7 @@ class MySQLConnection:
 			self._engine.dispose()
 
 	@contextmanager
-	def session(self, session: Session | None = None, commit: bool = True) -> Generator[Session, None, None]:
+	def session(self, session: Session | None = None, commit: bool = True) -> Generator[MySQLSession, None, None]:
 		if session:
 			yield session
 			return

@@ -569,13 +569,17 @@ def test_get_routes(
 	addon_manager.unload_addon("test1")
 
 
-def test_licensing_info(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_licensing_info(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811
+	obsolet_modules = backend.backend_getLicensingInfo(True, True).get("obsolete_modules", [])
+	print(obsolet_modules)
 	response = test_client.get("/admin/licensing_info", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	lic_data = response.json()
 	print(response.json())
 	assert isinstance(lic_data.get("info"), dict)
 	assert lic_data.get("info").get("customer_name") is not None
+	for module in obsolet_modules:
+		assert module not in lic_data.get("info").get("module_dates", {})
 
 	for clients in ("macos_clients", "linux_clients", "windows_clients", "all_clients"):
 		assert isinstance(lic_data.get("info").get(clients), int)

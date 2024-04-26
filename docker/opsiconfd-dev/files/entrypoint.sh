@@ -36,26 +36,52 @@ if [ -n "$DEV_USER" ]; then
 	su - $DEV_USER -c 'git config --global core.editor "code --wait"'
 fi
 
-if mkdir .venv 2>/dev/null; then
-	echo "* Setup poetry venv"
-	poetry lock --no-update
-	poetry install --no-interaction --no-ansi
-	[ -n "$DEV_USER" ] && chown -R $DEV_USER /workspace
-else
-	echo "* Waiting until poetry venv is set up"
-	start_time=$(date +%s)
-	last_file_count=1
-	file_count=0
-	# Wait until running poetry install is completed
-	while [ $file_count -ne $last_file_count ]; do
-		last_file_count=$file_count
-		sleep 5
-		file_count=$(find .venv -type f | wc -l)
+OPSICONFD_BASE_DIR=/workspace
+if [ -d $OPSICONFD_BASE_DIR ]; then
+	mkdir -p $OPSICONFD_BASE_DIR/.venv
+	state_file="$OPSICONFD_BASE_DIR/.venv/.venv_state"
+	state_lock="$OPSICONFD_BASE_DIR/.venv/.venv_state_lock"
+
+	while true; do
+		mkdir "$state_lock" 2>/dev/null && break
+		sleep 3
 	done
-	sleep 5
-	end_time=$(date +%s)
-	diff=$((end_time - start_time))
-	echo "venv ready after ${diff} seconds"
+
+	state=$(cat $state_file 2>/dev/null)
+	echo "venv state: ${state}"
+
+	if [ "$state" = "ready" ]; then
+		echo "* opsiconfd poetry venv is ready"
+		rmdir "$state_lock"
+	elif [ "$state" = "setup" ]; then
+		echo "* Waiting until opsiconfd poetry venv is set up"
+		rmdir "$state_lock"
+		start_time=$(date +%s)
+		i=1
+		while [ "$i" -le 60 ]; do
+			state=$(cat $state_file 2>/dev/null)
+			[ "$state" = "ready" ] && break
+			sleep 2
+			i=$((i+1))
+		done
+		end_time=$(date +%s)
+		diff=$((end_time - start_time))
+		if [ "$state" = "ready" ]; then
+			echo "venv ready after ${diff} seconds"
+		else
+			echo "timed out waiting for venv after ${diff} seconds"
+		fi
+	else
+		echo "* Setup opsiconfd poetry venv"
+		echo -n "setup" > $state_file
+		rmdir "$state_lock"
+		cd $OPSICONFD_BASE_DIR
+		poetry lock --no-update
+		poetry install --no-interaction --no-ansi
+		[ -n "$DEV_USER" ] && chown -R $DEV_USER $OPSICONFD_BASE_DIR
+		echo -n "ready" > $state_file
+		echo "venv created"
+	fi
 fi
 
 touch /run/.docker-healthy

@@ -38,9 +38,8 @@ fi
 
 OPSICONFD_BASE_DIR=/workspace
 if [ -d $OPSICONFD_BASE_DIR ]; then
-	mkdir -p $OPSICONFD_BASE_DIR/.venv
-	state_file="$OPSICONFD_BASE_DIR/.venv/.venv_state"
-	state_lock="$OPSICONFD_BASE_DIR/.venv/.venv_state_lock"
+	state_file="$OPSICONFD_BASE_DIR/.venv_state"
+	state_lock="$OPSICONFD_BASE_DIR/.venv_state_lock"
 
 	while true; do
 		if mkdir "$state_lock" 2>/dev/null; then
@@ -50,6 +49,7 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 		sleep 3
 	done
 
+	[ ! -e "$OPSICONFD_BASE_DIR/.venv" -a -e "$state_file" ] && rm $state_file
 	state=$(cat $state_file 2>/dev/null)
 	echo "venv state: ${state}"
 

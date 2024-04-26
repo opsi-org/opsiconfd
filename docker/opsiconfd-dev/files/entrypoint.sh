@@ -44,7 +44,7 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 
 	while true; do
 		if mkdir "$state_lock" 2>/dev/null; then
-			echo "* State lock acquired: $state_lock"
+			echo "state lock acquired: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 			break
 		fi
 		sleep 3
@@ -55,9 +55,11 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 
 	if [ "$state" = "ready" ]; then
 		echo "* opsiconfd poetry venv is ready"
+		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 	elif [ "$state" = "setup" ]; then
 		echo "* Waiting until opsiconfd poetry venv is set up"
+		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 		start_time=$(date +%s)
 		i=1
@@ -77,6 +79,7 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 	else
 		echo "* Setup opsiconfd poetry venv"
 		echo -n "setup" > $state_file
+		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 		cd $OPSICONFD_BASE_DIR
 		poetry lock --no-update

@@ -311,8 +311,7 @@ class MySQLConnection:
 		if address.startswith("/"):
 			properties["unix_socket"] = address
 			address = "localhost"
-		if self._ssl:
-			properties["ssl"] = "true"
+		properties["ssl"] = "true" if self._ssl else "false"
 
 		params = f"?{urlencode(properties)}" if properties else ""
 
@@ -586,24 +585,22 @@ class MySQLConnection:
 		return conversions
 
 	@overload
-	def get_ident(self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["unicode", "str"]) -> str:
-		...
+	def get_ident(
+		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["unicode", "str"]
+	) -> str: ...
 
 	@overload
 	def get_ident(
 		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["dict", "hash"]
-	) -> dict[str, Any]:
-		...
+	) -> dict[str, Any]: ...
 
 	@overload
-	def get_ident(self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["list"]) -> list[Any]:
-		...
+	def get_ident(self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["list"]) -> list[Any]: ...
 
 	@overload
 	def get_ident(
 		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["tuple"]
-	) -> tuple[Any, ...]:
-		...
+	) -> tuple[Any, ...]: ...
 
 	def get_ident(
 		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: IdentType

@@ -58,9 +58,9 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 	elif [ "$state" = "setup" ]; then
-		echo "* Waiting until opsiconfd poetry venv is set up"
 		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
+		echo "* Waiting until opsiconfd poetry venv is set up"
 		start_time=$(date +%s)
 		i=1
 		while [ "$i" -le 60 ]; do

@@ -31,6 +31,9 @@
 
 			let input = document.getElementById("redis-cmd");
 
+			if (!window.location.pathname.startsWith("/admin")) {
+				window.location.pathname = "/admin";
+			}
 			input.onkeyup = function (event) {
 				// Number 13 is the "Enter" key on the keyboard
 				if (event.keyCode === 13) {

@@ -24,6 +24,7 @@ class AuthenticationMethod(StrEnum):
 	HOST_ID = "host_id"
 	HOST_KEY = "host_key"
 	NOT_SET = "not_set"
+	SAML = "saml"
 	PASSWORD_FILE = "password_file"
 	PASSWORD_LDAP = "password_ldap"
 	PASSWORD_ONETIME = "password_onetime"

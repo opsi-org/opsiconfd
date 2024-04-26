@@ -34,6 +34,9 @@ PATH_MAPPINGS = {
 	"/public": "/public/",
 	"/repository": "/repository/",
 	"/workbench": "/workbench/",
+	"/session/login": "/auth/login",
+	"/session/logout": "/auth/logout",
+	"/session/authenticated": "/auth/authenticated",
 }
 
 

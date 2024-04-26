@@ -26,6 +26,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import app
 from opsiconfd.application.admininterface import admin_interface_setup
+from opsiconfd.application.auth import auth_setup
 from opsiconfd.application.filetransfer import filetransfer_setup
 from opsiconfd.application.jsonrpc import (
 	async_jsonrpc_shutdown,
@@ -37,7 +38,6 @@ from opsiconfd.application.middleware import BaseMiddleware
 from opsiconfd.application.monitoring.monitoring import monitoring_setup
 from opsiconfd.application.proxy import reverse_proxy_setup
 from opsiconfd.application.redisinterface import redis_interface_setup
-from opsiconfd.application.session import session_setup
 from opsiconfd.application.status import status_setup
 from opsiconfd.application.utils import OpsiconfdWebSocketEndpoint
 from opsiconfd.application.webdav import webdav_setup
@@ -75,6 +75,7 @@ async def index_head() -> Response:
 
 
 @app.get("/login")
+@app.post("/login")
 async def login_index(request: Request) -> Response:
 	context = {"request": request, "multi_factor_auth": config.multi_factor_auth}
 	return jinja_templates().TemplateResponse(request=request, name="login.html", context=context)
@@ -190,7 +191,7 @@ def application_setup() -> None:
 	FileResponse.chunk_size = 32 * 1024  # Speeds up transfer of big files massively, original value is 4*1024
 
 	jsonrpc_setup(app)
-	session_setup(app)
+	auth_setup(app)
 	admin_interface_setup(app)
 	redis_interface_setup(app)
 	webdav_setup(app)
@@ -270,8 +271,9 @@ def setup_app() -> None:
 	public_path = [
 		"/favicon.ico",
 		"/login",
-		"/session/login",
-		"/session/logout",
+		"/auth/login",
+		"/auth/logout",
+		"/auth/saml",
 		"/ssl/opsi-ca-cert.pem",
 		"/static",
 		"/welcome",

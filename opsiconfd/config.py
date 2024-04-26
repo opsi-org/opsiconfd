@@ -1016,6 +1016,44 @@ class Config(metaclass=Singleton):
 			choices=("client", "depot", "user"),
 		)
 		self._parser.add(
+			"--saml-idp-entity-id",
+			env_var="OPSICONFD_SAML_IDP_ENTITY_ID",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"Entity ID of the SAML Identity Provider (IdP)\nExample:\nhttps://keycloak.my.corp/realms/master\n",
+			),
+		)
+		self._parser.add(
+			"--saml-idp-x509-cert",
+			env_var="OPSICONFD_SAML_IDP_X509_CERT",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"Public X.509 certificate of the SAML Identity Provider (IdP) as Base64 encoded string.",
+			),
+		)
+		self._parser.add(
+			"--saml-idp-sso-url",
+			env_var="OPSICONFD_SAML_IDP_SSO_URL",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"URL target of the IdP where the Authentication Request Message will be sent.\n"
+				"Example:\nhttps://keycloak.my.corp/realms/master/protocol/saml\n",
+			),
+		)
+		self._parser.add(
+			"--saml-idp-slo-url",
+			env_var="OPSICONFD_SAML_IDP_SLO_URL",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"URL target of the IdP where the Logout Request Message will be sent.\n"
+				"Example:\nhttps://keycloak.my.corp/realms/master/protocol/saml\n",
+			),
+		)
+		self._parser.add(
 			"--client-block-time",
 			env_var="OPSICONFD_CLIENT_BLOCK_TIME",
 			type=int,

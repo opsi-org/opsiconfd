@@ -453,7 +453,6 @@ class Worker(WorkerInfo, UvicornServer):
 	def install_signal_handlers(self) -> None:
 		loop = asyncio.get_event_loop()
 		loop.add_signal_handler(SIGHUP, self.handle_sighup)
-		super().install_signal_handlers()
 
 	def handle_sighup(self) -> None:
 		logger.notice("%s reloading", self)

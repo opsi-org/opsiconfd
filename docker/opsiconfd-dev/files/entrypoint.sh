@@ -43,7 +43,10 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 	state_lock="$OPSICONFD_BASE_DIR/.venv/.venv_state_lock"
 
 	while true; do
-		mkdir "$state_lock" 2>/dev/null && break
+		if mkdir "$state_lock" 2>/dev/null; then
+			echo "* State lock acquired: $state_lock"
+			break
+		fi
 		sleep 3
 	done
 

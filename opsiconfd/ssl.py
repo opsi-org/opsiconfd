@@ -242,7 +242,7 @@ def load_local_server_key() -> rsa.RSAPrivateKey:
 	# Try to load key with configured passphrase, default passphrase and unencrypted
 	passphrases = [("configured", config.ssl_server_key_passphrase), ("no", None)]
 	if config.ssl_server_key_passphrase != SERVER_KEY_DEFAULT_PASSPHRASE:
-		passphrases.insert(1, ["default", SERVER_KEY_DEFAULT_PASSPHRASE])
+		passphrases.insert(1, ("default", SERVER_KEY_DEFAULT_PASSPHRASE))
 	for idx, (passphrase_type, passphrase) in enumerate(passphrases):
 		try:
 			key = load_key(config.ssl_server_key, passphrase)
@@ -262,6 +262,7 @@ def load_local_server_key() -> rsa.RSAPrivateKey:
 					next_passphrase_type,
 				)
 	# Raise first error
+	assert error
 	raise error
 
 
@@ -586,7 +587,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			"Server cert is issued by 'uib opsi CA', keeping cert. "
 			f"Please delete server cert '{config.ssl_ca_cert}' and key '{config.ssl_ca_key}' manually to return to the local opsi CA."
 		)
-		return
+		return False
 
 	if not create and srv_key and srv_crt:
 		if srv_key.public_key().public_bytes(

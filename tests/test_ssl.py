@@ -8,6 +8,7 @@
 """
 ssl tests
 """
+
 import datetime
 import os
 import re
@@ -689,6 +690,41 @@ def test_create_local_server_cert(tmpdir: Path) -> None:
 				).days == conf.ssl_server_cert_valid_days - 1
 				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == get_configserver_id()
 				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
+
+
+def test_keep_uib_opsi_ca_server_cert(tmpdir: Path) -> None:
+	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
+	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	ssl_server_cert = tmpdir / "opsi-server-cert.pem"
+	ssl_server_key = tmpdir / "opsi-server-key.pem"
+
+	with get_config(
+		{
+			"ssl_ca_cert": str(ssl_ca_cert),
+			"ssl_ca_key": str(ssl_ca_key),
+			"ssl_ca_key_passphrase": "secret",
+			"ssl_ca_subject_cn": "uib opsi CA",
+			"ssl_server_cert": str(ssl_server_cert),
+			"ssl_server_key": str(ssl_server_key),
+			"ssl_server_key_passphrase": "secret",
+		}
+	) as conf:
+		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
+			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmpdir), "echo")):
+				setup_ca()
+				setup_server_cert()
+				cert = load_local_server_cert()
+				assert isinstance(cert, x509.Certificate)
+
+				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
+
+				conf.ssl_ca_subject_cn = "opsi CA"
+				Path(ssl_ca_cert).unlink()
+				Path(ssl_ca_key).unlink()
+				setup_ca()
+				setup_server_cert()
+				# Keep server cert issued by "uib opsi CA"
+				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
 
 
 def test_recreate_server_key(tmpdir: Path) -> None:

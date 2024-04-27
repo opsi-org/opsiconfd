@@ -8,6 +8,7 @@
 """
 opsiconfd.ssl
 """
+
 from __future__ import annotations
 
 import datetime
@@ -237,16 +238,31 @@ def store_local_server_key(srv_key: rsa.RSAPrivateKey) -> None:
 
 
 def load_local_server_key() -> rsa.RSAPrivateKey:
-	try:
-		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase)
-	except RuntimeError:
-		if config.ssl_ca_key_passphrase == SERVER_KEY_DEFAULT_PASSPHRASE:
-			raise
-		# Wrong passphrase, try to load with default passphrase
-		key = load_key(config.ssl_server_key, SERVER_KEY_DEFAULT_PASSPHRASE)
-		# Store with configured passphrase
-		store_local_server_key(key)
-		return key
+	error: Exception | None = None
+	# Try to load key with configured passphrase, default passphrase and unencrypted
+	passphrases = [("configured", config.ssl_server_key_passphrase), ("no", None)]
+	if config.ssl_server_key_passphrase != SERVER_KEY_DEFAULT_PASSPHRASE:
+		passphrases.insert(1, ["default", SERVER_KEY_DEFAULT_PASSPHRASE])
+	for idx, (passphrase_type, passphrase) in enumerate(passphrases):
+		try:
+			key = load_key(config.ssl_server_key, passphrase)
+			if passphrase_type != "configured":
+				# Store with configured passphrase
+				store_local_server_key(key)
+			return key
+		except (RuntimeError, TypeError) as err:
+			if not error:
+				error = err
+			next_passphrase_type = passphrases[idx + 1][0] if idx < len(passphrases) else None
+			if next_passphrase_type:
+				logger.warning(
+					"Failed to load server key with %s passphrase (%s), retrying with %s passphrase",
+					passphrase_type,
+					str(err).rstrip("."),
+					next_passphrase_type,
+				)
+	# Raise first error
+	raise error
 
 
 def store_local_server_cert(server_cert: x509.Certificate) -> None:
@@ -564,6 +580,13 @@ def setup_server_cert(force_new: bool = False) -> bool:
 		except Exception as err:
 			logger.warning("Failed to load server cert (%s), creating new server cert", err)
 			create = True
+
+	if srv_crt and srv_crt.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA":
+		logger.warning(
+			"Server cert is issued by 'uib opsi CA', keeping cert. "
+			f"Please delete server cert '{config.ssl_ca_cert}' and key '{config.ssl_ca_key}' manually to return to the local opsi CA."
+		)
+		return
 
 	if not create and srv_key and srv_crt:
 		if srv_key.public_key().public_bytes(

@@ -782,7 +782,7 @@ class Config(metaclass=Singleton):
 			"--log-level-stderr",
 			env_var="OPSICONFD_LOG_LEVEL_STDERR",
 			type=int,
-			default=0 if self._sub_command else 4,
+			default=4,
 			choices=range(0, 10),
 			help=self._help(
 				"all",

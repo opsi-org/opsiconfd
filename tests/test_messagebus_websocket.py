@@ -510,11 +510,14 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa:
 				)
 				websocket.send_bytes(terminal_data_write.to_msgpack())
 
-				reader.wait_for_message(count=1)
-				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-				assert isinstance(responses[0], TerminalDataReadMessage)
-				assert responses[0].terminal_id == terminal_id
-				assert "echo test\r\n" in responses[0].data.decode("utf-8")
+				reader.wait_for_message(count=2, timeout=5, error_on_timeout=False)
+				data = b""
+				for msg in reader.get_messages():
+					message = Message.from_dict(msg)
+					assert isinstance(message, TerminalDataReadMessage)
+					assert message.terminal_id == terminal_id
+					data += message.data
+				assert "echo test\r\n" in data.decode("utf-8")
 
 				terminal_resize_request = TerminalResizeRequestMessage(
 					sender=CONNECTION_USER_CHANNEL, channel=back_channel, terminal_id=terminal_id, rows=10, cols=160

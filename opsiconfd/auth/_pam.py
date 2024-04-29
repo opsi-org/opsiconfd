@@ -16,7 +16,7 @@ import pwd
 from grp import getgrgid
 from os import getgrouplist
 
-import pam  # type: ignore[import]
+from pam import PamAuthenticator  # type: ignore[import]
 from opsicommon.exceptions import BackendAuthenticationError
 from opsicommon.system.info import linux_distro_id_like_contains
 
@@ -58,7 +58,7 @@ class PAMAuthentication(AuthenticationModule):
 		logger.debug("Attempting PAM authentication as user %s (service=%s)...", username, self._pam_service)
 
 		try:
-			auth = pam.pam()
+			auth = PamAuthenticator()
 			if not auth.authenticate(username, password, service=self._pam_service):
 				logger.debug("PAM authentication failed: %s (code %s)", auth.reason, auth.code)
 				raise RuntimeError(auth.reason)

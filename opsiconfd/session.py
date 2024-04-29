@@ -52,7 +52,7 @@ from opsiconfd.application import MaintenanceState
 from opsiconfd.application import app as opsiconfd_app
 from opsiconfd.auth import AuthenticationMethod, AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
-from opsiconfd.auth.pam import PAMAuthentication
+from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config

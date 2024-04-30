@@ -15,7 +15,7 @@ from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.common import CheckResult
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
-from opsiconfd.check.const import CHECKS
+from opsiconfd.check.const import CHECKS, DEPOTSERVER_CHECKS
 from opsiconfd.check.jsonrpc import check_deprecated_calls
 from opsiconfd.check.ldap import check_ldap_connection
 from opsiconfd.check.mysql import check_mysql, check_unique_hardware_addresses
@@ -25,7 +25,7 @@ from opsiconfd.check.redis import check_redis
 from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
 from opsiconfd.check.users import check_opsi_users
-from opsiconfd.config import config
+from opsiconfd.config import config, get_server_role
 
 __all__ = [
 	"check_depotservers",
@@ -52,10 +52,10 @@ __all__ = [
 
 
 def health_check() -> Iterator[CheckResult]:
-	for check_id in CHECKS:
-		check = globals()[f"check_{check_id}"]
+	role = get_server_role()
+	for check_id in DEPOTSERVER_CHECKS if role == "depotserver" else CHECKS:
 		if config.checks and check_id not in config.checks:
 			continue
 		if config.skip_checks and check_id in config.skip_checks:
 			continue
-		yield check()
+		yield globals()[f"check_{check_id}"]

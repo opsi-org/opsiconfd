@@ -30,3 +30,18 @@ CHECKS = [
 	"opsi_failed_addons",
 	"unique_hardware_addresses",
 ]
+
+DEPOTSERVER_CHECKS = [
+	"opsi_config",
+	"opsiconfd_config",
+	"ssl",
+	"redis",
+	"run_as_user",
+	"distro_eol",
+	"system_packages",
+	"disk_usage",
+	"deprecated_calls",
+	"opsi_users",
+	"system_repos",
+	"opsi_failed_addons",
+]

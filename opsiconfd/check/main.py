@@ -58,4 +58,5 @@ def health_check() -> Iterator[CheckResult]:
 			continue
 		if config.skip_checks and check_id in config.skip_checks:
 			continue
-		yield globals()[f"check_{check_id}"]
+		check_func = globals()[f"check_{check_id}"]
+		yield check_func()

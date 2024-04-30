@@ -16,7 +16,9 @@ from fastapi import Request
 from opsiconfd.config import config, get_configserver_id
 
 
-def get_saml_settings() -> dict[str, Any]:
+def get_saml_settings(
+	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
+) -> dict[str, Any]:
 	if not config.saml_idp_entity_id:
 		raise ValueError("saml-idp-entity-id not set in config")
 	if not config.saml_idp_sso_url:
@@ -41,7 +43,7 @@ def get_saml_settings() -> dict[str, Any]:
 		"sp": {
 			"entityId": get_configserver_id(),
 			"assertionConsumerService": {
-				"url": f"{config.external_url}/auth/saml/login_callback",
+				"url": f"{config.external_url}{login_callback_path}",
 				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 			},
 		},
@@ -52,7 +54,7 @@ def get_saml_settings() -> dict[str, Any]:
 			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
 		settings["sp"]["singleLogoutService"] = {
-			"url": f"{config.external_url}/auth/saml/logout_callback",
+			"url": f"{config.external_url}{logout_callback_path}",
 			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
 	return settings

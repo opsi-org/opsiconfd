@@ -69,12 +69,21 @@ async def authenticated(request: Request) -> RESTResponse:
 	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)
 
 
-@auth_router.get("/saml/login")
-async def saml_login(request: Request) -> RedirectResponse:
+async def _saml_login(request: Request, redirect_url: str) -> RedirectResponse:
 	request_data = await saml_auth_request_data(request)
-	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
+	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings(login_callback_path=redirect_url))
 	redirect_url = auth.login()
 	return RedirectResponse(url=redirect_url)
+
+
+@auth_router.get("/saml/login")
+async def saml_login(request: Request) -> RedirectResponse:
+	return await _saml_login(request=request, redirect_url="/auth/saml/callback/login")
+
+
+@auth_router.get("/saml/login/configed")
+async def saml_login_configed(request: Request) -> RedirectResponse:
+	return await _saml_login(request=request, redirect_url="/auth/saml/callback/login/configed")
 
 
 @auth_router.get("/saml/logout")
@@ -85,8 +94,7 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	return RedirectResponse(url=redirect_url)
 
 
-@auth_router.post("/saml/login_callback")
-async def saml_login_callback(request: Request) -> Response:
+async def _saml_callback_login(request: Request) -> Response:
 	# TODO: https://github.com/SAML-Toolkits/python3-saml#avoiding-replay-attacks
 	await pre_authenticate(request.scope)
 	session: OPSISession = request.scope["session"]
@@ -119,8 +127,18 @@ async def saml_login_callback(request: Request) -> Response:
 	return response
 
 
-@auth_router.post("/saml/logout_callback")
-async def saml_logout_callback(request: Request) -> RedirectResponse:
+@auth_router.post("/saml/callback/login")
+async def saml_callback_login(request: Request) -> Response:
+	return await _saml_callback_login(request=request)
+
+
+@auth_router.post("/saml/callback/login/configed")
+async def saml_callback_login_configed(request: Request) -> Response:
+	return await _saml_callback_login(request=request)
+
+
+@auth_router.post("/saml/callback/logout")
+async def saml_callback_logout(request: Request) -> RedirectResponse:
 	request_data = await saml_auth_request_data(request)
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 	await run_in_threadpool(auth.process_slo)

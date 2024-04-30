@@ -52,6 +52,7 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 	[ ! -e "$OPSICONFD_BASE_DIR/.venv" -a -e "$state_file" ] && rm $state_file
 	state=$(cat $state_file 2>/dev/null)
 	echo "venv state: ${state}"
+	stat $state_file || true
 
 	if [ "$state" = "ready" ]; then
 		echo "* opsiconfd poetry venv is ready"

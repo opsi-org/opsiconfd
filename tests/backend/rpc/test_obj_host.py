@@ -9,12 +9,33 @@
 test opsiconfd.backend.mysql
 """
 
+import json
+
 from pathlib import Path
 from typing import Generator
 from uuid import uuid4
 
 import pytest
-from opsicommon.objects import OpsiDepotserver
+from opsicommon.objects import (
+	OpsiDepotserver,
+	OpsiClient,
+	HostGroup,
+	ObjectToGroup,
+	ProductOnClient,
+	LocalbootProduct,
+	UnicodeProductProperty,
+	ProductPropertyState,
+	BoolConfig,
+	ConfigState,
+	AuditSoftware,
+	AuditSoftwareOnClient,
+	LicenseOnClient,
+	LicensePool,
+	RetailSoftwareLicense,
+	LicenseContract,
+	SoftwareLicenseToLicensePool,
+	deserialize,
+)
 
 from opsiconfd.backend.rpc.main import ProtectedBackend
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
@@ -1004,3 +1025,132 @@ def test_rename_depot(test_client: OpsiconfdTestClient, clean_mysql: Generator) 
 	assert depot["depotWebdavUrl"] == f"webdavs://{new_depot_id}:4447/depot"
 	# workbench url only contains hostname
 	assert depot["workbenchRemoteUrl"] == f"smb://{new_depot_id.split('.', maxsplit=1)[0]}:4447/opsi_workbench"
+
+
+def test_rename_client(test_client: OpsiconfdTestClient, clean_mysql: Generator) -> None:  # noqa: F811  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	client = OpsiClient(id="test-rename-client.opsi.test")
+	group = HostGroup(id="client-group")
+	product = LocalbootProduct(id="product1", productVersion="1.0", packageVersion="1")
+	product_property = UnicodeProductProperty(
+		productId=product.id,
+		productVersion=product.productVersion,
+		packageVersion=product.packageVersion,
+		propertyId="property1",
+		possibleValues=["v1", "v2", "v3"],
+	)
+	config = BoolConfig(id="config1")
+	config_state = ConfigState(configId=config.id, objectId=client.id, values=[True])
+	object_to_group = ObjectToGroup(groupType=group.getType(), groupId=group.id, objectId=client.id)
+	product_on_client = ProductOnClient(
+		productId=product.id, productType=product.getType(), clientId=client.id, installationStatus="installed"
+	)
+	product_property_state = ProductPropertyState(
+		productId=product.id, propertyId=product_property.propertyId, objectId=client.id, values=["v1", "v2"]
+	)
+	audit_software = AuditSoftware(name="audit1", version="1.0", subVersion="1", language="", architecture="")
+	audit_software_on_client = AuditSoftwareOnClient(
+		name="audit1", version="1.0", subVersion="1", language="", architecture="", clientId=client.id
+	)
+	hwaudit = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
+	audit_hardware_on_hosts = deserialize(json.loads(hwaudit.replace("{{host_id}}", client.id)))
+	license_pool = LicensePool(id="pool1")
+	license_contract = LicenseContract(id="contract1")
+	software_license = RetailSoftwareLicense(id="lic1", licenseContractId=license_contract.id, boundToHost=client.id)
+	software_license_to_license_pool = SoftwareLicenseToLicensePool(softwareLicenseId=software_license.id, licensePoolId=license_pool.id)
+	license_on_client = LicenseOnClient(softwareLicenseId=software_license.id, licensePoolId=license_pool.id, clientId=client.id)
+
+	assert "error" not in test_client.jsonrpc20(method="host_createObjects", params=[[client]])
+	assert "error" not in test_client.jsonrpc20(method="group_createObjects", params=[[group]])
+	assert "error" not in test_client.jsonrpc20(method="product_createObjects", params=[[product]])
+	assert "error" not in test_client.jsonrpc20(method="productProperty_createObjects", params=[[product_property]])
+	assert "error" not in test_client.jsonrpc20(method="config_createObjects", params=[[config]])
+	assert "error" not in test_client.jsonrpc20(method="configState_createObjects", params=[[config_state]])
+	assert "error" not in test_client.jsonrpc20(method="objectToGroup_createObjects", params=[[object_to_group]])
+	assert "error" not in test_client.jsonrpc20(method="productOnClient_createObjects", params=[[product_on_client]])
+	assert "error" not in test_client.jsonrpc20(method="productPropertyState_createObjects", params=[[product_property_state]])
+	assert "error" not in test_client.jsonrpc20(method="auditSoftware_createObjects", params=[[audit_software]])
+	assert "error" not in test_client.jsonrpc20(method="auditSoftwareOnClient_createObjects", params=[[audit_software_on_client]])
+	assert "error" not in test_client.jsonrpc20(method="auditHardwareOnHost_createObjects", params=[audit_hardware_on_hosts])
+	assert "error" not in test_client.jsonrpc20(method="licensePool_createObjects", params=[license_pool])
+	assert "error" not in test_client.jsonrpc20(method="licenseContract_createObjects", params=[license_contract])
+	assert "error" not in test_client.jsonrpc20(method="softwareLicense_createObjects", params=[software_license])
+	assert "error" not in test_client.jsonrpc20(
+		method="softwareLicenseToLicensePool_createObjects", params=[software_license_to_license_pool]
+	)
+	assert "error" not in test_client.jsonrpc20(method="licenseOnClient_createObjects", params=[license_on_client])
+
+	client_ids = test_client.jsonrpc20(method="host_getIdents", params=["str", {"type": "OpsiClient"}])["result"]
+	assert client_ids == [client.id]
+
+	result = test_client.jsonrpc20(method="objectToGroup_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].objectId == client.id
+
+	result = test_client.jsonrpc20(method="configState_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].objectId == client.id
+
+	result = test_client.jsonrpc20(method="productOnClient_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].clientId == client.id
+
+	result = test_client.jsonrpc20(method="productPropertyState_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].objectId == client.id
+
+	result = test_client.jsonrpc20(method="auditSoftwareOnClient_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].clientId == client.id
+
+	result = test_client.jsonrpc20(method="auditHardwareOnHost_getObjects", params=[])["result"]
+	assert len(result) == len(audit_hardware_on_hosts)
+	assert result[0].hostId == client.id
+
+	result = test_client.jsonrpc20(method="licenseOnClient_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].clientId == client.id
+
+	result = test_client.jsonrpc20(method="softwareLicense_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].boundToHost == client.id
+
+	# Rename
+	new_client_id = "test-rename-client-new.opsi.test"
+	assert "error" not in test_client.jsonrpc20(method="host_renameOpsiClient", params=[client.id, new_client_id])
+
+	client_ids = test_client.jsonrpc20(method="host_getIdents", params=["str", {"type": "OpsiClient"}])["result"]
+	assert client_ids == [new_client_id]
+
+	result = test_client.jsonrpc20(method="objectToGroup_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].objectId == new_client_id
+
+	result = test_client.jsonrpc20(method="configState_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].objectId == new_client_id
+
+	result = test_client.jsonrpc20(method="productOnClient_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].clientId == new_client_id
+
+	result = test_client.jsonrpc20(method="productPropertyState_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].objectId == new_client_id
+
+	result = test_client.jsonrpc20(method="auditSoftwareOnClient_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].clientId == new_client_id
+
+	result = test_client.jsonrpc20(method="auditHardwareOnHost_getObjects", params=[])["result"]
+	assert len(result) == len(audit_hardware_on_hosts)
+	assert result[0].hostId == new_client_id
+
+	result = test_client.jsonrpc20(method="licenseOnClient_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].clientId == new_client_id
+
+	result = test_client.jsonrpc20(method="softwareLicense_getObjects", params=[])["result"]
+	assert len(result) == 1
+	assert result[0].boundToHost == new_client_id

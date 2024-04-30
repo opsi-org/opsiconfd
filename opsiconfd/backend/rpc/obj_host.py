@@ -353,10 +353,12 @@ class RPCHostMixin(Protocol):
 			raise BackendError(f"Cannot rename: host '{new_client_id}' already exists")
 
 		logger.info("Processing group mappings...")
-		object_to_groups = []
+		create_object_to_groups = []
+		delete_object_to_groups = []
 		for object_to_group in self.objectToGroup_getObjects(groupType="HostGroup", objectId=client.id):
+			delete_object_to_groups.append(object_to_group.clone())
 			object_to_group.setObjectId(new_client_id)
-			object_to_groups.append(object_to_group)
+			create_object_to_groups.append(object_to_group)
 
 		logger.info("Processing products on client...")
 		product_on_clients = []
@@ -365,16 +367,20 @@ class RPCHostMixin(Protocol):
 			product_on_clients.append(product_on_client)
 
 		logger.info("Processing product property states...")
-		product_property_states = []
+		create_product_property_states = []
+		delete_product_property_states = []
 		for product_property_state in self.productPropertyState_getObjects(objectId=client.id):
+			delete_product_property_states.append(product_property_state.clone())
 			product_property_state.setObjectId(new_client_id)
-			product_property_states.append(product_property_state)
+			create_product_property_states.append(product_property_state)
 
 		logger.info("Processing config states...")
-		config_states = []
+		create_config_states = []
+		delete_config_states = []
 		for config_state in self.configState_getObjects(objectId=client.id):
+			delete_config_states.append(config_state.clone())
 			config_state.setObjectId(new_client_id)
-			config_states.append(config_state)
+			create_config_states.append(config_state)
 
 		logger.info("Processing software audit data...")
 		audit_software_on_clients = []
@@ -407,18 +413,21 @@ class RPCHostMixin(Protocol):
 		client.setId(new_client_id)
 		self.host_createObjects([client])
 
-		if object_to_groups:
+		if create_object_to_groups:
 			logger.info("Updating group mappings...")
-			self.objectToGroup_createObjects(object_to_groups)
+			self.objectToGroup_createObjects(create_object_to_groups)
+			self.objectToGroup_deleteObjects(delete_object_to_groups)
 		if product_on_clients:
 			logger.info("Updating products on client...")
 			self.productOnClient_createObjects(product_on_clients)
-		if product_property_states:
+		if create_product_property_states:
 			logger.info("Updating product property states...")
-			self.productPropertyState_createObjects(product_property_states)
-		if config_states:
+			self.productPropertyState_createObjects(create_product_property_states)
+			self.productPropertyState_deleteObjects(delete_product_property_states)
+		if create_config_states:
 			logger.info("Updating config states...")
-			self.configState_createObjects(config_states)
+			self.configState_createObjects(create_config_states)
+			self.configState_deleteObjects(delete_config_states)
 		if audit_software_on_clients:
 			logger.info("Updating software audit data...")
 			self.auditSoftwareOnClient_createObjects(audit_software_on_clients)

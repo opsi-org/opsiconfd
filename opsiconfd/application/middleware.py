@@ -145,6 +145,9 @@ class BaseMiddleware:
 					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime,X-Requested-With",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
+				headers.append("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+				headers.append("X-Content-Type-Options", "nosniff")
+				headers.append("X-Frame-Options", "DENY")
 
 				if header_logger.isEnabledFor(TRACE):
 					header_logger.trace("<<< HTTP/%s %s %s", scope.get("http_version"), scope.get("method"), scope.get("path"))

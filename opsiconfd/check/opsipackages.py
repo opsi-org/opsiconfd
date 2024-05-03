@@ -240,8 +240,9 @@ def check_product_on_clients() -> CheckResult:
 							f"Installed version {version!r} < depot version {available_version!r}"
 						),
 						details={"client_id": client_id, "product_id": product_id, "version": version},
-						upgrade_issue="4.3",
 					)
+					if product_id in MANDATORY_OPSI_PRODUCTS:
+						partial_result.upgrade_issue = "4.3"
 					outdated_client_ids.add(client_id)
 					result.add_partial_result(partial_result)
 

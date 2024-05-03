@@ -182,58 +182,72 @@ def check_product_on_clients() -> CheckResult:
 		check_id="product_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
 	)
 	with exc_to_result(result):
-		result.message = "All important products are up to date on all clients."
+		result.message = "All products are up to date on all clients."
 		backend = get_unprotected_backend()
 		now = datetime.now()
-
 		enabled_hosts = get_enabled_hosts()
 		logger.debug("Enabled hosts: %s", enabled_hosts)
-		client_ids = [
+		depots = backend.host_getObjects(attributes=["id"], type="OpsiDepotserver")
+
+		client_ids = {
 			host.id
 			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
 			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 90 and host.id in enabled_hosts
-		]
+		}
 		if not client_ids:
 			return result
 
 		outdated_client_ids = set()
 
-		try:
-			available_packages = get_available_product_versions(list(MANDATORY_IF_INSTALLED))
-		except requests.RequestException as err:
-			result.check_status = CheckStatus.ERROR
-			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
-			return result
+		for depot in depots:
+			if depot.id not in get_enabled_hosts():
+				continue
 
-		for product_id, available_version in available_packages.items():
-			for product_on_client in backend.productOnClient_getObjects(
-				attributes=["productVersion", "packageVersion"],
-				clientId=client_ids,
-				productId=product_id,
-				installationStatus="installed",
-			):
-				version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
-				if compare_versions(version, ">=", available_version):
-					continue
-				client_id = product_on_client.clientId
+			clients_on_depot = set()
 
-				partial_result = PartialCheckResult(
-					check_status=CheckStatus.ERROR,
-					check_id=f"product_on_clients:{client_id}:{product_id}",
-					check_name=f"Product {product_id!r} on {client_id!r}",
-					message=(
-						f"Product {product_id!r} is outdated on client {client_id!r}. "
-						f"Installed version {version!r} < recommended version {available_version!r}"
-					),
-					details={"client_id": client_id, "product_id": product_id, "version": version},
-					upgrade_issue="4.3",
+			for depot_client_hash in backend.configState_getClientToDepotserver(clientIds=client_ids, depotIds=[depot.id]):
+				clients_on_depot.add(depot_client_hash["clientId"])
+
+			try:
+				available_products = backend.productOnDepot_getObjects(
+					depotId=depot.id, attributes=["productId", "productVersion", "packageVersion"]
 				)
-				outdated_client_ids.add(client_id)
-				result.add_partial_result(partial_result)
+			except requests.RequestException as err:
+				result.check_status = CheckStatus.ERROR
+				result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
+				return result
 
-		result.details = {"outdated_clients": len(outdated_client_ids)}
-		if outdated_client_ids:
-			result.message = (
-				f"There are {len(outdated_client_ids)} active clients (last seen < 90 days) where important products are out of date."
-			)
+			for product in available_products:
+				product_id = product.productId
+				available_version = f"{product.productVersion}-{product.packageVersion}"
+				for product_on_client in backend.productOnClient_getObjects(
+					attributes=["productVersion", "packageVersion"],
+					clientId=client_ids,
+					productId=product_id,
+					installationStatus="installed",
+				):
+					version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
+					if compare_versions(version, ">=", available_version):
+						continue
+					client_id = product_on_client.clientId
+
+					partial_result = PartialCheckResult(
+						check_status=CheckStatus.ERROR,
+						check_id=f"product_on_clients:{client_id}:{product_id}",
+						check_name=f"Product {product_id!r} on {client_id!r}",
+						message=(
+							f"Product {product_id!r} is outdated on client {client_id!r}. "
+							f"Installed version {version!r} < depot version {available_version!r}"
+						),
+						details={"client_id": client_id, "product_id": product_id, "version": version},
+						upgrade_issue="4.3",
+					)
+					outdated_client_ids.add(client_id)
+					result.add_partial_result(partial_result)
+
+			result.details = {"outdated_clients": len(outdated_client_ids)}
+			if outdated_client_ids:
+				result.message = (
+					f"There are {len(outdated_client_ids)} active clients (last seen < 90 days) where products are out of date."
+				)
 	return result

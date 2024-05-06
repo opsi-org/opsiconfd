@@ -50,8 +50,8 @@ from opsiconfd.addon import AddonManager
 from opsiconfd.application import MaintenanceState
 from opsiconfd.application import app as opsiconfd_app
 from opsiconfd.auth import AuthenticationMethod, AuthenticationModule
-from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth._pam import PAMAuthentication
+from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
@@ -1209,12 +1209,17 @@ async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str 
 		raise
 
 
-async def pre_authenticate(scope: Scope) -> None:
-	if not scope["session"]:
-		addr = scope["client"]
-		scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=scope["request_headers"])
+async def ensure_session(scope: Scope) -> OPSISession:
+	if scope["session"]:
+		return scope["session"]
+	addr = scope["client"]
+	scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=scope["request_headers"])
 	scope["session"].authenticated = False
+	return scope["session"]
 
+
+async def pre_authenticate(scope: Scope) -> None:
+	await ensure_session(scope)
 	await check_min_configed_version(scope["session"].user_agent)
 	# Check if client address is blocked
 	await check_blocked(scope["session"].client_addr)

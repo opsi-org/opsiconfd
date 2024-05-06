@@ -72,11 +72,9 @@ async def saml_auth_request_data(request: Request) -> dict[str, Any]:
 	}
 	form_data = await request.form()
 	if request.query_params:
-		params["get_data"] = request.query_params
+		params["get_data"].update(request.query_params)
 	if "SAMLResponse" in form_data:
-		SAMLResponse = form_data["SAMLResponse"]
-		params["post_data"]["SAMLResponse"] = SAMLResponse
+		params["post_data"]["SAMLResponse"] = form_data["SAMLResponse"]
 	if "RelayState" in form_data:
-		RelayState = form_data["RelayState"]
-		params["post_data"]["RelayState"] = RelayState
+		params["post_data"]["RelayState"] = form_data["RelayState"]
 	return params

@@ -9,8 +9,12 @@
 session
 """
 
+import asyncio
+import time
+from typing import Literal
+
 from fastapi import APIRouter, FastAPI, Request, Response, status
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import]
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -61,15 +65,42 @@ async def logout(request: Request) -> RESTResponse:
 	return RESTResponse("session deleted")
 
 
+@auth_router.get("/session_id")
+@auth_router.post("/session_id")
+@rest_api
+async def session_id(request: Request) -> RESTResponse:
+	session: OPSISession | None = request.scope.get("session")
+	if not session:
+		await pre_authenticate(request.scope)
+		session = request.scope.get("session")
+		assert session
+		await session.store()
+	assert session and session.session_id
+	return RESTResponse(session.session_id)
+
+
 @auth_router.get("/authenticated")
+@auth_router.post("/authenticated")
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
 async def authenticated(request: Request) -> RESTResponse:
-	if request.scope["session"] and request.scope["session"].authenticated:
-		return RESTResponse(True)
+	session: OPSISession | None = request.scope.get("session")
+	if session:
+		if session.authenticated:
+			return RESTResponse(True)
+		params = await request.json()
+		timeout_ts = time.time() + int(params.get("wait_time", 0))
+		while time.time() < timeout_ts:
+			await session.refresh()
+			if session.authenticated:
+				return RESTResponse(True)
+			await asyncio.sleep(1)
 	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)
 
 
 async def _saml_login(request: Request, redirect_url: str) -> RedirectResponse:
+	session: OPSISession | None = request.scope.get("session")
+	if session and session.session_id:
+		redirect_url += f"?session_id={session.session_id}"
 	request_data = await saml_auth_request_data(request)
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings(login_callback_path=redirect_url))
 	redirect_url = auth.login()
@@ -94,7 +125,7 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	return RedirectResponse(url=redirect_url)
 
 
-async def _saml_callback_login(request: Request) -> Response:
+async def _saml_callback_login(request: Request, success_action: Literal["redirect_to_admin", "close"] = "redirect_to_admin") -> Response:
 	# TODO: https://github.com/SAML-Toolkits/python3-saml#avoiding-replay-attacks
 	await pre_authenticate(request.scope)
 	session: OPSISession = request.scope["session"]
@@ -118,6 +149,12 @@ async def _saml_callback_login(request: Request) -> Response:
 
 			await post_user_authenticate(request.scope)
 			await post_authenticate(request.scope)
+			if success_action == "close":
+				return HTMLResponse(
+					"<html><body><p>The login was successful, you can close this window.</p>"
+					"<script>window.close();</script></body></html>",
+					status_code=status.HTTP_200_OK,
+				)
 			return await admin_interface_index(request)
 
 		logger.info("Not an admin user '%s'", auth.get_nameid())
@@ -134,7 +171,7 @@ async def saml_callback_login(request: Request) -> Response:
 
 @auth_router.post("/saml/callback/login/configed")
 async def saml_callback_login_configed(request: Request) -> Response:
-	return await _saml_callback_login(request=request)
+	return await _saml_callback_login(request=request, success_action="close")
 
 
 @auth_router.post("/saml/callback/logout")

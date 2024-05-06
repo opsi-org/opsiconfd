@@ -223,7 +223,10 @@ class SessionMiddleware:
 				scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
 			# Get session
-			session_id = self.get_session_id_from_headers(connection.headers)
+			session_id = connection.query_params.get("session_id")
+			if not session_id:
+				session_id = self.get_session_id_from_headers(connection.headers)
+
 			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 				addr = scope["client"]
 				scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=connection.headers, session_id=session_id)
@@ -465,6 +468,13 @@ class SessionManager:
 		session: OPSISession | None = None
 		if session_id:
 			session = self.sessions.get(session_id)
+			if not session:
+				# Session not cached, try to load from redis
+				session = OPSISession(client_addr=client_addr, headers=headers, session_id=session_id)
+				if await session.load():
+					self.sessions[session_id] = session
+				else:
+					session = None
 
 		if session_id and session:
 			refresh_ok = await session.refresh()

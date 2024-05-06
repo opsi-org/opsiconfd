@@ -271,9 +271,7 @@ def setup_app() -> None:
 	public_path = [
 		"/favicon.ico",
 		"/login",
-		"/auth/login",
-		"/auth/logout",
-		"/auth/saml",
+		"/auth",
 		"/ssl/opsi-ca-cert.pem",
 		"/static",
 		"/welcome",

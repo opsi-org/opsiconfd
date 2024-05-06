@@ -214,7 +214,7 @@ def check_product_on_clients() -> CheckResult:
 				)
 			except requests.RequestException as err:
 				result.check_status = CheckStatus.ERROR
-				result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
+				result.message = f"Failed to get product info from depot '{depot.id}': {err}"
 				return result
 
 			for product in available_products:

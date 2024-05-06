@@ -175,7 +175,7 @@ def check_product_on_clients() -> CheckResult:
 	"""
 	## Products on clients
 
-	On the clients, it is checked whether the respective client agent is up to date.
+	Checks whether newer versions of the products installed on the client are available in the depot.
 	If an older version is installed, the Health Check issues a warning.
 	"""
 	result = CheckResult(

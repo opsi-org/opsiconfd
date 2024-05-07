@@ -87,7 +87,10 @@ async def authenticated(request: Request) -> RESTResponse:
 	if session:
 		if session.authenticated:
 			return RESTResponse(True)
-		params = await request.json()
+		try:
+			params = await request.json()
+		except Exception:
+			params = {}
 		timeout_ts = time.time() + int(params.get("wait_time", 0))
 		while time.time() < timeout_ts:
 			await session.refresh()

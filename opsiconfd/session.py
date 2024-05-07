@@ -196,7 +196,8 @@ class SessionMiddleware:
 
 		with server_timing("session_handling") as timing:
 			scope = connection.scope
-			scope["session"] = None
+			session = scope["session"] = None
+			path = scope["path"]
 			logger.trace("SessionMiddleware %s", scope)
 
 			await check_network(scope["client"][0])
@@ -208,17 +209,17 @@ class SessionMiddleware:
 			# Set default access role
 			required_access_role = ACCESS_ROLE_ADMIN
 			access_role_public = ACCESS_ROLE_PUBLIC
-			if scope["path"]:
-				if scope["path"] == "/":
+			if path:
+				if path == "/":
 					required_access_role = access_role_public
 				for pub_path in self._public_path:
-					if scope["path"].startswith(pub_path):
+					if path.startswith(pub_path):
 						required_access_role = access_role_public
 						break
 			scope["required_access_role"] = required_access_role
 
-			if scope["path"].startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer")) or (
-				scope["path"].startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
+			if path.startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer")) or (
+				path.startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
 			):
 				scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
@@ -227,27 +228,29 @@ class SessionMiddleware:
 			if not session_id:
 				session_id = self.get_session_id_from_headers(connection.headers)
 
-			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
+			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id or path.startswith("/auth"):
 				addr = scope["client"]
-				scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=connection.headers, session_id=session_id)
+				session = scope["session"] = await session_manager.get_session(
+					client_addr=addr[0], headers=connection.headers, session_id=session_id
+				)
 
-			started_authenticated = scope["session"] and scope["session"].authenticated
+			started_authenticated = session and session.authenticated
 
 			# Addon request processing
-			if scope["path"].startswith("/addons"):
-				addon = AddonManager().get_addon_by_path("/".join(scope["path"].split("/", 3)[:3]))
+			if path.startswith("/addons"):
+				addon = AddonManager().get_addon_by_path("/".join(path.split("/", 3)[:3]))
 				if addon:
-					logger.debug("Calling %s.handle_request for path '%s'", addon, scope["path"])
+					logger.debug("Calling %s.handle_request for path '%s'", addon, path)
 					if await addon.handle_request(connection, receive, send):
 						return
 
 			await check_access(connection)
 			if (
-				scope["session"]
+				session
 				and required_access_role == ACCESS_ROLE_ADMIN
-				and not scope["session"].host
-				and scope["path"].startswith("/depot")
-				and opsi_config.get("groups", "fileadmingroup") not in scope["session"].user_groups
+				and not session.host
+				and path.startswith("/depot")
+				and opsi_config.get("groups", "fileadmingroup") not in session.user_groups
 			):
 				raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].username}'")
 
@@ -257,8 +260,8 @@ class SessionMiddleware:
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
 				headers = MutableHeaders(scope=message)
-				if scope["session"]:
-					scope["session"].add_cookie_to_headers(headers)
+				if session:
+					session.add_cookie_to_headers(headers)
 				if scope.get("response-headers"):
 					for key, value in scope["response-headers"].items():
 						headers.append(key, value)
@@ -269,10 +272,11 @@ class SessionMiddleware:
 	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:
 		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
 		scope = connection.scope
-		if scope["path"].startswith("/addons"):
-			addon = AddonManager().get_addon_by_path(scope["path"])
+		path = scope["path"]
+		if path.startswith("/addons"):
+			addon = AddonManager().get_addon_by_path(path)
 			if addon:
-				logger.debug("Calling %s.handle_request_exception for path '%s'", addon, scope["path"])
+				logger.debug("Calling %s.handle_request_exception for path '%s'", addon, path)
 				if await addon.handle_request_exception(err, connection, receive, send):
 					return
 
@@ -283,11 +287,11 @@ class SessionMiddleware:
 		if isinstance(err, (BackendAuthenticationError, BackendPermissionDeniedError)):
 			log = logger.warning
 
-			if scope["path"]:
-				if scope.get("method") == "MKCOL" and scope["path"].lower().endswith("/system volume information"):
+			if path:
+				if scope.get("method") == "MKCOL" and path.lower().endswith("/system volume information"):
 					# Windows WebDAV client is trying to create "System Volume Information"
 					log = logger.debug
-				elif scope.get("method") == "PROPFIND" and scope["path"] == "/":
+				elif scope.get("method") == "PROPFIND" and path == "/":
 					# Windows WebDAV client PROPFIND /
 					log = logger.debug
 			log(err)
@@ -354,7 +358,7 @@ class SessionMiddleware:
 			scope["session"].add_cookie_to_headers(headers)
 
 		response: Optional[Response] = None
-		if scope["path"].startswith("/rpc"):
+		if path.startswith("/rpc"):
 			logger.debug("Returning jsonrpc response because path startswith /rpc")
 			content = {"id": None, "result": None, "error": error}
 			if scope.get("jsonrpc20"):
@@ -368,8 +372,8 @@ class SessionMiddleware:
 		if (
 			not response
 			and status_code == status.HTTP_401_UNAUTHORIZED
-			and scope["path"]
-			and scope["path"].lower().split("#", 1)[0].rstrip("/") in ("/admin", "/admin/grafana")
+			and path
+			and path.lower().split("#", 1)[0].rstrip("/") in ("/admin", "/admin/grafana")
 		):
 			response = RedirectResponse(f"/login?redirect={scope['path']}", headers=headers)
 		if not response:
@@ -906,7 +910,7 @@ class OPSISession:
 			max_age = ""
 		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/{max_age}"
 
-	def add_cookie_to_headers(self, headers: dict[str, str]) -> None:
+	def add_cookie_to_headers(self, headers: dict[str, str] | MutableHeaders) -> None:
 		cookie = self.get_cookie()
 		# Keep current set-cookie header if already set
 		if cookie and "set-cookie" not in headers:

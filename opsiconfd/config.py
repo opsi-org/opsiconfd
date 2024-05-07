@@ -1391,6 +1391,18 @@ class Config(metaclass=Singleton):
 			default=True,
 			help=self._help("opsiconfd", "Provide deprecated methods in API."),
 		)
+		self._parser.add(
+			"--http-security-headers",
+			env_var="HTTP_SECURITY_HEADERS",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"opsiconfd",
+				"If enabled, opsiconfd will send security headers in http responses.",
+			),
+		)
 
 		if self._pytest:
 			self._parser.add("args", nargs="*")

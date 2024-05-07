@@ -8,6 +8,7 @@
 """
 webdav tests
 """
+
 import os
 import random
 import shutil
@@ -58,9 +59,29 @@ def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  #
 	assert res.headers["Allow"] == "OPTIONS, GET, HEAD"
 
 
-def test_webdav_path_modification(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	res = test_client.request(method="PROPFIND", url="/dav", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 207
+@pytest.mark.parametrize(
+	"path, status_code",
+	(
+		("/dav", 207),
+		("/dav/depot", 207),
+		("/dav/workbench", 207),
+		("/dav/repository", 207),
+		("/dav/public", 207),
+		("/dav/boot", 207),
+		("/depot", 207),
+		("/workbench", 207),
+		("/repository", 207),
+		("/public", 207),
+		("/boot", 207),
+		("/", 405),
+		("/static", 405),
+	),
+)
+def test_webdav_propfind(test_client: OpsiconfdTestClient, path: str, status_code: int) -> None:  # noqa: F811
+	res = test_client.request(method="PROPFIND", url=path, auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == status_code
+	if status_code == 207:
+		assert res.text.lower().startswith("<?xml version='1.0' encoding='utf-8'?>")
 
 
 def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

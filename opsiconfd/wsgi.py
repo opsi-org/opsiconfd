@@ -22,7 +22,8 @@ from starlette.types import Receive, Scope, Send
 class InputBuffer:
 	"""Input buffer"""
 
-	def __init__(self) -> None:
+	def __init__(self, allow_memory_view: bool = True) -> None:
+		self._allow_memory_view = allow_memory_view
 		self._queue: Queue[bytes] = Queue(5)
 		self._buffer = b""
 		self._read_pos = 0
@@ -50,8 +51,10 @@ class InputBuffer:
 		else:
 			self._read_pos += size
 
-		view = memoryview(self._buffer)[start:end]
-		return view
+		if not self._allow_memory_view:
+			return self._buffer[start:end]
+
+		return memoryview(self._buffer)[start:end]
 
 	def readline(self) -> bytes:
 		return self.read(16 * 1024)
@@ -90,7 +93,6 @@ def build_environ(scope: Scope) -> dict:
 		"SERVER_PROTOCOL": f"HTTP/{scope['http_version']}",
 		"wsgi.version": (1, 0),
 		"wsgi.url_scheme": scope.get("scheme", "http"),
-		"wsgi.input": InputBuffer(),
 		"wsgi.errors": sys.stdout,
 		"wsgi.multithread": True,
 		"wsgi.multiprocess": True,
@@ -123,6 +125,10 @@ def build_environ(scope: Scope) -> dict:
 		if corrected_name in environ:
 			value = environ[corrected_name] + "," + value
 		environ[corrected_name] = value
+
+	# wsgidav.util.parse_xml_body() uses lxml.etree.fromstring() which does not support memoryview
+	environ["wsgi.input"] = InputBuffer(allow_memory_view=scope["method"] != "PROPFIND")
+
 	return environ
 
 

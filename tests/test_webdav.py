@@ -78,7 +78,12 @@ def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  #
 	),
 )
 def test_webdav_propfind(test_client: OpsiconfdTestClient, path: str, status_code: int) -> None:  # noqa: F811
-	res = test_client.request(method="PROPFIND", url=path, auth=(ADMIN_USER, ADMIN_PASS))
+	res = test_client.request(
+		method="PROPFIND",
+		url=path,
+		content=b'<?xml version="1.0" encoding="utf-8" ?>\n <D:propfind xmlns:D="DAV:">\n  <D:prop>\n<D:resourcetype/>\n<D:getcontentlength/>\n  </D:prop>\n </D:propfind>',
+		auth=(ADMIN_USER, ADMIN_PASS),
+	)
 	assert res.status_code == status_code
 	if status_code == 207:
 		assert res.text.lower().startswith("<?xml version='1.0' encoding='utf-8'?>")

@@ -272,6 +272,7 @@ def setup_app() -> None:
 		"/favicon.ico",
 		"/login",
 		"/auth/login",
+		"/auth/logout",
 		"/auth/session_id",
 		"/auth/saml",
 		"/ssl/opsi-ca-cert.pem",

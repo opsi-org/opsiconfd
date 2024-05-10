@@ -46,6 +46,9 @@
 			{% endif %}
 			<button id="login_button" type="submit">Login</button>
 		</form>
+		{% if saml_login_enabled %}
+		<button id="saml_login_button" onclick="location.href='/auth/saml/login'">Login via SAML</button>
+		{% endif %}
 		<div id="login_error"></div>
 	</div>
 </body>

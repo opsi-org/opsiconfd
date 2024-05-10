@@ -77,7 +77,7 @@ async def index_head() -> Response:
 @app.get("/login")
 @app.post("/login")
 async def login_index(request: Request) -> Response:
-	context = {"request": request, "multi_factor_auth": config.multi_factor_auth}
+	context = {"request": request, "multi_factor_auth": config.multi_factor_auth, "saml_login_enabled": bool(config.saml_idp_sso_url)}
 	return jinja_templates().TemplateResponse(request=request, name="login.html", context=context)
 
 

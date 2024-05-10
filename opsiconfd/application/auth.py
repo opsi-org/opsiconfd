@@ -28,6 +28,7 @@ from opsiconfd.session import (
 	OPSISession,
 	_post_failed_authenticate,
 	authenticate,
+	ensure_session,
 	post_authenticate,
 	post_user_authenticate,
 	pre_authenticate,
@@ -101,9 +102,10 @@ async def authenticated(request: Request) -> RESTResponse:
 
 
 async def _saml_login(request: Request, redirect_url: str) -> RedirectResponse:
-	session: OPSISession | None = request.scope.get("session")
-	if session and session.session_id:
-		redirect_url += f"?session_id={session.session_id}"
+	session: OPSISession = await ensure_session(request.scope)
+	await session.store()
+	assert session.session_id
+	redirect_url += f"?session_id={session.session_id}"
 	request_data = await saml_auth_request_data(request)
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings(login_callback_path=redirect_url))
 	redirect_url = auth.login()

@@ -39,6 +39,7 @@ test:pylint-pytest:
   after_script:
     # Unfortunatly after_script is currently not executed when a job is canceled
     # https://gitlab.com/groups/gitlab-org/-/epics/10158
+    - echo "CI_JOB_STATUS: $CI_JOB_STATUS"
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
     - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml -p opsiconfd-test-$CI_JOB_ID"
 

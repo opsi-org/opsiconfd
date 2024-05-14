@@ -84,6 +84,43 @@ def test_login_error(
 	assert res.headers.get("set-cookie", None) is not None
 
 
+def test_x_opsi_user_id_header(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	database_connection: MySQLConnection,  # noqa: F811
+) -> None:
+	res = test_client.get("/auth/authenticated")
+	assert res.status_code == 401
+	assert res.headers.get("X-opsi-user-id", None) is None
+
+	res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	assert res.headers.get("X-opsi-user-id", None) == f"user:{ADMIN_USER}"
+
+	test_client.reset_cookies()
+
+	res = test_client.get("/auth/authenticated")
+	assert res.status_code == 401
+	assert res.headers.get("X-opsi-user-id", None) is None
+
+	with database_connection.session() as session:
+		session.execute(
+			"""
+			INSERT INTO HOST
+				(hostId, type, opsiHostKey)
+			VALUES
+				("client1.opsi.test", "OpsiClient", "08508cd947c5e22f020dcde519d9ec04");
+		"""
+		)
+
+	try:
+		res = test_client.get("/auth/authenticated", auth=("client1.opsi.test", "08508cd947c5e22f020dcde519d9ec04"))
+		assert res.status_code == 200
+		assert res.headers.get("X-opsi-user-id", None) == "client:client1.opsi.test"
+	finally:
+		with database_connection.session() as session:
+			session.execute('DELETE FROM HOST WHERE hostId = "client1.opsi.test"')
+
+
 def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/auth/authenticated")
 	assert res.status_code == 401

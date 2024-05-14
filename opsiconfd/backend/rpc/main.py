@@ -400,11 +400,9 @@ class ProtectedBackend(Backend):
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
 
-		user_type = "user"
-		if session.host:
-			user_type = "client"
-			if session.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
-				user_type = "depot"
+		user_type = session.user_type
+		if not user_type:
+			raise BackendPermissionDeniedError("Invalid user type")
 
 		ace_list = []
 		for ace in self._acl.get(method, []):

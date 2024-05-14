@@ -18,7 +18,7 @@ import time
 import uuid
 from collections import namedtuple
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import msgspec
 import pyotp
@@ -218,8 +218,10 @@ class SessionMiddleware:
 						break
 			scope["required_access_role"] = required_access_role
 
-			if path.startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer")) or (
-				path.startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
+			if (
+				scope["required_access_role"] != ACCESS_ROLE_PUBLIC
+				and path.startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer", "/auth"))
+				or (path.startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 			):
 				scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
@@ -261,7 +263,7 @@ class SessionMiddleware:
 			if message["type"] == "http.response.start":
 				headers = MutableHeaders(scope=message)
 				if session:
-					session.add_cookie_to_headers(headers)
+					session.add_session_headers(headers)
 				if scope.get("response-headers"):
 					for key, value in scope["response-headers"].items():
 						headers.append(key, value)
@@ -354,8 +356,8 @@ class SessionMiddleware:
 				pass
 			return
 
-		if scope.get("session"):
-			scope["session"].add_cookie_to_headers(headers)
+		if session := scope.get("session"):
+			session.add_session_headers(headers)
 
 		response: Optional[Response] = None
 		if path.startswith("/rpc"):
@@ -723,6 +725,16 @@ class OPSISession:
 		self._set_modified("auth_methods")
 
 	@property
+	def user_type(self) -> Literal["user", "depot", "client"] | None:
+		if not self.authenticated:
+			return None
+		if not self.host:
+			return "user"
+		if self.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+			return "depot"
+		return "client"
+
+	@property
 	def is_admin(self) -> bool:
 		return self._is_admin
 
@@ -910,11 +922,13 @@ class OPSISession:
 			max_age = ""
 		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/{max_age}"
 
-	def add_cookie_to_headers(self, headers: dict[str, str] | MutableHeaders) -> None:
+	def add_session_headers(self, headers: dict[str, str] | MutableHeaders) -> None:
 		cookie = self.get_cookie()
 		# Keep current set-cookie header if already set
 		if cookie and "set-cookie" not in headers:
 			headers["set-cookie"] = cookie
+		if user_type := self.user_type and self.username:
+			headers["X-opsi-user-id"] = f"{user_type}:{self.username}"
 
 	async def update_last_used(self) -> None:
 		self.last_used = int(unix_timestamp())

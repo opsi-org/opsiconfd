@@ -927,7 +927,8 @@ class OPSISession:
 		# Keep current set-cookie header if already set
 		if cookie and "set-cookie" not in headers:
 			headers["set-cookie"] = cookie
-		if user_type := self.user_type and self.username:
+		user_type = self.user_type
+		if user_type and self.username:
 			headers["X-opsi-user-id"] = f"{user_type}:{self.username}"
 
 	async def update_last_used(self) -> None:

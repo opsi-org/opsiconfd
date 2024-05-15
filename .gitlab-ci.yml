@@ -49,6 +49,11 @@ test:pylint-pytest:
     - echo -e "${TXT_HEAD}Stop docker containers${TXT_CLEAR}"
     - $DOCKER_COMPOSE down -v
   script:
+    - 'echo "CI_PROJECT_DIR: $CI_PROJECT_DIR"'
+    - 'echo "CI_CONCURRENT_ID: $CI_CONCURRENT_ID"'
+    - 'echo "CI_CONCURRENT_PROJECT_ID: $CI_CONCURRENT_PROJECT_ID"'
+    - df -h
+    - pwd
     - echo -e "${TXT_HEAD}Fetch bencher${TXT_CLEAR}"
     - wget -q https://github.com/bencherdev/bencher/releases/download/v0.4.2/bencher-v0.4.2-linux-x86-64 -O bencher
     - chmod +x bencher

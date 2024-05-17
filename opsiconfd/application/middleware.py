@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from opsicommon.logging.constants import TRACE
+from opsicommon.utils import ip_address_in_network
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
@@ -113,7 +114,7 @@ class BaseMiddleware:
 				RuntimeWarning,
 			)
 
-		if client_host in config.trusted_proxies:
+		if config.trusted_proxies and client_host and any(ip_address_in_network(client_host, a) for a in config.trusted_proxies):
 			proxy_host = client_host
 			# from uvicorn/middleware/proxy_headers.py
 

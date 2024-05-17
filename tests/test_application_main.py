@@ -59,7 +59,7 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 
 
 def test_trusted_proxy(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	with get_config({"trusted_proxies": ["192.168.1.1", "192.168.2.1"]}):
+	with get_config({"trusted_proxies": ["192.168.1.1/32", "192.168.2.1"]}):
 		test_client.set_client_address("192.168.100.1", 12345)
 		test_client.get("/")
 		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.100.1"
@@ -77,3 +77,9 @@ def test_trusted_proxy(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		test_client.get("/", headers={"x-forwarded-for": "192.168.200.2"})
 		# x-forwarded-for must be accepted from trusted proxy
 		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.200.2"
+
+	with get_config({"trusted_proxies": ["192.168.1.0/24"]}):
+		test_client.set_client_address("192.168.1.1", 12345)
+		test_client.get("/", headers={"x-forwarded-for": "192.168.200.1"})
+		# x-forwarded-for must be accepted from trusted proxy
+		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.200.1"

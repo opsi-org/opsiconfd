@@ -678,8 +678,8 @@ class Config(metaclass=Singleton):
 			"--trusted-proxies",
 			nargs="+",
 			env_var="OPSICONFD_TRUSTED_PROXIES",
-			default=["127.0.0.1", "::1"],
-			type=ip_address,
+			default=["127.0.0.1/32", "::1/128"],
+			type=network_address,
 			help=self._help("opsiconfd", "A list of trusted reverse proxy addresses."),
 		)
 		self._parser.add(

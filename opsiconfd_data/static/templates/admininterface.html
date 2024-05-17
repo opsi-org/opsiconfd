@@ -34,6 +34,8 @@
 			if (!window.location.pathname.startsWith("/admin")) {
 				window.location.pathname = "/admin";
 			}
+			window.history.pushState('object', document.title, location.href.split("?")[0]);
+
 			input.onkeyup = function (event) {
 				// Number 13 is the "Enter" key on the keyboard
 				if (event.keyCode === 13) {

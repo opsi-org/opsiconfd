@@ -20,25 +20,16 @@ if TYPE_CHECKING:
 
 
 def remove_orphans_config_state(session: Session) -> None:
-	res1 = session.execute(
+	result = session.execute(
 		"""
 		DELETE s.* FROM CONFIG_STATE AS s
-		LEFT JOIN CONFIG AS c
-		ON s.configId = c.configId
-		WHERE c.configId IS NULL
+		LEFT JOIN CONFIG AS c ON s.configId = c.configId
+		LEFT JOIN HOST AS h ON h.hostId = s.objectId
+		WHERE c.configId IS NULL OR h.hostId IS NULL
 		"""
 	)
-
-	res2 = session.execute(
-		"""
-		DELETE s.* FROM CONFIG_STATE AS s
-		LEFT JOIN HOST AS h
-		ON h.hostId = s.objectId
-		WHERE h.hostId IS NULL
-		"""
-	)
-	if res_count := (res1.rowcount + res2.rowcount) > 0:
-		logger.notice("Removed %d orphaned entries from CONFIG_STATE", res_count)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from CONFIG_STATE", result.rowcount)
 
 
 def remove_orphans_config_value(session: Session) -> None:
@@ -131,9 +122,9 @@ def remove_orphans_product_property_state(session: Session) -> None:
 	result = session.execute(
 		"""
 		DELETE s.* FROM PRODUCT_PROPERTY_STATE AS s
-		LEFT JOIN PRODUCT AS p
-		ON s.productId = p.productId
-		WHERE p.productId IS NULL
+		LEFT JOIN PRODUCT AS p ON s.productId = p.productId
+		LEFT JOIN HOST AS h ON s.objectId = h.hostId
+		WHERE p.productId IS NULL OR h.hostId IS NULL
 		"""
 	)
 	if result.rowcount > 0:

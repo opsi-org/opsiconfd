@@ -202,6 +202,8 @@ class RPCHostMixin(Protocol):
 			session.execute(
 				'DELETE FROM OBJECT_TO_GROUP WHERE groupType = "HostGroup" AND objectId IN :host_ids', params={"host_ids": host_ids}
 			)
+			session.execute("DELETE FROM PRODUCT_PROPERTY_STATE WHERE objectId IN :host_ids", params={"host_ids": host_ids})
+			session.execute("DELETE FROM CONFIG_STATE WHERE objectId IN :host_ids", params={"host_ids": host_ids})
 			for table in self._mysql.tables:
 				if table.startswith("HARDWARE_CONFIG_"):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})

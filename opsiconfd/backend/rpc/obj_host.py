@@ -199,9 +199,13 @@ class RPCHostMixin(Protocol):
 		host_ids = [ident["id"] for ident in idents]
 		with self._mysql.session() as session:
 			session.execute(query, params=params)
+			session.execute(
+				'DELETE FROM OBJECT_TO_GROUP WHERE groupType = "HostGroup" AND objectId IN :host_ids', params={"host_ids": host_ids}
+			)
 			for table in self._mysql.tables:
 				if table.startswith("HARDWARE_CONFIG_"):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+
 		if not self.events_enabled:
 			return
 

@@ -10,30 +10,29 @@ test opsiconfd.backend.mysql
 """
 
 import json
-
 from pathlib import Path
 from typing import Generator
 from uuid import uuid4
 
 import pytest
 from opsicommon.objects import (
-	OpsiDepotserver,
-	OpsiClient,
-	HostGroup,
-	ObjectToGroup,
-	ProductOnClient,
-	LocalbootProduct,
-	UnicodeProductProperty,
-	ProductPropertyState,
-	BoolConfig,
-	ConfigState,
 	AuditSoftware,
 	AuditSoftwareOnClient,
+	BoolConfig,
+	ConfigState,
+	HostGroup,
+	LicenseContract,
 	LicenseOnClient,
 	LicensePool,
+	LocalbootProduct,
+	ObjectToGroup,
+	OpsiClient,
+	OpsiDepotserver,
+	ProductOnClient,
+	ProductPropertyState,
 	RetailSoftwareLicense,
-	LicenseContract,
 	SoftwareLicenseToLicensePool,
+	UnicodeProductProperty,
 	deserialize,
 )
 
@@ -740,9 +739,34 @@ def test_host_deleteObjects(
 		"description": "description",
 		"oneTimePassword": "secret",
 	}
+	group1 = {
+		"type": "HostGroup",
+		"id": "test-backend-rpc-host-group-1",
+		"description": "description",
+	}
+	object_to_group1 = {
+		"groupType": "HostGroup",
+		"groupId": "test-backend-rpc-host-group-1",
+		"objectId": "test-backend-rpc-host-1.opsi.test",
+	}
+	object_to_group2 = {
+		"groupType": "HostGroup",
+		"groupId": "test-backend-rpc-host-group-1",
+		"objectId": "test-backend-rpc-host-2.opsi.test",
+	}
 
 	# Create clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Create group
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "group_createObjects", "params": [[group1]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Create ObjectToGroup
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "objectToGroup_createObjects", "params": [[object_to_group1, object_to_group2]]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
@@ -773,6 +797,13 @@ def test_host_deleteObjects(
 
 	# Get client idents
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["list", {"id": [client1["id"], client2["id"]]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	result = res["result"]
+	assert len(result) == 0
+
+	# Get ObjectToGroup idents
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "objectToGroup_getIdents", "params": ["dict", {"objectId": [client1["id"], client2["id"]]}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 	result = res["result"]

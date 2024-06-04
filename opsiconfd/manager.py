@@ -12,7 +12,6 @@ manager
 import asyncio
 import os
 import signal
-import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
@@ -48,7 +47,6 @@ from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
 
 class WorkerManager:
 	def __init__(self) -> None:
-		self.socket: socket.socket | None = None
 		self.node_name = config.node_name
 		self.workers: dict[str, WorkerInfo] = {}
 		self.worker_stop_timeout = config.worker_stop_timeout
@@ -87,17 +85,6 @@ class WorkerManager:
 			config.workers = 1
 			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)
 
-	def bind_socket(self) -> None:
-		ipv6 = ":" in config.interface
-		self.socket = socket.socket(family=socket.AF_INET6 if ipv6 else socket.AF_INET)
-		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		try:
-			self.socket.bind((config.interface, config.port))
-		except OSError as exc:
-			logger.error(exc)
-			raise
-		self.socket.set_inheritable(True)
-
 	def get_workers(self) -> list[Worker]:
 		return [w for w in self.workers.values() if isinstance(w, Worker)]
 
@@ -111,7 +98,6 @@ class WorkerManager:
 		logger.notice("Starting server")
 		self.init_logging()
 		self.check_modules()
-		self.bind_socket()
 		self.adjust_worker_count()
 		# Wait for all worker processes to start and see if they keep running
 		startup_end_time = time.time() + self.startup_time
@@ -216,16 +202,13 @@ class WorkerManager:
 		return None
 
 	def start_worker(self, worker: Worker | None = None) -> None:
-		if not self.socket:
-			raise RuntimeError("Socket not initialized")
-
 		if not worker:
 			worker_nums = sorted([w.worker_num for w in self.get_workers()])
 			worker_num = worker_nums[-1] + 1 if worker_nums else 1
 			worker = Worker(self.node_name, worker_num)
 
 		worker.worker_state = WorkerState.STARTING
-		worker.start_server_process([self.socket])
+		worker.start_server_process()
 
 		logger.info("New %s started", worker)
 		self.workers[worker.id] = worker

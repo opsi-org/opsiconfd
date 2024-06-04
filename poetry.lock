@@ -1109,6 +1109,22 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
+name = "hivex"
+version = "1.3.23"
+description = "Python 3 bindings for hivex"
+optional = false
+python-versions = "*"
+files = [
+    {file = "hivex-1.3.23-cp310-cp310-linux_x86_64.whl", hash = "sha256:fda4adfd42b3ec91d5233662d9d36481a973d53b012e9128c18de33dc1673f5d"},
+    {file = "hivex-1.3.23-cp311-cp311-linux_x86_64.whl", hash = "sha256:6fec4991e37ef19767f6a699f8ab01a61b7f6e1cfc62fe5d73520abe90fac1d4"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
 name = "httpcore"
 version = "1.0.5"
 description = ""
@@ -1413,7 +1429,6 @@ files = [
     {file = "lxml-5.2.1-cp37-cp37m-musllinux_1_2_x86_64.whl", hash = "sha256:9e2addd2d1866fe112bc6f80117bcc6bc25191c5ed1bfbcf9f1386a884252ae8"},
     {file = "lxml-5.2.1-cp37-cp37m-win32.whl", hash = "sha256:f51969bac61441fd31f028d7b3b45962f3ecebf691a510495e5d2cd8c8092dbd"},
     {file = "lxml-5.2.1-cp37-cp37m-win_amd64.whl", hash = "sha256:b0b58fbfa1bf7367dde8a557994e3b1637294be6cf2169810375caf8571a085c"},
-    {file = "lxml-5.2.1-cp38-cp38-macosx_10_9_universal2.whl", hash = "sha256:3e183c6e3298a2ed5af9d7a356ea823bccaab4ec2349dc9ed83999fd289d14d5"},
     {file = "lxml-5.2.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:804f74efe22b6a227306dd890eecc4f8c59ff25ca35f1f14e7482bbce96ef10b"},
     {file = "lxml-5.2.1-cp38-cp38-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:08802f0c56ed150cc6885ae0788a321b73505d2263ee56dad84d200cab11c07a"},
     {file = "lxml-5.2.1-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0f8c09ed18ecb4ebf23e02b8e7a22a05d6411911e6fabef3a36e4f371f4f2585"},
@@ -2840,6 +2855,26 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
+name = "python-opsi-system"
+version = "4.3.1.3"
+description = "opsi python system package"
+optional = false
+python-versions = ">=3.11,<3.13"
+files = [
+    {file = "python_opsi_system-4.3.1.3-py3-none-any.whl", hash = "sha256:05837c9465cb1ad9cba7fdcfc6da0a03f1115ac9267ff1a1bff250ea0b535a24"},
+    {file = "python_opsi_system-4.3.1.3.tar.gz", hash = "sha256:873ce40a7c2914ca4fab6f0cbecbac9c22c40f572973fce0650abf3746c97a60"},
+]
+
+[package.dependencies]
+hivex = ">=1.3,<2.0"
+python-opsi-common = ">=4.3.0.0,<4.4"
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
 name = "python-pam"
 version = "2.0.2"
 description = "Python PAM module using ctypes, py3"
@@ -4255,4 +4290,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "0d0919d994baa72eb9ebd5282e4e8dd8bdcc8d050ace248af3eeb751d8f7e4af"
+content-hash = "5b9b53c53bef874f3d9340f72678fa399a2d4b1b6a7a06bf136724c4b7763852"

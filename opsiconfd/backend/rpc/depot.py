@@ -9,7 +9,6 @@
 opsiconfd.backend.rpc.depot
 """
 
-
 from __future__ import annotations
 
 import base64
@@ -49,6 +48,7 @@ from opsicommon.package.associated_files import (
 	create_package_md5_file,
 	create_package_zsync_file,
 )
+from opsicommon.package.wim import wim_info
 from opsicommon.server.rights import set_rights
 from opsicommon.types import (
 	forceBool,
@@ -59,7 +59,7 @@ from opsicommon.types import (
 )
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
-
+from opsisystem.inffile import INFFile, INFTargetOSVersion, Architecture
 from opsiconfd import __version__, contextvar_client_session
 from opsiconfd.config import (
 	BOOT_DIR,
@@ -325,6 +325,62 @@ class RPCDepotserverMixin(Protocol):
 		if os.name == "posix":
 			os.chown(package_content_path, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(package_content_path, 0o660)
+
+	@rpc_method
+	def depot_createDriverLinks(self: BackendProtocol, productId: str) -> None:
+		"""
+		Create the driver integration structure in the products depot directory.
+		"""
+		product_id = typeForceProductId(productId)
+		client_data_dir = Path(DEPOT_DIR) / product_id
+		wim_files = set()
+		target_os_versions = set()
+		for image_dir in ("images", "installfiles/sources"):
+			image_path = client_data_dir / image_dir
+			if not image_path.exists():
+				continue
+			for file in image_path.iterdir():
+				if file.suffix.lower() not in (".wim", ".esd", ".swm"):
+					continue
+				if file.suffix.lower() == ".swm" and re.match(r"\d+\.swm", file.stem):
+					# Only process first part of split wim
+					continue
+				wim_files.add(file)
+				images = wim_info(file).images
+				if not images:
+					continue
+				windows_info = images[0].windows_info
+				if not windows_info:
+					continue
+				target_os_version = INFTargetOSVersion(
+					Architecture=Architecture.from_string(windows_info.architecture),
+					OSMajorVersion=windows_info.major_version,
+					OSMinorVersion=windows_info.minor_version,
+					BuildNumber=windows_info.build,
+				)
+				target_os_versions.add(target_os_version)
+
+		if not wim_files:
+			raise BackendError(f"No WIM files found for product '{product_id}'")
+
+		if not target_os_versions:
+			raise BackendError(f"No target OS versions found in images for product '{product_id}'")
+
+		for target_os_version in target_os_versions:
+			logger.info("Creating driver links for %s", target_os_version)
+			drivers_dir = client_data_dir / "drivers"
+			driver_store_dir = client_data_dir / "driver_store"
+			if driver_store_dir.exists():
+				shutil.rmtree(driver_store_dir)
+			inf_re = re.compile(".*\.inf", re.IGNORECASE)
+			for root, _dirs, files in os.walk(drivers_dir):
+				for filename in files:
+					if inf_re.match(filename):
+						file_path = Path(root) / filename
+						logger.debug("Processing file '%s'", file_path)
+						inf_file = INFFile(file_path)
+						for dev in inf_file.get_devices(target_os_version=target_os_version):
+							logger.trace("Processing Hardware ID '%s'", dev.hardware_id)
 
 	@rpc_method
 	def depot_createMd5SumFile(self: BackendProtocol, filename: str, get_file_md5sumFilename: str) -> None:

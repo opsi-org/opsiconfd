@@ -14,7 +14,7 @@ from pathlib import Path
 
 from opsicommon.objects import NetbootProduct
 from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
-
+from opsisystem.inffile import INFTargetOSVersion
 from unittest.mock import patch
 
 
@@ -28,5 +28,19 @@ def test_depot_createDriverLinks(
 	drivers_dir = client_data_dir / "drivers"
 	client_data_dir.mkdir()
 	shutil.copytree("tests/data/windows_drivers", drivers_dir)
-	with patch("opsiconfd.backend.rpc.depot.DEPOT_DIR", str(tmp_path)):
+	get_target_os_versions = [
+		INFTargetOSVersion(Architecture="amd64", OSMajorVersion=10, OSMinorVersion=0, BuildNumber=22000),
+		INFTargetOSVersion(Architecture="x86", OSMajorVersion=10, OSMinorVersion=0, BuildNumber=1507),
+	]
+	with patch("opsiconfd.backend.rpc.depot.DEPOT_DIR", str(tmp_path)), patch(
+		"opsiconfd.backend.rpc.depot.get_target_os_versions", return_value=get_target_os_versions
+	):
 		backend.depot_createDriverLinks(productId=product.id)
+
+	for sub_dir in ("amd64/10.0.22000/PCI/1AF4", "x86/10.0.1507/PCI/1AF4"):
+		for device_id in ("1001", "1003", "1042", "1043"):
+			link = client_data_dir / "driver_db" / sub_dir / device_id
+			assert link.is_symlink()
+			inf_file = next(link.resolve().glob("*.inf"))
+			assert inf_file.exists()
+			assert inf_file.is_file()

@@ -176,11 +176,7 @@ class WorkerInfo:
 
 
 # uvicorn._subprocess.get_subprocess
-def get_subprocess(
-	uvicorn_config: Config,
-	target: Callable[..., None],
-	sockets: list[socket.socket],
-) -> SpawnProcess:
+def get_subprocess(uvicorn_config: Config, target: Callable[..., None]) -> SpawnProcess:
 	stdin_fileno: Optional[int]
 	try:
 		stdin_fileno = sys.stdin.fileno()
@@ -191,7 +187,6 @@ def get_subprocess(
 		"uvicorn_config": uvicorn_config,
 		"opsiconfd_config": config.items(),
 		"target": target,
-		"sockets": sockets,
 		"stdin_fileno": stdin_fileno,
 	}
 
@@ -203,7 +198,6 @@ def subprocess_started(
 	uvicorn_config: Config,
 	opsiconfd_config: dict[str, Any],
 	target: Callable[..., None],
-	sockets: list[socket.socket],
 	stdin_fileno: int | None,
 ) -> None:
 	# Re-open stdin.
@@ -215,8 +209,8 @@ def subprocess_started(
 	# Logging needs to be setup again for each child.
 	uvicorn_config.configure_logging()
 
-	# Now we can call into `Server.run(sockets=sockets)`
-	target(sockets=sockets)
+	# Now we can call into `Server.run()`
+	target()
 
 
 class Worker(WorkerInfo, UvicornServer):
@@ -229,10 +223,11 @@ class Worker(WorkerInfo, UvicornServer):
 		self.process: SpawnProcess | None = None
 		self.app_state = app._app_state.type
 		self.connection_close_wait_timeout = 10.0
+		self.socket: socket.socket | None = None
 
-	def start_server_process(self, sockets: list[socket.socket]) -> None:
+	def start_server_process(self) -> None:
 		# Process will be spawned and will not inherit global variables from parent process
-		self.process = get_subprocess(uvicorn_config=self.config, target=self.run, sockets=sockets)
+		self.process = get_subprocess(uvicorn_config=self.config, target=self.run)
 		self.process.start()
 		if not self.process.pid:
 			raise RuntimeError("Failed to start server process")
@@ -289,7 +284,23 @@ class Worker(WorkerInfo, UvicornServer):
 		)
 		await redis.expire(self.redis_state_key, self.redis_state_key_expire)
 
-	def _run(self, sockets: Optional[list[socket.socket]] = None) -> None:
+	def bind_socket(self) -> None:
+		# Create socket after fork and use SO_REUSEPORT to avoid performance issues
+		# https://blog.flipkart.tech/linux-tcp-so-reuseport-usage-and-implementation-6bfbf642885a
+		# The following command should output multiple sockets with the same port but different PIDs and inode numbers (ino):
+		# ss -tlnpe | grep :<opsiconfd-port>
+		ipv6 = ":" in config.interface
+		self.socket = socket.socket(family=socket.AF_INET6 if ipv6 else socket.AF_INET)
+		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+		try:
+			self.socket.bind((config.interface, config.port))
+		except OSError as exc:
+			logger.error(exc)
+			raise
+		self.socket.set_inheritable(True)
+
+	def _run(self) -> None:
 		if "tracemalloc" in config.profiler:
 			from opsiconfd.application.memoryprofiler import start_tracemalloc
 
@@ -307,16 +318,18 @@ class Worker(WorkerInfo, UvicornServer):
 
 		self._metrics_collector = WorkerMetricsCollector(self)
 
-		super().run(sockets=sockets)
+		self.bind_socket()
+		assert self.socket
+		super().run([self.socket])
 
-	def run(self, sockets: Optional[list[socket.socket]] = None) -> None:
+	def run(self, sockets: list[socket.socket] | None = None) -> None:
 		try:
-			self._run(sockets)
+			self._run()
 		except Exception as err:
 			logger.error("%s terminated with error: %s", self, err, exc_info=True)
 		shutdown_logging()
 
-	async def serve(self, sockets: Optional[list[socket.socket]] = None) -> None:
+	async def serve(self, sockets: list[socket.socket] | None = None) -> None:
 		loop = asyncio.get_running_loop()
 		loop.set_debug("asyncio" in config.debug_options)
 		init_pool_executor(loop)

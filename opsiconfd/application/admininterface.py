@@ -540,7 +540,7 @@ async def open_grafana(request: Request) -> RedirectResponse:
 			else:
 				match = re.search(r"grafana_session=([0-9a-f]+)", response.headers.get("Set-Cookie", ""))
 				if match:
-					redirect_response.set_cookie(key="grafana_session", value=match.group(1))
+					redirect_response.set_cookie(key="grafana_session", path="/grafana", value=match.group(1))
 				else:
 					logger.error("Failed to get grafana_session cookie")
 

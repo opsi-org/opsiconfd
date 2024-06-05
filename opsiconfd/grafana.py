@@ -101,7 +101,7 @@ GRAFANA_TIMESERIES_PANEL_TEMPLATE = {
 	"targets": [],
 	"options": {
 		"tooltip": {"mode": "single", "sort": "none"},
-		"legend": {"showLegend": True, "displayMode": "list", "placement": "bottom", "calcs": []},
+		"legend": {"showLegend": True, "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]},
 	},
 	"fieldConfig": {
 		"defaults": {
@@ -128,7 +128,7 @@ GRAFANA_TIMESERIES_PANEL_TEMPLATE = {
 			},
 			"color": {"mode": "palette-classic"},
 			"mappings": [],
-			"thresholds": {"mode": "absolute", "steps": [{"value": None, "color": "green"}, {"value": 80, "color": "red"}]},
+			"thresholds": {"mode": "absolute", "steps": [{"value": None, "color": "green"}]},
 			"unit": "decbytes",
 		},
 		"overrides": [],
@@ -212,7 +212,7 @@ class GrafanaPanelConfig:
 		elif self.type == "heatmap":
 			panel["options"]["yAxis"]["format"] = self.unit  # type: ignore[index]
 		if self.yaxis_min != "auto":
-			panel["fieldConfig"]["defaults"] = self.yaxis_min  # type: ignore[index]
+			panel["fieldConfig"]["defaults"]["min"] = self.yaxis_min  # type: ignore[index]
 		return panel
 
 

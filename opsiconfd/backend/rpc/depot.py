@@ -390,6 +390,8 @@ class RPCDepotserverMixin(Protocol):
 							logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
 							tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
 							for hwid in dev.hardware_ids:
+								if not hwid.vendor_id or not hwid.device_id:
+									continue
 								if hwid.device_type == DeviceType.MULTI:
 									logger.debug("Skipping device type %s", hwid.device_type)
 									continue

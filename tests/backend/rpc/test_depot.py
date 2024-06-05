@@ -14,7 +14,7 @@ from pathlib import Path
 
 from opsicommon.objects import NetbootProduct
 from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
-from opsisystem.inffile import INFTargetOSVersion
+from opsisystem.inffile import INFTargetOSVersion, Architecture
 from unittest.mock import patch
 
 
@@ -29,8 +29,8 @@ def test_depot_createDriverLinks(
 	client_data_dir.mkdir()
 	shutil.copytree("tests/data/windows_drivers", drivers_dir)
 	get_target_os_versions = [
-		INFTargetOSVersion(Architecture="amd64", OSMajorVersion=10, OSMinorVersion=0, BuildNumber=22000),
-		INFTargetOSVersion(Architecture="x86", OSMajorVersion=10, OSMinorVersion=0, BuildNumber=1507),
+		INFTargetOSVersion(Architecture=Architecture("amd64"), OSMajorVersion=10, OSMinorVersion=0, BuildNumber=22000),
+		INFTargetOSVersion(Architecture=Architecture("x86"), OSMajorVersion=10, OSMinorVersion=0, BuildNumber=1507),
 	]
 	with patch("opsiconfd.backend.rpc.depot.DEPOT_DIR", str(tmp_path)), patch(
 		"opsiconfd.backend.rpc.depot.get_target_os_versions", return_value=get_target_os_versions

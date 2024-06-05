@@ -80,6 +80,7 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 	else
 		echo "* Setup opsiconfd poetry venv"
 		echo -n "setup" > $state_file
+		sleep 2
 		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 		cd $OPSICONFD_BASE_DIR

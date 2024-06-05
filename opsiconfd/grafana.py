@@ -247,7 +247,7 @@ def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, Non
 			logger.debug("Using api key for grafana authorization")
 			auth = HTTPBearerAuth(url.username)
 		else:
-			logger.debug("Using username %s and password grafana authorization", url.username)
+			logger.debug("Using username '%s' and password for grafana authorization", url.username)
 			auth = HTTPBasicAuth(url.username, unquote(url.password))
 
 	try:

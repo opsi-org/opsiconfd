@@ -150,7 +150,7 @@ build:linux-pyinstaller:
 build:arm64-pyinstaller:
   stage: build
   tags:
-    - arm64
+    - linux-arm64
   script:
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'

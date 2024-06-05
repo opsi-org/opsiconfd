@@ -106,13 +106,6 @@ def check_unique_hardware_addresses() -> CheckResult:
 				non_empty_values,
 				total_values,
 			)
-			logger.devel(
-				"Unique hardware addresses: distinct_values=%d empty_values=%d non_empty_values=%d total_values=%d",
-				distinct_values,
-				empty_values,
-				non_empty_values,
-				total_values,
-			)
 			if non_empty_values != distinct_values:
 				result.message = "Some hardware addresses are not unique."
 				result.check_status = CheckStatus.ERROR
@@ -123,5 +116,4 @@ def check_unique_hardware_addresses() -> CheckResult:
 				"non_empty_values": non_empty_values,
 				"total_values": total_values,
 			}
-			logger.devel(result)
 	return result

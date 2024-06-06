@@ -276,17 +276,12 @@ def setup(explicit: bool = True) -> None:
 	if "limits" not in config.skip_setup:
 		setup_limits()
 
-	if explicit:
-		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
-			po_setup_users_and_groups(ignore_errors=True)
-			setup_users_and_groups()
+	if "users" not in config.skip_setup and "groups" not in config.skip_setup:
+		po_setup_users_and_groups(ignore_errors=True)
+		setup_users_and_groups()
 
-		# po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
-		if "systemd" not in config.skip_setup:
-			setup_systemd()
-	else:
-		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
-			setup_users_and_groups()
+	if explicit and "systemd" not in config.skip_setup:
+		setup_systemd()
 
 	if config.run_as_user != "root" and config.port < 1024:
 		set_unprivileged_port_start(config.port)

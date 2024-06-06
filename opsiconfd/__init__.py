@@ -11,7 +11,7 @@ The opsi configuration service.
 
 from __future__ import annotations
 
-__version__ = "4.3.15.3"
+__version__ = "4.3.17.4"
 
 
 from contextlib import contextmanager

@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.product_on_client
 """
+
 from __future__ import annotations
 
 from collections import defaultdict

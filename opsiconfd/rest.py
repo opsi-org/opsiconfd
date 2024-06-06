@@ -9,7 +9,6 @@
 opsiconfd rest utils
 """
 
-
 import asyncio
 import math
 import traceback

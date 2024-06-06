@@ -9,7 +9,6 @@
 health check addons
 """
 
-
 import asyncio
 
 from opsiconfd.application.admininterface import _get_failed_addons

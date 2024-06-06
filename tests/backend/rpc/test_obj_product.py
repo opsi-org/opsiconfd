@@ -8,6 +8,7 @@
 """
 test opsiconfd.backend.rpc.obj_product
 """
+
 import pytest
 
 from tests.utils import (  # noqa: F401

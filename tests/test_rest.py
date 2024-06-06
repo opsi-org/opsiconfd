@@ -9,7 +9,6 @@
 test rest
 """
 
-
 from types import NoneType
 from typing import Any
 

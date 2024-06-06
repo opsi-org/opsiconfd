@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.software_license
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol

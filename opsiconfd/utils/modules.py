@@ -9,7 +9,6 @@
 utils licence
 """
 
-
 from functools import lru_cache
 
 from opsiconfd.backend import get_protected_backend

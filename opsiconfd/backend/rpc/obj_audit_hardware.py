@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.audit_hardware
 """
+
 from __future__ import annotations
 
 import re

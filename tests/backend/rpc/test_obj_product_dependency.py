@@ -9,7 +9,6 @@
 test opsiconfd.backend.rpc.obj_product_dependency
 """
 
-
 from itertools import permutations
 
 import pytest

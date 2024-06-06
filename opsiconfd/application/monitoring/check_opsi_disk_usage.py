@@ -8,6 +8,7 @@
 """
 check opsi disk usage
 """
+
 from __future__ import annotations
 
 from fastapi.responses import JSONResponse

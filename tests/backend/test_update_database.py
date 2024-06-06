@@ -9,7 +9,6 @@
 test update database
 """
 
-
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.schema import update_database
 

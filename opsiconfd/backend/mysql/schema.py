@@ -9,7 +9,6 @@
 opsiconfd.backend.mysql.schema
 """
 
-
 from __future__ import annotations
 
 import re

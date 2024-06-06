@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.product_property_state
 """
+
 from __future__ import annotations
 
 from collections import defaultdict

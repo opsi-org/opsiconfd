@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.license_pool
 """
+
 from __future__ import annotations
 
 from contextlib import nullcontext

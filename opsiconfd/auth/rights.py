@@ -9,7 +9,6 @@
 opsiconfd.auth.rights
 """
 
-
 from datetime import datetime
 
 from opsicommon.objects import BoolConfig, UnicodeConfig

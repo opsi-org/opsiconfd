@@ -9,7 +9,6 @@
 test opsiconfd.backend groups
 """
 
-
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,

@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.license_on_client
 """
+
 from __future__ import annotations
 
 import random

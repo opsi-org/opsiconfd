@@ -9,7 +9,6 @@
 test opsiconfd.backend.rpc.obj_license_pool
 """
 
-
 from opsicommon.objects import LicensePool
 
 from tests.utils import (  # noqa: F401

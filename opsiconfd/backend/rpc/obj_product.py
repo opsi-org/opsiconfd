@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.product_dependency
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol

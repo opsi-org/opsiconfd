@@ -8,6 +8,7 @@
 """
 health check
 """
+
 from __future__ import annotations
 
 from cryptography import x509

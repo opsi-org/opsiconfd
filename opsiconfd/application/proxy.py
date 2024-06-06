@@ -9,7 +9,6 @@
 proxy
 """
 
-
 from asyncio import gather
 from typing import Callable
 from urllib.parse import urljoin, urlparse

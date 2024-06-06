@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.product_dependency
 """
+
 from __future__ import annotations
 
 import os

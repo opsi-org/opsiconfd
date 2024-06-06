@@ -9,7 +9,6 @@
 health check users
 """
 
-
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger

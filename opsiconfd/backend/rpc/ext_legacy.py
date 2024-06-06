@@ -9,7 +9,6 @@
 rpc methods legacy
 """
 
-
 from __future__ import annotations
 
 import re
@@ -1780,9 +1779,9 @@ class RPCExtLegacyMixin(Protocol):
 			):
 				sl_hash["licensePoolIds"].append(software_license_to_license_pool.getLicensePoolId())
 				if software_license_to_license_pool.getLicenseKey():
-					sl_hash["licenseKeys"][
-						software_license_to_license_pool.getLicensePoolId()
-					] = software_license_to_license_pool.getLicenseKey()
+					sl_hash["licenseKeys"][software_license_to_license_pool.getLicensePoolId()] = (
+						software_license_to_license_pool.getLicenseKey()
+					)
 
 			software_licenses.append(sl_hash)
 		return software_licenses

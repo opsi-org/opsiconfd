@@ -8,6 +8,7 @@
 """
 opsiconfd.backend.rpc.product_property
 """
+
 from __future__ import annotations
 
 from contextlib import nullcontext

@@ -8,6 +8,7 @@
 """
 rpc methods wim
 """
+
 from __future__ import annotations
 
 import itertools

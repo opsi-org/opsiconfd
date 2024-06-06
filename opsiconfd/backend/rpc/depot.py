@@ -199,8 +199,8 @@ class TransferSlot:
 		return cls(depot_id=depot_id, host_id=host_id, slot_id=slot_id, slot_type=TransferSlotType(slot_type))
 
 
-def get_target_os_versions(client_data_dir: Path) -> set[INFTargetOSVersion]:
-	target_os_versions: set[INFTargetOSVersion] = set()
+def get_target_os_versions(client_data_dir: Path) -> list[INFTargetOSVersion]:
+	target_os_versions: dict[str, INFTargetOSVersion] = {}
 	wim_files = set()
 	for image_dir in ("images", "installfiles/sources"):
 		image_path = client_data_dir / image_dir
@@ -220,19 +220,19 @@ def get_target_os_versions(client_data_dir: Path) -> set[INFTargetOSVersion]:
 			windows_info = images[0].windows_info
 			if not windows_info:
 				continue
-			target_os_version = INFTargetOSVersion(
+			tov = INFTargetOSVersion(
 				Architecture=Architecture.from_string(windows_info.architecture),
 				OSMajorVersion=windows_info.major_version,
 				OSMinorVersion=windows_info.minor_version,
 				BuildNumber=windows_info.build,
 			)
-			target_os_versions.add(target_os_version)
+			target_os_versions[f"{tov.Architecture}_{tov.OSMajorVersion}_{tov.OSMinorVersion}_{tov.BuildNumber}"] = tov
 		break
 
 	if not wim_files:
 		raise BackendError(f"No WIM files found in '{client_data_dir}'")
 
-	return target_os_versions
+	return list(target_os_versions.values())
 
 
 class RPCDepotserverMixin(Protocol):

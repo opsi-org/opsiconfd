@@ -212,6 +212,7 @@ def get_target_os_versions(client_data_dir: Path) -> set[INFTargetOSVersion]:
 			if file.suffix.lower() == ".swm" and re.match(r"\d+\.swm", file.stem):
 				# Only process first part of split wim
 				continue
+			logger.info("Processing WIM file '%s'", file)
 			wim_files.add(file)
 			images = wim_info(file).images
 			if not images:

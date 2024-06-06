@@ -3075,13 +3075,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-system"
-version = "4.3.1.6"
+version = "4.3.1.7"
 description = "opsi python system package"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_system-4.3.1.6-py3-none-any.whl", hash = "sha256:0d73e75a4f0b1c27e762204374ae576b20651363651e07c2c34d86b13f785880"},
-    {file = "python_opsi_system-4.3.1.6.tar.gz", hash = "sha256:277654e8b5593bedb34bb2b53c5663ce52efa76e3614dfdb7ee4aaa3d0421504"},
+    {file = "python_opsi_system-4.3.1.7-py3-none-any.whl", hash = "sha256:e8f04ab014611f5ffdb87e47c6fe51d673f0fee0c0afd8cef4eed652af718585"},
+    {file = "python_opsi_system-4.3.1.7.tar.gz", hash = "sha256:24a9fc688f8aa642074ceb78d105949e3065f4837716b2bc668a6730287c3f32"},
 ]
 
 [package.dependencies]

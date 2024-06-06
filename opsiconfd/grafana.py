@@ -100,8 +100,8 @@ GRAFANA_TIMESERIES_PANEL_TEMPLATE = {
 	"id": 0,
 	"targets": [],
 	"options": {
-		"tooltip": {"mode": "single", "sort": "none"},
-		"legend": {"showLegend": True, "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]},
+		"tooltip": {"mode": "multi", "sort": "none"},
+		"legend": {"showLegend": True, "displayMode": "table", "placement": "bottom", "calcs": ["last", "mean", "max"]},
 	},
 	"fieldConfig": {
 		"defaults": {
@@ -131,9 +131,17 @@ GRAFANA_TIMESERIES_PANEL_TEMPLATE = {
 			"thresholds": {"mode": "absolute", "steps": [{"value": None, "color": "green"}]},
 			"unit": "decbytes",
 		},
-		"overrides": [],
-		"renderer": "flot",
+		"overrides": [
+			{
+				"matcher": {"id": "byName", "options": "Total"},
+				"properties": [
+					{"id": "custom.drawStyle", "value": "points"},
+					{"id": "custom.pointSize", "value": 1},
+				],
+			}
+		],
 	},
+	"transformations": [{"id": "calculateField", "options": {"mode": "reduceRow", "reduce": {"reducer": "sum"}, "alias": "Total"}}],
 }
 
 

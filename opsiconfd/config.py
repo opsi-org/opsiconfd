@@ -1633,7 +1633,7 @@ class Config(metaclass=Singleton):
 				"test_function",
 				choices=("pam_auth",),
 				metavar="TEST_FUNCTION",
-				help=self._help("test", "The TEST_FUNCTION to run."),
+				help=self._help("test", "The TEST_FUNCTION to run:\npam_auth: Try to authenticate a user with pam."),
 			)
 
 

@@ -60,6 +60,11 @@ def main() -> None:
 
 		return restore_main()
 
+	if config.action == "test":
+		from opsiconfd.main.test import test_main
+
+		return test_main()
+
 	from opsiconfd.main.opsiconfd import opsiconfd_main
 
 	return opsiconfd_main()

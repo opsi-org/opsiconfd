@@ -322,7 +322,8 @@ class Config(metaclass=Singleton):
 				self._args.append("--help")
 			self._sub_command = (
 				conf.action
-				if conf.action in ("health-check", "diagnostic-data", "log-viewer", "setup", "backup", "backup-info", "restore", "config")
+				if conf.action
+				in ("health-check", "diagnostic-data", "log-viewer", "setup", "backup", "backup-info", "restore", "get-config", "test")
 				else None
 			)
 			if self._sub_command:
@@ -584,6 +585,7 @@ class Config(metaclass=Singleton):
 
 	def _init_parser(self) -> None:
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))
+		assert self._parser
 
 		self._parser.add(
 			"-c",
@@ -693,7 +695,7 @@ class Config(metaclass=Singleton):
 			"--log-level",
 			env_var="OPSICONFD_LOG_LEVEL",
 			type=int,
-			default=0 if self._sub_command else 5,
+			default=0 if self._sub_command in ("health-check", "test") else 4,
 			choices=range(0, 10),
 			help=self._help(
 				"opsiconfd",
@@ -782,7 +784,7 @@ class Config(metaclass=Singleton):
 			"--log-level-stderr",
 			env_var="OPSICONFD_LOG_LEVEL_STDERR",
 			type=int,
-			default=0 if self._sub_command == "health-check" else 4,
+			default=0 if self._sub_command in ("health-check", "test") else 4,
 			choices=range(0, 10),
 			help=self._help(
 				"all",
@@ -1427,6 +1429,7 @@ class Config(metaclass=Singleton):
 					"backup-info",
 					"restore",
 					"get-config",
+					"test",
 				),
 				default="start",
 				metavar="ACTION",
@@ -1446,7 +1449,8 @@ class Config(metaclass=Singleton):
 					"backup:          Run backup.\n"
 					"backup-info:     Show backup info.\n"
 					"restore:         Restore backup.\n"
-					"get-config:      Show opsiconfd config.\n",
+					"get-config:      Show opsiconfd config.\n"
+					"test:            Run a test.\n",
 				),
 			)
 			return
@@ -1621,7 +1625,15 @@ class Config(metaclass=Singleton):
 			self._parser.add(
 				"backup_file",
 				metavar="BACKUP_FILE",
-				help=self._help("backup", "The BACKUP_FILE to restore from."),
+				help=self._help("restore", "The BACKUP_FILE to restore from."),
+			)
+
+		if self._sub_command == "test":
+			self._parser.add(
+				"test_function",
+				choices=("pam_auth",),
+				metavar="TEST_FUNCTION",
+				help=self._help("test", "The TEST_FUNCTION to run."),
 			)
 
 

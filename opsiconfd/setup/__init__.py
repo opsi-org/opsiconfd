@@ -322,7 +322,7 @@ def setup(explicit: bool = True) -> None:
 			setup_ssl()
 		except Exception as err:
 			# This can fail if fqdn is not valid
-			logger.error("Failed to setup ssl: %s", err, exc_info=True)
+			logger.error("Failed to setup SSL: %s", err, exc_info=True)
 
 	if "samba" not in config.skip_setup:
 		try:

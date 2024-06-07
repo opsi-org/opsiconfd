@@ -671,7 +671,7 @@ def setup_ssl() -> bool:
 	if "opsi_ca" in config.skip_setup and "server_cert" in config.skip_setup:
 		return False
 
-	logger.info("Setup ssl")
+	logger.info("Setup SSL")
 	force_new_server_cert = False
 	changed = False
 	if "opsi_ca" not in config.skip_setup:

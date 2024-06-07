@@ -12,10 +12,10 @@ test application.proxy
 import json
 import time
 from pathlib import Path
+from unittest import mock
 from urllib.parse import urlparse
 
-import mock  # type: ignore[import]
-from opsicommon.testing.helpers import http_test_server  # type: ignore[import]
+from opsicommon.testing.helpers import http_test_server
 
 from opsiconfd.application import app
 from opsiconfd.application.proxy import ReverseProxy

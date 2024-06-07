@@ -18,6 +18,7 @@ import re
 import sqlite3
 import string
 import subprocess
+import time
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any, AsyncGenerator, Generator
 from urllib.parse import quote, unquote, urlparse
@@ -38,7 +39,7 @@ GRAFANA_DB = "/var/lib/grafana/grafana.db"
 GRAFANA_INI = "/etc/grafana/grafana.ini"
 PLUGIN_DIR = "/var/lib/grafana/plugins"
 PLUGIN_ID = "simpod-json-datasource"
-PLUGIN_MIN_VERSION = "1.4.2"
+PLUGIN_MIN_VERSION = "0.6.3"
 
 GRAFANA_DASHBOARD_UID = "opsiconfd_main"
 
@@ -337,6 +338,8 @@ def setup_grafana() -> None:
 			):
 				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
 				logger.debug("output of command %s: %s", cmd, out)
+				# Wait for grafana-server to restart
+				time.sleep(5)
 		except subprocess.CalledProcessError as err:
 			logger.warning("Could not %s grafana plugin via grafana-cli: %s", plugin_action, err)
 

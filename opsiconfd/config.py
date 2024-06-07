@@ -491,15 +491,19 @@ class Config(metaclass=Singleton):
 		data = ""
 		if path.exists():
 			data = path.read_text(encoding="utf-8")
-		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+		re_opt = re.compile(r"^(\s*)([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		new_lines = []
 		for line in data.split("\n"):
 			match = re_opt.match(line)
 			if match:
-				arg = match.group(1).strip().lower()
+				indent = match.group(1)
+				arg = match.group(2).strip().lower()
+				val = match.group(3).strip()
 				if arg in conf:
-					# Update argumnet value in file
-					line = f"{arg} = {conf.pop(arg)}"
+					new_val = conf.pop(arg)
+					if val != new_val:
+						# Update argument value in file
+						line = f"{indent}{arg} = {new_val}"
 				else:
 					# Remove argument from file
 					continue
@@ -507,7 +511,10 @@ class Config(metaclass=Singleton):
 
 		if conf:
 			# Add new arguments
-			new_lines[-1:-1] = [f"{arg} = {val}" for arg, val in conf.items()]
+			if new_lines and not new_lines[-1]:
+				new_lines.pop()
+			new_lines.extend(f"{arg} = {val}" for arg, val in conf.items())
+			new_lines.append("")
 
 		path.write_text("\n".join(new_lines), encoding="utf-8")
 

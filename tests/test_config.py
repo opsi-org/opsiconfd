@@ -242,25 +242,75 @@ def test_update_config_files(tmp_path: Path) -> None:
 	assert data == ("# comment\nlog-level = 1\n\n")
 
 
-def test_set_config_in_config_file(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+	"old_lines, configs1, new_lines1, configs2, new_lines2",
+	(
+		(
+			("# comment\n", "  other-value = [1, 2, 3] \n\n", "  # other comment\n", "log-level = 1\n", "\n"),
+			{"grafana-internal-url": "redis://username:password@hostname:123/path"},
+			(
+				"# comment\n",
+				"  other-value = [1, 2, 3] \n\n",
+				"  # other comment\n",
+				"log-level = 1\n",
+				"\n",
+				"grafana-internal-url = redis://username:password@hostname:123/path\n",
+			),
+			{"grafana-internal-url": "redis://username:password@hostname:123/new-path"},
+			(
+				"# comment\n",
+				"  other-value = [1, 2, 3] \n\n",
+				"  # other comment\n",
+				"log-level = 1\n",
+				"\n",
+				"grafana-internal-url = redis://username:password@hostname:123/new-path\n",
+			),
+		),
+		(
+			("log-level = 1",),
+			{"grafana-internal-url": "redis://username:password@hostname:123/path"},
+			(
+				"log-level = 1\n",
+				"grafana-internal-url = redis://username:password@hostname:123/path\n",
+			),
+			{"grafana-internal-url": "redis://username:password@hostname:123/new-path"},
+			(
+				"log-level = 1\n",
+				"grafana-internal-url = redis://username:password@hostname:123/new-path\n",
+			),
+		),
+		(
+			("",),
+			{"grafana-internal-url": "redis://username:password@hostname:123/path"},
+			("grafana-internal-url = redis://username:password@hostname:123/path\n",),
+			{"grafana-internal-url": "redis://username:password@hostname:123/new-path"},
+			("grafana-internal-url = redis://username:password@hostname:123/new-path\n",),
+		),
+	),
+)
+def test_set_config_in_config_file(
+	tmp_path: Path,
+	old_lines: tuple[str],
+	configs1: dict[str, str],
+	new_lines1: tuple[str],
+	configs2: dict[str, str],
+	new_lines2: tuple[str],
+) -> None:
 	config_file = tmp_path / "opsiconfd.conf"
-	config_file.write_text(("# comment\nlog-level = 1\n\n"), encoding="utf-8")
+	config_file.write_text("".join(old_lines), encoding="utf-8")
 
-	grafana_internal_url = "redis://username:password@hostname:123/path"
 	with get_config(["--config-file", str(config_file)]) as conf:
-		conf.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+		for key, val in configs1.items():
+			conf.set_config_in_config_file(key, val)
 
 		data = config_file.read_text(encoding="utf-8")
-		assert data == ("# comment\nlog-level = 1\n\n" f"grafana-internal-url = {grafana_internal_url}\n")
+		assert data == "".join(new_lines1)
 
-	grafana_internal_url = "redis://username:password@hostname:123/new-path"
-	with get_config(["--config-file", str(config_file)]) as conf:
-		conf.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+		for key, val in configs2.items():
+			conf.set_config_in_config_file(key, val)
 
 		data = config_file.read_text(encoding="utf-8")
-		assert data == ("# comment\n" "log-level = 1\n" "\n" f"grafana-internal-url = {grafana_internal_url}\n")
-		conf.reload()
-		assert conf.grafana_internal_url == grafana_internal_url
+		assert data == "".join(new_lines2)
 
 
 def test_disabled_features(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

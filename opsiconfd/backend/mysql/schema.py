@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `GROUP` (
 	`groupId` varchar(255) NOT NULL,
 	`parentGroupId` varchar(255) DEFAULT NULL,
 	`description` varchar(100) DEFAULT NULL,
-	`notes` varchar(500) DEFAULT NULL,
+	`notes` varchar(8192) DEFAULT NULL,
 	PRIMARY KEY (`type`,`groupId`),
 	KEY `index_group_parentGroupId` (`parentGroupId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`hostId` varchar(255) NOT NULL,
 	`type` varchar(30) DEFAULT NULL,
 	`description` varchar(100) DEFAULT NULL,
-	`notes` varchar(500) DEFAULT NULL,
+	`notes` varchar(8192) DEFAULT NULL,
 	`hardwareAddress` varchar(17) DEFAULT NULL,
 	`ipAddress` varchar(255) DEFAULT NULL,
 	`inventoryNumber` varchar(64) DEFAULT NULL,
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS `LICENSE_CONTRACT` (
 	`licenseContractId` varchar(100) NOT NULL,
 	`type` varchar(30) NOT NULL,
 	`description` varchar(100) DEFAULT NULL,
-	`notes` varchar(1000) DEFAULT NULL,
+	`notes` varchar(8192) DEFAULT NULL,
 	`partner` varchar(100) DEFAULT NULL,
 	`conclusionDate` timestamp NULL DEFAULT NULL,
 	`notificationDate` timestamp NULL DEFAULT NULL,
@@ -368,7 +368,7 @@ CREATE TABLE IF NOT EXISTS `LICENSE_ON_CLIENT` (
 	`licensePoolId` varchar(100) NOT NULL,
 	`clientId` varchar(255) NOT NULL,
 	`licenseKey` varchar(1024) DEFAULT NULL,
-	`notes` varchar(1024) DEFAULT NULL,
+	`notes` varchar(8192) DEFAULT NULL,
 	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`,`clientId`),
 	KEY `softwareLicenseId` (`softwareLicenseId`,`licensePoolId`),
 	KEY `index_license_on_client_clientId` (`clientId`),
@@ -1257,6 +1257,10 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 					database=mysql.database,
 					foreign_key=OpsiForeignKey(table=table, ref_table=ref_table, f_keys=["hardware_id"], ref_keys=["hardware_id"]),
 				)
+
+		# schema_version 12
+		for table in ("GROUP", "HOST", "LICENSE_CONTRACT", "LICENSE_ON_CLIENT"):
+			session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `notes` VARCHAR(8192) DEFAULT NULL")
 
 		logger.info("All updates completed")
 

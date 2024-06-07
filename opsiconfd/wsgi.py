@@ -127,7 +127,7 @@ def build_environ(scope: Scope) -> dict:
 		environ[corrected_name] = value
 
 	# wsgidav.util.parse_xml_body() uses lxml.etree.fromstring() which does not support memoryview
-	environ["wsgi.input"] = InputBuffer(allow_memory_view=scope["method"] != "PROPFIND")
+	environ["wsgi.input"] = InputBuffer(allow_memory_view=scope["method"] not in ("PROPFIND", "LOCK"))
 
 	return environ
 

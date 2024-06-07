@@ -11,6 +11,7 @@ webdav tests
 
 import os
 import random
+import re
 import shutil
 from pathlib import Path
 from string import ascii_letters
@@ -93,14 +94,40 @@ def test_webdav_upload_download_delete_with_special_chars(test_client: Opsiconfd
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024
 	rand_bytes = ("".join(random.choice(ascii_letters) for i in range(size))).encode("ascii")
-	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
-	filename = "陰陽_üß.bin"
-
+	rand_fn = "".join(random.choice(ascii_letters) for i in range(5))
+	filename = f"陰陽_üß{rand_fn}.bin"
 	url = f"/repository/{filename}"
+
+	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 	res = test_client.put(url=url, headers=headers, content=rand_bytes)
-	res.raise_for_status()
+	assert res.status_code == 201
 
 	assert os.path.exists(os.path.join("/var/lib/opsi/repository", filename))
+
+	headers = {"Content-Type": 'text/xml; charset="utf-8"'}
+	res = test_client.request(
+		method="LOCK",
+		url=url,
+		headers=headers,
+		content="""<?xml version="1.0" encoding="utf-8" ?>
+			<lockinfo xmlns="DAV:">
+				<lockscope><exclusive/></lockscope>
+				<locktype><write/></locktype>
+				<owner>
+					<href>http://www.example.com/contact.html</href>
+				</owner>
+			</lockinfo>
+		""",
+	)
+
+	assert res.status_code == 200
+	match = re.search(r"opaquelocktoken:\s*([0-9a-fxA-F]+)\s*<", res.text)
+	assert match
+	lock_token = match.group(1)
+
+	headers = {"Lock-Token": f"<opaquelocktoken:{lock_token}>"}
+	res = test_client.request(method="UNLOCK", url=url, headers=headers)
+	assert res.status_code == 204
 
 	res = test_client.get(url=url)
 	res.raise_for_status()

@@ -15,6 +15,7 @@ from functools import lru_cache
 from subprocess import CalledProcessError, run
 
 from configupdater import ConfigUpdater
+from opsicommon.system.info import is_ucs
 
 from opsiconfd.config import SMB_CONF
 from opsiconfd.logging import logger
@@ -117,6 +118,9 @@ def reload_samba() -> None:
 
 def setup_samba() -> None:
 	logger.info("Setup samba")
+	if is_ucs():
+		logger.info("UCS detected, skipping samba setup")
+		return
 	if not os.path.exists(SMB_CONF):
 		return
 

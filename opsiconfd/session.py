@@ -1249,9 +1249,13 @@ async def ensure_session(scope: Scope) -> OPSISession:
 
 async def pre_authenticate(scope: Scope) -> None:
 	await ensure_session(scope)
-	await check_min_configed_version(scope["session"].user_agent)
-	# Check if client address is blocked
-	await check_blocked(scope["session"].client_addr)
+	try:
+		await check_min_configed_version(scope["session"].user_agent)
+		# Check if client address is blocked
+		await check_blocked(scope["session"].client_addr)
+	except ConnectionRefusedError as err:
+		logger.warning(str(err))
+		raise err
 
 
 async def post_user_authenticate(scope: Scope) -> None:

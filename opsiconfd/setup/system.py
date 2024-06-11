@@ -64,7 +64,7 @@ def setup_limits() -> None:
 def setup_users_and_groups() -> None:
 	logger.info("Setup users and groups")
 	if is_ucs():
-		logger.info("UCS detected, skipping samba setup")
+		logger.info("UCS detected, skipping user and group setup")
 		return
 	if config.run_as_user == "root":
 		return

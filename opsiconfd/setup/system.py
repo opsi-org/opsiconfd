@@ -25,6 +25,7 @@ from opsicommon.server.setup import (
 	modify_user,
 	set_primary_group,
 )
+from opsicommon.system.info import is_ucs
 
 from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
 from opsiconfd.logging import logger
@@ -62,7 +63,9 @@ def setup_limits() -> None:
 
 def setup_users_and_groups() -> None:
 	logger.info("Setup users and groups")
-
+	if is_ucs():
+		logger.info("UCS detected, skipping samba setup")
+		return
 	if config.run_as_user == "root":
 		return
 

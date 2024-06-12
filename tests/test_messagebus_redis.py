@@ -462,3 +462,6 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend) -> 
 
 	assert await redis.xlen(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") in (2, 3, 4)
 	assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (2, 3, 4)
+
+	await cleanup_channels(full=True)
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}") == 0

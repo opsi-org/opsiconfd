@@ -11,17 +11,30 @@ opsiconfd.messagebus.redis tests
 
 import asyncio
 from typing import Any
+from uuid import uuid4
 
+from opsicommon import objects
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL
 from opsicommon.messagebus.message import Message
 
-from opsiconfd.messagebus.redis import MAX_STREAM_LENGTH, ConsumerGroupMessageReader, MessageReader, send_message
+from opsiconfd.messagebus.redis import (
+	MAX_STREAM_LENGTH,
+	ConsumerGroupMessageReader,
+	MessageReader,
+	send_message,
+	cleanup_channels,
+	create_messagebus_session_channel,
+)
 from opsiconfd.redis import async_redis_client, get_redis_connections
+
+from unittest.mock import patch
 
 from .utils import (  # noqa: F401
 	Config,
 	clean_redis,
 	config,
+	UnprotectedBackend,
+	backend,
 )
 
 
@@ -396,3 +409,56 @@ async def test_message_trim_to_maxlen(config: Config) -> None:  # noqa: F811
 
 	await asyncio.sleep(1)
 	assert await redis.xlen(f"{config.redis_key('messagebus')}:channels:{channel}") < MAX_STREAM_LENGTH + 100
+
+
+async def test_cleanup_channels(config: Config, backend: UnprotectedBackend) -> None:  # noqa: F811
+	messagbus_prefix = config.redis_key("messagebus")
+	redis = await async_redis_client()
+
+	opsi_client = objects.OpsiClient(id="test-client-act.opsi.org")
+	backend.host_createObjects([opsi_client])
+
+	session1_id = str(uuid4())
+	session2_id = str(uuid4())
+	user_id = "user:admin"
+	await create_messagebus_session_channel(owner_id=user_id, session_id=session1_id)
+	await create_messagebus_session_channel(owner_id=user_id, session_id=session2_id)
+
+	for count in range(0, 5):
+		await send_message(
+			Message(id=f"00000000-0000-4000-8000-00000000{count:04}", type="test", sender=user_id, channel="host:test-client-act.opsi.org")
+		)
+		await send_message(
+			Message(id=f"00000000-0000-4000-8000-00000001{count:04}", type="test", sender=user_id, channel="host:test-client-old.opsi.org")
+		)
+		await send_message(
+			Message(id=f"00000000-0000-4000-8000-00000002{count:04}", type="test", sender=user_id, channel=f"session:{session1_id}")
+		)
+		await asyncio.sleep(1)
+
+	assert await redis.delete(f"{messagbus_prefix}:channels:session:{session2_id}")
+
+	assert await redis.exists(f"{messagbus_prefix}:channels:host:test-client-old.opsi.org") == 1
+	assert await redis.exists(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") == 1
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}") == 1
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}:info") == 1
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}") == 0
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}:info") == 1
+
+	assert await redis.xlen(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") in (5, 6)  # 1 ignore + 5 messages
+	assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (5, 6)
+
+	with patch("opsiconfd.messagebus.redis.STREAM_RECORD_MAX_AGE_SECONDS", 4):
+		await cleanup_channels(full=False, trim_approximate=False)
+
+	await asyncio.sleep(1)
+
+	assert await redis.exists(f"{messagbus_prefix}:channels:host:test-client-old.opsi.org") == 0
+	assert await redis.exists(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") == 1
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}") == 1
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}:info") == 1
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}") == 0
+	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}:info") == 0
+
+	assert await redis.xlen(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") in (2, 3, 4)
+	assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (2, 3, 4)

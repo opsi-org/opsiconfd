@@ -45,8 +45,7 @@ logger = get_logger("opsiconfd.messagebus")
 
 CHANNEL_INFO_SUFFIX = b":info"
 MAX_STREAM_LENGTH = 1000
-TERMINAL_MAX_STREAM_LENGTH = 100
-EVENT_MAX_STREAM_LENGTH = 10
+STREAM_RECORD_MAX_AGE_SECONDS = 300
 
 
 async def messagebus_cleanup(full: bool = False) -> None:
@@ -56,7 +55,7 @@ async def messagebus_cleanup(full: bool = False) -> None:
 	await cleanup_channels(full)
 
 
-async def cleanup_channels(full: bool = False) -> None:
+async def cleanup_channels(full: bool = False, trim_approximate: bool = True) -> None:
 	logger.debug("Cleaning up messagebus channels")
 	backend = get_unprotected_backend()
 	redis = await async_redis_client()
@@ -87,39 +86,43 @@ async def cleanup_channels(full: bool = False) -> None:
 			client_ids.append(host.id)
 		host_channels.append(get_user_id_for_host(host.id))
 
-	remove_keys = []
-	terminal_keys = []
-	event_keys = []
+	channel_info_suffix = CHANNEL_INFO_SUFFIX.decode("utf-8")
+	stream_keys = set()
+	channel_info_keys = set()
+	remove_keys = set()
 	async for key_b in redis.scan_iter(f"{channel_prefix}*"):
 		key = str(key_b.decode("utf-8"))
+		if key.endswith(channel_info_suffix):
+			channel_info_keys.add(key)
+			continue
+
+		stream_keys.add(key)
 		channel = key[channel_prefix_len:]
 		try:
 			check_channel_name(channel)
 		except ValueError as err:
 			logger.debug("Removing key %r (%s)", key, err)
-			remove_keys.append(key)
+			remove_keys.add(key)
 			continue
 
 		if channel.startswith("host:"):
 			host_channel = ":".join(channel.split(":", 2)[:2])
 			if host_channel not in host_channels:
 				logger.debug("Removing key %r (host not found)", key)
-				remove_keys.append(key)
+				remove_keys.add(key)
 
-		if channel.startswith("service_worker:") and channel.endswith(":terminal"):
-			terminal_keys.append(key)
-
-		if channel.startswith("event:") and not channel.endswith(":info"):
-			event_keys.append(key)
-
-	if remove_keys or terminal_keys or event_keys:
+	stream_keys -= remove_keys
+	# Remove info keys for non-existing streams
+	remove_keys.update(k for k in channel_info_keys if k.removesuffix(channel_info_suffix) not in stream_keys)
+	minid = int(timestamp() - STREAM_RECORD_MAX_AGE_SECONDS * 1000)
+	if remove_keys or stream_keys:
 		pipeline = redis.pipeline()
 		for key in remove_keys:
 			pipeline.unlink(key)
-		for key in terminal_keys:
-			pipeline.xtrim(key, maxlen=TERMINAL_MAX_STREAM_LENGTH, approximate=True)
-		for key in event_keys:
-			pipeline.xtrim(key, maxlen=EVENT_MAX_STREAM_LENGTH, approximate=True)
+		for stream_key in stream_keys:
+			# trim_approximate should always be true for performance reasons
+			# trim_approximate = false is used for testing only
+			pipeline.xtrim(stream_key, minid=minid, approximate=trim_approximate)
 		await pipeline.execute()
 
 
@@ -169,7 +172,11 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 		if not exists_ok:
 			raise RuntimeError("Already exists")
 	else:
-		await redis.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping={"owner-id": owner_id, "reader-count": 0})
+		pipeline = redis.pipeline()
+		# Add one message to create the stream, the message will be ignored by the reader
+		pipeline.xadd(stream_key, fields={"ignore": ""})
+		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping={"owner-id": owner_id, "reader-count": 0})
+		await pipeline.execute()
 	return channel
 
 
@@ -376,7 +383,8 @@ class MessageReader:
 								context = self._context_decoder.decode(context_data)
 							message_data = message[1].get(b"message")
 							if not message_data:
-								logger.warning("Received malformed message from redis: %r", message)
+								if not message[1].get(b"ignore"):
+									logger.warning("Received malformed message from redis: %r", message)
 								continue
 							msg = Message.from_msgpack(message_data)
 							_logger.debug("Message from redis: %r", msg)

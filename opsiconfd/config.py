@@ -1638,9 +1638,12 @@ class Config(metaclass=Singleton):
 		if self._sub_command == "test":
 			self._parser.add(
 				"test_function",
-				choices=("pam_auth",),
+				choices=("pam_auth", "ldap_auth"),
 				metavar="TEST_FUNCTION",
-				help=self._help("test", "The TEST_FUNCTION to run:\npam_auth: Try to authenticate a user with pam."),
+				help=self._help(
+					"test",
+					"The TEST_FUNCTION to run:\npam_auth: Try to authenticate a user with pam.\nldap_auth: Try to authenticate a user with ldap.",
+				),
 			)
 
 

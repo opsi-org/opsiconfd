@@ -1642,7 +1642,7 @@ class Config(metaclass=Singleton):
 				metavar="TEST_FUNCTION",
 				help=self._help(
 					"test",
-					"The TEST_FUNCTION to run:\npam_auth: Try to authenticate a user with pam.\n ldap_auth: Try to authenticate a user with ldap.",
+					"The TEST_FUNCTION to run:\npam_auth: Try to authenticate a user with pam.\nldap_auth: Try to authenticate a user with ldap.",
 				),
 			)
 

@@ -1382,7 +1382,14 @@ class Config(metaclass=Singleton):
 			nargs="?",
 			const=True,
 			default=False,
-			help=self._help("expert", "Accept all clients and create host objects if they do not exist."),
+			help=self._help(
+				"expert",
+				(
+					"Accept all clients and create host objects if they do not exist.\n"
+					"WARNING! This overrides the client authentication.\n"
+					"The option should only be used in an emergency for a limited period of time."
+				),
+			),
 		)
 		self._parser.add(
 			"--maintenance",

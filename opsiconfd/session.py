@@ -1109,7 +1109,15 @@ async def authenticate_host(scope: Scope) -> None:
 
 	hosts = await backend.async_call("host_getObjects", **host_filter)
 	if not hosts:
-		raise BackendAuthenticationError(f"Host not found '{session.username}'")
+		logger.debug("Host not found: %s", session.username)
+		if config.recover_clients and "opsiclientd" in session.user_agent:
+			logger.debug("Creating host object for host: %s", session.username)
+			backend.host_createOpsiClient(
+				id=session.username, opsiHostKey=session.password, notes="Created by opsiconfd with recover clients option."
+			)
+			hosts = await backend.async_call("host_getObjects", **host_filter)
+		else:
+			raise BackendAuthenticationError(f"Host not found '{session.username}'")
 	if len(hosts) > 1:
 		raise BackendAuthenticationError(f"More than one matching host object found '{session.username}'")
 	host = hosts[0]

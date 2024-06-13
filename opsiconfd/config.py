@@ -1376,6 +1376,22 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "Clients are allowed to login with the host key only."),
 		)
 		self._parser.add(
+			"--recover-clients",
+			env_var="OPSICONFD_RECOVER_CLIENTS",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"expert",
+				(
+					"Accept all clients and create host objects if they do not exist.\n"
+					"WARNING! This overrides the client authentication.\n"
+					"The option should only be used in an emergency for a limited period of time."
+				),
+			),
+		)
+		self._parser.add(
 			"--maintenance",
 			nargs="*",
 			env_var="OPSICONFD_MAINTENANCE",

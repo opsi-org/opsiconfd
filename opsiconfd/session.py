@@ -306,8 +306,11 @@ class SessionMiddleware:
 				error = "Permission denied"
 
 		elif isinstance(err, ConnectionRefusedError):
-			status_code = status.HTTP_403_FORBIDDEN
 			error = str(err)
+			if "min-configed-version" in error:
+				status_code = status.HTTP_426_UPGRADE_REQUIRED
+			else:
+				status_code = status.HTTP_403_FORBIDDEN
 
 		elif isinstance(err, ValidationException):
 			status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -1449,7 +1452,7 @@ async def check_min_configed_version(user_agent: str) -> None:
 	except ValueError as err:
 		logger.debug(err)
 
-	if not configed_version or configed_version < config.min_configed_version:
+	if not configed_version or configed_version < Version(config.min_configed_version):
 		raise ConnectionRefusedError(
 			f"Configed {(str(configed_version) if configed_version else user_agent)} "
 			f"is not allowed to connect (min-configed-version: {str(config.min_configed_version)})"

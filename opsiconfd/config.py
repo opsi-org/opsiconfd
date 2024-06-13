@@ -1086,7 +1086,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--min-configed-version",
 			env_var="OPSICONFD_MIN_CONFIGED_VERSION",
-			type=str2version,
+			type=str,
 			default="4.3.2.18",
 			help=self._help("opsiconfd", "Minimum opsi-configed version allowed to connect."),
 		)

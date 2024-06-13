@@ -23,7 +23,7 @@ from opsiconfd import __version__
 from opsiconfd.logging import RedisLogHandler
 from opsiconfd.main import main
 from opsiconfd.main.log_viewer import stop_log_viewer
-from opsiconfd.utils import get_manager_pid
+from opsiconfd.utils import VersionDecoder, get_manager_pid
 
 from .utils import get_config
 
@@ -39,7 +39,7 @@ def test_get_config(capsys: CaptureFixture[str]) -> None:
 	with get_config({"action": "get-config"}) as conf:
 		main()
 		captured = capsys.readouterr()
-		conf_out = json.loads(captured.out)
+		conf_out = json.loads(captured.out, cls=VersionDecoder)
 		assert conf_out == conf.items()
 
 

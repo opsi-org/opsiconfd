@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import gzip
-import json
 import os
 import random
 import re
@@ -42,7 +41,6 @@ import psutil
 from opsicommon.logging.logging import OPSILogger
 from opsicommon.system.info import is_ucs
 from opsicommon.types import forceStringLower
-from packaging.version import Version
 
 logger: OPSILogger | None = None
 config = None

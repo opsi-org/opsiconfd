@@ -21,7 +21,6 @@ from opsicommon import objects
 from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
 from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.logging import LOG_TRACE, use_logging_config
-from packaging.version import Version
 
 from opsiconfd import (
 	contextvar_client_session,
@@ -737,7 +736,7 @@ test_urls = (
 		("4.3.0.1", "opsi config editor 4.3.0.1", 200, ""),
 		("4.3.0.1", "opsi config editor 4.3.1.0", 200, ""),
 		("4.3.0.1", "opsi config editor 4.4.0.0", 200, ""),
-		("4.3.0.0", "opsi config editor 4.2.0.0", 403, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
+		("4.3.0.0", "opsi config editor 4.2.0.0", 426, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
 	),
 )
 def test_min_configed_version(
@@ -748,7 +747,7 @@ def test_min_configed_version(
 	response_text_match: str,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with get_config({"min_configed_version": Version(min_configed_version) if min_configed_version else None}):
+	with get_config({"min_configed_version": min_configed_version}):
 		if user_agent:
 			res = test_client.get("/admin/", headers={"User-Agent": str(user_agent)})
 		else:

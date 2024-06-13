@@ -800,3 +800,30 @@ def test_client_certificate(
 					assert client.messagebus.jsonrpc("accessControl_authenticated")
 	finally:
 		contextvar_client_session.set(contextvar_client_session_org)
+
+
+def test_recover_clients(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811
+	res = test_client.post(
+		"/rpc",
+		headers={"User-Agent": "opsiclientd/4.3.1.1"},
+		auth=("testclient.uib.gmbh", "08508cd947c5e22f020dcde519d9ec04"),
+		json={"id": 1, "method": "host_getIdents", "params": []},
+	)
+	print(res.text)
+	assert res.status_code == 401
+	with get_config({"recover-clients": True}):
+		res = test_client.post(
+			"/rpc",
+			headers={"User-Agent": "opsiclientd/4.3.1.1"},
+			auth=("testclient.uib.gmbh", "08508cd947c5e22f020dcde519d9ec04"),
+			json={"id": 1, "method": "host_getIdents", "params": []},
+		)
+		print(res.text)
+		res.status_code == 200
+		clients = backend.host_getObjects(id="testclient.uib.gmbh")
+		assert len(clients) == 1
+		client = clients[0]
+		assert client.id == "testclient.uib.gmbh"
+		assert client.opsiHostKey == "08508cd947c5e22f020dcde519d9ec04"
+		assert client.notes == "Created by opsiconfd with recover clients option."
+		backend.host_deleteObjects([client])

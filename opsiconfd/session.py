@@ -306,8 +306,11 @@ class SessionMiddleware:
 				error = "Permission denied"
 
 		elif isinstance(err, ConnectionRefusedError):
-			status_code = status.HTTP_403_FORBIDDEN
 			error = str(err)
+			if "min-configed-version" in error:
+				status_code = status.HTTP_426_UPGRADE_REQUIRED
+			else:
+				status_code = status.HTTP_403_FORBIDDEN
 
 		elif isinstance(err, ValidationException):
 			status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -1255,6 +1258,7 @@ async def pre_authenticate(scope: Scope) -> None:
 		await check_blocked(scope["session"].client_addr)
 	except ConnectionRefusedError as err:
 		logger.warning(str(err))
+		raise err
 
 
 async def post_user_authenticate(scope: Scope) -> None:

@@ -736,7 +736,7 @@ test_urls = (
 		("4.3.0.1", "opsi config editor 4.3.0.1", 200, ""),
 		("4.3.0.1", "opsi config editor 4.3.1.0", 200, ""),
 		("4.3.0.1", "opsi config editor 4.4.0.0", 200, ""),
-		("4.3.0.0", "opsi config editor 4.2.0.0", 403, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
+		("4.3.0.0", "opsi config editor 4.2.0.0", 426, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
 	),
 )
 def test_min_configed_version(

@@ -21,7 +21,6 @@ from opsicommon import objects
 from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
 from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.logging import LOG_TRACE, use_logging_config
-from packaging.version import Version
 
 from opsiconfd import (
 	contextvar_client_session,
@@ -748,7 +747,7 @@ def test_min_configed_version(
 	response_text_match: str,
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with get_config({"min_configed_version": Version(min_configed_version) if min_configed_version else None}):
+	with get_config({"min_configed_version": min_configed_version if min_configed_version else None}):
 		if user_agent:
 			res = test_client.get("/admin/", headers={"User-Agent": str(user_agent)})
 		else:

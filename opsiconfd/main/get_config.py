@@ -12,8 +12,7 @@ opsiconfd config.main
 import json
 
 from opsiconfd.config import config
-from opsiconfd.utils import VersionEncoder
 
 
 def get_config_main() -> None:
-	print(json.dumps(config.items(), indent=2, cls=VersionEncoder))
+	print(json.dumps(config.items(), indent=2))

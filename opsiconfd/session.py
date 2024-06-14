@@ -1444,7 +1444,7 @@ async def check_min_configed_version(user_agent: str) -> None:
 	except ValueError as err:
 		logger.debug(err)
 
-	if not configed_version or configed_version < config.min_configed_version:
+	if not configed_version or configed_version < Version(config.min_configed_version):
 		raise ConnectionRefusedError(
 			f"Configed {(str(configed_version) if configed_version else user_agent)} "
 			f"is not allowed to connect (min-configed-version: {str(config.min_configed_version)})"

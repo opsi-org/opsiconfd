@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import gzip
-import json
 import os
 import random
 import re
@@ -42,7 +41,6 @@ import psutil
 from opsicommon.logging.logging import OPSILogger
 from opsicommon.system.info import is_ucs
 from opsicommon.types import forceStringLower
-from packaging.version import Version
 
 logger: OPSILogger | None = None
 config = None
@@ -505,21 +503,3 @@ class DataclassCapableJSONEncoder(JSONEncoder):
 		if dataclasses.is_dataclass(obj):
 			return dataclasses.asdict(obj)
 		return super().default(obj)
-
-
-# https://docs.python.org/3/library/json.html
-class VersionEncoder(json.JSONEncoder):
-	def default(self, obj: Any) -> Any:
-		if isinstance(obj, Version):
-			return obj.__str__()
-		return super().default(obj)
-
-
-class VersionDecoder(json.JSONDecoder):
-	def __init__(self, *args: Any, **kwargs: Any) -> None:
-		kwargs["object_hook"] = self.object_hook
-		super().__init__(*args, **kwargs)
-
-	def object_hook(self, obj: Any) -> Any:
-		if "min_configed_version" in obj:
-			obj["min_configed_version"] = Version(obj["min_configed_version"])

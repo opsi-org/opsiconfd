@@ -85,6 +85,25 @@ class CheckResult(PartialCheckResult):
 
 		return f"{self.check_status.return_code()} 'opsi: {self.check_name}' - {message if message else self.check_status.value.upper()}{details}"
 
+	def to_nagios(self) -> str:
+		newline = "\\n"
+		message = self.message.replace("\n", " ")
+		details = ""
+		if self.details:
+			details = "{newline} {details}".format(
+				newline=newline, details=newline.join(f"{key}: {value}" for key, value in self.details.items())
+			)
+		for partial_result in self.partial_results:
+			details += "{newline} '{name}': {message}".format(
+				newline=newline, name=partial_result.check_name, message=partial_result.message.replace("\n", newline)
+			)
+			if partial_result.details:
+				details += "{newline} {details}".format(
+					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
+				)
+
+		return f"{self.check_status.value.upper()}: {self.check_name}: {message if message else self.check_status.value.upper()}{details}"
+
 
 @contextmanager
 def exc_to_result(result: CheckResult) -> Generator[None, None, None]:

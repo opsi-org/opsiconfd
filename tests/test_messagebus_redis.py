@@ -11,8 +11,10 @@ opsiconfd.messagebus.redis tests
 
 import asyncio
 from typing import Any
+from unittest.mock import patch
 from uuid import uuid4
 
+import pytest
 from opsicommon import objects
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL
 from opsicommon.messagebus.message import Message
@@ -21,20 +23,18 @@ from opsiconfd.messagebus.redis import (
 	MAX_STREAM_LENGTH,
 	ConsumerGroupMessageReader,
 	MessageReader,
-	send_message,
 	cleanup_channels,
 	create_messagebus_session_channel,
+	send_message,
 )
 from opsiconfd.redis import async_redis_client, get_redis_connections
 
-from unittest.mock import patch
-
 from .utils import (  # noqa: F401
 	Config,
-	clean_redis,
-	config,
 	UnprotectedBackend,
 	backend,
+	clean_redis,
+	config,
 )
 
 
@@ -411,7 +411,11 @@ async def test_message_trim_to_maxlen(config: Config) -> None:  # noqa: F811
 	assert await redis.xlen(f"{config.redis_key('messagebus')}:channels:{channel}") < MAX_STREAM_LENGTH + 100
 
 
-async def test_cleanup_channels(config: Config, backend: UnprotectedBackend) -> None:  # noqa: F811
+@pytest.mark.parametrize(
+	"redis_supports_xtrim_minid",
+	(True, False),
+)
+async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, redis_supports_xtrim_minid: bool) -> None:  # noqa: F811
 	messagbus_prefix = config.redis_key("messagebus")
 	redis = await async_redis_client()
 
@@ -448,8 +452,13 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend) -> 
 	assert await redis.xlen(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") in (5, 6)  # 1 ignore + 5 messages
 	assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (5, 6)
 
-	with patch("opsiconfd.messagebus.redis.STREAM_RECORD_MAX_AGE_SECONDS", 4):
-		await cleanup_channels(full=False, trim_approximate=False)
+	with patch("opsiconfd.messagebus.redis.redis_supports_xtrim_minid", lambda: redis_supports_xtrim_minid):
+		if redis_supports_xtrim_minid:
+			with patch("opsiconfd.messagebus.redis.STREAM_RECORD_MAX_AGE_SECONDS", 4):
+				await cleanup_channels(full=False, trim_approximate=False)
+		else:
+			with patch("opsiconfd.messagebus.redis.MAX_STREAM_LENGTH_HOST", 4):
+				await cleanup_channels(full=False, trim_approximate=False)
 
 	await asyncio.sleep(1)
 
@@ -461,7 +470,8 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend) -> 
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}:info") == 0
 
 	assert await redis.xlen(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") in (2, 3, 4)
-	assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (2, 3, 4)
+	if redis_supports_xtrim_minid:
+		assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (2, 3, 4)
 
 	await cleanup_channels(full=True)
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}") == 0

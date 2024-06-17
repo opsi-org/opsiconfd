@@ -18,9 +18,11 @@ import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, AsyncGenerator, Callable, Generator, Iterable
 from uuid import uuid4
 
+from opsicommon.utils import compare_versions
 from redis import BusyLoadingError, Connection, ConnectionPool, Redis, ResponseError, WatchError
 from redis import ConnectionError as RedisConnectionError
 from redis.asyncio import Connection as AsyncConnection
@@ -54,6 +56,17 @@ def __con_del__(self: AbstractConnection) -> None:
 AsyncConnection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 Connection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 AbstractConnection.__del__ = __con_del__  # type: ignore[method-assign,attr-defined]
+
+
+@lru_cache
+def redis_supports_xtrim_minid() -> bool:
+	return compare_versions(get_redis_version(), ">=", "6.2")
+
+
+@lru_cache
+def get_redis_version() -> str:
+	client = redis_client()
+	return client.info("server")["redis_version"]
 
 
 def get_redis_connections() -> list[Connection | AsyncConnection]:

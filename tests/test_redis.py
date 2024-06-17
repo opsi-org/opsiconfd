@@ -32,8 +32,10 @@ from opsiconfd.redis import (
 	delete_recursively,
 	dump,
 	get_redis_connections,
+	get_redis_version,
 	redis_client,
 	redis_lock,
+	redis_supports_xtrim_minid,
 	restore,
 )
 
@@ -341,3 +343,26 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 			assert abs((dumped_keys2[idx].expires or 0) - (dumped_keys[idx].expires or 0)) < 3000
 
 	await check_time_series(client)
+
+
+def test_get_redis_version() -> None:
+	ver = get_redis_version()
+	assert re.match(r"\d+\.\d+\.\d+", ver)
+
+
+@pytest.mark.parametrize(
+	"redis_version, supports_xtrim_minid",
+	(
+		("5.9.1", False),
+		("6.1.9", False),
+		("6.2.0", True),
+		("6.2", True),
+		("6.3", True),
+		("7", True),
+		("7.0", True),
+	),
+)
+def test_redis_supports_xtrim_minid(redis_version: str, supports_xtrim_minid: bool) -> None:
+	with patch("opsiconfd.redis.get_redis_version", return_value=redis_version):
+		redis_supports_xtrim_minid.cache_clear()
+		assert redis_supports_xtrim_minid() == supports_xtrim_minid

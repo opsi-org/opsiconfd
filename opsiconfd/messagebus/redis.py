@@ -31,7 +31,7 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
 from opsiconfd.messagebus import check_channel_name
-from opsiconfd.redis import async_delete_recursively, async_redis_client, redis_client
+from opsiconfd.redis import async_delete_recursively, async_redis_client, redis_client, redis_supports_xtrim_minid
 
 from . import get_user_id_for_host
 
@@ -45,6 +45,8 @@ logger = get_logger("opsiconfd.messagebus")
 
 CHANNEL_INFO_SUFFIX = b":info"
 MAX_STREAM_LENGTH = 1000
+MAX_STREAM_LENGTH_EVENT = 50
+MAX_STREAM_LENGTH_HOST = 100
 STREAM_RECORD_MAX_AGE_SECONDS = 300
 
 
@@ -114,7 +116,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 	stream_keys -= remove_keys
 	# Remove info keys for non-existing streams
 	remove_keys.update(k for k in channel_info_keys if k.removesuffix(channel_info_suffix) not in stream_keys)
-	minid = int(timestamp() - STREAM_RECORD_MAX_AGE_SECONDS * 1000)
+	minid = int(timestamp() - STREAM_RECORD_MAX_AGE_SECONDS * 1000) if redis_supports_xtrim_minid() else None
 	if remove_keys or stream_keys:
 		pipeline = redis.pipeline()
 		for key in remove_keys:
@@ -122,7 +124,15 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 		for stream_key in stream_keys:
 			# trim_approximate should always be true for performance reasons
 			# trim_approximate = false is used for testing only
-			pipeline.xtrim(stream_key, minid=minid, approximate=trim_approximate)
+			if minid is not None:
+				pipeline.xtrim(stream_key, minid=minid, approximate=trim_approximate)
+			else:
+				maxlen = MAX_STREAM_LENGTH
+				if stream_key.startswith(f"{channel_prefix}host:"):
+					maxlen = MAX_STREAM_LENGTH_HOST
+				elif stream_key.startswith(f"{channel_prefix}event:"):
+					maxlen = MAX_STREAM_LENGTH_EVENT
+				pipeline.xtrim(stream_key, maxlen=maxlen, approximate=trim_approximate)
 		await pipeline.execute()
 
 

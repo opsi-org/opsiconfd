@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# opsi_checkmk is part of the desktop management solution opsi http://www.opsi.org
+# Copyright (c) 2020-2021 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0
+#
+# The opsi monitoring module is required to use this function: https://opsi.org/de/extensions
+#
+#
+# Checks can be skipped with --skip-cheks. Or only certain checks can be executed with --checks.
+# opsiconfd health-check --format nagios --checks mysql
+# Information on this can be found in the opsiconfd help 'opsiconfd health-check --help' and 'opsiconfd health-check --documentation'
+
+
+opsiconfd health-check --format nagios

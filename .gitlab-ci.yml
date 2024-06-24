@@ -44,8 +44,8 @@ test:pylint-pytest:
     - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml -p opsiconfd-test-$CI_JOB_ID"
 
     - '[ "$CI_DEBUG_SERVICES" = "true" ] && $DOCKER_COMPOSE logs'
-    - $DOCKER_COMPOSE logs opsiserver43-dev
-    - $DOCKER_COMPOSE logs opsiserver43-cs
+    - $DOCKER_COMPOSE logs opsiserver44-dev
+    - $DOCKER_COMPOSE logs opsiserver44-cs
     - echo -e "${TXT_HEAD}Stop docker containers${TXT_CLEAR}"
     - $DOCKER_COMPOSE down -v
   script:
@@ -58,20 +58,20 @@ test:pylint-pytest:
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 120
 
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run ruff check opsiconfd tests perftest
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run mypy opsiconfd tests perftest
+    - $DOCKER_COMPOSE exec opsiserver44-dev poetry run ruff check opsiconfd tests perftest
+    - $DOCKER_COMPOSE exec opsiserver44-dev poetry run mypy opsiconfd tests perftest
 
     - echo -e "${TXT_HEAD}Run pytest${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
+    - $DOCKER_COMPOSE exec opsiserver44-dev poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
 
     - echo -e "${TXT_HEAD}Run perftests${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
+    - $DOCKER_COMPOSE exec opsiserver44-dev poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
     - sleep 10
 
     - echo -e "${TXT_HEAD}Run opsiconfd-perftest${TXT_CLEAR}"
     # Average request time has to be faster than 10 ms
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 --bencher-results bencher-results.json || (
+      $DOCKER_COMPOSE exec opsiserver44-dev poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 --bencher-results bencher-results.json || (
         echo -e "${TXT_ERROR}opsiconfd-perftest.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -79,7 +79,7 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run opsiconfd-backend-perftest${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
+      $DOCKER_COMPOSE exec opsiserver44-dev poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
         echo -e "${TXT_ERROR}opsiconfd-backend-perftest.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -87,13 +87,13 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run file-download memory test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
+      $DOCKER_COMPOSE exec opsiserver44-dev poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
         echo -e "${TXT_ERROR}file-download.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
       )
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
+      $DOCKER_COMPOSE exec opsiserver44-dev poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
         echo -e "${TXT_ERROR}file-download.py failed (range-requests)${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -101,7 +101,7 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run messagebus websocket load test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/messagebus-clients.py --clients 1000 --event-interval 30 --start-gap 20 || (
+      $DOCKER_COMPOSE exec opsiserver44-dev poetry run ./perftest/messagebus-clients.py --clients 1000 --event-interval 30 --start-gap 20 || (
         echo -e "${TXT_ERROR}messagebus-clients.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -109,12 +109,12 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run opsiconfd get-config duration test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 0.6 poetry run opsiconfd get-config || (
+      $DOCKER_COMPOSE exec opsiserver44-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 0.6 poetry run opsiconfd get-config || (
         echo -e "${TXT_ERROR}bencher-command.py failed${TXT_CLEAR}"
         exit 1
       )
 
-    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
+    - $DOCKER_COMPOSE exec opsiserver44-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

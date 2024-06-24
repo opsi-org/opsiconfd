@@ -59,7 +59,8 @@ from opsicommon.types import (
 )
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
-from opsisystem.inffile import INFFile, INFTargetOSVersion, Architecture, DeviceType
+from opsisystem.inffile import Architecture, DeviceType, INFFile, INFTargetOSVersion
+
 from opsiconfd import __version__, contextvar_client_session
 from opsiconfd.config import (
 	BOOT_DIR,
@@ -377,7 +378,7 @@ class RPCDepotserverMixin(Protocol):
 		driver_db_dir = client_data_dir / "driver_db"
 		if driver_db_dir.exists():
 			shutil.rmtree(driver_db_dir)
-		inf_re = re.compile(".*\.inf", re.IGNORECASE)
+		inf_re = re.compile(r".*\.inf", re.IGNORECASE)
 
 		for root, _dirs, files in os.walk(drivers_dir):
 			for filename in files:

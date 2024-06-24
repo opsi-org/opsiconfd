@@ -109,13 +109,34 @@ def get_processor_info() -> dict[str, Any]:
 	logger.debug("get_processor_info")
 	try:
 		all_info = Path("/proc/cpuinfo").read_text(encoding="utf-8")
+		vendor = ""
 		model = ""
+		flags: list[str] = []
+		bugs: list[str] = []
 		for line in all_info.split("\n"):
-			if "model name" in line:
-				model = re.sub(".*model name.*:", "", line, 1).strip()
-				break
-		# https://psutil.readthedocs.io/en/latest/#psutil.getloadavg
-		return {"model": model, "cpu_count": psutil.cpu_count(), "load_avg": psutil.getloadavg()}
+			if ":" not in line:
+				continue
+			attribute, value = line.split(":", 1)
+			attribute = attribute.strip().lower()
+			value = value.strip()
+			if attribute == "model name":
+				model = value
+			elif attribute == "vendor_id":
+				vendor = value
+			elif attribute == "flags":
+				flags = value.split(" ")
+			elif attribute == "bugs":
+				bugs = value.split(" ")
+
+		return {
+			"vendor": vendor,
+			"model": model,
+			"flags": flags,
+			"bugs": bugs,
+			"cpu_count": psutil.cpu_count(),
+			# https://psutil.readthedocs.io/en/latest/#psutil.getloadavg
+			"load_avg": psutil.getloadavg(),
+		}
 	except FileNotFoundError:
 		logger.warning("Could not read '/proc/cpuinfo'.")
 		return {}

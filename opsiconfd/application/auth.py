@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import]
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
-
+from opsicommon.logging.constants import TRACE
 from opsiconfd.application.admininterface import admin_interface_index
 from opsiconfd.auth.saml import get_saml_settings, saml_auth_request_data
 from opsiconfd.config import opsi_config
@@ -138,12 +138,17 @@ async def _saml_callback_login(request: Request, success_action: Literal["redire
 	request_data = await saml_auth_request_data(request)
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 	await run_in_threadpool(auth.process_response)
+	if logger.isEnabledFor(TRACE):
+		logger.trace(auth.get_last_response_xml())
 	errors = auth.get_errors()
 	response = PlainTextResponse("Authentication failure", status_code=status.HTTP_401_UNAUTHORIZED)
 	if errors:
 		logger.error("Failed to process SAML SSO response: %s %s", errors, auth.get_last_error_reason())
 	elif auth.is_authenticated():
-		roles = [g.lower() for g in auth.get_attribute("Role") or []]
+		roles = [
+			g.lower()
+			for g in auth.get_attribute("Role") or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role") or []
+		]
 		logger.info("SAML SSO successful for user %s with roles %s", auth.get_nameid(), roles)
 		is_admin = (opsi_config.get("groups", "admingroup") or "").lower() in roles
 		if auth.get_nameid() and is_admin:

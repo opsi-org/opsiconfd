@@ -36,7 +36,7 @@ from opsiconfd.setup.backend import setup_backend
 from opsiconfd.ssl import setup_ssl
 from tests.utils import ADMIN_PASS, ADMIN_USER, Config, OpsiconfdTestClient, get_config, test_client  # noqa: F401
 
-CONFIGSERVER = "opsiserver43-cs"
+CONFIGSERVER = "opsiserver44-cs"
 
 logger = get_logger()
 

@@ -30,7 +30,7 @@ from threading import Thread
 from typing import TYPE_CHECKING, Any, Protocol
 
 from OPSI.Util.Thread import KillableThread  # type: ignore[import-untyped]
-from opsicommon.client.jsonrpc import JSONRPCClient
+from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.exceptions import (
 	BackendMissingDataError,
 	BackendUnaccomplishableError,
@@ -90,26 +90,24 @@ class RpcThread(KillableThread):
 		self.started = 0.0
 		self.ended = 0.0
 
-		self.jsonrpc = JSONRPCClient(
+		self._service = ServiceClient(
 			address=f"https://{self.address}:{opsiclientd_port}/opsiclientd",
 			username=str(username),
 			password=str(password),
 			connect_timeout=max(host_rpc_timeout, 0),
-			read_timeout=max(host_rpc_timeout, 0),
-			connect_on_init=False,
-			create_methods=False,
-			retry=0,
+			jsonrpc_create_methods=False,
+			jsonrpc_create_objects=True,
 		)
 
 	def run(self) -> None:
 		self.started = time.time()
 		try:
-			self.result = self.jsonrpc.execute_rpc(self.method, self.params)
+			self.result = self._service.jsonrpc(self.method, self.params)
 		except Exception as err:
 			self.error = str(err)
 		finally:
 			try:
-				self.jsonrpc.disconnect()
+				self._service.disconnect()
 			except Exception as err:
 				logger.warning("Failed to clean up jsonrpc connection: %s", err, exc_info=True)
 			self.ended = time.time()

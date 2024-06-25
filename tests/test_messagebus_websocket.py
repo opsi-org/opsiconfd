@@ -511,6 +511,8 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 				assert isinstance(responses[0], GeneralErrorMessage)
 				assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
 
+				_check_message_type_access.cache_clear()
+
 
 def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)

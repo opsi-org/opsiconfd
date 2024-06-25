@@ -428,6 +428,9 @@ class Config(metaclass=Singleton):
 			self._config.client_cert_auth = []
 		if not self._config.disabled_features:
 			self._config.disabled_features = []
+		if "terminal" in self._config.disabled_features:
+			self._config.disabled_features.remove("terminal")
+			self._config.disabled_features.append("messagebus_terminal")
 		if not self._config.debug_options:
 			self._config.debug_options = []
 		if not self._config.development_options:
@@ -1356,9 +1359,11 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				"opsiconfd",
-				"A list of features to disable (features: status-page, public-folder, terminal, rpc-interface).",
+				"A list of features to disable "
+				"(features: status-page, public-folder, rpc-interface, messagebus_terminal, messagebus_execute_process).",
 			),
-			choices=("status-page", "public-folder", "terminal", "rpc-interface"),
+			# terminal was renamed to messagebus_terminal
+			choices=("status-page", "public-folder", "rpc-interface", "messagebus_terminal", "terminal", "messagebus_execute_process"),
 		)
 		self._parser.add(
 			"--admin-interface-terminal-shell",

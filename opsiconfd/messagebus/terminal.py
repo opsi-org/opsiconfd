@@ -44,7 +44,7 @@ terminal_instance_reader: MessageReader | None = None
 
 
 async def async_terminal_startup() -> None:
-	if "terminal" not in config.disabled_features:
+	if "messagebus_terminal" not in config.disabled_features:
 		asyncio_create_task(messagebus_terminal_open_request_worker())
 		asyncio_create_task(messagebus_terminal_instance_worker())
 

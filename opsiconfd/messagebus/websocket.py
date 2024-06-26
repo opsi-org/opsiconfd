@@ -83,11 +83,13 @@ RE_USER_ID = re.compile("^[a-z-0-9_]$")
 
 
 @lru_cache
-def _check_message_type_access(message_type: str, backend: Backend) -> bool:
+def _check_message_type_access(message_type: str, is_service_channel: bool, backend: Backend) -> bool:
 	if message_type == MessageType.TERMINAL_OPEN_REQUEST and "messagebus_terminal" in config.disabled_features:
 		return False
 	if message_type == MessageType.PROCESS_START_REQUEST and "messagebus_execute_process" in config.disabled_features:
 		return False
+	if is_service_channel:
+		return True
 	if message_type not in RESTRICTED_MESSAGE_TYPES:
 		return True
 	return RESTRICTED_MESSAGE_TYPES[message_type] in backend.available_modules
@@ -402,8 +404,9 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):
 				raise RuntimeError(f"Read access to channel {message.channel!r} denied")
 
-			if not _check_message_type_access(message.type, self._backend):
+			if not _check_message_type_access(message.type, message.channel.startswith("service:"), self._backend):
 				raise RuntimeError(f"Access to message type {message.type!r} denied - check config and license")
+
 			logger.debug("Message from websocket: %r", message)
 			statistics.messages_received += 1
 

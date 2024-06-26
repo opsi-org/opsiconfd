@@ -482,14 +482,13 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 					# Executing processes on clients must be denied
 					websocket.send_bytes(
 						ProcessStartRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel=f"host:test-client.opsi.org", command=("echo", "test")
+							sender=CONNECTION_USER_CHANNEL, channel="host:test-client.opsi.org", command=("echo", "test")
 						).to_msgpack()
 					)
 					reader.wait_for_message(count=1, timeout=10.0)
 					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 					assert isinstance(responses[0], GeneralErrorMessage)
 					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
-
 
 				_check_message_type_access.cache_clear()
 				with get_config({"disabled_features": ["messagebus_execute_process"]}):

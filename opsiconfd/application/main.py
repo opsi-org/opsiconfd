@@ -271,6 +271,7 @@ def setup_app() -> None:
 	public_path = [
 		"/favicon.ico",
 		"/login",
+		"/auth/authenticated",
 		"/auth/login",
 		"/auth/logout",
 		"/auth/session_id",

@@ -70,12 +70,10 @@ async def logout(request: Request) -> RESTResponse:
 @auth_router.post("/session_id")
 @rest_api
 async def session_id(request: Request) -> RESTResponse:
-	session: OPSISession | None = request.scope.get("session")
-	if not session:
-		await pre_authenticate(request.scope)
-		session = request.scope.get("session")
-		assert session
-		await session.store()
+	await pre_authenticate(request.scope)
+	session = request.scope.get("session")
+	assert session
+	await session.store()
 	assert session and session.session_id
 	return RESTResponse(session.session_id)
 

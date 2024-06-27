@@ -10,6 +10,7 @@ login tests
 """
 
 import time
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -826,3 +827,46 @@ def test_recover_clients(test_client: OpsiconfdTestClient, backend: UnprotectedB
 		assert client.opsiHostKey == "08508cd947c5e22f020dcde519d9ec04"
 		assert client.notes == "Created by opsiconfd with recover clients option."
 		backend.host_deleteObjects([client])
+
+
+@pytest.mark.parametrize("test_timeout", (True, False))
+def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout: bool) -> None:  # noqa: F811
+	res = test_client.get("/auth/session_id")
+	assert res.status_code == 200
+	session_id = res.json()
+	assert session_id
+	assert session_id in res.headers.get("set-cookie", "")
+	cookie = list(test_client.cookies.jar)[0]
+	assert cookie.value == session_id
+
+	res = test_client.get("/auth/authenticated")
+	assert res.status_code == 401
+	assert session_id in res.headers.get("set-cookie", "")
+	cookie = list(test_client.cookies.jar)[0]
+	assert cookie.value == session_id
+
+	authenticated_result: bool | None = None
+
+	def wait_auth_thread() -> None:
+		nonlocal authenticated_result
+		res = test_client.post("/auth/authenticated", json={"wait_time": 3 if test_timeout else 20})
+		if res.status_code == 200:
+			authenticated_result = res.json()
+		else:
+			authenticated_result = False
+
+	threading.Thread(target=wait_auth_thread, daemon=True).start()
+	time.sleep(5)
+
+	if test_timeout:
+		# /auth/authenticated must have returned False
+		assert authenticated_result is False
+	else:
+		# /auth/authenticated must be bocking
+		assert authenticated_result is None
+
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == 200
+		time.sleep(2)
+		# /auth/authenticated must have returned True
+		assert authenticated_result is True

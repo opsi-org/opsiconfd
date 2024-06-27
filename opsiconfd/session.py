@@ -478,18 +478,32 @@ class SessionManager:
 		if session_id:
 			session = self.sessions.get(session_id)
 			if not session:
-				# Session not cached, try to load from redis
+				logger.trace("Session not cached, try to load from redis")
 				session = OPSISession(client_addr=client_addr, headers=headers, session_id=session_id)
 				if await session.load():
+					logger.trace("Session loaded from redis")
 					self.sessions[session_id] = session
 				else:
+					logger.trace("Session not found in redis")
 					session = None
 
 		if session_id and session:
 			refresh_ok = await session.refresh()
-			if refresh_ok and not session.expired and session.client_addr == client_addr:
+			# TODO: Configurable
+			allow_changed_address = True
+			logger.trace(
+				"Session refresh: %s - %s - %s - %s - %s",
+				refresh_ok,
+				allow_changed_address,
+				session.expired,
+				session.client_addr,
+				client_addr,
+			)
+			if refresh_ok and not session.expired and (allow_changed_address or session.client_addr == client_addr):
 				await session.update_last_used()
+				logger.trace("Session refreshed")
 			else:
+				logger.trace("Session not valid for refresh, deleting")
 				try:
 					del self.sessions[session_id]
 				except KeyError:
@@ -498,6 +512,7 @@ class SessionManager:
 				session = None
 
 		if not session:
+			logger.trace("Creating new session for client %s", client_addr)
 			session = OPSISession(client_addr=client_addr, headers=headers, session_id=session_id)
 			await session.init()
 			assert session.client_addr == client_addr

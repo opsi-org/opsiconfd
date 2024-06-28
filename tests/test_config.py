@@ -10,7 +10,6 @@ config tests
 """
 
 import os
-import re
 from argparse import ArgumentTypeError
 from pathlib import Path
 from typing import Any, Type
@@ -246,7 +245,7 @@ def test_set_config_in_config_file(
 		for func in ("set_configs1", "set_configs2"):
 			print("---------------------------------------------------------")
 			print("Running", func)
-			threads: list[Thread] = []
+			threads: list[SetConfigThread] = []
 			for _ in range(20):
 				threads.append(SetConfigThread(func=func))
 			for thread in threads:
@@ -256,7 +255,6 @@ def test_set_config_in_config_file(
 				if thread.err:
 					print(f"Error in thread ({func})")
 					raise thread.err
-
 
 
 def test_disabled_features(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

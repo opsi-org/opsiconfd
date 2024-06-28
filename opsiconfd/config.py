@@ -35,7 +35,7 @@ from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.check.const import CHECKS
-from opsiconfd.utils import lock_file, LOCK_EX
+from opsiconfd.utils import lock_file
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 

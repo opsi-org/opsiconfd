@@ -23,7 +23,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 from urllib.parse import unquote, urlparse
-import threading
 
 import certifi
 import configargparse  # type: ignore[import]
@@ -336,7 +335,6 @@ class Config(metaclass=Singleton):
 		self._init_parser()
 
 		if is_manager(psutil.Process(os.getpid())):
-			self._upgrade_config_file()
 			self._update_config_file()
 
 		self._parse_args()
@@ -498,13 +496,10 @@ class Config(metaclass=Singleton):
 		conf = conf.copy()
 		path = Path(self._config.config_file)
 		data = ""
-		thread_id = threading.get_ident()
 		with open(path, "a+", encoding="utf-8") as file:
 			with lock_file(file):
-				print(thread_id, ">>>>>>>>>>>>>>>>>> GOT LOCK <<<<<<<<<<<<<<<<<<<<")
 				file.seek(0)
 				data = file.read()
-				print(data)
 				re_opt = re.compile(r"^(\s*)([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 				new_lines = []
 				for line in data.split("\n"):
@@ -530,13 +525,10 @@ class Config(metaclass=Singleton):
 					new_lines.extend(f"{arg} = {val}" for arg, val in conf.items())
 					new_lines.append("")
 
-				print(thread_id, ">>>>>>>>>>>>>>>>>> WRITING DATA <<<<<<<<<<<<<<<<<<<<")
 				data = "\n".join(new_lines)
-				print(data)
 				file.seek(0)
 				file.truncate()
 				file.write(data)
-			print(thread_id, ">>>>>>>>>>>>>>>>>> RELEASE LOCK <<<<<<<<<<<<<<<<<<<<")
 
 	def _config_file_contents(self) -> str:
 		conf = self._parse_config_file()
@@ -549,64 +541,6 @@ class Config(metaclass=Singleton):
 		conf = self._parse_config_file()
 		conf[arg] = value
 		self._generate_config_file(conf)
-
-	def _upgrade_config_file(self) -> None:
-		if not self._parser:
-			raise RuntimeError("Parser not initialized")
-		defaults = {action.dest: action.default for action in self._parser._actions}
-		# Do not migrate ssl key/cert
-		mapping = {
-			"backend config dir": "backend-config-dir",
-			"dispatch config file": "dispatch-config-file",
-			"extension config dir": "extension-config-dir",
-			"acl file": "acl-file",
-			"admin networks": "admin-networks",
-			"log file": "log-file",
-			"symlink logs": "symlink-logs",
-			"log level": "log-level",
-			"monitoring user": "monitoring-user",
-			"interface": "interface",
-			"https port": "port",
-			"update ip": "update-ip",
-			"max inactive interval": "session-lifetime",
-			"max authentication failures": "max-auth-failures",
-			"max sessions per ip": "max-session-per-ip",
-		}
-
-		path = Path(self._config.config_file)
-		if not path.exists():
-			return
-		with open(path, "a+", encoding="utf-8") as file:
-			with lock_file(file):
-				file.seek(0)
-				data = file.read()
-				if "[global]" not in data:
-					# Config file not in opsi 4.1 format
-					return
-
-			re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-
-			file.seek(0)
-			file.truncate()
-			file.write(CONFIG_FILE_HEADER.lstrip())
-			for line in data.split("\n"):
-				match = re_opt.match(line)
-				if match:
-					opt = match.group(1).strip().lower()
-					val = match.group(2).strip()
-					if opt not in mapping:
-						continue
-					if val.lower() in ("yes", "no", "true", "false"):
-						val = val.lower() in ("yes", "true")
-					default = defaults.get(mapping[opt].replace("-", "_"))
-					if str(default) == str(val):
-						continue
-					if isinstance(val, bool):
-						val = str(val).lower()
-					if "," in val:
-						val = f"[{val}]"
-					file.write(f"{mapping[opt]} = {val}\n")
-			file.write("\n")
 
 	def _update_config_file(self) -> None:
 		conf = self._parse_config_file()

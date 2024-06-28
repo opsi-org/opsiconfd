@@ -263,9 +263,13 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 @contextmanager
 def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, timeout: float = 5.0) -> Generator[None, None, None]:
 	start = time.time()
+	attempt = 0
 	while True:
+		attempt += 1
 		try:
 			flock(file, lock_flags)
+			if attempt > 1:
+				time.sleep(0.1)
 			break
 		except (IOError, BlockingIOError):
 			if time.time() >= start + timeout:
@@ -273,6 +277,7 @@ def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, time
 			time.sleep(0.1)
 	try:
 		yield
+		file.flush()
 	finally:
 		flock(file, LOCK_UN)
 

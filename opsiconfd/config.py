@@ -23,6 +23,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 from urllib.parse import unquote, urlparse
+import threading
 
 import certifi
 import configargparse  # type: ignore[import]
@@ -35,6 +36,7 @@ from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.check.const import CHECKS
+from opsiconfd.utils import lock_file, LOCK_EX
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 
@@ -480,7 +482,11 @@ class Config(metaclass=Singleton):
 		path = Path(self._config.config_file)
 		if not path.exists():
 			return conf
-		data = path.read_text(encoding="utf-8")
+
+		with open(path, "r", encoding="utf-8") as file:
+			with lock_file(file):
+				data = file.read()
+
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		for line in data.split("\n"):
 			match = re_opt.match(line)
@@ -492,34 +498,45 @@ class Config(metaclass=Singleton):
 		conf = conf.copy()
 		path = Path(self._config.config_file)
 		data = ""
-		if path.exists():
-			data = path.read_text(encoding="utf-8")
-		re_opt = re.compile(r"^(\s*)([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-		new_lines = []
-		for line in data.split("\n"):
-			match = re_opt.match(line)
-			if match:
-				indent = match.group(1)
-				arg = match.group(2).strip().lower()
-				val = match.group(3).strip()
-				if arg in conf:
-					new_val = conf.pop(arg)
-					if val != new_val:
-						# Update argument value in file
-						line = f"{indent}{arg} = {new_val}"
-				else:
-					# Remove argument from file
-					continue
-			new_lines.append(line)
+		thread_id = threading.get_ident()
+		with open(path, "a+", encoding="utf-8") as file:
+			with lock_file(file):
+				print(thread_id, ">>>>>>>>>>>>>>>>>> GOT LOCK <<<<<<<<<<<<<<<<<<<<")
+				file.seek(0)
+				data = file.read()
+				print(data)
+				re_opt = re.compile(r"^(\s*)([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+				new_lines = []
+				for line in data.split("\n"):
+					match = re_opt.match(line)
+					if match:
+						indent = match.group(1)
+						arg = match.group(2).strip().lower()
+						val = match.group(3).strip()
+						if arg in conf:
+							new_val = conf.pop(arg)
+							if val != new_val:
+								# Update argument value in file
+								line = f"{indent}{arg} = {new_val}"
+						else:
+							# Remove argument from file
+							continue
+					new_lines.append(line)
 
-		if conf:
-			# Add new arguments
-			if new_lines and not new_lines[-1]:
-				new_lines.pop()
-			new_lines.extend(f"{arg} = {val}" for arg, val in conf.items())
-			new_lines.append("")
+				if conf:
+					# Add new arguments
+					if new_lines and not new_lines[-1]:
+						new_lines.pop()
+					new_lines.extend(f"{arg} = {val}" for arg, val in conf.items())
+					new_lines.append("")
 
-		path.write_text("\n".join(new_lines), encoding="utf-8")
+				print(thread_id, ">>>>>>>>>>>>>>>>>> WRITING DATA <<<<<<<<<<<<<<<<<<<<")
+				data = "\n".join(new_lines)
+				print(data)
+				file.seek(0)
+				file.truncate()
+				file.write(data)
+			print(thread_id, ">>>>>>>>>>>>>>>>>> RELEASE LOCK <<<<<<<<<<<<<<<<<<<<")
 
 	def _config_file_contents(self) -> str:
 		conf = self._parse_config_file()
@@ -559,14 +576,18 @@ class Config(metaclass=Singleton):
 		path = Path(self._config.config_file)
 		if not path.exists():
 			return
-		data = path.read_text(encoding="utf-8")
-		if "[global]" not in data:
-			# Config file not in opsi 4.1 format
-			return
+		with open(path, "a+", encoding="utf-8") as file:
+			with lock_file(file):
+				file.seek(0)
+				data = file.read()
+				if "[global]" not in data:
+					# Config file not in opsi 4.1 format
+					return
 
-		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+			re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 
-		with open(path, "w", encoding="utf-8") as file:
+			file.seek(0)
+			file.truncate()
 			file.write(CONFIG_FILE_HEADER.lstrip())
 			for line in data.split("\n"):
 				match = re_opt.match(line)

@@ -50,15 +50,6 @@ from .utils import (  # noqa: F401
 	test_client,
 )
 
-login_test_data = (
-	(None, 401, "Authorization header missing"),
-	(("", ""), 401, "Authentication error"),
-	((ADMIN_USER, ""), 401, "Authentication error"),
-	((ADMIN_USER, "123"), 401, "Authentication error"),
-	(("", ADMIN_PASS), 401, "Authentication error"),
-	(("123", ADMIN_PASS), 401, "Authentication error"),
-)
-
 
 def test_get_session(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.get("/")
@@ -71,7 +62,17 @@ def test_get_session(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		set_contextvars(cvars)
 
 
-@pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
+@pytest.mark.parametrize(
+	"auth_data, expected_status_code, expected_text",
+	(
+		(None, 401, "Authorization header missing"),
+		(("", ""), 401, "Authentication error"),
+		((ADMIN_USER, ""), 401, "Authentication error"),
+		((ADMIN_USER, "123"), 401, "Authentication error"),
+		(("", ADMIN_PASS), 401, "Authentication error"),
+		(("123", ADMIN_PASS), 401, "Authentication error"),
+	),
+)
 def test_login_error(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	auth_data: tuple[str, str],
@@ -839,8 +840,9 @@ def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout:
 	cookie = list(test_client.cookies.jar)[0]
 	assert cookie.value == session_id
 
-	res = test_client.get("/auth/authenticated")
+	res = test_client.get("/auth/wait_authenticated")
 	assert res.status_code == 401
+	assert res.json() is False
 	assert session_id in res.headers.get("set-cookie", "")
 	cookie = list(test_client.cookies.jar)[0]
 	assert cookie.value == session_id
@@ -849,7 +851,7 @@ def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout:
 
 	def wait_auth_thread() -> None:
 		nonlocal authenticated_result
-		res = test_client.post("/auth/authenticated", json={"wait_time": 3 if test_timeout else 20})
+		res = test_client.post("/auth/wait_authenticated", json={"wait_time": 3 if test_timeout else 20})
 		if res.status_code == 200:
 			authenticated_result = res.json()
 		else:

@@ -21,17 +21,24 @@ from opsiconfd.logging import init_logging, logger
 
 
 def test_pam_auth() -> None:
-	print("Testing PAM authentication")
-	pam_auth = PAMAuthentication()
-	username = Prompt.ask("Enter username")
-	password = Prompt.ask("Enter password", password=True)
-	try:
-		pam_auth.authenticate(username, password)
-	except Exception as err:
-		logger.error(err, exc_info=True)
-		print("[b][red]PAM authentication failed")
+	error: Exception | None = None
+	while True:
+		print("Testing PAM authentication")
+		pam_auth = PAMAuthentication()
+		username = Prompt.ask("Enter username")
+		password = Prompt.ask("Enter password", password=True)
+		error = None
+		try:
+			pam_auth.authenticate(username, password)
+			print("[b][green]PAM authentication successful")
+		except Exception as err:
+			error = err
+			logger.error(err, exc_info=True)
+			print("[b][red]PAM authentication failed")
+		if not Prompt.ask("Test again?", choices=["y", "n"]) == "y":
+			break
+	if error:
 		sys.exit(1)
-	print("[b][green]PAM authentication successful")
 
 
 def test_ldap_auth() -> None:

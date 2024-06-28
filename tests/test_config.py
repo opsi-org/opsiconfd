@@ -15,7 +15,7 @@ from argparse import ArgumentTypeError
 from pathlib import Path
 from typing import Any, Type
 from unittest.mock import patch
-
+from threading import Thread
 import pytest
 
 from opsiconfd.config import ip_address, network_address, str2bool
@@ -299,18 +299,47 @@ def test_set_config_in_config_file(
 	config_file = tmp_path / "opsiconfd.conf"
 	config_file.write_text("".join(old_lines), encoding="utf-8")
 
+	class SetConfigThread(Thread):
+		def __init__(self, func: str) -> None:
+			super().__init__(daemon=True)
+			self.func = func
+			self.err: Exception | None = None
+
+		def run(self) -> None:
+			try:
+				getattr(self, self.func)()
+			except Exception as err:
+				self.err = err
+
+		def set_configs1(self) -> None:
+			for key, val in configs1.items():
+				conf.set_config_in_config_file(key, val)
+
+			data = config_file.read_text(encoding="utf-8")
+			assert data == "".join(new_lines1)
+
+		def set_configs2(self) -> None:
+			for key, val in configs2.items():
+				conf.set_config_in_config_file(key, val)
+
+			data = config_file.read_text(encoding="utf-8")
+			assert data == "".join(new_lines2)
+
 	with get_config(["--config-file", str(config_file)]) as conf:
-		for key, val in configs1.items():
-			conf.set_config_in_config_file(key, val)
+		for func in ("set_configs1", "set_configs2"):
+			print("---------------------------------------------------------")
+			print("Running", func)
+			threads: list[Thread] = []
+			for _ in range(20):
+				threads.append(SetConfigThread(func=func))
+			for thread in threads:
+				thread.start()
+			for thread in threads:
+				thread.join()
+				if thread.err:
+					print(f"Error in thread ({func})")
+					raise thread.err
 
-		data = config_file.read_text(encoding="utf-8")
-		assert data == "".join(new_lines1)
-
-		for key, val in configs2.items():
-			conf.set_config_in_config_file(key, val)
-
-		data = config_file.read_text(encoding="utf-8")
-		assert data == "".join(new_lines2)
 
 
 def test_disabled_features(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

@@ -229,17 +229,13 @@ def test_set_config_in_config_file(
 
 		def set_configs1(self) -> None:
 			for key, val in configs1.items():
-				conf.set_config_in_config_file(key, val)
-
-			data = config_file.read_text(encoding="utf-8")
-			assert data == "".join(new_lines1)
+				data = conf.set_config_in_config_file(key, val)
+				assert data == "".join(new_lines1)
 
 		def set_configs2(self) -> None:
 			for key, val in configs2.items():
-				conf.set_config_in_config_file(key, val)
-
-			data = config_file.read_text(encoding="utf-8")
-			assert data == "".join(new_lines2)
+				data = conf.set_config_in_config_file(key, val)
+				assert data == "".join(new_lines2)
 
 	with get_config(["--config-file", str(config_file)]) as conf:
 		for func in ("set_configs1", "set_configs2"):

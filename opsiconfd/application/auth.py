@@ -86,6 +86,17 @@ async def authenticated(request: Request) -> RESTResponse:
 	if session:
 		if session.authenticated:
 			return RESTResponse(True)
+	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)
+
+
+@auth_router.get("/wait_authenticated")
+@auth_router.post("/wait_authenticated")
+@rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
+async def wait_authenticated(request: Request) -> RESTResponse:
+	session: OPSISession | None = request.scope.get("session")
+	if session:
+		if session.authenticated:
+			return RESTResponse(True)
 		try:
 			params = await request.json()
 		except Exception:

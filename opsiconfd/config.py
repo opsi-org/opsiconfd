@@ -20,7 +20,6 @@ import sys
 import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from functools import lru_cache
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, TextIO
 from urllib.parse import unquote, urlparse
 

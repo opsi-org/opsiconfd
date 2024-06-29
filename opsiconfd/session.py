@@ -489,25 +489,25 @@ class SessionManager:
 
 		if session_id and session:
 			refresh_ok = await session.refresh()
-			# TODO: Configurable
-			allow_changed_address = True
 			logger.trace(
-				"Session refresh: %s - %s - %s - %s - %s",
+				"Session refresh: %s - %s - %s - %s",
 				refresh_ok,
-				allow_changed_address,
 				session.expired,
 				session.client_addr,
 				client_addr,
 			)
-			if refresh_ok and not session.expired and (allow_changed_address or session.client_addr == client_addr):
+			changed_client_addr = session.client_addr != client_addr
+			if refresh_ok and not session.expired and not changed_client_addr:
 				await session.update_last_used()
 				logger.trace("Session refreshed")
 			else:
-				logger.trace("Session not valid for refresh, deleting")
-				try:
-					del self.sessions[session_id]
-				except KeyError:
-					pass
+				logger.trace("Session not valid for refresh")
+				if session.expired:
+					logger.debug("Session expired, deleting")
+					try:
+						del self.sessions[session_id]
+					except KeyError:
+						pass
 				session_id = None
 				session = None
 

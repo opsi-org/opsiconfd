@@ -15,6 +15,7 @@ import os
 import pwd
 from grp import getgrgid
 from os import getgrouplist
+from threading import Lock
 
 from pam import PamAuthenticator  # type: ignore[import]
 from opsicommon.exceptions import BackendAuthenticationError
@@ -26,9 +27,12 @@ from . import AuthenticationModule, AuthenticationMethod
 
 class PAMAuthentication(AuthenticationModule):
 	authentication_method = AuthenticationMethod.PASSWORD_PAM
+	_pam_authenticator = PamAuthenticator()
+	_pam_lock = Lock()
 
 	def __init__(self, pam_service: str | None = None):
 		super().__init__()
+
 		self._pam_service = pam_service
 		if not self._pam_service:
 			if os.path.exists("/etc/pam.d/opsi-auth"):
@@ -58,10 +62,10 @@ class PAMAuthentication(AuthenticationModule):
 		logger.debug("Attempting PAM authentication as user %s (service=%s)...", username, self._pam_service)
 
 		try:
-			auth = PamAuthenticator()
-			if not auth.authenticate(username, password, service=self._pam_service):
-				logger.debug("PAM authentication failed: %s (code %s)", auth.reason, auth.code)
-				raise RuntimeError(auth.reason)
+			with self._pam_lock:
+				if not self._pam_authenticator.authenticate(username, password, service=self._pam_service):
+					logger.debug("PAM authentication failed: %s (code %s)", self._pam_authenticator.reason, self._pam_authenticator.code)
+					raise RuntimeError(self._pam_authenticator.reason)
 
 			logger.trace("PAM authentication successful.")
 		except Exception as err:

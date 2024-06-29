@@ -216,21 +216,21 @@ class SessionMiddleware:
 					if path.startswith(pub_path):
 						required_access_role = access_role_public
 						break
-			scope["required_access_role"] = required_access_role
-
 			if (
-				scope["required_access_role"] != ACCESS_ROLE_PUBLIC
+				required_access_role != ACCESS_ROLE_PUBLIC
 				and path.startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer", "/auth"))
 				or (path.startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 			):
-				scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
+				required_access_role = ACCESS_ROLE_AUTHENTICATED
+			scope["required_access_role"] = required_access_role
 
 			# Get session
 			session_id = connection.query_params.get("session_id")
 			if not session_id:
 				session_id = self.get_session_id_from_headers(connection.headers)
 
-			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id or path.startswith("/auth"):
+			do_auth = required_access_role != ACCESS_ROLE_PUBLIC or connection.headers.get("authorization")
+			if session_id or do_auth or path.startswith("/auth"):
 				addr = scope["client"]
 				session = scope["session"] = await session_manager.get_session(
 					client_addr=addr[0], headers=connection.headers, session_id=session_id
@@ -246,15 +246,27 @@ class SessionMiddleware:
 					if await addon.handle_request(connection, receive, send):
 						return
 
-			await check_access(connection)
-			if (
-				session
-				and required_access_role == ACCESS_ROLE_ADMIN
-				and not session.host
-				and path.startswith("/depot")
-				and opsi_config.get("groups", "fileadmingroup") not in session.user_groups
-			):
-				raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].username}'")
+			if do_auth and (not session or not session.username or not session.authenticated):
+				try:
+					auth = get_basic_auth(connection.headers)
+					await authenticate(connection.scope, auth.username, auth.password)
+				except Exception as err:
+					if required_access_role != ACCESS_ROLE_PUBLIC:
+						raise err
+
+			if required_access_role == ACCESS_ROLE_ADMIN:
+				if not session:
+					raise BackendPermissionDeniedError(f"No admin permissions {scope.get('method')} {scope.get('path')}")
+
+				if not session.is_admin:
+					raise BackendPermissionDeniedError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")
+
+				if (
+					not session.host
+					and path.startswith("/depot")
+					and opsi_config.get("groups", "fileadmingroup") not in session.user_groups
+				):
+					raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].username}'")
 
 		if started_authenticated and timing["session_handling"] > 1000:
 			logger.warning("Session handling took %0.2fms", timing["session_handling"])
@@ -1472,21 +1484,6 @@ async def check_min_configed_version(user_agent: str) -> None:
 			f"Configed {(str(configed_version) if configed_version else user_agent)} "
 			f"is not allowed to connect (min-configed-version: {str(config.min_configed_version)})"
 		)
-
-
-async def check_access(connection: HTTPConnection) -> None:
-	scope = connection.scope
-	if scope["required_access_role"] == ACCESS_ROLE_PUBLIC:
-		return
-
-	session = connection.scope["session"]
-
-	if not session.username or not session.authenticated:
-		auth = get_basic_auth(connection.headers)
-		await authenticate(connection.scope, auth.username, auth.password)
-
-	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.is_admin:
-		raise BackendPermissionDeniedError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")
 
 
 session_manager = SessionManager()

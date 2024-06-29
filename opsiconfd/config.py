@@ -21,7 +21,7 @@ import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, TextIO
 from urllib.parse import unquote, urlparse
 
 import certifi
@@ -475,16 +475,10 @@ class Config(metaclass=Singleton):
 				return
 		self._args = ["--config-file", self._config.config_file] + self._args
 
-	def _parse_config_file(self) -> dict[str, Any]:
+	def _parse_config_file(self, file: TextIO) -> dict[str, Any]:
 		conf: dict[str, Any] = {}
-		path = Path(self._config.config_file)
-		if not path.exists():
-			return conf
-
-		with open(path, "r", encoding="utf-8") as file:
-			with lock_file(file):
-				data = file.read()
-
+		file.seek(0)
+		data = file.read()
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		for line in data.split("\n"):
 			match = re_opt.match(line)
@@ -492,61 +486,65 @@ class Config(metaclass=Singleton):
 				conf[match.group(1).strip().lower()] = match.group(2).strip()
 		return conf
 
-	def _generate_config_file(self, conf: dict[str, Any]) -> None:
+	def _generate_config_file(self, file: TextIO, conf: dict[str, Any]) -> str:
 		conf = conf.copy()
-		path = Path(self._config.config_file)
 		data = ""
-		with open(path, "a+", encoding="utf-8") as file:
-			with lock_file(file):
-				file.seek(0)
-				data = file.read()
-				re_opt = re.compile(r"^(\s*)([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-				new_lines = []
-				for line in data.split("\n"):
-					match = re_opt.match(line)
-					if match:
-						indent = match.group(1)
-						arg = match.group(2).strip().lower()
-						val = match.group(3).strip()
-						if arg in conf:
-							new_val = conf.pop(arg)
-							if val != new_val:
-								# Update argument value in file
-								line = f"{indent}{arg} = {new_val}"
-						else:
-							# Remove argument from file
-							continue
-					new_lines.append(line)
+		file.seek(0)
+		data = file.read()
+		re_opt = re.compile(r"^(\s*)([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+		new_lines = []
+		for line in data.split("\n"):
+			match = re_opt.match(line)
+			if match:
+				indent = match.group(1)
+				arg = match.group(2).strip().lower()
+				val = match.group(3).strip()
+				if arg in conf:
+					new_val = conf.pop(arg)
+					if val != new_val:
+						# Update argument value in file
+						line = f"{indent}{arg} = {new_val}"
+				else:
+					# Remove argument from file
+					continue
+			new_lines.append(line)
 
-				if conf:
-					# Add new arguments
-					if new_lines and not new_lines[-1]:
-						new_lines.pop()
-					new_lines.extend(f"{arg} = {val}" for arg, val in conf.items())
-					new_lines.append("")
+		if conf:
+			# Add new arguments
+			if new_lines and not new_lines[-1]:
+				new_lines.pop()
+			new_lines.extend(f"{arg} = {val}" for arg, val in conf.items())
+			new_lines.append("")
 
-				data = "\n".join(new_lines)
-				file.seek(0)
-				file.truncate()
-				file.write(data)
+		data = "\n".join(new_lines)
+		file.seek(0)
+		file.truncate()
+		file.write(data)
+		return data
 
 	def _config_file_contents(self) -> str:
-		conf = self._parse_config_file()
-		masked_config_file_arguments: tuple[str, ...] = tuple()
-		if self._sub_command:
-			masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
-		return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
+		with open(self._config.config_file, "a+", encoding="utf-8") as file:
+			with lock_file(file):
+				conf = self._parse_config_file(file)
+				masked_config_file_arguments: tuple[str, ...] = tuple()
+				if self._sub_command:
+					masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
+				return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
 
-	def set_config_in_config_file(self, arg: str, value: Any) -> None:
-		conf = self._parse_config_file()
-		conf[arg] = value
-		self._generate_config_file(conf)
+	def set_config_in_config_file(self, arg: str, value: Any) -> str:
+		with open(self._config.config_file, "a+", encoding="utf-8") as file:
+			with lock_file(file):
+				conf = self._parse_config_file(file)
+				conf[arg] = value
+				return self._generate_config_file(file, conf)
 
-	def _update_config_file(self) -> None:
-		conf = self._parse_config_file()
-		for deprecated in DEPRECATED:
-			conf.pop(deprecated, None)
-		self._generate_config_file(conf)
+	def _update_config_file(self) -> str:
+		with open(self._config.config_file, "a+", encoding="utf-8") as file:
+			with lock_file(file):
+				conf = self._parse_config_file(file)
+				for deprecated in DEPRECATED:
+					conf.pop(deprecated, None)
+				return self._generate_config_file(file, conf)
 
 	def _init_parser(self) -> None:
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))

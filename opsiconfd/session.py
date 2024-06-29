@@ -245,6 +245,9 @@ class SessionMiddleware:
 					logger.debug("Calling %s.handle_request for path '%s'", addon, path)
 					if await addon.handle_request(connection, receive, send):
 						return
+					# required_access_role and session can be changed by addon
+					required_access_role = connection.scope["required_access_role"]
+					session = connection.scope["session"]
 
 			if do_auth and (not session or not session.username or not session.authenticated):
 				try:

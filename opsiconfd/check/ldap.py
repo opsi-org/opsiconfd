@@ -38,7 +38,7 @@ def check_ldap_connection() -> CheckResult:
 			ldap_connection = None
 			try:
 				result.message = "The connection to the LDAP server does work."
-				server = ldap3.Server(ldap3_uri_to_str(ldap3.utils.uri.parse_uri(ldap_conf["ldap_url"])))
+				server = ldap3.Server(ldap3_uri_to_str(ldap3.utils.uri.parse_uri(ldap_conf["ldap_url"])))  # type: ignore[no-untyped-call]
 				ldap_connection = ldap3.Connection(server)
 				ldap_connection.bind()
 			except ldap3.core.exceptions.LDAPException as error:

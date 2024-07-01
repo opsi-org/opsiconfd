@@ -34,7 +34,6 @@ opsiconfd = "opsiconfd.__main__:main"
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
-a2wsgi = "^1.8"
 aiofiles = "^23.1"
 aiohttp = "^3.7"
 aiologger = "^0.7"

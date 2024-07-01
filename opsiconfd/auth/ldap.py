@@ -122,7 +122,7 @@ class LDAPAuthentication(AuthenticationModule):
 				break
 
 		if not user_dn:
-			raise RuntimeError(f"User {username} not found in {ldap_type} ldap")
+			raise RuntimeError(f"User '{username}' not found in ldap ({ldap_type})")
 
 		logger.info("User %s found in %s ldap: %s", username, ldap_type, user_dn)
 

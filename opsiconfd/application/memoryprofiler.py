@@ -165,9 +165,9 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 async def memory_info() -> JSONResponse:
 	global MEMORY_TRACKER
 	if not MEMORY_TRACKER:
-		MEMORY_TRACKER = tracker.SummaryTracker()
+		MEMORY_TRACKER = tracker.SummaryTracker()  # type: ignore[no-untyped-call]
 
-	memory_summary = MEMORY_TRACKER.create_summary()
+	memory_summary = MEMORY_TRACKER.create_summary()  # type: ignore[no-untyped-call]
 	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
 
 	redis = await async_redis_client()
@@ -219,7 +219,7 @@ async def delte_memory_snapshot() -> JSONResponse:
 async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 	global MEMORY_TRACKER
 	if not MEMORY_TRACKER:
-		MEMORY_TRACKER = tracker.SummaryTracker()
+		MEMORY_TRACKER = tracker.SummaryTracker()  # type: ignore[no-untyped-call]
 
 	redis_prefix_stats = config.redis_key("stats")
 
@@ -241,7 +241,7 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	snapshot1 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")
 	redis_result = await redis.lindex(f"{redis_prefix_stats}:memory:summary:{node}", end)
 	snapshot2 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")
-	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
+	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)  # type: ignore[no-untyped-call]
 
 	count = 0
 	total_size = 0
@@ -301,13 +301,16 @@ async def classtracker_summary() -> JSONResponse:
 
 	for snapshot in CLASS_TRACKER.snapshots:
 		classes = []
-		for cls in snapshot.classes:
-			cls_values = snapshot.classes.get(cls)
-			active = cls_values.get("active")
-			mem_sum = convert_bytes(cls_values.get("sum"))
-			mem_avg = convert_bytes(cls_values.get("avg"))
-			cls_dict = {"class": cls, "active": active, "sum": mem_sum, "avg": mem_avg}
-			classes.append(cls_dict)
+		if snapshot.classes:
+			for cls in snapshot.classes:
+				cls_values = snapshot.classes.get(cls)
+				if not cls_values:
+					continue
+				active = cls_values.get("active")
+				mem_sum = convert_bytes(cls_values.get("sum", 0.0))
+				mem_avg = convert_bytes(cls_values.get("avg", 0.0))
+				cls_dict = {"class": cls, "active": active, "sum": mem_sum, "avg": mem_avg}
+				classes.append(cls_dict)
 		class_summary.append({"description": snapshot.desc, "classes": classes})
 
 	print_class_summary(class_summary)

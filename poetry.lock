@@ -2947,6 +2947,30 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
+name = "pytest-subprocess"
+version = "1.5.0"
+description = "A plugin to fake subprocess for pytest"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pytest-subprocess-1.5.0.tar.gz", hash = "sha256:d7693b96f588f39b84c7b2b5c04287459246dfae6be1dd4098937a728ad4fbe3"},
+    {file = "pytest_subprocess-1.5.0-py3-none-any.whl", hash = "sha256:dfd75b10af6800a89a9b758f2e2eceff9de082a27bd1388521271b6e8bde298b"},
+]
+
+[package.dependencies]
+pytest = ">=4.0.0"
+
+[package.extras]
+dev = ["changelogd", "nox"]
+docs = ["changelogd", "furo", "sphinx", "sphinx-autodoc-typehints", "sphinxcontrib-napoleon"]
+test = ["Pygments (>=2.0)", "anyio", "coverage", "docutils (>=0.12)", "pytest (>=4.0)", "pytest-asyncio (>=0.15.1)", "pytest-rerunfailures"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
 name = "python-dotenv"
 version = "1.0.1"
 description = "Read key-value pairs from a .env file and set them as environment variables"
@@ -4747,4 +4771,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "11d7d8462d0c8727eea7ba29438b1202f7cb101e1daa89fa55d959113ff9ef41"
+content-hash = "d40ce5b19fcec4a61e9a5c9fd9acfd5a8d949980c3070f4b95453a70bd5b90d3"

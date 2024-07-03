@@ -74,7 +74,7 @@ def mock_all() -> Generator[dict, None, None]:
 	with (
 		patch("opsiconfd.setup.setup_limits") as mock_setup_limits,
 		patch("opsiconfd.setup.setup_backend") as mock_setup_backend,
-		patch("opsiconfd.setup.po_setup_users_and_groups") as mock_po_setup_users_and_groups,
+		patch("opsiconfd.setup.system.po_setup_users_and_groups") as mock_po_setup_users_and_groups,
 		patch("opsiconfd.setup.setup_users_and_groups") as mock_setup_users_and_groups,
 		patch("opsiconfd.setup.setup_files") as mock_setup_files,
 		patch("opsiconfd.setup.setup_systemd") as mock_setup_systemd,

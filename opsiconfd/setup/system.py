@@ -78,7 +78,7 @@ def create_ucs_group(name: str, description: str, ucs_root_dn: str, ucs_user: st
 		f"description={description}",
 		"--ignore_exists",
 	]
-	if ucs_user:
+	if ucs_user and ucs_pwd:
 		cmd.append("--binddn")
 		cmd.append(ucs_user)
 		cmd.append("--bindpwd")
@@ -126,7 +126,7 @@ def create_ucs_user(
 		"overridePWLength=1",
 		"--ignore_exists",
 	]
-	if ucs_user:
+	if ucs_user and ucs_pwd:
 		cmd.append("--binddn")
 		cmd.append(ucs_user)
 		cmd.append("--bindpwd")
@@ -177,7 +177,7 @@ def setup_ucs_users_and_groups(interacticve: bool = False) -> bool:
 	opsiconfd_user = config.run_as_user
 	try:
 		grp.getgrnam(opsiconfd_user)
-	except KeyError
+	except KeyError:
 		create_ucs_user(
 			opsiconfd_user, "opsi configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password
 		)

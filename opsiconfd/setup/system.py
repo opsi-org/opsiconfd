@@ -186,8 +186,8 @@ def setup_ucs_users_and_groups(interacticve: bool = False) -> bool:
 
 def setup_users_and_groups(interacticve: bool = False) -> None:
 	logger.info("Setup users and groups")
-	logger.devel("is UCS? %s", is_ucs())
-	logger.devel("is interactive? %s", interacticve)
+	logger.debug("Is UCS? %s", is_ucs())
+	logger.debug("Is interactive? %s", interacticve)
 	if is_ucs():
 		logger.info("UCS detected.")
 		if setup_ucs_users_and_groups():

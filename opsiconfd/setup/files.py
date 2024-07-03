@@ -142,6 +142,7 @@ def setup_file_permissions() -> None:
 		DirPermission(OPSICONFD_DIR, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770, recursive=False),
 		DirPermission(OPSICONFD_HOME, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o600, 0o700, recursive=False),
 		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
+		DirPermission(BACKUP_DIR, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770, recursive=False),
 	]
 
 	# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)

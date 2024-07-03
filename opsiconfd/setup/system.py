@@ -85,17 +85,22 @@ def create_ucs_group(name: str, description: str, ucs_root_dn: str, ucs_user: st
 		cmd.append(ucs_pwd)
 	logger.debug(cmd)
 	try:
-		result = subprocess.run(cmd)
-		logger.debug(result.stdout)
-		logger.debug(result.stderr)
-		result.check_returncode()
+		subprocess.check_output(cmd)
 	except subprocess.CalledProcessError as err:
 		rich_print(f"Could not create group: {name}")
 		logger.error(err)
-		logger.debug(result.stdout)
-		logger.debug(result.stderr)
 
-def create_ucs_user(username: str, description: str, home: str, group: str, ucs_root_dn: str,  password: str | None, ucs_user: str | None, ucs_pwd: str | None) -> None:
+
+def create_ucs_user(
+	username: str,
+	description: str,
+	home: str,
+	group: str,
+	ucs_root_dn: str,
+	password: str | None,
+	ucs_user: str | None,
+	ucs_pwd: str | None,
+) -> None:
 	rich_print(f"Creating user {username}")
 	if not password:
 		password = get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
@@ -110,7 +115,7 @@ def create_ucs_user(username: str, description: str, home: str, group: str, ucs_
 		"--set",
 		f"description={description}",
 		"--set",
-		f'primaryGroup=cn={group},cn=groups,{ucs_root_dn}',
+		f"primaryGroup=cn={group},cn=groups,{ucs_root_dn}",
 		"--set",
 		f"unixhome={home}",
 		"--set",
@@ -128,18 +133,56 @@ def create_ucs_user(username: str, description: str, home: str, group: str, ucs_
 		cmd.append(ucs_pwd)
 	logger.debug(cmd)
 	try:
-		result = subprocess.run(cmd)
-		logger.debug(result.stdout)
-		logger.debug(result.stderr)
-		result.check_returncode()
+		subprocess.check_output(cmd)
 	except subprocess.CalledProcessError as err:
 		rich_print(f"Could not create user: {username}")
 		logger.error(err)
-		logger.debug(result.stdout)
-		logger.debug(result.stderr)
 
 
-# def setup_ucs_users_and_groups() -> None:
+def setup_ucs_users_and_groups(interacticve: bool = False) -> bool:
+	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8").strip()
+	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8").strip()
+	ucs_username = None
+	ucs_password = None
+	ucs_admin_dn = None
+
+	if not interacticve and ucs_server_role != "domaincontroller_prim":
+		logger.warning("User setup is not possible because we need adminuser and password.")
+		logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
+		logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
+		logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
+		return False
+
+	if ucs_server_role != "domaincontroller_prim":
+		rich_print("To create users and groups we need an UCS adminuser:")
+		ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
+		ucs_password = Prompt.ask("Enter UCS admin password", password=True)
+		ucs_admin_dn = f"uid={ucs_username},cn=users,{ucs_root_dn}"
+
+	admingroup = opsi_config.get("groups", "admingroup")
+	try:
+		grp.getgrnam(admingroup)
+	except KeyError:
+		create_ucs_group(admingroup, "opsi admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+	fileadmingroup = opsi_config.get("groups", "fileadmingroup")
+	try:
+		grp.getgrnam(fileadmingroup)
+	except KeyError:
+		create_ucs_group(fileadmingroup, "opsi fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+	depot_user = opsi_config.get("depot_user", "username")
+	try:
+		grp.getgrnam(depot_user)
+	except KeyError:
+		create_ucs_user(depot_user, "opsi depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
+	opsiconfd_user = config.run_as_user
+	try:
+		grp.getgrnam(opsiconfd_user)
+	except KeyError
+		create_ucs_user(
+			opsiconfd_user, "opsi configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password
+		)
+	return True
+
 
 def setup_users_and_groups(interacticve: bool = False) -> None:
 	logger.info("Setup users and groups")
@@ -147,33 +190,8 @@ def setup_users_and_groups(interacticve: bool = False) -> None:
 	logger.devel("is interactive? %s", interacticve)
 	if is_ucs():
 		logger.info("UCS detected.")
-		if interacticve:
-			ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8").strip()
-			ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8").strip()
-			ucs_username = None
-			ucs_password = None
-			ucs_admin_dn = None
-			if ucs_server_role != "domaincontroller_prim":
-				rich_print("To create users and groups we need an UCS adminuser:")
-				ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
-				ucs_password = Prompt.ask("Enter UCS admin password", password=True)
-				ucs_admin_dn = f"uid={ucs_username},cn=users,{ucs_root_dn}"
-
-			admingroup = opsi_config.get("groups", "admingroup")
-			create_ucs_group(admingroup, "opsi admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
-			fileadmingroup = opsi_config.get("groups", "fileadmingroup")
-			create_ucs_group(fileadmingroup, "opsi fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
-			depot_user = opsi_config.get("depot_user", "username")
-			create_ucs_user(depot_user, "opsi depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
-			opsiconfd_user = config.run_as_user
-			create_ucs_user(opsiconfd_user, "opsi configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
-
+		if setup_ucs_users_and_groups():
 			return
-
-		logger.warning("User setup is not possible because we need adminuser and password.")
-		logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
-		logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
-		logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
 
 	po_setup_users_and_groups(ignore_errors=True)
 	if config.run_as_user == "root":

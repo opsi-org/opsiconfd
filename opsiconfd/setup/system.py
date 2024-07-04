@@ -85,7 +85,7 @@ def create_ucs_group(name: str, description: str, ucs_root_dn: str, ucs_user: st
 		cmd.append(ucs_pwd)
 	logger.debug(cmd)
 	try:
-		subprocess.check_output(cmd)
+		subprocess.check_output(cmd, timeout=30)
 	except subprocess.CalledProcessError as err:
 		rich_print(f"Could not create group: {name}")
 		logger.error(err)
@@ -133,20 +133,20 @@ def create_ucs_user(
 		cmd.append(ucs_pwd)
 	logger.debug(cmd)
 	try:
-		subprocess.check_output(cmd)
+		subprocess.check_output(cmd, timeout=30)
 	except subprocess.CalledProcessError as err:
 		rich_print(f"Could not create user: {username}")
 		logger.error(err)
 
 
-def setup_ucs_users_and_groups(interacticve: bool = False) -> bool:
-	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8").strip()
-	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8").strip()
+def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
+	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
+	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
 	ucs_username = None
 	ucs_password = None
 	ucs_admin_dn = None
 
-	if not interacticve and ucs_server_role != "domaincontroller_prim":
+	if not interactive and ucs_server_role != "domaincontroller_prim":
 		logger.warning("User setup is not possible because we need adminuser and password.")
 		logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
 		logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
@@ -184,10 +184,10 @@ def setup_ucs_users_and_groups(interacticve: bool = False) -> bool:
 	return True
 
 
-def setup_users_and_groups(interacticve: bool = False) -> None:
+def setup_users_and_groups(interactive: bool = False) -> None:
 	logger.info("Setup users and groups")
 	logger.debug("Is UCS? %s", is_ucs())
-	logger.debug("Is interactive? %s", interacticve)
+	logger.debug("Is interactive? %s", interactive)
 	if is_ucs():
 		logger.info("UCS detected.")
 		if setup_ucs_users_and_groups():

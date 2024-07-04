@@ -11,11 +11,13 @@ setup users and groups tests
 
 from unittest.mock import patch
 
+from pytest_subprocess import FakeProcess
+
 from opsiconfd.setup.system import setup_ucs_users_and_groups
 
 
 # https://pypi.org/project/pytest-subprocess/
-def test_ucs_create_users_and_groups_member(fp) -> None:  # type: ignore
+def test_ucs_create_users_and_groups_member(fp: FakeProcess) -> None:
 	fp.register(["ucr", "get", "server/role"], stdout="memberserver")
 	fp.register(["ucr", "get", "ldap/base"], stdout="dc=example,dc=org")
 	with patch("opsiconfd.setup.system.is_ucs") as mock_is_ucs:
@@ -23,7 +25,7 @@ def test_ucs_create_users_and_groups_member(fp) -> None:  # type: ignore
 		assert setup_ucs_users_and_groups() is False
 
 
-def test_ucs_create_users_and_groups_prim(fp) -> None:  # type: ignore
+def test_ucs_create_users_and_groups_prim(fp: FakeProcess) -> None:
 	fp.register(["ucr", "get", "server/role"], stdout="domaincontroller_prim")
 	fp.register(["ucr", "get", "ldap/base"], stdout="dc=example,dc=org")
 	fp.register(["udm", fp.any()], stdout="", returncode=0)

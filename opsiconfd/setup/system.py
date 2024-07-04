@@ -64,8 +64,12 @@ def setup_limits() -> None:
 			logger.warning("Failed to set %s: %s", proc_somaxconn, err)
 
 
-def create_ucs_group(name: str, description: str, ucs_root_dn: str, ucs_user: str | None, ucs_pwd: str | None) -> None:
-	rich_print(f"Creating group {name}")
+def create_ucs_group(
+	name: str, description: str, ucs_root_dn: str, ucs_user: str | None, ucs_pwd: str | None, interactive: bool = False
+) -> None:
+	if interactive:
+		rich_print(f"Creating group {name}")
+	logger.info(f"Creating group {name}")
 	cmd = [
 		"udm",
 		"groups/group",
@@ -87,7 +91,9 @@ def create_ucs_group(name: str, description: str, ucs_root_dn: str, ucs_user: st
 	try:
 		subprocess.check_output(cmd, timeout=30)
 	except subprocess.CalledProcessError as err:
-		rich_print(f"Could not create group: {name}")
+		if interactive:
+			rich_print(f"[b][red]Could not create group: {name}[red][/b]")
+		logger.error("Could not create group: %s", name)
 		logger.error(err)
 
 
@@ -100,8 +106,11 @@ def create_ucs_user(
 	password: str | None,
 	ucs_user: str | None,
 	ucs_pwd: str | None,
+	interactive: bool = False,
 ) -> None:
-	rich_print(f"Creating user {username}")
+	if interactive:
+		rich_print(f"Creating user {username}")
+	logger.info(f"Creating user {username}")
 	if not password:
 		password = get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
 	cmd = [
@@ -135,7 +144,9 @@ def create_ucs_user(
 	try:
 		subprocess.check_output(cmd, timeout=30)
 	except subprocess.CalledProcessError as err:
-		rich_print(f"Could not create user: {username}")
+		if interactive:
+			rich_print(f"[b][red]Could not create user: {username}[red][/b]")
+		logger.error("Could not create user: %s", username)
 		logger.error(err)
 
 
@@ -154,7 +165,7 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 		return False
 
 	if ucs_server_role != "domaincontroller_prim":
-		rich_print("To create users and groups we need an UCS adminuser:")
+		rich_print("To create users and groups we need an UCS Administrator:")
 		ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
 		ucs_password = Prompt.ask("Enter UCS admin password", password=True)
 		ucs_admin_dn = f"uid={ucs_username},cn=users,{ucs_root_dn}"

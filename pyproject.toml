@@ -76,7 +76,6 @@ wsgidav = "^4.3"
 wsproto = "^1.2"
 yappi = "^1.4"
 python-opsi-system = "^4.3.1.1"
-pytest-subprocess = "^1.5.0"
 
 [tool.ruff.format]
 indent-style = "tab"
@@ -102,3 +101,4 @@ types-psutil = "^5.8"
 types-redis = "^4.1"
 types-requests = "^2.27"
 wrapt = "^1.14"
+pytest-subprocess = "^1.5"

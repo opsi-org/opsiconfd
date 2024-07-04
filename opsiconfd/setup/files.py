@@ -21,8 +21,10 @@ from opsicommon.server.rights import (
 	set_rights,
 )
 
+from opsiconfd.backend.auth import write_default_acl_conf
 from opsiconfd.config import (
 	AUDIT_HARDWARE_CONFIG_LOCALES_DIR,
+	BACKUP_DIR,
 	DEPOT_DIR,
 	FILE_TRANSFER_STORAGE_DIR,
 	LOG_DIR,
@@ -40,9 +42,8 @@ from opsiconfd.config import (
 )
 from opsiconfd.dhcpd import get_dhcpd_conf_location
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_file_md5sum
 from opsiconfd.ssl import setup_ssl_file_permissions
-from opsiconfd.backend.auth import write_default_acl_conf
+from opsiconfd.utils import get_file_md5sum
 
 EXTENDER_FILES = (
 	"10_opsi.conf",
@@ -71,6 +72,7 @@ def _get_default_dirs() -> list[str]:
 		REPOSITORY_DIR,
 		PUBLIC_DIR,
 		WORKBENCH_DIR,
+		BACKUP_DIR,
 		VAR_ADDON_DIR,
 		OPSI_LICENSE_DIR,
 		OPSICONFD_HOME,
@@ -140,6 +142,7 @@ def setup_file_permissions() -> None:
 		DirPermission(OPSICONFD_DIR, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770, recursive=False),
 		DirPermission(OPSICONFD_HOME, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o600, 0o700, recursive=False),
 		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
+		DirPermission(BACKUP_DIR, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770, recursive=False),
 	]
 
 	# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)

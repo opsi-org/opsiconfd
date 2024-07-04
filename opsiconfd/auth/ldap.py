@@ -10,9 +10,11 @@ opsiconfd.auth.ldap
 """
 
 from __future__ import annotations
+from typing import Literal
 
-import ldap3  # type: ignore[import]
-from ldap3.core.exceptions import LDAPObjectClassError  # type: ignore[import]
+import ldap3
+from ldap3.utils.uri import parse_uri
+from ldap3.core.exceptions import LDAPObjectClassError
 from opsicommon.exceptions import BackendAuthenticationError
 
 from opsiconfd.utils import ldap3_uri_to_str
@@ -31,13 +33,13 @@ class LDAPAuthentication(AuthenticationModule):
 		This can be used to authenticate users against OpenLDAP
 		or an Active Directory server.
 
-		:param ldap_url: The ldap connection url.
+		:param ldap_url: The LDAP connection url.
 		:param bind_user: (optional) The simple bind is performed with this user.
 		        The ``bind_user`` has to contain the placeholder ``{username}`` which will be
 		        replaced by the username auth authenticating user.
 		        The placeholder ``{base}`` will be replaced by the base dn.
 		        For active directory ``{username}@your.realm`` should work.
-		        For OpenLDAP a dn like ``uid={username},ou=Users,{base}`` should be used.
+		        For OpenLDAP a DN like ``uid={username},ou=Users,{base}`` should be used.
 		        If ommitted the bind_user will be guessed.
 		:param group_filter: (optional) The filter which is used when searching groups.
 		Examples::
@@ -46,7 +48,7 @@ class LDAPAuthentication(AuthenticationModule):
 		"""
 		super().__init__()
 		self._ldap_url = ldap_url
-		self._uri = ldap3.utils.uri.parse_uri(self._ldap_url)
+		self._uri = parse_uri(self._ldap_url)  # type: ignore[no-untyped-call]
 		self._group_filter = group_filter
 		self._ldap: ldap3.Connection | None = None
 		if not bind_user:
@@ -79,8 +81,12 @@ class LDAPAuthentication(AuthenticationModule):
 		"""
 		self._ldap = None
 		try:
+			if "{base}" in self._bind_user and not self._uri["base"]:
+				raise RuntimeError(
+					f"Placeholder for base DN in bind user '{self._bind_user}', but no base DN in LDAP URL '{self._ldap_url}'"
+				)
 			bind_user = self._bind_user.replace("{username}", username).replace("{base}", self._uri["base"])
-			logger.info("Binding as user %s to server %s", bind_user, self.server_url)
+			logger.info("Binding as user '%s' to server '%s'", bind_user, self.server_url)
 			# self._ldap = ldap3.Connection(server=self.server_url, client_strategy=ldap3.SAFE_SYNC, user=bind_user, password=password)
 			self._ldap = ldap3.Connection(server=self.server_url, user=bind_user, password=password)
 			if not self._ldap.bind():
@@ -93,14 +99,14 @@ class LDAPAuthentication(AuthenticationModule):
 	def get_groupnames(self, username: str) -> set[str]:
 		groupnames = set()
 		if not self._ldap:
-			raise RuntimeError("Failed to get groupnames, not connected to ldap")
+			raise RuntimeError("Failed to get groupnames, not connected to LDAP")
 
 		ldap_type = "openldap"
 		user_dn = None
 		group_dns = []
 		for user_filter in [f"(&(objectclass=user)(sAMAccountName={username}))", f"(&(objectclass=posixAccount)(uid={username}))"]:
 			try:
-				logger.debug("Searching user in ldap base=%s, filter=%s", self._uri["base"], user_filter)
+				logger.debug("Searching user in LDAP base=%s, filter=%s", self._uri["base"], user_filter)
 				self._ldap.search(
 					self._uri["base"],
 					user_filter,
@@ -108,6 +114,7 @@ class LDAPAuthentication(AuthenticationModule):
 					attributes="*",
 				)
 				for entry in sorted(self._ldap.entries):
+					logger.trace("Found user: %s", entry)
 					user_dn = entry.entry_dn
 					if "memberOf" in entry.entry_attributes:
 						group_dns.extend(entry.memberOf)
@@ -122,11 +129,12 @@ class LDAPAuthentication(AuthenticationModule):
 				break
 
 		if not user_dn:
-			raise RuntimeError(f"User {username} not found in {ldap_type} ldap")
+			raise RuntimeError(f"User '{username}' not found in LDAP ({ldap_type})")
 
-		logger.info("User %s found in %s ldap: %s", username, ldap_type, user_dn)
+		logger.info("User %s found in LDAP (%s): %s", username, ldap_type, user_dn)
+		logger.debug("User '%s' groups: %s", user_dn, group_dns)
 
-		group_filter = self._group_filter
+		group_filter = self._group_filter or ""
 		attributes = []
 		if ldap_type == "ad":
 			if self._group_filter is None:
@@ -137,12 +145,13 @@ class LDAPAuthentication(AuthenticationModule):
 				group_filter = "(objectclass=posixGroup)"
 			attributes = ["cn", "member", "memberUid"]
 
-		scope = ldap3.BASE if group_dns else ldap3.SUBTREE
+		scope: Literal["BASE", "LEVEL", "SUBTREE"] = ldap3.BASE if group_dns else ldap3.SUBTREE
 		for base in group_dns or [self._uri["base"]]:
-			logger.debug("Searching groups in ldap base=%s, scope=%s, filter=%s", base, scope, group_filter)
+			logger.debug("Searching groups in LDAP base=%s, scope=%s, filter=%s", base, scope, group_filter)
 			self._ldap.search(base, group_filter, search_scope=scope, attributes=attributes)
 
 			for entry in sorted(self._ldap.entries):
+				logger.trace("Found group: %s", entry)
 				group_name = None
 				if "sAMAccountName" in entry.entry_attributes:
 					group_name = str(entry.sAMAccountName)
@@ -158,18 +167,20 @@ class LDAPAuthentication(AuthenticationModule):
 						for nested_group_dn in entry.memberOf:
 							groupnames.add(nested_group_dn.split(",")[0].split("=", 1)[1])
 
-				elif "member" in entry.entry_attributes:
-					logger.debug("Entry %s member: %s", entry.entry_dn, entry.member)
-					for member in entry.member:
-						if user_dn.lower() == member.lower():
-							groupnames.add(group_name)
-							break
-				elif "memberUid" in entry.entry_attributes:
-					logger.debug("Entry %s memberUid: %s", entry.entry_dn, entry.memberUid)
-					for member in entry.memberUid:
-						if member.lower() == username.lower():
-							groupnames.add(group_name)
-							break
+				else:
+					if "member" in entry.entry_attributes:
+						logger.debug("Entry %s member: %s", entry.entry_dn, entry.member)
+						for member in entry.member:
+							if user_dn.lower() == member.lower():
+								groupnames.add(group_name)
+								break
+					if "memberUid" in entry.entry_attributes:
+						logger.debug("Entry %s memberUid: %s", entry.entry_dn, entry.memberUid)
+						for member in entry.memberUid:
+							if member.lower() == username.lower():
+								groupnames.add(group_name)
+								break
+
 		return {g.lower() for g in groupnames}
 
 	def __del__(self) -> None:

@@ -25,7 +25,10 @@ from opsicommon.server.setup import (
 	modify_user,
 	set_primary_group,
 )
+from opsicommon.server.setup import setup_users_and_groups as po_setup_users_and_groups
 from opsicommon.system.info import is_ucs
+from rich import print as rich_print
+from rich.prompt import Prompt
 
 from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
 from opsiconfd.logging import logger
@@ -61,11 +64,147 @@ def setup_limits() -> None:
 			logger.warning("Failed to set %s: %s", proc_somaxconn, err)
 
 
-def setup_users_and_groups() -> None:
+def create_ucs_group(
+	name: str, description: str, ucs_root_dn: str, ucs_user: str | None, ucs_pwd: str | None, interactive: bool = False
+) -> None:
+	if interactive:
+		rich_print(f"Creating group {name}")
+	logger.info(f"Creating group {name}")
+	cmd = [
+		"udm",
+		"groups/group",
+		"create",
+		"--position",
+		f"cn=groups,{ucs_root_dn}",
+		"--set",
+		f"name={name}",
+		"--set",
+		f"description={description}",
+		"--ignore_exists",
+	]
+	if ucs_user and ucs_pwd:
+		cmd.append("--binddn")
+		cmd.append(ucs_user)
+		cmd.append("--bindpwd")
+		cmd.append(ucs_pwd)
+	logger.debug(cmd)
+	try:
+		subprocess.check_output(cmd, timeout=30)
+	except subprocess.CalledProcessError as err:
+		if interactive:
+			rich_print(f"[b][red]Could not create group: {name}[red][/b]")
+		logger.error("Could not create group: %s", name)
+		logger.error(err)
+
+
+def create_ucs_user(
+	username: str,
+	description: str,
+	home: str,
+	group: str,
+	ucs_root_dn: str,
+	password: str | None,
+	ucs_user: str | None,
+	ucs_pwd: str | None,
+	interactive: bool = False,
+) -> None:
+	if interactive:
+		rich_print(f"Creating user {username}")
+	logger.info(f"Creating user {username}")
+	if not password:
+		password = get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
+	cmd = [
+		"udm",
+		"users/user",
+		"create",
+		"--position",
+		f"cn=users,{ucs_root_dn}",
+		"--set",
+		f"username={username}",
+		"--set",
+		f"description={description}",
+		"--set",
+		f"primaryGroup=cn={group},cn=groups,{ucs_root_dn}",
+		"--set",
+		f"unixhome={home}",
+		"--set",
+		f"lastname={username}",
+		"--set",
+		f"password={password}",
+		"--set",
+		"overridePWLength=1",
+		"--ignore_exists",
+	]
+	if ucs_user and ucs_pwd:
+		cmd.append("--binddn")
+		cmd.append(ucs_user)
+		cmd.append("--bindpwd")
+		cmd.append(ucs_pwd)
+	logger.debug(cmd)
+	try:
+		subprocess.check_output(cmd, timeout=30)
+	except subprocess.CalledProcessError as err:
+		if interactive:
+			rich_print(f"[b][red]Could not create user: {username}[red][/b]")
+		logger.error("Could not create user: %s", username)
+		logger.error(err)
+
+
+def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
+	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
+	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
+	ucs_username = None
+	ucs_password = None
+	ucs_admin_dn = None
+
+	if not interactive and ucs_server_role != "domaincontroller_prim":
+		logger.warning("User setup is not possible because we need adminuser and password.")
+		logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
+		logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
+		logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
+		return False
+
+	if ucs_server_role != "domaincontroller_prim":
+		rich_print("To create users and groups we need an UCS Administrator:")
+		ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
+		ucs_password = Prompt.ask("Enter UCS admin password", password=True)
+		ucs_admin_dn = f"uid={ucs_username},cn=users,{ucs_root_dn}"
+
+	admingroup = opsi_config.get("groups", "admingroup")
+	try:
+		grp.getgrnam(admingroup)
+	except KeyError:
+		create_ucs_group(admingroup, "opsi admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+	fileadmingroup = opsi_config.get("groups", "fileadmingroup")
+	try:
+		grp.getgrnam(fileadmingroup)
+	except KeyError:
+		create_ucs_group(fileadmingroup, "opsi fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+	depot_user = opsi_config.get("depot_user", "username")
+	try:
+		grp.getgrnam(depot_user)
+	except KeyError:
+		create_ucs_user(depot_user, "opsi depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
+	opsiconfd_user = config.run_as_user
+	try:
+		grp.getgrnam(opsiconfd_user)
+	except KeyError:
+		create_ucs_user(
+			opsiconfd_user, "opsi configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password
+		)
+	return True
+
+
+def setup_users_and_groups(interactive: bool = False) -> None:
 	logger.info("Setup users and groups")
+	logger.debug("Is UCS? %s", is_ucs())
+	logger.debug("Is interactive? %s", interactive)
 	if is_ucs():
-		logger.info("UCS detected, skipping user and group setup")
-		return
+		logger.info("UCS detected.")
+		if setup_ucs_users_and_groups():
+			return
+
+	po_setup_users_and_groups(ignore_errors=True)
 	if config.run_as_user == "root":
 		return
 

@@ -20,7 +20,6 @@ from uuid import UUID
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.objects import OpsiDepotserver
-from opsicommon.server.setup import setup_users_and_groups as po_setup_users_and_groups
 from opsicommon.types import forceHostId
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
@@ -277,8 +276,7 @@ def setup(explicit: bool = True) -> None:
 		setup_limits()
 
 	if "users" not in config.skip_setup and "groups" not in config.skip_setup:
-		po_setup_users_and_groups(ignore_errors=True)
-		setup_users_and_groups()
+		setup_users_and_groups(interactive)
 
 	if explicit and "systemd" not in config.skip_setup:
 		setup_systemd()

@@ -150,19 +150,37 @@ def create_ucs_user(
 		logger.error(err)
 
 
+def log_ucs_auth_warning() -> None:
+	logger.warning("User setup is not possible because we need adminuser and password.")
+	logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
+	logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
+	logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
+
+
 def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
 	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
 	ucs_username = None
 	ucs_password = None
 	ucs_admin_dn = None
+	admingroup = opsi_config.get("groups", "admingroup")
+	fileadmingroup = opsi_config.get("groups", "fileadmingroup")
+	depot_user = opsi_config.get("depot_user", "username")
+	opsiconfd_user = config.run_as_user
 
 	if not interactive and ucs_server_role != "domaincontroller_prim":
-		logger.warning("User setup is not possible because we need adminuser and password.")
-		logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
-		logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
-		logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
-		return False
+		try:
+			grp.getgrnam(admingroup)
+			grp.getgrnam(fileadmingroup)
+			grp.getgrnam(depot_user)
+			grp.getgrnam(opsiconfd_user)
+			return True
+		except KeyError:
+			logger.warning("User setup is not possible because we need adminuser and password.")
+			logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
+			logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
+			logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
+			return False
 
 	if ucs_server_role != "domaincontroller_prim":
 		rich_print("To create users and groups we need an UCS Administrator:")
@@ -170,22 +188,18 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 		ucs_password = Prompt.ask("Enter UCS admin password", password=True)
 		ucs_admin_dn = f"uid={ucs_username},cn=users,{ucs_root_dn}"
 
-	admingroup = opsi_config.get("groups", "admingroup")
 	try:
 		grp.getgrnam(admingroup)
 	except KeyError:
 		create_ucs_group(admingroup, "opsi admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
-	fileadmingroup = opsi_config.get("groups", "fileadmingroup")
 	try:
 		grp.getgrnam(fileadmingroup)
 	except KeyError:
 		create_ucs_group(fileadmingroup, "opsi fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
-	depot_user = opsi_config.get("depot_user", "username")
 	try:
 		grp.getgrnam(depot_user)
 	except KeyError:
 		create_ucs_user(depot_user, "opsi depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
-	opsiconfd_user = config.run_as_user
 	try:
 		grp.getgrnam(opsiconfd_user)
 	except KeyError:

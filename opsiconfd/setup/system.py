@@ -150,13 +150,6 @@ def create_ucs_user(
 		logger.error(err)
 
 
-def log_ucs_auth_warning() -> None:
-	logger.warning("User setup is not possible because we need adminuser and password.")
-	logger.warning("Users and groups are temporarily created locally and then created in the domain by the join script.")
-	logger.warning("Please make sure that users and groups no longer exist locally after the join script was successful.")
-	logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
-
-
 def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
 	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()

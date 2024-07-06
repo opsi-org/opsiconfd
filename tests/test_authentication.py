@@ -9,8 +9,8 @@
 login tests
 """
 
-import time
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -609,6 +609,15 @@ def test_onetime_password_host_id(
 		assert test_client.context
 		sess = test_client.context.get(contextvar_client_session)
 		assert sess and sess.auth_methods == {"host_id", "password_onetime"}
+
+		assert (
+			session.execute(
+				"""
+			SELECT oneTimePassword FROM HOST where hostId = "onetimepasswd.opsi.test"
+			"""
+			).fetchone()[0]
+			== ""
+		)
 
 		test_client.reset_cookies()
 		res = test_client.post("/rpc", auth=("onetimepasswd.opsi.test", "onet1me"), json=rpc)

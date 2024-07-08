@@ -106,6 +106,9 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 		mysql_root.database = mysql_root.database or "opsi"
 		mysql_root.username = "root"
 		mysql_root.password = os.environ.get("MYSQL_ROOT_PASSWORD", "")
+		if not mysql_root.password and Path("/etc/mysql.secret").exists():
+			mysql_root.password = Path("/etc/mysql.secret").read_text().strip()
+
 		logger.info("Trying to connect to local MySQL database as %s", mysql_root.username)
 
 	while True:

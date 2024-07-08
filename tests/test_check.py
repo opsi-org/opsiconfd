@@ -1050,7 +1050,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	assert "Configuration opsiclientd.global.verify_server_cert does not exist." in checkmk
 
 
-@pytest.mark.parametrize("format", ("cli", "json", "checkmk"))
+@pytest.mark.parametrize("format", ("cli", "json", "checkmk", "nagios"))
 def test_check_console_health_check(capsys: CaptureFixture[str], format: str) -> None:
 	with get_config({"upgrade_check": False, "documentation": False, "detailed": True, "format": format}):
 		console_health_check()
@@ -1069,8 +1069,46 @@ def test_check_console_health_check(capsys: CaptureFixture[str], format: str) ->
 			assert len(services) > 10
 			status, _ = services[0].split(" ", 1)
 			assert 0 <= int(status) <= 2
+		elif format == "nagios":
+			services = captured.out.split("\n")
+			assert len(services) > 10
+			status, _ = services[0].split(":", 1)
+			assert status in ("OK", "WARNING", "CRITICAL")
 		else:
 			assert "● Redis server" in captured.out
+
+
+def test_check_opsi_config_nagios(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [True]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	nagios = result.to_nagios()
+	assert nagios.startswith("OK")
+	assert result.check_name in nagios
+	assert "No issues found in the opsi configuration." in nagios
+	assert "Configuration opsiclientd.global.verify_server_cert is set to default." in nagios
+
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [False]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	nagios = result.to_nagios()
+	assert nagios.startswith("WARNING")
+	assert "1 issues found in the opsi configuration." in nagios
+	assert "Configuration opsiclientd.global.verify_server_cert is set to [False] - default is [True]." in nagios
+
+	rpc = {"id": 1, "method": "config_delete", "params": ["opsiclientd.global.verify_server_cert"]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_opsi_config()
+	nagios = result.to_nagios()
+	assert nagios.startswith("CRITICAL")
+	assert "1 issues found in the opsi configuration." in nagios
+	assert "Configuration opsiclientd.global.verify_server_cert does not exist." in nagios
 
 
 def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

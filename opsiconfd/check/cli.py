@@ -163,6 +163,11 @@ def console_health_check() -> int:
 			summary[check.check_status] += 1
 			print(check.to_checkmk())
 		return overall_check_status(summary).return_code()
+	elif config.format == "nagios":
+		for check in health_check():
+			summary[check.check_status] += 1
+			print(check.to_nagios())
+		return overall_check_status(summary).return_code()
 
 	console = Console(log_time=False)
 

@@ -7,12 +7,10 @@
 #
 # The opsi monitoring module is required to use this function: https://opsi.org/de/extensions
 #
-# To use the script, simply create a link to the checkmk agent folder.
-# /usr/lib/check_mk_agent/local/<cache-time>/opsi_check
 #
 # Checks can be skipped with --skip-cheks. Or only certain checks can be executed with --checks.
+# opsiconfd health-check --format nagios --checks mysql
 # Information on this can be found in the opsiconfd help 'opsiconfd health-check --help' and 'opsiconfd health-check --documentation'
 
 
-opsiconfd health-check --format checkmk
-exit 0
+opsiconfd health-check --format nagios

@@ -1110,7 +1110,7 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_HEALTH_CHECK_FORMAT",
 			default="cli",
 			help=self._help(("opsiconfd", "health-check"), "Health-Check output format."),
-			choices=("cli", "checkmk", "json"),
+			choices=("cli", "checkmk", "nagios", "json"),
 		)
 
 		self._parser.add(

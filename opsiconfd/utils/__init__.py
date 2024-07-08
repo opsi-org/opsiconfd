@@ -18,6 +18,7 @@ import os
 import random
 import re
 import secrets
+import signal
 import string
 import subprocess
 import threading
@@ -147,6 +148,48 @@ def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> 
 			manager_pid = proc.pid
 
 	return manager_pid
+
+
+def systemd_running() -> bool:
+	for proc in psutil.process_iter():
+		if proc.name() == "systemd":
+			return True
+	return False
+
+
+def opsiconfd_running() -> bool:
+	if not systemd_running():
+		get_logger().debug("Systemd not running")
+		return False
+	try:
+		return subprocess.run(["systemctl", "is-active", "--quiet", "opsiconfd"], check=False).returncode == 0
+	except FileNotFoundError as err:
+		get_logger().debug("systemctl not found: %s", err)
+		return False
+
+
+def restart_opsiconfd() -> None:
+	if not systemd_running():
+		get_logger().debug("Systemd not running")
+		return
+	subprocess.run("systemctl --no-pager --lines 0 restart opsiconfd &", shell=True, check=False)
+
+
+def restart_opsiconfd_if_running() -> None:
+	get_logger().info("Restarting opsiconfd")
+	if not opsiconfd_running():
+		get_logger().info("opsiconfd not running")
+		return
+	restart_opsiconfd()
+
+
+def reload_opsiconfd_if_running() -> None:
+	get_logger().info("Reloading opsiconfd")
+	manager_pid = get_manager_pid(ignore_self=True)
+	if not manager_pid:
+		get_logger().info("opsiconfd not running")
+		return
+	os.kill(manager_pid, signal.SIGHUP)
 
 
 def normalize_ip_address(address: str, exploded: bool = False) -> str:

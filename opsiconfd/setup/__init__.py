@@ -10,7 +10,6 @@ opsiconfd - setup
 """
 
 import json
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -37,21 +36,17 @@ from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
 from opsiconfd.setup.samba import setup_samba
 from opsiconfd.setup.sudo import setup_sudoers
-from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups, systemd_running
+from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups
 from opsiconfd.ssl import fetch_server_cert, setup_ssl, store_local_server_cert, store_local_server_key
+from opsiconfd.utils import opsiconfd_running, restart_opsiconfd
 from opsiconfd.utils.user import user_set_credentials
 
 
 def restart_opsiconfd_if_running() -> None:
-	if not systemd_running():
-		logger.debug("Systemd not running")
+	if not opsiconfd_running():
 		return
-	try:
-		if subprocess.run(["systemctl", "is-active", "--quiet", "opsiconfd"], check=False).returncode == 0:
-			rich_print("[b]Restarting opsiconfd[/b]")
-			subprocess.run("systemctl --no-pager --lines 0 restart opsiconfd &", shell=True, check=False)
-	except FileNotFoundError:
-		logger.debug("systemctl not available")
+	rich_print("[b]Restarting opsiconfd[/b]")
+	restart_opsiconfd()
 
 
 def setup_redis() -> None:

@@ -324,7 +324,18 @@ class Config(metaclass=Singleton):
 			self._sub_command = (
 				conf.action
 				if conf.action
-				in ("health-check", "diagnostic-data", "log-viewer", "setup", "backup", "backup-info", "restore", "get-config", "test")
+				in (
+					"health-check",
+					"diagnostic-data",
+					"log-viewer",
+					"setup",
+					"backup",
+					"backup-info",
+					"restore",
+					"get-config",
+					"set-config",
+					"test",
+				)
 				else None
 			)
 			if self._sub_command:
@@ -349,18 +360,21 @@ class Config(metaclass=Singleton):
 
 		return help_text if self._sub_command in help_type else SUPPRESS
 
-	def _parse_args(self) -> None:
+	def _parse_args(self, ignore_env: bool = False) -> None:
 		if not self._parser:
 			raise RuntimeError("Parser not initialized")
+		env_vars = {} if ignore_env else os.environ
 		if is_opsiconfd(psutil.Process(os.getpid())):
 			self._parser.exit_on_error = True
-			self._config = self._parser.parse_args(self._args, config_file_contents=self._config_file_contents())
+			self._config = self._parser.parse_args(self._args, config_file_contents=self._config_file_contents(), env_vars=env_vars)
 		else:
 			self._parser.exit_on_error = False
-			self._config, _unknown = self._parser.parse_known_args(self._args, config_file_contents=self._config_file_contents())
-		self._update_config()
+			self._config, _unknown = self._parser.parse_known_args(
+				self._args, config_file_contents=self._config_file_contents(), env_vars=env_vars
+			)
+		self._post_process_config()
 
-	def _update_config(self) -> None:
+	def _post_process_config(self) -> None:
 		if self._sub_command:
 			self._config.action = self._sub_command
 
@@ -380,7 +394,7 @@ class Config(metaclass=Singleton):
 			ssl_ca_permitted_domains.add("localhost")
 			self._config.ssl_ca_permitted_domains = sorted(list(ssl_ca_permitted_domains))
 		else:
-			self._config.ssl_ca_permitted_domains = None
+			self._config.ssl_ca_permitted_domains = []
 
 		secret_filter.add_secrets(self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase)
 
@@ -454,14 +468,21 @@ class Config(metaclass=Singleton):
 			return self._config.redis_prefix
 		return f"{self._config.redis_prefix}:{prefix_type}"
 
+	def get_parser(self) -> configargparse.ArgParser:
+		if not self._parser:
+			self._init_parser()
+		assert self._parser
+		return self._parser
+
 	def reload(self) -> None:
 		self._parse_args()
 
 	def items(self) -> dict[str, Any]:
 		return self._config.__dict__
 
-	def set_items(self, items: dict[str, Any]) -> None:
-		return self._config.__dict__.update(items)
+	def set_items(self, items: dict[str, Any], check: bool = False) -> None:
+		self._config.__dict__.update(items)
+		self._post_process_config()
 
 	def set_config_file(self, config_file: str) -> None:
 		self._config.config_file = config_file
@@ -487,6 +508,13 @@ class Config(metaclass=Singleton):
 		return conf
 
 	def _generate_config_file(self, file: TextIO, conf: dict[str, Any]) -> str:
+		def _to_str(val: Any) -> str:
+			if isinstance(val, bool):
+				return str(val).lower()
+			if isinstance(val, list):
+				return "[" + ", ".join(str(v) for v in val) + "]"
+			return str(val)
+
 		conf = conf.copy()
 		data = ""
 		file.seek(0)
@@ -503,7 +531,7 @@ class Config(metaclass=Singleton):
 					new_val = conf.pop(arg)
 					if val != new_val:
 						# Update argument value in file
-						line = f"{indent}{arg} = {new_val}"
+						line = f"{indent}{arg} = {_to_str(new_val)}"
 				else:
 					# Remove argument from file
 					continue
@@ -513,7 +541,7 @@ class Config(metaclass=Singleton):
 			# Add new arguments
 			if new_lines and not new_lines[-1]:
 				new_lines.pop()
-			new_lines.extend(f"{arg} = {val}" for arg, val in conf.items())
+			new_lines.extend(f"{arg} = {_to_str(val)}" for arg, val in conf.items())
 			new_lines.append("")
 
 		data = "\n".join(new_lines)
@@ -1410,6 +1438,7 @@ class Config(metaclass=Singleton):
 					"backup-info",
 					"restore",
 					"get-config",
+					"set-config",
 					"test",
 				),
 				default="start",
@@ -1431,6 +1460,7 @@ class Config(metaclass=Singleton):
 					"backup-info:     Show backup info.\n"
 					"restore:         Restore backup.\n"
 					"get-config:      Show opsiconfd config.\n"
+					"set-config:      Modify opsiconfd config.\n"
 					"test:            Run a test.\n",
 				),
 			)
@@ -1617,6 +1647,26 @@ class Config(metaclass=Singleton):
 				help=self._help(
 					"test",
 					"The TEST_FUNCTION to run:\npam_auth: Try to authenticate a user with pam.\nldap_auth: Try to authenticate a user with ldap.",
+				),
+			)
+
+		if self._sub_command == "set-config":
+			self._parser.add(
+				"set_configs",
+				metavar="CONFIG",
+				nargs="+",
+				help=self._help(
+					"set-config",
+					"Configuration to set in the form of <option>=<value>.\nExamples:\n"
+					'"log-level = 6"\n"welcome-page = false"\n"admin-networks = [127.0.0.1/32, 10.10.10.0/24]"\n',
+				),
+			)
+			self._parser.add(
+				"--on-change",
+				choices=("reload", "restart"),
+				default=None,
+				help=self._help(
+					"set-config", "Restart or reload opsiconfd if the configuration has been changed and opsiconfd is running."
 				),
 			)
 

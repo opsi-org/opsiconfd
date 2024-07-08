@@ -148,7 +148,7 @@ def get_config(values: dict[str, Any] | list[str], with_env: bool = False) -> Ge
 					if key2 in _config._config.__dict__:
 						values[key2] = values.pop(key)
 			_config._config.__dict__.update(values)
-			_config._update_config()
+			_config._post_process_config()
 		else:
 			_config._set_args(values)
 			_config._parse_args()

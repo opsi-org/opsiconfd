@@ -102,6 +102,8 @@ class CheckResult(PartialCheckResult):
 					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
 				)
 
+		if self.check_status == CheckStatus.ERROR:
+			return f"CRITICAL: {self.check_name}: {message if message else self.check_status.value.upper()}{details}"
 		return f"{self.check_status.value.upper()}: {self.check_name}: {message if message else self.check_status.value.upper()}{details}"
 
 

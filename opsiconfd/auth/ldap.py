@@ -10,17 +10,18 @@ opsiconfd.auth.ldap
 """
 
 from __future__ import annotations
+
 from typing import Literal
 
 import ldap3
-from ldap3.utils.uri import parse_uri
 from ldap3.core.exceptions import LDAPObjectClassError
+from ldap3.utils.uri import parse_uri
 from opsicommon.exceptions import BackendAuthenticationError
 
 from opsiconfd.utils import ldap3_uri_to_str
 
 from ..logging import logger
-from . import AuthenticationModule, AuthenticationMethod
+from . import AuthenticationMethod, AuthenticationModule
 
 
 class LDAPAuthentication(AuthenticationModule):
@@ -133,6 +134,9 @@ class LDAPAuthentication(AuthenticationModule):
 
 		logger.info("User %s found in LDAP (%s): %s", username, ldap_type, user_dn)
 		logger.debug("User '%s' groups: %s", user_dn, group_dns)
+		if ldap_type == "ad" and not group_dns:
+			logger.debug("User '%s' has no groups in LDAP (%s)", username, ldap_type)
+			return {g.lower() for g in groupnames}
 
 		group_filter = self._group_filter or ""
 		attributes = []

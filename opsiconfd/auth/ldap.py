@@ -54,7 +54,7 @@ class LDAPAuthentication(AuthenticationModule):
 		super().__init__()
 		self._ldap_url = ldap_url
 		self._uri = parse_uri(self._ldap_url)  # type: ignore[no-untyped-call]
-		self._group_filter = group_filter
+		self._group_filter = group_filter or None
 		self._use_member_of_rdn = use_member_of_rdn
 		self._ldap: ldap3.Connection | None = None
 		if not bind_user:
@@ -65,7 +65,7 @@ class LDAPAuthentication(AuthenticationModule):
 			bind_user = "{username}@" + realm
 		self._bind_user = bind_user
 		logger.info(
-			"LDAP auth configuration: server_url=%s, base=%s, bind_user=%s, group_filter=%s, use_member_of_rdn=%s",
+			"LDAP auth configuration: server_url=%r, base=%r, bind_user=%r, group_filter=%r, use_member_of_rdn=%r",
 			self.server_url,
 			self._uri["base"],
 			self._bind_user,
@@ -78,7 +78,7 @@ class LDAPAuthentication(AuthenticationModule):
 		return ldap3_uri_to_str(self._uri)
 
 	def get_instance(self) -> LDAPAuthentication:
-		return LDAPAuthentication(self._ldap_url, self._bind_user, self._group_filter)
+		return LDAPAuthentication(self._ldap_url, self._bind_user, self._group_filter, self._use_member_of_rdn)
 
 	def authenticate(self, username: str, password: str) -> None:
 		"""
@@ -154,17 +154,17 @@ class LDAPAuthentication(AuthenticationModule):
 		group_filter = self._group_filter or ""
 		attributes = []
 		if ldap_type == "ad":
-			if self._group_filter is None:
+			if not group_filter:
 				group_filter = "(objectclass=group)"
 			attributes = ["sAMAccountName", "member", "memberOf"]
 		else:
-			if self._group_filter is None:
+			if not group_filter:
 				group_filter = "(objectclass=posixGroup)"
 			attributes = ["cn", "member", "memberUid"]
 
 		scope: Literal["BASE", "LEVEL", "SUBTREE"] = ldap3.BASE if group_dns else ldap3.SUBTREE
 		for base in group_dns or [self._uri["base"]]:
-			logger.debug("Searching groups in LDAP base=%s, scope=%s, filter=%s", base, scope, group_filter)
+			logger.debug("Searching groups in LDAP base=%r, scope=%r, filter=%r", base, scope, group_filter)
 			self._ldap.search(base, group_filter, search_scope=scope, attributes=attributes)
 
 			for entry in sorted(self._ldap.entries):

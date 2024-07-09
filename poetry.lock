@@ -3067,13 +3067,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.16.3"
+version = "4.3.17.0"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.16.3-py3-none-any.whl", hash = "sha256:bd28cb13f941956234fcaad725e4e2b9bb19ffa729e516261800f314beab213c"},
-    {file = "python_opsi_common-4.3.16.3.tar.gz", hash = "sha256:2cf448f3879da2bd72a06a878232e4908b3c9fb0bd7643fb5b6f55bcd3dc612a"},
+    {file = "python_opsi_common-4.3.17.0-py3-none-any.whl", hash = "sha256:865c578ab29831b9769a404954514ea37a64b174e81c2988c3d07d1eeef88adc"},
+    {file = "python_opsi_common-4.3.17.0.tar.gz", hash = "sha256:3df40abe28130f0aec52b4d834aceadede1e6bd35144dfe0a3518abf9516490c"},
 ]
 
 [package.dependencies]
@@ -4808,4 +4808,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "798bb0bb1bcf35a1ed2d0b03cee7897581ad5ee65821e8cda3649cd7463a7d61"
+content-hash = "00c360870540b21190d2e970c41849db04f1c4cf52b89946e304d0075a3984b4"

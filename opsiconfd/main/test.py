@@ -10,6 +10,7 @@ opsiconfd test.main
 """
 
 import sys
+
 import ldap3
 from rich.console import Console
 from rich.prompt import Prompt
@@ -50,6 +51,8 @@ def test_ldap_auth() -> None:
 	ldap_conf = opsi_config.get("ldap_auth")
 	ldap_url = ldap_conf.get("ldap_url") or ""
 	bind_user = ldap_conf.get("bind_user") or ""
+	group_filter = ldap_conf.get("group_filter") or ""
+	use_member_of_rdn = ldap_conf.get("use_member_of_rdn", False)
 
 	while True:
 		console.print("[b]Testing LDAP authentication")
@@ -78,8 +81,9 @@ def test_ldap_auth() -> None:
 			continue
 
 		console.print(
-			"[b]- Bind user (template)[/b]\n" "  [cyan]{base}[/cyan] will be replaced with the base DN from the LDAP URL.\n",
-			" [cyan]{username}[/cyan] will be replaced with the username to authenticate.\n",
+			"[b]- Bind user (template)[/b]\n"
+			"  [cyan]{base}[/cyan] will be replaced with the base DN from the LDAP URL.\n"
+			"  [cyan]{username}[/cyan] will be replaced with the username to authenticate.\n"
 			"  Examples:\n"
 			"    Active Directory / Samba 4\n"
 			"      {username}@company.de\n"
@@ -92,24 +96,47 @@ def test_ldap_auth() -> None:
 			console.print(f"  LDAP bind user template from opsi.conf:\n  {bind_user}", highlight=False)
 		bind_user = (Prompt.ask("  Enter bind user template", default=bind_user or None) or "").strip()
 
+		console.print(
+			"[b]- Group filter (optional)[/b]\n"
+			"  The filter which is used when searching groups.\n"
+			"  Examples:\n"
+			"    (objectclass=group)",
+			highlight=False,
+		)
+		group_filter = (Prompt.ask("  Enter group filter (optional)") or "").strip()
+
+		console.print(
+			"[b]- Use memberOf RDN?[/b]\n"
+			"  If active, the RDN of the [cyan]memberOf[/cyan] attribute will be used\n"
+			"  to get the group name, without searching the group.",
+			highlight=False,
+		)
+		use_member_of_rdn = (
+			Prompt.ask("  Use memberOf RDN?", console=console, choices=["y", "n"], default="y" if use_member_of_rdn else "n") or ""
+		) == "y"
+
 		username = (Prompt.ask("[b]- Enter username") or "").strip()
 		password = (Prompt.ask("[b]- Enter password", password=True) or "").strip()
 		try:
-			ldap_auth = LDAPAuthentication(ldap_url, bind_user)
+			ldap_auth = LDAPAuthentication(
+				ldap_url=ldap_url, bind_user=bind_user, group_filter=group_filter, use_member_of_rdn=use_member_of_rdn
+			)
 			ldap_auth.authenticate(username, password)
 			groups = ldap_auth.get_groupnames(username)
-			console.print(f"[b][green]PAM authentication successful (groups: {', '.join(groups)})")
+			console.print(f"[b][green]LDAP authentication successful (groups: {', '.join(groups)})")
 		except Exception as err:
 			error = err
 			logger.error(err, exc_info=True)
 			console.print(f"[b][red]LDAP authentication failed: {err}")
 		else:
-			if (Prompt.ask("Write values to opsi.conf?", console=console, choices=["y", "n"]) or "").strip() == "y":
+			if (Prompt.ask("Write values to opsi.conf?", console=console, choices=["y", "n"], default="n") or "").strip() == "y":
 				opsi_config.set("ldap_auth", "ldap_url", ldap_url or "")
 				opsi_config.set("ldap_auth", "bind_user", bind_user or "")
+				opsi_config.set("ldap_auth", "group_filter", group_filter or "")
+				opsi_config.set("ldap_auth", "use_member_of_rdn", use_member_of_rdn)
 				opsi_config.write_config_file()
 
-		if not (Prompt.ask("Test again?", console=console, choices=["y", "n"]) or "") == "y":
+		if not (Prompt.ask("Test again?", console=console, choices=["y", "n"], default="n") or "") == "y":
 			break
 	if error:
 		sys.exit(1)

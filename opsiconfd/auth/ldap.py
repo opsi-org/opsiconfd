@@ -27,7 +27,9 @@ from . import AuthenticationMethod, AuthenticationModule
 class LDAPAuthentication(AuthenticationModule):
 	authentication_method = AuthenticationMethod.PASSWORD_LDAP
 
-	def __init__(self, ldap_url: str, bind_user: str | None = None, group_filter: str | None = None) -> None:
+	def __init__(
+		self, ldap_url: str, bind_user: str | None = None, group_filter: str | None = None, use_member_of_rdn: bool = False
+	) -> None:
 		"""
 		Authentication module using LDAP.
 
@@ -43,6 +45,8 @@ class LDAPAuthentication(AuthenticationModule):
 		        For OpenLDAP a DN like ``uid={username},ou=Users,{base}`` should be used.
 		        If ommitted the bind_user will be guessed.
 		:param group_filter: (optional) The filter which is used when searching groups.
+		:param use_member_of_rdn: (optional) If set to ``True`` the RDN of the
+		        `memberOf`` attribute will be used to get the group name, without searching the group.
 		Examples::
 		        >>> active_directory_auth = LDAPAuthentication("ldaps://ad.company.de/dc=company,dc=de", "{username}@company.de")
 		        >>> open_ldap_auth = LDAPAuthentication("ldap://ldap.company.de/dc=company,dc=de", "uid={username},dc=Users,{base}")
@@ -51,6 +55,7 @@ class LDAPAuthentication(AuthenticationModule):
 		self._ldap_url = ldap_url
 		self._uri = parse_uri(self._ldap_url)  # type: ignore[no-untyped-call]
 		self._group_filter = group_filter
+		self._use_member_of_rdn = use_member_of_rdn
 		self._ldap: ldap3.Connection | None = None
 		if not bind_user:
 			if self._uri["base"]:
@@ -60,11 +65,12 @@ class LDAPAuthentication(AuthenticationModule):
 			bind_user = "{username}@" + realm
 		self._bind_user = bind_user
 		logger.info(
-			"LDAP auth configuration: server_url=%s, base=%s, bind_user=%s, group_filter=%s",
+			"LDAP auth configuration: server_url=%s, base=%s, bind_user=%s, group_filter=%s, use_member_of_rdn=%s",
 			self.server_url,
 			self._uri["base"],
 			self._bind_user,
 			self._group_filter,
+			self._use_member_of_rdn,
 		)
 
 	@property
@@ -117,11 +123,13 @@ class LDAPAuthentication(AuthenticationModule):
 				for entry in sorted(self._ldap.entries):
 					logger.trace("Found user: %s", entry)
 					user_dn = entry.entry_dn
-					if "memberOf" in entry.entry_attributes:
-						group_dns.extend(entry.memberOf)
 					if "sAMAccountName" in entry.entry_attributes:
 						ldap_type = "ad"
 						groupnames.add("domain users")
+					if "memberOf" in entry.entry_attributes:
+						group_dns.extend(entry.memberOf)
+						if self._use_member_of_rdn:
+							groupnames.update([g.split(",")[0].split("=", 1)[1] for g in entry.memberOf])
 				if user_dn:
 					break
 			except LDAPObjectClassError as err:
@@ -134,8 +142,13 @@ class LDAPAuthentication(AuthenticationModule):
 
 		logger.info("User %s found in LDAP (%s): %s", username, ldap_type, user_dn)
 		logger.debug("User '%s' groups: %s", user_dn, group_dns)
+
 		if ldap_type == "ad" and not group_dns:
 			logger.debug("User '%s' has no groups in LDAP (%s)", username, ldap_type)
+			return {g.lower() for g in groupnames}
+
+		if self._use_member_of_rdn:
+			logger.debug("Returning groups by memberOf RDN")
 			return {g.lower() for g in groupnames}
 
 		group_filter = self._group_filter or ""

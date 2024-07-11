@@ -1260,7 +1260,7 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_EXECUTOR_WORKERS",
 			type=int,
 			default=16,
-			help=self._help("expert", "Number of thread pool workers for asyncio."),
+			help=self._help("expert", "Maximum number of anyio threads running in a worker."),
 		)
 		self._parser.add(
 			"--websocket-protocol",

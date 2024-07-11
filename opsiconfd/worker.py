@@ -21,13 +21,15 @@ import ssl
 import sys
 import time
 from asyncio import sleep as asyncio_sleep
-from concurrent.futures import ThreadPoolExecutor
 from enum import StrEnum
 from logging import DEBUG
 from multiprocessing.context import SpawnProcess
 from signal import SIGHUP
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
+import uvloop
+from anyio import CapacityLimiter
+from anyio.lowlevel import RunVar
 from opsicommon.utils import (
 	ip_address_in_network,
 	patch_popen,  # type: ignore[import]
@@ -69,12 +71,6 @@ class H11ProtocolOpsiconfd(H11Protocol):
 WS_PROTOCOLS["wsproto_opsiconfd"] = WSProtocolOpsiconfd  # type: ignore
 WS_PROTOCOLS["websockets_opsiconfd"] = WebSocketProtocolOpsiconfd  # type: ignore
 HTTP_PROTOCOLS["h11_opsiconfd"] = H11ProtocolOpsiconfd  # type: ignore
-
-
-def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
-	# https://bugs.python.org/issue41699
-	pool_executor = ThreadPoolExecutor(max_workers=config.executor_workers, thread_name_prefix="worker-ThreadPoolExecutor")
-	loop.set_default_executor(pool_executor)
 
 
 def memory_cleanup() -> None:
@@ -332,7 +328,12 @@ class Worker(WorkerInfo, UvicornServer):
 	async def serve(self, sockets: list[socket.socket] | None = None) -> None:
 		loop = asyncio.get_running_loop()
 		loop.set_debug("asyncio" in config.debug_options)
-		init_pool_executor(loop)
+		if not isinstance(loop, uvloop.Loop):
+			logger.error("uvloop is not used")
+
+		# Default for CapacityLimiter is 40
+		RunVar("_default_thread_limiter").set(CapacityLimiter(config.executor_workers))  # type: ignore[arg-type]
+
 		loop.set_exception_handler(self.handle_asyncio_exception)
 
 		await self.store_state_in_redis()

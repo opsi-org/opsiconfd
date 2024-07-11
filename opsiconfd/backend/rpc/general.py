@@ -526,3 +526,11 @@ class RPCGeneralMixin(Protocol):
 			return truncate_log_data(data, max_size)
 
 		return data
+
+	@rpc_method
+	def sleep(self: BackendProtocol, seconds: float = 0.0) -> None:
+		"""
+		Sleep for the specified time in seconds.
+		For test purposes only.
+		"""
+		time.sleep(seconds)

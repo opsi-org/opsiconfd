@@ -22,7 +22,7 @@ from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicensePool, get_
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
 from opsiconfd.utils.cryptography import blowfish_encrypt
-from tests.utils import UnprotectedBackend, backend, clean_mysql, get_config  # noqa: F401
+from tests.utils import Config, UnprotectedBackend, backend, clean_mysql, get_config  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -329,3 +329,84 @@ def test_backend_getLicensingInfo(
 		modules_file.unlink()
 		modules_file.mkdir()
 		backend.backend_getLicensingInfo(allow_cache=False)
+
+
+@pytest.mark.parametrize(
+	"set_configs, expected_conf, expected_exc, expected_exc_match, on_change",
+	[
+		(
+			{"websocket_open_timeout": "invalid"},
+			[],
+			ValueError,
+			"Option 'websocket_open_timeout': invalid literal for int\(\) with base 10: 'invalid'",
+			None,
+		),
+		(
+			{"invalid-option": 1},
+			[],
+			ValueError,
+			"Invalid option 'invalid_option'",
+			None,
+		),
+		(
+			{"websocket_open_timeout": 10, "admin-networks": "10.10.99.0/24"},
+			["websocket-open-timeout = 10", "admin-networks = [10.10.99.0/24, 127.0.0.1/32]"],
+			None,
+			None,
+			"reload",
+		),
+		(
+			{"networks": ["10.10.88.0/24", "10.10.99.0/24"], "zeroconf": False},
+			["networks = [10.10.88.0/24, 10.10.99.0/24, 127.0.0.1/32]", "zeroconf = false"],
+			None,
+			None,
+			"restart",
+		),
+	],
+)
+def test_service_updateConfig(
+	backend: UnprotectedBackend,  # noqa: F811
+	tmp_path: Path,
+	set_configs: list[str],
+	expected_conf: list[str],
+	expected_exc: type[Exception] | None,
+	expected_exc_match: str | None,
+	on_change: str | None,
+) -> None:
+	conf_file = tmp_path / "opsiconfd.conf"
+	parse_args_called_with_ignore_env = None
+	restart_opsiconfd_if_running_called = False
+	reload_opsiconfd_if_running_called = False
+
+	def _parse_args(self: Config, ignore_env: bool) -> None:
+		nonlocal parse_args_called_with_ignore_env
+		parse_args_called_with_ignore_env = ignore_env
+
+	def restart_opsiconfd_if_running() -> None:
+		nonlocal restart_opsiconfd_if_running_called
+		restart_opsiconfd_if_running_called = True
+
+	def reload_opsiconfd_if_running() -> None:
+		nonlocal reload_opsiconfd_if_running_called
+		reload_opsiconfd_if_running_called = True
+
+	with (
+		patch("opsiconfd.config.Config._parse_args", _parse_args),
+		patch("opsiconfd.config.restart_opsiconfd_if_running", restart_opsiconfd_if_running),
+		patch("opsiconfd.config.reload_opsiconfd_if_running", reload_opsiconfd_if_running),
+		get_config({"config-file": str(conf_file)}),
+	):
+		if expected_exc:
+			with pytest.raises(expected_exc, match=expected_exc_match or ""):
+				backend.service_updateConfig(set_configs, on_change)
+		else:
+			backend.service_updateConfig(set_configs, on_change)
+			if expected_conf:
+				lines = conf_file.read_text().split("\n")
+				for line in expected_conf:
+					assert line in lines
+		###assert parse_args_called_with_ignore_env is True
+		if on_change == "restart":
+			assert restart_opsiconfd_if_running_called is True
+		elif on_change == "reload":
+			assert reload_opsiconfd_if_running_called is True

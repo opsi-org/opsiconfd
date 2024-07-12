@@ -20,7 +20,7 @@ import sys
 import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Iterable, TextIO
+from typing import TYPE_CHECKING, Any, Iterable, Literal, TextIO
 from urllib.parse import unquote, urlparse
 
 import certifi
@@ -36,7 +36,7 @@ from packaging.version import Version
 from opsiconfd.check.const import CHECKS
 from opsiconfd.utils import lock_file
 
-from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
+from .utils import Singleton, is_manager, is_opsiconfd, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
 
 if TYPE_CHECKING:
 	from fastapi.templating import Jinja2Templates
@@ -480,9 +480,68 @@ class Config(metaclass=Singleton):
 	def items(self) -> dict[str, Any]:
 		return self._config.__dict__
 
-	def set_items(self, items: dict[str, Any], check: bool = False) -> None:
+	def set_items(self, items: dict[str, Any]) -> None:
 		self._config.__dict__.update(items)
 		self._post_process_config()
+
+	def update_config(
+		self, options: dict[str, Any], *, parse_values: bool = False, on_change: Literal["reload", "restart"] | None = None
+	) -> None:
+		cur_conf = self.items().copy()
+		parser = self.get_parser()
+
+		for option, value in options.items():
+			if option not in cur_conf:
+				raise ValueError(f"Invalid option {option!r}")
+
+		if parse_values:
+			# Parse the options to get the correct types
+			try:
+				conf = parser.parse_args(
+					args=[], config_file_contents="\n".join([f"{o.replace('_', '-')} = {v}" for o, v in options.items()])
+				)
+			except configargparse.ArgumentError as err:
+				raise ValueError(str(err)) from err
+
+			for option in list(options):
+				options[option] = conf.__dict__[option]
+
+		else:
+			actions = {a.dest: a for a in self.get_parser()._actions}
+			for option, value in options.items():
+				action = actions.get(option)
+				if not action:
+					raise ValueError(f"Invalid option {option!r}")
+
+				cur_val = cur_conf[option]
+				if isinstance(cur_val, list) and not isinstance(value, list):
+					value = [value]
+
+				try:
+					if isinstance(value, list):
+						value = [action.type(v) for v in value]
+					else:
+						value = action.type(value)
+				except ValueError as err:
+					raise ValueError(f"Option {option!r}: {err}") from err
+				options[option] = value
+
+		# Set the options and trigger post processing
+		self.set_items(options)
+
+		changed = False
+		for option in list(options):
+			value = getattr(config, option)
+			if value != cur_conf[option]:
+				changed = True
+			# Always set config to ensure that the configuration file is up to date
+			self.set_config_in_config_file(option.replace("_", "-"), value)
+
+		if changed:
+			if on_change == "reload":
+				reload_opsiconfd_if_running()
+			elif on_change == "restart":
+				restart_opsiconfd_if_running()
 
 	def set_config_file(self, config_file: str) -> None:
 		self._config.config_file = config_file

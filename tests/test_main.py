@@ -9,7 +9,6 @@
 test main
 """
 
-import argparse
 import json
 import signal
 import threading
@@ -49,7 +48,20 @@ def test_get_config(capsys: CaptureFixture[str]) -> None:
 @pytest.mark.parametrize(
 	"set_configs, expected_conf, expected_exc, expected_exc_match, on_change",
 	[
-		(["websocket_open_timeout = invalid"], [], argparse.ArgumentError, "invalid int value: 'invalid'", None),
+		(
+			["websocket_open_timeout = invalid"],
+			[],
+			ValueError,
+			"invalid int value: 'invalid'",
+			None,
+		),
+		(
+			["invalid-option = 1"],
+			[],
+			ValueError,
+			"Invalid option 'invalid_option'",
+			None,
+		),
 		(
 			[" websocket_open_timeout= 10", "admin-networks = 10.10.99.0/24"],
 			["websocket-open-timeout = 10", "admin-networks = [10.10.99.0/24, 127.0.0.1/32]"],
@@ -93,8 +105,8 @@ def test_set_config(
 
 	with (
 		patch("opsiconfd.config.Config._parse_args", _parse_args),
-		patch("opsiconfd.main.config.restart_opsiconfd_if_running", restart_opsiconfd_if_running),
-		patch("opsiconfd.main.config.reload_opsiconfd_if_running", reload_opsiconfd_if_running),
+		patch("opsiconfd.config.restart_opsiconfd_if_running", restart_opsiconfd_if_running),
+		patch("opsiconfd.config.reload_opsiconfd_if_running", reload_opsiconfd_if_running),
 		get_config({"config-file": str(conf_file), "action": "set-config", "set_configs": set_configs, "on_change": on_change}),
 	):
 		if expected_exc:

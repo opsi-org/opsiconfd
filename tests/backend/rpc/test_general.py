@@ -332,10 +332,11 @@ def test_backend_getLicensingInfo(
 
 
 @pytest.mark.parametrize(
-	"set_configs, expected_conf, expected_exc, expected_exc_match, on_change",
+	"set_configs, expected_conf, expected_conf_str, expected_exc, expected_exc_match, on_change",
 	[
 		(
 			{"websocket_open_timeout": "invalid"},
+			{},
 			[],
 			ValueError,
 			"Option 'websocket_open_timeout': invalid literal for int\(\) with base 10: 'invalid'",
@@ -343,6 +344,7 @@ def test_backend_getLicensingInfo(
 		),
 		(
 			{"invalid-option": 1},
+			{},
 			[],
 			ValueError,
 			"Invalid option 'invalid_option'",
@@ -350,6 +352,7 @@ def test_backend_getLicensingInfo(
 		),
 		(
 			{"websocket_open_timeout": 10, "admin-networks": "10.10.99.0/24"},
+			{"websocket_open_timeout": 10, "admin_networks": ["10.10.99.0/24", "127.0.0.1/32"]},
 			["websocket-open-timeout = 10", "admin-networks = [10.10.99.0/24, 127.0.0.1/32]"],
 			None,
 			None,
@@ -357,6 +360,7 @@ def test_backend_getLicensingInfo(
 		),
 		(
 			{"networks": ["10.10.88.0/24", "10.10.99.0/24"], "zeroconf": False},
+			{"networks": ["10.10.88.0/24", "10.10.99.0/24", "127.0.0.1/32"], "zeroconf": False},
 			["networks = [10.10.88.0/24, 10.10.99.0/24, 127.0.0.1/32]", "zeroconf = false"],
 			None,
 			None,
@@ -364,23 +368,19 @@ def test_backend_getLicensingInfo(
 		),
 	],
 )
-def test_service_updateConfig(
+def test_service_getConfig_updateConfig(
 	backend: UnprotectedBackend,  # noqa: F811
 	tmp_path: Path,
-	set_configs: list[str],
-	expected_conf: list[str],
+	set_configs: dict[str, Any],
+	expected_conf: dict[str, Any],
+	expected_conf_str: list[str],
 	expected_exc: type[Exception] | None,
 	expected_exc_match: str | None,
 	on_change: str | None,
 ) -> None:
 	conf_file = tmp_path / "opsiconfd.conf"
-	parse_args_called_with_ignore_env = None
 	restart_opsiconfd_if_running_called = False
 	reload_opsiconfd_if_running_called = False
-
-	def _parse_args(self: Config, ignore_env: bool) -> None:
-		nonlocal parse_args_called_with_ignore_env
-		parse_args_called_with_ignore_env = ignore_env
 
 	def restart_opsiconfd_if_running() -> None:
 		nonlocal restart_opsiconfd_if_running_called
@@ -391,7 +391,6 @@ def test_service_updateConfig(
 		reload_opsiconfd_if_running_called = True
 
 	with (
-		patch("opsiconfd.config.Config._parse_args", _parse_args),
 		patch("opsiconfd.config.restart_opsiconfd_if_running", restart_opsiconfd_if_running),
 		patch("opsiconfd.config.reload_opsiconfd_if_running", reload_opsiconfd_if_running),
 		get_config({"config-file": str(conf_file)}),
@@ -399,13 +398,23 @@ def test_service_updateConfig(
 		if expected_exc:
 			with pytest.raises(expected_exc, match=expected_exc_match or ""):
 				backend.service_updateConfig(set_configs, on_change)
-		else:
-			backend.service_updateConfig(set_configs, on_change)
-			if expected_conf:
-				lines = conf_file.read_text().split("\n")
-				for line in expected_conf:
-					assert line in lines
-		###assert parse_args_called_with_ignore_env is True
+			return
+
+		conf_old = backend.service_getConfig()
+		for option, value in expected_conf.items():
+			assert conf_old.get(option) != value
+
+		backend.service_updateConfig(set_configs, on_change)
+
+		conf_new = backend.service_getConfig()
+		for option, value in expected_conf.items():
+			assert conf_new.get(option) == value
+
+		if expected_conf_str:
+			lines = conf_file.read_text().split("\n")
+			for line in expected_conf_str:
+				assert line in lines
+
 		if on_change == "restart":
 			assert restart_opsiconfd_if_running_called is True
 		elif on_change == "reload":

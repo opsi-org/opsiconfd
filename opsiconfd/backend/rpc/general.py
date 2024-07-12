@@ -275,6 +275,11 @@ class RPCGeneralMixin(Protocol):
 		return self._app.app_state.to_dict()
 
 	@rpc_method
+	def service_getConfig(self: BackendProtocol) -> dict[str, Any]:
+		self._check_role("admin")
+		return config.items()
+
+	@rpc_method
 	def service_updateConfig(self: BackendProtocol, options: dict[str, Any], on_change: str) -> None:
 		self._check_role("admin")
 		literal_on_change: Literal["reload", "restart"] | None = None

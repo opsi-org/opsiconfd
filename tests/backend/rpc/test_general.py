@@ -339,7 +339,7 @@ def test_backend_getLicensingInfo(
 			{},
 			[],
 			ValueError,
-			"Option 'websocket_open_timeout': invalid literal for int\(\) with base 10: 'invalid'",
+			r"Option 'websocket_open_timeout': invalid literal for int\(\) with base 10: 'invalid'",
 			None,
 		),
 		(

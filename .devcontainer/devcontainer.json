@@ -1,7 +1,7 @@
 {
-	"name": "opsiconfd43-dev",
+	"name": "opsiconfd44-dev",
 	"dockerComposeFile": "../docker/opsiconfd-dev/docker-compose.yml",
-	"service": "opsiserver43-dev",
+	"service": "opsiserver44-dev",
 	"initializeCommand": ".devcontainer/initialize.sh",
 	"workspaceFolder": "/workspace",
 	"remoteUser": "${localEnv:USER}",

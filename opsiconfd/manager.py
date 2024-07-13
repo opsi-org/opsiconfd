@@ -417,6 +417,7 @@ class Manager(metaclass=Singleton):
 			# TODO: Multiple managers on different nodes
 			await run_in_threadpool(rpc_cache_clear)
 			await messagebus_cleanup(full=True)
+			await (await async_redis_client()).config_resetstat()
 
 			app_state: NormalState | MaintenanceState = NormalState()
 			if config.maintenance is not False:

@@ -459,7 +459,7 @@ def get_user_passwd_details(username: str) -> List[UserInfo]:
 		try:
 			getent_result = subprocess.run(cmd, check=True, capture_output=True, timeout=5).stdout.decode("utf-8")
 		except (subprocess.CalledProcessError, FileNotFoundError) as err:
-			get_logger().warning("Command %s failed: %s", cmd, err)
+			get_logger().info("Command %s failed: %s", cmd, err)
 			continue
 		except subprocess.TimeoutExpired as err:
 			get_logger().warning("Command %s timed out: %s", cmd, err)

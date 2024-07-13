@@ -19,7 +19,7 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, AsyncGenerator, Callable, Generator, Iterable
+from typing import Any, AsyncGenerator, Callable, Generator, Iterable, Literal
 from uuid import uuid4
 
 from opsicommon.utils import compare_versions
@@ -95,15 +95,15 @@ async def pool_disconnect_connections(inuse_connections: bool = False) -> None:
 	asyncio.get_running_loop().run_in_executor(None, _sync_pool_disconnect_connections, inuse_connections)
 
 
-def decode_redis_result(_obj: Any) -> Any:
+def decode_redis_result(_obj: Any, *, errors: Literal["strict", "replace"] = "strict") -> Any:
 	if isinstance(_obj, bytes):
-		_obj = _obj.decode("utf8")
+		_obj = _obj.decode("utf8", errors=errors)
 	if isinstance(_obj, list):
-		_obj = [decode_redis_result(val) for val in _obj]
+		_obj = [decode_redis_result(val, errors=errors) for val in _obj]
 	elif isinstance(_obj, dict):
-		_obj = {decode_redis_result(key): decode_redis_result(val) for key, val in _obj.items()}
+		_obj = {decode_redis_result(key, errors=errors): decode_redis_result(val, errors=errors) for key, val in _obj.items()}
 	elif isinstance(_obj, set):
-		_obj = {decode_redis_result(val) for val in _obj}
+		_obj = {decode_redis_result(val, errors=errors) for val in _obj}
 	return _obj
 
 
@@ -455,7 +455,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 		for key_type, info in key_info.items()
 	}
 
-	redis_info["slowlog"] = await client.slowlog_get(50)
+	redis_info["slowlog"] = decode_redis_result(await client.slowlog_get(50), errors="replace")
 
 	return redis_info
 

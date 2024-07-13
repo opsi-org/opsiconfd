@@ -682,8 +682,8 @@ class MySQLConnection:
 			if _ace.type == "self":
 				allowed_client_ids = []
 				session = contextvar_client_session.get()
-				if session and session.host:
-					allowed_client_ids = [session.host.id]
+				if session and session.host_id:
+					allowed_client_ids = [session.host_id]
 			else:
 				# All client_ids allowed
 				allowed_client_ids = None

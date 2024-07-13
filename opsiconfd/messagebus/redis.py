@@ -209,12 +209,11 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 	redis = await async_redis_client()
 
 	state_key = None
-	host = session.host
-	if host:
-		if host.getType() == "OpsiClient":
-			state_key = f"{config.redis_key('messagebus')}:connections:clients:{host.id}"
-		elif host.getType() == "OpsiDepotserver":
-			state_key = f"{config.redis_key('messagebus')}:connections:depots:{host.id}"
+	if session.host_id:
+		if session.host_type == "OpsiClient":
+			state_key = f"{config.redis_key('messagebus')}:connections:clients:{session.host_id}"
+		elif session.host_type == "OpsiDepotserver":
+			state_key = f"{config.redis_key('messagebus')}:connections:depots:{session.host_id}"
 	else:
 		state_key = f"{config.redis_key('messagebus')}:connections:users:{session.username}"
 

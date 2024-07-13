@@ -167,9 +167,9 @@ class RPCGeneralMixin(Protocol):
 		return list(health_check())
 
 	@rpc_method
-	def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:
+	async def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:
 		self._check_role("admin")
-		return get_diagnostic_data()
+		return await get_diagnostic_data()
 
 	@rpc_method
 	def service_createBackup(

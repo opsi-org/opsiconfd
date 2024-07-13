@@ -454,6 +454,9 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 		key_type: {"keys": len(info["keys"]), "memory": info["memory"], "entries": info["entries"]}  # type: ignore[arg-type]
 		for key_type, info in key_info.items()
 	}
+
+	redis_info["slowlog"] = await client.slowlog_get(50)
+
 	return redis_info
 
 

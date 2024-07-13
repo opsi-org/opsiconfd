@@ -18,12 +18,14 @@ from subprocess import CalledProcessError, run
 from typing import Any
 
 import psutil
+from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.main import health_check
 from opsiconfd.check.system import get_disk_mountpoints, get_installed_packages
 from opsiconfd.config import config
 from opsiconfd.logging import logger
+from opsiconfd.redis import async_get_redis_info, async_redis_client
 from opsiconfd.utils import running_in_docker
 
 OS_RELEASE_FILE = "/etc/os-release"
@@ -220,21 +222,25 @@ def get_system_info() -> dict:
 	return result
 
 
-def get_diagnostic_data() -> dict[str, Any]:
-	data = {
-		"system": get_system_info(),
-		"processor": get_processor_info(),
-		"memory": get_memory_info(),
-		"disks": get_disk_info(),
-		"os_release": get_os_release(),
-		"lsb_release": get_lsb_release(),
-		"config": get_config(),
-		"depots": get_depot_info(),
-		"clients": get_client_info(),
-		"products": get_opsi_product_versions(),
-		"packages": get_installed_packages(),
-		"backendmanager_extensions": get_backendmanager_extension_methods(),
-		"licenses": get_licenses(),
-		"health_check": list(health_check()),
-	}
+async def get_diagnostic_data() -> dict[str, Any]:
+	def _get_sync_data() -> dict[str, Any]:
+		return {
+			"system": get_system_info(),
+			"processor": get_processor_info(),
+			"memory": get_memory_info(),
+			"disks": get_disk_info(),
+			"os_release": get_os_release(),
+			"lsb_release": get_lsb_release(),
+			"config": get_config(),
+			"depots": get_depot_info(),
+			"clients": get_client_info(),
+			"products": get_opsi_product_versions(),
+			"packages": get_installed_packages(),
+			"backendmanager_extensions": get_backendmanager_extension_methods(),
+			"licenses": get_licenses(),
+			"health_check": list(health_check()),
+		}
+
+	data = await run_in_threadpool(_get_sync_data)
+	data["redis_info"] = await async_get_redis_info(await async_redis_client())
 	return data

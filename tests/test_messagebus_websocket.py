@@ -24,7 +24,6 @@ from opsicommon.client.opsiservice import (
 	ServiceVerificationFlags,
 	WebSocket,
 )
-from opsiconfd.config import get_configserver_id
 from opsicommon.logging import get_logger, use_logging_config
 from opsicommon.logging.constants import LOG_TRACE
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
@@ -49,10 +48,11 @@ from opsicommon.messagebus.message import (
 )
 from opsicommon.objects import UnicodeConfig
 
+from opsiconfd.config import get_configserver_id
+from opsiconfd.messagebus.websocket import _check_message_type_access
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, session_manager
 from opsiconfd.utils import compress_data, decompress_data
-from opsiconfd.messagebus.websocket import _check_message_type_access
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -64,9 +64,9 @@ from .utils import (  # noqa: F401
 	clean_redis,
 	client_jsonrpc,
 	config,
+	get_config,
 	opsiconfd_server,
 	test_client,
-	get_config,
 )
 
 logger = get_logger()
@@ -475,7 +475,7 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
 						).to_msgpack()
 					)
-					reader.wait_for_message(count=1, timeout=10.0)
+					reader.wait_for_message(count=5, timeout=3.0)
 					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 					assert isinstance(responses[0], ProcessStartEventMessage)
 

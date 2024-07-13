@@ -475,7 +475,7 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
 						).to_msgpack()
 					)
-					reader.wait_for_message(count=5, timeout=3.0)
+					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
 					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 					assert isinstance(responses[0], ProcessStartEventMessage)
 

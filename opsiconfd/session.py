@@ -265,7 +265,7 @@ class SessionMiddleware:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")
 
 				if (
-					not session.host
+					not session.host_id
 					and path.startswith("/depot")
 					and opsi_config.get("groups", "fileadmingroup") not in session.user_groups
 				):
@@ -570,7 +570,8 @@ class OPSISession:
 		self._messagebus_last_used = 0
 		self._username: str = ""
 		self._user_groups: set[str] = set()
-		self._host: Host | None = None
+		self._host_id: str | None = None
+		self._host_type: Literal["OpsiConfigserver", "OpsiDepotserver", "OpsiClient"] | None = None
 		self._authenticated = False
 		self._auth_methods: set[AuthenticationMethod] = set()
 		self._is_admin = False
@@ -719,15 +720,26 @@ class OPSISession:
 		self._set_modified("user_groups")
 
 	@property
-	def host(self) -> Host | None:
-		return self._host
+	def host_id(self) -> str | None:
+		return self._host_id
 
-	@host.setter
-	def host(self, value: Host | None) -> None:
-		if self._host == value:
+	@host_id.setter
+	def host_id(self, value: str | None) -> None:
+		if self._host_id == value:
 			return
-		self._host = value
-		self._set_modified("host")
+		self._host_id = value
+		self._set_modified("host_id")
+
+	@property
+	def host_type(self) -> str | None:
+		return self._host_type
+
+	@host_type.setter
+	def host_type(self, value: Literal["OpsiConfigserver", "OpsiDepotserver", "OpsiClient"] | None) -> None:
+		if self._host_type == value:
+			return
+		self._host_type = value
+		self._set_modified("host_type")
 
 	@property
 	def authenticated(self) -> bool:
@@ -761,9 +773,9 @@ class OPSISession:
 	def user_type(self) -> Literal["user", "depot", "client"] | None:
 		if not self.authenticated:
 			return None
-		if not self.host:
+		if not self.host_id:
 			return "user"
-		if self.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+		if self.host_type in ("OpsiConfigserver", "OpsiDepotserver"):
 			return "depot"
 		return "client"
 
@@ -807,7 +819,8 @@ class OPSISession:
 		self.username = ""
 		self.password = None
 		self.user_groups = set()
-		self.host = None
+		self.host_id = None
+		self.host_type = None
 		self.authenticated = False
 		self.auth_methods = set()
 		self.is_admin = False
@@ -888,16 +901,15 @@ class OPSISession:
 			"messagebus_last_used",
 			"username",
 			"user_groups",
-			"host",
+			"host_id",
+			"host_type",
 			"authenticated",
 			"auth_methods",
 			"is_admin",
 			"is_read_only",
 		):
 			val = getattr(self, f"_{attribute}")
-			if isinstance(val, Host):
-				val = msgspec.msgpack.encode(val.to_hash())
-			elif isinstance(val, set):
+			if isinstance(val, set):
 				val = msgspec.msgpack.encode(list(val))
 			elif isinstance(val, bool):
 				val = int(val)
@@ -910,16 +922,19 @@ class OPSISession:
 
 	@classmethod
 	def deserialize(cls, data: dict[str | bytes, float | int | bytes | str]) -> dict[str, Any]:
-		des = {}
+		des: dict[str, Any] = {}
 		for attr, val in data.items():
 			if isinstance(attr, bytes):
 				attr = attr.decode("utf-8")
 			if attr == "host":
-				if val:
-					assert isinstance(val, bytes)
-					val = Host.fromHash(msgspec.msgpack.decode(val))  # type: ignore
-				else:
-					val = None  # type: ignore
+				# Previously the whole host object was stored
+				# So this is for backwards compatibility and can be removed later
+				# TODO: Remove
+				if val and isinstance(val, bytes):
+					host = Host.fromHash(msgspec.msgpack.decode(val))  # type: ignore
+					des["host_id"] = host.id
+					des["host_type"] = host.getType()
+				continue
 			elif attr == "user_groups":
 				val = set(msgspec.msgpack.decode(val))  # type: ignore
 			elif attr == "auth_methods":
@@ -936,7 +951,11 @@ class OPSISession:
 		data = cls.deserialize(data)  # type: ignore
 		obj = cls(data["client_addr"])  # type: ignore
 		for attr, val in data.items():
-			setattr(obj, attr, val)
+			try:
+				setattr(obj, attr, val)
+			except AttributeError:
+				# Ignore unknown attributes from older versions
+				pass
 		return obj
 
 	def get_cookie(self) -> Optional[str]:
@@ -1195,17 +1214,19 @@ async def authenticate_host(scope: Scope) -> None:
 	else:
 		raise BackendAuthenticationError(f"Authentication of host '{host.id}' failed")
 
-	session.host = host
+	host_type = host.getType()
+	session.host_id = host.id
+	session.host_type = host_type
 	session.authenticated = True
 	session.is_read_only = False
-	session.is_admin = host.getType() in ("OpsiConfigserver", "OpsiDepotserver")
+	session.is_admin = host_type in ("OpsiConfigserver", "OpsiDepotserver")
 	if session.username != host.id:
 		session.username = host.id
 		if not scope.get("response-headers"):
 			scope["response-headers"] = {}
 		scope["response-headers"]["x-opsi-new-host-id"] = session.username
 
-	if host.getType() == "OpsiClient":
+	if host_type == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
 		host.setLastSeen(timestamp())
 		if config.update_ip and session.client_addr not in (None, "127.0.0.1", "::1", host.ipAddress):
@@ -1215,7 +1236,7 @@ async def authenticate_host(scope: Scope) -> None:
 			host.ipAddress = None
 		await backend.async_call("host_updateObjectOnAuthenticate", host=host)
 
-	elif host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+	elif host_type in ("OpsiConfigserver", "OpsiDepotserver"):
 		logger.debug("Storing depot server address: %s", session.client_addr)
 		depot_addresses[session.client_addr] = time.time()
 

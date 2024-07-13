@@ -31,10 +31,10 @@ from opsicommon.messagebus.message import (
 	EventMessage,
 	GeneralErrorMessage,
 	Message,
+	MessageType,
 	TraceRequestMessage,
 	TraceResponseMessage,
 	timestamp,
-	MessageType,
 )
 from starlette.concurrency import run_in_threadpool
 from starlette.endpoints import WebSocketEndpoint
@@ -49,13 +49,13 @@ from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.config import config
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
-from opsiconfd.config import config
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.main import UnprotectedBackend, Backend
+	from opsiconfd.backend.rpc.main import Backend, UnprotectedBackend
 
 
 from . import (
@@ -449,17 +449,17 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			},
 		)
 
-		if session.host:
-			self._messagebus_user_id = get_user_id_for_host(session.host.id)
+		if session.host_id:
+			self._messagebus_user_id = get_user_id_for_host(session.host_id)
 
-			user_type: Literal["client", "depot"] = "client" if session.host.getType() == "OpsiClient" else "depot"
-			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host.id], user_type=user_type)])
+			user_type: Literal["client", "depot"] = "client" if session.host_type == "OpsiClient" else "depot"
+			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type)])
 			if not connected:
 				event.event = "host_connected"
 				event.channel = "event:host_connected"
 				event.data["host"] = {
-					"type": session.host.getType(),
-					"id": session.host.id,
+					"type": session.host_type,
+					"id": session.host_id,
 				}
 		elif session.username and session.is_admin:
 			self._messagebus_user_id = get_user_id_for_user(session.username)
@@ -502,15 +502,15 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			},
 		)
 
-		if session.host:
-			user_type: Literal["client", "depot"] = "client" if session.host.getType() == "OpsiClient" else "depot"
-			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host.id], user_type=user_type)])
+		if session.host_id:
+			user_type: Literal["client", "depot"] = "client" if session.host_type == "OpsiClient" else "depot"
+			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type)])
 			if not connected:
 				event.event = "host_disconnected"
 				event.channel = "event:host_disconnected"
 				event.data["host"] = {
-					"type": session.host.getType(),
-					"id": session.host.id,
+					"type": session.host_type,
+					"id": session.host_id,
 				}
 				await send_message(event)
 		elif session.username:

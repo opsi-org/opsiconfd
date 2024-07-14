@@ -368,7 +368,7 @@ class MySQLConnection:
 		finally:
 			self.disconnect()
 
-	def connect(self) -> None:
+	def connect(self, read_tables: bool = True) -> None:
 		try:
 			self._init_connection()
 		except OperationalError as err:
@@ -377,7 +377,8 @@ class MySQLConnection:
 			logger.info("Failed to connect to socket (%s), retrying with tcp/ip", err)
 			self.address = "127.0.0.1"
 			self._init_connection()
-		self.read_tables()
+		if read_tables:
+			self.read_tables()
 		self.connected = True
 
 	def disconnect(self) -> None:

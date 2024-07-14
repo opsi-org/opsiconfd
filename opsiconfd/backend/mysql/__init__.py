@@ -76,6 +76,7 @@ class MySQLSession(Session):
 	retry_on_server_has_gone_away = 3
 	retry_on_deadlock = 3
 	retry_on_concurrent_ddl = 10
+	retry_on_lock_wait_timeout = 3
 
 	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
@@ -108,6 +109,10 @@ class MySQLSession(Session):
 					elif "concurrent ddl statement" in str_err:
 						retry_wait = 1.0
 						if attempt > self.retry_on_concurrent_ddl:
+							raise
+					elif "lock wait timeout exceeded" in str_err:
+						retry_wait = 1.0
+						if attempt > self.retry_on_lock_wait_timeout:
 							raise
 					else:
 						raise

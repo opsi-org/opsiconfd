@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
@@ -669,16 +669,6 @@ def read_database_schema(mysql: MySQLConnection, with_audit_hardware: bool = Fal
 	return sql.rstrip("\n") + "\n"
 
 
-def get_process_list(mysql: MySQLConnection) -> list[dict[str, Any]]:
-	with mysql.session() as session:
-		return [
-			dict(row)
-			for row in session.execute(
-				"SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB = :db", params={"db": mysql.database}
-			).fetchall()
-		]
-
-
 def create_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		session.execute(f"CREATE DATABASE IF NOT EXISTS `{mysql.database}`")
@@ -686,11 +676,7 @@ def create_database(mysql: MySQLConnection) -> None:
 
 def drop_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
-		try:
-			session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
-		except OperationalError as err:
-			logger.error("Failed to drop database %r: %s, active processes: %s", mysql.database, err, get_process_list(mysql))
-			raise
+		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 
 
 def update_database(mysql: MySQLConnection, force: bool = False) -> None:

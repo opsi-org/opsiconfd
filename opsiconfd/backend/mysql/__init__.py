@@ -385,6 +385,15 @@ class MySQLConnection:
 		if self._engine:
 			self._engine.dispose()
 
+	def get_process_list(self) -> list[dict[str, Any]]:
+		with self.session() as session:
+			return [
+				dict(row)
+				for row in session.execute(
+					"SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB = :db", params={"db": self.database}
+				).fetchall()
+			]
+
 	@contextmanager
 	def session(self, session: MySQLSession | None = None, commit: bool = True) -> Generator[MySQLSession, None, None]:
 		if session:

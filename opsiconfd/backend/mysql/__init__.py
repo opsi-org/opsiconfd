@@ -557,7 +557,7 @@ class MySQLConnection:
 					elif isinstance(val, str):
 						if "*" in val:
 							operator = "LIKE"
-							val = val.replace("*", "%").replace("_", "\_")
+							val = val.replace("*", "%").replace("_", r"\_")
 						elif val.startswith(("<", ">")):
 							operator = val[0]
 							val = val[1:]

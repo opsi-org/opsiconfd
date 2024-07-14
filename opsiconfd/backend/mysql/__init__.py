@@ -94,7 +94,6 @@ class MySQLSession(Session):
 					)
 					return result
 				except DatabaseError as err:
-					print(">>>", err)
 					str_err = str(err).lower()
 					max_attempts = 1
 					rollback = False
@@ -109,8 +108,6 @@ class MySQLSession(Session):
 					elif "lock wait timeout exceeded" in str_err:
 						max_attempts = self.retry_on_lock_wait_timeout + 1
 						retry_wait = 1.0
-						rollback = True
-					print(">>>", max_attempts, retry_wait, rollback)
 
 					log = logger.error if attempt >= max_attempts else logger.warning
 					log("Failed statement, attempt %d/%d: %s", attempt, max_attempts, err)

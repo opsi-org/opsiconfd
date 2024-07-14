@@ -30,7 +30,7 @@ from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import delete_recursively, redis_client
+from opsiconfd.redis import delete_recursively
 from opsiconfd.setup.backend import setup_backend, setup_mysql
 from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files

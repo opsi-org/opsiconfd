@@ -359,7 +359,7 @@ def restore_backup(
 				db_task = progress.add_task("Preparing database", total=3)
 
 			mysql = MySQLConnection()
-			mysql.connect()
+			mysql.connect(read_tables=False)
 
 			if progress:
 				progress.console.print("Dropping database")

@@ -76,7 +76,7 @@ class MySQLSession(Session):
 	retry_on_server_has_gone_away = 3
 	retry_on_deadlock = 3
 	retry_on_concurrent_ddl = 10
-	retry_on_lock_wait_timeout = 3
+	retry_on_lock_wait_timeout = 10
 
 	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
@@ -109,6 +109,7 @@ class MySQLSession(Session):
 					elif "lock wait timeout exceeded" in str_err:
 						max_attempts = self.retry_on_lock_wait_timeout + 1
 						retry_wait = 1.0
+						rollback = True
 					print(">>>", max_attempts, retry_wait, rollback)
 
 					log = logger.error if attempt >= max_attempts else logger.warning

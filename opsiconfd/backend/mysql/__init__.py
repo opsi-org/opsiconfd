@@ -94,28 +94,36 @@ class MySQLSession(Session):
 					)
 					return result
 				except DatabaseError as err:
-					logger.warning("Failed statement, attempt %d: %s", attempt, err)
-					logger.trace(
-						"Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True
-					)
 					str_err = str(err).lower()
+					max_attempts = 1
+					rollback = False
 					if "deadlock" in str_err:
-						if attempt > self.retry_on_deadlock:
-							raise
+						max_attempts = self.retry_on_deadlock + 1
 					elif "server has gone away" in str_err:
-						if attempt > self.retry_on_server_has_gone_away:
-							raise
-						self.rollback()
+						max_attempts = self.retry_on_server_has_gone_away + 1
+						rollback = True
 					elif "concurrent ddl statement" in str_err:
+						max_attempts = self.retry_on_concurrent_ddl + 1
 						retry_wait = 1.0
-						if attempt > self.retry_on_concurrent_ddl:
-							raise
 					elif "lock wait timeout exceeded" in str_err:
 						retry_wait = 1.0
-						if attempt > self.retry_on_lock_wait_timeout:
-							raise
-					else:
+						max_attempts = self.retry_on_lock_wait_timeout + 1
+
+					log = logger.error if attempt >= max_attempts else logger.warning
+					log("Failed statement, attempt %d/%d: %s", attempt, max_attempts, err)
+					logger.trace(
+						"Failed statement %r (attempt: %d/%d) with params %r: %s",
+						statement,
+						attempt,
+						max_attempts,
+						params,
+						err.__cause__,
+						exc_info=True,
+					)
+					if attempt >= max_attempts:
 						raise
+					if rollback:
+						self.rollback()
 					sleep(retry_wait)
 
 

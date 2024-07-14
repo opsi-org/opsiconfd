@@ -10,6 +10,7 @@ test backup
 """
 
 import asyncio
+import pprint
 from copy import deepcopy
 from os.path import abspath
 from pathlib import Path
@@ -183,7 +184,12 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 		mysql.database = database
 		mysql.connect()
 
-		restore_backup(Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False)
+		try:
+			restore_backup(Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False)
+		except Exception:
+			pprint.pprint(mysql.get_process_list())
+			raise
+
 		with mysql.session() as session:
 			databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
 			assert database in databases

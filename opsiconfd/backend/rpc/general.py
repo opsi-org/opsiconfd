@@ -57,7 +57,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import logger
-from opsiconfd.ssl import get_ca_cert_as_pem
+from opsiconfd.ssl import get_ca_certs_as_pem, get_opsi_ca_cert_as_pem
 
 from . import rpc_method
 
@@ -308,7 +308,11 @@ class RPCGeneralMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def getOpsiCACert(self: BackendProtocol) -> str:
-		return get_ca_cert_as_pem()
+		return get_opsi_ca_cert_as_pem()
+
+	@rpc_method(check_acl=False)
+	def getCACerts(self: BackendProtocol) -> str:
+		return get_ca_certs_as_pem()
 
 	def _get_client_info(self: BackendProtocol) -> dict[str, int]:
 		logger.info("%s fetching client info", self)

@@ -144,7 +144,7 @@ def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
 
 
 def get_ca_cert_info() -> dict[str, Any]:
-	return get_cert_info(load_ca_cert(), config.ssl_ca_cert_renew_days)
+	return get_cert_info(load_opsi_ca_cert(), config.ssl_ca_cert_renew_days)
 
 
 def get_server_cert_info() -> dict[str, Any]:
@@ -204,11 +204,11 @@ def load_cert(cert_file: Path | str, subject_cn: str | None = None) -> x509.Cert
 	raise RuntimeError(f"Failed to load {repr(subject_cn) if subject_cn else 'cert'} from '{cert_file}': Not found")
 
 
-def store_ca_key(ca_key: rsa.RSAPrivateKey) -> None:
+def store_opsi_ca_key(ca_key: rsa.RSAPrivateKey) -> None:
 	store_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, ca_key)
 
 
-def load_ca_key() -> rsa.RSAPrivateKey:
+def load_opsi_ca_key() -> rsa.RSAPrivateKey:
 	try:
 		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase)
 	except RuntimeError:
@@ -217,20 +217,35 @@ def load_ca_key() -> rsa.RSAPrivateKey:
 		# Wrong passphrase, try to load with default passphrase
 		key = load_key(config.ssl_ca_key, CA_KEY_DEFAULT_PASSPHRASE)
 		# Store with configured passphrase
-		store_ca_key(key)
+		store_opsi_ca_key(key)
 		return key
 
 
-def store_ca_cert(ca_cert: x509.Certificate) -> None:
+def store_opsi_ca_cert(ca_cert: x509.Certificate) -> None:
 	store_cert(config.ssl_ca_cert, ca_cert, keep_others=True)
 
 
-def load_ca_cert() -> x509.Certificate:
+def load_opsi_ca_cert() -> x509.Certificate:
 	return load_cert(config.ssl_ca_cert, subject_cn=config.ssl_ca_subject_cn)
 
 
-def get_ca_cert_as_pem() -> str:
-	return as_pem(load_ca_cert())
+def get_opsi_ca_cert_as_pem() -> str:
+	return as_pem(load_opsi_ca_cert())
+
+
+def get_ca_certs() -> list[x509.Certificate]:
+	# TODO: Caching
+	ca_certs = load_certs(config.ssl_ca_cert)
+	ssl_ca_certs = Path(config.ssl_ca_certs)
+	if ssl_ca_certs.exists():
+		for pem_file in ssl_ca_certs.glob("*.pem"):
+			ca_certs.extend(load_certs(pem_file))
+	return ca_certs
+
+
+def get_ca_certs_as_pem() -> str:
+	# TODO: Caching
+	return "\n".join(as_pem(cert) for cert in get_ca_certs())
 
 
 def store_local_server_key(srv_key: rsa.RSAPrivateKey) -> None:
@@ -275,8 +290,8 @@ def load_local_server_cert() -> x509.Certificate:
 
 
 def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
-	ca_key = load_ca_key()
-	ca_cert = load_ca_cert()
+	ca_key = load_opsi_ca_key()
+	ca_cert = load_opsi_ca_cert()
 	domain = get_domain()
 
 	key = None
@@ -298,7 +313,7 @@ def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.
 def depotserver_setup_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
 	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert().encode("utf-8"))
-	store_ca_cert(ca_crt)
+	store_opsi_ca_cert(ca_crt)
 	install_ca(ca_crt)
 	return False
 
@@ -333,9 +348,9 @@ def configserver_setup_ca() -> bool:
 		renew = True
 	else:
 		try:
-			cur_ca_key = load_ca_key()
+			cur_ca_key = load_opsi_ca_key()
 			try:
-				cur_ca_crt = load_ca_cert()
+				cur_ca_crt = load_opsi_ca_cert()
 				is_intermediate_ca = not is_self_signed(cur_ca_crt)
 			except Exception as err_cert:
 				logger.warning("Failed to load CA cert (%s), creating new CA cert", err_cert)
@@ -392,7 +407,7 @@ def configserver_setup_ca() -> bool:
 		current_ca_subject = {}
 		if os.path.exists(config.ssl_ca_cert):
 			try:
-				current_ca_subject = x509_name_to_dict(load_ca_cert().subject)
+				current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
 			except Exception as err:
 				logger.error("Failed to load CA cert: %s", err, exc_info=True)
 
@@ -421,8 +436,8 @@ def configserver_setup_ca() -> bool:
 			permitted_domains=config.ssl_ca_permitted_domains or None,
 		)
 		if create:
-			store_ca_key(ca_key)
-		store_ca_cert(ca_crt)
+			store_opsi_ca_key(ca_key)
+		store_opsi_ca_cert(ca_crt)
 		install_ca(ca_crt)
 		return True
 
@@ -499,7 +514,7 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 
 
 def opsi_ca_is_self_signed() -> bool:
-	return is_self_signed(load_ca_cert())
+	return is_self_signed(load_opsi_ca_cert())
 
 
 def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
@@ -543,7 +558,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 	if config.ssl_server_key == config.ssl_server_cert:
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
 
-	ca_cert = load_ca_cert()
+	ca_cert = load_opsi_ca_cert()
 	check_intermediate_ca(ca_cert)
 
 	create = force_new

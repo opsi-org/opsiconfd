@@ -939,6 +939,12 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "The location of the opsi ssl ca certificate."),
 		)
 		self._parser.add(
+			"--ssl-ca-certs",
+			env_var="OPSICONFD_SSL_CA_CERTS",
+			default="/etc/opsi/ssl/ca-certs",
+			help=self._help("expert", "The ssl ca certificates location."),
+		)
+		self._parser.add(
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
 			type=int,

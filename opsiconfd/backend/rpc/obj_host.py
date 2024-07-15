@@ -35,8 +35,7 @@ from opsiconfd.ssl import (
 	as_pem,
 	create_server_cert,
 	get_domain,
-	load_ca_cert,
-	load_ca_key,
+	load_opsi_ca_key,
 )
 
 from . import rpc_method
@@ -337,8 +336,8 @@ class RPCHostMixin(Protocol):
 			valid_days=(config.ssl_client_cert_valid_days if host.getType() == "OpsiClient" else config.ssl_server_cert_valid_days),
 			ip_addresses=ip_addresses,
 			hostnames=hostnames,
-			ca_key=load_ca_key(),
-			ca_cert=load_ca_cert(),
+			ca_key=load_opsi_ca_key(),
+			ca_cert=load_opsi_ca_cert(),
 		)
 		return as_pem(key) + as_pem(cert)
 

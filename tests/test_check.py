@@ -62,10 +62,9 @@ from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
 	get_ca_subject,
-	store_ca_cert,
-	store_ca_key,
 	store_local_server_cert,
 	store_local_server_key,
+	store_opsi_ca_cert,
 )
 from opsiconfd.utils import NameService, UserInfo
 
@@ -691,8 +690,8 @@ def test_check_ssl(tmpdir: Path) -> None:
 		ca_subject = get_ca_subject()
 
 		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_valid_days + 10)
-		store_ca_key(ca_key)
-		store_ca_cert(ca_crt)
+		store_opsi_ca_key(ca_key)
+		store_opsi_ca_cert(ca_crt)
 
 		(srv_crt, srv_key) = create_local_server_cert(renew=False)
 		store_local_server_cert(srv_crt)
@@ -726,8 +725,8 @@ def test_check_ssl(tmpdir: Path) -> None:
 			assert result.partial_results[0].message.startswith("The subject of the CA has changed from")
 
 		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_renew_days - 10)
-		store_ca_key(ca_key)
-		store_ca_cert(ca_crt)
+		store_opsi_ca_key(ca_key)
+		store_opsi_ca_cert(ca_crt)
 		result = check_ssl()
 
 		assert result.check_status == CheckStatus.ERROR

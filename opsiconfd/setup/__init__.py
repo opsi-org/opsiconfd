@@ -150,7 +150,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 
 				rich_print("[b]Registering depot[/b]")
 				service.host_createObjects([depot])  # type: ignore[attr-defined]
-				service.fetch_opsi_ca()
+				service.fetch_ca_certs()
 				(srv_crt, srv_key) = fetch_server_cert(service)
 				store_local_server_key(srv_key)
 				store_local_server_cert(srv_crt)

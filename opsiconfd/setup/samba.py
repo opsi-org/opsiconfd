@@ -17,7 +17,7 @@ from subprocess import CalledProcessError, run
 from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
 
-from opsiconfd.config import SMB_CONF, config, opsi_config
+from opsiconfd.config import SMB_CONF, opsi_config
 from opsiconfd.logging import logger
 
 SHARES = {

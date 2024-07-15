@@ -35,6 +35,7 @@ from opsiconfd.ssl import (
 	as_pem,
 	create_server_cert,
 	get_domain,
+	load_opsi_ca_cert,
 	load_opsi_ca_key,
 )
 

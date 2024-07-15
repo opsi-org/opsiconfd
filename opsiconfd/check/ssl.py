@@ -24,6 +24,7 @@ from opsiconfd.ssl import (
 	get_server_cn,
 	load_local_server_cert,
 	load_local_server_key,
+	load_opsi_ca_cert,
 	load_opsi_ca_key,
 	opsi_ca_is_self_signed,
 	validate_cert,

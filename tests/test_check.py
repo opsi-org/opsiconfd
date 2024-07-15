@@ -65,6 +65,7 @@ from opsiconfd.ssl import (
 	store_local_server_cert,
 	store_local_server_key,
 	store_opsi_ca_cert,
+	store_opsi_ca_key,
 )
 from opsiconfd.utils import NameService, UserInfo
 

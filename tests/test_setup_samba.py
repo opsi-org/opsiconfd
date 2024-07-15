@@ -18,8 +18,9 @@ from unittest.mock import PropertyMock, patch
 import pytest
 
 from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
+from opsiconfd.config import opsi_config
 
-EXPECTED_CONF = """
+EXPECTED_CONF = f"""
 [opsi_depot]
    available = yes
    comment = opsi depot share (ro)
@@ -50,7 +51,7 @@ EXPECTED_CONF = """
    comment = opsi workbench
    path = /var/lib/opsi/workbench
    writeable = yes
-   invalid users = root
+   invalid users = root {opsi_config.get('depot_user', 'username')}
    create mask = 0660
    directory mask = 0770
    acl allow execute always = true
@@ -61,7 +62,7 @@ EXPECTED_CONF = """
    path = /var/lib/opsi/repository
    follow symlinks = yes
    writeable = no
-   invalid users = root
+   invalid users = root {opsi_config.get('depot_user', 'username')}
 
 [opsi_logs]
    available = yes
@@ -69,7 +70,7 @@ EXPECTED_CONF = """
    path = /var/log/opsi
    follow symlinks = yes
    writeable = no
-   invalid users = root
+   invalid users = root {opsi_config.get('depot_user', 'username')}
 """
 
 

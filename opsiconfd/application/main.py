@@ -52,7 +52,7 @@ from opsiconfd.metrics.statistics import StatisticsMiddleware
 from opsiconfd.redis import async_redis_client
 from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware, session_manager
-from opsiconfd.ssl import as_pem, load_certs
+from opsiconfd.ssl import as_pem, get_ca_certs_as_pem, load_certs
 from opsiconfd.utils import asyncio_create_task
 
 
@@ -92,6 +92,14 @@ def get_ssl_ca_cert(request: Request) -> Response:
 	return Response(
 		content=pem,
 		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
+	)
+
+
+@app.get("/ssl/ca-certs.pem")
+def get_ca_certs(request: Request) -> Response:
+	return Response(
+		content=get_ca_certs_as_pem(),
+		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="ca-certs.pem"'},
 	)
 
 

@@ -34,26 +34,29 @@ from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
 	get_ca_cert_info,
+	get_ca_certs,
+	get_ca_certs_as_pem,
 	get_hostnames,
 	get_ips,
+	get_opsi_ca_cert_as_pem,
 	get_server_cert_info,
 	get_trusted_certs,
 	is_self_signed,
-	load_ca_cert,
-	load_ca_key,
 	load_cert,
 	load_certs,
 	load_key,
 	load_local_server_cert,
 	load_local_server_key,
+	load_opsi_ca_cert,
+	load_opsi_ca_key,
 	opsi_ca_is_self_signed,
 	setup_ca,
 	setup_server_cert,
-	store_ca_cert,
-	store_ca_key,
 	store_cert,
 	store_local_server_cert,
 	store_local_server_key,
+	store_opsi_ca_cert,
+	store_opsi_ca_key,
 	validate_cert,
 	x509_name_to_dict,
 )
@@ -146,7 +149,7 @@ def test_store_load_cert(tmpdir: Path) -> None:
 				certs = load_certs(ssl_ca_cert)
 				assert len(certs) == 1
 				assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
-				assert load_ca_cert().subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
+				assert load_opsi_ca_cert().subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 				assert (
 					load_cert(ssl_ca_cert, subject_cn="opsi CA").subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 					== "opsi CA"
@@ -159,7 +162,7 @@ def test_store_load_cert(tmpdir: Path) -> None:
 				assert len(certs) == 2
 				assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 				assert certs[1].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "other CA"
-				assert load_ca_cert().subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
+				assert load_opsi_ca_cert().subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 				assert (
 					load_cert(ssl_ca_cert, subject_cn="other CA").subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 					== "other CA"
@@ -171,7 +174,7 @@ def test_store_load_cert(tmpdir: Path) -> None:
 				assert len(certs) == 1
 				assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "other CA"
 				with pytest.raises(RuntimeError, match="Failed to load 'opsi CA' from.*"):
-					load_ca_cert()
+					load_opsi_ca_cert()
 				assert (
 					load_cert(ssl_ca_cert, subject_cn="other CA").subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 					== "other CA"
@@ -183,7 +186,7 @@ def test_store_load_cert(tmpdir: Path) -> None:
 				assert len(certs) == 2
 				assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "other CA"
 				assert certs[1].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
-				cert = load_ca_cert()
+				cert = load_opsi_ca_cert()
 				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
 				response = get_ssl_ca_cert(None)  # type: ignore
@@ -202,16 +205,16 @@ def test_create_ca(tmpdir: Path) -> None:
 				assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_ca_key.read_text(encoding="utf-8")
 				key = load_key(conf.ssl_ca_key, "secret")
 				assert isinstance(key, rsa.RSAPrivateKey)
-				key = load_ca_key()
+				key = load_opsi_ca_key()
 				assert isinstance(key, rsa.RSAPrivateKey)
 				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
 					load_key(conf.ssl_ca_key, "wrong")
-				cert = load_ca_cert()
+				cert = load_opsi_ca_cert()
 				assert isinstance(cert, x509.Certificate)
 				cert = load_cert(conf.ssl_ca_cert)
 				assert isinstance(cert, x509.Certificate)
 
-				ca_crt = load_ca_cert()
+				ca_crt = load_opsi_ca_cert()
 				assert (
 					ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)
 				).days == conf.ssl_ca_cert_valid_days - 1
@@ -257,7 +260,7 @@ def test_create_ca_permitted_domains(tmpdir: Path) -> None:
 		),
 	):
 		setup_ca()
-		ca_cert = load_ca_cert()
+		ca_cert = load_opsi_ca_cert()
 
 		name_constraints = [extension for extension in ca_cert.extensions if extension.oid == x509.OID_NAME_CONSTRAINTS][0]
 		assert name_constraints.critical
@@ -273,15 +276,15 @@ def test_ca_key_fallback(tmpdir: Path) -> None:
 	) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			(ca_crt, ca_key) = create_ca(subject={"CN": "opsi CA", "OU": "opsi@opsi.org", "emailAddress": "opsi@opsi.org"}, valid_days=100)
-			store_ca_key(ca_key)
-			store_ca_cert(ca_crt)
+			store_opsi_ca_key(ca_key)
+			store_opsi_ca_cert(ca_crt)
 
 			with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
 				load_key(conf.ssl_ca_key, "wrong")
 
 			conf.ssl_ca_key_passphrase = "wrong"
 			# Test fallback
-			load_ca_key()
+			load_opsi_ca_key()
 
 
 def test_server_key_fallback(tmpdir: Path) -> None:
@@ -329,18 +332,18 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 	with get_config({"ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key), "ssl_ca_key_passphrase": "secret"}):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with pytest.raises(FileNotFoundError):
-				create_ca(subject=subject, valid_days=valid_days, key=load_ca_key())
+				create_ca(subject=subject, valid_days=valid_days, key=load_opsi_ca_key())
 
 			(ca_crt, ca_key) = create_ca(subject=subject, valid_days=valid_days)
-			store_ca_key(ca_key)
-			store_ca_cert(ca_crt)
+			store_opsi_ca_key(ca_key)
+			store_opsi_ca_cert(ca_crt)
 			if additional_certs:
 				with ssl_ca_cert.open("a", encoding="utf-8") as file:
 					file.write("\n".join(additional_certs))
 				# print(ssl_ca_cert.read_text(encoding="utf-8"))
 
-			assert load_ca_cert() == ca_crt
-			key1 = load_ca_key()
+			assert load_opsi_ca_cert() == ca_crt
+			key1 = load_opsi_ca_key()
 			assert ca_key.private_bytes(
 				encoding=serialization.Encoding.PEM,
 				format=serialization.PrivateFormat.TraditionalOpenSSL,
@@ -352,7 +355,7 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			)
 
 			# Keep key
-			(ca_crt, ca_key) = create_ca(subject=subject, valid_days=valid_days, key=load_ca_key())
+			(ca_crt, ca_key) = create_ca(subject=subject, valid_days=valid_days, key=load_opsi_ca_key())
 			assert ca_key.private_bytes(
 				encoding=serialization.Encoding.PEM,
 				format=serialization.PrivateFormat.TraditionalOpenSSL,
@@ -369,7 +372,7 @@ def test_recreate_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 				for additional_cert in additional_certs:
 					assert additional_cert.strip() in data
 
-			(ca_crt, ca_key) = create_ca(subject=subject, valid_days=valid_days, key=load_ca_key())
+			(ca_crt, ca_key) = create_ca(subject=subject, valid_days=valid_days, key=load_opsi_ca_key())
 			assert ca_key.private_bytes(
 				encoding=serialization.Encoding.PEM,
 				format=serialization.PrivateFormat.TraditionalOpenSSL,
@@ -464,13 +467,13 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 
 			# Check CA
 			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_ca_cert_info()["not_before"]).days >= 10
-			ca_crt = load_ca_cert()
+			ca_crt = load_opsi_ca_cert()
 			assert (ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days == 299
 
 			assert os.path.exists(conf.ssl_ca_key)
 			assert os.path.exists(conf.ssl_ca_cert)
 			mtime = ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
-			ca_key = load_ca_key()
+			ca_key = load_opsi_ca_key()
 
 			# Check server_cert
 			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_server_cert_info()["not_before"]).days >= 10
@@ -489,7 +492,7 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			setup_ca()
 			assert mtime == ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
 			# Key must stay the same
-			assert load_ca_key().private_bytes(
+			assert load_opsi_ca_key().private_bytes(
 				encoding=serialization.Encoding.PEM,
 				format=serialization.PrivateFormat.TraditionalOpenSSL,
 				encryption_algorithm=serialization.NoEncryption(),
@@ -511,7 +514,7 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 					assert additional_cert.strip() in data
 
 			# Subject must stay the same
-			ca_crt = load_ca_cert()
+			ca_crt = load_opsi_ca_cert()
 			assert x509_name_to_dict(ca_crt.subject) == orig_ca_subject
 
 			conf.ssl_ca_cert_renew_days = 300
@@ -519,10 +522,10 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			time.sleep(2)
 			setup_ca()
 			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_ca_cert_info()["not_before"]).days == 0
-			ca_crt = load_ca_cert()
+			ca_crt = load_opsi_ca_cert()
 			assert mtime != ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
 			# Key must stay the same
-			assert load_ca_key().private_bytes(
+			assert load_opsi_ca_key().private_bytes(
 				encoding=serialization.Encoding.PEM,
 				format=serialization.PrivateFormat.TraditionalOpenSSL,
 				encryption_algorithm=serialization.NoEncryption(),
@@ -557,7 +560,7 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 			os.unlink(conf.ssl_ca_cert)
 			setup_ca()
 			# Key must stay the same
-			assert load_ca_key().private_bytes(
+			assert load_opsi_ca_key().private_bytes(
 				encoding=serialization.Encoding.PEM,
 				format=serialization.PrivateFormat.TraditionalOpenSSL,
 				encryption_algorithm=serialization.NoEncryption(),
@@ -567,7 +570,7 @@ def test_renew_expired_ca(tmpdir: Path, additional_certs: list[str]) -> None:
 				encryption_algorithm=serialization.NoEncryption(),
 			)
 			# Subject must be changed
-			ca_crt = load_ca_cert()
+			ca_crt = load_opsi_ca_cert()
 			new_subject = x509_name_to_dict(ca_crt.subject)
 			assert new_subject != orig_ca_subject
 			assert new_subject == ca_subject
@@ -606,8 +609,8 @@ def test_intermediate_ca(tmpdir: Path) -> None:
 				assert is_self_signed(ca_crt)
 				assert not is_self_signed(opsi_ca_crt)
 
-				store_ca_key(opsi_ca_key)
-				store_ca_cert(opsi_ca_crt)
+				store_opsi_ca_key(opsi_ca_key)
+				store_opsi_ca_cert(opsi_ca_crt)
 				ssl_ca_cert.write_text(as_pem(ca_crt) + as_pem(opsi_ca_crt), encoding="utf-8")
 
 				assert not opsi_ca_is_self_signed()
@@ -618,12 +621,12 @@ def test_intermediate_ca(tmpdir: Path) -> None:
 
 				# CA key and cert must not be changed
 				setup_ca()
-				assert opsi_ca_crt == load_ca_cert()
+				assert opsi_ca_crt == load_opsi_ca_cert()
 				assert opsi_ca_key.private_bytes(
 					encoding=serialization.Encoding.PEM,
 					format=serialization.PrivateFormat.TraditionalOpenSSL,
 					encryption_algorithm=serialization.NoEncryption(),
-				) == load_ca_key().private_bytes(
+				) == load_opsi_ca_key().private_bytes(
 					encoding=serialization.Encoding.PEM,
 					format=serialization.PrivateFormat.TraditionalOpenSSL,
 					encryption_algorithm=serialization.NoEncryption(),
@@ -638,8 +641,8 @@ def test_intermediate_ca(tmpdir: Path) -> None:
 				(opsi_ca_crt, opsi_ca_key) = create_ca(
 					subject=opsi_ca_subject, valid_days=conf.ssl_ca_cert_renew_days - 10, ca_key=ca_key, ca_cert=ca_crt
 				)
-				store_ca_key(opsi_ca_key)
-				store_ca_cert(opsi_ca_crt)
+				store_opsi_ca_key(opsi_ca_key)
+				store_opsi_ca_cert(opsi_ca_crt)
 				with pytest.raises(
 					RuntimeError,
 					match=(
@@ -932,3 +935,54 @@ def test_change_ip(tmpdir: Path) -> None:
 						format=serialization.PrivateFormat.TraditionalOpenSSL,
 						encryption_algorithm=serialization.NoEncryption(),
 					)
+
+
+def test_ca_certs_dir(tmpdir: Path) -> None:
+	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
+	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	ssl_ca_certs = tmpdir / "ca-certs"
+	with (
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmpdir), "echo")),
+		get_config(
+			{
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_certs": str(ssl_ca_certs),
+			}
+		),
+	):
+		setup_ca()
+		opsi_ca_cert_as_pem = get_opsi_ca_cert_as_pem()
+
+		# Test with missing dir
+		certs = get_ca_certs()
+		assert len(certs) == 1
+		assert certs[0] == load_opsi_ca_cert()
+
+		# Test empty dir
+		ssl_ca_certs.mkdir()
+		certs = get_ca_certs()
+		assert len(certs) == 1
+		assert certs[0] == load_opsi_ca_cert()
+
+		# Test with additional certs
+		(ssl_ca_certs / "GLOBALSIGN_ROOT_CA.pem").write_text(GLOBALSIGN_ROOT_CA, encoding="utf-8")
+		(ssl_ca_certs / "DIGICERT_GLOBAL_ROOT_CA.pem.hide").write_text(DIGICERT_GLOBAL_ROOT_CA, encoding="utf-8")
+
+		certs = get_ca_certs()
+		assert len(certs) == 2
+		pem = get_ca_certs_as_pem()
+		assert GLOBALSIGN_ROOT_CA in pem
+		assert DIGICERT_GLOBAL_ROOT_CA not in pem
+		assert opsi_ca_cert_as_pem in pem
+
+		# Test with additional certs in dir and opsi ca file
+		ssl_ca_cert.write_text(opsi_ca_cert_as_pem + "\n" + DIGICERT_GLOBAL_ROOT_CA, encoding="utf-8")
+		certs = get_ca_certs()
+		assert len(certs) == 3
+		pem = get_ca_certs_as_pem()
+		assert GLOBALSIGN_ROOT_CA in pem
+		assert DIGICERT_GLOBAL_ROOT_CA in pem
+		assert opsi_ca_cert_as_pem in pem

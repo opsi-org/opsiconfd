@@ -22,10 +22,9 @@ from opsiconfd.ssl import (
 	get_ca_subject,
 	get_not_before_and_not_after,
 	get_server_cn,
-	load_ca_cert,
-	load_ca_key,
 	load_local_server_cert,
 	load_local_server_key,
+	load_opsi_ca_key,
 	opsi_ca_is_self_signed,
 	validate_cert,
 	x509_name_to_dict,
@@ -54,7 +53,7 @@ def check_ssl() -> CheckResult:
 			message="The opsi CA certificate is OK.",
 		)
 		try:
-			ca_cert = load_ca_cert()
+			ca_cert = load_opsi_ca_cert()
 			not_after_days = get_not_before_and_not_after(ca_cert)[3] or 0
 			if not_after_days <= 0:
 				partial_result.check_status = CheckStatus.ERROR
@@ -66,7 +65,7 @@ def check_ssl() -> CheckResult:
 					partial_result.check_status = CheckStatus.WARNING
 				else:
 					ca_subject = get_ca_subject()
-					current_ca_subject = x509_name_to_dict(load_ca_cert().subject)
+					current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
 					if ca_subject != current_ca_subject:
 						partial_result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."
 						partial_result.check_status = CheckStatus.WARNING
@@ -103,7 +102,7 @@ def check_ssl() -> CheckResult:
 				message="The opsi CA key is OK.",
 			)
 			try:
-				load_ca_key()
+				load_opsi_ca_key()
 			except Exception as err:
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.message = f"A problem was found with the opsi CA key: {err}."

@@ -17,7 +17,7 @@ from subprocess import CalledProcessError, run
 from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
 
-from opsiconfd.config import SMB_CONF
+from opsiconfd.config import SMB_CONF, config, opsi_config
 from opsiconfd.logging import logger
 
 SHARES = {
@@ -51,7 +51,7 @@ SHARES = {
 		"comment": "opsi workbench",
 		"path": "/var/lib/opsi/workbench",
 		"writeable": "yes",
-		"invalid users": "root",
+		"invalid users": f"root {opsi_config.get('depot_user', 'username')}",
 		"create mask": "0660",
 		"directory mask": "0770",
 		"acl allow execute always": "true",
@@ -62,7 +62,7 @@ SHARES = {
 		"path": "/var/lib/opsi/repository",
 		"follow symlinks": "yes",
 		"writeable": "no",
-		"invalid users": "root",
+				"invalid users": f"root {opsi_config.get('depot_user', 'username')}",
 	},
 	"opsi_logs": {
 		"available": "yes",
@@ -70,7 +70,7 @@ SHARES = {
 		"path": "/var/log/opsi",
 		"follow symlinks": "yes",
 		"writeable": "no",
-		"invalid users": "root",
+		"invalid users": f"root {opsi_config.get('depot_user', 'username')}",
 	},
 }
 

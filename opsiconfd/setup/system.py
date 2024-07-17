@@ -33,6 +33,8 @@ from rich.prompt import Prompt
 from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_random_string, running_in_docker
+from opsiconfd.utils.ucs import get_root_dn
+from opsiconfd.utils.ucs import get_server_role as get_ucs_server_role
 
 
 def setup_limits() -> None:
@@ -151,8 +153,8 @@ def create_ucs_user(
 
 
 def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
-	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
-	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
+	ucs_server_role = get_ucs_server_role()
+	ucs_root_dn = get_root_dn()
 	ucs_username = None
 	ucs_password = None
 	ucs_admin_dn = None
@@ -208,7 +210,7 @@ def setup_users_and_groups(interactive: bool = False) -> None:
 	logger.debug("Is interactive? %s", interactive)
 	if is_ucs():
 		logger.info("UCS detected.")
-		if setup_ucs_users_and_groups():
+		if setup_ucs_users_and_groups(interactive):
 			return
 
 	po_setup_users_and_groups(ignore_errors=True)

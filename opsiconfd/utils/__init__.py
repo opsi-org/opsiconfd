@@ -547,3 +547,4 @@ class DataclassCapableJSONEncoder(JSONEncoder):
 		if dataclasses.is_dataclass(obj):
 			return dataclasses.asdict(obj)
 		return super().default(obj)
+

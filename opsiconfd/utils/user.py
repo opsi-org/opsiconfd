@@ -23,6 +23,7 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, is_local_user, lock_file
 from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
+from opsiconfd.utils.ucs import get_server_role
 
 OPSI_PASSWD_FILE = None
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
@@ -87,9 +88,7 @@ def user_set_credentials(username: str, password: str) -> None:
 	try:
 		cmd = ["ucr", "get", "server/role"]
 		logger.debug("Executing: %s", cmd)
-		univention_server_role = run(
-			cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5
-		).stdout.strip()
+		univention_server_role = get_server_role()
 	except FileNotFoundError:
 		logger.debug("Not running on univention")
 	else:

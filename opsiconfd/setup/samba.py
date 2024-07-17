@@ -41,6 +41,8 @@ SHARES = {
 		"follow symlinks": "yes",
 		"writeable": "yes",
 		"invalid users": "root",
+		"create mask": "0660",
+		"directory mask": "0770",
 		"acl allow execute always": "true",
 	},
 	"opsi_images": {
@@ -49,6 +51,8 @@ SHARES = {
 		"path": "/var/lib/opsi/ntfs-images",
 		"writeable": "yes",
 		"invalid users": "root",
+		"create mask": "0660",
+		"directory mask": "0770",
 	},
 	"opsi_workbench": {
 		"available": "yes",
@@ -248,10 +252,10 @@ def create_ucs_samba_share(
 		cmd.append("sambaCustomSettings=" + '"follow symlinks" yes',)
 	if create_mask:
 		cmd.append("--set")
-		cmd.append(f"create mask={create_mask}")
+		cmd.append(f"sambaCreateMode={create_mask}")
 	if directory_mask:
 		cmd.append("--set")
-		cmd.append(f"directory mask={directory_mask}")
+		cmd.append(f"sambaDirectoryMode={directory_mask}")
 	if ucs_admin_dn and ucs_password:
 		cmd.append("--binddn")
 		cmd.append(ucs_admin_dn)

@@ -18,7 +18,7 @@ from rich.prompt import Prompt
 from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.config import config, opsi_config
-from opsiconfd.logging import init_logging, logger
+from opsiconfd.logging import init_logging, logger, secret_filter
 
 
 def test_pam_auth() -> None:
@@ -29,6 +29,7 @@ def test_pam_auth() -> None:
 		pam_auth = PAMAuthentication()
 		username = (Prompt.ask("Enter username", console=console) or "").strip()
 		password = (Prompt.ask("Enter password", console=console, password=True) or "").strip()
+		secret_filter.add_secrets(password)
 		error = None
 		try:
 			pam_auth.authenticate(username, password)
@@ -117,6 +118,7 @@ def test_ldap_auth() -> None:
 
 		username = (Prompt.ask("[b]- Enter username") or "").strip()
 		password = (Prompt.ask("[b]- Enter password", password=True) or "").strip()
+		secret_filter.add_secrets(password)
 		try:
 			ldap_auth = LDAPAuthentication(
 				ldap_url=ldap_url, bind_user=bind_user, group_filter=group_filter, use_member_of_rdn=use_member_of_rdn

@@ -13,12 +13,18 @@ import os
 import re
 from functools import lru_cache
 from subprocess import CalledProcessError, run
+import subprocess
+from rich import print as rich_print
+from rich.prompt import Prompt
 
 from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
 
-from opsiconfd.config import SMB_CONF, opsi_config
+from opsiconfd.config import SMB_CONF,FQDN, opsi_config, config, str2bool
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_ucs_user_details
+from opsiconfd.utils.ucs import get_root_dn
+from opsiconfd.utils.ucs import get_server_role as get_ucs_server_role
 
 SHARES = {
 	"opsi_depot": {
@@ -107,7 +113,7 @@ def get_smbd_service_name() -> str:
 
 def reload_samba() -> None:
 	service_name = get_smbd_service_name()
-	logger.notice(f"Reloading Samba service {service_name}")
+	logger.notice("Reloading Samba service %s", service_name)
 	try:
 		run(["systemctl", "reload", service_name], shell=False, text=True, encoding="utf-8", check=True, capture_output=True)
 	except CalledProcessError as err:
@@ -115,11 +121,39 @@ def reload_samba() -> None:
 	except FileNotFoundError as err:
 		logger.warning(err)
 
+		logger.devel("Failed to reload samba service %s", service_name)
 
-def setup_samba() -> None:
+
+def setup_samba(interactive: bool = False) -> None:
 	logger.info("Setup samba")
 	if is_ucs():
-		logger.info("UCS detected, skipping samba setup")
+		logger.info("UCS detected")
+		ucs_admin_dn = None
+		ucs_password = None
+		if not interactive and not config.admin_user and get_ucs_server_role() != "domaincontroller_prim":
+			logger.info("Not running on primary domain controller, skipping samba setup")
+			return
+
+		if interactive and not config.admin_user:
+			rich_print("To configure samba we need an UCS Administrator:")
+			ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
+			ucs_password = Prompt.ask("Enter UCS admin password", password=True)
+			ucs_admin_dn = f"uid={ucs_username},cn=users,{get_root_dn()}"
+		else:
+			ucs_admin_dn = f"uid={config.admin_user},cn=users,{get_root_dn()}"
+			logger.info("Using UCS Administrator %s", ucs_admin_dn)
+			ucs_password = config.admin_password
+
+		for share_name, share_options in SHARES.items():
+			create_ucs_samba_share(
+				share_name, share_options["path"],
+				str2bool(share_options.get("writeable", False)),
+				str2bool(share_options.get("follow symlinks", False)),
+				share_options.get("create mask"),
+				share_options.get("directory mask"),
+				ucs_admin_dn,
+				ucs_password
+			)
 		return
 	if not os.path.exists(SMB_CONF):
 		return
@@ -146,3 +180,104 @@ def setup_samba() -> None:
 		logger.info("Samba config changed, reloading")
 		samba_config.update_file()
 		reload_samba()
+
+
+def create_ucs_samba_share(
+		name: str,
+		path: str,
+		writeable: bool = False,
+		follow_symlinks: bool = False,
+		create_mask: str | None = None,
+		directory_mask: str | None = None,
+		ucs_admin_dn: str | None = None,
+		ucs_password: str | None = None
+	) -> None:
+	if not is_ucs():
+		logger.debug("Not a UCS system, skipping ucs share creation")
+		return
+	logger.info("Creating UCS Samba share %s", name)
+
+	ucs_root_dn = get_root_dn()
+	user_info = get_ucs_user_details(config.run_as_user)
+	user_id = user_info.uid
+	group_id = user_info.gid
+
+	logger.debug("Creating container for samba shares")
+
+	cmd = [
+		"udm",
+		"container/cn",
+		"create",
+		"--ignore_exists",
+		"--position",
+		f"cn=shares,{ucs_root_dn}",
+		"--set",
+		f"name={FQDN}",
+	]
+
+
+	if ucs_admin_dn and ucs_password:
+		cmd.append("--binddn")
+		cmd.append(ucs_admin_dn)
+		cmd.append("--bindpwd")
+		cmd.append(ucs_password)
+	try:
+		logger.debug(subprocess.list2cmdline(cmd))
+		subprocess.check_output(cmd, timeout=10)
+	except subprocess.CalledProcessError as err:
+		logger.error("Failed to create container for samba shares")
+		logger.error(err)
+
+
+	cmd = [
+		"udm",
+		"shares/share",
+		"create",
+		"--ignore_exists",
+		'--position',
+		f"cn={FQDN},cn=shares,{ucs_root_dn}",
+		'--set',
+		f'name={name}',
+		'--set',
+		f'host={FQDN}',
+		'--set',
+		f'path={path}',
+		'--set',
+		f'owner={user_id}',
+		'--set',
+		f'group={group_id}',
+		'--set',
+		f'sambaName={name}',
+		'--set',
+		'sambaBrowseable=1',
+		'--set',
+		'sambaPublic=0',
+	]
+	if writeable:
+		cmd.append("--set")
+		cmd.append("sambaWriteable=1")
+	else:
+		cmd.append("--set")
+		cmd.append("sambaWriteable=0")
+	if follow_symlinks:
+		cmd.append("--set")
+		cmd.append("sambaCustomSettings=" + '"follow symlinks" yes',)
+	if create_mask:
+		cmd.append("--set")
+		cmd.append(f"create mask={create_mask}")
+	if directory_mask:
+		cmd.append("--set")
+		cmd.append(f"directory mask={directory_mask}")
+	if ucs_admin_dn and ucs_password:
+		cmd.append("--binddn")
+		cmd.append(ucs_admin_dn)
+		cmd.append("--bindpwd")
+		cmd.append(ucs_password)
+
+
+	try:
+		logger.devel(subprocess.list2cmdline(cmd))
+		subprocess.check_output(cmd, timeout=10)
+	except subprocess.CalledProcessError as err:
+		logger.error("Failed to create samba share %s", name)
+		logger.error(err)

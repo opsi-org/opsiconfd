@@ -122,8 +122,7 @@ def reload_samba() -> None:
 		logger.warning("%s %s %s", err, err.stdout, err.stderr)
 	except FileNotFoundError as err:
 		logger.warning(err)
-
-		logger.devel("Failed to reload samba service %s", service_name)
+		logger.warning("Failed to reload samba service %s", service_name)
 
 
 def setup_samba(interactive: bool = False) -> None:
@@ -207,14 +206,13 @@ def create_ucs_samba_share(
 		f"name={FQDN}",
 	]
 
-
+	logger.debug(subprocess.list2cmdline(cmd))
 	if ucs_admin_dn and ucs_password:
 		cmd.append("--binddn")
 		cmd.append(ucs_admin_dn)
 		cmd.append("--bindpwd")
 		cmd.append(ucs_password)
 	try:
-		logger.debug(subprocess.list2cmdline(cmd))
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
 		logger.error("Failed to create container for samba shares")
@@ -222,8 +220,13 @@ def create_ucs_samba_share(
 
 	# remove existing share
 	cmd = ["udm", "shares/share", "remove", "--filter", f"name={name}", "--ignore_not_exists"]
+	logger.debug(subprocess.list2cmdline(cmd))
+	if ucs_admin_dn and ucs_password:
+		cmd.append("--binddn")
+		cmd.append(ucs_admin_dn)
+		cmd.append("--bindpwd")
+		cmd.append(ucs_password)
 	try:
-		logger.debug(subprocess.list2cmdline(cmd))
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
 		logger.error("Failed to remove samba shares")
@@ -269,6 +272,7 @@ def create_ucs_samba_share(
 	if directory_mask:
 		cmd.append("--set")
 		cmd.append(f"sambaDirectoryMode={directory_mask}")
+	logger.debug(subprocess.list2cmdline(cmd))
 	if ucs_admin_dn and ucs_password:
 		cmd.append("--binddn")
 		cmd.append(ucs_admin_dn)
@@ -277,7 +281,6 @@ def create_ucs_samba_share(
 
 
 	try:
-		logger.devel(subprocess.list2cmdline(cmd))
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
 		logger.error("Failed to create samba share %s", name)

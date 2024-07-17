@@ -37,6 +37,8 @@ EXPECTED_CONF = f"""
    follow symlinks = yes
    writeable = yes
    invalid users = root
+   create mask = 0660
+   directory mask = 0770
    acl allow execute always = true
 
 [opsi_images]
@@ -45,6 +47,8 @@ EXPECTED_CONF = f"""
    path = /var/lib/opsi/ntfs-images
    writeable = yes
    invalid users = root
+   create mask = 0660
+   directory mask = 0770
 
 [opsi_workbench]
    available = yes

@@ -1538,6 +1538,7 @@ class Config(metaclass=Singleton):
 			self._parser.add(
 				"--admin-user",
 				env_var="OPSICONFD_SETUP_ADMIN_USER",
+				default=None,
 				help=self._help(
 					"setup",
 					"Admin user to use for setup.",
@@ -1546,6 +1547,7 @@ class Config(metaclass=Singleton):
 			self._parser.add(
 				"--admin-password",
 				env_var="OPSICONFD_SETUP_ADMIN_PASSWORD",
+				default=None,
 				help=self._help(
 					"setup",
 					"Admin password to use for setup.",

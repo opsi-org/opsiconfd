@@ -14,8 +14,6 @@ import re
 from functools import lru_cache
 from subprocess import CalledProcessError, run
 import subprocess
-from rich import print as rich_print
-from rich.prompt import Prompt
 
 from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
@@ -23,8 +21,8 @@ from opsicommon.system.info import is_ucs
 from opsiconfd.config import SMB_CONF,FQDN, opsi_config, config, str2bool
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ucs_user_details
-from opsiconfd.utils.ucs import get_root_dn
-from opsiconfd.utils.ucs import get_server_role as get_ucs_server_role
+from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
+
 
 SHARES = {
 	"opsi_depot": {
@@ -128,21 +126,7 @@ def setup_samba(interactive: bool = False) -> None:
 	logger.info("Setup samba")
 	if is_ucs():
 		logger.info("UCS detected")
-		ucs_admin_dn = None
-		ucs_password = None
-		if not interactive and not config.admin_user and get_ucs_server_role() != "domaincontroller_prim":
-			logger.info("Not running on primary domain controller, skipping samba setup")
-			return
-
-		if interactive and not config.admin_user:
-			rich_print("To configure samba we need an UCS Administrator:")
-			ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
-			ucs_password = Prompt.ask("Enter UCS admin password", password=True)
-			ucs_admin_dn = f"uid={ucs_username},cn=users,{get_root_dn()}"
-		else:
-			ucs_admin_dn = f"uid={config.admin_user},cn=users,{get_root_dn()}"
-			logger.info("Using UCS Administrator %s", ucs_admin_dn)
-			ucs_password = config.admin_password
+		ucs_admin_dn, ucs_password = get_ucs_admin_user(interactive)
 
 		for share_name, share_options in SHARES.items():
 			create_ucs_samba_share(

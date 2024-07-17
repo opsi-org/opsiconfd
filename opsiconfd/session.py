@@ -32,8 +32,8 @@ from fastapi.responses import (
 	Response,
 )
 from opsicommon.exceptions import (
-	BackendAuthenticationError,
-	BackendPermissionDeniedError,
+	OpsiServiceAuthenticationError,
+	OpsiServicePermissionError,
 )
 from opsicommon.logging import secret_filter, set_context
 from opsicommon.objects import Host, OpsiClient, User
@@ -259,17 +259,17 @@ class SessionMiddleware:
 
 			if required_access_role == ACCESS_ROLE_ADMIN:
 				if not session:
-					raise BackendPermissionDeniedError(f"No admin permissions {scope.get('method')} {scope.get('path')}")
+					raise OpsiServicePermissionError(f"No admin permissions {scope.get('method')} {scope.get('path')}")
 
 				if not session.is_admin:
-					raise BackendPermissionDeniedError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")
+					raise OpsiServicePermissionError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")
 
 				if (
 					not session.host_id
 					and path.startswith("/depot")
 					and opsi_config.get("groups", "fileadmingroup") not in session.user_groups
 				):
-					raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].username}'")
+					raise OpsiServicePermissionError(f"Not a file admin user '{scope['session'].username}'")
 
 		if started_authenticated and timing["session_handling"] > 1000:
 			logger.warning("Session handling took %0.2fms", timing["session_handling"])
@@ -277,6 +277,7 @@ class SessionMiddleware:
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
 				headers = MutableHeaders(scope=message)
+				session = scope["session"]
 				if session:
 					session.add_session_headers(headers)
 				if scope.get("response-headers"):
@@ -301,7 +302,7 @@ class SessionMiddleware:
 		headers = None
 		error = None
 
-		if isinstance(err, (BackendAuthenticationError, BackendPermissionDeniedError)):
+		if isinstance(err, (OpsiServiceAuthenticationError, OpsiServicePermissionError)):
 			log = logger.warning
 
 			if path:
@@ -317,7 +318,7 @@ class SessionMiddleware:
 			if connection.headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
 				headers = AUTH_HEADERS
 			error = "Authentication error"
-			if isinstance(err, BackendPermissionDeniedError):
+			if isinstance(err, OpsiServicePermissionError):
 				error = "Permission denied"
 
 		elif isinstance(err, ConnectionRefusedError):
@@ -482,7 +483,13 @@ class SessionManager:
 				logger.error(err, exc_info=True)
 		self._stopped.set()
 
-	async def get_session(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> OPSISession:
+	async def get_session(
+		self,
+		client_addr: str,
+		headers: Headers | None = None,
+		session_id: str | None = None,
+		create_new: bool = True,
+	) -> OPSISession:
 		if self._should_stop:
 			raise RuntimeError("Shutting down")
 
@@ -512,6 +519,8 @@ class SessionManager:
 				client_addr,
 			)
 			changed_client_addr = session.client_addr != client_addr
+			if changed_client_addr:
+				logger.debug("Client address changed from %s to %s", session.client_addr, client_addr)
 			if refresh_ok and not session.expired and not changed_client_addr:
 				await session.update_last_used()
 				logger.trace("Session refreshed")
@@ -523,12 +532,14 @@ class SessionManager:
 						del self.sessions[session_id]
 					except KeyError:
 						pass
-				session_id = None
 				session = None
+
+		if session_id and not session and not create_new:
+			raise OpsiServiceAuthenticationError("Session not found")
 
 		if not session:
 			logger.trace("Creating new session for client %s", client_addr)
-			session = OPSISession(client_addr=client_addr, headers=headers, session_id=session_id)
+			session = OPSISession(client_addr=client_addr, headers=headers)
 			await session.init()
 			assert session.client_addr == client_addr
 
@@ -1169,15 +1180,15 @@ async def authenticate_host(scope: Scope) -> None:
 			)
 			hosts = await backend.async_call("host_getObjects", **host_filter)
 		else:
-			raise BackendAuthenticationError(f"Host not found '{session.username}'")
+			raise OpsiServiceAuthenticationError(f"Host not found '{session.username}'")
 	if len(hosts) > 1:
-		raise BackendAuthenticationError(f"More than one matching host object found '{session.username}'")
+		raise OpsiServiceAuthenticationError(f"More than one matching host object found '{session.username}'")
 	host = hosts[0]
 	if auth_method:
 		session.add_auth_methods(auth_method)
 
 	if not host.opsiHostKey:
-		raise BackendAuthenticationError(f"OpsiHostKey missing for host '{host.id}'")
+		raise OpsiServiceAuthenticationError(f"OpsiHostKey missing for host '{host.id}'")
 
 	peer_cert_cn = get_peer_cert_common_name(scope)
 
@@ -1195,9 +1206,9 @@ async def authenticate_host(scope: Scope) -> None:
 	):
 		if vpn_module_available(backend):
 			if not peer_cert_cn:
-				raise BackendAuthenticationError(f"Client certificate missing for host '{host.id}'")
+				raise OpsiServiceAuthenticationError(f"Client certificate missing for host '{host.id}'")
 			if peer_cert_cn != host.id:
-				raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
+				raise OpsiServiceAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
 			session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 		else:
 			logger.error("VPN module not available, client certificate authentication disabled")
@@ -1212,7 +1223,7 @@ async def authenticate_host(scope: Scope) -> None:
 		# Update immediately
 		await backend.async_call("host_updateObjectOnAuthenticate", host=host)
 	else:
-		raise BackendAuthenticationError(f"Authentication of host '{host.id}' failed")
+		raise OpsiServiceAuthenticationError(f"Authentication of host '{host.id}' failed")
 
 	host_type = host.getType()
 	session.host_id = host.id
@@ -1251,7 +1262,7 @@ async def authenticate_user_passwd(scope: Scope) -> None:
 		session.is_admin = False
 		session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_FILE)
 	else:
-		raise BackendAuthenticationError(f"Authentication failed for user {session.username}")
+		raise OpsiServiceAuthenticationError(f"Authentication failed for user {session.username}")
 
 
 async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
@@ -1259,15 +1270,15 @@ async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
 	authm = get_auth_module()
 
 	if not authm:
-		raise BackendAuthenticationError("Authentication module unavailable")
+		raise OpsiServiceAuthenticationError("Authentication module unavailable")
 
 	peer_cert_cn = get_peer_cert_common_name(scope)
 
 	if "user" in config.client_cert_auth:
 		if not peer_cert_cn:
-			raise BackendAuthenticationError(f"Client certificate missing for user '{session.username}'")
+			raise OpsiServiceAuthenticationError(f"Client certificate missing for user '{session.username}'")
 		if peer_cert_cn != session.username:
-			raise BackendAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'")
+			raise OpsiServiceAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'")
 		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 
 	logger.debug("Trying to authenticate by user authentication module %s", authm)
@@ -1276,7 +1287,7 @@ async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
 		await run_in_threadpool(authm.authenticate, session.username, session.password or "")
 		session.add_auth_methods(AuthenticationMethod.USERNAME, authm.authentication_method)
 	except Exception as err:
-		raise BackendAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
+		raise OpsiServiceAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
 
 	return authm
 
@@ -1294,23 +1305,25 @@ async def _post_failed_authenticate(scope: Scope) -> None:
 async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
 	try:
 		await _authenticate(scope, username, password, mfa_otp)
-	except BackendAuthenticationError:
+	except OpsiServiceAuthenticationError:
 		await _post_failed_authenticate(scope)
 		await asyncio.sleep(0.2)
 		raise
 
 
-async def ensure_session(scope: Scope) -> OPSISession:
-	if scope["session"]:
+async def ensure_session(scope: Scope, session_id: str | None = None) -> OPSISession:
+	if scope["session"] and (not session_id or scope["session"].session_id == session_id):
 		return scope["session"]
 	addr = scope["client"]
-	scope["session"] = await session_manager.get_session(client_addr=addr[0], headers=scope["request_headers"])
+	scope["session"] = await session_manager.get_session(
+		client_addr=addr[0], headers=scope["request_headers"], session_id=session_id, create_new=not session_id
+	)
 	scope["session"].authenticated = False
 	return scope["session"]
 
 
-async def pre_authenticate(scope: Scope) -> None:
-	await ensure_session(scope)
+async def pre_authenticate(scope: Scope, session_id: str | None = None) -> None:
+	await ensure_session(scope, session_id=session_id)
 	try:
 		await check_min_configed_version(scope["session"].user_agent)
 		# Check if client address is blocked
@@ -1340,7 +1353,7 @@ async def post_authenticate(scope: Scope) -> None:
 	await session.store(wait=True)
 
 	if not session.username or not session.authenticated:
-		raise BackendPermissionDeniedError("Not authenticated")
+		raise OpsiServicePermissionError("Not authenticated")
 
 	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.username)
 
@@ -1358,11 +1371,11 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	logger.info("Start authentication of client %s", session.client_addr)
 
 	if not session.password:
-		raise BackendAuthenticationError("No password specified")
+		raise OpsiServiceAuthenticationError("No password specified")
 
 	if session.username == config.monitoring_user:
 		if not check_module("monitoring"):
-			raise BackendPermissionDeniedError("Monitoring module not available. Please check your opsi licenses.")
+			raise OpsiServicePermissionError("Monitoring module not available. Please check your opsi licenses.")
 		await authenticate_user_passwd(scope=scope)
 		await post_authenticate(scope)
 		return
@@ -1400,12 +1413,12 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		config.multi_factor_auth == "totp_optional" and users and users[0].mfaState == "totp_active"
 	):
 		if not users or not users[0].otpSecret:
-			raise BackendAuthenticationError("MFA OTP configuration error")
+			raise OpsiServiceAuthenticationError("MFA OTP configuration error")
 		if not mfa_otp:
-			raise BackendAuthenticationError("MFA one-time password missing")
+			raise OpsiServiceAuthenticationError("MFA one-time password missing")
 		totp = pyotp.TOTP(users[0].otpSecret)
 		if not totp.verify(mfa_otp):
-			raise BackendAuthenticationError("Incorrect one-time password")
+			raise OpsiServiceAuthenticationError("Incorrect one-time password")
 		session.add_auth_methods(AuthenticationMethod.TOTP)
 		logger.info("OTP MFA successful")
 

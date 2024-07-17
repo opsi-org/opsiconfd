@@ -52,7 +52,9 @@ def get_server_role() -> str:
 		raise err
 
 def get_ucs_admin_user(interactive: bool = False) -> Tuple[str | None, str | None]:
-
+	"""
+	Get the UCS Administrator user and password.
+	"""
 	if get_server_role() == "domaincontroller_prim":
 		return None, None
 

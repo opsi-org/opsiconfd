@@ -135,8 +135,8 @@ def setup_samba(interactive: bool = False) -> None:
 		for share_name, share_options in SHARES.items():
 			create_ucs_samba_share(
 				share_name, share_options["path"],
-				str2bool(share_options.get("writeable", False)),
-				str2bool(share_options.get("follow symlinks", False)),
+				str2bool(share_options.get("writeable", "no")),
+				str2bool(share_options.get("follow symlinks", "no")),
 				share_options.get("create mask"),
 				share_options.get("directory mask"),
 				ucs_admin_dn,
@@ -187,11 +187,15 @@ def create_ucs_samba_share(
 
 	ucs_root_dn = get_root_dn()
 	user_info = get_ucs_user_details(config.run_as_user)
+	if not user_info:
+		logger.error("Failed to get user information for %s", config.run_as_user)
+		return
 	user_id = user_info.uid
 	group_id = user_info.gid
 
 	logger.debug("Creating container for samba shares")
 
+	# create container for samba shares if it does not exist
 	cmd = [
 		"udm",
 		"container/cn",
@@ -216,7 +220,16 @@ def create_ucs_samba_share(
 		logger.error("Failed to create container for samba shares")
 		logger.error(err)
 
+	# remove existing share
+	cmd = ["udm", "shares/share", "remove", "--filter", f"name={name}", "--ignore_not_exists"]
+	try:
+		logger.debug(subprocess.list2cmdline(cmd))
+		subprocess.check_output(cmd, timeout=10)
+	except subprocess.CalledProcessError as err:
+		logger.error("Failed to remove samba shares")
+		logger.error(err)
 
+	# create samba share
 	cmd = [
 		"udm",
 		"shares/share",

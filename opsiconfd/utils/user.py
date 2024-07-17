@@ -18,6 +18,7 @@ from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import secret_filter
 from opsicommon.server.rights import set_rights
 from opsicommon.types import forceHostId
+from opsicommon.system.info import is_ucs
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
@@ -84,23 +85,17 @@ def user_set_credentials(username: str, password: str) -> None:
 	if username != get_opsi_config().get("depot_user", "username"):
 		return
 
-	univention_server_role = ""
-	try:
-		cmd = ["ucr", "get", "server/role"]
-		logger.debug("Executing: %s", cmd)
+	if is_ucs():
 		univention_server_role = get_server_role()
-	except FileNotFoundError:
-		logger.debug("Not running on univention")
-	else:
 		try:
 			logger.debug("Running on univention %s", univention_server_role)
-			if univention_server_role not in ("domaincontroller_master", "domaincontroller_backup"):
+			if univention_server_role not in ("domaincontroller_prim", "domaincontroller_backup"):
 				logger.warning("Did not change the password for %r, please change it on the master server.", username)
 				return
 
-			logger.debug("Executing: %s", cmd)
 			user_dn = ""
 			cmd = ["univention-admin", "users/user", "list", "--filter", f"(uid={username})"]
+			logger.debug("Executing: %s", cmd)
 			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5).stdout
 			logger.debug(out)
 			for line in out.strip().splitlines():

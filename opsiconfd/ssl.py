@@ -16,7 +16,10 @@ import os
 import re
 import shutil
 import socket
+import threading
 import time
+from contextlib import nullcontext
+from functools import lru_cache
 from ipaddress import ip_address
 from pathlib import Path
 from re import DOTALL, finditer
@@ -177,6 +180,7 @@ def store_cert(cert_file: str | Path, cert: x509.Certificate, keep_others: bool 
 	certs.append(cert)
 	cert_file.write_text("".join(as_pem(c) for c in certs), encoding="utf-8")
 	setup_ssl_file_permissions()
+	_clear_ca_certs_cache()
 
 
 def load_certs(cert_file: Path | str) -> list[x509.Certificate]:
@@ -225,27 +229,106 @@ def store_opsi_ca_cert(ca_cert: x509.Certificate) -> None:
 	store_cert(config.ssl_ca_cert, ca_cert, keep_others=True)
 
 
-def load_opsi_ca_cert() -> x509.Certificate:
-	return load_cert(config.ssl_ca_cert, subject_cn=config.ssl_ca_subject_cn)
-
-
-def get_opsi_ca_cert_as_pem() -> str:
-	return as_pem(load_opsi_ca_cert())
-
-
-def get_ca_certs() -> list[x509.Certificate]:
-	# TODO: Caching
-	ca_certs = load_certs(config.ssl_ca_cert)
+def _get_ca_cert_files() -> list[Path]:
+	ca_cert_files = []
+	opsi_ca_cert_file = Path(config.ssl_ca_cert)
+	if opsi_ca_cert_file.exists():
+		ca_cert_files.append(opsi_ca_cert_file)
 	ssl_ca_certs = Path(config.ssl_ca_certs)
 	if ssl_ca_certs.exists():
 		for pem_file in ssl_ca_certs.glob("*.pem"):
-			ca_certs.extend(load_certs(pem_file))
+			ca_cert_files.append(pem_file)
+	return ca_cert_files
+
+
+_check_certs_modified_lock = threading.Lock()
+_check_certs_time = 0.0
+_check_certs_interval = 5.0
+_cert_file_modification_dates: dict[Path, float] = {}
+
+
+def _clear_ca_certs_cache(lock: bool = True) -> None:
+	with _check_certs_modified_lock if lock else nullcontext():  # type: ignore[attr-defined]
+		global _cert_file_modification_dates
+		_cert_file_modification_dates = {}
+		_load_opsi_ca_cert.cache_clear()
+		_get_opsi_ca_cert_as_pem.cache_clear()
+		_get_ca_certs.cache_clear()
+		_get_ca_certs_as_pem.cache_clear()
+
+
+def _check_certs_modified() -> bool:
+	with _check_certs_modified_lock:
+		global _cert_file_modification_dates
+		global _check_certs_time
+		time_now = time.time()
+		if _cert_file_modification_dates and _check_certs_interval and time_now - _check_certs_time < _check_certs_interval:
+			return False
+
+		modified = False
+		ca_cert_files = _get_ca_cert_files()
+		if len(ca_cert_files) != len(_cert_file_modification_dates):
+			modified = True
+		else:
+			for file in ca_cert_files:
+				m_date = _cert_file_modification_dates.get(file)
+				if not m_date or file.stat().st_mtime != m_date:
+					modified = True
+					break
+
+		_check_certs_time = time_now
+		if not modified:
+			return False
+
+		_clear_ca_certs_cache(lock=False)
+
+		for file in ca_cert_files:
+			_cert_file_modification_dates[file] = file.stat().st_mtime
+
+		return True
+
+
+@lru_cache
+def _load_opsi_ca_cert() -> x509.Certificate:
+	return load_cert(config.ssl_ca_cert, subject_cn=config.ssl_ca_subject_cn)
+
+
+def load_opsi_ca_cert() -> x509.Certificate:
+	_check_certs_modified()
+	return _load_opsi_ca_cert()
+
+
+@lru_cache
+def _get_opsi_ca_cert_as_pem() -> str:
+	return as_pem(load_opsi_ca_cert())
+
+
+def get_opsi_ca_cert_as_pem() -> str:
+	_check_certs_modified()
+	return _get_opsi_ca_cert_as_pem()
+
+
+@lru_cache
+def _get_ca_certs() -> list[x509.Certificate]:
+	ca_certs = []
+	for cert_file in _get_ca_cert_files():
+		ca_certs.extend(load_certs(cert_file))
 	return ca_certs
 
 
-def get_ca_certs_as_pem() -> str:
-	# TODO: Caching
+def get_ca_certs() -> list[x509.Certificate]:
+	_check_certs_modified()
+	return _get_ca_certs()
+
+
+@lru_cache
+def _get_ca_certs_as_pem() -> str:
 	return "\n".join(as_pem(cert) for cert in get_ca_certs())
+
+
+def get_ca_certs_as_pem() -> str:
+	_check_certs_modified()
+	return _get_ca_certs_as_pem()
 
 
 def store_local_server_key(srv_key: rsa.RSAPrivateKey) -> None:

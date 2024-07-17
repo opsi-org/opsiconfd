@@ -1535,6 +1535,22 @@ class Config(metaclass=Singleton):
 			self._parser.add(
 				"--non-interactive", action="store_true", help=self._help("setup", "Run non interactive, do not ask questions.")
 			)
+			self._parser.add(
+				"--admin-user",
+				env_var="OPSICONFD_SETUP_ADMIN_USER",
+				help=self._help(
+					"setup",
+					"Admin user to use for setup.",
+				),
+			)
+			self._parser.add(
+				"--admin-password",
+				env_var="OPSICONFD_SETUP_ADMIN_PASSWORD",
+				help=self._help(
+					"setup",
+					"Admin password to use for setup.",
+				),
+			)
 			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
 			self._parser.add(

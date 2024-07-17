@@ -1,17 +1,17 @@
 version: '3.8'
 
 volumes:
-  mysql-dev_data:
+  mysql-dev_data44:
     driver: local
-  redis-dev_data:
+  redis-dev_data44:
     driver: local
-  grafana-dev_data:
+  grafana-dev_data44:
     driver: local
-  mysql-cs_data:
+  mysql-cs_data44:
     driver: local
-  redis-cs_data:
+  redis-cs_data44:
     driver: local
-  grafana-cs_data:
+  grafana-cs_data44:
     driver: local
 
 services:
@@ -25,9 +25,9 @@ services:
       - DAC_READ_SEARCH
       - SYS_PTRACE
     depends_on:
-      - mysql-dev
-      - redis-dev
-      - grafana-dev
+      - mysql-dev44
+      - redis-dev44
+      - grafana-dev44
     build:
       context: .
       args:
@@ -41,7 +41,7 @@ services:
       - .env
       - opsiserver44-dev.env
 
-  mysql-dev:
+  mysql-dev44:
     image: mariadb:10.7
     restart: ${RESTART_POLICY}
     hostname: mysql-dev
@@ -49,9 +49,9 @@ services:
     env_file:
       - .env
     volumes:
-      - mysql-dev_data:/var/lib/mysql
+      - mysql-dev_data44:/var/lib/mysql
 
-  redis-dev:
+  redis-dev44:
     image: redislabs/redistimeseries:latest
     restart: ${RESTART_POLICY}
     hostname: redis-dev
@@ -60,16 +60,16 @@ services:
     env_file:
       - .env
     volumes:
-      - redis-dev_data:/data
+      - redis-dev_data44:/data
 
-  grafana-dev:
+  grafana-dev44:
     image: grafana/grafana:latest
     restart: ${RESTART_POLICY}
     hostname: grafana-dev
     env_file:
       - .env
     volumes:
-      - grafana-dev_data:/var/lib/grafana
+      - grafana-dev_data44:/var/lib/grafana
 
   opsiserver44-cs:
     hostname: opsiserver44-cs
@@ -81,9 +81,9 @@ services:
       - DAC_READ_SEARCH
       - SYS_PTRACE
     depends_on:
-      - mysql-cs
-      - redis-cs
-      - grafana-cs
+      - mysql-cs44
+      - redis-cs44
+      - grafana-cs44
     build:
       context: .
       args:
@@ -98,7 +98,7 @@ services:
       - opsiserver44-cs.env
     command: poetry run opsiconfd
 
-  mysql-cs:
+  mysql-cs44:
     image: mariadb:10.7
     restart: ${RESTART_POLICY}
     hostname: mysql-cs
@@ -106,9 +106,9 @@ services:
     env_file:
       - .env
     volumes:
-      - mysql-cs_data:/var/lib/mysql
+      - mysql-cs_data44:/var/lib/mysql
 
-  redis-cs:
+  redis-cs44:
     image: redislabs/redistimeseries:latest
     restart: ${RESTART_POLICY}
     hostname: redis-configserver
@@ -117,13 +117,13 @@ services:
     env_file:
       - .env
     volumes:
-      - redis-cs_data:/data
+      - redis-cs_data44:/data
 
-  grafana-cs:
+  grafana-cs44:
     image: grafana/grafana:latest
     restart: ${RESTART_POLICY}
     hostname: grafana-cs
     env_file:
       - .env
     volumes:
-      - grafana-cs_data:/var/lib/grafana
+      - grafana-cs_data44:/var/lib/grafana

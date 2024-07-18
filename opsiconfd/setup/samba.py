@@ -121,8 +121,7 @@ def reload_samba() -> None:
 	except CalledProcessError as err:
 		logger.warning("%s %s %s", err, err.stdout, err.stderr)
 	except FileNotFoundError as err:
-		logger.warning(err)
-		logger.warning("Failed to reload samba service %s", service_name)
+		logger.warning("Failed to reload samba service %r: %s", service_name, err)
 
 
 def setup_samba(interactive: bool = False) -> None:

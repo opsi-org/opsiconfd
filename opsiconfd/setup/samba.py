@@ -19,7 +19,7 @@ from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
 
 from opsiconfd.config import SMB_CONF,FQDN, opsi_config, config, str2bool
-from opsiconfd.logging import logger
+from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_ucs_user_details
 from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
 
@@ -132,13 +132,14 @@ def setup_samba(interactive: bool = False) -> None:
 
 		for share_name, share_options in SHARES.items():
 			create_ucs_samba_share(
-				share_name, share_options["path"],
-				str2bool(share_options.get("writeable", "no")),
-				str2bool(share_options.get("follow symlinks", "no")),
-				share_options.get("create mask"),
-				share_options.get("directory mask"),
-				ucs_admin_dn,
-				ucs_password
+				name=share_name,
+				path=share_options["path"],
+				writable=str2bool(share_options.get("writeable", "no")),
+				follow_symlinks=str2bool(share_options.get("follow symlinks", "no")),
+				create_mask=share_options.get("create mask"),
+				directory_mask=share_options.get("directory mask"),
+				ucs_admin_dn=ucs_admin_dn,
+				ucs_password=ucs_password
 			)
 		return
 	if not os.path.exists(SMB_CONF):
@@ -169,15 +170,17 @@ def setup_samba(interactive: bool = False) -> None:
 
 
 def create_ucs_samba_share(
+		*,
 		name: str,
 		path: str,
-		writeable: bool = False,
+		writable: bool = False,
 		follow_symlinks: bool = False,
 		create_mask: str | None = None,
 		directory_mask: str | None = None,
 		ucs_admin_dn: str | None = None,
 		ucs_password: str | None = None
 	) -> None:
+	secret_filter.add_secrets(ucs_password)
 	if not is_ucs():
 		logger.debug("Not a UCS system, skipping ucs share creation")
 		return
@@ -205,12 +208,13 @@ def create_ucs_samba_share(
 		f"name={FQDN}",
 	]
 
-	logger.debug(subprocess.list2cmdline(cmd))
+
 	if ucs_admin_dn and ucs_password:
 		cmd.append("--binddn")
 		cmd.append(ucs_admin_dn)
 		cmd.append("--bindpwd")
 		cmd.append(ucs_password)
+	logger.debug(subprocess.list2cmdline(cmd))
 	try:
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
@@ -219,12 +223,12 @@ def create_ucs_samba_share(
 
 	# remove existing share
 	cmd = ["udm", "shares/share", "remove", "--filter", f"name={name}", "--ignore_not_exists"]
-	logger.debug(subprocess.list2cmdline(cmd))
 	if ucs_admin_dn and ucs_password:
 		cmd.append("--binddn")
 		cmd.append(ucs_admin_dn)
 		cmd.append("--bindpwd")
 		cmd.append(ucs_password)
+	logger.debug(subprocess.list2cmdline(cmd))
 	try:
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
@@ -256,7 +260,7 @@ def create_ucs_samba_share(
 		'--set',
 		'sambaPublic=0',
 	]
-	if writeable:
+	if writable:
 		cmd.append("--set")
 		cmd.append("sambaWriteable=1")
 	else:
@@ -271,14 +275,13 @@ def create_ucs_samba_share(
 	if directory_mask:
 		cmd.append("--set")
 		cmd.append(f"sambaDirectoryMode={directory_mask}")
-	logger.debug(subprocess.list2cmdline(cmd))
 	if ucs_admin_dn and ucs_password:
 		cmd.append("--binddn")
 		cmd.append(ucs_admin_dn)
 		cmd.append("--bindpwd")
 		cmd.append(ucs_password)
 
-
+	logger.debug(subprocess.list2cmdline(cmd))
 	try:
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:

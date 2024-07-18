@@ -17,7 +17,7 @@ from rich import print as rich_print
 from rich.prompt import Prompt
 
 from opsiconfd.config import config
-from opsiconfd.logging import logger
+from opsiconfd.logging import logger, secret_filter
 
 
 @lru_cache(maxsize=1)
@@ -31,8 +31,7 @@ def get_root_dn() -> str:
 	try:
 		return subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
 	except subprocess.CalledProcessError as err:
-		logger.error("Failed to get root dn")
-		logger.error(err)
+		logger.error("Failed to get root dn: %s", err)
 		raise err
 
 
@@ -47,8 +46,7 @@ def get_server_role() -> str:
 	try:
 		return subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
 	except subprocess.CalledProcessError as err:
-		logger.error("Failed to get server role")
-		logger.error(err)
+		logger.error("Failed to get server role: %s", err)
 		raise err
 
 def get_ucs_admin_user(interactive: bool = False) -> Tuple[str | None, str | None]:
@@ -59,13 +57,14 @@ def get_ucs_admin_user(interactive: bool = False) -> Tuple[str | None, str | Non
 		return None, None
 
 	if not interactive and not config.admin_user:
-			logger.notice("Not running on primary domain controller and no UCS Administrator given.")
-			return None, None
+		logger.notice("Not running on primary domain controller and no UCS Administrator given.")
+		return None, None
 
 	if interactive and not config.admin_user:
 		rich_print("To configure samba we need an UCS Administrator:")
 		ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
 		ucs_password = Prompt.ask("Enter UCS admin password", password=True)
+		secret_filter.add_secrets(ucs_password)
 		ucs_admin_dn = f"uid={ucs_username},cn=users,{get_root_dn()}"
 		config.admin_user = ucs_username
 		config.admin_password = ucs_password

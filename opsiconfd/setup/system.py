@@ -30,7 +30,7 @@ from opsicommon.system.info import is_ucs
 from rich import print as rich_print
 
 from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
-from opsiconfd.logging import logger
+from opsiconfd.logging import logger,secret_filter
 from opsiconfd.utils import get_random_string, running_in_docker
 from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
 
@@ -158,6 +158,7 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	opsiconfd_user = config.run_as_user
 
 	ucs_admin_dn, ucs_password = get_ucs_admin_user(interactive)
+	secret_filter.add_secrets(ucs_password)
 
 	if not ucs_admin_dn and get_server_role() != "domaincontroller_prim":
 		try:

@@ -180,7 +180,8 @@ def create_ucs_samba_share(
 		ucs_admin_dn: str | None = None,
 		ucs_password: str | None = None
 	) -> None:
-	secret_filter.add_secrets(ucs_password)
+	if ucs_password:
+		secret_filter.add_secrets(ucs_password)
 	if not is_ucs():
 		logger.debug("Not a UCS system, skipping ucs share creation")
 		return

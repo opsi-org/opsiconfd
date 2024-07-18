@@ -158,7 +158,8 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	opsiconfd_user = config.run_as_user
 
 	ucs_admin_dn, ucs_password = get_ucs_admin_user(interactive)
-	secret_filter.add_secrets(ucs_password)
+	if ucs_password:
+		secret_filter.add_secrets(ucs_password)
 
 	if not ucs_admin_dn and get_server_role() != "domaincontroller_prim":
 		try:

@@ -33,4 +33,6 @@ def test_ucs_create_users_and_groups_prim(fp: FakeProcess) -> None:
 
 	with patch("opsiconfd.setup.system.is_ucs") as mock_is_ucs:
 		mock_is_ucs.return_value = True
-		assert setup_ucs_users_and_groups() is True
+		with patch("opsiconfd.setup.system.grp.getgrnam") as getgrnam:
+			getgrnam.return_value = "nothing to do"
+			assert setup_ucs_users_and_groups() is True

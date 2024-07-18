@@ -14,6 +14,7 @@ import re
 from functools import lru_cache
 from subprocess import CalledProcessError, run
 import subprocess
+from pathlib import Path
 
 from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
@@ -70,7 +71,7 @@ SHARES = {
 		"path": "/var/lib/opsi/repository",
 		"follow symlinks": "yes",
 		"writeable": "no",
-				"invalid users": f"root {opsi_config.get('depot_user', 'username')}",
+		"invalid users": f"root {opsi_config.get('depot_user', 'username')}",
 	},
 	"opsi_logs": {
 		"available": "yes",
@@ -130,17 +131,24 @@ def setup_samba(interactive: bool = False) -> None:
 		logger.info("UCS detected")
 		ucs_admin_dn, ucs_password = get_ucs_admin_user(interactive)
 
+		samba_reload_needed = False
 		for share_name, share_options in SHARES.items():
-			create_ucs_samba_share(
+			changed = setup_ucs_samba_share(
 				name=share_name,
 				path=share_options["path"],
 				writable=str2bool(share_options.get("writeable", "no")),
+				invalid_users=share_options.get("invalid users"),
 				follow_symlinks=str2bool(share_options.get("follow symlinks", "no")),
 				create_mask=share_options.get("create mask"),
 				directory_mask=share_options.get("directory mask"),
 				ucs_admin_dn=ucs_admin_dn,
 				ucs_password=ucs_password
 			)
+			if changed:
+				samba_reload_needed = True
+		if samba_reload_needed:
+			logger.info("Samba config changed, reloading")
+			reload_samba()
 		return
 	if not os.path.exists(SMB_CONF):
 		return
@@ -169,22 +177,41 @@ def setup_samba(interactive: bool = False) -> None:
 		reload_samba()
 
 
-def create_ucs_samba_share(
+def setup_ucs_samba_share(
 		*,
 		name: str,
 		path: str,
 		writable: bool = False,
+		invalid_users: str | None = None,
 		follow_symlinks: bool = False,
 		create_mask: str | None = None,
 		directory_mask: str | None = None,
 		ucs_admin_dn: str | None = None,
 		ucs_password: str | None = None
-	) -> None:
+	) -> bool:
 	if ucs_password:
 		secret_filter.add_secrets(ucs_password)
 	if not is_ucs():
 		logger.debug("Not a UCS system, skipping ucs share creation")
 		return
+
+	changed = False
+	share_config_path = Path("/etc/samba/shares.conf.d", name)
+	if share_config_path.exists():
+		for option, value  in SHARES.get(name, {}).items():
+			if option in ("available", "acl allow execute always", "comment"):
+				logger.debug("Skipping option %s. This option is not set in ucs samba.", option)
+				continue
+			option = option.replace("mask", "mode")
+			share_config = ConfigUpdater(delimiters=("=",))
+			share_config.read(share_config_path)
+			if not share_config.has_option(name, option) or share_config.get(name, option).value != value:
+				changed = True
+
+	if not changed:
+		logger.info("No changes for UCS samba share %s", name)
+		return False
+
 	logger.info("Creating UCS Samba share %s", name)
 
 	ucs_root_dn = get_root_dn()
@@ -256,6 +283,8 @@ def create_ucs_samba_share(
 		'--set',
 		f'sambaName={name}',
 		'--set',
+		f'sambaInvalidUsers={invalid_users or ""}',
+		'--set',
 		'sambaBrowseable=1',
 		'--set',
 		'sambaPublic=0',
@@ -286,3 +315,5 @@ def create_ucs_samba_share(
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
 		logger.error("Failed to create samba share %r: %s", name, err)
+
+	return True

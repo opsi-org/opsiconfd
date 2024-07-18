@@ -193,7 +193,7 @@ def setup_ucs_samba_share(
 		secret_filter.add_secrets(ucs_password)
 	if not is_ucs():
 		logger.debug("Not a UCS system, skipping ucs share creation")
-		return
+		return False
 
 	changed = False
 	share_config_path = Path("/etc/samba/shares.conf.d", name)
@@ -218,7 +218,7 @@ def setup_ucs_samba_share(
 	user_info = get_ucs_user_details(config.run_as_user)
 	if not user_info:
 		logger.error("Failed to get user information for %s", config.run_as_user)
-		return
+		return False
 	user_id = user_info.uid
 	group_id = user_info.gid
 

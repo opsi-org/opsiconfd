@@ -219,8 +219,8 @@ def create_ucs_samba_share(
 	try:
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
-		logger.error("Failed to create container for samba shares")
-		logger.error(err)
+		logger.error("Failed to create container for samba shares: %s", err)
+
 
 	# remove existing share
 	cmd = ["udm", "shares/share", "remove", "--filter", f"name={name}", "--ignore_not_exists"]
@@ -233,8 +233,7 @@ def create_ucs_samba_share(
 	try:
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
-		logger.error("Failed to remove samba shares")
-		logger.error(err)
+		logger.error("Failed to remove samba share %r: %s", name, err)
 
 	# create samba share
 	cmd = [
@@ -286,5 +285,4 @@ def create_ucs_samba_share(
 	try:
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
-		logger.error("Failed to create samba share %s", name)
-		logger.error(err)
+		logger.error("Failed to create samba share %r: %s", name, err)

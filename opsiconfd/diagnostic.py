@@ -11,6 +11,7 @@ diagnostic
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -222,6 +223,48 @@ def get_system_info() -> dict:
 	return result
 
 
+def get_network_info() -> dict:
+	logger.debug("get_network_info")
+	result: dict = {}
+	try:
+		# https://psutil.readthedocs.io/en/latest/#psutil.net_if_addrs
+		for interface, addresses in psutil.net_if_addrs().items():
+			result[interface] = []
+			for address in addresses:
+				result[interface].append(
+					{
+						"family": address.family.name,
+						"address": address.address,
+						"netmask": address.netmask,
+						"broadcast": address.broadcast,
+						"point to point": address.ptp,
+					}
+				)
+		for interface, stats in psutil.net_if_stats().items():
+			result[interface].append(
+				{
+					"is up": stats.isup,
+					"duplex": stats.duplex,
+					"speed": stats.speed,
+					"mtu": stats.mtu,
+					"flags": stats.flags,
+				}
+			)
+
+	except Exception as err:
+		logger.error("get_network_info failed: %s", err)
+
+	return result
+
+
+def get_proxy_vars() -> dict[str, str]:
+	logger.debug("get_proxy_vars")
+	proxy_vars = {}
+	for var in ["http_proxy", "https_proxy", "no_proxy"]:
+		proxy_vars[var] = os.environ.get(var, "")
+	return proxy_vars
+
+
 async def get_diagnostic_data() -> dict[str, Any]:
 	def _get_sync_data() -> dict[str, Any]:
 		return {
@@ -231,6 +274,8 @@ async def get_diagnostic_data() -> dict[str, Any]:
 			"disks": get_disk_info(),
 			"os_release": get_os_release(),
 			"lsb_release": get_lsb_release(),
+			"network": get_network_info(),
+			"proxy_vars": get_proxy_vars(),
 			"config": get_config(),
 			"depots": get_depot_info(),
 			"clients": get_client_info(),

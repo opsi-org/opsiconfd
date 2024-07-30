@@ -19,6 +19,7 @@ from rich.markdown import Markdown
 from rich.padding import Padding
 
 from opsiconfd.check.backend import check_depotservers
+from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.jsonrpc import check_deprecated_calls
@@ -54,6 +55,7 @@ __all__ = [
 	"check_deprecated_calls",
 	"check_product_on_clients",
 	"check_product_on_depots",
+	"check_opsi_failed_addons",
 	"check_unique_hardware_addresses",
 	"console_health_check",
 ]

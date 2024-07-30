@@ -61,7 +61,7 @@ def check_ssl() -> CheckResult:
 				partial_result.message = "The opsi CA certificate is expired."
 			else:
 				partial_result.message = f"The opsi CA certificate is OK and will expire in {not_after_days} days."
-				if not_after_days <= config.ssl_ca_cert_renew_days:
+				if not_after_days <= config.ssl_ca_cert_renew_days - 1:
 					partial_result.message = f"The opsi CA certificate is OK but will expire in {not_after_days} days."
 					partial_result.check_status = CheckStatus.WARNING
 				else:

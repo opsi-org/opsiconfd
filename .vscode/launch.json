@@ -91,6 +91,18 @@
 			"sudo": true,
 		},
 		{
+			"name": "health-check docs",
+			"type": "python",
+			"request": "launch",
+			"module": "opsiconfd",
+			"args": [
+				"health-check",
+				"--documentation",
+				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
+			],
+			"sudo": true,
+		},
+		{
 			"name": "Debug Unit Test",
 			"type": "python",
 			"request": "launch",

@@ -51,6 +51,7 @@ from opsiconfd.redis import (
 	decode_redis_result,
 	ip_address_from_redis_key,
 	ip_address_to_redis_key,
+	redis_client
 )
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
@@ -293,16 +294,16 @@ async def get_addon_list() -> RESTResponse:
 @admin_interface_router.get("/addons/failed")
 @rest_api
 async def get_failed_addons() -> RESTResponse:
-	return RESTResponse(await _get_failed_addons())
+	return RESTResponse(_get_failed_addons())
 
 
-async def _get_failed_addons() -> list:
-	redis = await async_redis_client()
-	failed_addons = decode_redis_result(await redis.lrange(f"{config.redis_key('state')}:application:addons:errors", 0, -1))
+def _get_failed_addons() -> list:
+	redis = redis_client()
+	failed_addons = decode_redis_result(redis.lrange(f"{config.redis_key('state')}:application:addons:errors", 0, -1))
 	errors = []
 	for failed_addon in failed_addons:
 		error = {"name": failed_addon}
-		error.update(decode_redis_result(await redis.hgetall(f"{config.redis_key('state')}:application:addons:errors:{failed_addon}")))
+		error.update(decode_redis_result(redis.hgetall(f"{config.redis_key('state')}:application:addons:errors:{failed_addon}")))
 		errors.append(error)
 	return errors
 

@@ -66,3 +66,8 @@ async def status_overview() -> PlainTextResponse:
 		f"ssl-cert-valid-days: {get_server_cert_info()['expires_in_days']}\n"
 	)
 	return PlainTextResponse(data)
+
+
+@status_router.get("/short")
+def status_short() -> PlainTextResponse:
+	return PlainTextResponse("status: ok\n")

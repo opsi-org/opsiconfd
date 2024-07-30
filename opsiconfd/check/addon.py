@@ -29,11 +29,8 @@ def check_opsi_failed_addons() -> CheckResult:
 		check_status=CheckStatus.OK,
 		details={},
 	)
-	try:
-		loop = asyncio.get_event_loop()
-		failed_addons = loop.run_until_complete(_get_failed_addons())
-	except RuntimeError:  # No event loop running
-		failed_addons = asyncio.run(_get_failed_addons())
+
+	failed_addons = _get_failed_addons()
 	if failed_addons:
 		result.check_status = CheckStatus.ERROR
 		result.message = "Errors occurred while loading opsiconfd addons: "

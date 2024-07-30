@@ -121,6 +121,7 @@ class RESTResponse(Response):
 		try:
 			return JSONResponse(content=self.content, status_code=self.status, headers=dict(self._headers))
 		except TypeError as error:
+			logger.debug("Could not convert content to json. Using msgspec to encode and decode.")
 			logger.error(error)
 			return JSONResponse(
 				content=msgspec.json.decode(msgspec.json.encode(self.content)), status_code=self.status, headers=dict(self._headers)

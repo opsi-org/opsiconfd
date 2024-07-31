@@ -232,12 +232,13 @@ def get_network_info() -> dict:
 			result[interface] = []
 			for address in addresses:
 				result[interface].append(
-					{
+					{ f"{address.family.name}": {
 						"family": address.family.name,
 						"address": address.address,
 						"netmask": address.netmask,
 						"broadcast": address.broadcast,
 						"point to point": address.ptp,
+						}
 					}
 				)
 		for interface, stats in psutil.net_if_stats().items():

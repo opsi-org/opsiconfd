@@ -1270,6 +1270,13 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Restart worker if allocated process memory (rss) exceeds this value (in MB)."),
 		)
 		self._parser.add(
+			"--max-backup-age",
+			env_var="OPSICONFD_MAX_BACKUP_AGE",
+			type=int,
+			default=24,
+			help=self._help("opsiconfd", "he maximum age of the last successful backup in hours."),
+		)
+		self._parser.add(
 			"--welcome-page",
 			env_var="OPSICONFD_WELCOME_PAGE",
 			type=str2bool,

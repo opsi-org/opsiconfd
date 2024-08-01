@@ -552,7 +552,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 19
+	assert len(results) == 20
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status
@@ -746,7 +746,7 @@ def test_checks_and_skip_checks() -> None:
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		list_of_checks = list(health_check())
-		assert len(list_of_checks) == 16
+		assert len(list_of_checks) == 17
 
 
 def test_check_opsi_users() -> None:

@@ -42,7 +42,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_lock, restore
+from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_lock, restore, redis_client
 from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
@@ -224,6 +224,8 @@ def create_backup(
 					progress.update(redis_task, total=1, completed=True)
 
 		if not backup_file:
+			redis = redis_client()
+			redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60, value=now.timestamp())
 			return data
 
 		if not isinstance(backup_file, Path):
@@ -258,6 +260,10 @@ def create_backup(
 
 		if progress:
 			progress.update(file_task, total=1, completed=True)
+
+		redis = redis_client()
+		redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60 * 60, value=now.timestamp())
+
 
 		return data
 

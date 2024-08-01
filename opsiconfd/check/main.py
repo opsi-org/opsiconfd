@@ -25,6 +25,7 @@ from opsiconfd.check.redis import check_redis
 from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
 from opsiconfd.check.users import check_opsi_users
+from opsiconfd.check.backup import check_opsi_backup
 from opsiconfd.config import config, get_server_role
 
 __all__ = [
@@ -46,6 +47,7 @@ __all__ = [
 	"check_product_on_depots",
 	"check_opsi_users",
 	"check_opsi_failed_addons",
+	"check_opsi_backup",
 	"check_unique_hardware_addresses",
 	"CHECKS",
 ]

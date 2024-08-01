@@ -28,11 +28,11 @@ from opsicommon.server.setup import (
 from opsicommon.server.setup import setup_users_and_groups as po_setup_users_and_groups
 from opsicommon.system.info import is_ucs
 from rich import print as rich_print
-from rich.prompt import Prompt
 
 from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
-from opsiconfd.logging import logger
+from opsiconfd.logging import logger,secret_filter
 from opsiconfd.utils import get_random_string, running_in_docker
+from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
 
 
 def setup_limits() -> None:
@@ -151,17 +151,17 @@ def create_ucs_user(
 
 
 def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
-	ucs_server_role = subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
-	ucs_root_dn = subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
-	ucs_username = None
-	ucs_password = None
-	ucs_admin_dn = None
+	ucs_root_dn = get_root_dn()
 	admingroup = opsi_config.get("groups", "admingroup")
 	fileadmingroup = opsi_config.get("groups", "fileadmingroup")
 	depot_user = opsi_config.get("depot_user", "username")
 	opsiconfd_user = config.run_as_user
 
-	if not interactive and ucs_server_role != "domaincontroller_prim":
+	ucs_admin_dn, ucs_password = get_ucs_admin_user(interactive)
+	if ucs_password:
+		secret_filter.add_secrets(ucs_password)
+
+	if not ucs_admin_dn and get_server_role() != "domaincontroller_prim":
 		try:
 			grp.getgrnam(admingroup)
 			grp.getgrnam(fileadmingroup)
@@ -175,11 +175,6 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 			logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
 			return False
 
-	if ucs_server_role != "domaincontroller_prim":
-		rich_print("To create users and groups we need an UCS Administrator:")
-		ucs_username = Prompt.ask("Enter UCS admin username", default="Administrator", show_default=True)
-		ucs_password = Prompt.ask("Enter UCS admin password", password=True)
-		ucs_admin_dn = f"uid={ucs_username},cn=users,{ucs_root_dn}"
 
 	try:
 		grp.getgrnam(admingroup)
@@ -208,7 +203,7 @@ def setup_users_and_groups(interactive: bool = False) -> None:
 	logger.debug("Is interactive? %s", interactive)
 	if is_ucs():
 		logger.info("UCS detected.")
-		if setup_ucs_users_and_groups():
+		if setup_ucs_users_and_groups(interactive):
 			return
 
 	po_setup_users_and_groups(ignore_errors=True)

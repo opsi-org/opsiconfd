@@ -319,7 +319,7 @@ def setup(explicit: bool = True) -> None:
 
 	if "samba" not in config.skip_setup:
 		try:
-			setup_samba()
+			setup_samba(interactive)
 		except Exception as err:
 			logger.error("Failed to setup samba: %s", err, exc_info=True)
 

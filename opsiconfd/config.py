@@ -1270,6 +1270,13 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Restart worker if allocated process memory (rss) exceeds this value (in MB)."),
 		)
 		self._parser.add(
+			"--max-backup-age",
+			env_var="OPSICONFD_MAX_BACKUP_AGE",
+			type=int,
+			default=24,
+			help=self._help("opsiconfd", "he maximum age of the last successful backup in hours."),
+		)
+		self._parser.add(
 			"--welcome-page",
 			env_var="OPSICONFD_WELCOME_PAGE",
 			type=str2bool,
@@ -1479,6 +1486,25 @@ class Config(metaclass=Singleton):
 				"If enabled, opsiconfd will send security headers in http responses.",
 			),
 		)
+		self._parser.add(
+			"--admin-user",
+			env_var="OPSICONFD_SETUP_ADMIN_USER",
+			default=None,
+			help=self._help(
+				"setup",
+				"Admin user to use for setup.",
+			),
+		)
+		self._parser.add(
+			"--admin-password",
+			env_var="OPSICONFD_SETUP_ADMIN_PASSWORD",
+			default=None,
+			help=self._help(
+				"setup",
+				"Admin password to use for setup.",
+			),
+		)
+
 
 		if self._pytest:
 			self._parser.add("args", nargs="*")
@@ -1531,10 +1557,12 @@ class Config(metaclass=Singleton):
 			)
 			return
 
+
 		if self._sub_command == "setup":
 			self._parser.add(
 				"--non-interactive", action="store_true", help=self._help("setup", "Run non interactive, do not ask questions.")
 			)
+
 			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
 			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
 			self._parser.add(

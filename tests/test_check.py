@@ -51,6 +51,7 @@ from opsiconfd.check.main import (
 	check_run_as_user,
 	check_ssl,
 	check_system_packages,
+	check_opsi_backup,
 	health_check,
 )
 from opsiconfd.check.mysql import check_unique_hardware_addresses
@@ -552,7 +553,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 def test_health_check() -> None:
 	sync_clean_redis()
 	results = list(health_check())
-	assert len(results) == 19
+	assert len(results) == 20
 	for result in results:
 		print(result.check_id, result.check_status)
 		assert result.check_status
@@ -746,7 +747,7 @@ def test_checks_and_skip_checks() -> None:
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		list_of_checks = list(health_check())
-		assert len(list_of_checks) == 16
+		assert len(list_of_checks) == 17
 
 
 def test_check_opsi_users() -> None:
@@ -1259,3 +1260,25 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	enabled_hosts = get_enabled_hosts()
 	assert hosts == enabled_hosts
+
+
+def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	sync_clean_redis()
+	# backup check should fail. No backup was created.
+
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.ERROR
+
+	# create a backup
+	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	# backup check should pass. A backup was created.
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.OK
+
+	redis = redis_client()
+	# remove backup key so check should to fail again
+	redis.delete(config.redis_key("stats") + ":backup")
+

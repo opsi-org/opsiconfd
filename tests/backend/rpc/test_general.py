@@ -158,39 +158,32 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 		patch("opsiconfd.utils.user.run", run),
 		patch("opsiconfd.utils.user.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
-		proc.test_output["ucr get server/role"] = FileNotFoundError()
 		backend.user_setCredentials("pcpatch", "password")
 		enc_password = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password")
 		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\n"
 		cmds = list(proc.test_input)
-		assert cmds == ["ucr get server/role", "smbldap-passwd pcpatch"]
+		assert cmds == ["smbldap-passwd pcpatch"]
 
 		proc.test_input = {}
-		proc.test_output["ucr get server/role"] = FileNotFoundError()
 		proc.test_output["smbldap-passwd pcpatch"] = FileNotFoundError()
 		backend.user_setCredentials("pcpatch", "password")
 		enc_password = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password")
 		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\n"
 		cmds = list(proc.test_input)
-		assert cmds == ["ucr get server/role", "smbldap-passwd pcpatch", "chpasswd", "smbpasswd -a -s pcpatch"]
+		assert cmds == ["smbldap-passwd pcpatch", "chpasswd", "smbpasswd -a -s pcpatch"]
 
 		proc.test_input = {}
-		proc.test_output["ucr get server/role"] = "some_ucs_role"
-		backend.user_setCredentials("pcpatch", "password")
-		cmds = list(proc.test_input)
-		assert cmds == ["ucr get server/role"]
+		with patch("opsiconfd.utils.user.is_ucs", lambda: True):
+			with patch("opsiconfd.utils.user.get_server_role", lambda: "domaincontroller_prim"):
 
-		proc.test_input = {}
-		proc.test_output["ucr get server/role"] = "domaincontroller_master"
-		proc.test_output["univention-admin users/user list --filter (uid=pcpatch)"] = "DN: cn=pcpatch,dc=x,dc=y"
-		backend.user_setCredentials("pcpatch", "password")
-		cmds = list(proc.test_input)
-		assert cmds == [
-			"ucr get server/role",
-			"univention-admin users/user list --filter (uid=pcpatch)",
-			"univention-admin users/user modify --dn cn=pcpatch,dc=x,dc=y"
-			" --set password=password --set overridePWLength=1 --set overridePWHistory=1",
-		]
+				proc.test_output["univention-admin users/user list --filter (uid=pcpatch)"] = "DN: cn=pcpatch,dc=x,dc=y"
+				backend.user_setCredentials("pcpatch", "password")
+				cmds = list(proc.test_input)
+				assert cmds == [
+					"univention-admin users/user list --filter (uid=pcpatch)",
+					"univention-admin users/user modify --dn cn=pcpatch,dc=x,dc=y"
+					" --set password=password --set overridePWLength=1 --set overridePWHistory=1",
+				]
 
 		proc.test_input = {}
 		backend.user_setCredentials("pcpatch2", "password2")

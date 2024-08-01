@@ -28,6 +28,7 @@ CHECKS = [
 	"opsi_users",
 	"system_repos",
 	"opsi_failed_addons",
+	"opsi_backup",
 	"unique_hardware_addresses",
 ]
 

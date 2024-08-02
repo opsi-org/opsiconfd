@@ -33,6 +33,7 @@ from rich.console import Console
 
 from opsiconfd.addon.manager import AddonManager
 from opsiconfd.check.addon import check_opsi_failed_addons
+from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.cli import console_health_check, process_check_result
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.main import (
@@ -41,6 +42,7 @@ from opsiconfd.check.main import (
 	check_disk_usage,
 	check_ldap_connection,
 	check_mysql,
+	check_opsi_backup,
 	check_opsi_config,
 	check_opsi_licenses,
 	check_opsi_users,
@@ -51,7 +53,6 @@ from opsiconfd.check.main import (
 	check_run_as_user,
 	check_ssl,
 	check_system_packages,
-	check_opsi_backup,
 	health_check,
 )
 from opsiconfd.check.mysql import check_unique_hardware_addresses
@@ -88,6 +89,11 @@ from .utils import (
 )
 
 DEPRECATED_METHOD = "getClientIds_list"
+
+
+@pytest.fixture(autouse=True)
+def cache_clear() -> None:
+	check_cache_clear("all")
 
 
 def captured_function_output(func: Callable, **kwargs: Any) -> str:
@@ -145,6 +151,7 @@ def test_check_run_as_user() -> None:
 			pprint.pprint(result)
 			assert result.check_status == CheckStatus.OK
 
+		check_cache_clear("all")
 		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
 			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
@@ -152,7 +159,7 @@ def test_check_run_as_user() -> None:
 			result = check_run_as_user()
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
-
+	check_cache_clear("all")
 	with (
 		mock.patch("opsiconfd.check.config.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))),
 		mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
@@ -232,7 +239,7 @@ def test_check_redis() -> None:
 	assert result.check_status == "ok"
 
 
-def test_check_redis_error() -> None:
+def test_check_redis_connection_error() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 
 	with mock.patch("opsiconfd.redis.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
@@ -243,11 +250,18 @@ def test_check_redis_error() -> None:
 		assert result.check_status == "error"
 		assert result.message == "Cannot connect to Redis: Redis test error"
 
+
+def test_check_redis_memory_warning() -> None:
+	console = Console(log_time=False, force_terminal=False, width=1000)
+
 	with mock.patch("opsiconfd.check.redis.MEMORY_USAGE_WARN", 1):
 		result = check_redis()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 		assert "WARNING - Redis memory usage is high" in captured_output
 
+
+def test_check_redis_memory_error() -> None:
+	console = Console(log_time=False, force_terminal=False, width=1000)
 	with mock.patch("opsiconfd.check.redis.MEMORY_USAGE_ERR", 1):
 		result = check_redis()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
@@ -278,6 +292,7 @@ def test_check_mysql_error() -> None:
 		assert result.check_status == "error"
 		assert result.message == '2005 - "Unknown MySQL server host bla (-3)"'
 
+	check_cache_clear("all")
 	with mock.patch("opsiconfd.check.mysql.MAX_ALLOWED_PACKET", 1_000_000_000):
 		result = check_mysql()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
@@ -305,6 +320,7 @@ def test_check_unique_hardware_addresses(test_client: OpsiconfdTestClient) -> No
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
+	check_cache_clear("all")
 	result = check_unique_hardware_addresses()
 	assert result.check_status == CheckStatus.OK
 
@@ -370,6 +386,7 @@ def test_check_system_packages_debian() -> None:
 	]
 	Proc.stdout = "\n".join(dpkg_lines) + "\n"
 
+	check_cache_clear("all")
 	with (
 		mock.patch("opsiconfd.check.system.get_repo_versions", mock.PropertyMock(return_value=repo_versions)),
 		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
@@ -575,6 +592,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 
 	assert res.status_code == 200
 
+	check_cache_clear("all")
 	result = check_deprecated_calls()
 
 	# print(result)
@@ -602,6 +620,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 	assert len(methods) == 1
 	redis.expire(f"{redis_prefix_stats}:rpcs:deprecated:{DEPRECATED_METHOD}:count", 1)
 	time.sleep(5)
+	check_cache_clear("all")
 	result = check_deprecated_calls()
 	assert result.check_status == CheckStatus.OK
 	assert len(result.partial_results) == 0
@@ -633,6 +652,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
+	check_cache_clear("all")
 	result = check_opsi_config()
 	assert result.check_status == CheckStatus.WARNING
 	assert result.message == "1 issues found in the opsi configuration."
@@ -644,6 +664,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
+	check_cache_clear("all")
 	result = check_opsi_config()
 	assert result.check_status == CheckStatus.ERROR
 	assert result.message == "1 issues found in the opsi configuration."
@@ -657,10 +678,12 @@ def test_check_ldap_connection() -> None:
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "LDAP authentication is not configured."
 	with get_opsi_config([{"category": "ldap_auth", "config": "ldap_url", "value": "ldaps://no-server"}]):
+		check_cache_clear("all")
 		result = check_ldap_connection()
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "Could not connect to LDAP Server."
 
+	check_cache_clear("all")
 	result = check_ldap_connection()
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "LDAP authentication is not configured."
@@ -699,6 +722,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		store_local_server_cert(srv_crt)
 		store_local_server_key(srv_key)
 
+		check_cache_clear("all")
 		result = check_ssl()
 		assert result.check_status == CheckStatus.OK
 		assert result.message == "No SSL issues found."
@@ -722,6 +746,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 				"emailAddress": "opsi@new.domain",
 			},
 		):
+			check_cache_clear("all")
 			result = check_ssl()
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].message.startswith("The subject of the CA has changed from")
@@ -729,6 +754,8 @@ def test_check_ssl(tmpdir: Path) -> None:
 		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_renew_days - 10)
 		store_opsi_ca_key(ca_key)
 		store_opsi_ca_cert(ca_crt)
+
+		check_cache_clear("all")
 		result = check_ssl()
 
 		assert result.check_status == CheckStatus.ERROR
@@ -774,6 +801,7 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
 	):
+		check_cache_clear("all")
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.WARNING
 
@@ -799,6 +827,7 @@ def test_check_opsi_users() -> None:
 			"opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SYSTEMD, NameService.WINBIND])
 		),
 	):
+		check_cache_clear("all")
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.OK
 
@@ -831,6 +860,7 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD, NameService.LDAP])),
 	):
+		check_cache_clear("all")
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.ERROR
 
@@ -854,6 +884,7 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD])),
 	):
+		check_cache_clear("all")
 		result = check_opsi_users()
 		assert result.check_status == CheckStatus.OK
 
@@ -907,6 +938,7 @@ def test_check_system_repos() -> None:
 					"Pinned packages:\n"
 				)
 			)
+			check_cache_clear("all")
 			result = check_system_repos()
 			assert result.check_status == CheckStatus.OK
 			assert result.message == "No issues found with the system repositories."
@@ -928,6 +960,7 @@ def test_check_system_repos() -> None:
 						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_8)\n"
 					)
 				)
+				check_cache_clear("all")
 				result = check_system_repos()
 				assert result.check_status == CheckStatus.ERROR
 				assert (
@@ -947,6 +980,7 @@ def test_check_system_repos() -> None:
 						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_9)\n"
 					)
 				)
+				check_cache_clear("all")
 				result = check_system_repos()
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
@@ -972,6 +1006,7 @@ def test_check_system_repos() -> None:
 						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
 					)
 				)
+				check_cache_clear("all")
 				result = check_system_repos()
 				assert result.check_status == CheckStatus.ERROR
 				assert (
@@ -995,6 +1030,7 @@ def test_check_system_repos() -> None:
 						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
 					)
 				)
+				check_cache_clear("all")
 				result = check_system_repos()
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
@@ -1006,6 +1042,7 @@ def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction)
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
 
+	check_cache_clear("all")
 	result = check_opsi_failed_addons()
 	assert result.check_status == CheckStatus.ERROR
 
@@ -1014,6 +1051,7 @@ def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction)
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
 
+	check_cache_clear("all")
 	result = check_opsi_failed_addons()
 	assert result.check_status == CheckStatus.OK
 
@@ -1034,6 +1072,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
+	check_cache_clear("all")
 	result = check_opsi_config()
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("1")
@@ -1044,6 +1083,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
+	check_cache_clear("all")
 	result = check_opsi_config()
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("2")
@@ -1237,10 +1277,10 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert res.status_code == 200
 
 	# backup check should pass. A backup was created.
+	check_cache_clear("all")
 	result = check_opsi_backup()
 	assert result.check_status == CheckStatus.OK
 
 	redis = redis_client()
 	# remove backup key so check should to fail again
 	redis.delete(config.redis_key("stats") + ":backup")
-

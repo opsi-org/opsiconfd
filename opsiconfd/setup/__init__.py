@@ -25,6 +25,7 @@ from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
 from opsiconfd.backend import new_service_client
+from opsiconfd.check.cache import check_cache
 from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
 from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.grafana import setup_grafana
@@ -178,6 +179,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
 
 
+@check_cache(clear_cache="all")
 def setup(explicit: bool = True) -> None:
 	"""
 	explicit: called as "opsiconfd setup"?

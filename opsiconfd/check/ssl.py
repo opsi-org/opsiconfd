@@ -15,6 +15,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import config, get_server_role
 from opsiconfd.ssl import (
@@ -32,6 +33,7 @@ from opsiconfd.ssl import (
 )
 
 
+@check_cache
 def check_ssl() -> CheckResult:
 	"""
 	## SSL

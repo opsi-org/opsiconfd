@@ -22,6 +22,7 @@ from urllib.parse import quote, unquote
 
 from opsiconfd.addon.addon import Addon
 from opsiconfd.application import app
+from opsiconfd.check.cache import check_cache
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
@@ -81,6 +82,7 @@ class AddonManager(metaclass=Singleton):
 				break
 		self.get_addon_by_path.cache_clear()
 
+	@check_cache(clear_cache="opsi_failed_addons")
 	def load_addons(self) -> None:
 		logger.debug("Loading addons")
 		self._addons = {}
@@ -117,6 +119,7 @@ class AddonManager(metaclass=Singleton):
 		del self._addons[addon_id]
 		self.get_addon_by_path.cache_clear()
 
+	@check_cache(clear_cache="opsi_failed_addons")
 	def unload_addons(self) -> None:
 		for addon in list(self._addons.values()):
 			self.unload_addon(addon.id)
@@ -129,6 +132,7 @@ class AddonManager(metaclass=Singleton):
 		self.unload_addon(addon_id)
 		self.load_addon(path)
 
+	@check_cache(clear_cache="opsi_failed_addons")
 	def reload_addons(self) -> None:
 		self.unload_addons()
 		self.load_addons()

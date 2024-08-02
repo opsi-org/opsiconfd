@@ -27,11 +27,13 @@ from opsicommon.logging.constants import (
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.auth import read_acl_file
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 from opsiconfd.logging import logger
 
 
+@check_cache
 def check_run_as_user() -> CheckResult:
 	"""
 	## Run as user
@@ -91,6 +93,7 @@ def check_run_as_user() -> CheckResult:
 	return result
 
 
+@check_cache
 def check_opsiconfd_config() -> CheckResult:
 	"""
 	## Opsiconfd config
@@ -194,6 +197,7 @@ def check_opsiconfd_config() -> CheckResult:
 	return result
 
 
+@check_cache
 def check_opsi_config() -> CheckResult:
 	"""
 	## OPSI Configuration

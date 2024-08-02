@@ -10,9 +10,11 @@ health check addons
 """
 
 from opsiconfd.application.admininterface import _get_failed_addons
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus
 
 
+@check_cache
 def check_opsi_failed_addons() -> CheckResult:
 	"""
 	## Check Failed Addons

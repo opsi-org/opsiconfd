@@ -9,6 +9,7 @@
 health check
 """
 
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
@@ -17,6 +18,7 @@ MEMORY_USAGE_WARN = 300_000_000
 MEMORY_USAGE_ERR = 500_000_000
 
 
+@check_cache
 def check_redis() -> CheckResult:
 	"""
 	## Redis server

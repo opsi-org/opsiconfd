@@ -12,10 +12,12 @@ health check
 from __future__ import annotations
 
 from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.logging import logger
 
 
+@check_cache
 def check_mysql() -> CheckResult:
 	"""
 	## Check MySQL
@@ -64,6 +66,7 @@ def check_mysql() -> CheckResult:
 	return result
 
 
+@check_cache
 def check_unique_hardware_addresses() -> CheckResult:
 	"""
 	## Check Unique Hardware Addresses

@@ -12,9 +12,11 @@ health check
 from __future__ import annotations
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 
 
+@check_cache
 def check_opsi_licenses() -> CheckResult:
 	"""
 	## OPSI licenses

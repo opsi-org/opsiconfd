@@ -9,12 +9,14 @@
 health check users
 """
 
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_exists
 
 
+@check_cache
 def check_opsi_users() -> CheckResult:
 	"""
 	## Check users

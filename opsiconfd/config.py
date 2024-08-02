@@ -1505,7 +1505,6 @@ class Config(metaclass=Singleton):
 			),
 		)
 
-
 		if self._pytest:
 			self._parser.add("args", nargs="*")
 			return
@@ -1556,7 +1555,6 @@ class Config(metaclass=Singleton):
 				),
 			)
 			return
-
 
 		if self._sub_command == "setup":
 			self._parser.add(

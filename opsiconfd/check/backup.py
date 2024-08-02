@@ -9,11 +9,13 @@
 health check backup
 """
 
-from opsiconfd.config import config
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus
+from opsiconfd.config import config
 from opsiconfd.redis import redis_client
 
 
+@check_cache
 def check_opsi_backup() -> CheckResult:
 	"""
 	## Check Backup
@@ -37,4 +39,3 @@ def check_opsi_backup() -> CheckResult:
 		return result
 
 	return result
-

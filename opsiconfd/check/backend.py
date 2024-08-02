@@ -12,10 +12,12 @@ health check
 from __future__ import annotations
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 
 
+@check_cache
 def check_depotservers() -> CheckResult:
 	"""
 	## Depotserver check

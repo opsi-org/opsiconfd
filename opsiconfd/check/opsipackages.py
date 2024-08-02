@@ -18,6 +18,7 @@ from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions, prepare_proxy_environment
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.logging import logger
 
@@ -68,6 +69,7 @@ def get_enabled_hosts() -> list[str]:
 	return [host for host in config_states if config_states[host].get("opsi.check.enabled", [True])[0] and host not in downtime_hosts]
 
 
+@check_cache
 def check_product_on_depots() -> CheckResult:
 	"""
 	## Products on depots
@@ -171,6 +173,7 @@ def check_product_on_depots() -> CheckResult:
 	return result
 
 
+@check_cache
 def check_product_on_clients() -> CheckResult:
 	"""
 	## Products on clients

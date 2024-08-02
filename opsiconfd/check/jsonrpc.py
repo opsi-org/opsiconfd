@@ -14,11 +14,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import config
 from opsiconfd.redis import decode_redis_result, redis_client
 
 
+@check_cache
 def check_deprecated_calls() -> CheckResult:
 	"""
 	## Deprecated RPCs

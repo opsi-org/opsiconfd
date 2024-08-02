@@ -12,12 +12,14 @@ health check
 import ldap3  # type: ignore[import]
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus
 from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import ldap3_uri_to_str
 
 
+@check_cache(cache_expiration=3600)
 def check_ldap_connection() -> CheckResult:
 	"""
 	## Check LDAP Connection

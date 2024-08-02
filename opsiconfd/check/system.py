@@ -27,6 +27,7 @@ from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 
 from opsiconfd import __version__
+from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.logging import logger
 
@@ -111,6 +112,7 @@ LINUX_DISTRO_REPO_NAMES = {
 }
 
 
+@check_cache
 def check_distro_eol() -> CheckResult:
 	"""
 	## Operating System End Of Life
@@ -242,6 +244,7 @@ def get_installed_packages(packages: dict | None = None) -> dict:
 	return installed_versions
 
 
+@check_cache
 def check_system_packages() -> CheckResult:
 	"""
 	## System packages
@@ -326,6 +329,7 @@ def get_disk_mountpoints() -> set:
 	return check_mountpoints
 
 
+@check_cache
 def check_disk_usage() -> CheckResult:
 	"""
 	## Disk usage
@@ -376,6 +380,7 @@ def check_disk_usage() -> CheckResult:
 	return result
 
 
+@check_cache
 def check_system_repos() -> CheckResult:
 	"""
 	## System Repositories

@@ -776,6 +776,8 @@ def test_checks_and_skip_checks() -> None:
 		list_of_checks = list(health_check())
 		assert len(list_of_checks) == 17
 
+
+def test_check_opsi_users() -> None:
 	result = check_opsi_users()
 	assert result.check_status == CheckStatus.OK
 

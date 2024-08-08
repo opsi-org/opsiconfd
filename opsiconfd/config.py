@@ -1504,6 +1504,16 @@ class Config(metaclass=Singleton):
 				"Admin password to use for setup.",
 			),
 		)
+		self._parser.add(
+			"--clear-cache",
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"health-check",
+				"Clear the cache before running the checks.",
+			),
+		)
 
 		if self._pytest:
 			self._parser.add("args", nargs="*")
@@ -1599,16 +1609,6 @@ class Config(metaclass=Singleton):
 				help=self._help(
 					"health-check",
 					"Check for upgrade issues only. If a version number is specified, the check is performed for that specific version.",
-				),
-			)
-			self._parser.add(
-				"--clear-cache",
-				nargs="?",
-				const=True,
-				default=False,
-				help=self._help(
-					"health-check",
-					"Clear the cache before running the checks.",
 				),
 			)
 			self._parser.add(

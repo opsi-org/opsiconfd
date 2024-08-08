@@ -18,8 +18,10 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
 
-from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.addon import check_opsi_failed_addons
+from opsiconfd.check.backend import check_depotservers
+from opsiconfd.check.backup import check_opsi_backup
+from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.jsonrpc import check_deprecated_calls
@@ -32,7 +34,6 @@ from opsiconfd.check.redis import check_redis
 from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
 from opsiconfd.check.users import check_opsi_users
-from opsiconfd.check.backup import check_opsi_backup
 from opsiconfd.config import config
 from opsiconfd.utils import DataclassCapableJSONEncoder
 
@@ -161,6 +162,8 @@ def console_health_check() -> int:
 			check_version = "1000"
 		else:
 			check_version = config.upgrade_check
+	if config.clear_cache:
+		check_cache_clear("all")
 
 	if config.format == "checkmk":
 		for check in health_check():

@@ -13,6 +13,8 @@ from typing import Iterator
 
 from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.backend import check_depotservers
+from opsiconfd.check.backup import check_opsi_backup
+from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.common import CheckResult
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.const import CHECKS, DEPOTSERVER_CHECKS
@@ -25,7 +27,6 @@ from opsiconfd.check.redis import check_redis
 from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
 from opsiconfd.check.users import check_opsi_users
-from opsiconfd.check.backup import check_opsi_backup
 from opsiconfd.config import config, get_server_role
 
 __all__ = [
@@ -53,7 +54,9 @@ __all__ = [
 ]
 
 
-def health_check() -> Iterator[CheckResult]:
+def health_check(use_cache: bool = True) -> Iterator[CheckResult]:
+	if not use_cache:
+		check_cache_clear("all")
 	role = get_server_role()
 	for check_id in DEPOTSERVER_CHECKS if role == "depotserver" else CHECKS:
 		if config.checks and check_id not in config.checks:

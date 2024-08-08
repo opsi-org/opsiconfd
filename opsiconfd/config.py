@@ -1602,6 +1602,16 @@ class Config(metaclass=Singleton):
 				),
 			)
 			self._parser.add(
+				"--clear-cache",
+				nargs="?",
+				const=True,
+				default=False,
+				help=self._help(
+					"health-check",
+					"Clear the cache before running the checks.",
+				),
+			)
+			self._parser.add(
 				"--documentation",
 				action="store_true",
 				help=self._help("health-check", "Outputs a description of each check on the console."),

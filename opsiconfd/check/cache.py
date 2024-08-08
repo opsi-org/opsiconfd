@@ -24,7 +24,7 @@ CACHE_EXPIRATION = 24 * 3600  # In seconds
 
 def check_cache_store(cache_name: str, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
 	redis_key = f"opsiconfd:checkcache:{cache_name}"
-	print("Check cache store: %s", redis_key)
+	logger.debug("Check cache store: %s", redis_key)
 	redis_client().set(redis_key, encode(result), ex=CACHE_EXPIRATION)
 
 

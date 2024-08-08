@@ -242,7 +242,7 @@ def test_check_redis() -> None:
 def test_check_redis_connection_error() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 
-	with mock.patch("opsiconfd.redis.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
+	with mock.patch("opsiconfd.check.redis.redis_client", side_effect=RedisConnectionError("Redis test error")):
 		result = check_redis()
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 

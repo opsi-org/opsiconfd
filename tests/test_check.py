@@ -1283,5 +1283,57 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert result.check_status == CheckStatus.OK
 
 	redis = redis_client()
-	# remove backup key so check should to fail again
+	# remove backup key so check should fail again
 	redis.delete(config.redis_key("stats") + ":backup")
+	check_cache_clear("all")
+
+	time.sleep(1)
+
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.ERROR
+
+
+def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	sync_clean_redis()
+	# backup check should fail. No backup was created.
+
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.ERROR
+
+	with mock.patch(
+	"opsiconfd.check.mysql.MySQLConnection.connect",
+	side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'),
+	):
+		result = check_mysql()
+		assert result.check_status == CheckStatus.ERROR
+
+	# Create a backup
+	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	# Backup and mysql check should fail. Cache is not cleared.
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.ERROR
+	result = check_mysql()
+	assert result.check_status == CheckStatus.ERROR
+
+	# Clear backup cache
+	check_cache_clear("opsi_backup")
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.OK
+
+	# Backup check should pass. A backup was created. Mysql check should fail. Cache is not cleared.
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.OK
+	result = check_mysql()
+	assert result.check_status == CheckStatus.ERROR
+
+	# Clear cache. Backup and mysql check should pass.
+	check_cache_clear("all")
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.OK
+	result = check_mysql()
+	assert result.check_status == CheckStatus.OK
+
+

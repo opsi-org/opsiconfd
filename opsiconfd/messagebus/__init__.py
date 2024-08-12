@@ -21,7 +21,7 @@ from opsiconfd.config import get_configserver_id
 from opsiconfd.utils import force_nodename
 from opsiconfd.worker import Worker
 
-RESTRICTED_MESSAGE_TYPES = {MessageType.PROCESS_START_REQUEST.value: "vpn"}
+RESTRICTED_MESSAGE_TYPES = {MessageType.PROCESS_START_REQUEST.value: "vpn", MessageType.TERMINAL_OPEN_REQUEST.value: "vpn"}
 
 
 @lru_cache()

@@ -1274,7 +1274,7 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_MAX_BACKUP_AGE",
 			type=int,
 			default=24,
-			help=self._help("opsiconfd", "he maximum age of the last successful backup in hours."),
+			help=self._help("opsiconfd", "The maximum age of the last successful backup in hours."),
 		)
 		self._parser.add(
 			"--welcome-page",

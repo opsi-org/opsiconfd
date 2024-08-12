@@ -1307,23 +1307,31 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		result = check_mysql()
 		assert result.check_status == CheckStatus.ERROR
 
+	with mock.patch("opsiconfd.check.redis.redis_client", side_effect=RedisConnectionError("Redis test error")):
+		result = check_redis()
+		assert result.check_status == CheckStatus.ERROR
+
+
 	# Create a backup
 	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False]}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	# Backup and mysql check should fail. Cache is not cleared.
-	result = check_opsi_backup()
+	# Redis and mysql check should fail. Backup cache should be reset after calling create backup.
+	result = check_redis()
 	assert result.check_status == CheckStatus.ERROR
+	result = check_opsi_backup()
+	assert result.check_status == CheckStatus.OK
 	result = check_mysql()
 	assert result.check_status == CheckStatus.ERROR
 
 	# Clear backup cache
 	check_cache_clear("opsi_backup")
-	result = check_opsi_backup()
-	assert result.check_status == CheckStatus.OK
+
 
 	# Backup check should pass. A backup was created. Mysql check should fail. Cache is not cleared.
+	result = check_redis()
+	assert result.check_status == CheckStatus.ERROR
 	result = check_opsi_backup()
 	assert result.check_status == CheckStatus.OK
 	result = check_mysql()
@@ -1331,6 +1339,8 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 	# Clear cache. Backup and mysql check should pass.
 	check_cache_clear("all")
+	result = check_redis()
+	assert result.check_status == CheckStatus.OK
 	result = check_opsi_backup()
 	assert result.check_status == CheckStatus.OK
 	result = check_mysql()

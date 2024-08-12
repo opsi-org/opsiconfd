@@ -44,7 +44,7 @@ services:
   mysql-dev44:
     image: mariadb:10.7
     restart: ${RESTART_POLICY}
-    hostname: mysql-dev
+    hostname: mysql-dev44
     command: --max_connections=${MYSQL_MAX_CONNECTIONS} --max_allowed_packet=${MYSQL_MAX_ALLOWED_PACKET} --sort_buffer_size=${MYSQL_SORT_BUFFER_SIZE}
     env_file:
       - .env
@@ -54,7 +54,7 @@ services:
   redis-dev44:
     image: redislabs/redistimeseries:latest
     restart: ${RESTART_POLICY}
-    hostname: redis-dev
+    hostname: redis-dev44
     #command: sh -c "redis-server --requirepass $$REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redistimeseries.so"
     command: sh -c "redis-server --loadmodule /usr/lib/redis/modules/redistimeseries.so"
     env_file:
@@ -101,7 +101,7 @@ services:
   mysql-cs44:
     image: mariadb:10.7
     restart: ${RESTART_POLICY}
-    hostname: mysql-cs
+    hostname: mysql-cs44
     command: --max_connections=${MYSQL_MAX_CONNECTIONS} --max_allowed_packet=${MYSQL_MAX_ALLOWED_PACKET} --sort_buffer_size=${MYSQL_SORT_BUFFER_SIZE}
     env_file:
       - .env
@@ -111,7 +111,7 @@ services:
   redis-cs44:
     image: redislabs/redistimeseries:latest
     restart: ${RESTART_POLICY}
-    hostname: redis-configserver
+    hostname: redis-configserver44
     #command: sh -c "redis-server --requirepass $$REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redistimeseries.so"
     command: sh -c "redis-server --loadmodule /usr/lib/redis/modules/redistimeseries.so"
     env_file:
@@ -122,7 +122,7 @@ services:
   grafana-cs44:
     image: grafana/grafana:latest
     restart: ${RESTART_POLICY}
-    hostname: grafana-cs
+    hostname: grafana-cs44
     env_file:
       - .env
     volumes:

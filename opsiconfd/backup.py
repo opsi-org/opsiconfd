@@ -29,6 +29,7 @@ from opsiconfd.backend.mysql.schema import (
 	update_database,
 )
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
+from opsiconfd.check.cache import check_cache
 from opsiconfd.config import (
 	FQDN,
 	OPSI_LICENSE_DIR,
@@ -131,6 +132,7 @@ def get_config_files() -> dict[str, Path]:
 	return config_files
 
 
+@check_cache(clear_cache="opsi_backup")
 def create_backup(
 	backup_file: Path | None = None,
 	*,

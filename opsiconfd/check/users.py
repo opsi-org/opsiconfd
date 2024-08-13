@@ -16,7 +16,7 @@ from opsiconfd.logging import logger
 from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_exists
 
 
-@check_cache
+@check_cache("opsi_users")
 def check_opsi_users() -> CheckResult:
 	"""
 	## Check users

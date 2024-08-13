@@ -15,7 +15,7 @@ from opsiconfd.config import config
 from opsiconfd.redis import redis_client
 
 
-@check_cache
+@check_cache("opsi_backup")
 def check_opsi_backup() -> CheckResult:
 	"""
 	## Check Backup

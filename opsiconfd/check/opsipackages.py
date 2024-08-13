@@ -69,7 +69,7 @@ def get_enabled_hosts() -> list[str]:
 	return [host for host in config_states if config_states[host].get("opsi.check.enabled", [True])[0] and host not in downtime_hosts]
 
 
-@check_cache
+@check_cache("product_on_depots")
 def check_product_on_depots() -> CheckResult:
 	"""
 	## Products on depots
@@ -173,7 +173,7 @@ def check_product_on_depots() -> CheckResult:
 	return result
 
 
-@check_cache
+@check_cache("product_on_clients")
 def check_product_on_clients() -> CheckResult:
 	"""
 	## Products on clients

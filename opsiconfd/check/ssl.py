@@ -33,7 +33,7 @@ from opsiconfd.ssl import (
 )
 
 
-@check_cache
+@check_cache("ssl")
 def check_ssl() -> CheckResult:
 	"""
 	## SSL

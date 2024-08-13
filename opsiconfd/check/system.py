@@ -112,7 +112,7 @@ LINUX_DISTRO_REPO_NAMES = {
 }
 
 
-@check_cache
+@check_cache("linux_distro_eol")
 def check_distro_eol() -> CheckResult:
 	"""
 	## Operating System End Of Life
@@ -244,7 +244,7 @@ def get_installed_packages(packages: dict | None = None) -> dict:
 	return installed_versions
 
 
-@check_cache
+@check_cache("system_packages")
 def check_system_packages() -> CheckResult:
 	"""
 	## System packages
@@ -329,7 +329,7 @@ def get_disk_mountpoints() -> set:
 	return check_mountpoints
 
 
-@check_cache
+@check_cache("disk_usage")
 def check_disk_usage() -> CheckResult:
 	"""
 	## Disk usage
@@ -380,7 +380,7 @@ def check_disk_usage() -> CheckResult:
 	return result
 
 
-@check_cache
+@check_cache("system_repos")
 def check_system_repos() -> CheckResult:
 	"""
 	## System Repositories

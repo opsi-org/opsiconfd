@@ -17,7 +17,7 @@ from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult,
 from opsiconfd.logging import logger
 
 
-@check_cache
+@check_cache("mysql")
 def check_mysql() -> CheckResult:
 	"""
 	## Check MySQL
@@ -66,7 +66,7 @@ def check_mysql() -> CheckResult:
 	return result
 
 
-@check_cache
+@check_cache("unique_hardware_addresses")
 def check_unique_hardware_addresses() -> CheckResult:
 	"""
 	## Check Unique Hardware Addresses

@@ -957,20 +957,11 @@ def test_get_product_action_groups_vmware(
 		productVersion="4.8.0.33",
 		packageVersion="9",
 		productAction="setup",
-		requiredProductId="vmware-osot",
-		requiredInstallationStatus="installed",
-		requirementType="before",
-	)
-	product_dependency12 = ProductDependency(
-		productId="vmware-app-volumes-agent",
-		productVersion="4.8.0.33",
-		packageVersion="9",
-		productAction="setup",
 		requiredProductId="vmware-tools",
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
-	product_dependency13 = ProductDependency(
+	product_dependency12 = ProductDependency(
 		productId="vmware-dem-enterprise",
 		productVersion="2203.10.5",
 		packageVersion="1",
@@ -979,7 +970,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="not_installed",
 		requirementType="before",
 	)
-	product_dependency14 = ProductDependency(
+	product_dependency13 = ProductDependency(
 		productId="vmware-dem-enterprise",
 		productVersion="2203.10.5",
 		packageVersion="1",
@@ -988,7 +979,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
-	product_dependency15 = ProductDependency(
+	product_dependency14 = ProductDependency(
 		productId="vmware-dem-enterprise",
 		productVersion="2203.10.5",
 		packageVersion="1",
@@ -997,7 +988,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
-	product_dependency16 = ProductDependency(
+	product_dependency15 = ProductDependency(
 		productId="vmware-horizon-agent",
 		productVersion="2209.8.7.0.20606795",
 		packageVersion="8",
@@ -1006,7 +997,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="not_installed",
 		requirementType="before",
 	)
-	product_dependency17 = ProductDependency(
+	product_dependency16 = ProductDependency(
 		productId="vmware-horizon-agent",
 		productVersion="2209.8.7.0.20606795",
 		packageVersion="8",
@@ -1062,7 +1053,6 @@ def test_get_product_action_groups_vmware(
 			product_dependency14,
 			product_dependency15,
 			product_dependency16,
-			product_dependency17,
 		]
 	)
 	backend.productOnDepot_createObjects(
@@ -1124,6 +1114,30 @@ def test_get_product_action_groups_vmware(
 		[product_on_client_4],
 		[product_on_client_1, product_on_client_2, product_on_client_3, product_on_client_4, product_on_client_5, product_on_client_6],
 	):
+		# vmware-tools (94)              setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-tools (94)              setup requires vmware-powercli (0)            installed     before
+		# vmware-horizon-agent (93)      setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-horizon-agent (93)      setup requires vmware-tools (94)              installed     before
+		# vmware-dem-enterprise (92)     setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-dem-enterprise (92)     setup requires vmware-horizon-agent (93)      installed     before
+		# vmware-dem-enterprise (92)     setup requires vmware-tools (94)              installed     before
+		# vmware-osot (-80)              setup requires customize-startmenu (-1)       installed     before
+		# vmware-osot (-80)              setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-osot (-80)              setup requires vmware-dem-enterprise (92)     installed     before
+		# vmware-osot (-80)              setup requires vmware-horizon-agent (93)      installed     before
+		# vmware-osot (-80)              setup requires vmware-tools (94)              installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-dem-enterprise (92)     installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-horizon-agent (93)      installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-osot (-80)              installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-tools (94)              installed     before
+
+		# vmware-tools (94)          not_installed setup
+		# vmware-horizon-agent (93)  not_installed setup
+		# vmware-dem-enterprise (92) not_installed setup
+		# vmware-powercli (0)        not_installed setup
+		# customize-startmenu (-1)   not_installed setup
+		# vmware-osot (-80)          not_installed setup
+
 		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
 
 		assert len(res) == 1

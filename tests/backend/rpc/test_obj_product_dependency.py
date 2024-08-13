@@ -463,6 +463,7 @@ def test_get_product_action_groups_1(
 		installationStatus="not_installed",
 		actionRequest="setup",
 	)
+
 	pocs = backend.productOnClient_addDependencies([product_on_client_1])
 	backend.productOnClient_createObjects(pocs)
 	res2 = backend.productOnClient_getObjectsWithSequence(clientId=client_id)
@@ -1318,6 +1319,175 @@ def test_get_product_action_groups_meta_ubuntu(
 		assert res[0].product_on_clients[3].productId == "meta-ubuntu"
 		assert res[0].product_on_clients[3].actionRequest == "setup"
 		assert res[0].product_on_clients[3].actionSequence == 3
+
+
+def test_get_product_action_groups_installation_manager(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	product1 = LocalbootProduct(
+		id="installation-manager",
+		name="installation-manager",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="some-product",
+		name="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=90,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+
+	product_dependency1 = ProductDependency(
+		productId="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="installation-manager",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="uninstall",
+		requiredProductId="installation-manager",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="installation-manager",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="some-product",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2])
+	backend.productDependency_createObjects([product_dependency1, product_dependency2])
+	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2])
+
+	product_on_client_1 = ProductOnClient(
+		productId="installation-manager",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="none",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 2
+	assert res[0].product_on_clients[0].productId == "installation-manager"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "some-product"
+	assert res[0].product_on_clients[1].actionRequest == "setup"
+	assert res[0].product_on_clients[1].actionSequence == 1
+
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="uninstall",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 2
+	assert res[0].product_on_clients[0].productId == "installation-manager"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "some-product"
+	assert res[0].product_on_clients[1].actionRequest == "uninstall"
+	assert res[0].product_on_clients[1].actionSequence == 1
+
+	product_on_client_1 = ProductOnClient(
+		productId="installation-manager",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="uninstall",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="uninstall",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 2
+	assert res[0].product_on_clients[0].productId == "some-product"
+	assert res[0].product_on_clients[0].actionRequest == "uninstall"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "installation-manager"
+	assert res[0].product_on_clients[1].actionRequest == "uninstall"
+	assert res[0].product_on_clients[1].actionSequence == 1
+
+	product_on_client_1 = ProductOnClient(
+		productId="installation-manager",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="uninstall",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="uninstall",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 2
+	assert res[0].product_on_clients[0].productId == "installation-manager"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "some-product"
+	assert res[0].product_on_clients[1].actionRequest == "uninstall"
+	assert res[0].product_on_clients[1].actionSequence == 1
 
 
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811

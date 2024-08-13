@@ -44,6 +44,16 @@ from . import rpc_method
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
+ACTION_REQUEST_PRIO = {
+	"setup": 1,
+	"update": 2,
+	"always": 3,
+	"once": 4,
+	"custom": 5,
+	"uninstall": 6,
+	"none": 7,
+}
+
 
 class OpsiProductNotAvailableError(OpsiError):
 	ExceptionShortDescription = "Product not available on depot"
@@ -81,17 +91,6 @@ class ProductActionGroup:
 		return ser
 
 
-action_request_prio = {
-	"setup": 1,
-	"update": 2,
-	"always": 3,
-	"once": 4,
-	"custom": 5,
-	"uninstall": 6,
-	"none": 7,
-}
-
-
 @dataclass
 class ActionGroup:
 	priority: int = 0
@@ -101,7 +100,7 @@ class ActionGroup:
 
 	def sort(self) -> None:
 		logger.debug("Sort actions by priority, productId and actionRequest")
-		self.actions.sort(key=lambda a: (a.priority * -1, a.product_id, action_request_prio[a.action]))
+		self.actions.sort(key=lambda a: (a.priority * -1, a.product_id, ACTION_REQUEST_PRIO[a.action]))
 		prods = [f"{a.product_id}:{a.action}({a.priority})" for a in self.actions]
 		log = f"Ordered by priority, productId and actionRequest: {', '.join(prods)}"
 		logger.debug(log)
@@ -116,20 +115,25 @@ class ActionGroup:
 				if requirement_type not in ("before", "after"):
 					continue
 				for dep_action in dep_actions:
-					if dep_action not in dependent_actions[requirement_type]:
+					if dep_action.required and dep_action not in dependent_actions[requirement_type]:
 						dependent_actions[requirement_type].append(dep_action)
 
-		dependent_actions["before"].sort(key=lambda a: (a.priority * -1, a.product_id, action_request_prio[a.action]))
-		dependent_actions["after"].sort(key=lambda a: (a.priority, a.product_id, action_request_prio[a.action]))
+		dependent_actions["before"].sort(key=lambda a: (a.priority * -1, a.product_id, ACTION_REQUEST_PRIO[a.action]))
+		dependent_actions["after"].sort(key=lambda a: (a.priority, a.product_id, ACTION_REQUEST_PRIO[a.action]))
 
 		run_number = 0
 		while run_number < len(self.actions):
-			logger.debug("Dependency sort run #%d", run_number)
 			run_number += 1
 			changes = 0
+			logger.debug("Dependency sort run #%d", run_number)
 			for requirement_type in ("before", "after"):
 				for dep_action in dependent_actions[requirement_type]:
-					logger.trace("Processing dependent action: %r - %r - %r", dep_action.product_id, dep_action.action, requirement_type)
+					logger.trace(
+						"Processing dependent action: %r - %r - %r",
+						dep_action.product_id,
+						dep_action.action,
+						requirement_type,
+					)
 					for action in dep_action.from_actions:
 						logger.trace("Processing action: %r - %r", action.product_id, action.action)
 
@@ -203,6 +207,11 @@ class Action:
 		product_on_client.actionRequest = self.action if self.required else "none"
 		return product_on_client
 
+	def __repr__(self) -> str:
+		from_actions = [f"{a.product_id}:{a.action}" for a in self.from_actions]
+		dependent_actions = {k: [f"{a.product_id}:{a.action}" for a in v] for k, v in self.dependent_actions.items()}
+		return f"<Action {self.product_id}:{self.action} (priority: {self.priority}, required: {self.required}, from_actions: {from_actions}, dependent_actions: {dependent_actions})>"
+
 
 class RPCProductDependencyMixin(Protocol):
 	def get_product_action_groups(
@@ -229,7 +238,11 @@ class RPCProductDependencyMixin(Protocol):
 		if product_ids:
 			# Prefill caches
 			for dependency in self.productDependency_getObjects(productId=list(product_ids)):
-				pdkey = (dependency.productId, dependency.productVersion, dependency.packageVersion)
+				pdkey = (
+					dependency.productId,
+					dependency.productVersion,
+					dependency.packageVersion,
+				)
 				if pdkey not in product_dependency_cache:
 					product_dependency_cache[pdkey] = []
 				product_dependency_cache[pdkey].append(dependency)
@@ -259,7 +272,10 @@ class RPCProductDependencyMixin(Protocol):
 			return product_cache[pkey]
 
 		def get_product_on_depot(
-			depot_id: str, product_id: str, product_version: str | None = None, package_version: str | None = None
+			depot_id: str,
+			product_id: str,
+			product_version: str | None = None,
+			package_version: str | None = None,
 		) -> ProductOnDepot:
 			pkey = (depot_id, product_id)
 			if pkey not in product_on_depot_cache:
@@ -281,7 +297,9 @@ class RPCProductDependencyMixin(Protocol):
 			pkey = (product_id, product_version, package_version)
 			if pkey not in product_dependency_cache:
 				objs = self.productDependency_getObjects(
-					productId=product_id, productVersion=product_version, packageVersion=package_version
+					productId=product_id,
+					productVersion=product_version,
+					packageVersion=package_version,
 				)
 				product_dependency_cache[pkey] = objs
 			return product_dependency_cache[pkey]
@@ -296,7 +314,11 @@ class RPCProductDependencyMixin(Protocol):
 			if pkey not in product_on_client_cache:
 				objs = self.productOnClient_getObjects(productId=product_id, clientId=client_id)
 				if not objs:
-					poc = ProductOnClient(productId=product_id, productType=product_type, clientId=client_id)
+					poc = ProductOnClient(
+						productId=product_id,
+						productType=product_type,
+						clientId=client_id,
+					)
 					poc.setDefaults()
 					objs = [poc]
 				product_on_client_cache[pkey] = objs[0]
@@ -324,7 +346,10 @@ class RPCProductDependencyMixin(Protocol):
 						product_version=product_on_depot.productVersion,
 						package_version=product_on_depot.packageVersion,
 					)
-				except (OpsiProductNotAvailableError, OpsiProductNotAvailableOnDepotError) as err:
+				except (
+					OpsiProductNotAvailableError,
+					OpsiProductNotAvailableOnDepotError,
+				) as err:
 					if not ignore_unavailable_products:
 						raise
 					logger.info(err)
@@ -354,13 +379,20 @@ class RPCProductDependencyMixin(Protocol):
 							product_version=dep_product_on_depot.productVersion,
 							package_version=dep_product_on_depot.packageVersion,
 						)
-					except (OpsiProductNotAvailableError, OpsiProductNotAvailableOnDepotError) as err:
+					except (
+						OpsiProductNotAvailableError,
+						OpsiProductNotAvailableOnDepotError,
+					) as err:
 						if not ignore_unavailable_products:
 							raise
 						logger.info(err)
 						continue
 
-					dep_poc = get_product_on_client(product_id=dep_product.id, product_type=dep_product.getType(), client_id=client_id)
+					dep_poc = get_product_on_client(
+						product_id=dep_product.id,
+						product_type=dep_product.getType(),
+						client_id=client_id,
+					)
 
 					required_action = dependency.requiredAction
 					required = True
@@ -391,7 +423,10 @@ class RPCProductDependencyMixin(Protocol):
 
 					if required and not getattr(dep_product, f"{required_action}Script"):
 						logger.warning(
-							"%r cannot be fulfilled because product %r is missing a %sScript", dependency, dep_product, required_action
+							"%r cannot be fulfilled because product %r is missing a %sScript",
+							dependency,
+							dep_product,
+							required_action,
 						)
 						continue
 
@@ -441,24 +476,39 @@ class RPCProductDependencyMixin(Protocol):
 				for product_id, ar_actions in self.unsorted_actions.items():
 					if len(ar_actions) <= 1:
 						continue
-					product_on_client = next((a.product_on_client for a in ar_actions.values() if a.product_on_client), None)
-					action: Action | None = None
-					for act_req in sorted(list(ar_actions), key=lambda a: action_request_prio[a]):
-						if ar_actions[act_req].required:
-							action = ar_actions[act_req]
-							break
-					if action:
-						action.product_on_client = product_on_client
-						self.unsorted_actions[product_id] = {action.action: action}
-					else:
-						self.unsorted_actions[product_id] = {}
+					logger.trace("Actions: %s", ar_actions)
+					product_on_client = next(
+						(a.product_on_client for a in ar_actions.values() if a.product_on_client),
+						None,
+					)
+					actions = sorted(
+						list(ar_actions.values()),
+						key=lambda a: (
+							not a.required,
+							ACTION_REQUEST_PRIO[a.action],
+							len(a.from_actions),
+						),
+					)
+
+					actions[0].product_on_client = product_on_client
+					# Set all other actions to not required
+					for action in actions[1:]:
+						action.required = False
+						action.product_on_client = None
+
+					logger.trace("Actions: %s", ar_actions)
 
 				logger.debug("Build and sort action groups")
 				p_groups: list[set[str]] = []
-				for product_id, actions in self.unsorted_actions.items():
+				for product_id, ar_actions in self.unsorted_actions.items():
 					product_ids = {product_id}
-					for action in actions.values():
-						for requirement_type, dep_actions in action.dependent_actions.items():
+					for action in ar_actions.values():
+						if not action.required:  # and not action.product_on_client:
+							continue
+						for (
+							requirement_type,
+							dep_actions,
+						) in action.dependent_actions.items():
 							if requirement_type:
 								for dep_action in dep_actions:
 									product_ids.add(dep_action.product_id)
@@ -476,8 +526,18 @@ class RPCProductDependencyMixin(Protocol):
 				for product_ids in p_groups:
 					group = ActionGroup()
 					for product_id in product_ids:
-						if actions := self.unsorted_actions.pop(product_id, {}):
-							group.add_action(list(actions.values())[0])
+						if ar_actions := self.unsorted_actions.pop(product_id, {}):
+							added = False
+							action_with_poc: Action | None = None
+							for action in ar_actions.values():
+								if action.required:
+									group.add_action(action)
+									added = True
+								elif action.product_on_client:
+									action_with_poc = action
+							if not added and action_with_poc:
+								group.add_action(action_with_poc)
+
 					if group.actions:
 						group.sort()
 						self.groups.append(group)
@@ -493,7 +553,10 @@ class RPCProductDependencyMixin(Protocol):
 						product_version=product_on_depot.productVersion,
 						package_version=product_on_depot.packageVersion,
 					)
-				except (OpsiProductNotAvailableError, OpsiProductNotAvailableOnDepotError) as err:
+				except (
+					OpsiProductNotAvailableError,
+					OpsiProductNotAvailableOnDepotError,
+				) as err:
 					if not ignore_unavailable_products:
 						raise
 					logger.info(err)
@@ -505,6 +568,7 @@ class RPCProductDependencyMixin(Protocol):
 					action=product_on_client.actionRequest or "none",
 					priority=product.priority or 0,
 					product_on_client=product_on_client,
+					required=product_on_client.actionRequest not in (None, "", "none"),
 				)
 				self.unsorted_actions[action.product_id][action.action] = action
 
@@ -518,7 +582,11 @@ class RPCProductDependencyMixin(Protocol):
 			# Build ProductActionGroups and add action_sequence to ProductOnClient objects
 			action_sequence = 0
 			for a_group in action_sorter.groups:
-				group = ProductActionGroup(priority=a_group.priority, dependencies=a_group.dependencies, sort_log=a_group.sort_log)
+				group = ProductActionGroup(
+					priority=a_group.priority,
+					dependencies=a_group.dependencies,
+					sort_log=a_group.sort_log,
+				)
 				for action in a_group.actions:
 					if not action.required and not action.product_on_client:
 						continue
@@ -539,7 +607,12 @@ class RPCProductDependencyMixin(Protocol):
 
 		return product_action_groups
 
-	def _write_debug_log(self, prefix: str, client_id: str, product_action_groups: list[ProductActionGroup]) -> None:
+	def _write_debug_log(
+		self,
+		prefix: str,
+		client_id: str,
+		product_action_groups: list[ProductActionGroup],
+	) -> None:
 		debug_dir = Path(PROD_DEP_DEBUG_DIR)
 		debug_dir.mkdir(parents=True, exist_ok=True)
 		now = int(unix_timestamp() * 1_000_000)
@@ -563,7 +636,13 @@ class RPCProductDependencyMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productDependency_insertObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
-		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
+		self._mysql.insert_object(
+			table="PRODUCT_DEPENDENCY",
+			obj=productDependency,
+			ace=ace,
+			create=True,
+			set_null=True,
+		)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObject(
@@ -572,7 +651,13 @@ class RPCProductDependencyMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productDependency_updateObject")
 		productDependency = forceObjectClass(productDependency, ProductDependency)
-		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=False, set_null=False)
+		self._mysql.insert_object(
+			table="PRODUCT_DEPENDENCY",
+			obj=productDependency,
+			ace=ace,
+			create=False,
+			set_null=False,
+		)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_createObjects(
@@ -584,7 +669,12 @@ class RPCProductDependencyMixin(Protocol):
 			for productDependency in forceList(productDependencies):
 				productDependency = forceObjectClass(productDependency, ProductDependency)
 				self._mysql.insert_object(
-					table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True, session=session
+					table="PRODUCT_DEPENDENCY",
+					obj=productDependency,
+					ace=ace,
+					create=True,
+					set_null=True,
+					session=session,
 				)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -597,7 +687,12 @@ class RPCProductDependencyMixin(Protocol):
 			for productDependency in forceList(productDependencies):
 				productDependency = forceObjectClass(productDependency, ProductDependency)
 				self._mysql.insert_object(
-					table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False, session=session
+					table="PRODUCT_DEPENDENCY",
+					obj=productDependency,
+					ace=ace,
+					create=True,
+					set_null=False,
+					session=session,
 				)
 
 	@rpc_method(check_acl=False)
@@ -608,10 +703,18 @@ class RPCProductDependencyMixin(Protocol):
 	) -> list[ProductDependency]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
-			table="PRODUCT_DEPENDENCY", ace=ace, object_type=ProductDependency, attributes=attributes, filter=filter
+			table="PRODUCT_DEPENDENCY",
+			ace=ace,
+			object_type=ProductDependency,
+			attributes=attributes,
+			filter=filter,
 		)
 
-	@rpc_method(deprecated=True, alternative_method="productDependency_getObjects", check_acl=False)
+	@rpc_method(
+		deprecated=True,
+		alternative_method="productDependency_getObjects",
+		check_acl=False,
+	)
 	def productDependency_getHashes(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
@@ -619,7 +722,12 @@ class RPCProductDependencyMixin(Protocol):
 	) -> list[dict]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
-			table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, return_type="dict", attributes=attributes, filter=filter
+			table="PRODUCT_DEPENDENCY",
+			object_type=ProductDependency,
+			ace=ace,
+			return_type="dict",
+			attributes=attributes,
+			filter=filter,
 		)
 
 	@rpc_method(check_acl=False)
@@ -630,17 +738,27 @@ class RPCProductDependencyMixin(Protocol):
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_idents(
-			table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, ident_type=returnType, filter=filter
+			table="PRODUCT_DEPENDENCY",
+			object_type=ProductDependency,
+			ace=ace,
+			ident_type=returnType,
+			filter=filter,
 		)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_deleteObjects(
-		self: BackendProtocol, productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency
+		self: BackendProtocol,
+		productDependencies: list[dict] | list[ProductDependency] | dict | ProductDependency,
 	) -> None:
 		if not productDependencies:
 			return
 		ace = self._get_ace("productDependency_deleteObjects")
-		self._mysql.delete_objects(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, obj=productDependencies, ace=ace)
+		self._mysql.delete_objects(
+			table="PRODUCT_DEPENDENCY",
+			object_type=ProductDependency,
+			obj=productDependencies,
+			ace=ace,
+		)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_create(
@@ -693,7 +811,11 @@ class RPCProductDependencyMixin(Protocol):
 		product_on_clients = []
 		for product_on_depot in self.productOnDepot_getObjects(depotId=depotId, productType="LocalbootProduct"):
 			product = products_by_id_and_version.get(
-				(product_on_depot.productId, product_on_depot.productVersion, product_on_depot.packageVersion)
+				(
+					product_on_depot.productId,
+					product_on_depot.productVersion,
+					product_on_depot.packageVersion,
+				)
 			)
 			if not product:
 				continue

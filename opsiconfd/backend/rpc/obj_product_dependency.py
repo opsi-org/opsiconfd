@@ -65,14 +65,31 @@ class ProductActionGroup:
 		if not logger.isEnabledFor(level):
 			return
 		logger.log(level, "=> Product action group (prio %r)", self.priority)
-		for product_on_clients in self.product_on_clients:
-			logger.log(level, "   -> %s: %s", product_on_clients.productId, product_on_clients.actionRequest)
+		for product_on_client in self.product_on_clients:
+			logger.log(
+				level,
+				"   -> %s (%d): %s",
+				product_on_client.productId,
+				self.priorities[product_on_client.productId],
+				product_on_client.actionRequest,
+			)
 
 	def serialize(self) -> dict[str, Any]:
 		ser = asdict(self)
 		ser["product_on_clients"] = serialize(ser["product_on_clients"])
 		ser["dependencies"] = serialize(ser["dependencies"], deep=True)
 		return ser
+
+
+action_request_prio = {
+	"setup": 1,
+	"update": 2,
+	"always": 3,
+	"once": 4,
+	"custom": 5,
+	"uninstall": 6,
+	"none": 7,
+}
 
 
 @dataclass
@@ -83,59 +100,77 @@ class ActionGroup:
 	sort_log: list[str] = field(default_factory=list)
 
 	def sort(self) -> None:
-		logger.debug("Sort actions by priority and productId")
-		self.actions.sort(key=lambda a: (a.priority * -1, a.product_id))
-		prods = [f"{a.product_id}({a.priority})" for a in self.actions]
-		log = f"Ordered by priority and productId: {','.join(prods)}"
+		logger.debug("Sort actions by priority, productId and actionRequest")
+		self.actions.sort(key=lambda a: (a.priority * -1, a.product_id, action_request_prio[a.action]))
+		prods = [f"{a.product_id}:{a.action}({a.priority})" for a in self.actions]
+		log = f"Ordered by priority, productId and actionRequest: {', '.join(prods)}"
 		logger.debug(log)
 		self.sort_log.append(log)
+
+		dependent_actions: dict[str, list[Action]] = {
+			"before": [],
+			"after": [],
+		}
+		for action in self.actions:
+			for requirement_type, dep_actions in action.dependent_actions.items():
+				if requirement_type not in ("before", "after"):
+					continue
+				for dep_action in dep_actions:
+					if dep_action not in dependent_actions[requirement_type]:
+						dependent_actions[requirement_type].append(dep_action)
+
+		dependent_actions["before"].sort(key=lambda a: (a.priority * -1, a.product_id, action_request_prio[a.action]))
+		dependent_actions["after"].sort(key=lambda a: (a.priority, a.product_id, action_request_prio[a.action]))
 
 		run_number = 0
 		while run_number < len(self.actions):
 			logger.debug("Dependency sort run #%d", run_number)
 			run_number += 1
-			actions = self.actions.copy()
-			for action in actions:
-				for dependency in self.dependencies.get(action.product_id, []):
-					if dependency.requirementType not in ("before", "after"):
-						continue
+			changes = 0
+			for requirement_type in ("before", "after"):
+				for dep_action in dependent_actions[requirement_type]:
+					logger.trace("Processing dependent action: %r - %r - %r", dep_action.product_id, dep_action.action, requirement_type)
+					for action in dep_action.from_actions:
+						logger.trace("Processing action: %r - %r", action.product_id, action.action)
 
-					pos_prd = -1
-					pos_req = -1
-					for idx, act in enumerate(self.actions):
-						if act.product_id == action.product_id:
-							pos_prd = idx
-						elif act.product_id == dependency.requiredProductId:
-							pos_req = idx
-						if pos_prd > -1 and pos_req > -1:
-							break
+						pos_prd = -1
+						pos_dep = -1
 
-					if dependency.requirementType == "before":
-						if pos_req > pos_prd:
-							log = (
-								f"Sort run #{run_number}: Moving {action.product_id!r} (#{pos_prd}) "
-								f"after {dependency.requiredProductId!r} (#{pos_req})"
-							)
-							logger.debug(log)
-							self.sort_log.append(log)
-							self.actions.insert(pos_req, self.actions.pop(pos_prd))
-					elif dependency.requirementType == "after":
-						if pos_req < pos_prd:
-							log = (
-								f"Sort run #{run_number}: Moving {dependency.requiredProductId!r} (#{pos_req}) "
-								f"after {action.product_id!r} (#{pos_prd})"
-							)
-							logger.debug(log)
-							self.sort_log.append(log)
-							# Do not insert at pos_prd + 1, because pos_req < pos_prd and pop(pos_req)!
-							self.actions.insert(pos_prd, self.actions.pop(pos_req))
-			if actions == self.actions:
+						for idx, act in enumerate(self.actions):
+							if act.product_id == action.product_id:
+								pos_prd = idx
+							elif act.product_id == dep_action.product_id:
+								pos_dep = idx
+							if pos_prd > -1 and pos_dep > -1:
+								break
+
+						move_direction = (
+							requirement_type
+							if (requirement_type == "before" and pos_dep > pos_prd) or (requirement_type == "after" and pos_dep < pos_prd)
+							else None
+						)
+						if not move_direction:
+							continue
+
+						log = (
+							f"Sort run #{run_number}: Moving {dep_action.product_id}:{dep_action.action} (#{pos_dep}) "
+							f"{move_direction} {action.product_id}:{action.action} (#{pos_prd})"
+						)
+						logger.debug(log)
+						self.sort_log.append(log)
+						self.actions.insert(pos_prd, self.actions.pop(pos_dep))
+
+			prods = [f"{a.product_id}:{a.action}({a.priority})" for a in self.actions]
+			log = f"Order after sort run #{run_number}: {', '.join(prods)}"
+			logger.debug(log)
+			self.sort_log.append(log)
+			if not changes:
 				logger.debug("Sort run finished after %d iterations", run_number)
 				break
 
 	def add_action(self, action: Action) -> None:
 		self.actions.append(action)
-		if action.action in ("none", None):
+		if not action.required or action.action in ("none", None):
 			return
 		max_priority = max(self.priority, action.priority)
 		min_priority = min(self.priority, action.priority)
@@ -153,7 +188,11 @@ class Action:
 	product_type: str
 	action: str
 	priority: int = 0
+	required: bool = True
+	# dependent actions by requirement_type
+	dependent_actions: dict[str, list[Action]] = field(default_factory=lambda: defaultdict(list))
 	product_on_client: ProductOnClient | None = None
+	from_actions: list[Action] = field(default_factory=list)
 
 	def get_product_on_client(self, client_id: str) -> ProductOnClient:
 		product_on_client = (
@@ -161,7 +200,7 @@ class Action:
 			if self.product_on_client
 			else ProductOnClient(productId=self.product_id, productType=self.product_type, clientId=client_id)
 		)
-		product_on_client.actionRequest = self.action
+		product_on_client.actionRequest = self.action if self.required else "none"
 		return product_on_client
 
 
@@ -268,8 +307,7 @@ class RPCProductDependencyMixin(Protocol):
 			client_id: str
 			depot_id: str
 			groups: list[ActionGroup] = field(default_factory=list)
-			unsorted_actions: dict[str, list[Action]] = field(default_factory=lambda: defaultdict(list))
-			product_id_groups: list[set[str]] = field(default_factory=list)
+			unsorted_actions: dict[str, dict[str, Action]] = field(default_factory=lambda: defaultdict(dict))
 			dependencies: dict[str, list[ProductDependency]] = field(default_factory=lambda: defaultdict(list))
 
 			def process_dependencies(
@@ -301,6 +339,9 @@ class RPCProductDependencyMixin(Protocol):
 						continue
 
 					logger.debug("Dependency found: %r", dependency)
+					if dependency not in self.dependencies[product.id]:
+						self.dependencies[product.id].append(dependency)
+
 					try:
 						dep_product_on_depot = get_product_on_depot(
 							depot_id=self.depot_id,
@@ -321,29 +362,18 @@ class RPCProductDependencyMixin(Protocol):
 
 					dep_poc = get_product_on_client(product_id=dep_product.id, product_type=dep_product.getType(), client_id=client_id)
 
-					if dependency.requirementType:
-						# Only "hard" requirements should affect action order
-						if dependency not in self.dependencies[product.id]:
-							self.dependencies[product.id].append(dependency)
-							group_idx = set()
-							for product_id in action.product_id, dep_product.id:
-								for idx, product_group in enumerate(self.product_id_groups):
-									if product_id in product_group:
-										group_idx.add(idx)
-										break
-							if not group_idx:
-								self.product_id_groups.append({action.product_id, dep_product.id})
-							else:
-								gidx = sorted(list(group_idx))
-								if len(gidx) > 1:
-									self.product_id_groups[gidx[0]].update(self.product_id_groups[gidx[1]])
-									del self.product_id_groups[gidx[1]]
-								self.product_id_groups[gidx[0]].add(action.product_id)
-								self.product_id_groups[gidx[0]].add(dep_product.id)
-
 					required_action = dependency.requiredAction
+					required = True
 					if not required_action:
-						if (
+						if dependency.requiredInstallationStatus == "installed":
+							required_action = "setup"
+						elif dependency.requiredInstallationStatus == "not_installed":
+							required_action = "uninstall"
+						else:
+							raise ValueError(f"Invalid requiredInstallationStatus: '{dependency.requiredInstallationStatus}'")
+
+						# If fulfilled, adding action for sorting
+						required = not (
 							dependency.requiredInstallationStatus == dep_poc.installationStatus
 							and (
 								not dependency.requiredProductVersion
@@ -355,31 +385,40 @@ class RPCProductDependencyMixin(Protocol):
 								or not dep_poc.packageVersion
 								or dependency.requiredPackageVersion == dep_poc.packageVersion
 							)
-						):
-							# Fulfilled
-							continue
-						if dependency.requiredInstallationStatus == "installed":
-							required_action = "setup"
-						elif dependency.requiredInstallationStatus == "not_installed":
-							required_action = "uninstall"
-						else:
-							raise ValueError(f"Invalid requiredInstallationStatus: '{dependency.requiredInstallationStatus}'")
+						)
 
 					assert required_action
 
-					if not getattr(dep_product, f"{required_action}Script"):
+					if required and not getattr(dep_product, f"{required_action}Script"):
 						logger.warning(
 							"%r cannot be fulfilled because product %r is missing a %sScript", dependency, dep_product, required_action
 						)
 						continue
 
-					dep_action = Action(
-						product_id=dep_product.id,
-						product_type=dep_product.getType(),
-						action=required_action,
-						priority=dep_product.priority or 0,
-					)
-					self.unsorted_actions[dep_action.product_id].append(dep_action)
+					dep_action = self.unsorted_actions[dep_product.id].get(required_action)
+					if dep_action:
+						if not dep_action.required:
+							dep_action.required = required
+						if not any(a.product_id == action.product_id and a.action == action.action for a in dep_action.from_actions):
+							dep_action.from_actions.append(action)
+					else:
+						dep_action = Action(
+							product_id=dep_product.id,
+							product_type=dep_product.getType(),
+							action=required_action,
+							priority=dep_product.priority or 0,
+							required=required,
+							from_actions=[action],
+						)
+						logger.debug("Adding dependent action: %r", dep_action)
+						self.unsorted_actions[dep_product.id][required_action] = dep_action
+
+					req_type = dependency.requirementType or ""
+					if not any(
+						dep_action.product_id == cur_act.product_id and dep_action.action == cur_act.action
+						for cur_act in action.dependent_actions[req_type]
+					):
+						action.dependent_actions[req_type].append(dep_action)
 
 					self.process_dependencies(
 						action=dep_action,
@@ -392,46 +431,56 @@ class RPCProductDependencyMixin(Protocol):
 					self.add_product_on_client(poc)
 
 				logger.debug("Add dependent actions to unsorted actions")
-				for actions in list(self.unsorted_actions.values()):
-					for action in actions:
-						self.process_dependencies(action)
+				for act_actions in list(self.unsorted_actions.values()):
+					for act_action in act_actions.values():
+						self.process_dependencies(act_action)
 
 				logger.trace("Dependencies: %r", self.dependencies)
-				logger.debug("Product ID groups: %r", self.product_id_groups)
 
-				logger.debug("Merge duplicate actions")
-				for product_id, actions in self.unsorted_actions.items():
-					if len(actions) <= 1:
+				logger.debug("Cleanup actions of the same product")
+				for product_id, ar_actions in self.unsorted_actions.items():
+					if len(ar_actions) <= 1:
 						continue
-					action = actions[0]
-					product_on_client = None
-					for act in actions:
-						if not product_on_client and act.product_on_client:
-							product_on_client = act.product_on_client
-						if not act.action or act.action == "none":
-							continue
-						action = act
-					action.product_on_client = product_on_client
-					self.unsorted_actions[product_id] = [action]
+					product_on_client = next((a.product_on_client for a in ar_actions.values() if a.product_on_client), None)
+					action: Action | None = None
+					for act_req in sorted(list(ar_actions), key=lambda a: action_request_prio[a]):
+						if ar_actions[act_req].required:
+							action = ar_actions[act_req]
+							break
+					if action:
+						action.product_on_client = product_on_client
+						self.unsorted_actions[product_id] = {action.action: action}
+					else:
+						self.unsorted_actions[product_id] = {}
 
 				logger.debug("Build and sort action groups")
-				for product_id_group in self.product_id_groups:
-					group = ActionGroup()
-					for product_id in product_id_group:
-						actions = self.unsorted_actions.pop(product_id, [])
-						if actions:
-							group.add_action(actions[0])
-							dependencies = self.dependencies.get(actions[0].product_id)
-							if dependencies:
-								group.dependencies[actions[0].product_id] = dependencies
-					group.sort()
-					self.groups.append(group)
-
-				logger.debug("Add remaining independent actions")
+				p_groups: list[set[str]] = []
 				for product_id, actions in self.unsorted_actions.items():
+					product_ids = {product_id}
+					for action in actions.values():
+						for requirement_type, dep_actions in action.dependent_actions.items():
+							if requirement_type:
+								for dep_action in dep_actions:
+									product_ids.add(dep_action.product_id)
+
+					group_idx: set[int] = set()
+					for pid in list(product_ids):
+						for idx, pids in enumerate(p_groups):
+							if pid in pids:
+								product_ids.update(pids)
+								group_idx.add(idx)
+
+					p_groups = [pids for idx, pids in enumerate(p_groups) if idx not in group_idx]
+					p_groups.append(product_ids)
+
+				for product_ids in p_groups:
 					group = ActionGroup()
-					group.add_action(actions[0])
-					self.groups.append(group)
+					for product_id in product_ids:
+						if actions := self.unsorted_actions.pop(product_id, {}):
+							group.add_action(list(actions.values())[0])
+					if group.actions:
+						group.sort()
+						self.groups.append(group)
 
 				logger.debug("Sort action groups by priority")
 				self.groups.sort(key=lambda g: g.priority, reverse=True)
@@ -457,7 +506,7 @@ class RPCProductDependencyMixin(Protocol):
 					priority=product.priority or 0,
 					product_on_client=product_on_client,
 				)
-				self.unsorted_actions[action.product_id].append(action)
+				self.unsorted_actions[action.product_id][action.action] = action
 
 		for client_id, pocs in product_on_clients_by_client_id.items():
 			product_action_groups[client_id] = []
@@ -471,16 +520,19 @@ class RPCProductDependencyMixin(Protocol):
 			for a_group in action_sorter.groups:
 				group = ProductActionGroup(priority=a_group.priority, dependencies=a_group.dependencies, sort_log=a_group.sort_log)
 				for action in a_group.actions:
+					if not action.required and not action.product_on_client:
+						continue
 					group.priorities[action.product_id] = action.priority
 					poc = action.get_product_on_client(client_id)
-					if action.action and action.action != "none":
+					if action.required and action.action and action.action != "none":
 						poc.actionSequence = action_sequence
 						action_sequence += 1
 					else:
 						poc.actionSequence = -1
 					group.product_on_clients.append(poc)
-				product_action_groups[client_id].append(group)
-				group.log()
+				if group.product_on_clients:
+					product_action_groups[client_id].append(group)
+					group.log()
 
 			if debug_log:
 				self._write_debug_log(debug_log, client_id, product_action_groups[client_id])

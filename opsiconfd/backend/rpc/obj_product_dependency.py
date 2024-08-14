@@ -174,7 +174,7 @@ class ActionGroup:
 
 	def add_action(self, action: Action) -> None:
 		self.actions.append(action)
-		if not action.required or action.action in ("none", None):
+		if not action.required:  # or action.action in ("none", None):
 			return
 		max_priority = max(self.priority, action.priority)
 		min_priority = min(self.priority, action.priority)
@@ -193,7 +193,7 @@ class Action:
 	action: str
 	priority: int = 0
 	required: bool = True
-	# dependent actions by requirement_type
+	# Dependent actions by requirement_type
 	dependent_actions: dict[str, list[Action]] = field(default_factory=lambda: defaultdict(list))
 	product_on_client: ProductOnClient | None = None
 	from_actions: list[Action] = field(default_factory=list)
@@ -404,7 +404,6 @@ class RPCProductDependencyMixin(Protocol):
 						else:
 							raise ValueError(f"Invalid requiredInstallationStatus: '{dependency.requiredInstallationStatus}'")
 
-						# If fulfilled, adding action for sorting
 						required = not (
 							dependency.requiredInstallationStatus == dep_poc.installationStatus
 							and (
@@ -441,7 +440,7 @@ class RPCProductDependencyMixin(Protocol):
 							product_id=dep_product.id,
 							product_type=dep_product.getType(),
 							action=required_action,
-							priority=dep_product.priority or 0,
+							priority=(dep_product.priority or 0) * (-1 if required_action == "uninstall" else 1),
 							required=required,
 							from_actions=[action],
 						)
@@ -472,7 +471,7 @@ class RPCProductDependencyMixin(Protocol):
 
 				logger.trace("Dependencies: %r", self.dependencies)
 
-				logger.debug("Cleanup actions of the same product")
+				logger.debug("Select the appropriate product actions")
 				for product_id, ar_actions in self.unsorted_actions.items():
 					if len(ar_actions) <= 1:
 						continue
@@ -483,11 +482,7 @@ class RPCProductDependencyMixin(Protocol):
 					)
 					actions = sorted(
 						list(ar_actions.values()),
-						key=lambda a: (
-							not a.required,
-							ACTION_REQUEST_PRIO[a.action],
-							len(a.from_actions),
-						),
+						key=lambda a: (ACTION_REQUEST_PRIO[a.action], len(a.from_actions)),
 					)
 
 					actions[0].product_on_client = product_on_client
@@ -503,7 +498,7 @@ class RPCProductDependencyMixin(Protocol):
 				for product_id, ar_actions in self.unsorted_actions.items():
 					product_ids = {product_id}
 					for action in ar_actions.values():
-						if not action.required:  # and not action.product_on_client:
+						if not action.required:
 							continue
 						for (
 							requirement_type,
@@ -566,7 +561,7 @@ class RPCProductDependencyMixin(Protocol):
 					product_id=product_on_client.productId,
 					product_type=product_on_client.productType,
 					action=product_on_client.actionRequest or "none",
-					priority=product.priority or 0,
+					priority=(product.priority or 0) * (-1 if product_on_client.actionRequest == "uninstall" else 1),
 					product_on_client=product_on_client,
 					required=product_on_client.actionRequest not in (None, "", "none"),
 				)

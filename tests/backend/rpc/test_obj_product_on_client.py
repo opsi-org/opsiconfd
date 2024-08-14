@@ -571,7 +571,7 @@ def _prepare_product_on_client_sequence_dependencies(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
 			# productAction "setup" requires installationStatus "installed" before (fulfilled)
 			("setup", None, "installed", "before"),
-			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
+			[("product1", "setup"), ("product2", "setup"), ("product3", "none")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],

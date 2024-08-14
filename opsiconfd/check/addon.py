@@ -14,7 +14,7 @@ from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus
 
 
-@check_cache("opsi_failed_addons")
+@check_cache(check_id="opsi_failed_addons")
 def check_opsi_failed_addons() -> CheckResult:
 	"""
 	## Check Failed Addons

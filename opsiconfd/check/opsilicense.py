@@ -16,7 +16,7 @@ from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 
 
-@check_cache("opsi_licenses")
+@check_cache(check_id="opsi_licenses")
 def check_opsi_licenses() -> CheckResult:
 	"""
 	## OPSI licenses

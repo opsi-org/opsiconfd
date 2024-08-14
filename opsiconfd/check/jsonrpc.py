@@ -20,7 +20,7 @@ from opsiconfd.config import config
 from opsiconfd.redis import decode_redis_result, redis_client
 
 
-@check_cache("deprecated_calls")
+@check_cache(check_id="deprecated_calls")
 def check_deprecated_calls() -> CheckResult:
 	"""
 	## Deprecated RPCs

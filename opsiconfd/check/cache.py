@@ -68,27 +68,28 @@ def check_cache(
 	cache_expiration: int = CACHE_EXPIRATION,
 	clear_cache: str | None = None,
 ) -> Callable:
-	if check_id is not None:
-		return
 	def decorator(func: Callable) -> Callable:
 		@wraps(func)
 		def wrapper(*args: Any, **kwargs: Any) -> Any:
 			if clear_cache:
 				check_cache_clear(clear_cache)
 				return func(*args, **kwargs)
-			else:
-				result = check_cache_load(check_id, *args[1:], **kwargs)
-				if result is not None:
-					check_result = CheckResult(**result)
-					check_result.partial_results = []
-					for partial_result in result.get("partial_results", []):
-						partial_result = PartialCheckResult(**partial_result)
-						check_result.add_partial_result(partial_result)
-					return check_result
-				result = func(*args, **kwargs)
-				check_cache_store(check_id, result, cache_expiration, *args[1:], **kwargs)
-				return result
+			if check_id is None:
+				logger.error("check_cache decorator requires check_id")
+				return func(*args, **kwargs)
+			result = check_cache_load(check_id, *args[1:], **kwargs)
+			if result is not None:
+				check_result = CheckResult(**result)
+				check_result.partial_results = []
+				for partial_result in result.get("partial_results", []):
+					partial_result = PartialCheckResult(**partial_result)
+					check_result.add_partial_result(partial_result)
+				return check_result
+			result = func(*args, **kwargs)
+			check_cache_store(check_id, result, cache_expiration, *args[1:], **kwargs)
+			return result
 
 		return wrapper
 	return decorator
+
 

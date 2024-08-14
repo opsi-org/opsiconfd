@@ -15,7 +15,7 @@ from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.backup import check_opsi_backup
 from opsiconfd.check.cache import check_cache_clear
-from opsiconfd.check.common import CheckResult
+from opsiconfd.check.common import CheckRegistry, CheckResult
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.const import CHECKS, DEPOTSERVER_CHECKS
 from opsiconfd.check.jsonrpc import check_deprecated_calls
@@ -65,3 +65,7 @@ def health_check(use_cache: bool = True) -> Iterator[CheckResult]:
 			continue
 		check_func = globals()[f"check_{check_id}"]
 		yield check_func()
+
+	# for check in CheckRegistry():
+	# 	print(check.id)
+	# 	yield check.check()

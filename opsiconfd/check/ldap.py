@@ -19,7 +19,7 @@ from opsiconfd.logging import logger
 from opsiconfd.utils import ldap3_uri_to_str
 
 
-@check_cache("ldap_connection",	cache_expiration=3600)
+@check_cache(check_id="ldap_connection",	cache_expiration=3600)
 def check_ldap_connection() -> CheckResult:
 	"""
 	## Check LDAP Connection

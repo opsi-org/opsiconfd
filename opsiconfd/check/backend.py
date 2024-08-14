@@ -17,7 +17,7 @@ from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult,
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 
 
-@check_cache("depotservers")
+@check_cache(check_id="depotservers")
 def check_depotservers() -> CheckResult:
 	"""
 	## Depotserver check

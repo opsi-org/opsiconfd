@@ -11,18 +11,23 @@ health check
 
 from __future__ import annotations
 
+from abc import abstractmethod
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Generator, Iterator
+from typing import Any, Callable, Generator, Iterator
 
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
+from opsiconfd.logging import logger
+from opsiconfd.utils import Singleton
 from opsiconfd.utils.modules import check_module
+
+
 
 
 class CheckStatus(StrEnum):

@@ -18,7 +18,7 @@ MEMORY_USAGE_WARN = 300_000_000
 MEMORY_USAGE_ERR = 500_000_000
 
 
-@check_cache("redis")
+@check_cache(check_id="redis")
 def check_redis() -> CheckResult:
 	"""
 	## Redis server

@@ -33,7 +33,7 @@ from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 from opsiconfd.logging import logger
 
 
-@check_cache("run_as_user")
+@check_cache(check_id="run_as_user")
 def check_run_as_user() -> CheckResult:
 	"""
 	## Run as user
@@ -93,7 +93,7 @@ def check_run_as_user() -> CheckResult:
 	return result
 
 
-@check_cache("opsiconfd_config")
+@check_cache(check_id="opsiconfd_config")
 def check_opsiconfd_config() -> CheckResult:
 	"""
 	## Opsiconfd config
@@ -197,7 +197,7 @@ def check_opsiconfd_config() -> CheckResult:
 	return result
 
 
-@check_cache("opsi_config")
+@check_cache(check_id="opsi_config")
 def check_opsi_config() -> CheckResult:
 	"""
 	## OPSI Configuration

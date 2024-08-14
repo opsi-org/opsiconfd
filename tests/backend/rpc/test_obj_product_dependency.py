@@ -1321,8 +1321,10 @@ def test_get_product_action_groups_meta_ubuntu(
 		assert res[0].product_on_clients[3].actionSequence == 3
 
 
+@pytest.mark.parametrize("priority", [90, -90])
 def test_get_product_action_groups_installation_manager(
 	backend: UnprotectedBackend,  # noqa: F811
+	priority: int,
 ) -> None:
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
@@ -1344,7 +1346,7 @@ def test_get_product_action_groups_installation_manager(
 		name="some-product",
 		productVersion="1.0",
 		packageVersion="1",
-		priority=90,
+		priority=priority,
 		setupScript="setup.opsiscript",
 		uninstallScript="uninstall.opsiscript",
 	)
@@ -1406,7 +1408,7 @@ def test_get_product_action_groups_installation_manager(
 	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
 
 	assert len(res) == 1
-	assert res[0].priority == 90
+	assert res[0].priority == priority
 	assert len(res[0].product_on_clients) == 2
 	assert res[0].product_on_clients[0].productId == "installation-manager"
 	assert res[0].product_on_clients[0].actionRequest == "setup"
@@ -1426,7 +1428,7 @@ def test_get_product_action_groups_installation_manager(
 	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
 
 	assert len(res) == 1
-	assert res[0].priority == 90
+	assert res[0].priority == priority * -1
 	assert len(res[0].product_on_clients) == 2
 	assert res[0].product_on_clients[0].productId == "installation-manager"
 	assert res[0].product_on_clients[0].actionRequest == "setup"
@@ -1453,14 +1455,16 @@ def test_get_product_action_groups_installation_manager(
 	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
 
 	assert len(res) == 1
-	assert res[0].priority == 90
+	assert res[0].priority == priority * -1
 	assert len(res[0].product_on_clients) == 2
-	assert res[0].product_on_clients[0].productId == "some-product"
-	assert res[0].product_on_clients[0].actionRequest == "uninstall"
-	assert res[0].product_on_clients[0].actionSequence == 0
-	assert res[0].product_on_clients[1].productId == "installation-manager"
-	assert res[0].product_on_clients[1].actionRequest == "uninstall"
-	assert res[0].product_on_clients[1].actionSequence == 1
+
+	poc_installation_manager = next(poc for poc in res[0].product_on_clients if poc.productId == "installation-manager")
+	assert poc_installation_manager.actionRequest == "none"
+	assert poc_installation_manager.actionSequence == -1
+
+	poc_some_product = next(poc for poc in res[0].product_on_clients if poc.productId == "some-product")
+	assert poc_some_product.actionRequest == "uninstall"
+	assert poc_some_product.actionSequence == 0
 
 	product_on_client_1 = ProductOnClient(
 		productId="installation-manager",
@@ -1480,7 +1484,7 @@ def test_get_product_action_groups_installation_manager(
 	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
 
 	assert len(res) == 1
-	assert res[0].priority == 90
+	assert res[0].priority == priority * -1
 	assert len(res[0].product_on_clients) == 2
 	assert res[0].product_on_clients[0].productId == "installation-manager"
 	assert res[0].product_on_clients[0].actionRequest == "setup"
@@ -1523,6 +1527,104 @@ def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:
 	assert "error" not in res
 
 	return (product_dependency1, product_dependency2)
+
+
+def test_uninstall_priority(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	product1 = LocalbootProduct(
+		id="high-priority",
+		name="high-priority",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=90,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="low-priority",
+		name="low-priority",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=-90,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="high-priority",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="low-priority",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2])
+	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2])
+
+	product_on_client_1 = ProductOnClient(
+		productId="high-priority",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="low-priority",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 2
+
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 1
+	assert res[0].product_on_clients[0].productId == "high-priority"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+
+	assert res[1].priority == -90
+	assert len(res[1].product_on_clients) == 1
+	assert res[1].product_on_clients[0].productId == "low-priority"
+	assert res[1].product_on_clients[0].actionRequest == "setup"
+	assert res[1].product_on_clients[0].actionSequence == 1
+
+	product_on_client_1.actionRequest = "uninstall"
+	product_on_client_2.actionRequest = "uninstall"
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 2
+
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 1
+	assert res[0].product_on_clients[0].productId == "low-priority"
+	assert res[0].product_on_clients[0].actionRequest == "uninstall"
+	assert res[0].product_on_clients[0].actionSequence == 0
+
+	assert res[1].priority == -90
+	assert len(res[1].product_on_clients) == 1
+	assert res[1].product_on_clients[0].productId == "high-priority"
+	assert res[1].product_on_clients[0].actionRequest == "uninstall"
+	assert res[1].product_on_clients[0].actionSequence == 1
 
 
 def check_products_dependencies(

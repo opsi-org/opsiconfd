@@ -51,6 +51,12 @@ def test_webdav_setup() -> None:
 	webdav_setup(app)
 
 
+def test_cache_control(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	for path in ("/dav/depot/test", "/depot/test", "/workbench/test", "/repository/test"):
+		res = test_client.request(method="GET", url=path)
+		assert res.headers["Cache-Control"] == "no-store"
+
+
 def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	# Windows WebDAV client send OPTIONS request for /
 	res = test_client.request(method="OPTIONS", url="/")

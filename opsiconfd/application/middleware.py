@@ -165,13 +165,14 @@ class BaseMiddleware:
 			self.before_send(scope, receive, send)
 
 			if "headers" in message:
-				if (
-					scope["path"]
-					and scope["path"].startswith("/public/boot")
-					and scope["request_headers"].get("user-agent", "").startswith("UefiHttpBoot")
-				):
-					# Grub 2.06 needs titled headers (Content-Length instead of content-length)
-					message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
+				if scope["path"]:
+					if scope["path"].startswith("/public/boot") and scope["request_headers"].get("user-agent", "").startswith(
+						"UefiHttpBoot"
+					):
+						# Grub 2.06 needs titled headers (Content-Length instead of content-length)
+						message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
+					elif scope["path"].startswith(("/dav", "/depot", "/workbench", "/repository")):
+						message["headers"].append((b"cache-control", b"no-store"))
 
 				dat = get_server_date()
 				message["headers"].append((b"date", dat[1]))

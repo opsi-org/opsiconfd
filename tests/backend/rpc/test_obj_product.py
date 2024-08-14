@@ -49,7 +49,7 @@ def create_test_products(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F8
 		"id": "test-backend-rpc-product-2",
 		"productVersion": "5.3.0",
 		"packageVersion": "2",
-		"type": "LocalbootProduct",
+		"type": "NetbootProduct",
 	}
 	# Create product 1
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_insertObject", "params": [product1]}

@@ -25,7 +25,7 @@ from opsiconfd.check.common import CheckRegistry, CheckResult, CheckStatus, Part
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.jsonrpc import check_deprecated_calls
 from opsiconfd.check.ldap import check_ldap_connection
-from opsiconfd.check.main import CHECKS, health_check
+from opsiconfd.check.main import health_check
 from opsiconfd.check.mysql import check_mysql, check_unique_hardware_addresses
 from opsiconfd.check.opsilicense import check_opsi_licenses
 from opsiconfd.check.opsipackages import check_product_on_clients, check_product_on_depots

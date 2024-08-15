@@ -68,7 +68,8 @@ class Check:
 		self.depot_check = depot_check
 		if not check_function:
 			logger.warning("Check %s has no check function", id)
-			check_function = lambda x: CheckResult(check_id=id, check_name=name, check_description=description, message="No check function defined", check_status=CheckStatus.ERROR)
+			def check_function(x):
+				return CheckResult(check_id=id, check_name=name, check_description=description, message="No check function defined", check_status=CheckStatus.ERROR)
 		self.check_funktion = check_function
 		self.cache = cache
 		self.cache_expiration = cache_expiration

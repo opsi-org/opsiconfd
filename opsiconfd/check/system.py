@@ -332,7 +332,7 @@ def check_disk_usage(result: CheckResult) -> CheckResult:
 	return result
 
 
-def check_system_repos(result: CheckRegistry) -> CheckResult:
+def check_system_repos(result: CheckResult) -> CheckResult:
 
 	with exc_to_result(result):
 		distro = linux_distro_id()

@@ -64,7 +64,7 @@ class RPCExtOpsiMixin(Protocol):
 		else:
 			product_on_client = ProductOnClient(
 				productId=productId,
-				productType=product_on_depot.productType,
+				productType=product_on_depot[0].productType,
 				clientId=clientId,
 				installationStatus="not_installed",
 				actionRequest=actionRequest,

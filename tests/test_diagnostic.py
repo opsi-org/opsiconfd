@@ -200,4 +200,4 @@ def test_get_opsi_product_versions(test_client: OpsiconfdTestClient) -> None:  #
 	depot_id = get_depotserver_id()
 	assert isinstance(product_versions[depot_id], dict)
 	assert product_versions[depot_id]["test-backend-rpc-product-1"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}
-	assert product_versions[depot_id]["test-backend-rpc-product-2"] == {"version": "5.3.0-2", "type": "LocalbootProduct"}
+	assert product_versions[depot_id]["test-backend-rpc-product-2"] == {"version": "5.3.0-2", "type": "NetbootProduct"}

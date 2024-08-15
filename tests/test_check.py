@@ -153,7 +153,7 @@ def test_check_run_as_user() -> None:
 			assert result.check_status == CheckStatus.OK
 
 		check_cache_clear("all")
-		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=user_with_error)), mock.patch(
+		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
 			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
 			mock_user.pw_dir = "/wrong/home"

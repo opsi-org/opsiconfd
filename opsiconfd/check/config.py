@@ -27,25 +27,12 @@ from opsicommon.logging.constants import (
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.auth import read_acl_file
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import Check, CheckRegistry, CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 from opsiconfd.logging import logger
 
 
-@check_cache(check_id="run_as_user")
-def check_run_as_user() -> CheckResult:
-	"""
-	## Run as user
-	Checks the system user running opsiconfd.
-	Checks for group membership and home directory.
-	"""
-	result = CheckResult(
-		check_id="run_as_user",
-		check_name="Run as user",
-		check_description="Check system user running opsiconfd",
-		message=f"No issues found with user '{config.run_as_user}'.",
-	)
+def check_run_as_user(result: CheckResult) -> CheckResult:
 
 	with exc_to_result(result):
 		user = pwd.getpwnam(config.run_as_user)
@@ -93,31 +80,8 @@ def check_run_as_user() -> CheckResult:
 	return result
 
 
-@check_cache(check_id="opsiconfd_config")
-def check_opsiconfd_config() -> CheckResult:
-	"""
-	## Opsiconfd config
-	This check examines the configuration of the opsiconfd service by checking the following values:
+def check_opsiconfd_config(result: CheckResult) -> CheckResult:
 
-	* `log-level-stderr`, `log-level-file`, `log-level`
-	  * If the log level is too high for a productive environment, then performance problems may occur.
-	        For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
-	* `debug-options`
-	  * If a debug option is active, this is considered an error, as it can lead to performance problems in productive environments.
-	* `profiler`
-	  * The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
-	* `run-as-user`
-	  * Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
-	* `acl-self-for-all`
-	  * Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
-
-	"""
-	result = CheckResult(
-		check_id="opsiconfd_config",
-		check_name="Opsiconfd config",
-		check_description="Check opsiconfd configuration",
-		message="No issues found in the configuration.",
-	)
 	with exc_to_result(result):
 		issues = 0
 		for attribute in "log-level-stderr", "log-level-file", "log-level":
@@ -197,23 +161,8 @@ def check_opsiconfd_config() -> CheckResult:
 	return result
 
 
-@check_cache(check_id="opsi_config")
-def check_opsi_config() -> CheckResult:
-	"""
-	## OPSI Configuration
+def check_opsi_config(result: CheckResult) -> CheckResult:
 
-	Here we check whether certain configurations deviate from the standard.
-	If this is the case, a warning is issued.
-	An error is output if the value does not exist.
-
-	* `opsiclientd.global.verify_server_cert` must be activated.
-	"""
-	result = CheckResult(
-		check_id="opsi_config",
-		check_name="OPSI Configuration",
-		check_description="Check opsi configuration state",
-		message="No issues found in the opsi configuration.",
-	)
 	with exc_to_result(result):
 		backend = get_unprotected_backend()
 		check_configs: dict[str, Any] = {"opsiclientd.global.verify_server_cert": {"default_value": [True], "upgrade_issue": "4.3"}}
@@ -248,3 +197,72 @@ def check_opsi_config() -> CheckResult:
 		if count > 0:
 			result.message = f"{count} issues found in the opsi configuration."
 	return result
+
+
+
+run_as_user_docs = """
+## Run as user
+Checks the system user running opsiconfd.
+Checks for group membership and home directory.
+"""
+
+opsiconfd_config_docs ="""
+## Opsiconfd config
+This check examines the configuration of the opsiconfd service by checking the following values:
+
+* `log-level-stderr`, `log-level-file`, `log-level`
+	* If the log level is too high for a productive environment, then performance problems may occur.
+		For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
+* `debug-options`
+	* If a debug option is active, this is considered an error, as it can lead to performance problems in productive environments.
+* `profiler`
+	* The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
+* `run-as-user`
+	* Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
+* `acl-self-for-all`
+	* Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
+
+"""
+
+opsi_config_docs = """
+## OPSI Configuration
+
+Here we check whether certain configurations deviate from the standard.
+If this is the case, a warning is issued.
+An error is output if the value does not exist.
+
+* `opsiclientd.global.verify_server_cert` must be activated.
+"""
+
+
+run_as_user_check = Check(
+	id="run_as_user",
+	name="Run as user",
+	description="Check system user running opsiconfd",
+	documentation=run_as_user_docs,
+	depot_check=True,
+	message=f"No issues found with user '{config.run_as_user}'.",
+	check_function=check_run_as_user
+)
+
+opsiconfd_config_check = Check(
+	id="opsiconfd_config",
+	name="Opsiconfd config",
+	description="Check opsiconfd configuration",
+	documentation=opsiconfd_config_docs,
+	depot_check=True,
+	message="No issues found in the configuration.",
+	check_function=check_opsiconfd_config
+)
+
+opsi_config_check = Check(
+	id="opsi_config",
+	name="OPSI Configuration",
+	description="Check opsi configuration state",
+	documentation=opsi_config_docs,
+	depot_check=False,
+	message="No issues found in the opsi configuration.",
+	check_function=check_opsi_config
+)
+
+CheckRegistry().register([run_as_user_check, opsiconfd_config_check, opsi_config_check])

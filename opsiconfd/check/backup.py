@@ -9,28 +9,12 @@
 health check backup
 """
 
-from opsiconfd.check.cache import check_cache
 from opsiconfd.check.common import CheckResult, CheckStatus, Check, CheckRegistry
 from opsiconfd.config import config
 from opsiconfd.redis import redis_client
 
 
-
-def check_opsi_backup() -> CheckResult:
-	"""
-	## Check Backup
-
-	Checks if the backup is up to date. The backup is considered up to date if it was created less than config.max_backup_age hours ago.
-	"""
-	result = CheckResult(
-		check_id="opsi_backup",
-		check_name="OPSI backup",
-		check_description="Checks if the backup is up to date.",
-		message="Backup is up to date.",
-		check_status=CheckStatus.OK,
-		details={},
-	)
-
+def check_opsi_backup(result: CheckResult) -> CheckResult:
 	redis = redis_client()
 	backup = redis.get(f"{config.redis_key('stats')}:backup")
 	if backup is None:
@@ -40,4 +24,21 @@ def check_opsi_backup() -> CheckResult:
 
 	return result
 
+docs = """
+## Check Backup
 
+Checks if the backup is up to date. The backup is considered up to date if it was created less than config.max_backup_age hours ago.
+"""
+
+backup_check = Check(
+	id="opsi_backup",
+	name="OPSI backup",
+	description="Checks if the backup is up to date.",
+	documentation=docs,
+	depot_check=False,
+	message="Backup is up to date.",
+	check_function=check_opsi_backup
+)
+
+
+CheckRegistry().register(backup_check)

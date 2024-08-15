@@ -12,12 +12,9 @@ health check
 from __future__ import annotations
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result, Check, CheckRegistry
 
-
-@check_cache(check_id="opsi_licenses")
-def check_opsi_licenses() -> CheckResult:
+def check_opsi_licenses(result: CheckResult) -> CheckResult:
 	"""
 	## OPSI licenses
 
@@ -54,3 +51,20 @@ def check_opsi_licenses() -> CheckResult:
 		else:
 			result.message += ", licensing issues detected."
 	return result
+
+docs = """
+## OPSI licenses
+
+Checks whether the imported licenses will soon exceed one of the defined limits (WARNING) or have already exceeded one (ERROR).
+"""
+
+opsi_licenses_check = Check(
+	id="opsi_licenses",
+	name="OPSI licenses",
+	description="Check opsi licensing state",
+	documentation=docs,
+	depot_check=False,
+	message="No licensing issues detected.",
+	check_function=check_opsi_licenses
+)
+CheckRegistry().register(opsi_licenses_check)

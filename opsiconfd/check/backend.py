@@ -12,27 +12,12 @@ health check
 from __future__ import annotations
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import Check, CheckRegistry, CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 
 
-@check_cache(check_id="depotservers")
-def check_depotservers() -> CheckResult:
-	"""
-	## Depotserver check
-	The opsi repository, workbench and depot must be located under /var/lib/opsi/.
-	If this is not the case, an error will be reported.
-	"""
-	result = CheckResult(
-		check_id="depotservers",
-		check_name="Depotserver check",
-		check_description=(
-			"The opsi repository, workbench and depot must be located under /var/lib/opsi/."
-			"If this is not the case, an error will be reported."
-		),
-		message="No problems found with the depot servers.",
-	)
+def check_depotservers(result: CheckResult) -> CheckResult:
+
 	with exc_to_result(result):
 		backend = get_unprotected_backend()
 		issues = 0
@@ -89,3 +74,24 @@ def check_depotservers() -> CheckResult:
 			result.message = f"{issues} issues found with the depot servers."
 
 	return result
+
+docs = """
+## Depotserver check
+The opsi repository, workbench and depot must be located under /var/lib/opsi/.
+If this is not the case, an error will be reported.
+"""
+
+depotserver_check = Check(
+	id="depotservers",
+	name="Depotserver check",
+	description=(
+		"The opsi repository, workbench and depot must be located under /var/lib/opsi/."
+		"If this is not the case, an error will be reported."
+	),
+	documentation=docs,
+	depot_check=False,
+	message="No problems found with the depot servers.",
+	check_function=check_depotservers
+)
+
+CheckRegistry().register(depotserver_check)

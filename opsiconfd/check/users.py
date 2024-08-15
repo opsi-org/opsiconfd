@@ -9,29 +9,13 @@
 health check users
 """
 
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, Check, CheckRegistry
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_exists
 
 
-@check_cache(check_id="opsi_users")
-def check_opsi_users() -> CheckResult:
-	"""
-	## Check users
-
-	Checks if opsi depot user and opsiconfd user exist.
-	If the system is part of a domain, it checks if the users are domain users.
-	Searches sssd, winbind, ldap in /etc/nsswitch.conf to determine the domain bind.
-	"""
-	result = CheckResult(
-		check_id="opsi_users",
-		check_name="OPSI Users",
-		check_description="Checks opsi users.",
-		message="No problems found with opsi users.",
-		details={},
-	)
+def check_opsi_users(result: CheckResult) -> CheckResult:
 
 	depot_user = opsi_config.get("depot_user", "username")
 	opsiconfd_user = config.run_as_user
@@ -99,3 +83,23 @@ def check_opsi_users() -> CheckResult:
 		result.message = "Possible issues with opsi users. Please check the details."
 		return result
 	return result
+
+
+docs = """
+## Check users
+
+Checks if opsi depot user and opsiconfd user exist.
+If the system is part of a domain, it checks if the users are domain users.
+Searches sssd, winbind, ldap in /etc/nsswitch.conf to determine the domain bind.
+"""
+
+check_users = Check(
+	id="users",
+	name="Users",
+	description="Checks if opsi users.",
+	documentation=docs,
+	message="No problems found with opsi users.",
+	check_function=check_opsi_users,
+)
+
+CheckRegistry().register(check_users)

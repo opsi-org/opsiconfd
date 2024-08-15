@@ -12,26 +12,12 @@ health check
 from __future__ import annotations
 
 from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import Check, CheckRegistry, CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.logging import logger
 
 
-@check_cache(check_id="mysql")
-def check_mysql() -> CheckResult:
-	"""
-	## Check MySQL
+def check_mysql(result: CheckResult) -> CheckResult:
 
-	Checks whether the database is accessible.
-	The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
-	If no connection can be established, this is an error.
-	"""
-	result = CheckResult(
-		check_id="mysql",
-		check_name="MySQL server",
-		check_description="Check MySQL server state",
-		message="No MySQL issues found.",
-	)
 	with exc_to_result(result):
 		mysql = MySQLConnection()
 		with mysql.connection():
@@ -66,19 +52,7 @@ def check_mysql() -> CheckResult:
 	return result
 
 
-@check_cache(check_id="unique_hardware_addresses")
-def check_unique_hardware_addresses() -> CheckResult:
-	"""
-	## Check Unique Hardware Addresses
-
-	Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
-	"""
-	result = CheckResult(
-		check_id="unique_hardware_addresses",
-		check_name="Unique hardware addresses",
-		check_description="Check if all hardware addresses are unique",
-		message="All hardware addresses are unique.",
-	)
+def check_unique_hardware_addresses(result: CheckResult) -> CheckResult:
 
 	mysql = MySQLConnection()
 	if not mysql.unique_hardware_addresses:
@@ -120,3 +94,40 @@ def check_unique_hardware_addresses() -> CheckResult:
 				"total_values": total_values,
 			}
 	return result
+
+
+connection_docs = 	"""
+## Check MySQL
+
+Checks whether the database is accessible.
+The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
+If no connection can be established, this is an error.
+"""
+
+unique_hardware_addresses_docs ="""
+## Check Unique Hardware Addresses
+
+Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
+"""
+
+mysql_check = Check(
+	id="mysql",
+	name="MySQL",
+	description="Check MySQL server state",
+	documentation=connection_docs,
+	message="No MySQL issues found.",
+	check_function=check_mysql,
+	depot_check=False,
+)
+
+unique_hardware_addresses_check = Check(
+	id="unique_hardware_addresses",
+	name="Unique Hardware Addresses",
+	description="Check if all hardware addresses are unique",
+	documentation=unique_hardware_addresses_docs,
+	message="All hardware addresses are unique.",
+	check_function=check_unique_hardware_addresses,
+	depot_check=False,
+)
+
+CheckRegistry().register([mysql_check, unique_hardware_addresses_check])

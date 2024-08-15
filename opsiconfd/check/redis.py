@@ -9,8 +9,7 @@
 health check
 """
 
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result, CheckRegistry, Check
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
 
@@ -18,21 +17,8 @@ MEMORY_USAGE_WARN = 300_000_000
 MEMORY_USAGE_ERR = 500_000_000
 
 
-@check_cache(check_id="redis")
-def check_redis() -> CheckResult:
-	"""
-	## Redis server
+def check_redis(result: CheckResult) -> CheckResult:
 
-	Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
-	If the server is not available or the module is not loaded, this is considered an error.
-	Also checks whether the memory usage is not too high.
-	"""
-	result = CheckResult(
-		check_id="redis",
-		check_name="Redis server",
-		check_description="Check Redis server state",
-		message="No Redis issues found.",
-	)
 	with exc_to_result(result):
 		redis = redis_client(timeout=5, test_connection=True)
 		result.add_partial_result(
@@ -79,3 +65,23 @@ def check_redis() -> CheckResult:
 		if result.check_status != CheckStatus.OK:
 			result.message = "Some issues found with Redis."
 	return result
+
+docs = """
+## Redis server
+
+Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
+If the server is not available or the module is not loaded, this is considered an error.
+Also checks whether the memory usage is not too high.
+"""
+
+redis_check = Check(
+	id="redis",
+	name="Redis Server",
+	description="Check Redis server state.",
+	documentation=docs,
+	message="No Redis issues found.",
+	depot_check=True,
+	check_function=check_redis
+)
+
+CheckRegistry().register(redis_check)

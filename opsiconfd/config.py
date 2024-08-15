@@ -1613,6 +1613,7 @@ class Config(metaclass=Singleton):
 			)
 			self._parser.add(
 				"--documentation",
+				"--docs",
 				action="store_true",
 				help=self._help("health-check", "Outputs a description of each check on the console."),
 			)

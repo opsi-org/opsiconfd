@@ -27,8 +27,7 @@ from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 
 from opsiconfd import __version__
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result, CheckRegistry, Check
 from opsiconfd.logging import logger
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11/"
@@ -111,25 +110,8 @@ LINUX_DISTRO_REPO_NAMES = {
 	},
 }
 
+def check_distro_eol(result: CheckResult) -> CheckResult:
 
-@check_cache(check_id="linux_distro_eol")
-def check_distro_eol() -> CheckResult:
-	"""
-	## Operating System End Of Life
-
-	Checks whether the server system still receives updates.
-	The check issues a warning 90 days before the end of life of a distribution.
-	After the end-of-life date, it issues an error.
-	"""
-	result = CheckResult(
-		check_id="linux_distro_eol",
-		check_name="Operating System End Of Life",
-		check_description="""
-			Check Operating System end-of-life date.
-			'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
-			limiting it's support on the product and/or version to shift focus on their newer products and/or version.
-		""",
-	)
 	with exc_to_result(result):
 		distro = linux_distro_id()
 		version = linux_distro_version_id()
@@ -244,20 +226,8 @@ def get_installed_packages(packages: dict | None = None) -> dict:
 	return installed_versions
 
 
-@check_cache(check_id="system_packages")
-def check_system_packages() -> CheckResult:
-	"""
-	## System packages
-	Currently the following system packages are checked for actuality:
+def check_system_packages(result: CheckResult) -> CheckResult:
 
-	* opsiconfd
-	* opsi-utils
-	* opsipxeconfd
-
-	The check is carried out against the stable repository of uib
-	(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11/).
-	Older versions are considered a warning and if one of the packages is not installed, an error is issued.
-	"""
 	result = CheckResult(
 		check_id="system_packages",
 		check_name="System packages",
@@ -328,26 +298,8 @@ def get_disk_mountpoints() -> set:
 			var_added = True
 	return check_mountpoints
 
+def check_disk_usage(result: CheckResult) -> CheckResult:
 
-@check_cache(check_id="disk_usage")
-def check_disk_usage() -> CheckResult:
-	"""
-	## Disk usage
-	Checks the free space for the following mount points:
-
-	* /
-	* /temp
-	* /var, /var/lib or var/lib/opsi
-
-	If there is less than 15 GiB free, a warning is given.
-	If there are less than 7.5 GiB, it is considered an error.
-	"""
-	result = CheckResult(
-		check_id="disk_usage",
-		check_name="Disk usage",
-		check_description="Check disk usage",
-		message="Sufficient free space on all file systems.",
-	)
 	with exc_to_result(result):
 		check_mountpoints = get_disk_mountpoints()
 
@@ -380,24 +332,8 @@ def check_disk_usage() -> CheckResult:
 	return result
 
 
-@check_cache(check_id="system_repos")
-def check_system_repos() -> CheckResult:
-	"""
-	## System Repositories
+def check_system_repos(result: CheckRegistry) -> CheckResult:
 
-	Check if system and opsi repository are compatible.
-
-	- For Debian/Ubuntu, the check is carried out against the apt-cache policy.
-	- For CentOS/RHEL/Rocky/Alma Linux/Orcale Linux, the check is carried out against the yum repolist.
-	- For openSUSE/SLES, the check is carried out against the zypper repos.
-	"""
-	result = CheckResult(
-		check_id="system_repos",
-		check_name="System Repositories",
-		check_description="Check system repositories",
-		check_status=CheckStatus.WARNING,
-		message="Could not find opsi repository.",
-	)
 	with exc_to_result(result):
 		distro = linux_distro_id()
 		version = linux_distro_version_id()
@@ -476,3 +412,89 @@ def check_system_repos() -> CheckResult:
 			result.message = "Could not determine system distribution."
 
 	return result
+
+docs_system_eol = """
+## Operating System End Of Life
+
+Checks whether the server system still receives updates.
+The check issues a warning 90 days before the end of life of a distribution.
+After the end-of-life date, it issues an error.
+"""
+
+docs_system_packages = """
+## System packages
+Currently the following system packages are checked for actuality:
+
+* opsiconfd
+* opsi-utils
+* opsipxeconfd
+
+The check is carried out against the stable repository of uib
+(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11/).
+Older versions are considered a warning and if one of the packages is not installed, an error is issued.
+"""
+
+docs_system_disk_usage = """
+## Disk usage
+Checks the free space for the following mount points:
+
+* /
+* /temp
+* /var, /var/lib or var/lib/opsi
+
+If there is less than 15 GiB free, a warning is given.
+If there are less than 7.5 GiB, it is considered an error.
+"""
+
+docs_system_repositories = """
+## System Repositories
+
+Check if system and opsi repository are compatible.
+
+- For Debian/Ubuntu, the check is carried out against the apt-cache policy.
+- For CentOS/RHEL/Rocky/Alma Linux/Orcale Linux, the check is carried out against the yum repolist.
+- For openSUSE/SLES, the check is carried out against the zypper repos.
+"""
+
+distro_eol_check = Check(
+	id="linux_distro_eol",
+	name="Operating System End Of Life",
+	description="""
+		Check Operating System end-of-life date.
+		'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
+		limiting it's support on the product and/or version to shift focus on their newer products and/or version.
+	""",
+	documentation=docs_system_eol,
+	message="All systems are up to date.",
+	check_function=check_distro_eol,
+)
+
+system_packages_check = Check(
+	id="system_packages",
+	name="System packages",
+	description="Check system package versions",
+	documentation=docs_system_packages,
+	message="All packages are up to date.",
+	check_function=check_system_packages,
+)
+
+disk_usage_check = Check(
+	id="disk_usage",
+	name="Disk usage",
+	description="Check disk usage",
+	documentation=docs_system_disk_usage,
+	message="Sufficient free space on all file systems.",
+	check_function=check_disk_usage,
+)
+
+system_repositories_check = Check(
+	id="system_repositories",
+	name="System Repositories",
+	description="Check system repositories",
+	documentation=docs_system_repositories,
+	message="Could not find opsi repository.",
+	status=CheckStatus.WARNING,
+	check_function=check_system_repos,
+)
+
+CheckRegistry().register([distro_eol_check, system_packages_check, disk_usage_check, system_repositories_check])

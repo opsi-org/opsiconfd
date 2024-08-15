@@ -14,27 +14,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+
+from opsiconfd.check.common import Check, CheckRegistry, CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.config import config
 from opsiconfd.redis import decode_redis_result, redis_client
 
 
-@check_cache(check_id="deprecated_calls")
-def check_deprecated_calls() -> CheckResult:
-	"""
-	## Deprecated RPCs
+def check_deprecated_calls(result: CheckResult) -> CheckResult:
 
-	Among other things, opsi stores calls to methods marked as deprecated in Redis.
-	This check looks whether such calls have been made and then issues a warning.
-	The message also states which client agent called the API method.
-	"""
-	result = CheckResult(
-		check_id="deprecated_calls",
-		check_name="Deprecated RPCs",
-		check_description="Check use of deprecated RPC methods",
-		message="No deprecated method calls found.",
-	)
 	with exc_to_result(result):
 		backend = get_unprotected_backend()
 		redis_prefix_stats = config.redis_key("stats")
@@ -77,3 +64,24 @@ def check_deprecated_calls() -> CheckResult:
 		if deprecated_methods:
 			result.message = f"Use of {deprecated_methods} deprecated methods found."
 	return result
+
+
+docs = """
+## Deprecated RPCs
+
+Among other things, opsi stores calls to methods marked as deprecated in Redis.
+This check looks whether such calls have been made and then issues a warning.
+The message also states which client agent called the API method.
+"""
+
+deprecated_calls_check = Check(
+	id="deprecated_calls",
+	name="Deprecated RPCs",
+	description="Check use of deprecated RPC methods",
+	documentation=docs,
+	depot_check=False,
+	message="No deprecated method calls found.",
+	check_function=check_deprecated_calls,
+)
+
+CheckRegistry().register(deprecated_calls_check)

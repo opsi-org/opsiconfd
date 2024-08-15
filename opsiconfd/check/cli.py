@@ -21,8 +21,7 @@ from rich.padding import Padding
 from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.backup import check_opsi_backup
-from opsiconfd.check.cache import check_cache_clear
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result
+from opsiconfd.check.common import CheckRegistry, CheckResult, CheckStatus, PartialCheckResult, get_json_result
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.jsonrpc import check_deprecated_calls
 from opsiconfd.check.ldap import check_ldap_connection
@@ -84,9 +83,11 @@ def print_health_check_manual(console: Console) -> None:
 	All the checks are described below:
 	"""
 	console.print(Markdown(text.replace("\t", "")))
-	for check_id in CHECKS:
-		check = globals()[f"check_{check_id}"]
-		console.print(Markdown((check.__doc__ or "").replace("\t", "")))
+	# for check_id in CHECKS:
+	# 	check = globals()[f"check_{check_id}"]
+	# 	console.print(Markdown((check.__doc__ or "").replace("\t", "")))
+	for check in CheckRegistry():
+		console.print(Markdown(check.docs.replace("\t", "")))
 
 
 def console_print_message(check_result: CheckResult | PartialCheckResult, console: Console, indent: int = 0) -> None:
@@ -113,6 +114,8 @@ def process_check_result(
 		partial_results.append(pres)
 		if summary:
 			summary[pres.check_status] += 1
+	if not result.partial_results and summary:
+		summary[result.check_status] += 1
 
 	if check_version:
 		if partial_results:
@@ -163,7 +166,8 @@ def console_health_check() -> int:
 		else:
 			check_version = config.upgrade_check
 	if config.clear_cache:
-		check_cache_clear("all")
+		# TODO: clear_cache()
+		print("Clearing cache...")
 
 	if config.format == "checkmk":
 		for check in health_check():

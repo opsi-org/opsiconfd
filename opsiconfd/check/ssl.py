@@ -15,8 +15,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result, CheckRegistry, Check
 from opsiconfd.config import config, get_server_role
 from opsiconfd.ssl import (
 	check_intermediate_ca,
@@ -33,19 +32,8 @@ from opsiconfd.ssl import (
 )
 
 
-@check_cache(check_id="ssl")
-def check_ssl() -> CheckResult:
-	"""
-	## SSL
-	Checks the state of the opsi CA and the server certificate.
-	"""
+def check_ssl(result: CheckResult) -> CheckResult:
 	server_role = get_server_role()
-	result = CheckResult(
-		check_id="ssl",
-		check_name="SSL",
-		check_description="Checks the state of the opsi CA and the server certificate.",
-		message="No SSL issues found.",
-	)
 
 	with exc_to_result(result):
 		# opsi_ca_cert
@@ -175,3 +163,20 @@ def check_ssl() -> CheckResult:
 		result.message = "Some SSL issues where found."
 
 	return result
+
+docs = """
+## SSL
+Checks the state of the opsi CA and the server certificate.
+"""
+
+ssl_check = Check(
+	id="ssl",
+	name="SSL",
+	description="Checks the state of the opsi CA and the server certificate.",
+	documentation=docs,
+	message="No SSL issues found.",
+	check_function=check_ssl,
+
+)
+
+CheckRegistry().register(ssl_check)

@@ -18,8 +18,7 @@ from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions, prepare_proxy_environment
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.cache import check_cache
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result, CheckRegistry, Check
 from opsiconfd.logging import logger
 
 OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
@@ -69,24 +68,8 @@ def get_enabled_hosts() -> list[str]:
 	return [host for host in config_states if config_states[host].get("opsi.check.enabled", [True])[0] and host not in downtime_hosts]
 
 
-@check_cache(check_id="product_on_depots")
-def check_product_on_depots() -> CheckResult:
-	"""
-	## Products on depots
-
-	It is checked whether the following products are installed and up-to-date on the depots:
-
-	* opsi-script
-	* opsi-client-agent
-
-	If opsi-linux-client-agent and opsi-macos-client-agent are installed, these packages are also checked.
-	Here, an outdated package is considered a warning and an uninstalled package is considered an error.
-	"""
-	result = CheckResult(
-		check_id="products_on_depots", check_name="Products on depots", check_description="Check opsi package versions on depots"
-	)
+def check_product_on_depots(result: CheckResult) -> CheckResult:
 	with exc_to_result(result):
-		result.message = "All important products are up to date on all depots."
 
 		backend = get_unprotected_backend()
 		installed_products = [p.id for p in backend.product_getObjects()]
@@ -172,18 +155,7 @@ def check_product_on_depots() -> CheckResult:
 			)
 	return result
 
-
-@check_cache(check_id="product_on_clients")
-def check_product_on_clients() -> CheckResult:
-	"""
-	## Products on clients
-
-	Checks whether newer versions of the products installed on the client are available in the depot.
-	If an older version is installed, the Health Check issues a warning.
-	"""
-	result = CheckResult(
-		check_id="product_on_clients", check_name="Products on clients", check_description="Check opsi package versions on clients"
-	)
+def check_product_on_clients(result: CheckResult) -> CheckResult:
 	with exc_to_result(result):
 		result.message = "All products are up to date on all clients."
 		backend = get_unprotected_backend()
@@ -255,3 +227,45 @@ def check_product_on_clients() -> CheckResult:
 					f"There are {len(outdated_client_ids)} active clients (last seen < 90 days) where products are out of date."
 				)
 	return result
+
+
+docs_check_pod = """
+## Products on depots
+
+It is checked whether the following products are installed and up-to-date on the depots:
+
+* opsi-script
+* opsi-client-agent
+
+If opsi-linux-client-agent and opsi-macos-client-agent are installed, these packages are also checked.
+Here, an outdated package is considered a warning and an uninstalled package is considered an error.
+"""
+
+docs_check_poc = """
+## Products on clients
+
+Checks whether newer versions of the products installed on the client are available in the depot.
+If an older version is installed, the Health Check issues a warning.
+"""
+
+check_pod = Check(
+	id="products_on_depots",
+	name="Products on depots",
+	description="Check opsi package versions on depots",
+	documentation=docs_check_pod,
+	message="All important products are up to date on all depots.",
+	depot_check=False,
+	check_function=check_product_on_depots
+)
+
+check_poc = Check(
+	id="products_on_clients",
+	name="Products on clients",
+	description="Check opsi package versions on clients",
+	documentation=docs_check_poc,
+	message="All products are up to date on all clients.",
+	depot_check=False,
+	check_function=check_product_on_clients
+)
+
+CheckRegistry().register([check_pod, check_poc])

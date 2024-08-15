@@ -9,13 +9,11 @@
 opsiconfd.check.cache
 """
 
-from collections import defaultdict
 from functools import wraps
 from typing import Any, Callable
 
 from msgspec.msgpack import decode, encode
 
-from opsiconfd.check.common import CheckResult, PartialCheckResult
 from opsiconfd.check.const import CHECKS
 from opsiconfd.logging import logger
 from opsiconfd.redis import delete_recursively, redis_client
@@ -49,46 +47,18 @@ def check_cache_clear(cache_id: str | None = None) -> Any:
 	delete_recursively(redis_key)
 
 
-def check_cache_info() -> dict[str, int]:
-	info: dict[str, int] = defaultdict(int)
-	prefix = "opsiconfd:checkcache:"
-	for key in redis_client().scan_iter(f"{prefix}*"):
-		rel = key.decode("utf-8").removeprefix(prefix)
-		if ":" in rel:
-			cache_name, _ = rel.split(":", 1)
-			info[cache_name] += 1
-	return info
 
-
-def check_cache(
+def clear_check_cache(
 	func: Callable | None = None,
 	/,
 	*,
 	check_id: str | None = None,
-	cache_expiration: int = CACHE_EXPIRATION,
-	clear_cache: str | None = None,
 ) -> Callable:
 	def decorator(func: Callable) -> Callable:
 		@wraps(func)
 		def wrapper(*args: Any, **kwargs: Any) -> Any:
-			if clear_cache:
-				check_cache_clear(clear_cache)
-				return func(*args, **kwargs)
-			if check_id is None:
-				logger.error("check_cache decorator requires check_id")
-				return func(*args, **kwargs)
-			result = check_cache_load(check_id, *args[1:], **kwargs)
-			if result is not None:
-				check_result = CheckResult(**result)
-				check_result.partial_results = []
-				for partial_result in result.get("partial_results", []):
-					partial_result = PartialCheckResult(**partial_result)
-					check_result.add_partial_result(partial_result)
-				return check_result
-			result = func(*args, **kwargs)
-			check_cache_store(check_id, result, cache_expiration, *args[1:], **kwargs)
-			return result
-
+			check_cache_clear(check_id)
+			return func(*args, **kwargs)
 		return wrapper
 	return decorator
 

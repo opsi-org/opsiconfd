@@ -59,7 +59,6 @@ if TYPE_CHECKING:
 
 
 from . import (
-	RESTRICTED_MESSAGE_TYPES,
 	check_channel_name,
 	get_config_service_channel,
 	get_user_id_for_host,
@@ -84,15 +83,25 @@ RE_USER_ID = re.compile("^[a-z-0-9_]$")
 
 @lru_cache
 def _check_message_type_access(message_type: str, is_service_channel: bool, backend: Backend) -> bool:
-	if message_type == MessageType.TERMINAL_OPEN_REQUEST and "messagebus_terminal" in config.disabled_features:
-		return False
-	if message_type == MessageType.PROCESS_START_REQUEST and "messagebus_execute_process" in config.disabled_features:
-		return False
-	if is_service_channel:
-		return True
-	if message_type not in RESTRICTED_MESSAGE_TYPES:
-		return True
-	return RESTRICTED_MESSAGE_TYPES[message_type] in backend.available_modules
+	if message_type == MessageType.TERMINAL_OPEN_REQUEST:
+		if "messagebus_terminal" in config.disabled_features:
+			return False
+		if not is_service_channel:
+			# Terminal connection to client
+			if "messagebus_terminal_client" in config.disabled_features:
+				return False
+			if "vpn" not in backend.available_modules:
+				return False
+	elif message_type == MessageType.PROCESS_START_REQUEST:
+		if "messagebus_execute_process" in config.disabled_features:
+			return False
+		if not is_service_channel:
+			# Start process on client
+			if "messagebus_execute_process_client" in config.disabled_features:
+				return False
+			if "vpn" not in backend.available_modules:
+				return False
+	return True
 
 
 @dataclass

@@ -1413,10 +1413,19 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"opsiconfd",
 				"A list of features to disable "
-				"(features: status-page, public-folder, rpc-interface, messagebus_terminal, messagebus_execute_process).",
+				"(features: status-page, public-folder, rpc-interface, messagebus_terminal,  messagebus_terminal_client, messagebus_execute_process, messagebus_execute_process_client).",
 			),
 			# terminal was renamed to messagebus_terminal
-			choices=("status-page", "public-folder", "rpc-interface", "messagebus_terminal", "terminal", "messagebus_execute_process"),
+			choices=(
+				"status-page",
+				"public-folder",
+				"rpc-interface",
+				"messagebus_terminal",
+				"terminal",
+				"messagebus_terminal_client",
+				"messagebus_execute_process",
+				"messagebus_execute_process_client",
+			),
 		)
 		self._parser.add(
 			"--admin-interface-terminal-shell",
@@ -1505,7 +1514,6 @@ class Config(metaclass=Singleton):
 			),
 		)
 
-
 		if self._pytest:
 			self._parser.add("args", nargs="*")
 			return
@@ -1556,7 +1564,6 @@ class Config(metaclass=Singleton):
 				),
 			)
 			return
-
 
 		if self._sub_command == "setup":
 			self._parser.add(

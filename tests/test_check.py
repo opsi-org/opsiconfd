@@ -38,26 +38,16 @@ from opsiconfd.check.cli import console_health_check, process_check_result
 from opsiconfd.check.common import CheckRegistry, CheckResult, CheckStatus, PartialCheckResult
 from opsiconfd.check.main import (
 	check_depotservers,
-	check_deprecated_calls,
 	check_disk_usage,
-	check_ldap_connection,
 	check_mysql,
 	check_opsi_backup,
-	check_opsi_config,
-	check_opsi_licenses,
-	check_opsi_users,
 	check_opsiconfd_config,
-	check_product_on_clients,
-	check_product_on_depots,
 	check_redis,
-	check_run_as_user,
-	check_ssl,
 	check_system_packages,
 	health_check,
 )
-from opsiconfd.check.mysql import check_unique_hardware_addresses
 from opsiconfd.check.opsipackages import get_available_product_versions, get_enabled_hosts
-from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, check_system_repos, get_repo_versions
+from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, get_repo_versions
 from opsiconfd.config import OPSICONFD_HOME, config, get_configserver_id, opsi_config
 from opsiconfd.redis import redis_client
 from opsiconfd.ssl import (

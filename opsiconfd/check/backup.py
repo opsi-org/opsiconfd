@@ -35,6 +35,7 @@ backup_check = Check(
 	name="OPSI backup",
 	description="Checks if the backup is up to date.",
 	documentation=docs,
+	status=CheckStatus.OK,
 	depot_check=False,
 	message="Backup is up to date.",
 	check_function=check_opsi_backup

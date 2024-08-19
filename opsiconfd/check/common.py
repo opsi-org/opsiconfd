@@ -12,6 +12,7 @@ health check
 from __future__ import annotations
 
 
+from copy import deepcopy as copy
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -89,7 +90,7 @@ class Check:
 
 	def run(self, use_cache: bool = True) -> CheckResult:
 		if not self.cache or not use_cache:
-			return self.check_funktion(self.result)
+			return self.check_funktion(copy(self.result))
 		result = self.check_cache_load()
 		if result is not None:
 			check_result = CheckResult(**result)
@@ -98,7 +99,7 @@ class Check:
 				partial_result = PartialCheckResult(**partial_result)
 				check_result.add_partial_result(partial_result)
 			return check_result
-		result = self.check_funktion(self.result)
+		result = self.check_funktion(copy(self.result))
 		self.check_cache_store(result, self.cache_expiration)
 		return result
 

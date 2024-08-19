@@ -240,6 +240,7 @@ run_as_user_check = Check(
 	name="Run as user",
 	description="Check system user running opsiconfd",
 	documentation=run_as_user_docs,
+	status=CheckStatus.OK,
 	depot_check=True,
 	message=f"No issues found with user '{config.run_as_user}'.",
 	check_function=check_run_as_user

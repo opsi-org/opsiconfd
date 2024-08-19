@@ -147,26 +147,24 @@ def test_check_run_as_user() -> None:
 		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
 			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
-			result = check_run_as_user(CheckRegistry().get("run_as_user").result)
+			result = CheckRegistry().get("run_as_user").run(use_cache=False)
 
 			pprint.pprint(result)
 			assert result.check_status == CheckStatus.OK
 
-		check_cache_clear("all")
 		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
 			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
 			mock_user.pw_dir = "/wrong/home"
-			result = check_run_as_user(CheckRegistry().get("run_as_user").result)
+			result = CheckRegistry().get("run_as_user").run(use_cache=False)
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
-	check_cache_clear("all")
 	with (
 		mock.patch("opsiconfd.check.config.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))),
 		mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
 		mock.patch("opsiconfd.check.config.grp.getgrnam", mock_getgrnam),
 	):
-		result = check_run_as_user(CheckRegistry().get("run_as_user").result)
+		result = CheckRegistry().get("run_as_user").run(use_cache=False)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.partial_results[1].message == "User 'opsiconfd' is not a member of group 'shadow'."
 		assert (
@@ -313,7 +311,8 @@ def test_check_unique_hardware_addresses(test_client: OpsiconfdTestClient) -> No
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
-	result = check_unique_hardware_addresses(CheckRegistry().get("unique_hardware_addresses").result)
+	# result = check_unique_hardware_addresses(CheckRegistry().get("unique_hardware_addresses").result)
+	result = CheckRegistry().get("unique_hardware_addresses").run(use_cache=False)
 	assert result.check_status == CheckStatus.ERROR
 
 	client2.hardwareAddress = "00:00:00:00:00:01"
@@ -321,8 +320,9 @@ def test_check_unique_hardware_addresses(test_client: OpsiconfdTestClient) -> No
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
-	check_cache_clear("all")
-	result = check_unique_hardware_addresses(CheckRegistry().get("unique_hardware_addresses").result)
+	time.sleep(1)
+
+	result = CheckRegistry().get("unique_hardware_addresses").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 
 
@@ -528,7 +528,7 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	_prepare_products(test_client=test_client)
-	result = check_product_on_depots(CheckRegistry().get("product_on_depots").result)
+	result = CheckRegistry().get("products_on_depots").run(use_cache=False)
 	# print(result)
 	assert result.check_status == CheckStatus.ERROR
 	assert "1 are out of date" in result.message
@@ -536,12 +536,12 @@ def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # n
 	found = 0
 	for partial_result in result.partial_results:
 		# print(partial_result)
-		if partial_result.check_id == "product_on_depots:test-check-depot-1.opsi.test:opsi-script":
+		if partial_result.check_id == "products_on_depots:test-check-depot-1.opsi.test:opsi-script":
 			found += 1
 			assert partial_result.check_status == CheckStatus.ERROR
 			assert "not installed" in partial_result.message
 			assert partial_result.upgrade_issue == "4.3"
-		if partial_result.check_id == "product_on_depots:test-check-depot-1.opsi.test:opsi-client-agent":
+		if partial_result.check_id == "products_on_depots:test-check-depot-1.opsi.test:opsi-client-agent":
 			found += 1
 			assert partial_result.check_status == CheckStatus.ERROR
 			assert "is outdated" in partial_result.message
@@ -551,7 +551,7 @@ def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # n
 
 def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	_prepare_products(test_client=test_client)
-	result = check_product_on_clients(CheckRegistry().get("product_on_clients").result)
+	result = CheckRegistry().get("products_on_clients").run(use_cache=False)
 	# print(result)
 	assert result.check_status == CheckStatus.ERROR
 	assert "are out of date" in result.message
@@ -560,7 +560,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 	found = 0
 	for partial_result in result.partial_results:
 		# print(partial_result)
-		if partial_result.check_id == "product_on_clients:test-check-client-1.opsi.test:opsi-client-agent":
+		if partial_result.check_id == "products_on_clients:test-check-client-1.opsi.test:opsi-client-agent":
 			found += 1
 			assert partial_result.check_status == CheckStatus.ERROR
 			assert "is outdated" in partial_result.message
@@ -580,7 +580,7 @@ def test_health_check() -> None:
 def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	sync_clean_redis()
 	console = Console(log_time=False, force_terminal=False, width=1000)
-	result = check_deprecated_calls(CheckRegistry().get("deprecated_calls").result)
+	result = CheckRegistry().get("deprecated_calls").run(use_cache=False)
 	captured_output = captured_function_output(process_check_result, result=result, console=console)
 	assert "No deprecated method calls found." in captured_output
 	assert result.check_status == CheckStatus.OK
@@ -593,8 +593,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 
 	assert res.status_code == 200
 
-	check_cache_clear("all")
-	result = check_deprecated_calls(CheckRegistry().get("deprecated_calls").result)
+	result = CheckRegistry().get("deprecated_calls").run(use_cache=False)
 
 	# print(result)
 	assert result.check_status == CheckStatus.WARNING
@@ -621,8 +620,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 	assert len(methods) == 1
 	redis.expire(f"{redis_prefix_stats}:rpcs:deprecated:{DEPRECATED_METHOD}:count", 1)
 	time.sleep(5)
-	check_cache_clear("all")
-	result = check_deprecated_calls(CheckRegistry().get("deprecated_calls").result)
+	result = CheckRegistry().get("deprecated_calls").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 	assert len(result.partial_results) == 0
 
@@ -631,7 +629,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 
 
 def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	result = check_opsi_licenses(CheckRegistry().get("licenses").result)
+	result = CheckRegistry().get("licenses").run(use_cache=False)
 	assert result.check_status == "ok"
 	assert result.partial_results is not None
 
@@ -641,7 +639,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_opsi_config(CheckRegistry().get("opsi_config").result)
+	result = CheckRegistry().get("opsi_config").run(use_cache=False)
 	print(result)
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "No issues found in the opsi configuration."
@@ -653,8 +651,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	check_cache_clear("all")
-	result = check_opsi_config(CheckRegistry().get("opsi_config").result)
+	result = CheckRegistry().get("opsi_config").run(use_cache=False)
 	assert result.check_status == CheckStatus.WARNING
 	assert result.message == "1 issues found in the opsi configuration."
 	assert len(result.partial_results) == 1
@@ -665,8 +662,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	check_cache_clear("all")
-	result = check_opsi_config(CheckRegistry().get("opsi_config").result)
+	result = CheckRegistry().get("opsi_config").run(use_cache=False)
 	assert result.check_status == CheckStatus.ERROR
 	assert result.message == "1 issues found in the opsi configuration."
 	assert len(result.partial_results) == 1
@@ -675,17 +671,15 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 
 
 def test_check_ldap_connection() -> None:
-	result = check_ldap_connection(CheckRegistry().get("ldap_connection").result)
+	result = CheckRegistry().get("ldap_connection").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "LDAP authentication is not configured."
 	with get_opsi_config([{"category": "ldap_auth", "config": "ldap_url", "value": "ldaps://no-server"}]):
-		check_cache_clear("all")
-		result = check_ldap_connection(CheckRegistry().get("ldap_connection").result)
+		result = CheckRegistry().get("ldap_connection").run(use_cache=False)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "Could not connect to LDAP Server."
 
-	check_cache_clear("all")
-	result = check_ldap_connection(CheckRegistry().get("ldap_connection").result)
+	result = CheckRegistry().get("ldap_connection").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "LDAP authentication is not configured."
 
@@ -705,7 +699,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		}
 	):
 		# CA key, CA cert, server key, server cert file missing
-		result = check_ssl(CheckRegistry().get("ssl").result)
+		result = CheckRegistry().get("ssl").run(use_cache=False)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "Some SSL issues where found."
 		assert result.partial_results[0].message.startswith("A problem was found with the opsi CA certificate")
@@ -723,8 +717,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		store_local_server_cert(srv_crt)
 		store_local_server_key(srv_key)
 
-		check_cache_clear("all")
-		result = check_ssl(CheckRegistry().get("ssl").result)
+		result = CheckRegistry().get("ssl").run(use_cache=False)
 		assert result.check_status == CheckStatus.OK
 		assert result.message == "No SSL issues found."
 		assert (
@@ -747,8 +740,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 				"emailAddress": "opsi@new.domain",
 			},
 		):
-			check_cache_clear("all")
-			result = check_ssl(CheckRegistry().get("ssl").result)
+			result = CheckRegistry().get("ssl").run(use_cache=False)
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].message.startswith("The subject of the CA has changed from")
 
@@ -756,8 +748,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		store_opsi_ca_key(ca_key)
 		store_opsi_ca_cert(ca_crt)
 
-		check_cache_clear("all")
-		result = check_ssl(CheckRegistry().get("ssl").result)
+		result = CheckRegistry().get("ssl").run(use_cache=False)
 
 		assert result.check_status == CheckStatus.ERROR
 		assert (
@@ -779,7 +770,7 @@ def test_checks_and_skip_checks() -> None:
 
 
 def test_check_opsi_users() -> None:
-	result = check_opsi_users(CheckRegistry().get("opsi_users").result)
+	result = CheckRegistry().get("users").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 
 	# If the server is part of a domain and the opsi users are local users, a warning should be issued.
@@ -802,8 +793,7 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
 	):
-		check_cache_clear("all")
-		result = check_opsi_users(CheckRegistry().get("opsi_users").result)
+		result = CheckRegistry().get("users").run(use_cache=False)
 		assert result.check_status == CheckStatus.WARNING
 
 	# If the server  is part of a domain and the opsi users are only domain users, no warning should be issued.
@@ -828,8 +818,7 @@ def test_check_opsi_users() -> None:
 			"opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SYSTEMD, NameService.WINBIND])
 		),
 	):
-		check_cache_clear("all")
-		result = check_opsi_users(CheckRegistry().get("opsi_users").result)
+		result = CheckRegistry().get("users").run(use_cache=False)
 		assert result.check_status == CheckStatus.OK
 
 	# If the server is part of a domain and the opsi users are local and domain users, an error should be issued.
@@ -861,8 +850,7 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD, NameService.LDAP])),
 	):
-		check_cache_clear("all")
-		result = check_opsi_users(CheckRegistry().get("opsi_users").result)
+		result = CheckRegistry().get("users").run(use_cache=False)
 		assert result.check_status == CheckStatus.ERROR
 
 	# If the server is not part of a domain and the opsi users are local users, no warning should be issued.
@@ -885,14 +873,12 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD])),
 	):
-		check_cache_clear("all")
-		result = check_opsi_users(CheckRegistry().get("opsi_users").result)
+		result = CheckRegistry().get("users").run(use_cache=False)
 		assert result.check_status == CheckStatus.OK
 
-	check_cache_clear("all")
 	# check for missing user
 	with get_opsi_config([{"category": "depot_user", "config": "username", "value": "pcpatch-local"}]):
-		result = check_opsi_users(CheckRegistry().get("opsi_users").result)
+		result = CheckRegistry().get("users").run(use_cache=False)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "A required user does not exist."
 
@@ -918,7 +904,7 @@ def test_check_system_repos() -> None:
 						"Pinned packages:\n"
 					)
 				)
-				result = check_system_repos(CheckRegistry().get("system_repos").result)
+				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
@@ -941,7 +927,7 @@ def test_check_system_repos() -> None:
 				)
 			)
 			check_cache_clear("all")
-			result = check_system_repos(CheckRegistry().get("system_repos").result)
+			result = CheckRegistry().get("system_repositories").run(use_cache=False)
 			assert result.check_status == CheckStatus.OK
 			assert result.message == "No issues found with the system repositories."
 	# test rocky 9 with rocky 8 repository and rocky 9 repository
@@ -963,7 +949,7 @@ def test_check_system_repos() -> None:
 					)
 				)
 				check_cache_clear("all")
-				result = check_system_repos(CheckRegistry().get("system_repos").result)
+				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
@@ -983,7 +969,7 @@ def test_check_system_repos() -> None:
 					)
 				)
 				check_cache_clear("all")
-				result = check_system_repos(CheckRegistry().get("system_repos").result)
+				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
 	# Test openSUSE 15.5 with openSUSE 15.4 repository and openSUSE 15.5 repository
@@ -1009,7 +995,7 @@ def test_check_system_repos() -> None:
 					)
 				)
 				check_cache_clear("all")
-				result = check_system_repos(CheckRegistry().get("system_repos").result)
+				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
@@ -1033,7 +1019,7 @@ def test_check_system_repos() -> None:
 					)
 				)
 				check_cache_clear("all")
-				result = check_system_repos(CheckRegistry().get("system_repos").result)
+				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
 
@@ -1063,7 +1049,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_opsi_config(CheckRegistry().get("opsi_config").result)
+	result = CheckRegistry().get("opsi_config").run(use_cache=False)
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("0")
 	assert result.check_name in checkmk
@@ -1074,8 +1060,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	check_cache_clear("all")
-	result = check_opsi_config(CheckRegistry().get("opsi_config").result)
+	result = CheckRegistry().get("opsi_config").run(use_cache=False)
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("1")
 	assert "1 issues found in the opsi configuration." in checkmk
@@ -1085,8 +1070,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	check_cache_clear("all")
-	result = check_opsi_config(CheckRegistry().get("opsi_config").result)
+	result = CheckRegistry().get("opsi_config").run(use_cache=False)
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("2")
 	assert "1 issues found in the opsi configuration." in checkmk
@@ -1270,7 +1254,7 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	sync_clean_redis()
 	# backup check should fail. No backup was created.
 
-	result = check_opsi_backup(CheckRegistry().get("opsi_backup").result)
+	result = CheckRegistry().get("opsi_backup").run(use_cache=False)
 	assert result.check_status == CheckStatus.ERROR
 
 	# create a backup
@@ -1279,18 +1263,16 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert res.status_code == 200
 
 	# backup check should pass. A backup was created.
-	check_cache_clear("all")
-	result = check_opsi_backup(CheckRegistry().get("opsi_backup").result)
+	result = CheckRegistry().get("opsi_backup").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 
 	redis = redis_client()
 	# remove backup key so check should fail again
 	redis.delete(config.redis_key("stats") + ":backup")
-	check_cache_clear("all")
 
 	time.sleep(1)
 
-	result = check_opsi_backup(CheckRegistry().get("opsi_backup").result)
+	result = CheckRegistry().get("opsi_backup").run(use_cache=False)
 	assert result.check_status == CheckStatus.ERROR
 
 

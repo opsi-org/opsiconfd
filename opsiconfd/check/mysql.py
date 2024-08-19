@@ -125,6 +125,7 @@ unique_hardware_addresses_check = Check(
 	name="Unique Hardware Addresses",
 	description="Check if all hardware addresses are unique",
 	documentation=unique_hardware_addresses_docs,
+	status=CheckStatus.OK,
 	message="All hardware addresses are unique.",
 	check_function=check_unique_hardware_addresses,
 	depot_check=False,

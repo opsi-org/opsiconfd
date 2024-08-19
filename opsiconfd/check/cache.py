@@ -12,31 +12,9 @@ opsiconfd.check.cache
 from functools import wraps
 from typing import Any, Callable
 
-from msgspec.msgpack import decode, encode
 
-from opsiconfd.check.const import CHECKS
 from opsiconfd.logging import logger
-from opsiconfd.redis import delete_recursively, redis_client
-
-
-CACHE_EXPIRATION = 24 * 3600  # In seconds
-
-def check_cache_store(cache_id: str, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
-	if cache_id not in CHECKS:
-		logger.error("Invalid check cache id: %s", cache_id)
-	redis_key = f"opsiconfd:checkcache:{cache_id}"
-	logger.debug("Check cache store: %s", redis_key)
-	redis_client().set(redis_key, encode(result), ex=expiration)
-
-
-def check_cache_load(cache_id: str) -> Any:
-	redis_key = f"opsiconfd:checkcache:{cache_id}"
-	msgpack_data = redis_client().get(redis_key)
-	if msgpack_data:
-		logger.debug("Check cache hit: %s", redis_key)
-		return decode(msgpack_data)
-	logger.debug("Check cache miss: %s", redis_key)
-	return None
+from opsiconfd.redis import delete_recursively
 
 
 def check_cache_clear(cache_id: str | None = None) -> Any:

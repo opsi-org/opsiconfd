@@ -1104,16 +1104,16 @@ def test_check_console_health_check(capsys: CaptureFixture[str], format: str) ->
 			assert len(data) > 10
 			assert data["check_status"]
 			assert data["summary"]
-			assert isinstance(data["system_repos"], dict)
-			assert data["system_repos"]["check_id"]
-			assert data["system_repos"]["check_description"]
+			assert isinstance(data["system_repositories"], dict)
+			assert data["system_repositories"]["check_id"]
+			assert data["system_repositories"]["check_description"]
 		elif format == "checkmk":
 			services = captured.out.split("\n")
 			assert len(services) > 10
 			status, _ = services[0].split(" ", 1)
 			assert 0 <= int(status) <= 2
 		else:
-			assert "● Redis server" in captured.out
+			assert "● Redis Server" in captured.out
 
 
 def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

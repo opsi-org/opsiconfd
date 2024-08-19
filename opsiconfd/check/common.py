@@ -20,9 +20,10 @@ from typing import Any, Callable, Generator, Iterator, List
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
+from msgspec.msgpack import decode, encode
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
-from opsiconfd.check.cache import check_cache_load, check_cache_store
+from opsiconfd.redis import redis_client
 from opsiconfd.config import get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.utils import Singleton
@@ -89,7 +90,7 @@ class Check:
 	def run(self, use_cache: bool = True) -> CheckResult:
 		if not self.cache or not use_cache:
 			return self.check_funktion(self.result)
-		result = check_cache_load(self.id)
+		result = self.check_cache_load()
 		if result is not None:
 			check_result = CheckResult(**result)
 			check_result.partial_results = []
@@ -98,8 +99,25 @@ class Check:
 				check_result.add_partial_result(partial_result)
 			return check_result
 		result = self.check_funktion(self.result)
-		check_cache_store(self.id, result, self.cache_expiration)
+		self.check_cache_store(result, self.cache_expiration)
 		return result
+
+	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
+		if self.id not in CheckRegistry().check_ids:
+			logger.error("Invalid check cache id: %s", self.id)
+		redis_key = f"opsiconfd:checkcache:{self.id}"
+		logger.debug("Check cache store: %s", redis_key)
+		redis_client().set(redis_key, encode(result), ex=expiration)
+
+
+	def check_cache_load(self) -> Any:
+		redis_key = f"opsiconfd:checkcache:{self.id}"
+		msgpack_data = redis_client().get(redis_key)
+		if msgpack_data:
+			logger.debug("Check cache hit: %s", redis_key)
+			return decode(msgpack_data)
+		logger.debug("Check cache miss: %s", redis_key)
+		return None
 
 class CheckRegistry(metaclass=Singleton):
 	_checks: dict[str, Check] = {}

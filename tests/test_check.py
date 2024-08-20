@@ -916,7 +916,6 @@ def test_check_system_repos() -> None:
 					"Pinned packages:\n"
 				)
 			)
-			check_cache_clear("all")
 			result = CheckRegistry().get("system_repositories").run(use_cache=False)
 			assert result.check_status == CheckStatus.OK
 			assert result.message == "No issues found with the system repositories."
@@ -938,7 +937,6 @@ def test_check_system_repos() -> None:
 						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_8)\n"
 					)
 				)
-				check_cache_clear("all")
 				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
@@ -958,7 +956,6 @@ def test_check_system_repos() -> None:
 						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_9)\n"
 					)
 				)
-				check_cache_clear("all")
 				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
@@ -984,7 +981,6 @@ def test_check_system_repos() -> None:
 						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
 					)
 				)
-				check_cache_clear("all")
 				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
@@ -1008,7 +1004,6 @@ def test_check_system_repos() -> None:
 						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
 					)
 				)
-				check_cache_clear("all")
 				result = CheckRegistry().get("system_repositories").run(use_cache=False)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
@@ -1020,8 +1015,7 @@ def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction)
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
 
-	check_cache_clear("all")
-	result = check_opsi_failed_addons(CheckRegistry().get("opsi_failed_addons").result)
+	result = CheckRegistry().get("opsi_failed_addons").run(use_cache=False)
 	assert result.check_status == CheckStatus.ERROR
 
 	test_config.addon_dirs = []
@@ -1029,8 +1023,7 @@ def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction)
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
 
-	check_cache_clear("all")
-	result = check_opsi_failed_addons(CheckRegistry().get("opsi_failed_addons").result)
+	result = CheckRegistry().get("opsi_failed_addons").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 
 

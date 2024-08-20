@@ -10,19 +10,20 @@ health check addons
 """
 
 from opsiconfd.application.admininterface import _get_failed_addons
-from opsiconfd.check.common import Check, CheckRegistry, CheckResult, CheckStatus
+from opsiconfd.check.common import Check, CheckResult, CheckStatus
 
+class AddonCheck(Check):
+	def check(self) -> CheckResult:
+		result = self.result
+		failed_addons = _get_failed_addons()
+		if failed_addons:
+			result.check_status = CheckStatus.ERROR
+			result.message = "Errors occurred while loading opsiconfd addons: "
+			result.details["failed_addons"] = failed_addons
+			for addon in failed_addons:
+				result.message = result.message + f"{addon.get('name')} "
 
-def check_opsi_failed_addons(result: CheckResult) -> CheckResult:
-	failed_addons = _get_failed_addons()
-	if failed_addons:
-		result.check_status = CheckStatus.ERROR
-		result.message = "Errors occurred while loading opsiconfd addons: "
-		result.details["failed_addons"] = failed_addons
-		for addon in failed_addons:
-			result.message = result.message + f"{addon.get('name')} "
-
-	return result
+		return result
 
 docs = """
 ## Check Failed Addons
@@ -30,13 +31,12 @@ docs = """
 Checks if there are any failed addons. If there are any failed addons, the check will return an error and list the failed addons.
 """
 
-failed_addons_check = Check(
+failed_addons_check = AddonCheck(
 	id="opsi_failed_addons",
 	name="OPSI failed addons",
 	description="Checks if there are any failed addons.",
 	documentation=docs,
-	depot_check=False,
+	status=CheckStatus.OK,
 	message="No errors found while loading addons.",
-	check_function=check_opsi_failed_addons
+	depot_check=False,
 )
-CheckRegistry().register(failed_addons_check)

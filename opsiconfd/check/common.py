@@ -17,15 +17,16 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable, Generator, Iterator, List
+from typing import Any, Generator, Iterator, List
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from msgspec.msgpack import decode, encode
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
-from opsiconfd.redis import redis_client
+
 from opsiconfd.config import get_server_role
+from opsiconfd.redis import redis_client
 from opsiconfd.logging import logger
 from opsiconfd.utils import Singleton
 from opsiconfd.utils.modules import check_module
@@ -47,17 +48,15 @@ class CheckStatus(StrEnum):
 			return 2
 
 
-
 class Check:
 	def __init__(
 		self, id: str,
 		name: str = "",
 		description: str = "",
 		documentation: str = "",
-		depot_check: bool = True,
-		message: str = "",
 		status: CheckStatus = CheckStatus.OK,
-		check_function: Callable | None = None,
+		message: str = "",
+		depot_check: bool = True,
 		cache: bool = True,
 		cache_expiration: int = 24 * 3600
 	) -> None:
@@ -66,13 +65,9 @@ class Check:
 		if not name:
 			name = id
 		self.description = description
-		self.docs = documentation
+		self.documentation = documentation
 		self.depot_check = depot_check
-		if not check_function:
-			logger.warning("Check %s has no check function", id)
-			def check_function(x):
-				return CheckResult(check_id=id, check_name=name, check_description=description, message="No check function defined", check_status=CheckStatus.ERROR)
-		self.check_funktion = check_function
+
 		self.cache = cache
 		self.cache_expiration = cache_expiration
 		self.message = message
@@ -87,10 +82,13 @@ class Check:
 			details={},
 		)
 
+	def check(self) -> CheckResult:
+		return CheckResult(check_id=id, check_name=self.name, check_description=self.description, message="No check function defined", check_status=CheckStatus.ERROR)
+
 
 	def run(self, use_cache: bool = True) -> CheckResult:
 		if not self.cache or not use_cache:
-			return self.check_funktion(copy(self.result))
+			return self.check()
 		result = self.check_cache_load()
 		if result is not None:
 			check_result = CheckResult(**result)
@@ -99,12 +97,13 @@ class Check:
 				partial_result = PartialCheckResult(**partial_result)
 				check_result.add_partial_result(partial_result)
 			return check_result
-		result = self.check_funktion(copy(self.result))
+		result = self.check()
 		self.check_cache_store(result, self.cache_expiration)
 		return result
 
+
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
-		if self.id not in CheckRegistry().check_ids:
+		if self.id not in CheckManager().check_ids:
 			logger.error("Invalid check cache id: %s", self.id)
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		logger.debug("Check cache store: %s", redis_key)
@@ -120,13 +119,14 @@ class Check:
 		logger.debug("Check cache miss: %s", redis_key)
 		return None
 
-class CheckRegistry(metaclass=Singleton):
+
+class CheckManager(metaclass=Singleton):
 	_checks: dict[str, Check] = {}
 
 	def __init__(self) -> None:
 		self._checks = {}
 
-	def register(self, checks: Check | List[Check]) -> None:
+	def register(self, *checks: Check |  List[Check]) -> None:
 		role = get_server_role()
 		if isinstance(checks, Check):
 			checks = [checks]
@@ -150,6 +150,14 @@ class CheckRegistry(metaclass=Singleton):
 
 	def __iter__(self) -> Iterator[Check]:
 		return iter(self._checks.values())
+
+
+
+
+
+
+
+
 
 
 
@@ -230,3 +238,5 @@ def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
 		summary[result.check_status] += 1
 	json_result["summary"] = summary  # type: ignore
 	return json_result
+
+

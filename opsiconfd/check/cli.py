@@ -18,49 +18,15 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
 
-from opsiconfd.check.addon import check_opsi_failed_addons
-from opsiconfd.check.backend import check_depotservers
-from opsiconfd.check.backup import check_opsi_backup
-from opsiconfd.check.common import CheckRegistry, CheckResult, CheckStatus, PartialCheckResult, get_json_result
-from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
-from opsiconfd.check.jsonrpc import check_deprecated_calls
-from opsiconfd.check.ldap import check_ldap_connection
+
+
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result, CheckManager
 from opsiconfd.check.main import health_check
-from opsiconfd.check.mysql import check_mysql, check_unique_hardware_addresses
-from opsiconfd.check.opsilicense import check_opsi_licenses
-from opsiconfd.check.opsipackages import check_product_on_clients, check_product_on_depots
-from opsiconfd.check.redis import check_redis
-from opsiconfd.check.ssl import check_ssl
-from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
-from opsiconfd.check.users import check_opsi_users
+from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.config import config
 from opsiconfd.utils import DataclassCapableJSONEncoder
 
 STYLES = {CheckStatus.OK: "bold green", CheckStatus.WARNING: "bold yellow", CheckStatus.ERROR: "bold red"}
-
-__all__ = [
-	"check_depotservers",
-	"check_opsi_config",
-	"check_opsiconfd_config",
-	"check_run_as_user",
-	"check_mysql",
-	"check_redis",
-	"check_ssl",
-	"check_system_packages",
-	"check_disk_usage",
-	"check_distro_eol",
-	"check_system_repos",
-	"check_opsi_licenses",
-	"check_ldap_connection",
-	"check_opsi_users",
-	"check_deprecated_calls",
-	"check_product_on_clients",
-	"check_product_on_depots",
-	"check_opsi_failed_addons",
-	"check_opsi_backup",
-	"check_unique_hardware_addresses",
-	"console_health_check",
-]
 
 
 def print_health_check_manual(console: Console) -> None:
@@ -86,7 +52,7 @@ def print_health_check_manual(console: Console) -> None:
 	# for check_id in CHECKS:
 	# 	check = globals()[f"check_{check_id}"]
 	# 	console.print(Markdown((check.__doc__ or "").replace("\t", "")))
-	for check in CheckRegistry():
+	for check in CheckManager():
 		console.print(Markdown(check.docs.replace("\t", "")))
 
 
@@ -166,8 +132,7 @@ def console_health_check() -> int:
 		else:
 			check_version = config.upgrade_check
 	if config.clear_cache:
-		# TODO: clear_cache()
-		print("Clearing cache...")
+		check_cache_clear("all")
 
 	if config.format == "checkmk":
 		for check in health_check():

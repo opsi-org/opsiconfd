@@ -1745,21 +1745,22 @@ class Config(metaclass=Singleton):
 
 		if self._sub_command == "set-config":
 			self._parser.add(
-				"set_configs",
-				metavar="CONFIG",
-				nargs="+",
-				help=self._help(
-					"set-config",
-					"Configuration to set in the form of <option>=<value>.\nExamples:\n"
-					'"log-level = 6"\n"welcome-page = false"\n"admin-networks = [127.0.0.1/32, 10.10.10.0/24]"\n',
-				),
-			)
-			self._parser.add(
 				"--on-change",
 				choices=("reload", "restart"),
 				default=None,
 				help=self._help(
 					"set-config", "Restart or reload opsiconfd if the configuration has been changed and opsiconfd is running."
+				),
+			)
+			self._parser.add(
+				"set_configs",
+				metavar="CONFIG",
+				# Do not use nargs="+", this will break the cmdline parsing.
+				nargs="*",
+				help=self._help(
+					"set-config",
+					"Configuration to set in the form of <option>=<value>.\nExamples:\n"
+					'"log-level = 6"\n"welcome-page = false"\n"admin-networks = [127.0.0.1/32, 10.10.10.0/24]"\n',
 				),
 			)
 

@@ -25,6 +25,8 @@ def set_config_main() -> None:
 	init_logging(log_mode="local")
 	config._parse_args(ignore_env=True)
 	logger.debug("Configs passed: %s", config.set_configs)
+	if not config.set_configs:
+		raise ValueError("No config options passed")
 	options: dict[str, Any] = {}
 	for option_value_pair in config.set_configs:
 		if "=" not in option_value_pair:

@@ -112,6 +112,7 @@ def setup_ssl_file_permissions() -> None:
 	admin_group = opsi_config.get("groups", "admingroup")
 	permissions = (
 		DirPermission("/etc/opsi/ssl", config.run_as_user, admin_group, 0o600, 0o750, recursive=False),
+		DirPermission(config.ssl_ca_certs, config.run_as_user, admin_group, 0o664, 0o775, recursive=False),
 		FilePermission(config.ssl_ca_cert, config.run_as_user, admin_group, 0o644),
 		FilePermission(config.ssl_ca_key, config.run_as_user, admin_group, 0o600),
 		FilePermission(config.ssl_server_cert, config.run_as_user, admin_group, 0o640),

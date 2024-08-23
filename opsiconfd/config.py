@@ -69,6 +69,7 @@ OPSI_MODULES_FILE = "/etc/opsi/modules"
 OPSI_PASSWD_FILE = "/etc/opsi/passwd"
 OPSICONFD_DIR = "/var/lib/opsiconfd"
 OPSICONFD_HOME = "/var/lib/opsiconfd/home"
+LETSENCRYPT_DATA_DIR = "/var/lib/opsiconfd/letsencrypt"
 PUBLIC_DIR = "/var/lib/opsi/public"
 REPOSITORY_DIR = "/var/lib/opsi/repository"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
@@ -964,6 +965,19 @@ class Config(metaclass=Singleton):
 			nargs="+",
 			default=[],
 			help=self._help("opsiconfd", "The CA will be limited to these domains (X.509 Name Constraints)."),
+		)
+		self._parser.add(
+			"--ssl-server-cert-type",
+			env_var="OPSICONFD_SSL_SERVER_CERT_TYPE",
+			choices=("opsi-ca", "letsencrypt"),
+			default="opsi-ca",
+			help=self._help("expert", "The location of the ssl server key."),
+		)
+		self._parser.add(
+			"--letsencrypt-directory-url",
+			env_var="OPSICONFD_LETSENCRYPT_DIRECTORY_URL",
+			default="https://acme-v02.api.letsencrypt.org/directory",
+			help=self._help("expert", "The URL of the Let's Encrypt directory."),
 		)
 		self._parser.add(
 			"--ssl-server-key",

@@ -46,16 +46,10 @@ from opsiconfd.grafana import (
 )
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
-from opsiconfd.redis import (
-	async_redis_client,
-	decode_redis_result,
-	ip_address_from_redis_key,
-	ip_address_to_redis_key,
-	redis_client
-)
+from opsiconfd.redis import async_redis_client, decode_redis_result, ip_address_from_redis_key, ip_address_to_redis_key, redis_client
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
-from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
+from opsiconfd.ssl import get_ca_cert_info
 from opsiconfd.utils import get_manager_pid
 
 admin_interface_router = APIRouter()
@@ -109,6 +103,13 @@ async def admin_interface_index(request: Request) -> Response:
 		if method["doc"]:
 			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])
 			method["doc"] = method["doc"].replace("\n", "<br />").replace("\t", "&nbsp;&nbsp;&nbsp;").replace('"', "\\u0022")
+
+	ca_info = get_ca_cert_info()
+	ca_info["issuer_txt"] = ", ".join(f"{k} = {v}" for k, v in ca_info["issuer"].items() if v)
+	ca_info["subject_txt"] = ", ".join(f"{k} = {v}" for k, v in ca_info["subject"].items() if v)
+	cert_info = get_ca_cert_info()
+	cert_info["issuer_txt"] = ", ".join(f"{k} = {v}" for k, v in cert_info["issuer"].items() if v)
+	cert_info["subject_txt"] = ", ".join(f"{k} = {v}" for k, v in cert_info["subject"].items() if v)
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi-common={python_opsi_common_version}]",
@@ -116,8 +117,8 @@ async def admin_interface_index(request: Request) -> Response:
 		"username": username,
 		"interface": interface,
 		"available_modules": backend.available_modules,
-		"ca_info": get_ca_cert_info(),
-		"cert_info": get_server_cert_info(),
+		"ca_info": ca_info,
+		"cert_info": cert_info,
 		"num_servers": get_num_servers(),
 		"num_clients": get_num_clients(),
 		"disabled_features": config.disabled_features,

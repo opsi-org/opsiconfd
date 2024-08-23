@@ -453,13 +453,11 @@
 					<table style="margin-left: 20px;margin-bottom: 0px;">
 						<tr>
 							<td>Issuer:</td>
-							<td>{{ca_info.issuer.C}}, {{ca_info.issuer.ST}}, {{ca_info.issuer.L}},
-								{{ca_info.issuer.OU}}, {{ca_info.issuer.CN}}</td>
+							<td>{{ca_info.issuer_txt}}</td>
 						</tr>
 						<tr>
 							<td>Subject:</td>
-							<td>{{ca_info.subject.C}}, {{ca_info.subject.ST}}, {{ca_info.subject.L}},
-								{{ca_info.subject.OU}}, {{ca_info.subject.CN}}</td>
+							<td>{{ca_info.subject_txt}}</td>
 						</tr>
 						<tr>
 							<td>Serial number:</td>
@@ -497,13 +495,11 @@
 					<table style="margin-left: 20px;">
 						<tr>
 							<td>Issuer:</td>
-							<td>{{cert_info.issuer.C}}, {{cert_info.issuer.ST}}, {{cert_info.issuer.L}},
-								{{cert_info.issuer.OU}}, {{cert_info.issuer.CN}}</td>
+							<td>{{cert_info.issuer_txt}}</td>
 						</tr>
 						<tr>
 							<td>Subject:</td>
-							<td>{{cert_info.subject.C}}, {{cert_info.subject.ST}}, {{cert_info.subject.L}},
-								{{cert_info.subject.OU}}, {{cert_info.subject.CN}}</td>
+							<td>{{cert_info.subject_txt}}</td>
 						</tr>
 						<tr>
 							<td>SubjectAltName:</td>

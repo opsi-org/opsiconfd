@@ -687,8 +687,10 @@ def setup_server_cert(force_new: bool = False) -> bool:
 	if config.ssl_server_key == config.ssl_server_cert:
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
 
-	ca_cert = load_opsi_ca_cert()
-	check_intermediate_ca(ca_cert)
+	ca_cert: x509.Certificate | None = None
+	if config.ssl_server_cert_type == "opsi-ca":
+		ca_cert = load_opsi_ca_cert()
+		check_intermediate_ca(ca_cert)
 
 	create = force_new
 
@@ -740,7 +742,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			logger.warning("Server cert does not match server key, creating new server cert")
 			create = True
 
-	if not create and srv_crt and config.ssl_server_cert_type == "opsi-ca":
+	if not create and srv_crt and ca_cert and config.ssl_server_cert_type == "opsi-ca":
 		try:
 			validate_cert(srv_crt, ca_cert)
 		except verification.VerificationError as err:

@@ -1061,6 +1061,7 @@ def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
 				"ssl_server_key_passphrase": "secret",
 				"ssl_server_cert_type": "letsencrypt",
 				"letsencrypt_directory_url": LETSENCRYPT_STAGING_DIRECTORY_URL,
+				"letsencrypt_contact_email": "mail@domain.invalid",
 			}
 		),
 		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),

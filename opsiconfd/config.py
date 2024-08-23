@@ -980,6 +980,12 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "The URL of the Let's Encrypt directory."),
 		)
 		self._parser.add(
+			"--letsencrypt-contact-email",
+			env_var="OPSICONFD_LETSENCRYPT_CONTACT_EMAIL",
+			default="",
+			help=self._help("expert", "The contact e-mail for the Let's Encrypt account."),
+		)
+		self._parser.add(
 			"--ssl-server-key",
 			env_var="OPSICONFD_SSL_SERVER_KEY",
 			default="/etc/opsi/ssl/opsiconfd-key.pem",

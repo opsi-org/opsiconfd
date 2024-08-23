@@ -408,7 +408,7 @@ def create_letsencrypt_certificate() -> tuple[x509.Certificate, rsa.RSAPrivateKe
 	ca_certs = get_ca_certs()
 	ssl_ca_certs_path = Path(config.ssl_ca_certs)
 	server_cn = get_server_cn()
-	contact_email = f"opsiconfd@{server_cn}"
+	contact_email = config.letsencrypt_contact_email or f"opsiconfd@{server_cn}"
 
 	logger.notice("Requesting Let's Encrypt certificate for %r", server_cn)
 	csr, key = create_server_cert_signing_request(

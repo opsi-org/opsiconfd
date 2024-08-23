@@ -76,6 +76,7 @@ werkzeug = "^3.0"
 wsgidav = "^4.3"
 wsproto = "^1.2"
 yappi = "^1.4"
+acme = "^2.11.0"
 
 [tool.ruff.format]
 indent-style = "tab"

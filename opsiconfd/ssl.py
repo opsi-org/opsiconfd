@@ -31,7 +31,16 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 from opsicommon.server.rights import DirPermission, FilePermission, PermissionRegistry, set_rights
-from opsicommon.ssl import as_pem, create_ca, create_server_cert, install_ca, is_self_signed, load_key, x509_name_to_dict
+from opsicommon.ssl import (
+	as_pem,
+	create_ca,
+	create_server_cert,
+	create_server_cert_signing_request,
+	install_ca,
+	is_self_signed,
+	load_key,
+	x509_name_to_dict,
+)
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from opsiconfd.backend import get_unprotected_backend
@@ -44,6 +53,7 @@ from opsiconfd.config import (
 	get_server_role,
 	opsi_config,
 )
+from opsiconfd.letsencrypt import perform_certificate_signing_request
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
 
@@ -53,22 +63,23 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
 
 
-def get_ips() -> set[str]:
-	ips = {"127.0.0.1", "::1"}
+def get_ips(public_only: bool = False) -> set[str]:
+	ips = {ip_address("127.0.0.1"), ip_address("::1")}
 	for addr in get_ip_addresses():
 		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
 			if addr["address"].startswith("fe80"):
 				continue
 			try:
-				ips.add(ip_address(addr["address"]).compressed)
+				ips.add(ip_address(addr["address"]))
 			except ValueError as err:
 				logger.warning(err)
 	for san in config.ssl_server_cert_sans:
 		try:
-			ips.add(ip_address(san).compressed)
+			ips.add(ip_address(san))
 		except ValueError:
 			pass
-	return ips
+
+	return {ip.compressed for ip in ips if not public_only or not ip.is_private}
 
 
 def get_server_cn() -> str:
@@ -393,6 +404,40 @@ def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.
 	)
 
 
+def create_letsencrypt_certificate() -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
+	ca_certs = get_ca_certs()
+	ssl_ca_certs_path = Path(config.ssl_ca_certs)
+	server_cn = get_server_cn()
+	contact_email = f"opsiconfd@{server_cn}"
+
+	logger.notice("Requesting Let's Encrypt certificate for %r", server_cn)
+	csr, key = create_server_cert_signing_request(
+		subject={"CN": server_cn, "emailAddress": contact_email},
+		ip_addresses=set(),
+		hostnames=set(),
+	)
+	certificates = perform_certificate_signing_request(csr, contact_email)
+	server_cert: x509.Certificate | None = None
+	for cert in certificates:
+		cert_cn = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+		if not isinstance(cert_cn, str):
+			cert_cn = cert_cn.decode("utf-8")
+		if cert_cn == server_cn:
+			server_cert = cert
+		elif not any(
+			cur_cert for cur_cert in ca_certs if cert.subject == cur_cert.subject and cert.serial_number == cur_cert.serial_number
+		):
+			ssl_ca_certs_path.mkdir(parents=True, exist_ok=True)
+			ssl_ca_cert_file = ssl_ca_certs_path / f"{cert_cn.replace(' ', '_')}.pem"
+			logger.info("Storing Let's Encrypt CA cert '%s'", ssl_ca_cert_file)
+			store_cert(ssl_ca_cert_file, cert)
+
+	if not server_cert:
+		raise RuntimeError("Failed to get server certificate from Let's Encrypt")
+
+	return server_cert, key
+
+
 def depotserver_setup_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
 	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert().encode("utf-8"))
@@ -683,7 +728,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 	if srv_crt and srv_crt.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA":
 		logger.warning(
 			"Server cert is issued by 'uib opsi CA', keeping cert. "
-			f"Please delete server cert '{config.ssl_ca_cert}' and key '{config.ssl_ca_key}' manually to return to the local opsi CA."
+			f"Please delete server cert '{config.ssl_ca_cert}' and key '{config.ssl_ca_key}' manually to return to a local certificate."
 		)
 		return False
 
@@ -694,19 +739,24 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			logger.warning("Server cert does not match server key, creating new server cert")
 			create = True
 
-	if not create and srv_crt:
+	if not create and srv_crt and config.ssl_server_cert_type == "opsi-ca":
 		try:
 			validate_cert(srv_crt, ca_cert)
 		except verification.VerificationError as err:
 			logger.warning("Failed to verify server cert with opsi CA (%s), creating new server cert", err)
 			create = True
 
+	ssl_server_cert_renew_days = config.ssl_server_cert_renew_days
+	if config.ssl_server_cert_type == "letsencrypt" and ssl_server_cert_renew_days > 30:
+		logger.warning("Setting ssl-server-cert-renew-days to 30, which is the maximum values for Let's Encrypt certificates")
+		ssl_server_cert_renew_days = 30
+
 	if not create and srv_crt:
 		not_after_days = get_not_before_and_not_after(srv_crt)[3]
 		if not_after_days:
 			common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 			logger.info("Server cert '%s' will expire in %d days", common_name, not_after_days)
-			if not_after_days <= config.ssl_server_cert_renew_days:
+			if not_after_days <= ssl_server_cert_renew_days:
 				logger.notice("Server cert '%s' will expire in %d days, recreating", common_name, not_after_days)
 				create = True
 
@@ -724,12 +774,17 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			cert_hns = {str(v) for v in alt_names[0].value.get_values_for_type(x509.DNSName)}
 			cert_ips = {str(v) for v in alt_names[0].value.get_values_for_type(x509.IPAddress)}
 
-		hns = get_hostnames()
+		if config.ssl_server_cert_type == "letsencrypt":
+			hns = {server_cn}
+		else:
+			hns = get_hostnames()
+
 		if cert_hns != hns:
 			logger.notice("Server hostnames have changed from %s to %s, creating new server cert", cert_hns, hns)
 			create = True
 		else:
-			ips = get_ips()
+			ips = set() if config.ssl_server_cert_type == "letsencrypt" else get_ips()
+
 			if cert_ips != ips:
 				logger.notice("Server IPs have changed from %s to %s, creating new server cert", cert_ips, ips)
 				create = True
@@ -737,21 +792,24 @@ def setup_server_cert(force_new: bool = False) -> bool:
 	if create:
 		logger.info("Creating new server cert")
 		(srv_crt, srv_key) = (None, None)
-		if server_role == "configserver":
-			# It is safer to create a new server cert with a new key pair
-			# For cases where the server key got compromised
-			(srv_crt, srv_key) = create_local_server_cert(renew=False)
+		if config.ssl_server_cert_type == "letsencrypt":
+			(srv_crt, srv_key) = create_letsencrypt_certificate()
 		else:
-			for attempt in (1, 2, 3, 4, 5):
-				try:
-					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
-					(srv_crt, srv_key) = fetch_server_cert(get_unprotected_backend())
-					break
-				except RequestsConnectionError as err:
-					if attempt == 5:
-						raise
-					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
-					time.sleep(5)
+			if server_role == "configserver":
+				# It is safer to create a new server cert with a new key pair
+				# For cases where the server key got compromised
+				(srv_crt, srv_key) = create_local_server_cert(renew=False)
+			else:
+				for attempt in (1, 2, 3, 4, 5):
+					try:
+						logger.info("Fetching certificate from config server (attempt #%d)", attempt)
+						(srv_crt, srv_key) = fetch_server_cert(get_unprotected_backend())
+						break
+					except RequestsConnectionError as err:
+						if attempt == 5:
+							raise
+						logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
+						time.sleep(5)
 
 		if srv_key:
 			store_local_server_key(srv_key)

@@ -62,6 +62,7 @@ from opsiconfd.ssl import (
 	x509_name_to_dict,
 )
 
+from .test_letsencrypt import LETSENCRYPT_STAGING_DIRECTORY_URL
 from .utils import get_config
 
 GLOBALSIGN_ROOT_CA = """
@@ -115,10 +116,19 @@ CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
 
 
 def test_get_ips() -> None:
-	ips = get_ips()
-	assert "::1" in ips
-	assert "0:0:0:0:0:0:0:1" not in ips
-	assert "127.0.0.1" in ips
+	with get_config({"ssl_server_cert_sans": ["2a00:1450:4001:81c::2003", "216.58.206.35"]}):
+		ips = get_ips()
+		assert "::1" in ips
+		assert "0:0:0:0:0:0:0:1" not in ips
+		assert "127.0.0.1" in ips
+		assert "216.58.206.35" in ips
+		assert "2a00:1450:4001:81c::2003" in ips
+
+		ips = get_ips(public_only=True)
+		assert "::1" not in ips
+		assert "127.0.0.1" not in ips
+		assert "216.58.206.35" in ips
+		assert "2a00:1450:4001:81c::2003" in ips
 
 
 def test_get_hostnames() -> None:
@@ -1032,3 +1042,30 @@ def test_ca_certs_cache(tmp_path: Path) -> None:
 			globalsign_root_ca.unlink()
 			assert _check_certs_modified()
 			assert not _check_certs_modified()
+
+
+def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
+	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
+	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
+	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
+	ssl_server_key = tmp_path / "opsi-server-key.pem"
+	letsecrypt_data_dir = tmp_path / "letsencrypt"
+	with (
+		get_config(
+			{
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+				"ssl_server_cert_type": "letsencrypt",
+				"letsencrypt_directory_url": LETSENCRYPT_STAGING_DIRECTORY_URL,
+			}
+		),
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")),
+		mock.patch("opsiconfd.letsencrypt.LETSENCRYPT_DATA_DIR", str(letsecrypt_data_dir)),
+	):
+		with pytest.raises(RuntimeError, match="The provided contact URI was invalid"):
+			setup_server_cert()

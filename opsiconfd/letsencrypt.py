@@ -147,7 +147,7 @@ def perform_certificate_signing_request(
 		order_resource = acme_client.new_order(certificate_signing_request_pem)
 		challenge_body = _select_http01_challenge_body(order_resource)
 		fullchain_pem = _perform_http01(acme_client, challenge_body, order_resource)
-		logger.info("Let's Encrypt certificate signing request successful completed")
+		logger.info("Let's Encrypt certificate signing request successfully completed")
 		return [
 			x509.load_pem_x509_certificate(match.group(1).encode("utf-8"))
 			for match in re.finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", fullchain_pem, re.DOTALL)

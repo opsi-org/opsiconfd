@@ -110,6 +110,7 @@ async def grafana_dashboard_config() -> dict[str, Any]:
 
 
 async def create_grafana_datasource() -> None:
+	logger.debug("Creating grafana datasource")
 	json = GRAFANA_DATASOURCE_TEMPLATE
 	json["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
 	async with async_grafana_admin_session() as (base_url, session):

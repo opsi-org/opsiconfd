@@ -611,12 +611,15 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 
 	issuer_cert = None
 	for icert in ca_certs:
+		logger.debug("Checking if %r is issuer of %r", icert.subject, cert.subject)
 		if icert.subject == cert.issuer:
 			try:
+				logger.debug("Checking if %r is directly issued by %r", cert.subject, icert.subject)
 				cert.verify_directly_issued_by(icert)
 				issuer_cert = icert
 				break
-			except Exception:
+			except Exception as err:
+				logger.debug("%r is not directly issued by %r: %s", cert.subject, icert.subject, err)
 				continue
 	if not issuer_cert:
 		raise verification.VerificationError("Failed to verify certificate")
@@ -708,6 +711,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 
 	srv_key = None
 	srv_crt = None
+	crt_err: str | None = None
 	if not create:
 		try:
 			srv_key = load_local_server_key()
@@ -715,7 +719,8 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			logger.error(err, exc_info=True)
 			raise
 		except Exception as err:
-			logger.warning("Failed to load server key (%s), creating new server cert", err)
+			crt_err = f"Failed to load server key ({err})"
+			logger.warning("%s, new server cert needed", crt_err)
 			create = True
 
 	if not create:
@@ -725,7 +730,8 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			logger.error(err, exc_info=True)
 			raise
 		except Exception as err:
-			logger.warning("Failed to load server cert (%s), creating new server cert", err)
+			crt_err = f"Failed to load server cert ({err})"
+			logger.warning("%s, new server cert needed", crt_err)
 			create = True
 
 	if srv_crt and srv_crt.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA":
@@ -739,14 +745,16 @@ def setup_server_cert(force_new: bool = False) -> bool:
 		if srv_key.public_key().public_bytes(
 			encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
 		) != srv_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
-			logger.warning("Server cert does not match server key, creating new server cert")
+			crt_err = "Server cert does not match server key"
+			logger.warning("%s, new server cert needed", crt_err)
 			create = True
 
-	if not create and srv_crt and ca_cert and config.ssl_server_cert_type == "opsi-ca":
+	if not create and srv_crt:
 		try:
-			validate_cert(srv_crt, ca_cert)
+			validate_cert(srv_crt, get_ca_certs())
 		except verification.VerificationError as err:
-			logger.warning("Failed to verify server cert with opsi CA (%s), creating new server cert", err)
+			crt_err = f"Failed to verify server cert with CA certs ({err})"
+			logger.warning("%s, new server cert needed", crt_err)
 			create = True
 
 	ssl_server_cert_renew_days = config.ssl_server_cert_renew_days
@@ -760,13 +768,15 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 			logger.info("Server cert '%s' will expire in %d days", common_name, not_after_days)
 			if not_after_days <= ssl_server_cert_renew_days:
-				logger.notice("Server cert '%s' will expire in %d days, recreating", common_name, not_after_days)
+				crt_err = f"Server cert '{str(common_name)}' will expire in {not_after_days} days"
+				logger.notice("%s, new server cert needed", crt_err)
 				create = True
 
 	if not create and srv_crt:
 		common_name = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 		if server_cn != common_name:
-			logger.notice("Server CN has changed from '%s' to '%s', creating new server cert", common_name, server_cn)
+			crt_err = f"Server CN has changed from '{str(common_name)}' to '{server_cn}'"
+			logger.notice("%s, new server cert needed", crt_err)
 			create = True
 
 	if not create and server_role == "configserver" and srv_crt:
@@ -783,16 +793,23 @@ def setup_server_cert(force_new: bool = False) -> bool:
 			hns = get_hostnames()
 
 		if cert_hns != hns:
-			logger.notice("Server hostnames have changed from %s to %s, creating new server cert", cert_hns, hns)
+			crt_err = f"Server hostnames have changed from {cert_hns} to {hns}"
+			logger.notice("%s, new server cert needed", crt_err)
 			create = True
 		else:
 			ips = set() if config.ssl_server_cert_type == "letsencrypt" else get_ips()
 
 			if cert_ips != ips:
-				logger.notice("Server IPs have changed from %s to %s, creating new server cert", cert_ips, ips)
+				crt_err = f"Server IPs have changed from {cert_ips} to {ips}"
+				logger.notice("%s, new server cert needed", crt_err)
 				create = True
 
 	if create:
+		if config.ssl_server_cert_type == "unmanaged":
+			raise RuntimeError(
+				f"{crt_err}. New server cert is needed, but ssl-server-cert-type is 'unmanaged'. Please create a new server cert manually."
+			)
+
 		logger.info("Creating new server cert")
 		(srv_crt, srv_key) = (None, None)
 		if config.ssl_server_cert_type == "letsencrypt":

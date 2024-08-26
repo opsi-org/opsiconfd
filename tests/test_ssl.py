@@ -31,9 +31,11 @@ from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
 	_check_certs_modified,
+	_clear_ca_certs_cache,
 	as_pem,
 	create_ca,
 	create_local_server_cert,
+	create_server_cert,
 	get_ca_cert_info,
 	get_ca_certs,
 	get_ca_certs_as_pem,
@@ -41,6 +43,7 @@ from opsiconfd.ssl import (
 	get_ips,
 	get_opsi_ca_cert_as_pem,
 	get_server_cert_info,
+	get_server_cn,
 	get_trusted_certs,
 	is_self_signed,
 	load_cert,
@@ -1069,4 +1072,77 @@ def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
 		mock.patch("opsiconfd.letsencrypt.LETSENCRYPT_DATA_DIR", str(letsecrypt_data_dir)),
 	):
 		with pytest.raises(RuntimeError, match="The provided contact URI was invalid"):
+			setup_server_cert()
+
+
+def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
+	ssl_ca_certs = tmp_path / "ca-certs"
+	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
+	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
+	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
+	ssl_server_key = tmp_path / "opsi-server-key.pem"
+	some_ca_cert = ssl_ca_certs / "some-ca.pem"
+	ssl_ca_certs.mkdir()
+	with (
+		get_config(
+			{
+				"ssl_ca_certs": str(ssl_ca_certs),
+				"ssl_ca_cert": str(ssl_ca_cert),
+				"ssl_ca_key": str(ssl_ca_key),
+				"ssl_ca_key_passphrase": "secret",
+				"ssl_server_cert": str(ssl_server_cert),
+				"ssl_server_key": str(ssl_server_key),
+				"ssl_server_key_passphrase": "secret",
+				"ssl_server_cert_type": "unmanaged",
+			}
+		),
+		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")),
+	):
+		(ca_crt, ca_key) = create_ca(subject={"CN": "Some CA", "emailAddress": "ca@acme.org"}, valid_days=1000)
+		store_cert(some_ca_cert, ca_crt)
+
+		server_subject = {"CN": get_server_cn(), "emailAddress": "ca@acme.org"}
+		server_ips = get_ips()
+		server_hostnames = get_hostnames()
+
+		# Valid server cert
+		(srv_crt, srv_key) = create_server_cert(
+			subject=server_subject, valid_days=1000, ip_addresses=server_ips, hostnames=server_hostnames, ca_key=ca_key, ca_cert=ca_crt
+		)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
+		assert setup_server_cert() is False
+
+		# Expired server cert
+		(srv_crt, srv_key) = create_server_cert(
+			subject=server_subject, valid_days=10, ip_addresses=server_ips, hostnames=server_hostnames, ca_key=ca_key, ca_cert=ca_crt
+		)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
+		with pytest.raises(
+			RuntimeError,
+			match=(
+				r"Server cert '.*' will expire in 9 days. New server cert is needed, but ssl-server-cert-type is 'unmanaged'. "
+				r"Please create a new server cert manually."
+			),
+		):
+			setup_server_cert()
+
+		# Missing CA cert
+		(srv_crt, srv_key) = create_server_cert(
+			subject=server_subject, valid_days=1000, ip_addresses=server_ips, hostnames=server_hostnames, ca_key=ca_key, ca_cert=ca_crt
+		)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
+		some_ca_cert.unlink()
+		_clear_ca_certs_cache()
+
+		with pytest.raises(
+			RuntimeError,
+			match=(
+				r"Failed to verify server cert with CA certs \(Failed to verify certificate\). "
+				r"New server cert is needed, but ssl-server-cert-type is 'unmanaged'. Please create a new server cert manually."
+			),
+		):
 			setup_server_cert()

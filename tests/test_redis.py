@@ -22,19 +22,32 @@ import pytest
 from opsiconfd.metrics.collector import ManagerMetricsCollector
 from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import (AsyncRedis, Connection, Redis,
-                             async_delete_recursively, async_redis_client,
-                             async_redis_lock, delete_recursively, dump,
-                             get_redis_connections, get_redis_version,
-                             redis_client, redis_lock,
-                             redis_supports_xtrim_minid, restore)
+from opsiconfd.redis import (
+	AsyncRedis,
+	Connection,
+	Redis,
+	async_delete_recursively,
+	async_redis_client,
+	async_redis_lock,
+	delete_recursively,
+	dump,
+	get_redis_connections,
+	get_redis_version,
+	redis_client,
+	redis_lock,
+	redis_supports_xtrim_minid,
+	restore,
+)
 
 from .utils import Config, config  # noqa: F401
 
 
 def test_connection_repr() -> None:
 	client = redis_client()
-	assert re.match(r"<redis.client.Redis\(<redis.connection.ConnectionPool\(<redis.connection.Connection\(host=.*,port=\d+,db=\d+,id=\d+\)>\)>\)>", repr(client))
+	assert re.match(
+		r"<redis.client.Redis\(<redis.connection.ConnectionPool\(<redis.connection.Connection\(host=.*,port=\d+,db=\d+,id=\d+\)>\)>\)>",
+		repr(client),
+	)
 
 
 def test_get_redis_connections(config: Config) -> None:  # noqa: F811

@@ -545,6 +545,5 @@ def get_passwd_services() -> List[NameService]:
 class DataclassCapableJSONEncoder(JSONEncoder):
 	def default(self, obj: Any) -> Any:
 		if dataclasses.is_dataclass(obj):
-			return dataclasses.asdict(obj)
+			return dataclasses.asdict(obj)  # type: ignore[call-overload]
 		return super().default(obj)
-

@@ -44,7 +44,10 @@ from .utils import Config, config  # noqa: F401
 
 def test_connection_repr() -> None:
 	client = redis_client()
-	assert re.match(r"Redis<ConnectionPool<Connection<host=.*,port=\d+,db=\d+,id=\d+>>>", repr(client))
+	assert re.match(
+		r"<redis.client.Redis\(<redis.connection.ConnectionPool\(<redis.connection.Connection\(host=.*,port=\d+,db=\d+,id=\d+\)>\)>\)>",
+		repr(client),
+	)
 
 
 def test_get_redis_connections(config: Config) -> None:  # noqa: F811

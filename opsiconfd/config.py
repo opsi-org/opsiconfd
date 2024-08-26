@@ -969,9 +969,15 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-server-cert-type",
 			env_var="OPSICONFD_SSL_SERVER_CERT_TYPE",
-			choices=("opsi-ca", "letsencrypt"),
+			choices=("opsi-ca", "letsencrypt", "unmanaged"),
 			default="opsi-ca",
-			help=self._help("expert", "The location of the ssl server key."),
+			help=self._help(
+				"expert",
+				"The type of the server certificate.\n"
+				"opsi-ca: Automatically managed and signed by the opsi CA\n"
+				"letsencrypt: Automatically managed Let's Encrypt certificate\n"
+				"unmanaged: Manually use a custom certificate.",
+			),
 		)
 		self._parser.add(
 			"--letsencrypt-directory-url",

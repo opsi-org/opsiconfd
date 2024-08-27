@@ -171,9 +171,6 @@ class BaseMiddleware:
 					):
 						# Grub 2.06 needs titled headers (Content-Length instead of content-length)
 						message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
-					elif scope["path"].startswith(("/dav", "/depot", "/workbench", "/repository")):
-						# macOS WebDAVFS/3.0.0 (03008000) Darwin/23.5.0 sometimes produces corrupted files if caching is enabled
-						message["headers"].append((b"cache-control", b"no-store"))
 
 				dat = get_server_date()
 				message["headers"].append((b"date", dat[1]))

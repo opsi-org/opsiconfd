@@ -17,7 +17,7 @@ from typing import Any, AsyncGenerator, Generator
 from unittest.mock import patch
 
 import pytest
-from opsicommon.objects import (  # type: ignore[import]
+from opsicommon.objects import (
 	BoolConfig,
 	OpsiClient,
 	UnicodeConfig,

@@ -385,9 +385,19 @@ class ProtectedBackend(Backend):
 		self._read_acl_file()
 
 	def _read_acl_file(self) -> None:
+		self._acl = {}
 		acl = read_acl_file(config.acl_file)
 		for method_name in list(self._interface):
-			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
+			self._acl[method_name] = []
+			re_pattern = ""
+			for ace in acl:
+				if ace.method_re.match(method_name):
+					if not re_pattern:
+						re_pattern = ace.method_re.pattern
+					elif re_pattern != ace.method_re.pattern:
+						# Only use first match from acl config
+						break
+					self._acl[method_name].append(ace)
 
 	def _get_ace(self, method: str) -> list[RPCACE]:
 		"""
@@ -406,6 +416,7 @@ class ProtectedBackend(Backend):
 
 		ace_list = []
 		for ace in self._acl.get(method, []):
+			logger.trace("Checking %r for method %r (username=%r, user_type=%r)", ace, method, session.username, user_type)
 			if ace.type == "all":
 				ace_list.append(ace)
 			elif user_type == "user":
@@ -427,9 +438,10 @@ class ProtectedBackend(Backend):
 					ace_list.append(ace)
 
 		if ace_list:
+			logger.debug("Matching ACEs for method %r (username=%r, user_type=%r): %s", method, session.username, user_type, ace_list)
 			return ace_list
 
-		logger.info("No macthing ACEs for method %r (user=%r, acl-file=%r)", method, session.username, config.acl_file)
+		logger.info("No macthing ACEs for method %r (username=%r, acl-file=%r)", method, session.username, config.acl_file)
 		raise BackendPermissionDeniedError(f"No permission for method {method!r}")
 
 	def _check_role(self, required_role: str) -> None:

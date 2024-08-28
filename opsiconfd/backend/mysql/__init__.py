@@ -34,6 +34,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
 from opsicommon.exceptions import BackendPermissionDeniedError
 from opsicommon.logging import secret_filter
+from opsicommon.logging.constants import TRACE
 from opsicommon.objects import (
 	OBJECT_CLASSES,
 	BaseObject,
@@ -110,7 +111,12 @@ class MySQLSession(Session):
 						retry_wait = 1.0
 
 					log = logger.error if max_attempts > 1 and attempt >= max_attempts else logger.warning
-					log("Failed statement, attempt %d/%d: %s", attempt, max_attempts, err)
+					log(
+						"Failed statement, attempt %d/%d: %s",
+						attempt,
+						max_attempts,
+						err,
+					)
 					logger.trace(
 						"Failed statement %r (attempt: %d/%d) with params %r: %s",
 						statement,
@@ -391,7 +397,8 @@ class MySQLConnection:
 			return [
 				dict(row)
 				for row in session.execute(
-					"SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB = :db", params={"db": self.database}
+					"SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB = :db",
+					params={"db": self.database},
 				).fetchall()
 			]
 
@@ -455,9 +462,19 @@ class MySQLConnection:
 	def get_columns(
 		self, tables: list[str], ace: list[RPCACE], attributes: list[str] | tuple[str, ...] | None = None
 	) -> dict[str, ColumnInfo]:
+		trace_log = logger.isEnabledFor(TRACE)
 		res: dict[str, ColumnInfo] = {}
 		first_table = tables[0]
 		client_id_column = self._client_id_column.get(first_table)
+
+		self_ace: RPCACE | None = None
+		allowed_attributes: set[str] = set()
+		denied_attributes: set[str] = set()
+		for _ace in ace:
+			allowed_attributes.update(attr for attr in _ace.allowed_attributes or [])
+			denied_attributes.update(attr for attr in _ace.denied_attributes or [])
+			if _ace.type == "self":
+				self_ace = _ace
 
 		for table in tables:
 			is_first_table = table == first_table
@@ -474,30 +491,23 @@ class MySQLConnection:
 				if attributes and attr not in attributes:
 					continue
 
-				selected = not ace  # Select if no ACEs given
-				self_selected = False
-				self_ace = None
-				for _ace in ace:
-					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
-						continue
-					if _ace.denied_attributes and attr in _ace.denied_attributes:
-						continue
-
-					if _ace.type == "self":
-						self_ace = _ace
-						self_selected = True
-					else:
-						selected = True
-
-				if not selected and not self_selected:
+				allowed = not ((allowed_attributes and attr not in allowed_attributes) or (denied_attributes and attr in denied_attributes))
+				if not allowed and not self_ace:
 					continue
 
-				res[attr].select = f"`{table}`.`{col}`" if selected else "NULL"
-				if self_selected and self_ace:
+				res[attr].select = f"`{table}`.`{col}`" if allowed else "NULL"
+				if self_ace:
 					if client_id_column is None:
 						raise RuntimeError(f"No client id attribute defined for table {first_table} using ace {self_ace}")
 					if client_id_column:
 						res[attr].select = f"IF(`{first_table}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
+					else:
+						res[attr].select = f"`{table}`.`{col}`"
+
+				if trace_log:
+					logger.trace("attr=%r, allowed=%r, self_ace=%r", attr, allowed, self_ace)
+					logger.trace(res[attr])
+
 		return res
 
 	def get_where(
@@ -510,6 +520,12 @@ class MySQLConnection:
 		allowed_client_ids = self.get_allowed_client_ids(ace)
 
 		conditions = []
+		allowed_attributes: set[str] = set()
+		denied_attributes: set[str] = set()
+		for _ace in ace:
+			allowed_attributes.update(attr for attr in _ace.allowed_attributes or [])
+			denied_attributes.update(attr for attr in _ace.denied_attributes or [])
+
 		params: dict[str, Any] = {}
 		for f_attr, f_val in filter.items():
 			if f_attr not in columns:
@@ -525,16 +541,7 @@ class MySQLConnection:
 			if f_val is None:
 				continue
 
-			allowed = not ace  # Allowed if no ACEs given
-			for _ace in ace:
-				if _ace.type == "self":
-					continue
-				if _ace.allowed_attributes and f_attr not in _ace.allowed_attributes:
-					continue
-				if _ace.denied_attributes and f_attr in _ace.denied_attributes:
-					continue
-				allowed = True
-			if not allowed:
+			if (allowed_attributes and f_attr not in allowed_attributes) or (denied_attributes and f_attr in denied_attributes):
 				raise BackendPermissionDeniedError(f"No permission for attribute {f_attr}")
 
 			values = []
@@ -609,24 +616,41 @@ class MySQLConnection:
 
 	@overload
 	def get_ident(
-		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["unicode", "str"]
+		self,
+		data: dict[str, Any],
+		ident_attributes: tuple[str, ...] | list[str],
+		ident_type: Literal["unicode", "str"],
 	) -> str: ...
 
 	@overload
 	def get_ident(
-		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["dict", "hash"]
+		self,
+		data: dict[str, Any],
+		ident_attributes: tuple[str, ...] | list[str],
+		ident_type: Literal["dict", "hash"],
 	) -> dict[str, Any]: ...
 
 	@overload
-	def get_ident(self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["list"]) -> list[Any]: ...
+	def get_ident(
+		self,
+		data: dict[str, Any],
+		ident_attributes: tuple[str, ...] | list[str],
+		ident_type: Literal["list"],
+	) -> list[Any]: ...
 
 	@overload
 	def get_ident(
-		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["tuple"]
+		self,
+		data: dict[str, Any],
+		ident_attributes: tuple[str, ...] | list[str],
+		ident_type: Literal["tuple"],
 	) -> tuple[Any, ...]: ...
 
 	def get_ident(
-		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: IdentType
+		self,
+		data: dict[str, Any],
+		ident_attributes: tuple[str, ...] | list[str],
+		ident_type: IdentType,
 	) -> str | dict[str, Any] | list[Any] | tuple[Any, ...]:
 		ident = {a: data[a] for a in ident_attributes}
 		if ident_type in ("dict", "hash"):
@@ -800,16 +824,33 @@ class MySQLConnection:
 
 				l_aggregates = list(aggregates)
 				if return_type == "ident":
-					return [self.get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result]
+					return [
+						self.get_ident(
+							data=dict(row),
+							ident_attributes=ident_attributes,
+							ident_type=ident_type,
+						)
+						for row in result
+					]
 
 				conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 				if return_type == "dict":
 					return [
-						self._row_to_object(row=row, object_type=object_type, aggregates=l_aggregates, conversions=conversions).to_hash()
+						self._row_to_object(
+							row=row,
+							object_type=object_type,
+							aggregates=l_aggregates,
+							conversions=conversions,
+						).to_hash()
 						for row in result
 					]
 				return [
-					self._row_to_object(row=row, object_type=object_type, aggregates=l_aggregates, conversions=conversions)
+					self._row_to_object(
+						row=row,
+						object_type=object_type,
+						aggregates=l_aggregates,
+						conversions=conversions,
+					)
 					for row in result
 				]
 
@@ -872,7 +913,13 @@ class MySQLConnection:
 			if attr in ident_attrs:
 				where.append(f"`{column.column}` = :{attr}")
 
-			if attr == "type" and data[attr] in ("Host", "Config", "Product", "Group", "ProductProperty"):
+			if attr == "type" and data[attr] in (
+				"Host",
+				"Config",
+				"Product",
+				"Group",
+				"ProductProperty",
+			):
 				# Abstact class
 				continue
 
@@ -920,7 +967,14 @@ class MySQLConnection:
 	) -> Any:
 		if not self.connected:
 			raise RuntimeError("Not connected to MySQL server")
-		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
+		query, params = self.insert_query(
+			table=table,
+			obj=obj,
+			ace=ace,
+			create=create,
+			set_null=set_null,
+			additional_data=additional_data,
+		)
 		if query:
 			with self.session(session) as session:
 				result = session.execute(query, params=params)

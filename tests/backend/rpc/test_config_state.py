@@ -9,21 +9,43 @@
 test opsiconfd.backend.rpc.obj_config_state
 """
 
-from typing import Any
+from pathlib import Path
+from typing import Any, Generator
 
-from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver
+import pytest
+from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver, UnicodeConfig
 
+from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 from opsiconfd.config import get_configserver_id
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
-	UnprotectedBackend,
 	backend,
 	clean_mysql,
 	clean_redis,
+	get_config,
 	test_client,
 )
+
+
+@pytest.fixture()
+def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
+	_acl_file = tmp_path / "acl.conf"
+	data = (
+		f"config_getObjects       : sys_user({ADMIN_USER}); opsi_depotserver; opsi_client\n"
+		f"configState_getObjects  : sys_user({ADMIN_USER}); self; opsi_depotserver\n"
+		f".*                      : sys_user({ADMIN_USER}); opsi_client; opsi_depotserver\n"
+	)
+	_acl_file.write_text(data=data, encoding="utf-8")
+	protected_backend = ProtectedBackend()
+	try:
+		with get_config({"acl_file": str(_acl_file)}):
+			protected_backend._read_acl_file()
+		yield _acl_file
+	finally:
+		# Restore original ACL
+		protected_backend._read_acl_file()
 
 
 def _create_clients_and_depot(
@@ -279,3 +301,47 @@ def test_configState_getClientToDepotserver(backend: UnprotectedBackend) -> None
 	assert len(client_to_depots) == 1
 	assert client_to_depots[0]["depotId"] == server_id
 	assert client_to_depots[0]["clientId"] == client2.id
+
+
+def test_configState_getObjects(
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = OpsiClient(id="test-backend-rpc-obj-config-state-1.opsi.test", opsiHostKey="c68857de49124e5860d3c501a2675795")
+	client2 = OpsiClient(id="test-backend-rpc-obj-config-state-2.opsi.test", opsiHostKey="63c5d9127de4a24086510e5c79688575")
+	config1 = UnicodeConfig(
+		id="test-backend-rpc-obj-config-state-1",
+		description="test desc",
+		possibleValues=["a", "b", "c"],
+		defaultValues=["a", "b"],
+		editable=True,
+		multiValue=True,
+	)
+	config_state1 = ConfigState(configId=config1.id, objectId=client1.id, values=["a", "b"])
+	config_state2 = ConfigState(configId=config1.id, objectId=client2.id, values=["b", "c"])
+
+	res = test_client.jsonrpc20(method="host_createObjects", params=[[client1, client2]])
+	assert "error" not in res
+	res = test_client.jsonrpc20(method="config_createObjects", params=[[config1]])
+	assert "error" not in res
+	res = test_client.jsonrpc20(method="configState_createObjects", params=[[config_state1, config_state2]])
+	assert "error" not in res
+
+	for filter in ({}, {"configId": config1.id}, {"objectId": [client1.id, client2.id]}):
+		res = test_client.jsonrpc20(method="configState_getObjects", params=[[], filter])
+		assert "error" not in res
+		assert len(res["result"]) == 2
+
+	# Test client permissions
+	test_client.reset_cookies()
+	assert client1.opsiHostKey
+	test_client.auth = (client1.id, client1.opsiHostKey)
+
+	for filter in ({}, {"configId": config1.id}, {"objectId": [client1.id, client2.id]}):
+		res = test_client.jsonrpc20(method="configState_getObjects", params=[[], filter])
+		print(res)
+		assert "error" not in res
+		assert len(res["result"]) == 1
+		assert res["result"][0].configId == config1.id
+		assert res["result"][0].objectId == client1.id

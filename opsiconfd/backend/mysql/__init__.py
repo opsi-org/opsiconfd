@@ -462,20 +462,10 @@ class MySQLConnection:
 	def get_columns(
 		self, tables: list[str], ace: list[RPCACE], attributes: list[str] | tuple[str, ...] | None = None
 	) -> dict[str, ColumnInfo]:
-		trace_log = logger.isEnabledFor(TRACE)
 		res: dict[str, ColumnInfo] = {}
 		first_table = tables[0]
 		client_id_column = self._client_id_column.get(first_table)
-
-		self_ace: RPCACE | None = None
-		allowed_attributes: set[str] = set()
-		denied_attributes: set[str] = set()
-		for _ace in ace:
-			allowed_attributes.update(attr for attr in _ace.allowed_attributes or [])
-			denied_attributes.update(attr for attr in _ace.denied_attributes or [])
-			if _ace.type == "self":
-				self_ace = _ace
-
+		trace_log = logger.isEnabledFor(TRACE)
 		for table in tables:
 			is_first_table = table == first_table
 			for col in self.tables[table]:
@@ -491,7 +481,19 @@ class MySQLConnection:
 				if attributes and attr not in attributes:
 					continue
 
-				allowed = not ((allowed_attributes and attr not in allowed_attributes) or (denied_attributes and attr in denied_attributes))
+				allowed = not ace  # Allowed if no ACEs given
+				self_ace = None
+				for _ace in ace:
+					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
+						continue
+					if _ace.denied_attributes and attr in _ace.denied_attributes:
+						continue
+
+					if _ace.type == "self":
+						self_ace = _ace
+					else:
+						allowed = True
+
 				if not allowed and not self_ace:
 					continue
 

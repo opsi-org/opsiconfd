@@ -186,8 +186,8 @@ class RPCAuditHardwareMixin(Protocol):
 	def auditHardware_deleteAll(self: BackendProtocol) -> None:
 		with self._mysql.session() as session:
 			for hardware_class in self._audit_hardware_database_config:
-				session.execute(f"TRUNCATE TABLE `HARDWARE_CONFIG_{hardware_class}`")
-				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class}`")
+				session.execute(f"TRUNCATE TABLE `HARDWARE_CONFIG_{hardware_class.upper()}`")
+				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class.upper()}`")
 
 	@rpc_method(check_acl=False)
 	def auditHardware_getConfig(

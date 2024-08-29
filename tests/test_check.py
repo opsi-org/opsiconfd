@@ -1243,4 +1243,3 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	redis = redis_client()
 	# remove backup key so check should to fail again
 	redis.delete(config.redis_key("stats") + ":backup")
-

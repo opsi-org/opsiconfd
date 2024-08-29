@@ -19,7 +19,7 @@ from pathlib import Path
 from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
 
-from opsiconfd.config import SMB_CONF,FQDN, opsi_config, config, str2bool
+from opsiconfd.config import SMB_CONF, FQDN, opsi_config, config, str2bool
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_ucs_user_details
 from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
@@ -142,7 +142,7 @@ def setup_samba(interactive: bool = False) -> None:
 				create_mask=share_options.get("create mask"),
 				directory_mask=share_options.get("directory mask"),
 				ucs_admin_dn=ucs_admin_dn,
-				ucs_password=ucs_password
+				ucs_password=ucs_password,
 			)
 			if changed:
 				samba_reload_needed = True
@@ -178,17 +178,17 @@ def setup_samba(interactive: bool = False) -> None:
 
 
 def setup_ucs_samba_share(
-		*,
-		name: str,
-		path: str,
-		writable: bool = False,
-		invalid_users: str | None = None,
-		follow_symlinks: bool = False,
-		create_mask: str | None = None,
-		directory_mask: str | None = None,
-		ucs_admin_dn: str | None = None,
-		ucs_password: str | None = None
-	) -> bool:
+	*,
+	name: str,
+	path: str,
+	writable: bool = False,
+	invalid_users: str | None = None,
+	follow_symlinks: bool = False,
+	create_mask: str | None = None,
+	directory_mask: str | None = None,
+	ucs_admin_dn: str | None = None,
+	ucs_password: str | None = None,
+) -> bool:
 	if ucs_password:
 		secret_filter.add_secrets(ucs_password)
 	if not is_ucs():
@@ -198,7 +198,7 @@ def setup_ucs_samba_share(
 	changed = False
 	share_config_path = Path("/etc/samba/shares.conf.d", name)
 	if share_config_path.exists():
-		for option, value  in SHARES.get(name, {}).items():
+		for option, value in SHARES.get(name, {}).items():
 			if option in ("available", "acl allow execute always", "comment"):
 				logger.debug("Skipping option %s. This option is not set in ucs samba.", option)
 				continue
@@ -236,7 +236,6 @@ def setup_ucs_samba_share(
 		f"name={FQDN}",
 	]
 
-
 	if ucs_admin_dn and ucs_password:
 		cmd.append("--binddn")
 		cmd.append(ucs_admin_dn)
@@ -247,7 +246,6 @@ def setup_ucs_samba_share(
 		subprocess.check_output(cmd, timeout=10)
 	except subprocess.CalledProcessError as err:
 		logger.error("Failed to create container for samba shares: %s", err)
-
 
 	# remove existing share
 	cmd = ["udm", "shares/share", "remove", "--filter", f"name={name}", "--ignore_not_exists"]
@@ -268,26 +266,26 @@ def setup_ucs_samba_share(
 		"shares/share",
 		"create",
 		"--ignore_exists",
-		'--position',
+		"--position",
 		f"cn={FQDN},cn=shares,{ucs_root_dn}",
-		'--set',
-		f'name={name}',
-		'--set',
-		f'host={FQDN}',
-		'--set',
-		f'path={path}',
-		'--set',
-		f'owner={user_id}',
-		'--set',
-		f'group={group_id}',
-		'--set',
-		f'sambaName={name}',
-		'--set',
+		"--set",
+		f"name={name}",
+		"--set",
+		f"host={FQDN}",
+		"--set",
+		f"path={path}",
+		"--set",
+		f"owner={user_id}",
+		"--set",
+		f"group={group_id}",
+		"--set",
+		f"sambaName={name}",
+		"--set",
 		f'sambaInvalidUsers={invalid_users or ""}',
-		'--set',
-		'sambaBrowseable=1',
-		'--set',
-		'sambaPublic=0',
+		"--set",
+		"sambaBrowseable=1",
+		"--set",
+		"sambaPublic=0",
 	]
 	if writable:
 		cmd.append("--set")
@@ -297,7 +295,9 @@ def setup_ucs_samba_share(
 		cmd.append("sambaWriteable=0")
 	if follow_symlinks:
 		cmd.append("--set")
-		cmd.append("sambaCustomSettings=" + '"follow symlinks" yes',)
+		cmd.append(
+			"sambaCustomSettings=" + '"follow symlinks" yes',
+		)
 	if create_mask:
 		cmd.append("--set")
 		cmd.append(f"sambaCreateMode={create_mask}")

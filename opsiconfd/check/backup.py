@@ -37,4 +37,3 @@ def check_opsi_backup() -> CheckResult:
 		return result
 
 	return result
-

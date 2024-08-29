@@ -264,7 +264,6 @@ def create_backup(
 		redis = redis_client()
 		redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60 * 60, value=now.timestamp())
 
-
 		return data
 
 

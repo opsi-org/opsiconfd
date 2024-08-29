@@ -30,7 +30,7 @@ from opsicommon.system.info import is_ucs
 from rich import print as rich_print
 
 from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
-from opsiconfd.logging import logger,secret_filter
+from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_random_string, running_in_docker
 from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
 
@@ -175,7 +175,6 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 			logger.warning("Tip: This is also checked by the 'opsiconfd health check'.")
 			return False
 
-
 	try:
 		grp.getgrnam(admingroup)
 	except KeyError:
@@ -197,7 +196,7 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	return True
 
 
-def setup_users_and_groups(interactive: bool = False) -> None:
+def setup_users_and_groups(interactive: bool = False, backend_available: bool = True) -> None:
 	logger.info("Setup users and groups")
 	logger.debug("Is UCS? %s", is_ucs())
 	logger.debug("Is interactive? %s", interactive)
@@ -265,6 +264,9 @@ def setup_users_and_groups(interactive: bool = False) -> None:
 
 	server_role = get_server_role()
 	if server_role != "configserver":
+		return
+
+	if not backend_available:
 		return
 
 	from opsiconfd.backend import get_unprotected_backend

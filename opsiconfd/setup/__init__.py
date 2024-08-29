@@ -27,6 +27,7 @@ from opsiconfd import __version__
 from opsiconfd.backend import new_service_client
 from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
 from opsiconfd.dhcpd import setup_dhcpd
+from opsiconfd.exception import ConfigurationError
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
@@ -261,6 +262,8 @@ def setup(explicit: bool = True) -> None:
 	if "backend" not in config.skip_setup and backend_available:
 		try:
 			setup_backend(new_server_id)
+		except ConfigurationError:
+			raise
 		except Exception as err:
 			# This can happen during package installation
 			# where backend config files are missing
@@ -271,7 +274,7 @@ def setup(explicit: bool = True) -> None:
 		setup_limits()
 
 	if "users" not in config.skip_setup and "groups" not in config.skip_setup:
-		setup_users_and_groups(interactive)
+		setup_users_and_groups(interactive, backend_available=backend_available)
 
 	if explicit and "systemd" not in config.skip_setup:
 		setup_systemd()

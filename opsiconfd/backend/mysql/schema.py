@@ -404,8 +404,8 @@ def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, d
 
 	for hw_class, values in get_audit_hardware_database_config().items():
 		logger.debug("Processing hardware class '%s'", hw_class)
-		hardware_device_table_name = f"HARDWARE_DEVICE_{hw_class}"
-		hardware_config_table_name = f"HARDWARE_CONFIG_{hw_class}"
+		hardware_device_table_name = f"HARDWARE_DEVICE_{hw_class.upper()}"
+		hardware_config_table_name = f"HARDWARE_CONFIG_{hw_class.upper()}"
 
 		hardware_device_table_exists = hardware_device_table_name in existing_tables
 		hardware_config_table_exists = hardware_config_table_name in existing_tables

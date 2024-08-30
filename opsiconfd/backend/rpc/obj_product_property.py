@@ -14,7 +14,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, List, Literal, Protocol
 
-from opsicommon.objects import ProductProperty
+from opsicommon.objects import BoolProductProperty, ProductProperty, UnicodeProductProperty
 from opsicommon.types import forceList, forceObjectClass
 
 from ..auth import RPCACE
@@ -111,6 +111,37 @@ class RPCProductPropertyMixin(Protocol):
 		_hash = locals()
 		del _hash["self"]
 		self.productProperty_createObjects(ProductProperty.fromHash(_hash))
+
+	@rpc_method(check_acl=False)
+	def productProperty_createUnicode(
+		self,
+		productId: str,
+		productVersion: str,
+		packageVersion: str,
+		propertyId: str,
+		description: str | None = None,
+		possibleValues: List[str] | None = None,
+		defaultValues: str | None = None,
+		editable: str | None = None,
+		multiValue: str | None = None,
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		return self.productProperty_createObjects(UnicodeProductProperty.fromHash(_hash))
+
+	@rpc_method(check_acl=False)
+	def productProperty_createBool(
+		self,
+		productId: str,
+		productVersion: str,
+		packageVersion: str,
+		propertyId: str,
+		description: str | None = None,
+		defaultValues: str | None = None,
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		return self.productProperty_createObjects(BoolProductProperty.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
 	def productProperty_updateObjects(

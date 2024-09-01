@@ -184,6 +184,7 @@ class WorkerManager:
 	def reload(self) -> None:
 		self.check_modules()
 		for worker in self.get_workers():
+			logger.info("Sending SIGHUP to %s", worker)
 			os.kill(worker.pid, signal.SIGHUP)
 
 		self.adjust_worker_count()

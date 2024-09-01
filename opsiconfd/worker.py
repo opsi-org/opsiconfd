@@ -16,6 +16,7 @@ import ctypes
 import gc
 import multiprocessing
 import os
+import signal
 import socket
 import ssl
 import sys
@@ -24,7 +25,7 @@ from asyncio import sleep as asyncio_sleep
 from enum import StrEnum
 from logging import DEBUG
 from multiprocessing.context import SpawnProcess
-from signal import SIGHUP
+from types import FrameType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import uvloop
@@ -314,6 +315,7 @@ class Worker(WorkerInfo, UvicornServer):
 
 		self._metrics_collector = WorkerMetricsCollector(self)
 
+		signal.signal(signal.SIGHUP, self.handle_sighup)
 		self.bind_socket()
 		assert self.socket
 		super().run([self.socket])
@@ -464,11 +466,7 @@ class Worker(WorkerInfo, UvicornServer):
 		if not self.force_exit:
 			await self.lifespan.shutdown()
 
-	def install_signal_handlers(self) -> None:
-		loop = asyncio.get_event_loop()
-		loop.add_signal_handler(SIGHUP, self.handle_sighup)
-
-	def handle_sighup(self) -> None:
+	def handle_sighup(self, signum: int, frame: FrameType | None) -> None:
 		logger.notice("%s reloading", self)
 		config.reload()
 		for key, value in get_uvicorn_config().__dict__.items():

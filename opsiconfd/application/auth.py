@@ -166,11 +166,14 @@ async def saml_callback_login(request: Request) -> Response:
 		if errors:
 			raise RuntimeError(f"Failed to process SAML SSO response: {errors} {auth.get_last_error_reason()}")
 
+		# Entra ID does not support SessionNotOnOrAfter attribute
+		expiration_seconds = 3600
 		expiration_ts = auth.get_session_expiration()
-		expiration_time = datetime.fromtimestamp(expiration_ts, tz=timezone.utc)
-		expiration_seconds = expiration_ts - unix_timestamp()
-		if expiration_seconds <= 0:
-			raise RuntimeError(f"SAML SSO response session expired at {expiration_time}")
+		if expiration_ts is not None:
+			expiration_time = datetime.fromtimestamp(expiration_ts, tz=timezone.utc)
+			expiration_seconds = expiration_ts - unix_timestamp()
+			if expiration_seconds <= 0:
+				raise RuntimeError(f"SAML SSO response session expired at {expiration_time}")
 
 		if not auth.is_authenticated():
 			raise RuntimeError("SAML SSO not authenticated")
@@ -216,7 +219,7 @@ async def saml_callback_login(request: Request) -> Response:
 		)
 
 	except Exception as err:
-		logger.error("SAML login error: %s", err)
+		logger.error("SAML login error: %s", err, exc_info=True)
 		await _post_failed_authenticate(request.scope)
 		return PlainTextResponse("Authentication failure", status_code=status.HTTP_401_UNAUTHORIZED)
 

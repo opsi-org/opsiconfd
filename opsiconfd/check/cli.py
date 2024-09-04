@@ -18,8 +18,9 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
 
-from opsiconfd.check.backend import check_depotservers
 from opsiconfd.check.addon import check_opsi_failed_addons
+from opsiconfd.check.backend import check_depotservers
+from opsiconfd.check.backup import check_opsi_backup
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result
 from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
 from opsiconfd.check.jsonrpc import check_deprecated_calls
@@ -32,7 +33,6 @@ from opsiconfd.check.redis import check_redis
 from opsiconfd.check.ssl import check_ssl
 from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
 from opsiconfd.check.users import check_opsi_users
-from opsiconfd.check.backup import check_opsi_backup
 from opsiconfd.config import config
 from opsiconfd.utils import DataclassCapableJSONEncoder
 
@@ -96,13 +96,7 @@ def console_print_message(check_result: CheckResult | PartialCheckResult, consol
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
-def process_check_result(
-	result: CheckResult,
-	console: Console,
-	check_version: str | None = None,
-	detailed: bool = False,
-	summary: dict[CheckStatus, int] | None = None,
-) -> None:
+def process_check_result(result: CheckResult, console: Console, check_version: str | None = None, detailed: bool = False) -> None:
 	status = result.check_status
 	message = result.message
 	partial_results = []
@@ -110,8 +104,6 @@ def process_check_result(
 		if check_version and (not pres.upgrade_issue or compare_versions(pres.upgrade_issue, ">", check_version)):
 			continue
 		partial_results.append(pres)
-		if summary:
-			summary[pres.check_status] += 1
 
 	if check_version:
 		if partial_results:
@@ -120,8 +112,6 @@ def process_check_result(
 		elif result.upgrade_issue and compare_versions(result.upgrade_issue, "<=", check_version):
 			status = CheckStatus.ERROR
 			message = "1 upgrade issue"
-			if summary:
-				summary[result.check_status] += 1
 		else:
 			status = CheckStatus.OK
 			message = "No upgrade issues"
@@ -163,9 +153,9 @@ def console_health_check() -> int:
 			check_version = config.upgrade_check
 
 	if config.format == "checkmk":
-		for check in health_check():
-			summary[check.check_status] += 1
-			print(check.to_checkmk())
+		for result in health_check():
+			summary[result.check_status] += 1
+			print(result.to_checkmk())
 		return overall_check_status(summary).return_code()
 
 	console = Console(log_time=False)
@@ -181,7 +171,8 @@ def console_health_check() -> int:
 			print_health_check_manual(console=console)
 			return 0
 		for result in health_check():
-			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary)
+			summary[result.check_status] += 1
+			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed)
 
 	status = overall_check_status(summary)
 	style = styles[status]

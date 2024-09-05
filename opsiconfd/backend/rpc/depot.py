@@ -550,8 +550,7 @@ class RPCDepotserverMixin(Protocol):
 		workbench_path = Path(WORKBENCH_DIR)
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
-		package_path = package_path.resolve()
-		if not package_path.is_relative_to(workbench_path):
+		if not package_path.resolve().is_relative_to(workbench_path.resolve()):
 			raise ValueError(f"Invalid package dir '{package_path}'")
 		if not package_path.is_dir():
 			raise BackendIOError(f"Package source dir '{package_path}' does not exist")
@@ -584,8 +583,7 @@ class RPCDepotserverMixin(Protocol):
 		workbench_path = Path(WORKBENCH_DIR)
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
-		package_path = package_path.resolve()
-		if not package_path.is_relative_to(workbench_path):
+		if not package_path.resolve().is_relative_to(workbench_path.resolve()):
 			raise ValueError(f"Invalid package file '{package_path}'")
 		if package_path.is_dir():
 			package_path = Path(self.workbench_buildPackage(str(package_path)))

@@ -497,12 +497,12 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
 						).to_msgpack()
 					)
-					reader.wait_for_message(count=1, timeout=10.0)
+					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
 
-				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-				print(responses[0])
-				assert isinstance(responses[0], GeneralErrorMessage)
-				assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
 
 				_check_message_type_access.cache_clear()
 				with get_config({"disabled_features": ["messagebus_terminal"]}):
@@ -517,10 +517,68 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 					)
 					reader.wait_for_message(count=1, timeout=10.0)
 
-				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-				print(responses[0])
-				assert isinstance(responses[0], GeneralErrorMessage)
-				assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
+
+				_check_message_type_access.cache_clear()
+				with get_config({"disabled_features": ["messagebus_execute_process_client"]}):
+					# Executing processes on depot must be allowed
+					websocket.send_bytes(
+						ProcessStartRequestMessage(
+							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					assert isinstance(responses[0], ProcessStartEventMessage)
+
+					# Executing processes on clients must be denied
+					websocket.send_bytes(
+						ProcessStartRequestMessage(
+							sender=CONNECTION_USER_CHANNEL, channel="host:test-client.opsi.org", command=("echo", "test")
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=1, timeout=10.0)
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
+
+				_check_message_type_access.cache_clear()
+				with get_config({"disabled_features": ["messagebus_terminal_client"]}):
+					# Terminal on depot must be allowed
+					websocket.send_bytes(
+						TerminalOpenRequestMessage(
+							sender=CONNECTION_USER_CHANNEL,
+							channel=f"service:depot:{configserver_id}:terminal",
+							terminal_id=str(uuid4()),
+							rows=20,
+							cols=150,
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=1, timeout=10.0)
+
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], TerminalOpenEventMessage)
+
+					# Terminal on client must be denied
+					websocket.send_bytes(
+						TerminalOpenRequestMessage(
+							sender=CONNECTION_USER_CHANNEL,
+							channel="host:test-client.opsi.org",
+							terminal_id=str(uuid4()),
+							rows=20,
+							cols=150,
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=1, timeout=10.0)
+
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
 
 				_check_message_type_access.cache_clear()
 

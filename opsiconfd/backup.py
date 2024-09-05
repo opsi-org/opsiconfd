@@ -225,7 +225,7 @@ def create_backup(
 
 		if not backup_file:
 			redis = redis_client()
-			redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60, value=now.timestamp())
+			redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60 * 60, value=now.timestamp())
 			return data
 
 		if not isinstance(backup_file, Path):
@@ -263,7 +263,6 @@ def create_backup(
 
 		redis = redis_client()
 		redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60 * 60, value=now.timestamp())
-
 
 		return data
 

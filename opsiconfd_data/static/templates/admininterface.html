@@ -447,8 +447,9 @@
 				<h5 style="margin: 10px">Number of depot servers: {{num_servers}}</h4>
 					<h5 style="margin: 10px">Number of clients: {{num_clients}}</h4>
 			</div>
+			{%- for ca_info in ca_infos %}
 			<div class="adminpage-box">
-				<h4 style="margin: 10px">opsi CA:</h4>
+				<h4 style="margin: 10px">{{ca_info.subject.CN}}:</h4>
 				<div id="general-info-opsi-ca">
 					<table style="margin-left: 20px;margin-bottom: 0px;">
 						<tr>
@@ -479,16 +480,19 @@
 							<td>Expires:</td>
 							<td>in {{ca_info.expires_in_days}} days</td>
 						</tr>
+						{% if ca_info.renewal_in_days %}
 						<tr>
 							<td>Renewal:</td>
 							<td>in {{ca_info.renewal_in_days}} days</td>
 						</tr>
+						{% endif %}
 						<tr>
 							<td colspan="2"><a href="/ssl/opsi-ca-cert.pem">Download as PEM</a></td>
 						</tr>
 					</table>
 				</div>
 			</div>
+			{% endfor %}
 			<div class="adminpage-box">
 				<h4 style="margin: 10px">server certificate:</h4>
 				<div id="general-info-server-cert">

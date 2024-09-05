@@ -19,7 +19,7 @@ from starlette.status import HTTP_404_NOT_FOUND
 from opsiconfd import __version__
 from opsiconfd.config import FQDN, config
 from opsiconfd.redis import async_get_redis_info, async_redis_client
-from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
+from opsiconfd.ssl import get_opsi_ca_cert_info, get_server_cert_info
 
 status_router = APIRouter()
 
@@ -62,7 +62,7 @@ async def status_overview() -> PlainTextResponse:
 		f"redis-error: {redis_error}\n"
 		f"redis-mem: {redis_mem}\n"
 		f"redis-mem-total: {redis_mem_total}\n"
-		f"ssl-ca-valid-days: {get_ca_cert_info()['expires_in_days']}\n"
+		f"ssl-ca-valid-days: {get_opsi_ca_cert_info()['expires_in_days']}\n"
 		f"ssl-cert-valid-days: {get_server_cert_info()['expires_in_days']}\n"
 	)
 	return PlainTextResponse(data)

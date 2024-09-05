@@ -940,12 +940,6 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "The location of the opsi ssl ca certificate."),
 		)
 		self._parser.add(
-			"--ssl-ca-certs",
-			env_var="OPSICONFD_SSL_CA_CERTS",
-			default="/etc/opsi/ssl/ca-certs",
-			help=self._help("expert", "The ssl ca certificates location."),
-		)
-		self._parser.add(
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
 			type=int,
@@ -1300,7 +1294,7 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_MAX_BACKUP_AGE",
 			type=int,
 			default=24,
-			help=self._help("opsiconfd", "he maximum age of the last successful backup in hours."),
+			help=self._help("opsiconfd", "The maximum age of the last successful backup in hours."),
 		)
 		self._parser.add(
 			"--welcome-page",
@@ -1439,10 +1433,19 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"opsiconfd",
 				"A list of features to disable "
-				"(features: status-page, public-folder, rpc-interface, messagebus_terminal, messagebus_execute_process).",
+				"(features: status-page, public-folder, rpc-interface, messagebus_terminal,  messagebus_terminal_client, messagebus_execute_process, messagebus_execute_process_client).",
 			),
 			# terminal was renamed to messagebus_terminal
-			choices=("status-page", "public-folder", "rpc-interface", "messagebus_terminal", "terminal", "messagebus_execute_process"),
+			choices=(
+				"status-page",
+				"public-folder",
+				"rpc-interface",
+				"messagebus_terminal",
+				"terminal",
+				"messagebus_terminal_client",
+				"messagebus_execute_process",
+				"messagebus_execute_process_client",
+			),
 		)
 		self._parser.add(
 			"--admin-interface-terminal-shell",
@@ -1531,7 +1534,6 @@ class Config(metaclass=Singleton):
 			),
 		)
 
-
 		if self._pytest:
 			self._parser.add("args", nargs="*")
 			return
@@ -1582,7 +1584,6 @@ class Config(metaclass=Singleton):
 				),
 			)
 			return
-
 
 		if self._sub_command == "setup":
 			self._parser.add(

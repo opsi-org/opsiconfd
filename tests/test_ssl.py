@@ -36,12 +36,10 @@ from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
 	create_server_cert,
-	get_ca_cert_info,
 	get_ca_certs,
-	get_ca_certs_as_pem,
 	get_hostnames,
 	get_ips,
-	get_opsi_ca_cert_as_pem,
+	get_opsi_ca_cert_info,
 	get_server_cert_info,
 	get_server_cn,
 	get_trusted_certs,
@@ -54,7 +52,7 @@ from opsiconfd.ssl import (
 	load_opsi_ca_cert,
 	load_opsi_ca_key,
 	opsi_ca_is_self_signed,
-	setup_ca,
+	setup_opsi_ca,
 	setup_server_cert,
 	store_cert,
 	store_local_server_cert,
@@ -142,7 +140,7 @@ def test_get_hostnames() -> None:
 def test_ssl_ca_cert_and_key_in_different_files() -> None:
 	with get_config({"ssl_ca_cert": "opsi-ca.pem", "ssl_ca_key": "opsi-ca.pem"}):
 		with pytest.raises(ValueError, match=r".*cannot be stored in the same file.*"):
-			setup_ca()
+			setup_opsi_ca()
 
 
 def test_ssl_server_cert_and_key_in_different_files() -> None:
@@ -158,7 +156,7 @@ def test_store_load_cert(tmp_path: Path) -> None:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
 				# Test one cert in file
-				setup_ca()
+				setup_opsi_ca()
 
 				certs = load_certs(ssl_ca_cert)
 				assert len(certs) == 1
@@ -195,7 +193,7 @@ def test_store_load_cert(tmp_path: Path) -> None:
 				)
 
 				# Test keep other CA
-				setup_ca()
+				setup_opsi_ca()
 				certs = load_certs(ssl_ca_cert)
 				assert len(certs) == 2
 				assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "other CA"
@@ -214,7 +212,7 @@ def test_create_ca(tmp_path: Path) -> None:
 	with get_config({"ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key), "ssl_ca_key_passphrase": "secret"}) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
-				setup_ca()
+				setup_opsi_ca()
 				assert "-----BEGIN CERTIFICATE-----" in ssl_ca_cert.read_text(encoding="utf-8")
 				assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_ca_key.read_text(encoding="utf-8")
 				key = load_key(conf.ssl_ca_key, "secret")
@@ -233,7 +231,7 @@ def test_create_ca(tmp_path: Path) -> None:
 					ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)
 				).days == conf.ssl_ca_cert_valid_days - 1
 
-				info = get_ca_cert_info()
+				info = get_opsi_ca_cert_info()
 
 				out = subprocess.check_output(["openssl", "x509", "-noout", "-text", "-in", conf.ssl_ca_cert]).decode("utf-8")
 				match = re.search(r"Serial Number:\s*\n\s*([a-f0-9:]+)", out)
@@ -273,7 +271,7 @@ def test_create_ca_permitted_domains(tmp_path: Path) -> None:
 			}
 		),
 	):
-		setup_ca()
+		setup_opsi_ca()
 		ca_cert = load_opsi_ca_cert()
 
 		name_constraints = [extension for extension in ca_cert.extensions if extension.oid == x509.OID_NAME_CONSTRAINTS][0]
@@ -319,7 +317,7 @@ def test_server_key_fallback(tmp_path: Path) -> None:
 	) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
-				setup_ca()
+				setup_opsi_ca()
 
 				(srv_crt, srv_key) = create_local_server_cert(renew=False)
 				store_local_server_key(srv_key)
@@ -462,15 +460,14 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 		with (
 			mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
 			mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")),
-			mock.patch("opsiconfd.ssl.get_ca_subject", lambda: ca_subject),
-			mock.patch("opsiconfd.ssl._check_certs_interval", 0.0),
+			mock.patch("opsiconfd.ssl.get_opsi_ca_subject", lambda: ca_subject),
 		):
 			if additional_certs:
 				with ssl_ca_cert.open("w", encoding="utf-8") as file:
 					file.write("\n".join(additional_certs))
 
 			with mock.patch("opsicommon.ssl.common.CertificateBuilder", MockCertificateBuilder):
-				setup_ca()
+				setup_opsi_ca()
 				assert opsi_ca_is_self_signed()
 				setup_server_cert()
 
@@ -481,7 +478,7 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 					assert additional_cert.strip() in data
 
 			# Check CA
-			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_ca_cert_info()["not_before"]).days >= 10
+			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_opsi_ca_cert_info()["not_before"]).days >= 10
 			ca_crt = load_opsi_ca_cert()
 			assert (ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days == 299
 
@@ -504,7 +501,7 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 			conf.ssl_ca_cert_renew_days = 100
 			# Recreation not needed
 			time.sleep(2)
-			setup_ca()
+			setup_opsi_ca()
 			assert mtime == ssl_ca_cert.lstat().st_mtime
 			# Key must stay the same
 			assert load_opsi_ca_key().private_bytes(
@@ -535,8 +532,8 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 			conf.ssl_ca_cert_renew_days = 300
 			# Recreation needed
 			time.sleep(2)
-			setup_ca()
-			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_ca_cert_info()["not_before"]).days == 0
+			setup_opsi_ca()
+			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_opsi_ca_cert_info()["not_before"]).days == 0
 			ca_crt = load_opsi_ca_cert()
 			assert mtime != ssl_ca_cert.lstat().st_mtime
 			# Key must stay the same
@@ -573,7 +570,7 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 
 			# Delete the CA cert => old subject unknown
 			os.unlink(conf.ssl_ca_cert)
-			setup_ca()
+			setup_opsi_ca()
 			# Key must stay the same
 			assert load_opsi_ca_key().private_bytes(
 				encoding=serialization.Encoding.PEM,
@@ -635,7 +632,7 @@ def test_intermediate_ca(tmp_path: Path) -> None:
 					validate_cert(ca_crt, get_trusted_certs())
 
 				# CA key and cert must not be changed
-				setup_ca()
+				setup_opsi_ca()
 				assert opsi_ca_crt == load_opsi_ca_cert()
 				assert opsi_ca_key.private_bytes(
 					encoding=serialization.Encoding.PEM,
@@ -665,7 +662,7 @@ def test_intermediate_ca(tmp_path: Path) -> None:
 						r"Please update the current CA certificate.*and key.*manually\."
 					),
 				):
-					setup_ca()
+					setup_opsi_ca()
 
 
 def test_create_local_server_cert(tmp_path: Path) -> None:
@@ -686,7 +683,7 @@ def test_create_local_server_cert(tmp_path: Path) -> None:
 	) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
-				setup_ca()
+				setup_opsi_ca()
 				setup_server_cert()
 				assert "-----BEGIN CERTIFICATE-----" in ssl_server_cert.read_text(encoding="utf-8")
 				assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_server_key.read_text(encoding="utf-8")
@@ -729,7 +726,7 @@ def test_keep_uib_opsi_ca_server_cert(tmp_path: Path) -> None:
 	) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
-				setup_ca()
+				setup_opsi_ca()
 				setup_server_cert()
 				cert = load_local_server_cert()
 				assert isinstance(cert, x509.Certificate)
@@ -739,7 +736,7 @@ def test_keep_uib_opsi_ca_server_cert(tmp_path: Path) -> None:
 				conf.ssl_ca_subject_cn = "opsi CA"
 				ssl_ca_cert.unlink()
 				ssl_ca_key.unlink()
-				setup_ca()
+				setup_opsi_ca()
 				setup_server_cert()
 				# Keep server cert issued by "uib opsi CA"
 				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
@@ -763,7 +760,7 @@ def test_recreate_server_key(tmp_path: Path) -> None:
 	):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
-				setup_ca()
+				setup_opsi_ca()
 
 				(srv_crt, srv_key) = create_local_server_cert(renew=False)
 				store_local_server_key(srv_key)
@@ -834,7 +831,7 @@ def test_change_hostname(tmp_path: Path) -> None:
 	):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
-				setup_ca()
+				setup_opsi_ca()
 				with mock.patch("opsiconfd.ssl.get_server_cn", lambda: "host.domain.tld"):
 					assert opsiconfd.ssl.get_server_cn() == "host.domain.tld"
 					setup_server_cert()
@@ -918,7 +915,7 @@ def test_change_ip(tmp_path: Path) -> None:
 	):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
 			with mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")):
-				setup_ca()
+				setup_opsi_ca()
 				with mock.patch("opsiconfd.ssl.get_ips", lambda: {"127.0.0.1", "1.1.1.1"}):
 					assert opsiconfd.ssl.get_ips() == {"127.0.0.1", "1.1.1.1"}
 					setup_server_cert()
@@ -952,99 +949,36 @@ def test_change_ip(tmp_path: Path) -> None:
 					)
 
 
-def test_ca_certs_dir(tmp_path: Path) -> None:
-	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
-	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
-	ssl_ca_certs = tmp_path / "ca-certs"
-	with (
-		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
-		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")),
-		mock.patch("opsiconfd.ssl._check_certs_interval", 0.0),
-		get_config(
-			{
-				"ssl_ca_key_passphrase": "secret",
-				"ssl_ca_cert": str(ssl_ca_cert),
-				"ssl_ca_key": str(ssl_ca_key),
-				"ssl_ca_certs": str(ssl_ca_certs),
-			}
-		),
-	):
-		setup_ca()
-		opsi_ca_cert_as_pem = get_opsi_ca_cert_as_pem()
-
-		# Test with missing dir
-		certs = get_ca_certs()
-		assert len(certs) == 1
-		assert certs[0] == load_opsi_ca_cert()
-
-		# Test empty dir
-		ssl_ca_certs.mkdir()
-		certs = get_ca_certs()
-		assert len(certs) == 1
-		assert certs[0] == load_opsi_ca_cert()
-
-		# Test with additional certs
-		(ssl_ca_certs / "GLOBALSIGN_ROOT_CA.pem").write_text(GLOBALSIGN_ROOT_CA, encoding="utf-8")
-		(ssl_ca_certs / "DIGICERT_GLOBAL_ROOT_CA.pem.hide").write_text(DIGICERT_GLOBAL_ROOT_CA, encoding="utf-8")
-
-		certs = get_ca_certs()
-		assert len(certs) == 2
-		pem = get_ca_certs_as_pem()
-		assert GLOBALSIGN_ROOT_CA in pem
-		assert DIGICERT_GLOBAL_ROOT_CA not in pem
-		assert opsi_ca_cert_as_pem in pem
-
-		# Test with additional certs in dir and opsi ca file
-		ssl_ca_cert.write_text(opsi_ca_cert_as_pem + "\n" + DIGICERT_GLOBAL_ROOT_CA, encoding="utf-8")
-		certs = get_ca_certs()
-		assert len(certs) == 3
-		pem = get_ca_certs_as_pem()
-		assert GLOBALSIGN_ROOT_CA in pem
-		assert DIGICERT_GLOBAL_ROOT_CA in pem
-		assert opsi_ca_cert_as_pem in pem
-
-
 def test_ca_certs_cache(tmp_path: Path) -> None:
 	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
 	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
-	ssl_ca_certs = tmp_path / "ca-certs"
 	with (
 		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
 		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")),
-		get_config(
-			{
-				"ssl_ca_key_passphrase": "secret",
-				"ssl_ca_cert": str(ssl_ca_cert),
-				"ssl_ca_key": str(ssl_ca_key),
-				"ssl_ca_certs": str(ssl_ca_certs),
-			}
-		),
+		get_config({"ssl_ca_key_passphrase": "secret", "ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key)}),
 	):
-		globalsign_root_ca = ssl_ca_certs / "GLOBALSIGN_ROOT_CA.pem"
+		setup_opsi_ca()
+		assert _check_certs_modified()
+		assert not _check_certs_modified()
+		certs = get_ca_certs()
+		assert len(certs) == 1
+		assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
-		setup_ca()
-		with mock.patch("opsiconfd.ssl._check_certs_interval", 5.0):
-			assert _check_certs_modified()
-			assert not _check_certs_modified()
+		time.sleep(0.01)
+		ssl_ca_cert.touch()
+		assert _check_certs_modified()
+		assert not _check_certs_modified()
+		certs = get_ca_certs()
+		assert len(certs) == 1
+		assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
-		with mock.patch("opsiconfd.ssl._check_certs_interval", 0.0):
-			assert not _check_certs_modified()
-
-			time.sleep(0.01)
-			ssl_ca_cert.touch()
-			assert _check_certs_modified()
-			assert not _check_certs_modified()
-
-			ssl_ca_certs.mkdir()
-			assert not _check_certs_modified()
-
-			globalsign_root_ca.write_text(GLOBALSIGN_ROOT_CA, encoding="utf-8")
-			assert _check_certs_modified()
-			assert not _check_certs_modified()
-
-			globalsign_root_ca.unlink()
-			assert _check_certs_modified()
-			assert not _check_certs_modified()
+		store_opsi_ca_cert(x509.load_pem_x509_certificate(GLOBALSIGN_ROOT_CA.encode("utf-8")))
+		assert _check_certs_modified()
+		assert not _check_certs_modified()
+		certs = get_ca_certs()
+		assert len(certs) == 2
+		assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
+		assert certs[1].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "GlobalSign Root CA"
 
 
 def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
@@ -1076,17 +1010,13 @@ def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
 
 
 def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
-	ssl_ca_certs = tmp_path / "ca-certs"
 	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
 	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
 	ssl_server_key = tmp_path / "opsi-server-key.pem"
-	some_ca_cert = ssl_ca_certs / "some-ca.pem"
-	ssl_ca_certs.mkdir()
 	with (
 		get_config(
 			{
-				"ssl_ca_certs": str(ssl_ca_certs),
 				"ssl_ca_cert": str(ssl_ca_cert),
 				"ssl_ca_key": str(ssl_ca_key),
 				"ssl_ca_key_passphrase": "secret",
@@ -1100,7 +1030,7 @@ def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
 		mock.patch("opsicommon.ssl.linux._get_cert_path_and_cmd", lambda: (str(tmp_path), "echo")),
 	):
 		(ca_crt, ca_key) = create_ca(subject={"CN": "Some CA", "emailAddress": "ca@acme.org"}, valid_days=1000)
-		store_cert(some_ca_cert, ca_crt)
+		store_opsi_ca_cert(ca_crt)
 
 		server_subject = {"CN": get_server_cn(), "emailAddress": "ca@acme.org"}
 		server_ips = get_ips()
@@ -1135,7 +1065,7 @@ def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
 		)
 		store_local_server_key(srv_key)
 		store_local_server_cert(srv_crt)
-		some_ca_cert.unlink()
+		ssl_ca_cert.write_bytes(b"")
 		_clear_ca_certs_cache()
 
 		with pytest.raises(

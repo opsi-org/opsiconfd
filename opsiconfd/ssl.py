@@ -64,6 +64,10 @@ if TYPE_CHECKING:
 
 
 def get_ips(public_only: bool = False) -> set[str]:
+	"""
+	Get all IP addresses of the host.
+	If public_only is True, only public IP addresses are returned.
+	"""
 	ips = {ip_address("127.0.0.1"), ip_address("::1")}
 	for addr in get_ip_addresses():
 		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
@@ -83,10 +87,16 @@ def get_ips(public_only: bool = False) -> set[str]:
 
 
 def get_server_cn() -> str:
+	"""
+	Get the common name for the server certificate.
+	"""
 	return opsi_config.get("host", "id")
 
 
 def get_hostnames() -> set[str]:
+	"""
+	Get all hostnames of the host.
+	"""
 	names = {"localhost", FQDN, get_server_cn()}
 	for addr in get_ips():
 		try:
@@ -105,10 +115,16 @@ def get_hostnames() -> set[str]:
 
 
 def get_domain() -> str:
+	"""
+	Get the DNS domain of the host.
+	"""
 	return ".".join(FQDN.split(".")[1:])
 
 
 def setup_ssl_file_permissions() -> None:
+	"""
+	Set the permissions for the SSL files.
+	"""
 	admin_group = opsi_config.get("groups", "admingroup")
 	permissions = (
 		DirPermission("/etc/opsi/ssl", config.run_as_user, admin_group, 0o600, 0o750, recursive=False),
@@ -126,6 +142,10 @@ def setup_ssl_file_permissions() -> None:
 def get_not_before_and_not_after(
 	cert: x509.Certificate,
 ) -> tuple[datetime.datetime, int, datetime.datetime, int]:
+	"""
+	Get the not before and not after dates of a certificate.
+	Returns the dates as datetime and the number of days remaining until the dates occur.
+	"""
 	return (
 		cert.not_valid_before_utc,
 		(cert.not_valid_before_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days,
@@ -134,7 +154,10 @@ def get_not_before_and_not_after(
 	)
 
 
-def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
+def get_cert_info(cert: x509.Certificate, renew_days: int | None = None) -> dict[str, Any]:
+	"""
+	Get information about a certificate.
+	"""
 	alt_names = [extension for extension in cert.extensions if extension.oid == x509.OID_SUBJECT_ALTERNATIVE_NAME]
 	alt_names_str = (
 		[str(a) for a in alt_names[0].value.get_values_for_type(x509.DNSName) + alt_names[0].value.get_values_for_type(x509.IPAddress)]
@@ -153,20 +176,44 @@ def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
 		"not_before": dt_not_before,
 		"not_after": dt_not_after,
 		"expires_in_days": not_after_days,
-		"renewal_in_days": (not_after_days or 0) - renew_days,
+		"renewal_in_days": None if renew_days is None else ((not_after_days or 0) - renew_days),
 		"alt_names": alt_names_str,
 	}
 
 
-def get_ca_cert_info() -> dict[str, Any]:
+def get_ca_certs_info() -> list[dict[str, Any]]:
+	"""
+	Get information about all CA certificates.
+	"""
+	return [
+		get_cert_info(
+			cert,
+			renew_days=config.ssl_ca_cert_renew_days
+			if cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == config.ssl_ca_subject_cn
+			else None,
+		)
+		for cert in get_ca_certs()
+	]
+
+
+def get_opsi_ca_cert_info() -> dict[str, Any]:
+	"""
+	Get information about the opsi CA certificate.
+	"""
 	return get_cert_info(load_opsi_ca_cert(), config.ssl_ca_cert_renew_days)
 
 
 def get_server_cert_info() -> dict[str, Any]:
+	"""
+	Get information about the server certificate.
+	"""
 	return get_cert_info(load_local_server_cert(), config.ssl_server_cert_renew_days)
 
 
 def store_key(key_file: str | Path, passphrase: str, key: rsa.RSAPrivateKey) -> None:
+	"""
+	Save a private key to a file.
+	"""
 	if not isinstance(key_file, Path):
 		key_file = Path(key_file)
 
@@ -177,6 +224,10 @@ def store_key(key_file: str | Path, passphrase: str, key: rsa.RSAPrivateKey) -> 
 
 
 def store_cert(cert_file: str | Path, cert: x509.Certificate, keep_others: bool = False) -> None:
+	"""
+	Save a certificate to a file.
+	If keep_others is True, existing certificates with different common names are kept.
+	"""
 	if not isinstance(cert_file, Path):
 		cert_file = Path(cert_file)
 
@@ -196,8 +247,15 @@ def store_cert(cert_file: str | Path, cert: x509.Certificate, keep_others: bool 
 
 
 def load_certs(cert_file: Path | str) -> list[x509.Certificate]:
+	"""
+	Load all certificates from a file.
+	"""
 	if not isinstance(cert_file, Path):
 		cert_file = Path(cert_file)
+
+	if not cert_file.exists():
+		logger.warning("Certificate file '%s' not found", cert_file)
+		return []
 
 	certs = []
 	data = cert_file.read_text(encoding="utf-8")
@@ -210,6 +268,11 @@ def load_certs(cert_file: Path | str) -> list[x509.Certificate]:
 
 
 def load_cert(cert_file: Path | str, subject_cn: str | None = None) -> x509.Certificate:
+	"""
+	Load a certificate from a file.
+	If subject_cn is given, only the certificate with the matching common name is returned.
+	IF subject_cn is not given, the first certificate is returned.
+	"""
 	if not isinstance(cert_file, Path):
 		cert_file = Path(cert_file)
 
@@ -221,10 +284,16 @@ def load_cert(cert_file: Path | str, subject_cn: str | None = None) -> x509.Cert
 
 
 def store_opsi_ca_key(ca_key: rsa.RSAPrivateKey) -> None:
+	"""
+	Save the opsi CA key to the configured file.
+	"""
 	store_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, ca_key)
 
 
 def load_opsi_ca_key() -> rsa.RSAPrivateKey:
+	"""
+	Load the opsi CA key from the configured file.
+	"""
 	try:
 		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase)
 	except RuntimeError:
@@ -238,31 +307,23 @@ def load_opsi_ca_key() -> rsa.RSAPrivateKey:
 
 
 def store_opsi_ca_cert(ca_cert: x509.Certificate) -> None:
+	"""
+	Save the opsi CA certificate to the configured file.
+	"""
 	store_cert(config.ssl_ca_cert, ca_cert, keep_others=True)
 
 
-def _get_ca_cert_files() -> list[Path]:
-	ca_cert_files = []
-	opsi_ca_cert_file = Path(config.ssl_ca_cert)
-	if opsi_ca_cert_file.exists():
-		ca_cert_files.append(opsi_ca_cert_file)
-	ssl_ca_certs = Path(config.ssl_ca_certs)
-	if ssl_ca_certs.exists():
-		for pem_file in ssl_ca_certs.glob("*.pem"):
-			ca_cert_files.append(pem_file)
-	return ca_cert_files
-
-
 _check_certs_modified_lock = threading.Lock()
-_check_certs_time = 0.0
-_check_certs_interval = 5.0
-_cert_file_modification_dates: dict[Path, float] = {}
+_opsi_ca_cert_modification_date = 0.0
 
 
 def _clear_ca_certs_cache(lock: bool = True) -> None:
+	"""
+	Clear the cache for the CA certificates.
+	"""
 	with _check_certs_modified_lock if lock else nullcontext():  # type: ignore[attr-defined]
-		global _cert_file_modification_dates
-		_cert_file_modification_dates = {}
+		global _opsi_ca_cert_modification_date
+		_opsi_ca_cert_modification_date = 0.0
 		_load_opsi_ca_cert.cache_clear()
 		_get_opsi_ca_cert_as_pem.cache_clear()
 		_get_ca_certs.cache_clear()
@@ -270,84 +331,97 @@ def _clear_ca_certs_cache(lock: bool = True) -> None:
 
 
 def _check_certs_modified() -> bool:
+	"""
+	Check if the stored CA certificates have been modified.
+	"""
+	global _opsi_ca_cert_modification_date
+
 	with _check_certs_modified_lock:
-		global _cert_file_modification_dates
-		global _check_certs_time
-		time_now = time.time()
-		if _cert_file_modification_dates and _check_certs_interval and time_now - _check_certs_time < _check_certs_interval:
-			return False
-
-		modified = False
-		ca_cert_files = _get_ca_cert_files()
-		if len(ca_cert_files) != len(_cert_file_modification_dates):
-			modified = True
-		else:
-			for file in ca_cert_files:
-				m_date = _cert_file_modification_dates.get(file)
-				if not m_date or file.stat().st_mtime != m_date:
-					modified = True
-					break
-
-		_check_certs_time = time_now
-		if not modified:
+		m_date = Path(config.ssl_ca_cert).stat().st_mtime if os.path.exists(config.ssl_ca_cert) else 0.0
+		if m_date == _opsi_ca_cert_modification_date:
 			return False
 
 		_clear_ca_certs_cache(lock=False)
 
-		for file in ca_cert_files:
-			_cert_file_modification_dates[file] = file.stat().st_mtime
-
+		_opsi_ca_cert_modification_date = m_date
 		return True
 
 
 @lru_cache
 def _load_opsi_ca_cert() -> x509.Certificate:
+	"""
+	Load the opsi CA certificate from the configured file (cached).
+	"""
 	return load_cert(config.ssl_ca_cert, subject_cn=config.ssl_ca_subject_cn)
 
 
 def load_opsi_ca_cert() -> x509.Certificate:
+	"""
+	Load the opsi CA certificate from the configured file.
+	"""
 	_check_certs_modified()
 	return _load_opsi_ca_cert()
 
 
 @lru_cache
 def _get_opsi_ca_cert_as_pem() -> str:
+	"""
+	Get the opsi CA certificate and return it in PEM format (cached).
+	"""
 	return as_pem(load_opsi_ca_cert())
 
 
 def get_opsi_ca_cert_as_pem() -> str:
+	"""
+	Get the opsi CA certificate and return it in PEM format.
+	"""
 	_check_certs_modified()
 	return _get_opsi_ca_cert_as_pem()
 
 
 @lru_cache
 def _get_ca_certs() -> list[x509.Certificate]:
-	ca_certs = []
-	for cert_file in _get_ca_cert_files():
-		ca_certs.extend(load_certs(cert_file))
-	return ca_certs
+	"""
+	Get all CA certificates (cached).
+	"""
+	return load_certs(config.ssl_ca_cert)
 
 
 def get_ca_certs() -> list[x509.Certificate]:
+	"""
+	Get all CA certificates.
+	"""
 	_check_certs_modified()
 	return _get_ca_certs()
 
 
 @lru_cache
 def _get_ca_certs_as_pem() -> str:
+	"""
+	Get all CA certificates and return them in PEM format (cached).
+	"""
 	return "\n".join(as_pem(cert) for cert in get_ca_certs())
 
 
 def get_ca_certs_as_pem() -> str:
+	"""
+	Get all CA certificates and return them in PEM format.
+	"""
 	_check_certs_modified()
 	return _get_ca_certs_as_pem()
 
 
 def store_local_server_key(srv_key: rsa.RSAPrivateKey) -> None:
+	"""
+	Save the server private key to the configured file.
+	"""
 	store_key(config.ssl_server_key, config.ssl_server_key_passphrase, srv_key)
 
 
 def load_local_server_key() -> rsa.RSAPrivateKey:
+	"""
+	Load the server private key from the configured file.
+	"""
 	error: Exception | None = None
 	# Try to load key with configured passphrase, default passphrase and unencrypted
 	passphrases = [("configured", config.ssl_server_key_passphrase), ("no", None)]
@@ -377,14 +451,23 @@ def load_local_server_key() -> rsa.RSAPrivateKey:
 
 
 def store_local_server_cert(server_cert: x509.Certificate) -> None:
+	"""
+	Save the server certificate to the configured file.
+	"""
 	store_cert(config.ssl_server_cert, server_cert)
 
 
 def load_local_server_cert() -> x509.Certificate:
+	"""
+	Load the server certificate from the configured file.
+	"""
 	return load_cert(config.ssl_server_cert)
 
 
 def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
+	"""
+	Create or renew the server certificate.
+	"""
 	ca_key = load_opsi_ca_key()
 	ca_cert = load_opsi_ca_cert()
 	domain = get_domain()
@@ -406,8 +489,10 @@ def create_local_server_cert(renew: bool = True) -> tuple[x509.Certificate, rsa.
 
 
 def create_letsencrypt_certificate() -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
+	"""
+	Create a server certificate with Let's Encrypt.
+	"""
 	ca_certs = get_ca_certs()
-	ssl_ca_certs_path = Path(config.ssl_ca_certs)
 	server_cn = get_server_cn()
 	contact_email = config.letsencrypt_contact_email or f"opsiconfd@{server_cn}"
 
@@ -419,6 +504,7 @@ def create_letsencrypt_certificate() -> tuple[x509.Certificate, rsa.RSAPrivateKe
 	)
 	certificates = perform_certificate_signing_request(csr, contact_email)
 	server_cert: x509.Certificate | None = None
+	new_ca_certs = []
 	for cert in certificates:
 		cert_cn = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 		if not isinstance(cert_cn, str):
@@ -428,18 +514,22 @@ def create_letsencrypt_certificate() -> tuple[x509.Certificate, rsa.RSAPrivateKe
 		elif not any(
 			cur_cert for cur_cert in ca_certs if cert.subject == cur_cert.subject and cert.serial_number == cur_cert.serial_number
 		):
-			ssl_ca_certs_path.mkdir(parents=True, exist_ok=True)
-			ssl_ca_cert_file = ssl_ca_certs_path / f"{cert_cn.replace(' ', '_')}.pem"
-			logger.info("Storing Let's Encrypt CA cert '%s'", ssl_ca_cert_file)
-			store_cert(ssl_ca_cert_file, cert)
+			new_ca_certs.append(cert)
 
 	if not server_cert:
 		raise RuntimeError("Failed to get server certificate from Let's Encrypt")
 
+	for cert in new_ca_certs:
+		logger.info("Storing Let's Encrypt CA cert %s / %s", cert.subject, cert.serial_number)
+		store_opsi_ca_cert(cert)
+
 	return server_cert, key
 
 
-def depotserver_setup_ca() -> bool:
+def depotserver_setup_opsi_ca() -> bool:
+	"""
+	Setup the opsi CA on a depot server.
+	"""
 	logger.info("Updating CA cert from configserver")
 	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert().encode("utf-8"))
 	store_opsi_ca_cert(ca_crt)
@@ -447,7 +537,10 @@ def depotserver_setup_ca() -> bool:
 	return False
 
 
-def get_ca_subject() -> dict[str, str]:
+def get_opsi_ca_subject() -> dict[str, str]:
+	"""
+	Get the subject for the opsi CA certificate.
+	"""
 	domain = get_domain()
 	return {
 		"C": "DE",
@@ -460,8 +553,11 @@ def get_ca_subject() -> dict[str, str]:
 	}
 
 
-def configserver_setup_ca() -> bool:
-	logger.info("Checking CA")
+def configserver_setup_opsi_ca() -> bool:
+	"""
+	Setup the opsi CA on a config server.
+	"""
+	logger.info("Checking opsi CA")
 
 	create = False
 	renew = False
@@ -470,10 +566,10 @@ def configserver_setup_ca() -> bool:
 	cur_ca_crt = None
 
 	if not os.path.exists(config.ssl_ca_key):
-		logger.info("CA key file %r not found, creating new CA key and cert", config.ssl_ca_key)
+		logger.info("opsi CA key file %r not found, creating new CA key and cert", config.ssl_ca_key)
 		create = True
 	elif not os.path.exists(config.ssl_ca_cert):
-		logger.info("CA cert file %r not found, creating new CA cert", config.ssl_ca_cert)
+		logger.info("opsi CA cert file %r not found, creating new CA cert", config.ssl_ca_cert)
 		renew = True
 	else:
 		try:
@@ -482,29 +578,29 @@ def configserver_setup_ca() -> bool:
 				cur_ca_crt = load_opsi_ca_cert()
 				is_intermediate_ca = not is_self_signed(cur_ca_crt)
 			except Exception as err_cert:
-				logger.warning("Failed to load CA cert (%s), creating new CA cert", err_cert)
+				logger.warning("Failed to load opsi CA cert (%s), creating new CA cert", err_cert)
 				renew = True
 		except Exception as err_key:
-			logger.warning("Failed to load CA key (%s), creating new CA key and cert", err_key)
+			logger.warning("Failed to load opsi CA key (%s), creating new CA key and cert", err_key)
 			create = True
 
 	if cur_ca_key and cur_ca_crt:
 		if cur_ca_key.public_key().public_bytes(
 			encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
 		) != cur_ca_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
-			logger.warning("CA cert does not match CA key, creating new CA cert")
+			logger.warning("opsi CA cert does not match opsi  CA key, creating new opsi  CA cert")
 			renew = True
 		else:
 			not_after_days = get_not_before_and_not_after(cur_ca_crt)[3]
 			if not_after_days:
 				logger.info(
-					"CA '%s' will expire in %d days",
+					"opsi CA '%s' will expire in %d days",
 					cur_ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
 					not_after_days,
 				)
 				if not_after_days <= config.ssl_ca_cert_renew_days:
 					logger.notice(
-						"CA '%s' will expire in %d days, renewing",
+						"opsi CA '%s' will expire in %d days, renewing",
 						cur_ca_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value,
 						not_after_days,
 					)
@@ -532,13 +628,13 @@ def configserver_setup_ca() -> bool:
 					logger.error("Failed to create backup of %r: %s", filename, err)
 
 	if create or renew:
-		ca_subject = get_ca_subject()
+		ca_subject = get_opsi_ca_subject()
 		current_ca_subject = {}
 		if os.path.exists(config.ssl_ca_cert):
 			try:
 				current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
 			except Exception as err:
-				logger.error("Failed to load CA cert: %s", err, exc_info=True)
+				logger.error("Failed to load opsi CA cert: %s", err, exc_info=True)
 
 		if current_ca_subject and ca_subject != current_ca_subject:
 			logger.warning(
@@ -570,11 +666,14 @@ def configserver_setup_ca() -> bool:
 		install_ca(ca_crt)
 		return True
 
-	logger.info("CA is up to date")
+	logger.info("opsi CA is up to date")
 	return False
 
 
-def setup_ca() -> bool:
+def setup_opsi_ca() -> bool:
+	"""
+	Setup the opsi CA.
+	"""
 	server_role = get_server_role()
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
@@ -586,14 +685,17 @@ def setup_ca() -> bool:
 			os.remove(ca_srl)
 
 	if server_role == "configserver":
-		return configserver_setup_ca()
+		return configserver_setup_opsi_ca()
 	if server_role == "depotserver":
-		return depotserver_setup_ca()
+		return depotserver_setup_opsi_ca()
 
 	raise ValueError(f"Invalid server role: {server_role}")
 
 
 def get_trusted_certs() -> list[x509.Certificate]:
+	"""
+	Get trusted certificates from the configured file.
+	"""
 	ca_certs = []
 	if os.path.exists(config.ssl_trusted_certs):
 		with open(config.ssl_trusted_certs, "r", encoding="utf-8") as file:
@@ -606,6 +708,9 @@ def get_trusted_certs() -> list[x509.Certificate]:
 
 
 def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x509.Certificate) -> None:
+	"""
+	Validate a certificate against one or a list of CA certificates.
+	"""
 	if not isinstance(ca_certs, list):
 		ca_certs = [ca_certs]
 
@@ -646,10 +751,16 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 
 
 def opsi_ca_is_self_signed() -> bool:
+	"""
+	Check if the opsi CA is self-signed.
+	"""
 	return is_self_signed(load_opsi_ca_cert())
 
 
 def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
+	"""
+	Check if the opsi CA is an intermediate CA.
+	"""
 	if is_self_signed(ca_cert):
 		return False
 
@@ -672,6 +783,9 @@ def check_intermediate_ca(ca_cert: x509.Certificate) -> bool:
 
 
 def fetch_server_cert(backend: ServiceClient | Backend, server_id: str | None = None) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
+	"""
+	Fetch a new server certificate from the opsi service.
+	"""
 	pem = backend.host_getTLSCertificate(server_id or get_depotserver_id())  # type: ignore[union-attr]
 	pem_bytes = pem.encode("utf-8")
 	srv_crt = x509.load_pem_x509_certificate(pem_bytes)
@@ -682,6 +796,9 @@ def fetch_server_cert(backend: ServiceClient | Backend, server_id: str | None = 
 
 
 def setup_server_cert(force_new: bool = False) -> bool:
+	"""
+	Setup the server certificate.
+	"""
 	logger.info("Checking server cert")
 	server_role = get_server_role()
 	if server_role not in ("configserver", "depotserver"):
@@ -844,6 +961,9 @@ def setup_server_cert(force_new: bool = False) -> bool:
 
 
 def setup_ssl() -> bool:
+	"""
+	Setup SSL.
+	"""
 	if "opsi_ca" in config.skip_setup and "server_cert" in config.skip_setup:
 		return False
 
@@ -851,8 +971,8 @@ def setup_ssl() -> bool:
 	force_new_server_cert = False
 	changed = False
 	if "opsi_ca" not in config.skip_setup:
-		# Create new server cert if CA was created / renewed
-		force_new_server_cert = setup_ca()
+		# Create new server cert if opsi CA was created / renewed
+		force_new_server_cert = setup_opsi_ca()
 	if "server_cert" not in config.skip_setup:
 		changed = setup_server_cert(force_new_server_cert)
 	return changed

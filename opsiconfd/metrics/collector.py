@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import psutil
 from opsicommon.utils import unix_timestamp
 from redis import ResponseError
+from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
@@ -179,9 +180,26 @@ class ManagerMetricsCollector(MetricsCollector):
 	def __init__(self) -> None:
 		super().__init__()
 		self._labels = {"node_name": config.node_name}
+		self._net_interface = "lo"
+		for iface in psutil.net_if_addrs():
+			if iface != "lo":
+				self._net_interface = iface
+				break
+		self._last_bytes_sent = 0
+		self._last_bytes_recv = 0
 
 	async def _fetch_values(self) -> None:
 		await self.add_value("node:avg_load", psutil.getloadavg()[0])
+		stats = (await run_in_threadpool(psutil.net_io_counters, pernic=True, nowrap=True)).get(self._net_interface)
+		if stats:
+			if self._last_bytes_sent:
+				await self.add_value("node:sum_network_bits_sent", (stats.bytes_sent - self._last_bytes_sent) * 8)
+			if self._last_bytes_recv:
+				await self.add_value("node:sum_network_bits_received", (stats.bytes_recv - self._last_bytes_recv) * 8)
+			self._last_bytes_sent = stats.bytes_sent
+			self._last_bytes_recv = stats.bytes_recv
+		else:
+			logger.warning("No network stats for interface %r", self._net_interface)
 
 
 statistics: MessagebusWebsocketStatistics | None = None

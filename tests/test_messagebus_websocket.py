@@ -557,7 +557,7 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 							cols=150,
 						).to_msgpack()
 					)
-					reader.wait_for_message(count=1, timeout=10.0)
+					reader.wait_for_message(count=5, timeout=10.0, error_on_timeout=False)
 
 					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
 					print(responses[0])

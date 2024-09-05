@@ -41,6 +41,7 @@ from opsiconfd.check.main import (
 	check_disk_usage,
 	check_ldap_connection,
 	check_mysql,
+	check_opsi_backup,
 	check_opsi_config,
 	check_opsi_licenses,
 	check_opsi_users,
@@ -51,7 +52,6 @@ from opsiconfd.check.main import (
 	check_run_as_user,
 	check_ssl,
 	check_system_packages,
-	check_opsi_backup,
 	health_check,
 )
 from opsiconfd.check.mysql import check_unique_hardware_addresses
@@ -62,7 +62,7 @@ from opsiconfd.redis import redis_client
 from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
-	get_ca_subject,
+	get_opsi_ca_subject,
 	store_local_server_cert,
 	store_local_server_key,
 	store_opsi_ca_cert,
@@ -689,7 +689,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		assert result.partial_results[3].message.startswith("A problem was found with the server certificate")
 		assert result.partial_results[4].message.startswith("A problem was found with the server key")
 
-		ca_subject = get_ca_subject()
+		ca_subject = get_opsi_ca_subject()
 
 		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_valid_days + 10)
 		store_opsi_ca_key(ca_key)
@@ -711,7 +711,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		assert result.partial_results[2].message == "The opsi CA key is OK."
 
 		with mock.patch(
-			"opsiconfd.check.ssl.get_ca_subject",
+			"opsiconfd.check.ssl.get_opsi_ca_subject",
 			lambda: {
 				"C": "DE",
 				"ST": "RP",

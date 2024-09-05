@@ -153,7 +153,7 @@ def get_not_before_and_not_after(
 	)
 
 
-def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
+def get_cert_info(cert: x509.Certificate, renew_days: int | None = None) -> dict[str, Any]:
 	"""
 	Get information about a certificate.
 	"""
@@ -175,12 +175,27 @@ def get_cert_info(cert: x509.Certificate, renew_days: int) -> dict[str, Any]:
 		"not_before": dt_not_before,
 		"not_after": dt_not_after,
 		"expires_in_days": not_after_days,
-		"renewal_in_days": (not_after_days or 0) - renew_days,
+		"renewal_in_days": None if renew_days is None else ((not_after_days or 0) - renew_days),
 		"alt_names": alt_names_str,
 	}
 
 
-def get_ca_cert_info() -> dict[str, Any]:
+def get_ca_certs_info() -> list[dict[str, Any]]:
+	"""
+	Get information about all CA certificates.
+	"""
+	return [
+		get_cert_info(
+			cert,
+			renew_days=config.ssl_ca_cert_renew_days
+			if cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == config.ssl_ca_subject_cn
+			else None,
+		)
+		for cert in get_ca_certs()
+	]
+
+
+def get_opsi_ca_cert_info() -> dict[str, Any]:
 	"""
 	Get information about the opsi CA certificate.
 	"""

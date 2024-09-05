@@ -36,10 +36,10 @@ from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
 	create_server_cert,
-	get_ca_cert_info,
 	get_ca_certs,
 	get_hostnames,
 	get_ips,
+	get_opsi_ca_cert_info,
 	get_server_cert_info,
 	get_server_cn,
 	get_trusted_certs,
@@ -231,7 +231,7 @@ def test_create_ca(tmp_path: Path) -> None:
 					ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)
 				).days == conf.ssl_ca_cert_valid_days - 1
 
-				info = get_ca_cert_info()
+				info = get_opsi_ca_cert_info()
 
 				out = subprocess.check_output(["openssl", "x509", "-noout", "-text", "-in", conf.ssl_ca_cert]).decode("utf-8")
 				match = re.search(r"Serial Number:\s*\n\s*([a-f0-9:]+)", out)
@@ -478,7 +478,7 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 					assert additional_cert.strip() in data
 
 			# Check CA
-			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_ca_cert_info()["not_before"]).days >= 10
+			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_opsi_ca_cert_info()["not_before"]).days >= 10
 			ca_crt = load_opsi_ca_cert()
 			assert (ca_crt.not_valid_after_utc - datetime.datetime.now(tz=datetime.timezone.utc)).days == 299
 
@@ -533,7 +533,7 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 			# Recreation needed
 			time.sleep(2)
 			setup_opsi_ca()
-			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_ca_cert_info()["not_before"]).days == 0
+			assert (datetime.datetime.now(tz=datetime.timezone.utc) - get_opsi_ca_cert_info()["not_before"]).days == 0
 			ca_crt = load_opsi_ca_cert()
 			assert mtime != ssl_ca_cert.lstat().st_mtime
 			# Key must stay the same

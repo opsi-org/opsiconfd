@@ -110,7 +110,7 @@ class MySQLSession(Session):
 						max_attempts = self.retry_on_lock_wait_timeout + 1
 						retry_wait = 1.0
 
-					log = logger.error if max_attempts > 1 and attempt >= max_attempts else logger.warning
+					log = logger.error if max_attempts > 1 and attempt >= max_attempts else logger.debug
 					log(
 						"Failed statement, attempt %d/%d: %s",
 						attempt,

@@ -222,7 +222,7 @@ def test_create_ca(tmp_path: Path) -> None:
 				assert isinstance(key, rsa.RSAPrivateKey)
 				key = load_opsi_ca_key()
 				assert isinstance(key, rsa.RSAPrivateKey)
-				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+				with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 					load_key(conf.ssl_ca_key, "wrong")
 				cert = load_opsi_ca_cert()
 				assert isinstance(cert, x509.Certificate)
@@ -294,7 +294,7 @@ def test_ca_key_fallback(tmp_path: Path) -> None:
 			store_opsi_ca_key(ca_key)
 			store_opsi_ca_cert(ca_crt)
 
-			with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+			with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 				load_key(conf.ssl_ca_key, "wrong")
 
 			conf.ssl_ca_key_passphrase = "wrong"
@@ -326,7 +326,7 @@ def test_server_key_fallback(tmp_path: Path) -> None:
 				store_local_server_key(srv_key)
 				store_local_server_cert(srv_crt)
 
-				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+				with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 					load_key(conf.ssl_server_key, "wrong")
 
 				conf.ssl_server_key_passphrase = "wrong"
@@ -694,7 +694,7 @@ def test_create_local_server_cert(tmp_path: Path) -> None:
 				assert isinstance(key, rsa.RSAPrivateKey)
 				key = load_local_server_key()
 				assert isinstance(key, rsa.RSAPrivateKey)
-				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+				with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 					key = load_key(conf.ssl_server_key, "wrong")
 
 				cert = load_cert(conf.ssl_server_cert)

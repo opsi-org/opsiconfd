@@ -18,7 +18,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from opsicommon.testing.helpers import HTTPTestServer, http_test_server
+from opsicommon.testing.helpers import http_test_server, HTTPTestServerRequestHandler
 
 from opsiconfd.grafana import async_grafana_admin_session, create_dashboard_user, grafana_admin_session, set_grafana_root_url
 
@@ -81,33 +81,35 @@ async def test_async_grafana_admin_session(tmp_path: Path) -> None:
 async def test_create_dashboard_user() -> None:
 	requests = []
 
-	def request_callback(server: HTTPTestServer, request: dict) -> None:
+	def request_callback(handler: HTTPTestServerRequestHandler, request: dict) -> None:
 		nonlocal requests
 		requests.append(request)
 		# print(request)
 		if len(requests) == 1:
-			server.response_status = (200, "OK")
-			server.response_body = json.dumps({"message": "user created"}).encode("utf-8")
+			handler.set_response_status(404, "Not found")
+			handler.set_response_body(json.dumps({"message": "user not found"}).encode("utf-8"))
 		elif len(requests) == 2:
-			server.response_status = (200, "OK")
-			server.response_body = json.dumps(
-				{
-					"id": 11,
-					"name": "opsidashboard",
-					"login": "opsidashboard",
-					"email": "opsidashboard@admin",
-				}
-			).encode("utf-8")
+			handler.set_response_status(200, "OK")
+			handler.set_response_body(json.dumps({"message": "user created"}).encode("utf-8"))
 		elif len(requests) == 3:
-			server.response_status = (200, "OK")
-			server.response_body = json.dumps({"message": "user updated"}).encode("utf-8")
+			handler.set_response_status(200, "OK")
+			handler.set_response_body(
+				json.dumps(
+					{
+						"id": 11,
+						"name": "opsidashboard",
+						"login": "opsidashboard",
+						"email": "opsidashboard@admin",
+					}
+				).encode("utf-8")
+			)
+		elif len(requests) == 4:
+			handler.set_response_status(200, "OK")
+			handler.set_response_body(json.dumps({"message": "user updated"}).encode("utf-8"))
 
 	with http_test_server(request_callback=request_callback, response_headers={"Content-Type": "application/json"}) as server:
 		with get_config({"grafana_internal_url": f"http://apikey@localhost:{server.port}/"}):
 			# User does not exist
-			server.response_status = (404, "Not found")
-			server.response_body = json.dumps({"message": "user not found"}).encode("utf-8")
-
 			username, password = await create_dashboard_user()
 			assert username == "opsidashboard"
 

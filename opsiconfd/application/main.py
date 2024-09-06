@@ -52,7 +52,7 @@ from opsiconfd.metrics.statistics import StatisticsMiddleware
 from opsiconfd.redis import async_redis_client
 from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware, session_manager
-from opsiconfd.ssl import as_pem, get_ca_certs_as_pem, load_certs
+from opsiconfd.ssl import get_ca_certs_as_pem, get_opsi_ca_cert_as_pem
 from opsiconfd.utils import asyncio_create_task
 
 
@@ -88,9 +88,8 @@ async def favicon(request: Request, response: Response) -> RedirectResponse:
 
 @app.get("/ssl/opsi-ca-cert.pem")
 def get_ssl_ca_cert(request: Request) -> Response:
-	pem = "".join(as_pem(c) for c in load_certs(config.ssl_ca_cert))
 	return Response(
-		content=pem,
+		content=get_opsi_ca_cert_as_pem(),
 		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
 	)
 

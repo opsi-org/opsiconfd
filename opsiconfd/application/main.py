@@ -87,7 +87,7 @@ async def favicon(request: Request, response: Response) -> RedirectResponse:
 
 
 @app.get("/ssl/opsi-ca-cert.pem")
-def get_ssl_ca_cert(request: Request) -> Response:
+def get_ssl_opsi_ca_cert(request: Request) -> Response:
 	return Response(
 		content=get_opsi_ca_cert_as_pem(),
 		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
@@ -95,7 +95,7 @@ def get_ssl_ca_cert(request: Request) -> Response:
 
 
 @app.get("/ssl/ca-certs.pem")
-def get_ca_certs(request: Request) -> Response:
+def get_ssl_ca_certs(request: Request) -> Response:
 	return Response(
 		content=get_ca_certs_as_pem(),
 		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="ca-certs.pem"'},

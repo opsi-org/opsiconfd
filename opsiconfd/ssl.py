@@ -399,7 +399,7 @@ def _get_ca_certs_as_pem() -> str:
 	"""
 	Get all CA certificates and return them in PEM format (cached).
 	"""
-	return "\n".join(as_pem(cert) for cert in get_ca_certs())
+	return "\n".join(as_pem(cert) for cert in get_ca_certs()).replace("\n\n", "\n")
 
 
 def get_ca_certs_as_pem() -> str:

@@ -486,15 +486,13 @@
 							<td>in {{ca_info.renewal_in_days}} days</td>
 						</tr>
 						{% endif %}
-						<tr>
-							<td colspan="2"><a href="/ssl/opsi-ca-cert.pem">Download as PEM</a></td>
-						</tr>
 					</table>
 				</div>
 			</div>
 			{% endfor %}
+			<a href="/ssl/opsi-ca-cert.pem">Download CA certificates as PEM</a>
 			<div class="adminpage-box">
-				<h4 style="margin: 10px">server certificate:</h4>
+				<h4 style="margin: 10px">Server certificate:</h4>
 				<div id="general-info-server-cert">
 					<table style="margin-left: 20px;">
 						<tr>
@@ -546,7 +544,7 @@
 			</div>
 
 
-			<h3>routes</h3>
+			<h3>Routes</h3>
 			<div class="adminpage-box">
 				<div id="routes">
 					<pre class="route-values" id="route-values"></pre>

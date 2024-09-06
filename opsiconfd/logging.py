@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO
 
 import colorlog
 import msgspec
-from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]
+from aiofiles.threadpool.text import AsyncTextIOWrapper  # type: ignore[import]
 from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
 from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
 from opsicommon.logging import (
@@ -86,7 +86,7 @@ async def event_wait(event: Event, timeout: float) -> bool:
 
 class AsyncRotatingFileHandler(AsyncFileHandler):
 	rollover_check_interval: int = 60
-	stream: AsyncTextIOWrapper
+	stream: AsyncTextIOWrapper | None
 
 	def __init__(
 		self,
@@ -113,8 +113,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 
 	async def _close_stream(self) -> None:
 		try:
-			await self.stream.flush()
-			await self.stream.close()
+			if self.stream:
+				await self.stream.flush()
+				await self.stream.close()
 		except Exception:
 			pass
 		self.stream = None

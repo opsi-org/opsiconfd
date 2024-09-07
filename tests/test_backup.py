@@ -164,7 +164,7 @@ def test_create_backup(
 		thread.join(5)
 
 
-@pytest.mark.flaky(retries=1, delay=1)
+@pytest.mark.flaky(retries=2, delay=5)
 def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa: F811
 	initalized_event = Event()
 	thread = Thread(

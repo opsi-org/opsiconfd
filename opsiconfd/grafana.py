@@ -334,14 +334,15 @@ def setup_grafana() -> None:
 			logger.notice("Setup grafana plugin %s (%s)", PLUGIN_ID, plugin_action)
 			for cmd in (
 				["grafana-cli", "plugins", plugin_action, PLUGIN_ID],
+				["chown", "-R", "grafana:grafana", PLUGIN_DIR],
 				["service", "grafana-server", "restart"],
 			):
 				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
 				logger.debug("output of command %s: %s", cmd, out)
-				# Wait for grafana-server to restart
-				time.sleep(5)
+			# Wait for grafana-server to restart
+			time.sleep(5)
 		except subprocess.CalledProcessError as err:
-			logger.warning("Could not %s grafana plugin via grafana-cli: %s", plugin_action, err)
+			logger.warning("Failed to %s grafana plugin %r via grafana-cli: %s", plugin_action, PLUGIN_ID, err)
 
 	if urlparse(config.grafana_internal_url).username is not None:
 		with grafana_admin_session() as (base_url, session):

@@ -27,6 +27,7 @@ from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 
 from opsiconfd import __version__
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from opsiconfd.logging import logger
 
@@ -164,7 +165,6 @@ def get_repo_versions() -> dict[str, str | None]:
 	url = REPO_URL
 	packages = CHECK_SYSTEM_PACKAGES
 	repo_data = None
-
 	repo_versions: dict[str, str | None] = {}
 
 	try:
@@ -255,6 +255,8 @@ def check_system_packages() -> CheckResult:
 	(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11/).
 	Older versions are considered a warning and if one of the packages is not installed, an error is issued.
 	"""
+	opsipxeconfd_control_enabled = get_unprotected_backend()._opsipxeconfd_control_enabled
+
 	result = CheckResult(
 		check_id="system_packages",
 		check_name="System packages",
@@ -288,9 +290,13 @@ def check_system_packages() -> CheckResult:
 				check_id=f"system_packages:{package}", check_name=f"System package {package!r}", details=details
 			)
 			if not details["version"]:
-				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = f"Package {package!r} is not installed."
-				partial_result.upgrade_issue = __version__
+				if package == "opsipxeconfd" and not opsipxeconfd_control_enabled:
+					partial_result.check_status = CheckStatus.OK
+					partial_result.message = f"Package {package!r} is not installed and opsipxeconfd control is disabled."
+				else:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = f"Package {package!r} is not installed."
+					partial_result.upgrade_issue = __version__
 				not_installed = not_installed + 1
 			elif compare_versions(available_version or "0", ">", details["version"]):  # type: ignore[arg-type]
 				outdated = outdated + 1

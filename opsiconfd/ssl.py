@@ -711,26 +711,33 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 	if not isinstance(ca_certs, list):
 		ca_certs = [ca_certs]
 
-	issuer_cert = None
-	for icert in ca_certs:
-		logger.debug("Checking if %r is issuer of %r", icert.subject, cert.subject)
-		if icert.subject == cert.issuer:
-			try:
-				logger.debug("Checking if %r is directly issued by %r", cert.subject, icert.subject)
-				cert.verify_directly_issued_by(icert)
-				issuer_cert = icert
-				break
-			except Exception as err:
-				logger.debug("%r is not directly issued by %r: %s", cert.subject, icert.subject, err)
-				continue
-	if not issuer_cert:
-		raise verification.VerificationError("Failed to verify certificate")
+	trust_chain = [cert]
 
-	dt_ca_cert_not_before = get_not_before_and_not_after(issuer_cert)[0]
-	dt_cert_not_before = get_not_before_and_not_after(cert)[0]
-	if dt_ca_cert_not_before and dt_cert_not_before and dt_ca_cert_not_before > dt_cert_not_before:
+	def build_trust_chain(trust_chain: list[x509.Certificate]) -> bool:
+		cert = trust_chain[0]
+		for ca_cert in ca_certs:
+			if cert.issuer == ca_cert.subject:
+				try:
+					cert.verify_directly_issued_by(ca_cert)
+					dt_issuer_cert_not_before = get_not_before_and_not_after(ca_cert)[0]
+					dt_cert_not_before = get_not_before_and_not_after(cert)[0]
+					if dt_issuer_cert_not_before and dt_cert_not_before and dt_issuer_cert_not_before > dt_cert_not_before:
+						raise verification.VerificationError(
+							f"Issuer certificate {ca_cert.subject} is not valid before {dt_issuer_cert_not_before} "
+							f"but certificate {cert.subject} is valid before {dt_cert_not_before}"
+						)
+					trust_chain.insert(0, ca_cert)
+					if ca_cert.issuer == ca_cert.subject:
+						# Self signed, trust chain complete
+						return True
+					return build_trust_chain(trust_chain)
+				except ValueError:
+					continue
+		return False
+
+	if not build_trust_chain(trust_chain):
 		raise verification.VerificationError(
-			f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}"
+			f"Failed to verify certificate, issuer certificate of certificate {trust_chain[0].subject} not found"
 		)
 
 	is_ca = any(ext for ext in cert.extensions if ext.oid == x509.OID_BASIC_CONSTRAINTS and ext.value.ca)
@@ -738,7 +745,7 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 		return
 
 	# Extended validation for server certificates
-	store = verification.Store([issuer_cert])
+	store = verification.Store(trust_chain[1:])
 	builder = verification.PolicyBuilder().store(store)
 	common_name = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 	if not isinstance(common_name, str):
@@ -920,9 +927,7 @@ def setup_server_cert(force_new: bool = False) -> bool:
 
 	if create:
 		if config.ssl_server_cert_type == "unmanaged":
-			raise RuntimeError(
-				f"{crt_err}. New server cert is needed, but ssl-server-cert-type is 'unmanaged'. Please create a new server cert manually."
-			)
+			raise RuntimeError(f"{crt_err}. The ssl-server-cert-type is 'unmanaged', please fix the problem manually.")
 
 		logger.info("Creating new server cert")
 		(srv_crt, srv_key) = (None, None)
@@ -978,7 +983,7 @@ def setup_ssl() -> bool:
 	changed = False
 	if "opsi_ca" not in config.skip_setup:
 		# Create new server cert if opsi CA was created / renewed
-		force_new_server_cert = setup_opsi_ca()
+		force_new_server_cert = setup_opsi_ca() and config.ssl_server_cert_type == "opsi-ca"
 	if "server_cert" not in config.skip_setup:
 		changed = setup_server_cert(force_new_server_cert)
 	return changed

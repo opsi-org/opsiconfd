@@ -18,11 +18,9 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
 
-
-
-from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result, CheckManager
-from opsiconfd.check.main import health_check
 from opsiconfd.check.cache import check_cache_clear
+from opsiconfd.check.common import CheckManager, CheckResult, CheckStatus, PartialCheckResult, get_json_result
+from opsiconfd.check.main import health_check
 from opsiconfd.config import config
 from opsiconfd.utils import DataclassCapableJSONEncoder
 
@@ -53,7 +51,7 @@ def print_health_check_manual(console: Console) -> None:
 	# 	check = globals()[f"check_{check_id}"]
 	# 	console.print(Markdown((check.__doc__ or "").replace("\t", "")))
 	for check in CheckManager():
-		console.print(Markdown(check.docs.replace("\t", "")))
+		console.print(Markdown(check.documentation.replace("\t", "")))
 
 
 def console_print_message(check_result: CheckResult | PartialCheckResult, console: Console, indent: int = 0) -> None:

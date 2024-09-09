@@ -11,28 +11,26 @@ health check
 
 from __future__ import annotations
 
-
-from copy import deepcopy as copy
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Generator, Iterator, List
+from typing import Any, Generator, Iterator
+
+from msgspec.msgpack import decode, encode
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
-from msgspec.msgpack import decode, encode
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
-
 from opsiconfd.config import get_server_role
-from opsiconfd.redis import redis_client
 from opsiconfd.logging import logger
+from opsiconfd.redis import redis_client
 from opsiconfd.utils import Singleton
 from opsiconfd.utils.modules import check_module
 
-
 CACHE_EXPIRATION = 24 * 3600  # In seconds
+
 
 class CheckStatus(StrEnum):
 	OK = "ok"
@@ -50,7 +48,8 @@ class CheckStatus(StrEnum):
 
 class Check:
 	def __init__(
-		self, id: str,
+		self,
+		id: str,
 		name: str = "",
 		description: str = "",
 		documentation: str = "",
@@ -58,7 +57,7 @@ class Check:
 		message: str = "",
 		depot_check: bool = True,
 		cache: bool = True,
-		cache_expiration: int = 24 * 3600
+		cache_expiration: int = 24 * 3600,
 	) -> None:
 		self.id = id
 		self.name = name
@@ -83,8 +82,13 @@ class Check:
 		)
 
 	def check(self) -> CheckResult:
-		return CheckResult(check_id=id, check_name=self.name, check_description=self.description, message="No check function defined", check_status=CheckStatus.ERROR)
-
+		return CheckResult(
+			check_id=self.id,
+			check_name=self.name,
+			check_description=self.description,
+			message="No check function defined",
+			check_status=CheckStatus.ERROR,
+		)
 
 	def run(self, use_cache: bool = True) -> CheckResult:
 		if not self.cache or not use_cache:
@@ -101,14 +105,12 @@ class Check:
 		self.check_cache_store(result, self.cache_expiration)
 		return result
 
-
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
 		if self.id not in CheckManager().check_ids:
 			logger.error("Invalid check cache id: %s", self.id)
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		logger.debug("Check cache store: %s", redis_key)
 		redis_client().set(redis_key, encode(result), ex=expiration)
-
 
 	def check_cache_load(self) -> Any:
 		redis_key = f"opsiconfd:checkcache:{self.id}"
@@ -126,15 +128,15 @@ class CheckManager(metaclass=Singleton):
 	def __init__(self) -> None:
 		self._checks = {}
 
-	def register(self, *checks: Check |  List[Check]) -> None:
+	# def register(self, *checks: Check | List[Check]) -> None:
+	def register(self, *checks: Check) -> None:
 		role = get_server_role()
-		if isinstance(checks, Check):
-			checks = [checks]
+		# if isinstance(checks, Check):
+		# 	checks = [checks]
 		for check in checks:
 			if role == "depotserver" and not check.depot_check:
 				continue
 			self._checks[check.id] = check
-
 
 		role = get_server_role()
 		if role == "depotserver" and not check.depot_check:
@@ -150,15 +152,6 @@ class CheckManager(metaclass=Singleton):
 
 	def __iter__(self) -> Iterator[Check]:
 		return iter(self._checks.values())
-
-
-
-
-
-
-
-
-
 
 
 @dataclass(slots=True, kw_only=True)
@@ -238,5 +231,3 @@ def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
 		summary[result.check_status] += 1
 	json_result["summary"] = summary  # type: ignore
 	return json_result
-
-

@@ -32,7 +32,6 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
 from opsiconfd.addon.manager import AddonManager
-from opsiconfd.check.addon import check_opsi_failed_addons
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.cli import console_health_check, process_check_result
 from opsiconfd.check.common import CheckRegistry, CheckResult, CheckStatus, PartialCheckResult
@@ -105,7 +104,6 @@ def test_upgrade_issue() -> None:
 
 
 def test_check_disk_usage() -> None:
-
 	result = check_disk_usage(CheckRegistry().get("disk_usage").result)
 	assert result.check_status
 
@@ -1267,8 +1265,8 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert result.check_status == CheckStatus.ERROR
 
 	with mock.patch(
-	"opsiconfd.check.mysql.MySQLConnection.connect",
-	side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'),
+		"opsiconfd.check.mysql.MySQLConnection.connect",
+		side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'),
 	):
 		result = check_mysql(CheckRegistry().get("mysql").result)
 		assert result.check_status == CheckStatus.ERROR
@@ -1276,7 +1274,6 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with mock.patch("opsiconfd.check.redis.redis_client", side_effect=RedisConnectionError("Redis test error")):
 		result = check_redis(CheckRegistry().get("redis").result)
 		assert result.check_status == CheckStatus.ERROR
-
 
 	# Create a backup
 	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False]}
@@ -1294,7 +1291,6 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	# Clear backup cache
 	check_cache_clear("opsi_backup")
 
-
 	# Backup check should pass. A backup was created. Mysql check should fail. Cache is not cleared.
 	result = check_redis(CheckRegistry().get("redis").result)
 	assert result.check_status == CheckStatus.ERROR
@@ -1311,5 +1307,3 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert result.check_status == CheckStatus.OK
 	result = check_mysql(CheckRegistry().get("mysql").result)
 	assert result.check_status == CheckStatus.OK
-
-

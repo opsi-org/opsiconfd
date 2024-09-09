@@ -176,31 +176,6 @@ def check_ssl() -> CheckResult:
 
 		result.add_partial_result(partial_result)
 
-		# chain_of_trust
-		partial_result = PartialCheckResult(
-			check_id="ssl:chain_of_trust",
-			check_name="Server certificate chain of trust",
-			check_status=CheckStatus.OK,
-			message="The server certificate is OK.",
-		)
-		try:
-			srv_crt = load_local_server_cert()
-			not_after_days = get_not_before_and_not_after(srv_crt)[3] or 0
-			if not_after_days <= 0:
-				partial_result.check_status = CheckStatus.ERROR
-				partial_result.message = "The server certificate is expired."
-			else:
-				partial_result.message = f"The server certificate is OK and will expire in {not_after_days} days."
-				if not_after_days <= config.ssl_server_cert_renew_days:
-					partial_result.message = f"The server certificate is OK but will expire in {not_after_days} days."
-					partial_result.check_status = CheckStatus.WARNING
-		except Exception as err:
-			partial_result.check_status = CheckStatus.ERROR
-			partial_result.message = f"A problem was found with the server certificate: {err}."
-			ca_cert = None
-
-		result.add_partial_result(partial_result)
-
 	if result.check_status != CheckStatus.OK:
 		result.message = "Some SSL issues where found."
 

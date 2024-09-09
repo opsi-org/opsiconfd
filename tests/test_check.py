@@ -13,6 +13,7 @@ import io
 import json
 import os
 import pprint
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -729,15 +730,17 @@ def test_check_ssl(tmpdir: Path) -> None:
 		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_renew_days - 10)
 		store_opsi_ca_key(ca_key)
 		store_opsi_ca_cert(ca_crt)
+		(srv_crt, srv_key) = create_local_server_cert(renew=False)
 		result = check_ssl()
-
 		assert result.check_status == CheckStatus.ERROR
 		assert (
 			result.partial_results[0].message
 			== f"The opsi CA certificate is OK but will expire in {config.ssl_ca_cert_renew_days - 11} days."
 		)
-		assert result.partial_results[4].check_status == CheckStatus.ERROR
-		assert result.partial_results[4].message == "Failed to verify server cert with opsi CA."
+
+		print(result.partial_results[4])
+		assert result.partial_results[3].check_status == CheckStatus.ERROR
+		assert re.match("Failed to verify certificate .* with issuer certificate .*", result.partial_results[3].message)
 
 
 def test_checks_and_skip_checks() -> None:

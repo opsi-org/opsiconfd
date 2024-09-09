@@ -19,6 +19,7 @@ from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult,
 from opsiconfd.config import config, get_server_role
 from opsiconfd.ssl import (
 	check_intermediate_ca,
+	get_ca_certs,
 	get_not_before_and_not_after,
 	get_opsi_ca_subject,
 	get_server_cn,
@@ -128,6 +129,21 @@ def check_ssl() -> CheckResult:
 				if not_after_days <= config.ssl_server_cert_renew_days:
 					partial_result.message = f"The server certificate is OK but will expire in {not_after_days} days."
 					partial_result.check_status = CheckStatus.WARNING
+
+				server_cn = get_server_cn()
+				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+				if not isinstance(cert_cn, str):
+					cert_cn = cert_cn.decode("utf-8")
+				if server_cn != cert_cn:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
+
+				try:
+					validate_cert(srv_crt, get_ca_certs())
+				except verification.VerificationError as err:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = str(err)
+
 		except Exception as err:
 			partial_result.check_status = CheckStatus.ERROR
 			partial_result.message = f"A problem was found with the server certificate: {err}."
@@ -149,23 +165,34 @@ def check_ssl() -> CheckResult:
 			) != srv_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
 				partial_result.check_status = CheckStatus.ERROR
 				partial_result.message = "Server cert does not match server key."
-			else:
-				server_cn = get_server_cn()
-				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
-				if not isinstance(cert_cn, str):
-					cert_cn = cert_cn.decode("utf-8")
-				if server_cn != cert_cn:
-					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
-				elif ca_cert:
-					try:
-						validate_cert(srv_crt, ca_cert)
-					except verification.VerificationError:
-						partial_result.check_status = CheckStatus.ERROR
-						partial_result.message = "Failed to verify server cert with opsi CA."
 		except Exception as err:
 			partial_result.check_status = CheckStatus.ERROR
 			partial_result.message = f"A problem was found with the server key: {err}."
+
+		result.add_partial_result(partial_result)
+
+		# chain_of_trust
+		partial_result = PartialCheckResult(
+			check_id="ssl:chain_of_trust",
+			check_name="Server certificate chain of trust",
+			check_status=CheckStatus.OK,
+			message="The server certificate is OK.",
+		)
+		try:
+			srv_crt = load_local_server_cert()
+			not_after_days = get_not_before_and_not_after(srv_crt)[3] or 0
+			if not_after_days <= 0:
+				partial_result.check_status = CheckStatus.ERROR
+				partial_result.message = "The server certificate is expired."
+			else:
+				partial_result.message = f"The server certificate is OK and will expire in {not_after_days} days."
+				if not_after_days <= config.ssl_server_cert_renew_days:
+					partial_result.message = f"The server certificate is OK but will expire in {not_after_days} days."
+					partial_result.check_status = CheckStatus.WARNING
+		except Exception as err:
+			partial_result.check_status = CheckStatus.ERROR
+			partial_result.message = f"A problem was found with the server certificate: {err}."
+			ca_cert = None
 
 		result.add_partial_result(partial_result)
 

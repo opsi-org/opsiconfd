@@ -231,3 +231,6 @@ def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
 		summary[result.check_status] += 1
 	json_result["summary"] = summary  # type: ignore
 	return json_result
+
+
+check_manager = CheckManager()

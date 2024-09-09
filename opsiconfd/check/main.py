@@ -14,7 +14,7 @@ from typing import Iterator
 from opsiconfd.check.addon import failed_addons_check
 from opsiconfd.check.backend import depotserver_check
 from opsiconfd.check.backup import backup_check
-from opsiconfd.check.common import CheckManager, CheckResult
+from opsiconfd.check.common import CheckResult, check_manager
 from opsiconfd.check.config import opsi_config_check, opsiconfd_config_check, run_as_user_check
 from opsiconfd.check.jsonrpc import deprecated_calls_check
 from opsiconfd.check.ldap import ldap_connection_check
@@ -26,7 +26,7 @@ from opsiconfd.check.ssl import ssl_check
 from opsiconfd.check.system import disk_usage_check, distro_eol_check, system_packages_check, system_repositories_check
 from opsiconfd.check.users import opsi_users_check
 
-CheckManager().register(
+check_manager.register(
 	backup_check,
 	failed_addons_check,
 	depotserver_check,
@@ -51,5 +51,5 @@ CheckManager().register(
 
 
 def health_check(use_cache: bool = True) -> Iterator[CheckResult]:
-	for check in CheckManager():
+	for check in check_manager:
 		yield check.run(use_cache)

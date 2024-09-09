@@ -145,6 +145,11 @@ def check_ssl() -> CheckResult:
 					partial_result.message = str(err)
 
 		except Exception as err:
+			print(err)
+			print(err.__class__)
+			import traceback
+
+			print(traceback.format_exc())
 			partial_result.check_status = CheckStatus.ERROR
 			partial_result.message = f"A problem was found with the server certificate: {err}."
 			ca_cert = None

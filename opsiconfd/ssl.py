@@ -721,20 +721,22 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 			if cert.issuer == ca_cert.subject:
 				try:
 					cert.verify_directly_issued_by(ca_cert)
-					dt_issuer_cert_not_before = get_not_before_and_not_after(ca_cert)[0]
-					dt_cert_not_before = get_not_before_and_not_after(cert)[0]
-					if dt_issuer_cert_not_before and dt_cert_not_before and dt_issuer_cert_not_before > dt_cert_not_before:
-						raise verification.VerificationError(
-							f"Issuer certificate {ca_cert.subject} is not valid before {dt_issuer_cert_not_before} "
-							f"but certificate {cert.subject} is valid before {dt_cert_not_before}"
-						)
-					trust_chain.insert(0, ca_cert)
-					if ca_cert.issuer == ca_cert.subject:
-						# Self signed, trust chain complete
-						return True
-					return build_trust_chain(trust_chain)
-				except ValueError:
-					continue
+				except Exception as err:
+					raise verification.VerificationError(
+						f"Failed to verify certificate {cert.subject} with issuer certificate {ca_cert.subject}: {err}"
+					) from err
+				dt_issuer_cert_not_before = get_not_before_and_not_after(ca_cert)[0]
+				dt_cert_not_before = get_not_before_and_not_after(cert)[0]
+				if dt_issuer_cert_not_before and dt_cert_not_before and dt_issuer_cert_not_before > dt_cert_not_before:
+					raise verification.VerificationError(
+						f"Issuer certificate {ca_cert.subject} is not valid before {dt_issuer_cert_not_before} "
+						f"but certificate {cert.subject} is valid before {dt_cert_not_before}"
+					)
+				trust_chain.insert(0, ca_cert)
+				if ca_cert.issuer == ca_cert.subject:
+					# Self signed, trust chain complete
+					return True
+				return build_trust_chain(trust_chain)
 		return False
 
 	if not build_trust_chain(trust_chain):

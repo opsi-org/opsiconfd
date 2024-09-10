@@ -149,7 +149,7 @@ class BaseMiddleware:
 					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime,X-Requested-With",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
-				headers.append("Access-Control-Expose-Headers", "X-Total-Count,X-opsi-user-id")
+				headers.append("Access-Control-Expose-Headers", "X-Total-Count,X-opsi-user-id,X-opsi-server-role")
 				if config.http_security_headers:
 					headers.append("Strict-Transport-Security", "max-age=600; includeSubDomains")
 					headers.append("X-Content-Type-Options", "nosniff")

@@ -98,6 +98,8 @@ def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
 
 
 def get_service_client(name: str = "", register_messagebus_listener: MessagebusListener | None = None) -> ServiceClient:
+	if config.shared_service_connection:
+		name = ""
 	with service_clients_lock:
 		if name not in service_clients:
 			from opsiconfd.worker import Worker

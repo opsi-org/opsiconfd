@@ -1516,6 +1516,18 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--shared-service-connection",
+			env_var="OPSICONFD_SHARED_SERVICE_CONNECTION",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"expert",
+				"Shared use of a single service connection per worker process for all purposes.",
+			),
+		)
+		self._parser.add(
 			"--admin-user",
 			env_var="OPSICONFD_SETUP_ADMIN_USER",
 			default=None,

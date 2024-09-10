@@ -137,10 +137,6 @@ class CheckManager(metaclass=Singleton):
 			if role == "depotserver" and not check.depot_check:
 				continue
 			self._checks[check.id] = check
-
-		role = get_server_role()
-		if role == "depotserver" and not check.depot_check:
-			return
 		self._checks[check.id] = check
 
 	def get(self, check_id: str) -> Check:

@@ -101,7 +101,8 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`workbenchRemoteUrl` varchar(255) DEFAULT NULL,
 	PRIMARY KEY (`hostId`),
 	UNIQUE KEY `systemUUID` (`systemUUID`),
-	KEY `index_host_type` (`type`)
+	KEY `index_host_type` (`type`),
+	KEY `index_host_lastSeen` (`lastSeen`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `LICENSE_CONTRACT` (
@@ -1261,6 +1262,15 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		# schema_version 12
 		for table in ("GROUP", "HOST", "LICENSE_CONTRACT", "LICENSE_ON_CLIENT"):
 			session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `notes` VARCHAR(8192) DEFAULT NULL")
+
+		# schema_version 13
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="HOST",
+			index="index_host_lastSeen",
+			columns=["lastSeen"],
+		)
 
 		logger.info("All updates completed")
 

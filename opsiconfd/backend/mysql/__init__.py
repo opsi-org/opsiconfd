@@ -164,7 +164,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 12
+	schema_version = 13
 
 	def __init__(self) -> None:
 		self.address = "localhost"

@@ -19,7 +19,7 @@ from rich.markdown import Markdown
 from rich.padding import Padding
 
 from opsiconfd.check.cache import check_cache_clear
-from opsiconfd.check.common import CheckManager, CheckResult, CheckStatus, PartialCheckResult, get_json_result
+from opsiconfd.check.common import CheckManager, CheckResult, CheckStatus, get_json_result
 from opsiconfd.check.main import health_check
 from opsiconfd.config import config
 from opsiconfd.utils import DataclassCapableJSONEncoder
@@ -54,7 +54,7 @@ def print_health_check_manual(console: Console) -> None:
 		console.print(Markdown(check.documentation.replace("\t", "")))
 
 
-def console_print_message(check_result: CheckResult | PartialCheckResult, console: Console, indent: int = 0) -> None:
+def console_print_message(check_result: CheckResult, console: Console, indent: int = 0) -> None:
 	style = STYLES[check_result.check_status]
 	status = check_result.check_status.upper()
 	msg_ident = " " * (len(status) + 3)
@@ -97,7 +97,7 @@ def process_check_result(
 				return
 
 	style = STYLES[status]
-	console.print(f"[{style}]●[/{style}] [b]{result.check_name}[/b]: [{style}]{status.upper()}[/{style}]")
+	console.print(f"[{style}]●[/{style}] [b]{result.check.name}[/b]: [{style}]{status.upper()}[/{style}]")
 	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
 
 	if status == CheckStatus.OK and not detailed:

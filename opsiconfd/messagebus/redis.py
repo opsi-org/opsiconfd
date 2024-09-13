@@ -238,7 +238,7 @@ async def get_websocket_connected_users(
 		search_base = f"{config.redis_key('messagebus')}:connections"
 		if user_type:
 			search_base = f"{search_base}:{user_type}s"
-		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*"), count=1000]
+		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*", count=1000)]
 
 	for state_key in state_keys:
 		try:

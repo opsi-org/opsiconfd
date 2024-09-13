@@ -25,6 +25,8 @@ from opsicommon.types import (
 	forceUnicodeList,
 )
 
+from opsiconfd import contextvar_client_session
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
 
@@ -44,6 +46,10 @@ class RPCConfigStateMixin(Protocol):
 	) -> dict[str, dict[str, list[Any]]]:
 		config_ids = forceUnicodeList(config_ids or [])
 		object_ids = forceObjectIdList(object_ids or [])
+		session = contextvar_client_session.get()
+		if session.host_type == "OpsiClient":
+			object_ids = [session.host_id]
+
 		res: dict[str, dict[str, list[Any]]] = {}
 		if with_defaults:
 			configserver_id = get_configserver_id()
@@ -51,13 +57,13 @@ class RPCConfigStateMixin(Protocol):
 			res = {h: defaults.copy() for h in self.host_getIdents(returnType="str", id=object_ids)}
 			client_id_to_depot_id = {
 				ctd.getObjectId(): ctd.getValues()[0]
-				for ctd in self.configState_getObjects(objectId=object_ids, configId="clientconfig.depot.id")
+				for ctd in self._configState_getObjects(objectId=object_ids, configId="clientconfig.depot.id")
 			}
 			depot_values: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
 			depot_ids = list(set(client_id_to_depot_id.values()))
 			depot_ids.append(configserver_id)
 			if depot_ids:
-				for config_state in self.configState_getObjects(configId=config_ids, objectId=depot_ids):
+				for config_state in self._configState_getObjects(configId=config_ids, objectId=depot_ids):
 					depot_values[config_state.getObjectId()][config_state.getConfigId()] = config_state.values
 			for host_id in self.host_getIdents(returnType="str", id=object_ids):
 				depot_id = client_id_to_depot_id.get(host_id)
@@ -67,7 +73,7 @@ class RPCConfigStateMixin(Protocol):
 				elif not depot_id and configserver_id in depot_values:
 					for cid, value in depot_values[configserver_id].items():
 						res[host_id][cid] = value
-		for config_state in self.configState_getObjects(configId=config_ids, objectId=object_ids):
+		for config_state in self._configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}
 			res[config_state.objectId][config_state.configId] = config_state.values
@@ -128,10 +134,14 @@ class RPCConfigStateMixin(Protocol):
 		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)
 
+	def _configState_getObjects(
+		self: BackendProtocol, ace: list[RPCACE] | None = None, attributes: list[str] | None = None, **filter: Any
+	) -> list[ConfigState]:
+		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace or [], object_type=ConfigState, attributes=attributes, filter=filter)
+
 	@rpc_method(check_acl=False)
 	def configState_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ConfigState]:
-		ace = self._get_ace("configState_getObjects")
-		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace, object_type=ConfigState, attributes=attributes, filter=filter)
+		return self._configState_getObjects(ace=self._get_ace("configState_getObjects"), attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="configState_getObjects", check_acl=False)
 	def configState_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:

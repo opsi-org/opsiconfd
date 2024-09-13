@@ -142,7 +142,7 @@ class RPCConfigStateMixin(Protocol):
 	def _configState_getObjects(
 		self: BackendProtocol, ace: list[RPCACE] | None = None, attributes: list[str] | None = None, **filter: Any
 	) -> list[ConfigState]:
-		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace or [], object_type=ConfigState, attributes=attributes, filter=filter)
+		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace or [], object_type=ConfigState, attributes=attributes, **filter)
 
 	@rpc_method(check_acl=False)
 	def configState_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ConfigState]:

@@ -46,7 +46,7 @@ def metrics_setup(app: FastAPI) -> None:
 async def get_workers() -> list[dict[str, str | int]]:
 	redis = await async_redis_client()
 	workers = []
-	async for redis_key in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
+	async for redis_key in redis.scan_iter(f"{config.redis_key('state')}:workers:*", count=1000):
 		redis_key = redis_key.decode("utf-8")
 		workers.append({"node_name": redis_key.split(":")[-2], "worker_num": int(redis_key.split(":")[-1])})
 	workers.sort(key=itemgetter("node_name", "worker_num"))
@@ -60,7 +60,7 @@ async def get_nodes() -> set[str]:
 async def get_clients(metric_id: str) -> list[dict[str, str]]:
 	redis = await async_redis_client()
 	clients = []
-	async for redis_key in redis.scan_iter(f"{config.redis_key('stats')}:{metric_id}:*"):
+	async for redis_key in redis.scan_iter(f"{config.redis_key('stats')}:{metric_id}:*", count=1000):
 		redis_key = redis_key.decode("utf-8")
 		clients.append({"client_addr": ip_address_from_redis_key(redis_key.split(":")[-1])})
 	clients.sort(key=itemgetter("client_addr"))

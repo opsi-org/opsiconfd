@@ -592,7 +592,7 @@ class RPCHostMixin(Protocol):
 		self.host_deleteObjects([old_depot])
 
 		redis = redis_client()
-		for key_b in redis.scan_iter(f"{config.redis_key()}:*"):
+		for key_b in redis.scan_iter(f"{config.redis_key()}:*", count=1000):
 			key_b = cast(bytes, key_b)
 			key = key_b.decode("utf-8")
 			if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):

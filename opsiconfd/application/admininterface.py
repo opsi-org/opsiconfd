@@ -179,7 +179,7 @@ async def _unblock_all_clients() -> dict:
 	deleted_keys = set()
 	async with redis.pipeline(transaction=False) as pipe:
 		for base_key in (f"{config.redis_key('stats')}:client:failed_auth", f"{config.redis_key('stats')}:client:blocked"):
-			async for key in redis.scan_iter(f"{base_key}:*"):
+			async for key in redis.scan_iter(f"{base_key}:*", count=1000):
 				key_str = key.decode("utf8")
 				deleted_keys.add(key_str)
 				client = ip_address_from_redis_key(key_str.split(":")[-1])
@@ -241,7 +241,7 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
 	sessions = []
 	deleted_keys = []
-	keys = redis.scan_iter(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:*")
+	keys = redis.scan_iter(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:*", count=1000)
 	if keys:
 		async with redis.pipeline(transaction=False) as pipe:
 			async for key in keys:
@@ -391,7 +391,7 @@ async def get_rpc_count() -> RESTResponse:
 async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
-	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*"):
+	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
 		try:
 			session = await redis.hgetall(redis_key)
 		except ResponseError as err:
@@ -502,7 +502,7 @@ async def unlock_all_products() -> RESTResponse:
 @rest_api
 async def get_blocked_clients() -> RESTResponse:
 	redis = await async_redis_client()
-	redis_keys = redis.scan_iter(f"{config.redis_key('stats')}:client:blocked:*")
+	redis_keys = redis.scan_iter(f"{config.redis_key('stats')}:client:blocked:*", count=1000)
 
 	blocked_clients = []
 	async for key in redis_keys:

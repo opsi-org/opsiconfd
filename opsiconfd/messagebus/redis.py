@@ -71,7 +71,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 			await async_delete_recursively(f"{channel_prefix}{obj}")
 		await async_delete_recursively(f"{channel_prefix}session")
 
-	# async for key_b in redis.scan_iter(f"{channel_prefix}service:*"):
+	# async for key_b in redis.scan_iter(f"{channel_prefix}service:*", count=1000):
 	# 	key = key_b.decode("utf-8")
 	# 	stream = await redis.xinfo_stream(name=key, full=True)
 	# 	for group in stream["groups"]:
@@ -92,7 +92,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 	stream_keys = set()
 	channel_info_keys = set()
 	remove_keys = set()
-	async for key_b in redis.scan_iter(f"{channel_prefix}*"):
+	async for key_b in redis.scan_iter(f"{channel_prefix}*", count=1000):
 		key = str(key_b.decode("utf-8"))
 		if key.endswith(channel_info_suffix):
 			channel_info_keys.add(key)
@@ -238,7 +238,7 @@ async def get_websocket_connected_users(
 		search_base = f"{config.redis_key('messagebus')}:connections"
 		if user_type:
 			search_base = f"{search_base}:{user_type}s"
-		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*")]
+		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*"), count=1000]
 
 	for state_key in state_keys:
 		try:

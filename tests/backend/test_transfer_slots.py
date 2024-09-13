@@ -25,7 +25,7 @@ from opsiconfd.backend.rpc.depot import (
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
 from opsiconfd.redis import decode_redis_result, redis_client
-from tests.backend.rpc.test_config_state import _create_clients_and_depot
+from tests.backend.rpc.test_obj_config_state import _create_clients_and_depot
 
 from ..utils import (  # noqa: F401
 	ADMIN_PASS,

@@ -14,7 +14,6 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import BackendPermissionDeniedError
 from opsicommon.objects import ConfigState, ProductOnDepot
 from opsicommon.types import (
 	forceBool,
@@ -26,7 +25,6 @@ from opsicommon.types import (
 	forceUnicodeList,
 )
 
-from opsiconfd import contextvar_client_session
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
@@ -47,13 +45,8 @@ class RPCConfigStateMixin(Protocol):
 	) -> dict[str, dict[str, list[Any]]]:
 		config_ids = forceUnicodeList(config_ids or [])
 		object_ids = forceObjectIdList(object_ids or [])
-		session = contextvar_client_session.get()
-		if not session:
-			raise BackendPermissionDeniedError("Access denied")
-		if session.host_type == "OpsiClient":
-			if not session.host_id:
-				raise BackendPermissionDeniedError("Access denied")
-			object_ids = [session.host_id]
+		if client_id := self._get_client_id():
+			object_ids = [client_id]
 
 		res: dict[str, dict[str, list[Any]]] = {}
 		if with_defaults:
@@ -142,11 +135,11 @@ class RPCConfigStateMixin(Protocol):
 	def _configState_getObjects(
 		self: BackendProtocol, ace: list[RPCACE] | None = None, attributes: list[str] | None = None, **filter: Any
 	) -> list[ConfigState]:
-		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace or [], object_type=ConfigState, attributes=attributes, **filter)
+		return self._mysql.get_objects(table="CONFIG_STATE", ace=ace or [], object_type=ConfigState, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
 	def configState_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ConfigState]:
-		return self._configState_getObjects(ace=self._get_ace("configState_getObjects"), attributes=attributes, filter=filter)
+		return self._configState_getObjects(ace=self._get_ace("configState_getObjects"), attributes=attributes, **filter)
 
 	@rpc_method(deprecated=True, alternative_method="configState_getObjects", check_acl=False)
 	def configState_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:

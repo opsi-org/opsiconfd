@@ -318,6 +318,9 @@ class Backend(
 	def _check_role(self, required_role: str) -> None:
 		return None
 
+	def _get_client_id(self) -> str | None:
+		return None
+
 	def _check_module(self, module: str) -> None:
 		if app.app_state.type == "maintenance":
 			# Do not check in maintenance mode (backup / restore)
@@ -371,6 +374,9 @@ class UnprotectedBackend(Backend):
 		return [RPCACE_ALLOW_ALL]
 
 	def _check_role(self, required_role: str) -> None:
+		return None
+
+	def _get_client_id(self) -> str | None:
 		return None
 
 
@@ -455,3 +461,16 @@ class ProtectedBackend(Backend):
 			raise BackendPermissionDeniedError("Insufficient permissions")
 
 		raise ValueError(f"Invalid role {required_role!r}")
+
+	def _get_client_id(self) -> str | None:
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Invalid session")
+
+		if not session.host_type == "OpsiClient":
+			return None
+
+		if not session.host_id:
+			raise BackendPermissionDeniedError("Invalid host id")
+
+		return session.host_id

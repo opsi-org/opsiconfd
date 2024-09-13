@@ -211,7 +211,7 @@ class DumpedKey:
 def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[DumpedKey, None, None]:
 	excludes = excludes or []
 	client = redis_client()
-	for key in client.scan_iter(f"{redis_key}:*"):
+	for key in client.scan_iter(f"{redis_key}:*", count=1000):
 		assert isinstance(key, bytes)
 		key = key.decode("utf-8")
 
@@ -249,7 +249,7 @@ def delete_recursively(redis_key: str, *, piped: bool = True, excludes: Iterable
 
 	client = redis_client()
 	delete_keys = []
-	for key in client.scan_iter(f"{redis_key}:*"):
+	for key in client.scan_iter(f"{redis_key}:*", count=1000):
 		assert isinstance(key, bytes)
 		key = key.decode("utf-8")
 
@@ -279,7 +279,7 @@ def delete_recursively(redis_key: str, *, piped: bool = True, excludes: Iterable
 async def async_delete_recursively(redis_key: str, piped: bool = True) -> None:
 	client = await async_redis_client()
 	delete_keys = []
-	async for key in client.scan_iter(f"{redis_key}:*"):
+	async for key in client.scan_iter(f"{redis_key}:*", count=1000):
 		if piped:
 			delete_keys.append(key)
 		else:
@@ -389,7 +389,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 		"misc": {"keys": [], "memory": 0, "entries": 0, "prefixes": []},
 	}
 
-	async for key in client.scan_iter(f"{conf.redis_key()}:*"):
+	async for key in client.scan_iter(f"{conf.redis_key()}:*", count=1000):
 		key = key.decode("utf8")
 		matched_key_type = ""
 		for key_type, info in key_info.items():

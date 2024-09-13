@@ -179,7 +179,7 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 	res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 
-	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)])
 	assert len(keys) == 1
 	assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
@@ -187,7 +187,7 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 	assert res.status_code == 200
 	assert "opsiconfd-session" in res.headers["set-cookie"]
 	assert "Max-Age=0" in res.headers["set-cookie"]
-	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)])
 	assert len(keys) == 0
 
 
@@ -283,7 +283,7 @@ def test_change_session_ip(
 	res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 
-	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)])
 	assert len(keys) == 1
 	assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
@@ -295,7 +295,7 @@ def test_change_session_ip(
 	res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 
-	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
+	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)])
 	assert len(keys) == 2
 	assert keys[1].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
@@ -400,7 +400,7 @@ def test_max_sessions_limit(
 		# Delete some sessions
 		redis = redis_client()
 		num = 0
-		for key in redis.scan_iter(redis_key):
+		for key in redis.scan_iter(redis_key, count=1000):
 			num += 1
 			redis.delete(key)
 			if num > over_limit:
@@ -429,7 +429,7 @@ def test_max_sessions_not_for_depot(
 				test_client.reset_cookies()
 
 		redis = redis_client()
-		session_keys = list(redis.scan_iter(redis_key))
+		session_keys = list(redis.scan_iter(redis_key, count=1000))
 		assert len(session_keys) >= max_session_per_ip + over_limit
 
 		# Delete sessions
@@ -464,7 +464,7 @@ def test_max_auth_failures(
 			now = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 			print("now:", now, ", num:", num, ", max_auth_failures:", max_auth_failures)
 			redis = redis_client()
-			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
+			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*", count=1000):
 				cmd = (
 					f"ts.range {key.decode()} "
 					f"{(now-(conf.auth_failures_interval*1000))} {now} aggregation count {(conf.auth_failures_interval*1000)}"

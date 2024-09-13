@@ -859,7 +859,7 @@ class OPSISession:
 			redis = await async_redis_client()
 			now = unix_timestamp()
 			session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
-			async for redis_key in redis.scan_iter(session_key):
+			async for redis_key in redis.scan_iter(session_key, count=1000):
 				validity = 0
 				try:
 					vals = await redis.hmget(redis_key, (b"max_age", b"last_used"))

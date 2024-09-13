@@ -177,13 +177,13 @@ def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None,
 
 async def async_clean_redis() -> None:
 	redis = await async_redis_client()
-	async for key in redis.scan_iter(f"{_config.redis_key()}:*"):
+	async for key in redis.scan_iter(f"{_config.redis_key()}:*", count=1000):
 		await redis.delete(key)
 
 
 def sync_clean_redis() -> None:
 	redis = redis_client()
-	for key in redis.scan_iter(f"{_config.redis_key()}:*"):
+	for key in redis.scan_iter(f"{_config.redis_key()}:*", count=1000):
 		redis.delete(key)
 
 

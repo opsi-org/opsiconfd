@@ -477,7 +477,9 @@ class RPCDepotserverMixin(Protocol):
 					)
 
 			redis = redis_client()
-			depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*"))))
+			depot_slots = len(
+				list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*", count=1000)))
+			)
 			if depot_slots >= max_slots:
 				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
 				return TransferSlot(retry_after=retry_after)
@@ -531,7 +533,7 @@ class RPCDepotserverMixin(Protocol):
 
 		slots = []
 
-		slot_keys = redis_client().scan_iter(f"{config.redis_key('slot')}:{depot}:*")
+		slot_keys = redis_client().scan_iter(f"{config.redis_key('slot')}:{depot}:*", count=1000)
 		for slot_key in slot_keys:
 			slot = TransferSlot.from_redis_key(slot_key.decode())
 			if slot:

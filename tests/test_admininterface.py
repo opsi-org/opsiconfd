@@ -263,7 +263,7 @@ async def test_delete_client_sessions(
 	session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
 	sessions = []
 	local_ip = None
-	for key in redis.scan_iter(f"{config.redis_key('session')}:*"):
+	for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
 		addr, sess = key.decode("utf8").split(":")[-2:]
 		sessions.append(sess)
 		if sess == session:

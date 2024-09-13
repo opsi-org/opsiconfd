@@ -204,7 +204,7 @@ class OpsiconfdApp(FastAPI):
 				app_state = AppState.from_dict(msgpack.decode(msgpack_data))
 				if update_accomplished and not app_state.accomplished:
 					accomplished = True
-					async for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
+					async for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*", count=1000):
 						if (await redis.hget(redis_key_b, "app_state")) != app_state.type.encode("utf-8"):
 							accomplished = False
 							break

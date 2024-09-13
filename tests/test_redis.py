@@ -149,7 +149,7 @@ def test_sync_redis_client(config: Config) -> None:  # noqa: F811
 async def test_async_redis_pipeline(config: Config) -> None:  # noqa: F811
 	redis = await async_redis_client()
 	async with redis.pipeline() as pipe:
-		pipe.scan_iter(f"{config.redis_key()}:*")  # type: ignore[attr-defined]
+		pipe.scan_iter(f"{config.redis_key()}:*", count=1000)  # type: ignore[attr-defined]
 		await pipe.execute()  # type: ignore[attr-defined]
 
 
@@ -164,12 +164,12 @@ async def test_async_delete_recursively(config: Config, piped: bool) -> None:  #
 		for idx2 in range(5):
 			await client.set(f"{base_key}:{idx}:{idx2}", b"test")
 
-	keys = [k async for k in client.scan_iter(f"{base_key}:*")]
+	keys = [k async for k in client.scan_iter(f"{base_key}:*", count=1000)]
 	assert len(keys) == 50
 
 	await async_delete_recursively(base_key, piped=piped)
 
-	keys = [k async for k in client.scan_iter(f"{base_key}:*")]
+	keys = [k async for k in client.scan_iter(f"{base_key}:*", count=1000)]
 	assert len(keys) == 0
 
 
@@ -184,12 +184,12 @@ def test_delete_recursively(config: Config, piped: bool) -> None:  # noqa: F811
 		for idx2 in range(5):
 			client.set(f"{base_key}:{idx}:{idx2}", b"test")
 
-	keys = list(client.scan_iter(f"{base_key}:*"))
+	keys = list(client.scan_iter(f"{base_key}:*", count=1000))
 	assert len(keys) == 50
 
 	delete_recursively(base_key, piped=piped)
 
-	keys = list(client.scan_iter(f"{base_key}:*"))
+	keys = list(client.scan_iter(f"{base_key}:*", count=1000))
 	assert len(keys) == 0
 
 
@@ -286,7 +286,7 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 
 	async def check_time_series(client: AsyncRedis) -> None:
 		num_found = 0
-		async for key_b in client.scan_iter(f"{base_key}:stats:*"):
+		async for key_b in client.scan_iter(f"{base_key}:stats:*", count=1000):
 			num_found += 1
 			assert isinstance(key_b, bytes)
 			key = key_b.decode("utf-8")

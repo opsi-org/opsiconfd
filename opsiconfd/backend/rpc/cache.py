@@ -54,7 +54,7 @@ def rpc_cache_clear(cache_name: str | None = None) -> Any:
 def rpc_cache_info() -> dict[str, int]:
 	info: dict[str, int] = defaultdict(int)
 	prefix = f"{config.redis_key('rpccache')}:"
-	for key in redis_client().scan_iter(f"{prefix}*"):
+	for key in redis_client().scan_iter(f"{prefix}*", count=1000):
 		rel = key.decode("utf-8").removeprefix(prefix)
 		if ":" in rel:
 			cache_name, _ = rel.split(":", 1)

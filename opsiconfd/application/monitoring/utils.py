@@ -49,7 +49,7 @@ def remove_percent(string: str) -> str:
 
 
 async def get_workers(redis: StrictRedis) -> list:
-	worker_registry = redis.scan_iter(f"{config.redis_key('state')}:workers:*")
+	worker_registry = redis.scan_iter(f"{config.redis_key('state')}:workers:*", count=1000)
 	workers = []
 	async for key in worker_registry:
 		workers.append(f"{key.decode('utf8').split(':')[-2]}:{key.decode('utf8').split(':')[-1]}")
@@ -73,7 +73,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 
 async def get_session_count(redis: StrictRedis) -> int:
 	count = 0
-	session_keys = redis.scan_iter(f"{config.redis_key('session')}:*")
+	session_keys = redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)
 	async for _session in session_keys:
 		count += 1
 	return count

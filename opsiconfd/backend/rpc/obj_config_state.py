@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
+from opsicommon.exceptions import BackendPermissionDeniedError
 from opsicommon.objects import ConfigState, ProductOnDepot
 from opsicommon.types import (
 	forceBool,
@@ -47,7 +48,11 @@ class RPCConfigStateMixin(Protocol):
 		config_ids = forceUnicodeList(config_ids or [])
 		object_ids = forceObjectIdList(object_ids or [])
 		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
 		if session.host_type == "OpsiClient":
+			if not session.host_id:
+				raise BackendPermissionDeniedError("Access denied")
 			object_ids = [session.host_id]
 
 		res: dict[str, dict[str, list[Any]]] = {}
@@ -56,7 +61,7 @@ class RPCConfigStateMixin(Protocol):
 			defaults = {c.id: c.defaultValues for c in self.config_getObjects(id=config_ids)}
 			res = {h: defaults.copy() for h in self.host_getIdents(returnType="str", id=object_ids)}
 			client_id_to_depot_id = {
-				ctd.getObjectId(): ctd.getValues()[0]
+				ctd.objectId: (ctd.values or [None])[0]
 				for ctd in self._configState_getObjects(objectId=object_ids, configId="clientconfig.depot.id")
 			}
 			depot_values: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
@@ -64,7 +69,7 @@ class RPCConfigStateMixin(Protocol):
 			depot_ids.append(configserver_id)
 			if depot_ids:
 				for config_state in self._configState_getObjects(configId=config_ids, objectId=depot_ids):
-					depot_values[config_state.getObjectId()][config_state.getConfigId()] = config_state.values
+					depot_values[config_state.objectId][config_state.configId] = config_state.values or []
 			for host_id in self.host_getIdents(returnType="str", id=object_ids):
 				depot_id = client_id_to_depot_id.get(host_id)
 				if depot_id and depot_id in depot_values:
@@ -76,7 +81,7 @@ class RPCConfigStateMixin(Protocol):
 		for config_state in self._configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}
-			res[config_state.objectId][config_state.configId] = config_state.values
+			res[config_state.objectId][config_state.configId] = config_state.values or []
 		return res
 
 	def configState_bulkInsertObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState]) -> None:

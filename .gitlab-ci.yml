@@ -188,7 +188,7 @@ publish:obs_ext:
     - build:linux-pyinstaller
     - build:arm64-pyinstaller
   script:
-    - opsi-dev-cli self upgrade
+    - opsi-dev-cli self upgrade --system
     - opsi-dev-cli -l info packaging obs update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
     - opsi-dev-cli -l info changelog from-git output
     - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md

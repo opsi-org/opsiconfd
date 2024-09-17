@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Generator, Iterator
 
@@ -48,20 +48,24 @@ class CheckStatus(StrEnum):
 
 @dataclass()
 class Check:
-	id: str = field(default="", hash=True, init=True)
-	name: str = field(default="", init=True)
-	description: str = field(default="")
-	documentation: str = field(default="")
-	depot_check: bool = field(default=True)
-	cache: bool = field(default=True)
-	cache_expiration: int = field(default=CACHE_EXPIRATION)
-	# id: str = ""
-	# name: str = ""
-	# description: str = ""
-	# documentation: str = ""
-	# depot_check: bool = True
-	# cache: bool = True
-	# cache_expiration: int = CACHE_EXPIRATION
+	# id: str = field(default="")
+	# name: str = field(default="")
+	# description: str = field(default="")
+	# documentation: str = field(default="")
+	# depot_check: bool = field(default=True)
+	# cache: bool = field(default=True)
+	# cache_expiration: int = field(default=CACHE_EXPIRATION)
+	id: str = ""
+	name: str = ""
+	description: str = ""
+	documentation: str = ""
+	depot_check: bool = True
+	cache: bool = True
+	cache_expiration: int = CACHE_EXPIRATION
+	# partial_checks: list[Check] = field(default_factory=list)
+	partial_checks: list[Check] = field(default_factory=list)
+	# parent: str | None = None
+	partial_check: bool = False
 
 	# def __init__(
 	# 	self,
@@ -77,6 +81,24 @@ class Check:
 	# 	self.cache = self.cache or True
 	# 	self.cache_expiration = self.cache_expiration or 24 * 3600
 
+	def __post_init__(self) -> None:
+		if self.id == "":
+			raise ValueError("Check id must be set")
+		self.name = self.name or self.id
+		# self.description = self.description or self.name
+		# self.documentation = self.documentation or ""
+		# self.depot_check = self.depot_check or True
+		# self.cache = self.cache or True
+		# self.cache_expiration = self.cache_expiration or 24 * 3600
+		# for partial_check in self.partial_checks:
+		# 	partial_check.parent = self.id
+
+	def add_partial_check(self, check: Check) -> None:
+		role = get_server_role()
+		if role == "depotserver" and not check.depot_check:
+			return
+		self.partial_checks.append(check)
+
 	def check(self) -> CheckResult:
 		return CheckResult(
 			check=self,
@@ -84,24 +106,33 @@ class Check:
 			check_status=CheckStatus.ERROR,
 		)
 
-	def run(self, use_cache: bool = True) -> CheckResult:
-		if not self.cache or not use_cache:
-			return self.check()
-		result = self.check_cache_load()
-		print(result)
-		if result is not None:
-			check_result = CheckResult(**result)
-			check_result.partial_results = []
-			for partial_result in result.get("partial_results", []):
-				print(partial_result)
-				partial_result["check"] = Check(**partial_result.get("check", self))
-				partial_result = CheckResult(**partial_result)
-				check_result.add_partial_result(partial_result)
-				print(partial_result)
-			print(check_result)
-			return check_result
+	def run(self, use_cache: bool = True, issues: list = []) -> CheckResult:
+		print("run check:", self.id)
+		print(self.partial_check)
+		if not self.partial_check:
+			issues = []
+
+			if self.cache and use_cache:
+				result = self.check_cache_load()
+				if result is not None:
+					return result
 		result = self.check()
-		self.check_cache_store(result, self.cache_expiration)
+
+		for partial_check in self.partial_checks:
+			print("partial check:", partial_check.id)
+			partial_result = partial_check.run(use_cache, issues)
+
+			if CheckStatus(result.check_status).return_code() < CheckStatus(partial_result.check_status).return_code():
+				result.check_status = partial_result.check_status
+			result.add_partial_result(partial_result)
+
+		if self.partial_check and result.check_status != CheckStatus.OK:
+			issues.append(result.check.id)
+
+		print("issues:", issues)
+		if not self.partial_check and len(issues) > 0:
+			result.message = f"{len(issues)} issue(s) found."
+			self.check_cache_store(result, self.cache_expiration)
 		return result
 
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
@@ -109,20 +140,6 @@ class Check:
 			logger.error("Invalid check cache id: %s", self.id)
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		logger.debug("Check cache store: %s", redis_key)
-		print("store:", result)
-		print(result.check)
-		print(result.check.id)
-		print(result.check.name)
-		# print("check dict", result.check.__dict__)
-		# print("check class dict", result.check.__class__.__dict__)
-		print("store:", encode(result))
-		print("decode:", decode(encode(result)))
-		print("result as dict:", asdict(result))
-		print("--------------------------------")
-		print("result fields:", fields(result))
-		print("--------------------------------")
-		print("result check fields:", fields(result.check))
-		# print("store:", json.dumps(result))
 		redis_client().set(redis_key, encode(result), ex=expiration)
 
 	def check_cache_load(self) -> Any:
@@ -130,14 +147,19 @@ class Check:
 		msgpack_data = redis_client().get(redis_key)
 		if msgpack_data:
 			logger.debug("Check cache hit: %s", redis_key)
-			print("hit")
-			print(decode(msgpack_data))
+
+			print("Check cache hit:", redis_key)
 			data = decode(msgpack_data)
 			data["check"] = Check(**data.get("check", self))
-			print(data)
-			return data
+			check_result = CheckResult(**data)
+			check_result.partial_results = []
+			for partial_result in data.get("partial_results", []):
+				partial_result["check"] = Check(**partial_result.get("check", self))
+				partial_result = CheckResult(**partial_result)
+				check_result.add_partial_result(partial_result)
+			return check_result
 		logger.debug("Check cache miss: %s", redis_key)
-		print("cache miss")
+		# print("cache miss")
 		return None
 
 

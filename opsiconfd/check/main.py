@@ -12,6 +12,7 @@ health check
 from typing import Iterator
 
 import opsiconfd.check.backup  # noqa: F401
+import opsiconfd.check.ssl  # noqa: F401
 from opsiconfd.check.common import CheckResult, check_manager
 
 # check_manager.register(

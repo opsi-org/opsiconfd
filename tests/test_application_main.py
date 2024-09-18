@@ -59,12 +59,16 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 
 
 def test_server_headers(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	res = test_client.get("/login")
+	assert res.status_code == 200
+	assert res.headers["server"] == f"opsiconfd {__version__} (uvicorn)"
+	assert res.headers["X-opsi-server-role"] == "configserver"
+	assert res.headers["X-opsi-worker-id"] == "pytest:1"
+	assert res.headers["X-opsi-auth-methods"] == "password"
+
 	with get_config({"saml-idp-sso-url": "https://keycloak.opsi.test/realms/master/protocol/saml"}):
 		res = test_client.get("/login")
 		assert res.status_code == 200
-		assert res.headers["server"] == f"opsiconfd {__version__} (uvicorn)"
-		assert res.headers["X-opsi-server-role"] == "configserver"
-		assert res.headers["X-opsi-worker-id"] == "pytest:1"
 		assert res.headers["X-opsi-auth-methods"] == "password,saml"
 
 

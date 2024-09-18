@@ -112,6 +112,7 @@ def test_client() -> Generator[OpsiconfdTestClient, None, None]:
 	client = OpsiconfdTestClient()
 
 	def before_send(self: BaseMiddleware, scope: Scope, receive: Receive, send: Send) -> None:
+		self._generate_default_headers()
 		# Get the context out for later use
 		client.context = contextvars.copy_context()
 

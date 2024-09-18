@@ -62,7 +62,10 @@ def get_server_date() -> tuple[bytes, bytes]:
 class BaseMiddleware:
 	def __init__(self, app: FastAPI) -> None:
 		self.app = app
+		self.default_headers: tuple[tuple[bytes, bytes]] = tuple()
+		self._generate_default_headers()
 
+	def _generate_default_headers(self) -> None:
 		auth_methods = ["password"]
 		if config.saml_idp_sso_url:
 			auth_methods.append("saml")

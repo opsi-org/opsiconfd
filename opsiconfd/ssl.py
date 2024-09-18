@@ -39,6 +39,7 @@ from opsicommon.ssl import (
 	create_server_cert_signing_request,
 	install_ca,
 	is_self_signed,
+	load_ca,
 	load_key,
 	x509_name_to_dict,
 )
@@ -651,20 +652,28 @@ def configserver_setup_opsi_ca() -> bool:
 		else:
 			logger.notice("Creating opsi CA")
 
-		(ca_crt, ca_key) = create_ca(
+		(cur_ca_crt, cur_ca_key) = create_ca(
 			subject=ca_subject,
 			valid_days=config.ssl_ca_cert_valid_days,
 			key=cur_ca_key if renew else None,
 			permitted_domains=config.ssl_ca_permitted_domains or None,
 		)
 		if create:
-			store_opsi_ca_key(ca_key)
-		store_opsi_ca_cert(ca_crt)
-		install_ca(ca_crt)
-		return True
+			store_opsi_ca_key(cur_ca_key)
+		store_opsi_ca_cert(cur_ca_crt)
+	else:
+		logger.info("opsi CA is up to date")
 
-	logger.info("opsi CA is up to date")
-	return False
+	if os.geteuid() == 0:
+		# Works only as root
+		os_ca_crt = load_ca(config.ssl_ca_subject_cn)
+		if os_ca_crt and os_ca_crt.fingerprint(hashes.SHA256()) == cur_ca_crt.fingerprint(hashes.SHA256()):
+			logger.debug("opsi CA cert in system store is up to date")
+		else:
+			logger.info("Installing opsi CA cert into system store")
+			install_ca(cur_ca_crt)
+
+	return create or renew
 
 
 def setup_opsi_ca() -> bool:

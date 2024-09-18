@@ -21,8 +21,8 @@ from opsicommon.utils import ip_address_in_network
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
-from opsiconfd import contextvar_client_address, contextvar_request_id
-from opsiconfd.config import config
+from opsiconfd import __version__, contextvar_client_address, contextvar_request_id
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import get_logger, logger
 from opsiconfd.utils import normalize_ip_address
 from opsiconfd.worker import Worker
@@ -62,7 +62,17 @@ def get_server_date() -> tuple[bytes, bytes]:
 class BaseMiddleware:
 	def __init__(self, app: FastAPI) -> None:
 		self.app = app
-		self.worker_id = Worker.get_instance().id.encode("utf-8")
+
+		auth_methods = ["password"]
+		if config.saml_idp_sso_url:
+			auth_methods.append("saml")
+
+		self.default_headers = (
+			(b"Server", f"opsiconfd {__version__} (uvicorn)".encode("utf-8")),
+			(b"X-opsi-server-role", get_server_role().encode("utf-8")),
+			(b"X-opsi-worker-id", Worker.get_instance().id.encode("utf-8")),
+			(b"X-opsi-auth-methods", (",".join(auth_methods)).encode("utf-8")),
+		)
 
 	@staticmethod
 	def get_client_address(scope: Scope) -> tuple[str | None, int]:
@@ -149,7 +159,9 @@ class BaseMiddleware:
 					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime,X-Requested-With",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
-				headers.append("Access-Control-Expose-Headers", "X-Total-Count,X-opsi-user-id,X-opsi-server-role")
+				headers.append(
+					"Access-Control-Expose-Headers", "X-Total-Count,X-opsi-user-id,X-opsi-server-role,x-opsi-worker-id,x-opsi-auth-methods"
+				)
 				if config.http_security_headers:
 					headers.append("Strict-Transport-Security", "max-age=600; includeSubDomains")
 					headers.append("X-Content-Type-Options", "nosniff")
@@ -176,7 +188,9 @@ class BaseMiddleware:
 				dat = get_server_date()
 				message["headers"].append((b"date", dat[1]))
 				message["headers"].append((b"x-date-unix-timestamp", dat[0]))
-				message["headers"].append((b"x-opsi-worker-id", self.worker_id))
+				for header in self.default_headers:
+					if header not in message["headers"]:
+						message["headers"].append(header)
 			await send(message)
 
 		return await self.app(scope, receive, send_wrapper)

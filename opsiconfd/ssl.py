@@ -664,7 +664,7 @@ def configserver_setup_opsi_ca() -> bool:
 	else:
 		logger.info("opsi CA is up to date")
 
-	if os.geteuid() == 0:
+	if cur_ca_crt and os.geteuid() == 0:
 		# Works only as root
 		os_ca_crt = load_ca(config.ssl_ca_subject_cn)
 		if os_ca_crt and os_ca_crt.fingerprint(hashes.SHA256()) == cur_ca_crt.fingerprint(hashes.SHA256()):

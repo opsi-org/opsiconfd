@@ -21,6 +21,7 @@ from rich.padding import Padding
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.common import CheckManager, CheckResult, CheckStatus, get_json_result
 from opsiconfd.check.main import health_check
+from opsiconfd.check.register import register_checks
 from opsiconfd.config import config
 from opsiconfd.utils import DataclassCapableJSONEncoder
 
@@ -122,6 +123,7 @@ def overall_check_status(summary: dict[CheckStatus, int]) -> CheckStatus:
 
 
 def console_health_check() -> int:
+	register_checks()
 	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
 	check_version = None
 	if config.upgrade_check:

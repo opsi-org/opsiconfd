@@ -103,7 +103,7 @@ class Check:
 				return
 			self.partial_checks.append(check)
 
-	def check(self) -> CheckResult:
+	def check(self) -> CheckResult | None:
 		return CheckResult(
 			check=self,
 			message="No check function defined",
@@ -125,7 +125,8 @@ class Check:
 
 			if CheckStatus(result.check_status).return_code() < CheckStatus(partial_result.check_status).return_code():
 				result.check_status = partial_result.check_status
-			result.add_partial_result(partial_result)
+			if partial_result:
+				result.add_partial_result(partial_result)
 
 		if self.partial_check and result.check_status != CheckStatus.OK:
 			issues.append(result.check.id)

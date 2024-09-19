@@ -184,6 +184,7 @@ class ServerKeyCheck(Check):
 
 Checks the state of the server key.
 """
+	partial_check: bool = True
 
 	def check(self) -> CheckResult:
 		# print("ssl:server_key")

@@ -11,9 +11,12 @@ health check
 
 from typing import Iterator
 
-import opsiconfd.check.backup  # noqa: F401
-import opsiconfd.check.ssl  # noqa: F401
+# import opsiconfd.check.backend  # noqa: F401
+# import opsiconfd.check.backup  # noqa: F401
+# import opsiconfd.check.ssl  # noqa: F401
 from opsiconfd.check.common import CheckResult, check_manager
+
+# __all__ = []
 
 # check_manager.register(
 # 	backup_check,
@@ -40,6 +43,9 @@ from opsiconfd.check.common import CheckResult, check_manager
 
 
 def health_check(use_cache: bool = True) -> Iterator[CheckResult]:
+	from opsiconfd.check.register import register_checks
+
+	register_checks()
 	print("health check:", id(check_manager))
 	for check in check_manager:
 		yield check.run(use_cache)

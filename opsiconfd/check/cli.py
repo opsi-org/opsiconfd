@@ -103,9 +103,9 @@ def process_check_result(
 	if status == CheckStatus.OK and not detailed:
 		console.print("")
 		return
-	if result.upgrade_issue:
-		console.print("")
-		console_print_message(result, console, 3)
+	# if result.upgrade_issue:
+	# 	console.print("")
+	# 	console_print_message(result, console, 3)
 	if partial_results:
 		console.print("")
 	for partial_result in partial_results:

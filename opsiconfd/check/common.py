@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from typing import Any, Generator, Iterator
 
@@ -46,7 +46,7 @@ class CheckStatus(StrEnum):
 			return 2
 
 
-@dataclass()
+@dataclass(init=False)
 class Check:
 	# id: str = field(default="")
 	# name: str = field(default="")
@@ -62,10 +62,14 @@ class Check:
 	depot_check: bool = True
 	cache: bool = True
 	cache_expiration: int = CACHE_EXPIRATION
-	# partial_checks: list[Check] = field(default_factory=list)
 	partial_checks: list[Check] = field(default_factory=list)
-	# parent: str | None = None
 	partial_check: bool = False
+
+	def __init__(self, **kwargs: Any) -> None:
+		names = set([f.name for f in fields(self)])
+		for k, v in kwargs.items():
+			if k in names:
+				setattr(self, k, v)
 
 	# def __init__(
 	# 	self,
@@ -85,19 +89,19 @@ class Check:
 		if self.id == "":
 			raise ValueError("Check id must be set")
 		self.name = self.name or self.id
-		# self.description = self.description or self.name
-		# self.documentation = self.documentation or ""
-		# self.depot_check = self.depot_check or True
-		# self.cache = self.cache or True
-		# self.cache_expiration = self.cache_expiration or 24 * 3600
-		# for partial_check in self.partial_checks:
-		# 	partial_check.parent = self.id
+		self.description = self.description or self.name
+		self.documentation = self.documentation or ""
+		self.depot_check = self.depot_check or True
+		self.cache = self.cache or True
+		self.cache_expiration = self.cache_expiration or CACHE_EXPIRATION
+		self.partial_check = self.partial_check or False
 
-	def add_partial_check(self, check: Check) -> None:
+	def add_partial_checks(self, *checks: Check) -> None:
 		role = get_server_role()
-		if role == "depotserver" and not check.depot_check:
-			return
-		self.partial_checks.append(check)
+		for check in checks:
+			if role == "depotserver" and not check.depot_check:
+				return
+			self.partial_checks.append(check)
 
 	def check(self) -> CheckResult:
 		return CheckResult(
@@ -107,8 +111,6 @@ class Check:
 		)
 
 	def run(self, use_cache: bool = True, issues: list = []) -> CheckResult:
-		print("run check:", self.id)
-		print(self.partial_check)
 		if not self.partial_check:
 			issues = []
 
@@ -119,7 +121,6 @@ class Check:
 		result = self.check()
 
 		for partial_check in self.partial_checks:
-			print("partial check:", partial_check.id)
 			partial_result = partial_check.run(use_cache, issues)
 
 			if CheckStatus(result.check_status).return_code() < CheckStatus(partial_result.check_status).return_code():
@@ -129,10 +130,10 @@ class Check:
 		if self.partial_check and result.check_status != CheckStatus.OK:
 			issues.append(result.check.id)
 
-		print("issues:", issues)
-		if not self.partial_check and len(issues) > 0:
-			result.message = f"{len(issues)} issue(s) found."
-			self.check_cache_store(result, self.cache_expiration)
+		if not self.partial_check:
+			if len(issues) > 0:
+				result.message = f"{len(issues)} issue(s) found."
+			# self.check_cache_store(result, self.cache_expiration)
 		return result
 
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
@@ -159,7 +160,7 @@ class Check:
 				check_result.add_partial_result(partial_result)
 			return check_result
 		logger.debug("Check cache miss: %s", redis_key)
-		# print("cache miss")
+		print("cache miss")
 		return None
 
 

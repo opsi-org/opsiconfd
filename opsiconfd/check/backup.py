@@ -10,6 +10,7 @@ health check backup
 """
 
 from dataclasses import dataclass
+from textwrap import dedent
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config
@@ -20,24 +21,18 @@ __all__ = ["BackupCheck"]
 
 @dataclass()
 class BackupCheck(Check):
-	# doc string?
+	# TODO doc string?
 	id: str = "opsi_backup"
 	name: str = "OPSI backup"
 	description: str = "Checks if the backup is up to date."
-	# id: str = field(default="opsi_backup")
-	# name: str = field(default="OPSI backup")
-	# description: str = field(default="Checks if the backup is up to date.")
-	# documentation: str = field(
-	# 	default=dedent("""
-	# 		## Check Backup
+	documentation: str = dedent("""
+			## Check Backup
 
-	# 		Checks if the backup is up to date. The backup is considered up to date if it was created less than config.max_backup_age hours ago.
-	# """)
-	# )
+			Checks if the backup is up to date. The backup is considered up to date if it was created less than config.max_backup_age hours ago.
+	""")
+	partial_check: bool = False
 
 	def check(self) -> CheckResult:
-		# result = self.result
-		# Todo
 		result = CheckResult(
 			check=self,
 			message="No check function defined",
@@ -53,4 +48,3 @@ class BackupCheck(Check):
 
 backup_check = BackupCheck()
 check_manager.register(backup_check)
-print("health check:", id(check_manager))

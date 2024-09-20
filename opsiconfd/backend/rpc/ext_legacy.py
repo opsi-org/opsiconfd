@@ -125,8 +125,8 @@ class RPCExtLegacyMixin(Protocol):
 		return result
 
 	@rpc_method(deprecated=True, alternative_method="backend_exit", check_acl=False)
-	def exit(self: BackendProtocol) -> None:
-		self.backend_exit()
+	async def exit(self: BackendProtocol) -> None:
+		await self.backend_exit()
 
 	@rpc_method(deprecated=True, alternative_method="log_write", check_acl=False)
 	def writeLog(

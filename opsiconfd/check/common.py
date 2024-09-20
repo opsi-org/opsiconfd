@@ -48,13 +48,6 @@ class CheckStatus(StrEnum):
 
 @dataclass(init=False)
 class Check:
-	# id: str = field(default="")
-	# name: str = field(default="")
-	# description: str = field(default="")
-	# documentation: str = field(default="")
-	# depot_check: bool = field(default=True)
-	# cache: bool = field(default=True)
-	# cache_expiration: int = field(default=CACHE_EXPIRATION)
 	id: str = ""
 	name: str = ""
 	description: str = ""
@@ -70,20 +63,6 @@ class Check:
 		for k, v in kwargs.items():
 			if k in names:
 				setattr(self, k, v)
-
-	# def __init__(
-	# 	self,
-	# 	**kwargs: Any,
-	# ) -> None:
-	# 	# if self.id == "":
-	# 	# 	raise ValueError("Check id must be set")
-	# 	self.id = self.id or self.__class__.__name__
-	# 	self.name = self.name or self.id
-	# 	self.description = self.description or self.name
-	# 	self.documentation = self.documentation or ""
-	# 	self.depot_check = self.depot_check or True
-	# 	self.cache = self.cache or True
-	# 	self.cache_expiration = self.cache_expiration or 24 * 3600
 
 	def __post_init__(self) -> None:
 		if self.id == "":
@@ -193,16 +172,6 @@ class CheckManager(metaclass=Singleton):
 		return iter(self._checks.values())
 
 
-# @dataclass(slots=True, kw_only=True)
-# class PartialCheckResult:
-# 	check = Check
-# 	check_status: CheckStatus = CheckStatus.OK
-# 	message: str = ""
-# 	details: dict[str, Any] = field(default_factory=dict)
-# 	upgrade_issue: str | None = None  # version str
-
-
-# @dataclass(slots=True, kw_only=True)
 @dataclass(kw_only=True)
 class CheckResult:
 	check: Check

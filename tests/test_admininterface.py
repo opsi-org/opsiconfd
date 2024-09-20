@@ -264,10 +264,12 @@ async def test_delete_client_sessions(
 	sessions = []
 	local_ip = None
 	for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
-		addr, sess = key.decode("utf8").split(":")[-2:]
+		sess = key.decode("utf8").rsplit(":", 1)[-1]
 		sessions.append(sess)
 		if sess == session:
-			local_ip = addr
+			val = redis.hget(key, "client_addr")
+			assert val
+			local_ip = val.decode("utf8")
 
 	rpc_request_data = json.loads(json.dumps(rpc_request_data).replace("<local_ip>", local_ip or ""))
 	expected_response = json.loads(json.dumps(expected_response).replace("<local_ip>", local_ip or ""))
@@ -368,14 +370,17 @@ def test_get_session_list(test_client: OpsiconfdTestClient, config: Config) -> N
 	assert len(body) == 1
 
 	for idx in range(10):
+		test_client.reset_cookies()
 		test_client.set_client_address("192.168.36." + str(idx), idx * 1000)
 		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
 
 	test_client.set_client_address(addr[0], addr[1])
+	test_client.reset_cookies()
 	res = test_client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	body = res.json()
 	assert len(body) == 12
+
 	for _idx in range(2, 12):
 		assert body[_idx].get("address") == "192.168.36." + str(_idx - 2)
 		assert body[_idx].get("user_agent") == "testclient"

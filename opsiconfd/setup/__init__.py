@@ -10,6 +10,7 @@ opsiconfd - setup
 """
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -31,7 +32,7 @@ from opsiconfd.exception import ConfigurationError
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import delete_recursively
+from opsiconfd.redis import delete_recursively, redis_client
 from opsiconfd.setup.backend import setup_backend, setup_mysql
 from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
@@ -60,6 +61,15 @@ def setup_redis() -> None:
 		f"{config.redis_key('stats')}:client:sum_http_request_number",
 	):
 		delete_recursively(delete_key)
+
+	# Delete obsolete sessions which were stored beneath the ip address
+	redis = redis_client()
+	for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
+		session_id = key.decode("utf-8").rsplit(":session:", maxsplit=1)[-1].split(":", maxsplit=1)[0]
+		# Check if valid session id
+		if not re.match(r"^[0-9a-f]{32}$", session_id):
+			logger.info("Deleting obsolete session store %s", key)
+			delete_recursively(key)
 
 
 def setup_depotserver(unattended_configuration: dict | None = None) -> bool:

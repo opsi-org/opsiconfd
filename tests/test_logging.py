@@ -87,7 +87,8 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 	await handler.emit(LogRecord("test", 3, "pathname", 1, "message 1", None, None))
 
 	# Closed stream will produce logging error
-	await handler.stream.close()
+	if handler.stream:
+		await handler.stream.close()
 	await asyncio.sleep(1)
 	record = LogRecord("test", 3, "pathname", 1, "message 2", None, None)
 	await handler.emit(record)

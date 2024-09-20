@@ -25,6 +25,7 @@ from pathlib import Path
 from re import DOTALL, finditer
 from socket import gethostbyaddr
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -400,7 +401,7 @@ def _get_ca_certs_as_pem() -> str:
 	"""
 	Get all CA certificates and return them in PEM format (cached).
 	"""
-	return "\n".join(as_pem(cert) for cert in get_ca_certs())
+	return "\n".join(as_pem(cert) for cert in get_ca_certs()).replace("\n\n", "\n")
 
 
 def get_ca_certs_as_pem() -> str:
@@ -492,7 +493,6 @@ def create_letsencrypt_certificate() -> tuple[x509.Certificate, rsa.RSAPrivateKe
 	"""
 	Create a server certificate with Let's Encrypt.
 	"""
-	ca_certs = get_ca_certs()
 	server_cn = get_server_cn()
 	contact_email = config.letsencrypt_contact_email or f"opsiconfd@{server_cn}"
 
@@ -511,9 +511,7 @@ def create_letsencrypt_certificate() -> tuple[x509.Certificate, rsa.RSAPrivateKe
 			cert_cn = cert_cn.decode("utf-8")
 		if cert_cn == server_cn:
 			server_cert = cert
-		elif not any(
-			cur_cert for cur_cert in ca_certs if cert.subject == cur_cert.subject and cert.serial_number == cur_cert.serial_number
-		):
+		else:
 			new_ca_certs.append(cert)
 
 	if not server_cert:
@@ -946,6 +944,15 @@ def setup_server_cert(force_new: bool = False) -> bool:
 		(srv_crt, srv_key) = (None, None)
 		if config.ssl_server_cert_type == "letsencrypt":
 			(srv_crt, srv_key) = create_letsencrypt_certificate()
+			# Let's Encrypt certificates are only valid for the server CN, not for localhost or IP addresses
+			service_url = urlparse(opsi_config.get("service", "url"))
+			if service_url.hostname != server_cn:
+				netloc = server_cn
+				if service_url.port:
+					netloc += f":{service_url.port}"
+				new_url = service_url._replace(netloc=netloc)
+				logger.notice("Changing service URL from %r to %r", service_url.geturl(), new_url.geturl())
+				opsi_config.set("service", "url", new_url.geturl(), persistent=True)
 		else:
 			if server_role == "configserver":
 				# It is safer to create a new server cert with a new key pair

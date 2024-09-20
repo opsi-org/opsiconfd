@@ -38,6 +38,7 @@ LINUX_DISTRO_EOL = {
 		"18.04": date(2023, 4, 1),
 		"20.04": date(2025, 4, 1),
 		"22.04": date(2027, 4, 1),
+		"24.04": date(2029, 4, 1),
 	},
 	"debian": {
 		"9": date(2021, 5, 1),
@@ -85,6 +86,7 @@ LINUX_DISTRO_REPO_NAMES = {
 		"18.04": "Ubuntu_18.04",
 		"20.04": "Ubuntu_20.04",
 		"22.04": "Ubuntu_22.04",
+		"24.04": "Ubuntu_24.04",
 	},
 	"opensuse-leap": {
 		"15.3": "openSUSE_Leap_15.3",

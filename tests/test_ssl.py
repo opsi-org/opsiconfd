@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 
 import opsiconfd.ssl
-from opsiconfd.application.main import get_ssl_ca_cert
+from opsiconfd.application.main import get_ssl_ca_certs, get_ssl_opsi_ca_cert
 from opsiconfd.config import get_configserver_id
 from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
@@ -203,7 +203,10 @@ def test_store_load_cert(tmp_path: Path) -> None:
 				cert = load_opsi_ca_cert()
 				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
-				response = get_ssl_ca_cert(None)  # type: ignore
+				response = get_ssl_opsi_ca_cert(None)  # type: ignore
+				assert response.body.decode("ascii") == as_pem(cert)
+
+				response = get_ssl_ca_certs(None)  # type: ignore
 				assert response.body.decode("ascii") == "".join(as_pem(c) for c in certs)
 
 
@@ -221,7 +224,7 @@ def test_create_ca(tmp_path: Path) -> None:
 				assert isinstance(key, rsa.RSAPrivateKey)
 				key = load_opsi_ca_key()
 				assert isinstance(key, rsa.RSAPrivateKey)
-				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+				with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 					load_key(conf.ssl_ca_key, "wrong")
 				cert = load_opsi_ca_cert()
 				assert isinstance(cert, x509.Certificate)
@@ -293,7 +296,7 @@ def test_ca_key_fallback(tmp_path: Path) -> None:
 			store_opsi_ca_key(ca_key)
 			store_opsi_ca_cert(ca_crt)
 
-			with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+			with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 				load_key(conf.ssl_ca_key, "wrong")
 
 			conf.ssl_ca_key_passphrase = "wrong"
@@ -325,7 +328,7 @@ def test_server_key_fallback(tmp_path: Path) -> None:
 				store_local_server_key(srv_key)
 				store_local_server_cert(srv_crt)
 
-				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+				with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 					load_key(conf.ssl_server_key, "wrong")
 
 				conf.ssl_server_key_passphrase = "wrong"
@@ -797,7 +800,7 @@ def test_create_local_server_cert(tmp_path: Path) -> None:
 				assert isinstance(key, rsa.RSAPrivateKey)
 				key = load_local_server_key()
 				assert isinstance(key, rsa.RSAPrivateKey)
-				with pytest.raises(RuntimeError, match=r".*Bad decrypt. Incorrect password\?.*"):
+				with pytest.raises(RuntimeError, match=r".*the provided password may be incorrect.*"):
 					key = load_key(conf.ssl_server_key, "wrong")
 
 				cert = load_cert(conf.ssl_server_cert)

@@ -238,18 +238,21 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 	client_addr = request_body.get("client_addr")
 	if not client_addr:
 		raise ValueError("client_addr missing")
+
 	redis = await async_redis_client()
-	sessions = []
+	ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}"
+	session_ids = [sid.decode("utf-8") for sid in await redis.smembers(ip_key)]
 	deleted_keys = []
-	keys = redis.scan_iter(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:*", count=1000)
-	if keys:
-		async with redis.pipeline(transaction=False) as pipe:
-			async for key in keys:
-				sessions.append(key.decode("utf8").split(":")[-1])
-				deleted_keys.append(key.decode("utf8"))
-				await pipe.delete(key)  # type: ignore[attr-defined]
-			await pipe.execute()  # type: ignore[attr-defined]
-	return RESTResponse({"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys})
+	if session_ids:
+		async with redis.pipeline(transaction=True) as pipe:
+			for session_id in session_ids:
+				key = f"{config.redis_key('session')}:{session_id}"
+				await pipe.delete(key)
+				deleted_keys.append(key)
+			await pipe.delete(ip_key)
+			await pipe.execute()
+
+	return RESTResponse({"client": client_addr, "sessions": session_ids, "redis-keys": deleted_keys})
 
 
 @admin_interface_router.get("/depots")
@@ -393,33 +396,33 @@ async def get_session_list() -> RESTResponse:
 	session_list = []
 	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
 		try:
-			session = await redis.hgetall(redis_key)
+			session_data = await redis.hgetall(redis_key)
 		except ResponseError as err:
 			logger.warning(err)
 			continue
 
-		if not session:
+		if not session_data:
 			continue
 
-		tmp = redis_key.decode("utf-8").rsplit(":", 2)
-		client_addr = ip_address_from_redis_key(tmp[-2])
-		sess = OPSISession(client_addr=client_addr, session_id=tmp[-1])
-		await sess.load()
-		if sess.expired:
+		client_addr = session_data[b"client_addr"].decode("utf-8")
+		session_id = redis_key.decode("utf-8").rsplit(":", 1)[-1]
+		session = OPSISession(client_addr=client_addr, session_id=session_id)
+		await session.load()
+		if session.expired:
 			continue
 		session_list.append(
 			{
-				"created": sess.created,
-				"last_used": sess.last_used,
-				"messagebus_last_used": sess.messagebus_last_used,
-				"validity": sess.validity,
-				"max_age": sess.max_age,
-				"user_agent": sess.user_agent,
-				"authenticated": sess.authenticated,
-				"username": sess.username,
-				"auth_methods": list(sess.auth_methods or []),
+				"created": session.created,
+				"last_used": session.last_used,
+				"messagebus_last_used": session.messagebus_last_used,
+				"validity": session.validity,
+				"max_age": session.max_age,
+				"user_agent": session.user_agent,
+				"authenticated": session.authenticated,
+				"username": session.username,
+				"auth_methods": list(session.auth_methods or []),
 				"address": client_addr,
-				"session_id": tmp[-1][:6] + "...",
+				"session_id": session_id[:6] + "...",
 			}
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))

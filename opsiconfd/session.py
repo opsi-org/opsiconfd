@@ -526,7 +526,11 @@ class SessionManager:
 						client_addr,
 					)
 					redis = await async_redis_client()
-					await redis.sadd(f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}", session_id)
+					async with redis.pipeline() as pipe:
+						ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}"
+						pipe.sadd(ip_key, session_id)
+						pipe.expire(ip_key, 604800)  # One week
+						await pipe.execute()
 
 				await session.update_last_used()
 				logger.trace("Session refreshed")
@@ -893,7 +897,10 @@ class OPSISession:
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		self.version = str(uuid.uuid4())
 		self.created = int(unix_timestamp())
-		await redis.sadd(ip_key, self.session_id)
+		async with redis.pipeline() as pipe:
+			pipe.sadd(ip_key, self.session_id)
+			pipe.expire(ip_key, 604800)  # One week
+			await pipe.execute()
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init(self) -> None:

@@ -303,7 +303,6 @@ def setup_backend_configserver(new_server_id: str | None = None) -> None:
 					f"Please change host.id in /etc/opsi/opsi.conf to {conf_servers[0].id!r} "
 					"or use `opsiconfd setup --rename-server` to fix this issue."
 				)
-		backend.exit()
 
 		opsi_config.set("host", "id", configserver_id, persistent=True)
 		opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)

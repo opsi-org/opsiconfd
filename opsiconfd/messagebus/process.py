@@ -16,7 +16,6 @@ from queue import Empty, Queue
 from opsicommon.client.opsiservice import Messagebus, MessagebusListener
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
-	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	Message,
 	ProcessDataWriteMessage,
@@ -91,10 +90,6 @@ async def messagebus_process_instance_worker_depotserver() -> None:
 					(ProcessDataWriteMessage, ProcessStartRequestMessage, ProcessStopRequestMessage),
 				):
 					message_queue.put(message, block=True)
-				elif isinstance(message, ChannelSubscriptionEventMessage):
-					pass
-				else:
-					raise ValueError(f"Received invalid message type {message.type}")
 			except Exception as err:
 				logger.error(err, exc_info=True)
 

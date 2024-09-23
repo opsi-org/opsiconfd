@@ -17,7 +17,6 @@ from opsicommon.client.opsiservice import Messagebus, MessagebusListener
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.file_transfer import process_messagebus_message as process_file_message
 from opsicommon.messagebus.message import (
-	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
 	FileUploadRequestMessage,
@@ -121,10 +120,6 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 					),
 				):
 					message_queue.put(message, block=True)
-				elif isinstance(message, ChannelSubscriptionEventMessage):
-					pass
-				else:
-					raise ValueError(f"Received invalid message type {message.type}")
 			except Exception as err:
 				logger.error(err, exc_info=True)
 

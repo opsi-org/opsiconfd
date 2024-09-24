@@ -125,7 +125,6 @@ class LogLevelCheck(Check):
 	description: str = "Check log level of opsiconfd"
 	partial_check: bool = True
 	attribute: str = "log-level"
-	partial_check: bool = True
 
 	def __post_init__(self) -> None:
 		super().__post_init__()

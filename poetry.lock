@@ -3292,13 +3292,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-system"
-version = "4.3.1.12"
+version = "4.3.2.1"
 description = "opsi python system package"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_system-4.3.1.12-py3-none-any.whl", hash = "sha256:c517cdf7f4d74714fa222643ff39783fc18bad5bdc324ce76a54612246832beb"},
-    {file = "python_opsi_system-4.3.1.12.tar.gz", hash = "sha256:920e3633df7cb03f7f7bc0d695ae0177b601268a8b38bec2b6649210744993cb"},
+    {file = "python_opsi_system-4.3.2.1-py3-none-any.whl", hash = "sha256:02470f1fb33b9bc6d4cfd1685bf0f307e61fe3cc97bea813c8bd8c73b32f731b"},
+    {file = "python_opsi_system-4.3.2.1.tar.gz", hash = "sha256:6e43392682bdf663c98dd7b2d785082c979c55b446c54a03130d1baef1df9757"},
 ]
 
 [package.dependencies]
@@ -5116,4 +5116,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "fd886cab4da13a675c6f1e7ac3d657b500d7571a54403047ef04e497c84ecd52"
+content-hash = "ca6c2f0d90a4c852c8eb175364a6ec3c07453f6e2a2bbbd58bc224faddeff162"

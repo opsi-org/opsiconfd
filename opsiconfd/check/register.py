@@ -9,5 +9,6 @@ def register_checks() -> None:
 	import opsiconfd.check.config  # noqa: F401
 	import opsiconfd.check.jsonrpc  # noqa: F401
 	import opsiconfd.check.ssl  # noqa: F401
+	import opsiconfd.check.system  # noqa: F401
 
 	print(check_manager.check_ids)

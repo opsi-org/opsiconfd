@@ -531,7 +531,9 @@ def depotserver_setup_opsi_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
 	ca_crt = x509.load_pem_x509_certificate(get_unprotected_backend().getOpsiCACert().encode("utf-8"))
 	store_opsi_ca_cert(ca_crt)
-	install_ca(ca_crt)
+	if ca_crt and os.geteuid() == 0:
+		# Works only as root
+		install_ca(ca_crt)
 	return False
 
 

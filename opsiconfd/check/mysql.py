@@ -29,6 +29,7 @@ class MysqlConnectionCheck(Check):
 	id: str = "mysql:connection"
 	name: str = "MySQL Connection"
 	description: str = "Check MySQL server state"
+	partial_check: bool = True
 
 	def check(self) -> CheckResult:
 		result = CheckResult(
@@ -52,6 +53,7 @@ class MysqlConfigurationCheck(Check):
 	id: str = "mysql:configuration"
 	name: str = "MySQL Configuration"
 	description: str = "Check MySQL configuration"
+	partial_check: bool = True
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

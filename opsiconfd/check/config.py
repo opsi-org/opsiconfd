@@ -285,7 +285,6 @@ class OpsiConfigValueCheck(Check):
 					result.upgrade_issue = self.upgrade_issue
 
 				result.details["value"] = conf[0].defaultValues
-				result.add_partial_result(result)
 			except IndexError:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Configuration {key} does not exist."

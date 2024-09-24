@@ -134,7 +134,7 @@ class DepotserverCheck(Check):
 
 depot_server_check = DepotserverCheck()
 backend = get_unprotected_backend()
-for depot in backend.host_getObjects(type="OpsiDepotserver"):
+for depot in backend.host_getObjects(type="OpsiDepotserver"):  # type: ignore
 	depot_check = DepotPathCheck(id=f"depotservers:{depot.id}:depot_path", name=f"Depotserver depot path on {depot.id!r}", depot=depot.id)
 	workbench_check = WorkbenchPathCheck(
 		id=f"depotservers:{depot.id}:workbench", name=f"Depotserver workbench path on {depot.id!r}", depot=depot.id

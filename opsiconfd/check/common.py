@@ -90,6 +90,8 @@ class Check:
 		)
 
 	def run(self, use_cache: bool = True, issues: list = []) -> CheckResult:
+		if not self.partial_checks:
+			issues = []
 		result = None
 		if self.cache and use_cache:
 			result = self.check_cache_load()
@@ -109,7 +111,6 @@ class Check:
 		else:
 			if len(issues) > 0:
 				result.message = f"{len(issues)} issue(s) found."
-			issues = []
 
 		self.check_cache_store(result, self.cache_expiration)
 		return result

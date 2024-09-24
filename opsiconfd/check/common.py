@@ -82,7 +82,7 @@ class Check:
 				return
 			self.partial_checks.append(check)
 
-	def check(self) -> CheckResult | None:
+	def check(self) -> CheckResult:
 		return CheckResult(
 			check=self,
 			message="No check function defined",
@@ -90,30 +90,28 @@ class Check:
 		)
 
 	def run(self, use_cache: bool = True, issues: list = []) -> CheckResult:
-		if not self.partial_check:
-			issues = []
-
-			if self.cache and use_cache:
-				result = self.check_cache_load()
-				if result is not None:
-					return result
-		result = self.check()
+		result = None
+		if self.cache and use_cache:
+			result = self.check_cache_load()
+		if result is None:
+			result = self.check()
 
 		for partial_check in self.partial_checks:
 			partial_result = partial_check.run(use_cache, issues)
 
+			result.add_partial_result(partial_result)
 			if CheckStatus(result.check_status).return_code() < CheckStatus(partial_result.check_status).return_code():
 				result.check_status = partial_result.check_status
-			if partial_result:
-				result.add_partial_result(partial_result)
 
-		if self.partial_check and result.check_status != CheckStatus.OK:
-			issues.append(result.check.id)
-
-		if not self.partial_check:
+		if self.partial_check:
+			if result.check_status != CheckStatus.OK:
+				issues.append(result.check.id)
+		else:
 			if len(issues) > 0:
 				result.message = f"{len(issues)} issue(s) found."
-			# self.check_cache_store(result, self.cache_expiration)
+			issues = []
+
+		self.check_cache_store(result, self.cache_expiration)
 		return result
 
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
@@ -123,7 +121,7 @@ class Check:
 		logger.debug("Check cache store: %s", redis_key)
 		redis_client().set(redis_key, encode(result), ex=expiration)
 
-	def check_cache_load(self) -> Any:
+	def check_cache_load(self) -> CheckResult | None:
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		msgpack_data = redis_client().get(redis_key)
 		if msgpack_data:
@@ -150,11 +148,8 @@ class CheckManager(metaclass=Singleton):
 	def __init__(self) -> None:
 		self._checks = {}
 
-	# def register(self, *checks: Check | List[Check]) -> None:
 	def register(self, *checks: Check) -> None:
 		role = get_server_role()
-		# if isinstance(checks, Check):
-		# 	checks = [checks]
 		for check in checks:
 			if role == "depotserver" and not check.depot_check:
 				continue

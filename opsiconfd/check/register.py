@@ -8,6 +8,7 @@ def register_checks() -> None:
 	import opsiconfd.check.backup  # noqa: F401
 	import opsiconfd.check.config  # noqa: F401
 	import opsiconfd.check.jsonrpc  # noqa: F401
+	import opsiconfd.check.ldap  # noqa: F401
 	import opsiconfd.check.ssl  # noqa: F401
 	import opsiconfd.check.system  # noqa: F401
 

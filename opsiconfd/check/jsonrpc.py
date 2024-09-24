@@ -35,7 +35,7 @@ class DeprecatedClassCheck(Check):
 		self.id = f"deprecated_calls:{self.method}"
 		self.name = f"{self.name} {self.method.capitalize()}"
 
-	def check(self) -> CheckResult | None:
+	def check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="Deprecated Check",
@@ -49,7 +49,7 @@ class DeprecatedClassCheck(Check):
 			calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:count"))
 			if not calls:
 				redis.srem(f"{redis_prefix_stats}:rpcs:deprecated:methods", self.method)
-				return None
+				return result
 			interface = backend.get_method_interface(self.method)
 			applications = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:clients"))
 			last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:last_call"))

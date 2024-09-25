@@ -10,6 +10,7 @@ opsiconfd.messagebus.redis tests
 """
 
 import asyncio
+from random import randint
 from typing import Any
 from unittest.mock import patch
 from uuid import uuid4
@@ -57,6 +58,40 @@ async def test_message_reader_redis_connection() -> None:
 
 	# All redis connections should be closed
 	assert connections == get_redis_connections()
+
+
+async def test_message_reader_cancel_get_stream_entries() -> None:
+	class MyMessageReader(MessageReader):
+		def __init__(self, **kwargs: Any) -> None:
+			self.received: list[tuple[str, Message, bytes]] = []
+			self.cancel_counter = 0
+			super().__init__(**kwargs)
+
+		def _cancel_get_stream_entries(self) -> None:
+			self.cancel_counter += 1
+			super()._cancel_get_stream_entries()
+
+	async def reader_task(reader: MyMessageReader) -> None:
+		async for redis_id, message, context in reader.get_messages():
+			reader.received.append((redis_id, message, context))
+
+	reader = MyMessageReader()
+	asyncio.create_task(reader_task(reader))
+
+	# With every add_channels call the xread call is canceled
+	# Assert that the reader still receives messages in time
+	for message_num in range(0, 300):
+		channel = f"host:test-channel{message_num}"
+		await reader.add_channels({channel: ">"})
+		await send_message(Message(id=f"00000000-0000-4000-8000-00000000{message_num:04}", type="test", sender="*", channel=channel))
+		assert reader.cancel_counter == message_num + 1
+		messages_received = len(reader.received)
+		assert message_num - messages_received < 20
+		sleep_time = randint(1, 10) / 1000
+		await asyncio.sleep(sleep_time)
+
+	await asyncio.sleep(2)
+	await reader.stop(wait=True)
 
 
 async def test_message_reader_user_channel(config: Config) -> None:  # noqa: F811

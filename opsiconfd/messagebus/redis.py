@@ -404,6 +404,8 @@ class MessageReader:
 
 			while not self._should_stop:
 				try:
+					if not self._streams:
+						await sleep(0.1)
 					stream_entries = await self._get_stream_entries(redis)
 					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:

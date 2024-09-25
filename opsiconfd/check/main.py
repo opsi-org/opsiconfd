@@ -46,6 +46,5 @@ def health_check(use_cache: bool = True) -> Iterator[CheckResult]:
 	from opsiconfd.check.register import register_checks
 
 	register_checks()
-	print("health check:", id(check_manager))
 	for check in check_manager:
 		yield check.run(use_cache)

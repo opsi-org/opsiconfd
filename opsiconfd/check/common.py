@@ -11,6 +11,7 @@ health check
 
 from __future__ import annotations
 
+import copy
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field, fields
@@ -57,6 +58,7 @@ class Check:
 	cache_expiration: int = CACHE_EXPIRATION
 	partial_checks: list[Check] = field(default_factory=list)
 	partial_check: bool = False
+	cache_partial_checks: bool = False
 
 	def __init__(self, **kwargs: Any) -> None:
 		names = set([f.name for f in fields(self)])
@@ -70,15 +72,12 @@ class Check:
 		self.name = self.name or self.id
 		self.description = self.description or self.name
 		self.documentation = self.documentation or ""
-		self.depot_check = self.depot_check or True
-		self.cache = self.cache or True
 		self.cache_expiration = self.cache_expiration or CACHE_EXPIRATION
-		self.partial_check = self.partial_check or False
 
 	def add_partial_checks(self, *checks: Check) -> None:
 		role = get_server_role()
 		for check in checks:
-			if role == "depotserver" and not check.depot_check:
+			if role == "depotserver" and not check.depot_check or check in self.partial_checks:
 				return
 			self.partial_checks.append(check)
 
@@ -89,38 +88,43 @@ class Check:
 			check_status=CheckStatus.ERROR,
 		)
 
-	def run(self, use_cache: bool = True, issues: list = []) -> CheckResult:
-		if not self.partial_checks:
-			issues = []
+	def run(self, use_cache: bool = True) -> CheckResult:
 		result = None
+		issue_counter = 0
+
 		if self.cache and use_cache:
 			result = self.check_cache_load()
 		if result is None:
 			result = self.check()
 
 		for partial_check in self.partial_checks:
-			partial_result = partial_check.run(use_cache, issues)
+			partial_result = partial_check.run(use_cache)
 
 			result.add_partial_result(partial_result)
-			if CheckStatus(result.check_status).return_code() < CheckStatus(partial_result.check_status).return_code():
-				result.check_status = partial_result.check_status
+			# if CheckStatus(result.check_status).return_code() < CheckStatus(partial_result.check_status).return_code():
+			# 	result.check_status = partial_result.check_status
+			if partial_result.check_status != CheckStatus.OK:
+				issue_counter += 1
 
-		if self.partial_check:
-			if result.check_status != CheckStatus.OK:
-				issues.append(result.check.id)
-		else:
-			if len(issues) > 0:
-				result.message = f"{len(issues)} issue(s) found."
-
+		if issue_counter > 0:
+			result.message = f"{issue_counter} issue(s) found."
 		self.check_cache_store(result, self.cache_expiration)
 		return result
 
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
 		if self.id not in CheckManager().check_ids:
 			logger.error("Invalid check cache id: %s", self.id)
+		if self.cache is False:
+			return
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		logger.debug("Check cache store: %s", redis_key)
-		redis_client().set(redis_key, encode(result), ex=expiration)
+
+		if self.cache_partial_checks:
+			redis_client().set(redis_key, encode(result), ex=expiration)
+		else:
+			cache_result = copy.deepcopy(result)
+			cache_result.partial_results = []
+			redis_client().set(redis_key, encode(cache_result), ex=expiration)
 
 	def check_cache_load(self) -> CheckResult | None:
 		redis_key = f"opsiconfd:checkcache:{self.id}"
@@ -179,6 +183,8 @@ class CheckResult:
 	partial_results: list[CheckResult] = field(default_factory=list)
 
 	def add_partial_result(self, partial_result: CheckResult) -> None:
+		if partial_result in self.partial_results:
+			return
 		self.partial_results.append(partial_result)
 		if partial_result.check_status == CheckStatus.ERROR:
 			self.check_status = CheckStatus.ERROR

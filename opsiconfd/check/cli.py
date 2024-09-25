@@ -123,7 +123,6 @@ def overall_check_status(summary: dict[CheckStatus, int]) -> CheckStatus:
 
 
 def console_health_check() -> int:
-	register_checks()
 	summary = {CheckStatus.OK: 0, CheckStatus.WARNING: 0, CheckStatus.ERROR: 0}
 	check_version = None
 	if config.upgrade_check:
@@ -150,6 +149,7 @@ def console_health_check() -> int:
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
 		if config.documentation:
+			register_checks()
 			print_health_check_manual(console=console)
 			return 0
 		for result in health_check():

@@ -34,6 +34,7 @@ class DeprecatedClassCheck(Check):
 		super().__post_init__()
 		self.id = f"deprecated_calls:{self.method}"
 		self.name = f"{self.name} {self.method.capitalize()}"
+		self.description = f"{self.description} for method {self.method!r}"
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

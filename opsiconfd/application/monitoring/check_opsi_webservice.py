@@ -71,7 +71,8 @@ async def check_opsi_webservice(
 		if error_count == 0:
 			error_rate = 0.0
 		else:
-			error_rate = error_count / len(rpc_list) * 100
+			rpc_num = len(rpc_list)
+			error_rate = error_count / rpc_num * 100 if rpc_num > 0 else 0.0
 
 		if error_rate > error_thresholds.get("critical", 0):
 			message.append(f'RPC errors over {error_thresholds.get("critical")}%')

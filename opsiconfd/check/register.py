@@ -13,3 +13,4 @@ def register_checks() -> None:
 	import opsiconfd.check.redis  # noqa: F401
 	import opsiconfd.check.ssl  # noqa: F401
 	import opsiconfd.check.system  # noqa: F401
+	import opsiconfd.check.users  # noqa: F401

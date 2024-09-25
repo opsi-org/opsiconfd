@@ -272,7 +272,7 @@ class WorkerManager:
 
 	def update_worker_state(self) -> None:
 		with self.worker_update_lock, redis_client() as redis:
-			for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
+			for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:"):
 				try:
 					worker_info = WorkerInfo.from_dict(redis.hgetall(redis_key_b))
 				except Exception as err:

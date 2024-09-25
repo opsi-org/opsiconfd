@@ -37,8 +37,8 @@ from .utils import (  # noqa: F401
 	backend,
 	clean_mysql,
 	clean_redis,
-	client_jsonrpc,
 	config,
+	create_client_via_jsonrpc,
 	depot_jsonrpc,
 	get_config,
 	products_jsonrpc,
@@ -340,9 +340,9 @@ def test_get_num_servers(admininterface: ModuleType, test_client: OpsiconfdTestC
 def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert admininterface.get_num_clients() == 0
 	with (
-		client_jsonrpc(test_client, "", "test-client1.uib.local"),
-		client_jsonrpc(test_client, "", "test-client2.uib.local"),
-		client_jsonrpc(test_client, "", "test-client3.uib.local"),
+		create_client_via_jsonrpc(test_client, "", "test-client1.uib.local"),
+		create_client_via_jsonrpc(test_client, "", "test-client2.uib.local"),
+		create_client_via_jsonrpc(test_client, "", "test-client3.uib.local"),
 	):
 		assert admininterface.get_num_clients() == 3
 	assert admininterface.get_num_clients() == 0

@@ -406,6 +406,8 @@ class MessageReader:
 					stream_entries = await self._get_stream_entries(redis)
 					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
+						if self._should_stop:
+							break
 						if end_ts and now_ts > end_ts:
 							_logger.debug("Reader timed out after %0.2f seconds", (now_ts - end_ts) / 1000)
 							break

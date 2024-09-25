@@ -62,8 +62,8 @@ from .utils import (  # noqa: F401
 	WebSocketMessageReader,
 	clean_mysql,
 	clean_redis,
-	client_jsonrpc,
 	config,
+	create_client_via_jsonrpc,
 	get_config,
 	opsiconfd_server,
 	test_client,
@@ -251,7 +251,7 @@ def test_messagebus_multi_client_session_and_user_channel(
 		redis = redis_client()
 		assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") is None
 
-		with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
+		with create_client_via_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 			client.auth = (host_id, host_key)
 			with (
 				client.websocket_connect("/messagebus/v1") as websocket1,
@@ -387,73 +387,79 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	with test_client as client:
-		with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
+		with create_client_via_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 			client.auth = (host_id, host_key)
-			with client:
-				with client.websocket_connect("/messagebus/v1") as websocket:
-					with WebSocketMessageReader(websocket) as reader:
-						reader.running.wait(3.0)
-						sleep(2)
-						reader.wait_for_message(count=1)
-						assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-						jsonrpc_request_message1 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
-						)
-						websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
-						jsonrpc_request_message2 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL,
-							channel="service:config:jsonrpc",
-							rpc_id="2",
-							method="config_create",
-							params=("test", "descr"),
-						)
-						websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
-						jsonrpc_request_message3 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
-						)
-						websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
-						jsonrpc_request_message4 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL,
-							channel="service:config:jsonrpc",
-							rpc_id="4",
-							method="hostControl_start",
-							params=("client.opsi.test",),
-						)
-						websocket.send_bytes(jsonrpc_request_message4.to_msgpack())
+			with client.websocket_connect("/messagebus/v1") as websocket:
+				with WebSocketMessageReader(websocket) as reader:
+					reader.running.wait(3.0)
+					sleep(2)
+					reader.wait_for_message(count=1)
+					assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+					jsonrpc_request_message1 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="1",
+						method="accessControl_userIsAdmin",
+					)
+					websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
+					jsonrpc_request_message2 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="2",
+						method="config_create",
+						params=("test", "descr"),
+					)
+					websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
+					jsonrpc_request_message3 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="3",
+						method="invalid",
+						params=(1, 2, 3),
+					)
+					websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
+					jsonrpc_request_message4 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="4",
+						method="hostControl_start",
+						params=("client.opsi.test",),
+					)
+					websocket.send_bytes(jsonrpc_request_message4.to_msgpack())
 
-						reader.wait_for_message(count=4, timeout=10.0)
+					reader.wait_for_message(count=4, timeout=10.0)
 
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-						# for res in responses:
-						# 	print(res.to_dict())
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					# for res in responses:
+					# 	print(res.to_dict())
 
-						assert isinstance(responses[0], JSONRPCResponseMessage)
-						assert responses[0].rpc_id == jsonrpc_request_message1.rpc_id
-						assert responses[0].result is False
-						assert responses[0].error is None
+					assert isinstance(responses[0], JSONRPCResponseMessage)
+					assert responses[0].rpc_id == jsonrpc_request_message1.rpc_id
+					assert responses[0].result is False
+					assert responses[0].error is None
 
-						assert isinstance(responses[1], JSONRPCResponseMessage)
-						assert responses[1].rpc_id == jsonrpc_request_message2.rpc_id
-						assert responses[1].result is None
-						assert responses[1].error is None
+					assert isinstance(responses[1], JSONRPCResponseMessage)
+					assert responses[1].rpc_id == jsonrpc_request_message2.rpc_id
+					assert responses[1].result is None
+					assert responses[1].error is None
 
-						assert isinstance(responses[2], JSONRPCResponseMessage)
-						assert responses[2].rpc_id == jsonrpc_request_message3.rpc_id
-						assert responses[2].result is None
-						assert responses[2].error == {
-							"code": 0,
-							"message": "Invalid method 'invalid'",
-							"data": {"class": "ValueError", "details": None},
-						}
+					assert isinstance(responses[2], JSONRPCResponseMessage)
+					assert responses[2].rpc_id == jsonrpc_request_message3.rpc_id
+					assert responses[2].result is None
+					assert responses[2].error == {
+						"code": 0,
+						"message": "Invalid method 'invalid'",
+						"data": {"class": "ValueError", "details": None},
+					}
 
-						assert isinstance(responses[3], JSONRPCResponseMessage)
-						assert responses[3].rpc_id == jsonrpc_request_message4.rpc_id
-						assert responses[3].result is None
-						assert responses[3].error == {
-							"code": 0,
-							"message": "Opsi service permission error: No permission for method 'hostControl_start'",
-							"data": {"class": "OpsiServicePermissionError", "details": None},
-						}
+					assert isinstance(responses[3], JSONRPCResponseMessage)
+					assert responses[3].rpc_id == jsonrpc_request_message4.rpc_id
+					assert responses[3].result is None
+					assert responses[3].error == {
+						"code": 0,
+						"message": "Opsi service permission error: No permission for method 'hostControl_start'",
+						"data": {"class": "OpsiServicePermissionError", "details": None},
+					}
 
 
 def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -731,7 +737,7 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 
 				host_id = "msgbus-test-client.opsi.test"
 				host_key = "92aa768a259dec1856013c4e458507d5"
-				with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
+				with create_client_via_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 					client.reset_cookies()
 					client.auth = (host_id, host_key)
 					test_sess = client.websocket_connect("/messagebus/v1")

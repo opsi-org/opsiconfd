@@ -271,7 +271,7 @@ class OpsiconfdApp(FastAPI):
 				if app_state:
 					self._app_state = app_state
 
-		interval = 1
+		interval = 3
 		while not self._manager_task_should_stop:
 			cur_state = self._app_state
 			app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)

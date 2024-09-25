@@ -101,8 +101,6 @@ class Check:
 			partial_result = partial_check.run(use_cache)
 
 			result.add_partial_result(partial_result)
-			# if CheckStatus(result.check_status).return_code() < CheckStatus(partial_result.check_status).return_code():
-			# 	result.check_status = partial_result.check_status
 			if partial_result.check_status != CheckStatus.OK:
 				issue_counter += 1
 
@@ -131,8 +129,6 @@ class Check:
 		msgpack_data = redis_client().get(redis_key)
 		if msgpack_data:
 			logger.debug("Check cache hit: %s", redis_key)
-
-			print("Check cache hit:", redis_key)
 			data = decode(msgpack_data)
 			data["check"] = Check(**data.get("check", self))
 			check_result = CheckResult(**data)
@@ -143,7 +139,6 @@ class Check:
 				check_result.add_partial_result(partial_result)
 			return check_result
 		logger.debug("Check cache miss: %s", redis_key)
-		print("cache miss")
 		return None
 
 

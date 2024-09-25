@@ -252,7 +252,7 @@ class RPCHostControlMixin(Protocol):
 		rpc_id_to_client_id = {}
 		async with session_channel(owner_id=messagebus_user_id) as channel:
 			# ID "$" means: Only read new messages added after reader is started.
-			message_reader = MessageReader()
+			message_reader = MessageReader(name=f"messagebus_rpc/{channel}")
 			await message_reader.set_channels({channel: "$"})
 
 			expires = timestamp(timeout)

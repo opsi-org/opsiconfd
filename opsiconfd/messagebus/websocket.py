@@ -333,7 +333,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				if msr:
 					await msr[0].add_channels(message_reader_channels)  # type: ignore[arg-type]
 				else:
-					reader = MessageReader()
+					reader = MessageReader(name=f"{self._messagebus_user_id}/{self._session_channel}")
 					await reader.set_channels(message_reader_channels)  # type: ignore[arg-type]
 					self._messagebus_reader.append(reader)
 					asyncio_create_task(self.message_reader_task(websocket, reader))

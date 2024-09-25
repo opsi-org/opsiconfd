@@ -59,16 +59,17 @@ async def async_terminal_shutdown() -> None:
 
 async def messagebus_terminal_instance_worker_configserver() -> None:
 	global terminal_instance_reader
+	messagebus_worker_id = get_messagebus_worker_id()
 
-	channel = f"{get_messagebus_worker_id()}:terminal"
-	terminal_instance_reader = MessageReader()
+	channel = f"{messagebus_worker_id}:terminal"
+	terminal_instance_reader = MessageReader(name=channel)
 	await terminal_instance_reader.set_channels({channel: CONNECTION_SESSION_CHANNEL})
 	async for _redis_id, message, _context in terminal_instance_reader.get_messages():
 		try:
 			if isinstance(
 				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
 			):
-				await process_messagebus_message(message, redis_send_message, sender=get_messagebus_worker_id())
+				await process_messagebus_message(message, redis_send_message, sender=messagebus_worker_id)
 			elif isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
 				if isinstance(message, FileUploadRequestMessage):
 					if message.terminal_id and not message.destination_dir:
@@ -76,7 +77,7 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 						if terminal:
 							destination_dir = terminal.get_cwd()
 							message.destination_dir = str(destination_dir)
-				await process_file_message(message, redis_send_message, sender=get_messagebus_worker_id())
+				await process_file_message(message, redis_send_message, sender=messagebus_worker_id)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:
@@ -92,10 +93,11 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 		| FileChunkMessage
 		| FileUploadRequestMessage
 	] = Queue()
+	messagebus_worker_id = get_messagebus_worker_id()
 
 	class TerminalMessageListener(MessagebusListener):
 		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
-			channel = f"{get_messagebus_worker_id()}:terminal"
+			channel = f"{messagebus_worker_id}:terminal"
 			if channel not in messagebus._subscribed_channels:
 				message = ChannelSubscriptionRequestMessage(
 					sender=CONNECTION_USER_CHANNEL,
@@ -138,9 +140,9 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 						if terminal:
 							destination_dir = terminal.get_cwd()
 							message.destination_dir = str(destination_dir)
-				await process_file_message(message, service_client.messagebus.async_send_message, sender=get_messagebus_worker_id())
+				await process_file_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 			else:
-				await process_messagebus_message(message, service_client.messagebus.async_send_message, sender=get_messagebus_worker_id())
+				await process_messagebus_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
@@ -154,13 +156,14 @@ async def messagebus_terminal_instance_worker() -> None:
 
 async def messagebus_terminal_open_request_worker_configserver() -> None:
 	global terminal_request_reader
+	messagebus_worker_id = get_messagebus_worker_id()
 
 	channel = f"service:depot:{get_depotserver_id()}:terminal"
 
 	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 	terminal_request_reader = ConsumerGroupMessageReader(
 		consumer_group=channel,
-		consumer_name=get_messagebus_worker_id(),
+		consumer_name=messagebus_worker_id,
 	)
 	await terminal_request_reader.set_channels({channel: "0"})
 	async for redis_id, message, _context in terminal_request_reader.get_messages():
@@ -169,8 +172,8 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 				await process_messagebus_message(
 					message=message,
 					send_message=redis_send_message,
-					sender=get_messagebus_worker_id(),
-					back_channel=f"{get_messagebus_worker_id()}:terminal",
+					sender=messagebus_worker_id,
+					back_channel=f"{messagebus_worker_id}:terminal",
 				)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
@@ -182,6 +185,7 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 
 async def messagebus_terminal_open_request_worker_depotserver() -> None:
 	message_queue: Queue[TerminalOpenRequestMessage] = Queue()
+	messagebus_worker_id = get_messagebus_worker_id()
 
 	class TerminalOpenRequestMessageListener(MessagebusListener):
 		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
@@ -209,8 +213,8 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 		await process_messagebus_message(
 			message=term_message,
 			send_message=service_client.messagebus.async_send_message,
-			sender=get_messagebus_worker_id(),
-			back_channel=f"{get_messagebus_worker_id()}:terminal",
+			sender=messagebus_worker_id,
+			back_channel=f"{messagebus_worker_id}:terminal",
 		)
 
 

@@ -2,6 +2,7 @@ __all__ = ["register_checks"]
 
 
 def register_checks() -> None:
+	import opsiconfd.check.addon  # noqa: F401
 	import opsiconfd.check.backend  # noqa: F401
 	import opsiconfd.check.backup  # noqa: F401
 	import opsiconfd.check.config  # noqa: F401

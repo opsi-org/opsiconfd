@@ -14,11 +14,12 @@ from __future__ import annotations
 from asyncio import Event, Lock, Task, create_task, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
-from logging import DEBUG, TRACE
+from logging import DEBUG
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
 import msgspec
+from opsicommon.logging.constants import TRACE
 from opsicommon.messagebus.message import (
 	Message,
 	TraceRequestMessage,
@@ -362,10 +363,9 @@ class MessageReader:
 			await self._update_streams()
 
 	def _cancel_get_stream_entries(self) -> None:
-		if not self._get_stream_entries_task:
-			return
-		logger.debug("Cancelling get_stream_entries")
-		self._get_stream_entries_task.cancel()
+		if self._get_stream_entries_task:
+			logger.debug("Cancelling get_stream_entries")
+			self._get_stream_entries_task.cancel()
 
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		if logger.isEnabledFor(DEBUG):
@@ -385,6 +385,7 @@ class MessageReader:
 			return self._get_stream_entries_task.result()
 		except CancelledError:
 			logger.debug("MessageReader was cancelled")
+		return {}
 
 	async def get_messages(self, timeout: float = 0.0) -> AsyncGenerator[tuple[str, Message, Any], None]:
 		if not self._channels:
@@ -575,6 +576,7 @@ class ConsumerGroupMessageReader(MessageReader):
 			return self._get_stream_entries_task.result()
 		except CancelledError:
 			logger.debug("ConsumerGroupMessageReader was cancelled")
+		return {}
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()

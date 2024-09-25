@@ -109,7 +109,7 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run opsiconfd get-config duration test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 0.6 poetry run opsiconfd get-config || (
+      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 0.6 -i 5 poetry run opsiconfd get-config || (
         echo -e "${TXT_ERROR}bencher-command.py failed${TXT_CLEAR}"
         exit 1
       )

@@ -54,7 +54,7 @@ def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:
 
 
 # Set a different redis key prefix to not interfere with running tests
-app._app_state_redis_key = "pytest:main_application:app_state"
+app.app_state_redis_key = "pytest:main_application:app_state"
 Manager.orig_signal_handler = Manager.signal_handler  # type: ignore[attr-defined]
 Manager.signal_handler = signal_handler  # type: ignore[assignment]
 

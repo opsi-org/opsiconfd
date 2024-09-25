@@ -25,8 +25,8 @@ from ..utils import (  # noqa: F401
 	UnprotectedBackend,
 	backend,
 	clean_redis,
-	client_jsonrpc,
 	config,
+	create_client_via_jsonrpc,
 	depot_jsonrpc,
 	get_config,
 	test_client,
@@ -53,7 +53,7 @@ def test_opsiconfd_backend_get_domain(test_client: OpsiconfdTestClient) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client_id = "test-client-dom.opsi.org"
 	host_key = "76768a28560d5924e4587dec5913c501"
-	with client_jsonrpc(test_client, "", client_id, host_key):
+	with create_client_via_jsonrpc(test_client, "", client_id, host_key):
 		test_client.reset_cookies()
 		test_client.auth = (client_id, host_key)
 		try:
@@ -99,7 +99,7 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 	host_id = "test-client-cert.opsi.org"
 	host_key = "07dec1856aa768a25913c50d5924e458"
 	ip_address = "192.168.1.2"
-	with client_jsonrpc(test_client, "", host_id, host_key, ip_address=ip_address):
+	with create_client_via_jsonrpc(test_client, "", host_id, host_key, ip_address=ip_address):
 		test_client.reset_cookies()
 		test_client.auth = (host_id, host_key)
 		try:

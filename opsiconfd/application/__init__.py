@@ -145,6 +145,8 @@ async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
 
 
 class OpsiconfdApp(FastAPI):
+	app_state_redis_key = f"{config.redis_key('state')}:application:app_state"
+
 	def __init__(self) -> None:
 		super().__init__(
 			title="opsiconfd",
@@ -196,7 +198,7 @@ class OpsiconfdApp(FastAPI):
 	async def load_app_state_from_redis(self, update_accomplished: bool = False) -> AppState | None:
 		redis = await async_redis_client()
 		async with async_redis_lock("app-state", acquire_timeout=2.0, lock_timeout=10.0) if update_accomplished else nullcontext():
-			msgpack_data = await redis.get(f"{config.redis_key('state')}:application:app_state")
+			msgpack_data = await redis.get(self.app_state_redis_key)
 			if not msgpack_data:
 				return None
 
@@ -220,12 +222,12 @@ class OpsiconfdApp(FastAPI):
 		redis = await async_redis_client()
 		state_dict = app_state.to_dict()
 		logger.debug("Store app state: %s", state_dict)
-		await redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
+		await redis.set(self.app_state_redis_key, msgpack.encode(state_dict))
 
 	def store_app_state_in_redis(self, app_state: AppState) -> None:
 		state_dict = app_state.to_dict()
 		logger.debug("Store app state: %s", state_dict)
-		redis_client().set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
+		redis_client().set(self.app_state_redis_key, msgpack.encode(state_dict))
 
 	async def send_app_state_changed_event(self, old_state: AppState, state: AppState) -> None:
 		from opsiconfd.messagebus import (

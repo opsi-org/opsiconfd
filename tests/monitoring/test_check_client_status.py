@@ -19,7 +19,7 @@ from tests.utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
-	client_jsonrpc,
+	create_client_via_jsonrpc,
 	get_dummy_products,
 	poc_jsonrpc,
 	products_jsonrpc,
@@ -37,7 +37,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 	assert body.get("state") == 3
 	assert body.get("message") == f"UNKNOWN: opsi-client: '{client_id}' not found"
 
-	with client_jsonrpc(test_client, "", client_id):
+	with create_client_via_jsonrpc(test_client, "", client_id):
 		# check client without products -> state sould be OK
 		result = check_client_status(backend, client_id=client_id)
 

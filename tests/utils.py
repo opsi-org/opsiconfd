@@ -279,7 +279,7 @@ def depot_jsonrpc(
 
 
 @contextmanager
-def client_jsonrpc(
+def create_client_via_jsonrpc(
 	client: OpsiconfdTestClient,
 	base_url: str,
 	host_id: str,

@@ -11,9 +11,10 @@ opsiconfd.messagebus.redis
 
 from __future__ import annotations
 
-from asyncio import Event, Lock, sleep
+from asyncio import Event, Lock, Task, create_task, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
+from logging import DEBUG, TRACE
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
@@ -272,8 +273,11 @@ class MessageReader:
 
 	_info_suffix = CHANNEL_INFO_SUFFIX
 	_count_readers = True
+	_xread_block_time = 3600_000
+	_xread_count = 25
 
-	def __init__(self) -> None:
+	def __init__(self, name: str | None = None) -> None:
+		self.name: str = name or str(id(self))
 		self._channels: dict[str, StreamIdT] = {}
 		self._streams: dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{config.redis_key('messagebus')}:channels"
@@ -281,9 +285,10 @@ class MessageReader:
 		self._stopped_event = Event()
 		self._context_decoder = msgspec.msgpack.Decoder()
 		self._channels_lock = Lock()
+		self._get_stream_entries_task: Task | None = None
 
 	def __repr__(self) -> str:
-		return f"{self.__class__.__name__}({','.join(self._channels)})"
+		return f"{self.__class__.__name__}({self.name})"
 
 	__str__ = __repr__
 
@@ -331,6 +336,8 @@ class MessageReader:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
 				del self._streams[stream_key]
 
+		# Streams have changed, cancel the current read task, so that the new streams are read
+		self._cancel_get_stream_entries()
 		logger.debug("%s updated streams: %s", self, self._streams)
 
 	async def get_channel_names(self) -> list[str]:
@@ -354,8 +361,30 @@ class MessageReader:
 					del self._channels[channel]
 			await self._update_streams()
 
+	def _cancel_get_stream_entries(self) -> None:
+		if not self._get_stream_entries_task:
+			return
+		logger.debug("Cancelling get_stream_entries")
+		self._get_stream_entries_task.cancel()
+
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
-		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
+		if logger.isEnabledFor(DEBUG):
+			logger.debug("MessageReader %r is reading %d streams", self.name, len(self._streams))
+			if logger.isEnabledFor(TRACE):
+				logger.trace("Streams: %s", list(self._streams))
+
+		self._get_stream_entries_task = create_task(
+			redis.xread(
+				streams=self._streams,
+				block=self._xread_block_time,
+				count=self._xread_count,
+			)
+		)
+		try:
+			await self._get_stream_entries_task
+			return self._get_stream_entries_task.result()
+		except CancelledError:
+			logger.debug("MessageReader was cancelled")
 
 	async def get_messages(self, timeout: float = 0.0) -> AsyncGenerator[tuple[str, Message, Any], None]:
 		if not self._channels:
@@ -417,7 +446,6 @@ class MessageReader:
 							# pending messages have been read.
 							# In this case the ID must be set to ">" to start reading new messages.
 							self._streams[stream_key] = ">"
-
 				except Exception as err:
 					_logger.error(err, exc_info=True)
 					await sleep(3)
@@ -442,6 +470,8 @@ class MessageReader:
 
 	async def stop(self, wait: bool = True) -> None:
 		self._should_stop = True
+		self._cancel_get_stream_entries()
+
 		if wait:
 			await self.wait_stopped()
 
@@ -480,7 +510,7 @@ class ConsumerGroupMessageReader(MessageReader):
 		consumer_name:
 		        Name of the consumer as member of the consumer group
 		"""
-		super().__init__()
+		super().__init__(name=f"{consumer_group}/{consumer_name}")
 		self._consumer_group = consumer_group.encode("utf-8")
 		self._consumer_name = consumer_name.encode("utf-8")
 
@@ -524,13 +554,25 @@ class ConsumerGroupMessageReader(MessageReader):
 				del self._streams[stream_key]
 
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
-		return await redis.xreadgroup(
-			self._consumer_group,
-			self._consumer_name,
-			streams=self._streams,
-			block=1000,
-			count=10,  # type: ignore[arg-type]
+		if logger.isEnabledFor(DEBUG):
+			logger.debug("ConsumerGroupMessageReader %r is reading %d streams", self.name, len(self._streams))
+			if logger.isEnabledFor(TRACE):
+				logger.trace("Streams: %s", list(self._streams))
+
+		self._get_stream_entries_task = create_task(
+			redis.xreadgroup(
+				self._consumer_group,
+				self._consumer_name,
+				streams=self._streams,
+				block=self._xread_block_time,
+				count=self._xread_count,
+			)
 		)
+		try:
+			await self._get_stream_entries_task
+			return self._get_stream_entries_task.result()
+		except CancelledError:
+			logger.debug("ConsumerGroupMessageReader was cancelled")
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()

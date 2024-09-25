@@ -54,13 +54,14 @@ async def async_process_shutdown() -> None:
 async def messagebus_process_instance_worker_configserver() -> None:
 	global process_instance_reader
 
-	channel = f"{get_messagebus_worker_id()}:process"
-	process_instance_reader = MessageReader()
+	messagebus_worker_id = get_messagebus_worker_id()
+	channel = f"{messagebus_worker_id}:process"
+	process_instance_reader = MessageReader(name=channel)
 	await process_instance_reader.set_channels({channel: CONNECTION_SESSION_CHANNEL})
 	async for _redis_id, message, _context in process_instance_reader.get_messages():
 		try:
 			if isinstance(message, (ProcessDataWriteMessage, ProcessStartRequestMessage, ProcessStopRequestMessage)):
-				await process_messagebus_message(message, redis_send_message, sender=get_messagebus_worker_id())
+				await process_messagebus_message(message, redis_send_message, sender=messagebus_worker_id)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:
@@ -69,10 +70,11 @@ async def messagebus_process_instance_worker_configserver() -> None:
 
 async def messagebus_process_instance_worker_depotserver() -> None:
 	message_queue: Queue[ProcessDataWriteMessage | ProcessStartRequestMessage | ProcessStopRequestMessage] = Queue()
+	messagebus_worker_id = get_messagebus_worker_id()
 
 	class ProcessMessageListener(MessagebusListener):
 		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
-			channel = f"{get_messagebus_worker_id()}:process"
+			channel = f"{messagebus_worker_id}:process"
 			if channel not in messagebus._subscribed_channels:
 				message = ChannelSubscriptionRequestMessage(
 					sender=CONNECTION_USER_CHANNEL,
@@ -101,7 +103,7 @@ async def messagebus_process_instance_worker_depotserver() -> None:
 				message = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
 			except Empty:
 				continue
-			await process_messagebus_message(message, service_client.messagebus.async_send_message, sender=get_messagebus_worker_id())
+			await process_messagebus_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
@@ -115,13 +117,14 @@ async def messagebus_process_instance_worker() -> None:
 
 async def messagebus_process_start_request_worker_configserver() -> None:
 	global process_request_reader
+	messagebus_worker_id = get_messagebus_worker_id()
 
 	channel = f"service:depot:{get_depotserver_id()}:process"
 
 	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 	process_request_reader = ConsumerGroupMessageReader(
 		consumer_group=channel,
-		consumer_name=get_messagebus_worker_id(),
+		consumer_name=messagebus_worker_id,
 	)
 	await process_request_reader.set_channels({channel: "0"})
 	async for redis_id, message, _context in process_request_reader.get_messages():
@@ -130,8 +133,8 @@ async def messagebus_process_start_request_worker_configserver() -> None:
 				await process_messagebus_message(
 					message=message,
 					send_message=redis_send_message,
-					sender=get_messagebus_worker_id(),
-					back_channel=f"{get_messagebus_worker_id()}:process",
+					sender=messagebus_worker_id,
+					back_channel=f"{messagebus_worker_id}:process",
 				)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
@@ -143,6 +146,7 @@ async def messagebus_process_start_request_worker_configserver() -> None:
 
 async def messagebus_process_start_request_worker_depotserver() -> None:
 	message_queue: Queue[ProcessStartRequestMessage] = Queue()
+	messagebus_worker_id = get_messagebus_worker_id()
 
 	class ProcessStartRequestMessageListener(MessagebusListener):
 		def messagebus_connection_established(self, messagebus: Messagebus) -> None:
@@ -171,8 +175,8 @@ async def messagebus_process_start_request_worker_depotserver() -> None:
 		await process_messagebus_message(
 			message=start_message,
 			send_message=service_client.messagebus.async_send_message,
-			sender=get_messagebus_worker_id(),
-			back_channel=f"{get_messagebus_worker_id()}:process",
+			sender=messagebus_worker_id,
+			back_channel=f"{messagebus_worker_id}:process",
 		)
 
 

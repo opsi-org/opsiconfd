@@ -82,30 +82,6 @@ class RedisTimeseriesCheck(Check):
 
 
 @dataclass()
-class RedisConnectionCheck(Check):
-	id: str = "redis:connection"
-	name: str = "Redis Connection"
-	description: str = "Checks whether opsi can connect to the configured Redis server."
-	partial_check: bool = True
-	documentation: str = """
-	## Check Redis Connection
-
-	Checks whether opsi can connect to the configured Redis server.
-	"""
-
-	def check(self) -> CheckResult:
-		result = CheckResult(
-			check=self,
-			message="Redis authentication is not configured.",
-			check_status=CheckStatus.OK,
-		)
-		with exc_to_result(result):
-			redis_client(timeout=5, test_connection=True)
-			result.message = "The connection to the Redis server does work."
-		return result
-
-
-@dataclass()
 class RedisCheck(Check):
 	id: str = "redis"
 	name: str = "Redis Server"

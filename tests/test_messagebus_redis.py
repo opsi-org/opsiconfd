@@ -460,8 +460,8 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 	session1_id = str(uuid4())
 	session2_id = str(uuid4())
 	user_id = "user:admin"
-	await create_messagebus_session_channel(owner_id=user_id, session_id=session1_id)
-	await create_messagebus_session_channel(owner_id=user_id, session_id=session2_id)
+	await create_messagebus_session_channel(owner_id=user_id, purpose="test 1", session_id=session1_id)
+	await create_messagebus_session_channel(owner_id=user_id, purpose="test 2", session_id=session2_id)
 
 	for count in range(0, 5):
 		await send_message(
@@ -481,8 +481,18 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 	assert await redis.exists(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") == 1
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}") == 1
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}:info") == 1
+	assert await redis.hgetall(f"{messagbus_prefix}:channels:session:{session1_id}:info") == {
+		b"owner-id": user_id.encode("utf-8"),
+		b"purpose": b"test 1",
+		b"reader-count": b"0",
+	}
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}") == 0
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}:info") == 1
+	assert await redis.hgetall(f"{messagbus_prefix}:channels:session:{session2_id}:info") == {
+		b"owner-id": user_id.encode("utf-8"),
+		b"purpose": b"test 2",
+		b"reader-count": b"0",
+	}
 
 	assert await redis.xlen(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") in (5, 6)  # 1 ignore + 5 messages
 	assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (5, 6)

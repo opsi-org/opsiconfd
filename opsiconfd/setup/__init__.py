@@ -71,6 +71,12 @@ def setup_redis() -> None:
 			logger.info("Deleting obsolete session store %s", key)
 			delete_recursively(key)
 
+	for key in redis.scan_iter(f"{config.redis_key('log')}:*", count=1000):
+		node_name = key.decode("utf-8").rsplit(":", maxsplit=1)[-1]
+		if node_name != config.node_name:
+			logger.info("Deleting obsolete log %s", key)
+			delete_recursively(key)
+
 
 def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 	with ServiceClient(

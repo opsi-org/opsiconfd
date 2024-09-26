@@ -137,6 +137,45 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 				pipeline.xtrim(stream_key, maxlen=maxlen, approximate=trim_approximate)
 		await pipeline.execute()
 
+	if full:
+		now_ts = timestamp()  # Current unix timestamp in milliseconds
+		for obj in ("host", "user"):
+			key = f"{channel_prefix}{obj}"
+			remove_keys = set()
+			all_info_keys = set()
+			async for key_b in redis.scan_iter(f"{channel_prefix}{obj}:*", count=1000):
+				if key_b.endswith(CHANNEL_INFO_SUFFIX):
+					continue
+
+				logger.trace("Checking %r", key_b)
+				info_key_b = key_b + CHANNEL_INFO_SUFFIX
+
+				info = await redis.hgetall(info_key_b)
+				if info:
+					all_info_keys.add(info_key_b)
+					last_delivered_id = info.get(b"last-delivered-id")
+					if last_delivered_id:
+						try:
+							ts = int(last_delivered_id.decode("utf-8").split("-", 1)[0])
+						except Exception as err:
+							logger.debug("Failed to read channel info: %s", err, exc_info=True)
+							ts = 0
+						if (now_ts - ts) > 7776000000:  # 90 days
+							remove_keys.add(key_b)
+							remove_keys.add(info_key_b)
+				else:
+					remove_keys.add(key_b)
+
+			keep_info_keys = all_info_keys - remove_keys
+			pipeline = redis.pipeline()
+			for key in remove_keys:
+				logger.debug("Removing %r", key)
+				pipeline.unlink(key)
+			for key in keep_info_keys:
+				logger.debug("Resetting reader-count on %r", key)
+				pipeline.hset(key, "reader-count", 0)
+			await pipeline.execute()
+
 
 _context_encoder = msgspec.msgpack.Encoder()
 
@@ -154,6 +193,9 @@ def _prepare_send_message(message: Message, context: Any = None) -> dict[str, by
 async def send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
+	if not message.channel:
+		raise ValueError("Channel not set")
+
 	redis = await async_redis_client()
 	await redis.xadd(
 		f"{config.redis_key('messagebus')}:channels:{message.channel}",
@@ -166,6 +208,9 @@ async def send_message(message: Message, context: Any = None) -> None:
 def sync_send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
+	if not message.channel:
+		raise ValueError("Channel not set")
+
 	redis_client().xadd(
 		f"{config.redis_key('messagebus')}:channels:{message.channel}",
 		maxlen=MAX_STREAM_LENGTH,
@@ -174,7 +219,7 @@ def sync_send_message(message: Message, context: Any = None) -> None:
 	)
 
 
-async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
+async def create_messagebus_session_channel(*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True) -> str:
 	redis = await async_redis_client()
 	session_id = str(UUID(session_id) if session_id else uuid4())
 	channel = f"session:{session_id}"
@@ -187,7 +232,7 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 		pipeline = redis.pipeline()
 		# Add one message to create the stream, the message will be ignored by the reader
 		pipeline.xadd(stream_key, fields={"ignore": ""})
-		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping={"owner-id": owner_id, "reader-count": 0})
+		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping={"owner-id": owner_id, "purpose": purpose, "reader-count": 0})
 		await pipeline.execute()
 	return channel
 
@@ -199,8 +244,10 @@ async def delete_channel(channel: str) -> None:
 
 
 @asynccontextmanager
-async def session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> AsyncGenerator[str, None]:
-	channel = await create_messagebus_session_channel(owner_id=owner_id, session_id=session_id, exists_ok=exists_ok)
+async def session_channel(
+	*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True
+) -> AsyncGenerator[str, None]:
+	channel = await create_messagebus_session_channel(owner_id=owner_id, purpose=purpose, session_id=session_id, exists_ok=exists_ok)
 	try:
 		yield channel
 	finally:

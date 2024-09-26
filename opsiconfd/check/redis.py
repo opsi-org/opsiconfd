@@ -11,6 +11,8 @@
 
 from dataclasses import dataclass
 
+from redis.exceptions import ConnectionError as RedisConnectionError
+
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
 from opsiconfd.redis import decode_redis_result, redis_client
 
@@ -122,13 +124,22 @@ class RedisCheck(Check):
 	def check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
-			message="No Redis issues found.",
+			message="Cannot connect to Redis:",
 			check_status=CheckStatus.OK,
 		)
+		try:
+			redis_client(timeout=5, test_connection=True)
+			result.message = "The connection to the Redis server does work."
+			self.add_partial_checks(RedisTimeseriesCheck(), RedisMemoryUsageCheck())
+		except RedisConnectionError as err:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Cannot connect to Redis: {err}"
+		except Exception as err:
+			result.check_status = CheckStatus.ERROR
+			result.message = str(err)
 
 		return result
 
 
 redis_check = RedisCheck()
-redis_check.add_partial_checks(RedisConnectionCheck(), RedisTimeseriesCheck(), RedisMemoryUsageCheck())
 check_manager.register(redis_check)

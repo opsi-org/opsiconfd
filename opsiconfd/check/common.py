@@ -160,6 +160,13 @@ class CheckManager(metaclass=Singleton):
 	def get(self, check_id: str) -> Check:
 		return self._checks[check_id]
 
+	def remove_check(self, check_id: str) -> None:
+		if check_id == "all":
+			self._checks = {}
+			return
+		if check_id in self._checks:
+			del self._checks[check_id]
+
 	@property
 	def check_ids(self) -> list[str]:
 		return list(self._checks.keys())

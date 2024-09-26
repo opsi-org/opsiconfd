@@ -18,6 +18,7 @@ import signal
 import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
+from typing import Any
 from urllib.parse import urlparse
 
 import msgspec
@@ -180,7 +181,7 @@ async def get_messagebus_channel_info(request: Request) -> RESTResponse:
 	channel_prefix = f"{config.redis_key('messagebus')}:channels:"
 	channel_prefix_len = len(channel_prefix)
 	channel_info_suffix = CHANNEL_INFO_SUFFIX.decode("utf-8")
-	channel_info = {}
+	channel_info: dict[str, dict[str, Any]] = {}
 	channel_filter = filter.get("channel")
 	info_filter = {k: v for k, v in filter.items() if k != "channel"}
 	async for key_b in redis.scan_iter(f"{channel_prefix}*", count=1000):
@@ -206,11 +207,13 @@ async def get_messagebus_channel_info(request: Request) -> RESTResponse:
 			channel_info[channel_type] = {}
 		channel_info[channel_type][name] = info
 
-	return RESTResponse(data={
-		"channels": dict(sorted(channel_info.items())),
-		"number_of_channels": {k: len(v) for k, v in channel_info.items()},
-		"filter": raw_filter
-	})
+	return RESTResponse(
+		data={
+			"channels": dict(sorted(channel_info.items())),
+			"number_of_channels": {k: len(v) for k, v in channel_info.items()},
+			"filter": raw_filter,
+		}
+	)
 
 
 @admin_interface_router.post("/reload")

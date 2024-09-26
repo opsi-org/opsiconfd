@@ -243,6 +243,7 @@ async def delete_channel(channel: str) -> None:
 	stream_key_info = stream_key + CHANNEL_INFO_SUFFIX
 	await redis.unlink(stream_key_info, stream_key)
 
+
 @asynccontextmanager
 async def session_channel(
 	*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True

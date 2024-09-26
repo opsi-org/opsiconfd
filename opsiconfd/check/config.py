@@ -58,7 +58,7 @@ Checks the home directory of the system user running opsiconfd.
 
 @dataclass()
 class GroupMembershipCheck(Check):
-	id: str = "group_membership"
+	id: str = "run_as_user:group_membership"
 	name: str = "Group membership"
 	description: str = "Check group membership of opsiconfd user"
 	documentation: str = """
@@ -66,39 +66,43 @@ class GroupMembershipCheck(Check):
 Checks the group membership of the system user running opsiconfd.
 """
 	partial_check: bool = True
+	group: str = opsi_config.get("groups", "fileadmingroup")
+
+	def __post_init__(self) -> None:
+		super().__post_init__()
+		self.id = f"{self.id}:{self.group}"
+		self.name = f"Group membership of user '{config.run_as_user}' in group '{self.group}'"
 
 	def check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK)
 		with exc_to_result(result):
 			user = pwd.getpwnam(config.run_as_user)
 			gids = os.getgrouplist(user.pw_name, user.pw_gid)
-			for groupname in ("shadow", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "fileadmingroup")):
-				self.name = f"Group membership of user '{config.run_as_user}' in group '{groupname}'"
-				self.details = {"user": config.run_as_user, "group": groupname, "primary": False}
 
-				result.message = f"User '{config.run_as_user}' is a member of group '{groupname}'"
-				result.details = self.details
-				try:
-					group = grp.getgrnam(groupname)
-					result.details["primary"] = group.gr_gid == user.pw_gid
-					if result.details["primary"]:
-						result.message += " (primary)"
-					if group.gr_gid not in gids:
-						result.check_status = CheckStatus.ERROR
-						result.message = f"User '{config.run_as_user}' is not a member of group '{groupname}'."
-					elif groupname == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
-						result.check_status = CheckStatus.WARNING
-						result.message = f"Group '{groupname}' is not the primary group of user '{config.run_as_user}'."
-				except KeyError:
-					logger.debug("Group not found: %s", groupname)
+			result.details = {"user": config.run_as_user, "group": self.group, "primary": False}
+			result.message = f"User '{config.run_as_user}' is a member of group '{self.group}'"
+
+			try:
+				group = grp.getgrnam(self.group)
+				result.details["primary"] = group.gr_gid == user.pw_gid
+				if result.details["primary"]:
+					result.message += " (primary)"
+				if group.gr_gid not in gids:
 					result.check_status = CheckStatus.ERROR
-					result.message = f"Group '{groupname}' not found."
+					result.message = f"User '{config.run_as_user}' is not a member of group '{self.group}'."
+				elif self.group == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
+					result.check_status = CheckStatus.WARNING
+					result.message = f"Group '{self.group}' is not the primary group of user '{config.run_as_user}'."
+			except KeyError:
+				logger.debug("Group not found: %s", self.group)
+				result.check_status = CheckStatus.ERROR
+				result.message = f"Group '{self.group}' not found."
 		return result
 
 
 @dataclass()
 class RunAsUserCheck(Check):
-	id: str = "opsiconfd_config:run_as_user"
+	id: str = "run_as_user"
 	name: str = "Run as user"
 	description: str = "Check system user running opsiconfd"
 	documentation: str = """
@@ -114,6 +118,8 @@ Checks for group membership and home directory.
 			check_status=CheckStatus.OK,
 			message=f"No issues found with user '{config.run_as_user}'.",
 		)
+		for groupname in ("shadow", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "fileadmingroup")):
+			self.add_partial_checks(GroupMembershipCheck(group=groupname))
 
 		return result
 

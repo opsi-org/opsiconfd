@@ -1134,6 +1134,23 @@ function syntaxHighlightMessage(message) {
 		});
 }
 
+function getMessagebusChannelInfo() {
+	let filter = {};
+	document.getElementById('messagebus-channel-info-filter').value.split(",").forEach(element => {
+		let keyval = element.split("=", 2);
+		if (keyval.length != 2) {
+			keyval = ["channel", keyval[0]];
+		}
+		filter[keyval[0].trim()] = keyval[1].trim();
+	});
+	let req = ajaxRequest("POST", "/admin/messagebus-channel-info", { "filter": filter });
+	req.then((result) => {
+		outputToHTML(result, "messagebus-result");
+		return result;
+	});
+}
+
+
 function messagebusConnect() {
 	const serverRole = localStorage.getItem("serverRole");
 	if (serverRole != "configserver") {

@@ -743,6 +743,15 @@
 					Show file chunk messages: <input type="checkbox" id="messagebus-message-show-file-chunk-messages">
 				</div>
 			</div>
+			<div class="adminpage-box">
+				<input type="text" id="messagebus-channel-info-filter" placeholder="channel=.*" style="width: 200px" />
+				<button id="messagebus-channel-info-button" onclick="getMessagebusChannelInfo()">Get
+					messagebus channel
+					info</button>
+				<div id="resultMessagebus">
+					<pre class="messagebus-result" id="messagebus-result"></pre>
+				</div>
+			</div>
 			<br /><br /><br /><br /><br /><br /><br /><br /><br />
 		</div>
 

@@ -338,6 +338,8 @@ class Backend(
 	def _send_messagebus_event(self, event: str, data: dict[str, Any]) -> None:
 		if not self.events_enabled or not self._messagebus_user_id:
 			return
+		if not event:
+			raise ValueError("Event must not be empty")
 		sync_send_message(
 			EventMessage(
 				sender=self._messagebus_user_id,

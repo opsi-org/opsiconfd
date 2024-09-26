@@ -320,7 +320,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					message_reader_channels[channel] = "$" if channel.startswith(("event:", "session:")) else ">"
 					if channel.startswith("session:") and channel != self._session_channel:
 						await create_messagebus_session_channel(
-							owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True
+							owner_id=self._messagebus_user_id, purpose="temporary", session_id=channel.split(":", 2)[1], exists_ok=True
 						)
 
 			if message_reader_channels:
@@ -483,10 +483,13 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 		await update_websocket_count(session, 1)
 
-		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=True)
+		self._session_channel = await create_messagebus_session_channel(
+			owner_id=self._messagebus_user_id, purpose="connection session", exists_ok=True
+		)
 		await self._process_channel_subscription(websocket=websocket, channels=[self._user_channel, self._session_channel])
 
-		await send_message(event)
+		if event.event and event.channel:
+			await send_message(event)
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		logger.info("Websocket client disconnected from messagebus")
@@ -521,14 +524,15 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					"type": session.host_type,
 					"id": session.host_id,
 				}
-				await send_message(event)
 		elif session.username:
 			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.username], user_type="user")])
 			if not connected:
 				event.event = "user_disconnected"
 				event.channel = "event:user_disconnected"
 				event.data["user"] = {"id": session.username, "username": session.username}
-				await send_message(event)
+
+		if event.event and event.channel:
+			await send_message(event)
 
 		# Wait for task to finish to prevent that task is ended by garbage collector
 		for reader in self._messagebus_reader:

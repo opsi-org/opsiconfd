@@ -45,8 +45,14 @@ from opsiconfd.grafana import (
 	create_dashboard_user,
 )
 from opsiconfd.logging import logger
-from opsiconfd.messagebus.redis import get_websocket_connected_users
-from opsiconfd.redis import async_redis_client, decode_redis_result, ip_address_from_redis_key, ip_address_to_redis_key, redis_client
+from opsiconfd.messagebus.redis import CHANNEL_INFO_SUFFIX, get_websocket_connected_users
+from opsiconfd.redis import (
+	async_redis_client,
+	decode_redis_result,
+	ip_address_from_redis_key,
+	ip_address_to_redis_key,
+	redis_client,
+)
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
@@ -161,6 +167,50 @@ async def get_messagebus_connected_clients() -> RESTResponse:
 	client_ids = [u async for u in get_websocket_connected_users(user_type="client")]
 	user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
 	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids})
+
+
+@admin_interface_router.post("/messagebus-channel-info")
+@rest_api
+async def get_messagebus_channel_info(request: Request) -> RESTResponse:
+	request_body = await request.json()
+	raw_filter = request_body.get("filter", {})
+	filter = {attribute: re.compile(value) for attribute, value in raw_filter.items()}
+
+	redis = await async_redis_client()
+	channel_prefix = f"{config.redis_key('messagebus')}:channels:"
+	channel_prefix_len = len(channel_prefix)
+	channel_info_suffix = CHANNEL_INFO_SUFFIX.decode("utf-8")
+	channel_info = {}
+	channel_filter = filter.get("channel")
+	info_filter = {k: v for k, v in filter.items() if k != "channel"}
+	async for key_b in redis.scan_iter(f"{channel_prefix}*", count=1000):
+		key = str(key_b.decode("utf-8"))
+		if key.endswith(channel_info_suffix):
+			continue
+		if channel_filter and not channel_filter.search(key):
+			continue
+		info_key = f"{key}{channel_info_suffix}"
+		info = await redis.hgetall(info_key)
+		info = {k.decode("utf-8"): v.decode("utf-8") for k, v in info.items()} if info else {}
+		skip = False
+		for attribute, attr_filter in info_filter.items():
+			value = info.get(attribute)
+			if not value or not attr_filter.search(value):
+				skip = True
+				break
+		if skip:
+			continue
+		name = key[channel_prefix_len:]
+		channel_type, name = name.split(":", 1)
+		if channel_type not in channel_info:
+			channel_info[channel_type] = {}
+		channel_info[channel_type][name] = info
+
+	return RESTResponse(data={
+		"channels": dict(sorted(channel_info.items())),
+		"number_of_channels": {k: len(v) for k, v in channel_info.items()},
+		"filter": raw_filter
+	})
 
 
 @admin_interface_router.post("/reload")

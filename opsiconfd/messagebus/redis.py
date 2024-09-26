@@ -240,8 +240,8 @@ async def create_messagebus_session_channel(*, owner_id: str, purpose: str, sess
 async def delete_channel(channel: str) -> None:
 	redis = await async_redis_client()
 	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
-	await redis.unlink(stream_key)
-
+	stream_key_info = stream_key + CHANNEL_INFO_SUFFIX
+	await redis.unlink(stream_key_info, stream_key)
 
 @asynccontextmanager
 async def session_channel(
@@ -508,7 +508,10 @@ class MessageReader:
 				if self._count_readers:
 					# Do not run in a pipeline, can result in problems on application shutdown
 					for stream_key in list(self._streams):
-						await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+						info_key = stream_key + self._info_suffix
+						# Test if the info key still exists (do not recerate it)
+						if await redis.exists(info_key):
+							await redis.hincrby(info_key, "reader-count", -1)
 			finally:
 				self._stopped_event.set()
 

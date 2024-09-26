@@ -139,7 +139,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 
 	if full:
 		now_ts = timestamp()  # Current unix timestamp in milliseconds
-		for obj in ("host", "user"):
+		for obj in ("host", "user", "event"):
 			key = f"{channel_prefix}{obj}"
 			remove_keys = set()
 			all_info_keys = set()
@@ -219,10 +219,14 @@ def sync_send_message(message: Message, context: Any = None) -> None:
 	)
 
 
-async def create_messagebus_session_channel(*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True) -> str:
-	redis = await async_redis_client()
+async def create_session_channel(*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True) -> str:
 	session_id = str(UUID(session_id) if session_id else uuid4())
 	channel = f"session:{session_id}"
+	return await create_channel(channel, info={"owner-id": owner_id, "purpose": purpose, "reader-count": 0}, exists_ok=exists_ok)
+
+
+async def create_channel(channel: str, *, info: dict[str, str] | None = None, exists_ok: bool = True) -> str:
+	redis = await async_redis_client()
 	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
 	exists = await redis.exists(stream_key)
 	if exists:
@@ -232,7 +236,8 @@ async def create_messagebus_session_channel(*, owner_id: str, purpose: str, sess
 		pipeline = redis.pipeline()
 		# Add one message to create the stream, the message will be ignored by the reader
 		pipeline.xadd(stream_key, fields={"ignore": ""})
-		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping={"owner-id": owner_id, "purpose": purpose, "reader-count": 0})
+		if info:
+			pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping=info)
 		await pipeline.execute()
 	return channel
 
@@ -248,7 +253,7 @@ async def delete_channel(channel: str) -> None:
 async def session_channel(
 	*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True
 ) -> AsyncGenerator[str, None]:
-	channel = await create_messagebus_session_channel(owner_id=owner_id, purpose=purpose, session_id=session_id, exists_ok=exists_ok)
+	channel = await create_session_channel(owner_id=owner_id, purpose=purpose, session_id=session_id, exists_ok=exists_ok)
 	try:
 		yield channel
 	finally:

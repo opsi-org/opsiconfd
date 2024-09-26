@@ -68,7 +68,8 @@ from . import (
 from .redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
-	create_messagebus_session_channel,
+	create_channel,
+	create_session_channel,
 	delete_channel,
 	get_websocket_connected_users,
 	send_message,
@@ -321,9 +322,12 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					# ID "$" means that we only want new messages (added after reader was started).
 					message_reader_channels[channel] = "$" if channel.startswith(("event:", "session:")) else ">"
 					if channel.startswith("session:") and channel != self._session_channel:
-						await create_messagebus_session_channel(
-							owner_id=self._messagebus_user_id, purpose="temporary", session_id=channel.split(":", 2)[1], exists_ok=True
+						await create_session_channel(
+							owner_id=self._messagebus_user_id, purpose="temporary", session_id=channel.split(":", 1)[1], exists_ok=True
 						)
+					elif channel.startswith(("host:", "user:", "event:")):
+						info = {} if channel.startswith("event:") else {"owner-id": self._messagebus_user_id}
+						await create_channel(channel=channel, info=info, exists_ok=True)
 
 			if message_reader_channels:
 				msr = [
@@ -485,7 +489,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 		await update_websocket_count(session, 1)
 
-		self._session_channel = await create_messagebus_session_channel(
+		self._session_channel = await create_session_channel(
 			owner_id=self._messagebus_user_id, purpose="connection session", exists_ok=True
 		)
 		await self._process_channel_subscription(websocket=websocket, channels=[self._user_channel, self._session_channel])

@@ -209,9 +209,9 @@ async def get_messagebus_channel_info(request: Request) -> RESTResponse:
 
 	return RESTResponse(
 		data={
-			"channels": dict(sorted(channel_info.items())),
-			"number_of_channels": {k: len(v) for k, v in channel_info.items()},
 			"filter": raw_filter,
+			"number_of_channels": {k: len(v) for k, v in channel_info.items()},
+			"channels": dict(sorted(channel_info.items())),
 		}
 	)
 

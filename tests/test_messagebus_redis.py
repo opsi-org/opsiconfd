@@ -25,7 +25,7 @@ from opsiconfd.messagebus.redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
 	cleanup_channels,
-	create_messagebus_session_channel,
+	create_session_channel,
 	send_message,
 )
 from opsiconfd.redis import async_redis_client, get_redis_connections
@@ -460,8 +460,8 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 	session1_id = str(uuid4())
 	session2_id = str(uuid4())
 	user_id = "user:admin"
-	await create_messagebus_session_channel(owner_id=user_id, purpose="test 1", session_id=session1_id)
-	await create_messagebus_session_channel(owner_id=user_id, purpose="test 2", session_id=session2_id)
+	await create_session_channel(owner_id=user_id, purpose="test 1", session_id=session1_id)
+	await create_session_channel(owner_id=user_id, purpose="test 2", session_id=session2_id)
 
 	for count in range(0, 5):
 		await send_message(

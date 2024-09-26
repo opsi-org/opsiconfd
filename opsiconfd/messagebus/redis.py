@@ -225,7 +225,7 @@ async def create_session_channel(*, owner_id: str, purpose: str, session_id: str
 	return await create_channel(channel, info={"owner-id": owner_id, "purpose": purpose, "reader-count": 0}, exists_ok=exists_ok)
 
 
-async def create_channel(channel: str, *, info: dict[str, str] | None = None, exists_ok: bool = True) -> str:
+async def create_channel(channel: str, *, info: dict[str, str | int] | None = None, exists_ok: bool = True) -> str:
 	redis = await async_redis_client()
 	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
 	exists = await redis.exists(stream_key)
@@ -237,7 +237,7 @@ async def create_channel(channel: str, *, info: dict[str, str] | None = None, ex
 		# Add one message to create the stream, the message will be ignored by the reader
 		pipeline.xadd(stream_key, fields={"ignore": ""})
 		if info:
-			pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping=info)
+			pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping=info)  # type: ignore[arg-type]
 		await pipeline.execute()
 	return channel
 

@@ -9,21 +9,17 @@
 check tests
 """
 
+import pprint
 from pathlib import Path
+from unittest import mock
 
 import opsiconfd.check.config  # noqa: F401
 from opsiconfd.check.common import CheckStatus, check_manager
+from opsiconfd.config import OPSICONFD_HOME, opsi_config
+from tests.test_addon_manager import cleanup  # noqa: F401
 from tests.utils import (  # noqa: F401
 	ACL_CONF_41,
-	ADMIN_PASS,
-	ADMIN_USER,
-	Config,
-	OpsiconfdTestClient,
-	clean_mysql,
 	get_config,
-	get_opsi_config,
-	sync_clean_redis,
-	test_client,
 )
 from tests.utils import (
 	config as test_config,  # noqa: F401
@@ -59,3 +55,64 @@ def test_check_opsiconfd_config(tmp_path: Path) -> None:
 				assert partial_result.check_status == CheckStatus.ERROR
 				assert partial_result.message == "'self' is allowed for '.*'."
 		assert ids_found == 3
+
+
+def test_check_run_as_user() -> None:
+	class MockUser:
+		pw_name = "opsiconfd"
+		pw_gid = 103
+		pw_dir = OPSICONFD_HOME
+
+	class MockGroup:
+		gr_name = "nogroup"
+		gr_gid = 65534
+
+	mock_user = MockUser()
+
+	def mock_getgrnam(groupname: str) -> MockGroup:
+		group = MockGroup()
+		group.gr_name = groupname
+		if groupname == "shadow":
+			group.gr_gid = 101
+		elif groupname == opsi_config.get("groups", "admingroup"):
+			group.gr_gid = 102
+		elif groupname == opsi_config.get("groups", "fileadmingroup"):
+			group.gr_gid = 103
+		return group
+
+	with mock.patch("opsiconfd.check.config.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
+		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
+		):
+			result = check_manager.get("run_as_user").run(use_cache=False)
+
+			pprint.pprint(result)
+			assert result.check_status == CheckStatus.OK
+
+		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
+			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
+		):
+			mock_user.pw_dir = "/wrong/home"
+			result = check_manager.get("run_as_user").run(use_cache=False)
+			assert result.check_status == CheckStatus.WARNING
+			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
+	with (
+		mock.patch("opsiconfd.check.config.os.getgrouplist", mock.PropertyMock(return_value=(1, 2, 3))),
+		mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
+		mock.patch("opsiconfd.check.config.grp.getgrnam", mock_getgrnam),
+	):
+		result = check_manager.get("run_as_user").run(use_cache=False)
+		assert result.check_status == CheckStatus.ERROR
+		print(result)
+		for partial_result in result.partial_results:
+			if partial_result.check.id.endswith("shadow"):
+				assert partial_result.message == "User 'opsiconfd' is not a member of group 'shadow'."
+				assert partial_result.check_status == CheckStatus.ERROR
+			elif partial_result.check.id.endswith(opsi_config.get("groups", "admingroup")):
+				assert partial_result.message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'admingroup')}'."
+				assert partial_result.check_status == CheckStatus.ERROR
+			elif partial_result.check.id.endswith(opsi_config.get("groups", "fileadmingroup")):
+				assert (
+					partial_result.message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
+				)
+				assert partial_result.check_status == CheckStatus.ERROR

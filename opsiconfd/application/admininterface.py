@@ -174,7 +174,7 @@ async def get_messagebus_connected_clients() -> RESTResponse:
 @rest_api
 async def get_messagebus_channel_info(request: Request) -> RESTResponse:
 	request_body = await request.json()
-	raw_filter = request_body.get("filter", {})
+	raw_filter = {attribute: value for attribute, value in request_body.get("filter", {}).items() if value}
 	filter = {attribute: re.compile(value) for attribute, value in raw_filter.items()}
 
 	redis = await async_redis_client()

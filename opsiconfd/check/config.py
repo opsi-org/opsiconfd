@@ -98,7 +98,7 @@ Checks the group membership of the system user running opsiconfd.
 
 @dataclass()
 class RunAsUserCheck(Check):
-	id: str = "run_as_user"
+	id: str = "opsiconfd_config:run_as_user"
 	name: str = "Run as user"
 	description: str = "Check system user running opsiconfd"
 	documentation: str = """
@@ -120,7 +120,7 @@ Checks for group membership and home directory.
 
 @dataclass()
 class LogLevelCheck(Check):
-	id: str = "log_level"
+	id: str = "opsiconfd_config:log-level"
 	name: str = "Log level"
 	description: str = "Check log level of opsiconfd"
 	partial_check: bool = True
@@ -150,13 +150,18 @@ class LogLevelCheck(Check):
 
 @dataclass()
 class DebugOptionsCheck(Check):
-	id: str = "debug_options"
+	id: str = "opsiconfd_config:debug_options"
 	name: str = "Debug options"
 	description: str = "Check debug options of opsiconfd"
 	partial_check: bool = True
 
 	def check(self) -> CheckResult:
-		result = CheckResult(check=self, check_status=CheckStatus.OK, message="No debug options are set.")
+		result = CheckResult(
+			check=self,
+			check_status=CheckStatus.OK,
+			message="No debug options are set.",
+			details={"config": "debug-options", "value": config.debug_options},
+		)
 		with exc_to_result(result):
 			if config.debug_options:
 				result.check_status = CheckStatus.ERROR
@@ -166,7 +171,7 @@ class DebugOptionsCheck(Check):
 
 @dataclass()
 class ProfilerCheck(Check):
-	id: str = "profiler"
+	id: str = "opsiconfd_config:profiler"
 	name: str = "Profiler"
 	description: str = "Check profiler of opsiconfd"
 	partial_check: bool = True
@@ -182,7 +187,7 @@ class ProfilerCheck(Check):
 
 @dataclass()
 class AclSelfForAllCheck(Check):
-	id: str = "acl_self_for_all"
+	id: str = "opsiconfd_config:acl_self_for_all"
 	name: str = "ACL self for all"
 	description: str = "Check ACL self for all in opsiconfd"
 	partial_check: bool = True
@@ -203,7 +208,7 @@ class AclSelfForAllCheck(Check):
 
 @dataclass()
 class OpsiconfdConfigRunAsUser(Check):
-	id: str = "opsiconfd_config_run_as_user"
+	id: str = "opsiconfd_config:run_as_user"
 	name: str = "Run as user"
 	description: str = "Check system user running opsiconfd"
 	partial_check: bool = True

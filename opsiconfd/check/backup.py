@@ -35,9 +35,11 @@ class BackupCheck(Check):
 	def check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
-			message="No check function defined",
-			check_status=CheckStatus.ERROR,
+			message="Backup is up to date.",
+			check_status=CheckStatus.OK,
+			details={},
 		)
+
 		redis = redis_client()
 		backup = redis.get(f"{config.redis_key('stats')}:backup")
 		if backup is None:

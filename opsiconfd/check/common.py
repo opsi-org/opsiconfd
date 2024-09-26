@@ -106,7 +106,8 @@ class Check:
 
 		if issue_counter > 0:
 			result.message = f"{issue_counter} issue(s) found."
-		self.check_cache_store(result, self.cache_expiration)
+		if self.cache and use_cache:
+			self.check_cache_store(result, self.cache_expiration)
 		return result
 
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:

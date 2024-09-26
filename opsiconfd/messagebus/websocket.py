@@ -326,7 +326,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 							owner_id=self._messagebus_user_id, purpose="temporary", session_id=channel.split(":", 1)[1], exists_ok=True
 						)
 					elif channel.startswith(("host:", "user:", "event:")):
-						info = {} if channel.startswith("event:") else {"owner-id": self._messagebus_user_id}
+						info: dict[str, str | int] = {} if channel.startswith("event:") else {"owner-id": self._messagebus_user_id}
 						await create_channel(channel=channel, info=info, exists_ok=True)
 
 			if message_reader_channels:

@@ -280,20 +280,21 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				if channel != self._session_channel and channel not in channels:
 					remove_channels.append(channel)
 
-		remove_by_reader: dict[MessageReader, list[str]] = {}
-		for channel in remove_channels:
-			reader = subscribed_channels.get(channel)
-			if reader:
-				if reader not in remove_by_reader:
-					remove_by_reader[reader] = []
-				remove_by_reader[reader].append(channel)
+		if remove_channels:
+			remove_by_reader: dict[MessageReader, list[str]] = {}
+			for channel in remove_channels:
+				reader = subscribed_channels.get(channel)
+				if reader:
+					if reader not in remove_by_reader:
+						remove_by_reader[reader] = []
+					remove_by_reader[reader].append(channel)
 
-		for reader, chans in remove_by_reader.items():
-			if sorted(chans) == sorted(await reader.get_channel_names()):
-				await reader.stop(wait=False)
-				self._messagebus_reader.remove(reader)
-			else:
-				await reader.remove_channels(chans)
+			for reader, chans in remove_by_reader.items():
+				if sorted(chans) == sorted(await reader.get_channel_names()):
+					await reader.stop(wait=False)
+					self._messagebus_reader.remove(reader)
+				else:
+					await reader.remove_channels(chans)
 
 		if operation in (ChannelSubscriptionOperation.SET, ChannelSubscriptionOperation.ADD):
 			message_reader_channels: dict[str, str] = {}
@@ -500,7 +501,6 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				logger.error(err, exc_info=True)
 
 		session: OPSISession = self.scope["session"]
-
 		await update_websocket_count(session, -1)
 		await delete_channel(self._session_channel)
 

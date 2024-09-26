@@ -133,9 +133,14 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				assert jsonrpc_response_message.error is None
 
 
-def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_session_channel_subscription(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	connections = get_redis_connections()
+	redis = redis_client()
+	channel_prefix = f"{config.redis_key('messagebus')}:channels"
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket, decode=False) as reader:
@@ -174,6 +179,16 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 					"00000000-0000-4000-8000-000000000002",
 				]
 
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 2
+				assert f"{channel_prefix}:{session_channel}" in keys
+				assert f"{channel_prefix}:{session_channel}:info" in keys
+				info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{session_channel}:info").items()}
+				assert info == {"owner-id": "user:adminuser", "purpose": "connection session", "reader-count": "1"}
+
+				info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{user_channel}:info").items()}
+				assert info["reader-count"] == "1"
+
 				# Subscribe for 2 new session channels
 				other_channel1 = "session:11111111-1111-1111-1111-111111111111"
 				other_channel2 = "session:22222222-2222-2222-2222-222222222222"
@@ -186,8 +201,24 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 				start = time()
 				reader.wait_for_message(count=1)
 				diff = time() - start
-				print(f"Channel subscription took {diff:0.3f} seconfds")
+				print(f"Channel subscription took {diff:0.3f} seconds")
 				assert diff < 1
+
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 6
+				assert f"{channel_prefix}:{other_channel1}" in keys
+				assert f"{channel_prefix}:{other_channel1}:info" in keys
+				assert f"{channel_prefix}:{other_channel2}" in keys
+				assert f"{channel_prefix}:{other_channel2}:info" in keys
+				assert f"{channel_prefix}:{session_channel}" in keys
+				assert f"{channel_prefix}:{session_channel}:info" in keys
+				for chan in (session_channel, other_channel1, other_channel2):
+					info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{chan}:info").items()}
+					assert info == {
+						"owner-id": "user:adminuser",
+						"purpose": "connection session" if chan == session_channel else "temporary",
+						"reader-count": "1",
+					}
 
 				message = Message.from_msgpack(next(reader.get_raw_messages()))
 				assert isinstance(message, ChannelSubscriptionEventMessage)
@@ -224,6 +255,52 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 					"00000000-0000-4000-8000-000000000005",
 					"00000000-0000-4000-8000-000000000006",
 				]
+
+				# Unsubscribe from a session channels
+				message = ChannelSubscriptionRequestMessage(
+					sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[other_channel2], operation="remove"
+				)
+				websocket.send_bytes(message.to_msgpack())
+
+				start = time()
+				reader.wait_for_message(count=1)
+				diff = time() - start
+				print(f"Channel subscription took {diff:0.3f} seconds")
+				assert diff < 1
+
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 6
+				assert f"{channel_prefix}:{other_channel1}" in keys
+				assert f"{channel_prefix}:{other_channel1}:info" in keys
+				assert f"{channel_prefix}:{other_channel2}" in keys
+				assert f"{channel_prefix}:{other_channel2}:info" in keys
+				assert f"{channel_prefix}:{session_channel}" in keys
+				assert f"{channel_prefix}:{session_channel}:info" in keys
+				for chan in (session_channel, other_channel1, other_channel2):
+					info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{chan}:info").items()}
+					assert info == {
+						"owner-id": "user:adminuser",
+						"purpose": "connection session" if chan == session_channel else "temporary",
+						"reader-count": "0" if chan == other_channel2 else "1",
+					}
+
+				websocket.close()
+				sleep(2)
+				# Websocket disconnected, session channel should be removed, reader counts should be 0
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 4
+				assert f"{channel_prefix}:{other_channel1}" in keys
+				assert f"{channel_prefix}:{other_channel1}:info" in keys
+				assert f"{channel_prefix}:{other_channel2}" in keys
+				assert f"{channel_prefix}:{other_channel2}:info" in keys
+				for chan in (other_channel1, other_channel2):
+					info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{chan}:info").items()}
+					assert info == {
+						"owner-id": "user:adminuser",
+						"purpose": "connection session" if chan == session_channel else "temporary",
+						"reader-count": "0",
+					}
+
 	# All redis connections should be closed
 	assert connections == get_redis_connections()
 

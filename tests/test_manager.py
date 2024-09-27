@@ -22,13 +22,9 @@ import psutil
 import pytest
 
 from opsiconfd.manager import Manager, WorkerManager, WorkerState
+from opsiconfd.redis import redis_client
 
-from .utils import (  # noqa: F401
-	UnprotectedBackend,
-	backend,
-	get_config,
-	reset_singleton,
-)
+from .utils import UnprotectedBackend, backend, clean_redis, get_config, reset_singleton  # noqa: F401
 
 
 @contextmanager
@@ -121,7 +117,8 @@ def test_worker_manager_and_workers() -> None:
 			time.sleep(1)
 		raise RuntimeError("Timed out while waiting for workers")
 
-	with get_config({"port": 4444, "workers": 2}):
+	redis = redis_client()
+	with get_config({"port": 4444, "workers": 2}) as config:
 		worker_manager = WorkerManager()
 		worker_manager.init_logging = lambda *args: None  # type: ignore[assignment]
 		worker_manager.worker_restart_gap = 0.0
@@ -147,6 +144,21 @@ def test_worker_manager_and_workers() -> None:
 			assert proc1.is_running()
 			assert proc2.is_running()
 
+			data = {
+				k.decode("utf-8"): v.decode("utf-8")
+				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:1").items()
+			}
+			assert data["worker_num"] == "1"
+			assert data["node_name"] == worker_manager.node_name
+			assert data["pid"] == str(pid1)
+			data = {
+				k.decode("utf-8"): v.decode("utf-8")
+				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:2").items()
+			}
+			assert data["worker_num"] == "2"
+			assert data["node_name"] == worker_manager.node_name
+			assert data["pid"] == str(pid2)
+
 			# Kill worker process
 			os.kill(pid1, signal.SIGKILL)
 			for _ in range(10):
@@ -156,6 +168,15 @@ def test_worker_manager_and_workers() -> None:
 
 			assert not proc1.is_running()
 			assert proc2.is_running()
+
+			# Assert that worker state gets deleted
+			state_deleted = False
+			for _ in range(50):
+				state_deleted = not redis.exists(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:1")
+				if state_deleted:
+					break
+				time.sleep(0.1)
+			assert state_deleted
 
 			# Assert that worker process is restarted with new pid
 			wait_for_workers_running(worker_manager, count=2)
@@ -167,6 +188,21 @@ def test_worker_manager_and_workers() -> None:
 			proc2 = psutil.Process(pid2)
 			assert proc1.is_running()
 			assert proc2.is_running()
+
+			data = {
+				k.decode("utf-8"): v.decode("utf-8")
+				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:1").items()
+			}
+			assert data["worker_num"] == "1"
+			assert data["node_name"] == worker_manager.node_name
+			assert data["pid"] == str(pid1)
+			data = {
+				k.decode("utf-8"): v.decode("utf-8")
+				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:2").items()
+			}
+			assert data["worker_num"] == "2"
+			assert data["node_name"] == worker_manager.node_name
+			assert data["pid"] == str(pid2)
 
 			# Restart workers
 			worker_manager.restart_workers(wait=True)
@@ -181,6 +217,23 @@ def test_worker_manager_and_workers() -> None:
 			wait_for_workers_running(worker_manager, count=2)
 			assert worker_manager.workers[f"{worker_manager.node_name}:1"].pid != pid1
 			assert worker_manager.workers[f"{worker_manager.node_name}:2"].pid != pid2
+			pid1 = worker_manager.workers[f"{worker_manager.node_name}:1"].pid
+			pid2 = worker_manager.workers[f"{worker_manager.node_name}:2"].pid
+
+			data = {
+				k.decode("utf-8"): v.decode("utf-8")
+				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:1").items()
+			}
+			assert data["worker_num"] == "1"
+			assert data["node_name"] == worker_manager.node_name
+			assert data["pid"] == str(pid1)
+			data = {
+				k.decode("utf-8"): v.decode("utf-8")
+				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:2").items()
+			}
+			assert data["worker_num"] == "2"
+			assert data["node_name"] == worker_manager.node_name
+			assert data["pid"] == str(pid2)
 
 		finally:
 			worker_manager.stop()

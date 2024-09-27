@@ -9,43 +9,39 @@
 # health check
 # """
 
-# from __future__ import annotations
 
-# from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
-# from opsiconfd.check.common import Check, CheckResult, CheckStatus, PartialCheckResult, exc_to_result
-# from opsiconfd.logging import logger
-
-from __future__ import annotations
-
+import re
 from dataclasses import dataclass
 
-from opsiconfd.backend.mysql import MySQLConnection
+from MySQLdb import OperationalError as MySQLdbOperationalError
+from sqlalchemy.exc import OperationalError  # type: ignore[import]
+
+from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
 from opsiconfd.logging import logger
 
+# @dataclass()
+# class MysqlConnectionCheck(Check):
+# 	id: str = "mysql:connection"
+# 	name: str = "MySQL Connection"
+# 	description: str = "Check MySQL server state"
+# 	partial_check: bool = True
 
-@dataclass()
-class MysqlConnectionCheck(Check):
-	id: str = "mysql:connection"
-	name: str = "MySQL Connection"
-	description: str = "Check MySQL server state"
-	partial_check: bool = True
+# 	def check(self) -> CheckResult:
+# 		result = CheckResult(
+# 			check=self,
+# 			message="Could not connect to MySQL Server.",
+# 			check_status=CheckStatus.ERROR,
+# 		)
 
-	def check(self) -> CheckResult:
-		result = CheckResult(
-			check=self,
-			message="Could not connect to MySQL Server.",
-			check_status=CheckStatus.ERROR,
-		)
-
-		with exc_to_result(result):
-			mysql = MySQLConnection()
-			with mysql.connection():
-				with mysql.session() as session:
-					session.execute("SELECT 1").fetchone()
-					result.message = "Connection to MySQL is working"
-					result.check_status = CheckStatus.OK
-		return result
+# 		with exc_to_result(result):
+# 			mysql = MySQLConnection()
+# 			with mysql.connection():
+# 				with mysql.session() as session:
+# 					session.execute("SELECT 1").fetchone()
+# 					result.message = "Connection to MySQL is working"
+# 					result.check_status = CheckStatus.OK
+# 		return result
 
 
 @dataclass()
@@ -68,9 +64,11 @@ class MysqlConfigurationCheck(Check):
 				with mysql.session() as session:
 					res = session.execute("SHOW VARIABLES LIKE 'max_allowed_packet'").fetchone()
 					max_allowed_packet = int(res[1]) if res else 0
-					if max_allowed_packet < 1048576:
+					if max_allowed_packet < MAX_ALLOWED_PACKET:
 						result.check_status = CheckStatus.ERROR
-						result.message = f"Configured max_allowed_packet={max_allowed_packet} is too small (should be at least 1048576)."
+						result.message = (
+							f"Configured max_allowed_packet={max_allowed_packet} is too small (should be at least {MAX_ALLOWED_PACKET})."
+						)
 		return result
 
 
@@ -94,6 +92,22 @@ class MysqlCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 
+		try:
+			mysql = MySQLConnection()
+			with mysql.connection():
+				with mysql.session() as session:
+					session.execute("SELECT 1").fetchone()
+					result.message = "No MySQL issues found."
+					result.check_status = CheckStatus.OK
+			self.add_partial_checks(MysqlConfigurationCheck())
+		except (OperationalError, MySQLdbOperationalError) as err:
+			# result.message = f"Could not connect to MySQL Server: {str(err)}"
+			error_str = str(err).split("\n", 1)[0]
+			match = re.search(r"\((\d+),\s+(\S.*)\)", error_str)
+			if match:
+				error_str = match.group(1) + " - " + match.group(2).strip("'").replace("\\'", "'")
+			result.message = f"Could not connect to MySQL Server: {error_str}"
+			result.check_status = CheckStatus.ERROR
 		return result
 
 
@@ -158,6 +172,5 @@ class UniqueHardwareAddressesCheck(Check):
 
 
 mysql_check = MysqlCheck()
-mysql_check.add_partial_checks(MysqlConnectionCheck(), MysqlConfigurationCheck())
 unique_hardware_addresses_check = UniqueHardwareAddressesCheck()
 check_manager.register(mysql_check, unique_hardware_addresses_check)

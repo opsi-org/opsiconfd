@@ -21,7 +21,7 @@ import socket
 import sys
 import threading
 import time
-from asyncio import Event, get_running_loop
+from asyncio import CancelledError, Event, Task, get_running_loop
 from concurrent.futures import ThreadPoolExecutor
 from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
@@ -219,6 +219,7 @@ class AsyncRedisLogAdapter:
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
 		self._should_stop = Event()
+		self._reader_task: Task | None = None
 		self._reader_stopped = asyncio.Event()
 		self._set_log_format_stderr()
 
@@ -230,6 +231,8 @@ class AsyncRedisLogAdapter:
 
 	async def stop(self) -> None:
 		self._should_stop.set()
+		if self._reader_task:
+			self._reader_task.cancel()
 		for file_log in self._file_logs.values():
 			await file_log.close()
 		await event_wait(self._reader_stopped, 5.0)
@@ -359,7 +362,7 @@ class AsyncRedisLogAdapter:
 		try:
 			redis = await async_redis_client(timeout=30, test_connection=True)
 			await redis.xtrim(name=self._redis_log_stream, maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
-			asyncio_create_task(self._reader(), self._loop)
+			self._reader_task = asyncio_create_task(self._reader(), self._loop)
 			asyncio_create_task(self._watch_log_files(), self._loop)
 
 		except Exception as err:
@@ -400,7 +403,7 @@ class AsyncRedisLogAdapter:
 
 			except (KeyboardInterrupt, SystemExit):
 				raise
-			except EOFError:
+			except (EOFError, CancelledError):
 				break
 			except (RedisConnectionError, RedisBusyLoadingError):
 				pass

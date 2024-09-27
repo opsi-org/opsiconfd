@@ -49,7 +49,7 @@ from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.config import config, get_configserver_id
+from opsiconfd.config import config, get_configserver_id, get_server_role
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
@@ -80,6 +80,10 @@ if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
 
 RE_USER_ID = re.compile("^[a-z-0-9_]$")
+
+configserver_id = ""
+if get_server_role() == "configserver":
+	configserver_id = get_configserver_id()
 
 
 @lru_cache
@@ -114,7 +118,6 @@ class MessagebusWebsocketStatistics:
 statistics = MessagebusWebsocketStatistics()
 messagebus_router = APIRouter()
 logger = get_logger("opsiconfd.messagebus")
-configserver_id = get_configserver_id()
 
 
 def messagebus_setup(_app: FastAPI) -> None:

@@ -377,7 +377,7 @@ class AsyncRedisLogAdapter:
 		while True:
 			try:
 				# It is also possible to specify multiple streams
-				data = await redis.xread(streams={self._redis_log_stream: last_id}, block=1000)
+				data = await redis.xread(streams={self._redis_log_stream: last_id}, block=3600_000)
 				if self._should_stop.is_set():
 					break
 				if not data:

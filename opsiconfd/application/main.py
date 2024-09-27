@@ -147,7 +147,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 
 				redis = await async_redis_client()
 				# It is also possible to specify multiple streams
-				data = await redis.xread(streams={stream_name: self._last_id}, block=1000)
+				data = await redis.xread(streams={stream_name: self._last_id}, block=3600_000)
 				if not data:
 					continue
 				message = message_header.copy()

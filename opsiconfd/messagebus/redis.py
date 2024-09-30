@@ -479,7 +479,7 @@ class MessageReader:
 								context = self._context_decoder.decode(context_data)
 							message_data = message[1].get(b"message")
 							if not message_data:
-								if not message[1].get(b"ignore"):
+								if b"ignore" not in message[1]:
 									logger.warning("Received malformed message from redis: %r", message)
 								continue
 							msg = Message.from_msgpack(message_data)

@@ -18,6 +18,7 @@ from threading import Event, Thread
 from unittest.mock import patch
 
 import pytest
+from opsicommon.logging import LOG_TRACE, use_logging_config
 
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
@@ -166,55 +167,58 @@ def test_create_backup(
 
 @pytest.mark.flaky(retries=2, delay=5)
 def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa: F811
-	initalized_event = Event()
-	thread = Thread(
-		target=asyncio.run,
-		args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
-		daemon=True,
-	)
-	thread.start()
-	try:
-		print("initalized_event =", initalized_event.wait(10))
-
-		database = "opsitestbackup"
-		mysql = MySQLConnection()
-		mysql.connect()
-		with mysql.session() as session:
-			session.execute(f"DROP DATABASE IF EXISTS {database}")
-
-		mysql.database = database
-		mysql.connect()
-
+	with use_logging_config(stderr_level=LOG_TRACE):
+		initalized_event = Event()
+		thread = Thread(
+			target=asyncio.run,
+			args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
+			daemon=True,
+		)
+		thread.start()
 		try:
-			restore_backup(Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False)
-		except Exception:
-			pprint.pprint(mysql.get_process_list())
-			raise
+			print("initalized_event =", initalized_event.wait(10))
 
-		with mysql.session() as session:
-			databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
-			assert database in databases
+			database = "opsitestbackup"
+			mysql = MySQLConnection()
+			mysql.connect()
+			with mysql.session() as session:
+				session.execute(f"DROP DATABASE IF EXISTS {database}")
 
-		backup = create_backup(config_files=False, redis_data=False)
+			mysql.database = database
+			mysql.connect()
 
-		with mysql.session() as session:
-			session.execute(f"DROP DATABASE {database}")
+			try:
+				restore_backup(
+					Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False
+				)
+			except Exception:
+				pprint.pprint(mysql.get_process_list())
+				raise
 
-		restore_backup(deepcopy(backup))
-		backup2 = create_backup(config_files=False, redis_data=False)
+			with mysql.session() as session:
+				databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
+				assert database in databases
 
-		assert sorted(list(backup["objects"])) == sorted(list(backup["objects"]))
-		for object_type in backup["objects"]:
-			assert backup["objects"][object_type] == backup2["objects"][object_type]
+			backup = create_backup(config_files=False, redis_data=False)
 
-		# Test truncate
-		for host in backup2["objects"]["Host"]:
-			# Max 256
-			host["description"] = "x" * 1000
+			with mysql.session() as session:
+				session.execute(f"DROP DATABASE {database}")
 
-		restore_backup(backup2)
+			restore_backup(deepcopy(backup))
+			backup2 = create_backup(config_files=False, redis_data=False)
 
-	finally:
-		app.set_app_state(NormalState())
-		app.stop_app_state_manager_task()
-		thread.join(5)
+			assert sorted(list(backup["objects"])) == sorted(list(backup["objects"]))
+			for object_type in backup["objects"]:
+				assert backup["objects"][object_type] == backup2["objects"][object_type]
+
+			# Test truncate
+			for host in backup2["objects"]["Host"]:
+				# Max 256
+				host["description"] = "x" * 1000
+
+			restore_backup(backup2)
+
+		finally:
+			app.set_app_state(NormalState())
+			app.stop_app_state_manager_task()
+			thread.join(5)

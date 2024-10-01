@@ -56,7 +56,7 @@ class RPCConfigStateMixin(Protocol):
 			configserver_id = get_configserver_id()
 			defaults = {c.id: c.defaultValues for c in self.config_getObjects(id=config_ids)}
 			res = {h: defaults.copy() for h in self.host_getIdents(returnType="str", id=object_ids)}
-			if client_ids:
+			if not object_ids or client_ids:
 				client_id_to_depot_id = {
 					ctd.objectId: (ctd.values or [None])[0]
 					for ctd in self._configState_getObjects(objectId=client_ids, configId="clientconfig.depot.id")

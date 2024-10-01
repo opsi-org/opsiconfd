@@ -1117,19 +1117,13 @@ def test_check_opsi_config_nagios(test_client: OpsiconfdTestClient) -> None:  # 
 
 def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client = OpsiClient(id="test-check-client-1.opsi.test")
-	client.setDefaults()
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
+	client1 = OpsiClient(id="test-check-client-1.opsi.test")
+	client2 = OpsiClient(id="test-check-client-2.opsi.test")
+	res = test_client.jsonrpc20("host_createObjects", [[client1.to_hash(), client2.to_hash()]])
 	assert "error" not in res
 
-	rpc = {
-		"id": 1,
-		"method": "host_getIdents",
-		"params": [],
-	}
-	res = test_client.post("/rpc", json=rpc)
-	hosts = res.json().get("result")
+	res = test_client.jsonrpc20("host_getIdents")
+	hosts = res.get("result")
 
 	# all host should be enabled
 	enabled_hosts = get_enabled_hosts()
@@ -1137,88 +1131,50 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 	# set downtime for client 1 for tomorrow and check if it is disabled
 	tomorrow = datetime.now() + timedelta(days=1)
-	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[tomorrow.isoformat()])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client1.id, values=[tomorrow.isoformat()])
+	res = test_client.jsonrpc20("configState_updateObjects", [[downtime.to_json()]])
 
 	enabled_hosts = get_enabled_hosts()
 	assert len(hosts) > len(enabled_hosts)
 
 	# set downtime for client 1 from yesterday to tomorrow and check if it is disabled
 	yesterday = datetime.now() - timedelta(days=1)
-	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[tomorrow.isoformat()])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client1.id, values=[tomorrow.isoformat()])
+	res = test_client.jsonrpc20("configState_updateObjects", [[downtime.to_json()]])
 
 	enabled_hosts = get_enabled_hosts()
 	assert len(hosts) > len(enabled_hosts)
 
 	# set downtime for client 1 from tomorrow to 2 days from now and check if it is enabled
 	two_days = datetime.now() + timedelta(days=2)
-	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[two_days.isoformat()])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
-	}
-	downtime = ConfigState(configId="opsi.check.downtime.start", objectId=client.id, values=[tomorrow.isoformat()])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	downtime = ConfigState(configId="opsi.check.downtime.start", objectId=client1.id, values=[tomorrow.isoformat()])
+	res = test_client.jsonrpc20("configState_updateObjects", [[downtime.to_json()]])
+
+	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client1.id, values=[two_days.isoformat()])
+	res = test_client.jsonrpc20("configState_updateObjects", [[downtime.to_json()]])
 
 	enabled_hosts = get_enabled_hosts()
 	assert len(hosts) == len(enabled_hosts)
 
-	rpc = {
-		"id": 1,
-		"method": "configState_delete",
-		"params": ["opsi.check.downtime.start", client.id],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res = test_client.jsonrpc20("configState_delete", ["opsi.check.downtime.end", client1.id])
 
 	# set downtime for client 1 for yesterday and check if it is enabled
-	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[yesterday.isoformat()])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[downtime.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client1.id, values=[yesterday.isoformat()])
+	res = test_client.jsonrpc20("configState_updateObjects", [[downtime.to_json()]])
 
 	enabled_hosts = get_enabled_hosts()
 	assert len(hosts) == len(enabled_hosts)
 
 	# set opsi.check.enabled to false for client 1 and check if it is disabled
-	disable = ConfigState(configId="opsi.check.enabled", objectId=client.id, values=[False])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[disable.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	disable = ConfigState(configId="opsi.check.enabled", objectId=client1.id, values=[False])
+	res = test_client.jsonrpc20("configState_updateObjects", [[disable.to_json()]])
 
 	enabled_hosts = get_enabled_hosts()
 	assert len(hosts) > len(enabled_hosts)
 
 	# set opsi.check.enabled to true for client 1 and check if it is enabled
-	enable = ConfigState(configId="opsi.check.enabled", objectId=client.id, values=[True])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[enable.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	enable = ConfigState(configId="opsi.check.enabled", objectId=client1.id, values=[True])
+	res = test_client.jsonrpc20("configState_updateObjects", [[enable.to_json()]])
 
 	enabled_hosts = get_enabled_hosts()
 	assert len(hosts) == len(enabled_hosts)
@@ -1227,40 +1183,15 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	# delete downtime and enable config for client 1
 	config_server = get_configserver_id()
 	disable_server = ConfigState(configId="opsi.check.enabled", objectId=config_server, values=[False])
-	rpc = {
-		"id": 1,
-		"method": "configState_updateObjects",
-		"params": [[disable_server.to_json()]],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
-	rpc = {
-		"id": 1,
-		"method": "configState_delete",
-		"params": ["opsi.check.enabled", client.id],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
-	rpc = {
-		"id": 1,
-		"method": "configState_delete",
-		"params": ["opsi.check.downtime.end", client.id],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
-	rpc = {
-		"id": 1,
-		"method": "configState_delete",
-		"params": ["opsi.check.downtime.start", client.id],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res = test_client.jsonrpc20("configState_updateObjects", [[disable_server.to_json()]])
+	res = test_client.jsonrpc20("configState_delete", ["opsi.check.enabled", client1.id])
+	res = test_client.jsonrpc20("configState_delete", ["opsi.check.downtime.end", client1.id])
+	res = test_client.jsonrpc20("configState_delete", ["opsi.check.downtime.start", client1.id])
 	enabled_hosts = get_enabled_hosts()
 	assert len(enabled_hosts) == 0
 
 	# delete config state for config server and check if all hosts are enabled
-	rpc = {
-		"id": 1,
-		"method": "configState_delete",
-		"params": ["opsi.check.enabled", config_server],
-	}
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res = test_client.jsonrpc20("configState_delete", ["opsi.check.enabled", config_server])
 	enabled_hosts = get_enabled_hosts()
 	assert hosts == enabled_hosts
 

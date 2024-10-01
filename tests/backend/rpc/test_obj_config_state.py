@@ -131,20 +131,25 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 	default_conf = _create_test_server_config(test_client, "test-backend-rpc-obj-config")
 
 	# Both clients should use config default values
-	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
-	print(res)
-	assert "error" not in res
-	for client in clients:
-		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
+	for object_ids in ([clients[0]["id"], clients[1]["id"]], []):
+		res = test_client.jsonrpc20(
+			method="configState_getValues",
+			params={"config_ids": "test-backend-rpc-obj-config", "object_ids": object_ids, "with_defaults": True},
+		)
+		print(res)
+		assert "error" not in res
+		for client in clients:
+			assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
 
 	# Test again with client permissions
 	for client in clients:
 		test_client.reset_cookies()
 		test_client.auth = (client["id"], client["opsiHostKey"])
 
-		params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": client["id"], "with_defaults": True}
-		res = test_client.jsonrpc20(method="configState_getValues", params=params)
+		res = test_client.jsonrpc20(
+			method="configState_getValues",
+			params={"config_ids": "test-backend-rpc-obj-config", "object_ids": client["id"], "with_defaults": True},
+		)
 		print(res)
 		assert "error" not in res
 		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
@@ -153,8 +158,10 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	# Depot should use config default values
-	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [depot["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	res = test_client.jsonrpc20(
+		method="configState_getValues",
+		params={"config_ids": "test-backend-rpc-obj-config", "object_ids": [depot["id"]], "with_defaults": True},
+	)
 	print(res)
 	assert "error" not in res
 	assert res["result"][depot["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
@@ -165,8 +172,10 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 	res = test_client.jsonrpc20(method="configState_getObjects", params=[[]])
 	print(res)
 
-	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	res = test_client.jsonrpc20(
+		method="configState_getValues",
+		params={"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True},
+	)
 	print(res)
 	assert "error" not in res
 	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == server_conf["values"]
@@ -182,8 +191,10 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 			else:
 				test_client.auth = (client["id"], client["opsiHostKey"])
 
-			params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": client["id"], "with_defaults": True}
-			res = test_client.jsonrpc20(method="configState_getValues", params=params)
+			res = test_client.jsonrpc20(
+				method="configState_getValues",
+				params={"config_ids": "test-backend-rpc-obj-config", "object_ids": client["id"], "with_defaults": True},
+			)
 			print(res)
 			assert "error" not in res
 			if client["id"] == clients[0]["id"]:
@@ -193,9 +204,12 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 
 	test_client.reset_cookies()
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
 	# Depot should still use the default value, because depots do not inherit config state from configserver
-	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [depot["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	res = test_client.jsonrpc20(
+		method="configState_getValues",
+		params={"config_ids": "test-backend-rpc-obj-config", "object_ids": [depot["id"]], "with_defaults": True},
+	)
 	print(res)
 	assert "error" not in res
 	assert res["result"][depot["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
@@ -204,15 +218,18 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 	depot_conf = _set_config_state(test_client, depot["id"], "test-backend-rpc-obj-config", ["acpi=off"])
 	default_conf2 = _create_test_server_config(test_client, "test-backend-rpc-obj-config2")
 
-	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	res = test_client.jsonrpc20(
+		method="configState_getValues",
+		params={"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True},
+	)
 	print(res)
 	assert "error" not in res
 	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == server_conf["values"]
 	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == depot_conf["values"]
 
-	params = {"config_ids": [], "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	res = test_client.jsonrpc20(
+		method="configState_getValues", params={"config_ids": [], "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
+	)
 	print(res)
 	assert "error" not in res
 	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == server_conf["values"]
@@ -229,12 +246,15 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 				test_client.auth = (ADMIN_USER, ADMIN_PASS)
 			else:
 				test_client.auth = (client["id"], client["opsiHostKey"])
-			params = {
-				"config_ids": ["test-backend-rpc-obj-config*"],
-				"object_ids": [clients[0]["id"], clients[1]["id"]],
-				"with_defaults": True,
-			}
-			res = test_client.jsonrpc20(method="configState_getValues", params=params)
+
+			res = test_client.jsonrpc20(
+				method="configState_getValues",
+				params={
+					"config_ids": ["test-backend-rpc-obj-config*"],
+					"object_ids": [clients[0]["id"], clients[1]["id"]],
+					"with_defaults": True,
+				},
+			)
 			print(res)
 			assert "error" not in res
 			if client["id"] == clients[0]["id"]:
@@ -267,8 +287,10 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 	print(res)
 	assert "error" not in res
 
-	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	res = test_client.jsonrpc20(
+		method="configState_getValues",
+		params={"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True},
+	)
 	print(res)
 	assert "error" not in res
 	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == client_conf2["values"]
@@ -279,8 +301,10 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 	print(res)
 	assert "error" not in res
 
-	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True}
-	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	res = test_client.jsonrpc20(
+		method="configState_getValues",
+		params={"config_ids": "test-backend-rpc-obj-config", "object_ids": [clients[0]["id"], clients[1]["id"]], "with_defaults": True},
+	)
 	print(res)
 	assert "error" not in res
 	for client in clients:

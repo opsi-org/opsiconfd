@@ -19,7 +19,11 @@ from opsiconfd.config import OPSICONFD_HOME, opsi_config
 from tests.test_addon_manager import cleanup  # noqa: F401
 from tests.utils import (  # noqa: F401
 	ACL_CONF_41,
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
 	get_config,
+	test_client,
 )
 from tests.utils import (
 	config as test_config,  # noqa: F401
@@ -116,3 +120,39 @@ def test_check_run_as_user() -> None:
 					partial_result.message == f"User 'opsiconfd' is not a member of group '{opsi_config.get('groups', 'fileadmingroup')}'."
 				)
 				assert partial_result.check_status == CheckStatus.ERROR
+
+
+def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [True]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_manager.get("opsi_config").run(use_cache=False)
+	print(result)
+	assert result.check_status == CheckStatus.OK
+	assert result.message == "No issues found in the opsi configuration."
+	assert len(result.partial_results) == 1
+	partial_result = result.partial_results[0]
+	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert is set to default."
+
+	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [False]]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_manager.get("opsi_config").run(use_cache=False)
+	assert result.check_status == CheckStatus.WARNING
+	assert result.message == "1 issue(s) found."
+	assert len(result.partial_results) == 1
+	partial_result = result.partial_results[0]
+	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert is set to [False] - default is [True]."
+
+	rpc = {"id": 1, "method": "config_delete", "params": ["opsiclientd.global.verify_server_cert"]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+
+	result = check_manager.get("opsi_config").run(use_cache=False)
+	assert result.check_status == CheckStatus.ERROR
+	assert result.message == "1 issue(s) found."
+	assert len(result.partial_results) == 1
+	partial_result = result.partial_results[0]
+	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert does not exist."

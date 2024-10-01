@@ -53,29 +53,26 @@ Checks the state of the opsi CA certificate
 			message="The opsi CA certificate is OK.",
 			check_status=CheckStatus.OK,
 		)
-		with exc_to_result(result):
-			try:
-				ca_cert = load_opsi_ca_cert()
-				not_after_days = get_not_before_and_not_after(ca_cert)[3] or 0
-				if not_after_days <= 0:
-					result.check_status = CheckStatus.ERROR
-					result.message = "The opsi CA certificate is expired."
-				else:
-					result.message = f"The opsi CA certificate is OK and will expire in {not_after_days} days."
-					if not_after_days <= config.ssl_ca_cert_renew_days - 1:
-						result.message = f"The opsi CA certificate is OK but will expire in {not_after_days} days."
-						result.check_status = CheckStatus.WARNING
-					else:
-						ca_subject = get_ca_subject()
-						current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
-						if ca_subject != current_ca_subject:
-							result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."
-							result.check_status = CheckStatus.WARNING
-			except Exception as err:
+		try:
+			ca_cert = load_opsi_ca_cert()
+			not_after_days = get_not_before_and_not_after(ca_cert)[3] or 0
+			if not_after_days <= 0:
 				result.check_status = CheckStatus.ERROR
-				result.message = f"A problem was found with the opsi CA certificate: {err}."
-				ca_cert = None
-
+				result.message = "The opsi CA certificate is expired."
+			else:
+				result.message = f"The opsi CA certificate is OK and will expire in {not_after_days} days."
+				if not_after_days <= config.ssl_ca_cert_renew_days - 1:
+					result.message = f"The opsi CA certificate is OK but will expire in {not_after_days} days."
+					result.check_status = CheckStatus.WARNING
+				else:
+					ca_subject = get_ca_subject()
+					current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
+					if ca_subject != current_ca_subject:
+						result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."
+						result.check_status = CheckStatus.WARNING
+		except Exception as err:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"A problem was found with the opsi CA certificate: {err}."
 		return result
 
 
@@ -97,15 +94,15 @@ Checks if the opsi CA is an intermediate CA.
 			check_status=CheckStatus.OK,
 			message="The opsi CA is not a intermediate CA.",
 		)
-
-		ca_cert = load_opsi_ca_cert()
-		if ca_cert and not opsi_ca_is_self_signed():
-			result.message = "The opsi CA is a functional intermediate CA."
-			try:
-				check_intermediate_ca(ca_cert)
-			except Exception as err:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"The opsi CA is an intermediate CA and a problem has been found: {err}"
+		with exc_to_result(result):
+			ca_cert = load_opsi_ca_cert()
+			if ca_cert and not opsi_ca_is_self_signed():
+				result.message = "The opsi CA is a functional intermediate CA."
+				try:
+					check_intermediate_ca(ca_cert)
+				except Exception as err:
+					result.check_status = CheckStatus.ERROR
+					result.message = f"The opsi CA is an intermediate CA and a problem has been found: {err}"
 
 		return result
 
@@ -238,6 +235,8 @@ Checks the state of the opsi CA and the server certificate.
 			message="No SSL issues found.",
 			check_status=CheckStatus.OK,
 		)
+		for partial_result in result.partial_results:
+			print(partial_result)
 		return result
 
 

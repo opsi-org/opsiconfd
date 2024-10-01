@@ -38,6 +38,7 @@ from opsiconfd.application import AppState
 from opsiconfd.application.memoryprofiler import memory_profiler_router
 from opsiconfd.application.metrics import create_grafana_datasource
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
+from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates
 from opsiconfd.grafana import (
@@ -311,16 +312,27 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 @admin_interface_router.get("/depots")
 @rest_api
 async def get_depot_list() -> RESTResponse:
-	return RESTResponse(
-		sorted(
-			[
-				{"id": d.id, "description": d.description, "opsiHostKey": d.opsiHostKey}
-				for d in get_unprotected_backend().host_getObjects(type="OpsiDepotserver")
-				if d.getType() != "OpsiConfigserver"
-			],
-			key=itemgetter("id"),
-		)
+	redis = redis_client()
+	backend = get_unprotected_backend()
+	depots = backend.host_getObjects(type="OpsiDepotserver")
+	max_slots = backend.get_max_transfer_slots(TransferSlotType.OPSICLIENTD_PRODUCT_SYNC, [d.id for d in depots])
+	slot_key = config.redis_key("slot")
+	depot_infos = sorted(
+		[
+			{
+				"id": depot.id,
+				"configserver": depot.getType() == "OpsiConfigserver",
+				"description": depot.description,
+				"opsiHostKey": depot.opsiHostKey,
+				"max_product_sync_transfer_slots": max_slots.get(depot.id, 0),
+				"used_product_sync_transfer_slots": len(list(redis.scan_iter(f"{slot_key}:{depot.id}:*", count=1000))),
+			}
+			for depot in depots
+			# if d.getType() != "OpsiConfigserver"
+		],
+		key=itemgetter("id"),
 	)
+	return RESTResponse(depot_infos)
 
 
 @admin_interface_router.post("/depot-create")

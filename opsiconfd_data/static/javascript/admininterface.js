@@ -921,18 +921,20 @@ function printDepotTable(data, htmlId) {
 			"<th class='host-th'>Description</th>" +
 			"<th class='host-th'>Opsi host key</th>" +
 			"<th class='host-th'>Messagebus</th>" +
+			"<th class='host-th'>Transfer slots</th>" +
 			"</tr>";
 		data.forEach(depot => {
-			let connected = messagebusConnectedDepots.includes(depot.id);
-			let cls = "host-" + (connected ? "connected" : "not-connected");
+			const connected = depot.configserver || messagebusConnectedDepots.includes(depot.id);
+			const cls = "host-" + (connected ? "connected" : "not-connected");
 			htmlStr += "<tr>";
 			htmlStr += "<td class=\"host-td\">" + depot.id + "</td>";
 			htmlStr += "<td class=\"host-td\">" + depot.description + "</td>";
 			htmlStr += "<td class=\"host-td\" style=\"cursor: pointer; text-security: disc; -webkit-text-security: disc;\"";
 			htmlStr += " onclick = 'toggleTextSecurityVisibility(this)' > " + depot.opsiHostKey + "</td > ";
-			htmlStr += `<td id="depot-messagebus-state-${depot.id}" data-depot-id="${depot.id}" class="host-td ${cls}">`
+			htmlStr += `<td id="depot-messagebus-state-${depot.id}" data-depot-id="${depot.id}" data-configserver="${depot.configserver}" class="host-td ${cls}">`
 			htmlStr += connected ? 'connected' : 'not connected';
 			htmlStr += "</td >";
+			htmlStr += `<td class=\"host-td\">${depot.used_product_sync_transfer_slots}/${depot.max_product_sync_transfer_slots}</td>`;
 			htmlStr += "</tr>";
 		});
 		htmlStr += "</table>";
@@ -1469,10 +1471,9 @@ function getMessagebusConnectedClients(callback) {
 }
 
 function updateMessagebusConnectedHosts() {
-	const depots = document.getElementById("messagebus-connected-depots");
-	let states = document.querySelectorAll('[id^="depot-messagebus-state-"]');
+	let states = document.querySelectorAll('[id^="depot-messagebus-state-"][data-configserver="false"]');
 	states.forEach(element => {
-		let connected = messagebusConnectedDepots.includes(element.dataset.depotId);
+		const connected = messagebusConnectedDepots.includes(element.dataset.depotId);
 		element.innerHTML = connected ? 'connected' : 'not connected';
 		if (connected) {
 			element.classList.remove("host-not-connected");

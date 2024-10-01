@@ -425,6 +425,27 @@ class RPCDepotserverMixin(Protocol):
 			os.chown(zsyncFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(zsyncFilename, 0o660)
 
+	def get_max_transfer_slots(self: BackendProtocol, slot_type: TransferSlotType, depot_ids: list[str] | None) -> dict[str, int]:
+		depot_ids = depot_ids or self.host_getIdents(type="OpsiDepotserver")
+		result = {}
+		slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
+		slot_config = self.configState_getValues(config_ids=slot_config_name, object_ids=depot_ids)
+		for depot_id in depot_ids:
+			result[depot_id] = TRANSFER_SLOT_MAX
+			val = slot_config.get(depot_id, {}).get(slot_config_name)
+			if val:
+				try:
+					val = val[0]
+					result[depot_id] = int(val)
+				except ValueError:
+					logger.warning(
+						"Invalid value '%s' for config '%s' and depot '%s', using default value",
+						val,
+						slot_config_name,
+						depot_id,
+					)
+		return result
+
 	@rpc_method(check_acl=False)
 	def depot_acquireTransferSlot(
 		self: BackendProtocol,
@@ -463,18 +484,7 @@ class RPCDepotserverMixin(Protocol):
 					redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
 					return slot
 
-			max_slots = TRANSFER_SLOT_MAX
-			slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
-			slot_config = self.configState_getValues(slot_config_name, depot).get(depot, {}).get(slot_config_name)
-			if slot_config:
-				try:
-					max_slots = int(slot_config[0])
-				except ValueError:
-					logger.warning(
-						"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
-						slot_config_name,
-						TRANSFER_SLOT_MAX,
-					)
+			max_slots = self.get_max_transfer_slots(slot_type, [depot])[depot]
 
 			redis = redis_client()
 			depot_slots = len(
@@ -526,7 +536,7 @@ class RPCDepotserverMixin(Protocol):
 
 		Args:
 		        self (BackendProtocol): The backend protocol object.
-		        depot (str): The depot for which to release the transfer slot.
+		        depot (str): The depot for which to get the transfer slot info.
 		Returns:
 		        list[TransferSlot]
 		"""

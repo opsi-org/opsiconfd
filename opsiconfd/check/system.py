@@ -22,11 +22,13 @@ from opsicommon.system.info import (
 	linux_distro_id_like_contains,
 	linux_distro_version_id,
 )
+from opsicommon.utils import compare_versions
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 
 from opsiconfd import __version__
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
 from opsiconfd.logging import logger
 
@@ -266,6 +268,7 @@ After the end-of-life date, it issues an error.
 		return result
 
 
+# Check with partial results but no partial check
 @dataclass()
 class SystemPackagesCheck(Check):
 	id: str = "system_packages"
@@ -284,9 +287,6 @@ The check is carried out against the stable repository of uib
 Older versions are considered a warning and if one of the packages is not installed, an error is issued.
 """
 
-	def __post_init__(self) -> None:
-		super().__post_init__()
-
 	def check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
@@ -294,6 +294,7 @@ Older versions are considered a warning and if one of the packages is not instal
 			message="All packages are up to date.",
 		)
 		with exc_to_result(result):
+			opsipxeconfd_control_enabled = get_unprotected_backend()._opsipxeconfd_control_enabled
 			repo_versions = get_repo_versions()
 			installed_versions: dict[str, str] = {}
 			try:
@@ -306,6 +307,42 @@ Older versions are considered a warning and if one of the packages is not instal
 				return result
 
 			logger.info("Installed packages: %s", installed_versions)
+
+			not_installed = 0
+			outdated = 0
+			for package, available_version in repo_versions.items():
+				details = {
+					"package": package,
+					"available_version": available_version,
+					"version": installed_versions.get(package),
+					"outdated": False,
+				}
+				partial_result = CheckResult(check=self, details=details)
+				if not details["version"]:
+					if package == "opsipxeconfd" and not opsipxeconfd_control_enabled:
+						partial_result.check_status = CheckStatus.OK
+						partial_result.message = f"Package {package!r} is not installed and opsipxeconfd control is disabled."
+					else:
+						partial_result.check_status = CheckStatus.ERROR
+						partial_result.message = f"Package {package!r} is not installed."
+						partial_result.upgrade_issue = __version__
+					not_installed = not_installed + 1
+				elif compare_versions(available_version or "0", ">", details["version"]):  # type: ignore[arg-type]
+					outdated = outdated + 1
+					partial_result.check_status = CheckStatus.WARNING
+					partial_result.message = (
+						f"Package {package!r} is out of date. "
+						f"Installed version {details['version']!r} < available version {available_version!r}"
+					)
+					details["outdated"] = True
+				else:
+					partial_result.check_status = CheckStatus.OK
+					partial_result.message = f"Package {package!r} is up to date. Installed version: {details['version']!r}"
+				result.add_partial_result(partial_result)
+
+			result.details = {"packages": len(repo_versions.keys()), "not_installed": not_installed, "outdated": outdated}
+			if not_installed > 0 or outdated > 0:
+				result.message = f"Out of {len(repo_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of date."
 
 		return result
 
@@ -479,4 +516,5 @@ Check if the system repositories are compatible with opsi repositories.
 system_eol_check = SystemEOLCheck()
 disk_usage_check = DiskUsageCheck()
 system_repositories_check = SystemRepositoriesCheck()
-check_manager.register(system_eol_check, disk_usage_check, system_repositories_check)
+system_packages_check = SystemPackagesCheck()
+check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)

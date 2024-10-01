@@ -677,6 +677,17 @@ def create_database(mysql: MySQLConnection) -> None:
 
 def drop_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
+		# Kill all connections to the database to remove all locks
+		our_id = session.connection().connection.thread_id()
+		for row in session.execute(
+			"SELECT `ID` FROM `INFORMATION_SCHEMA`.`PROCESSLIST` WHERE `DB` = :database",
+			params={"database": mysql.database},
+		).fetchall():
+			row_dict = dict(row)
+			if row_dict["ID"] != our_id:
+				logger.info("Killing MySQL process %r", row_dict["ID"])
+				session.execute(f"KILL {row_dict['ID']}")
+
 		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 
 
@@ -750,7 +761,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		logger.info("Running opsi 4.3 updates")
 
 		for row in session.execute(
-			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM	`INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
+			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM `INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
 			params={"database": mysql.database},
 		).fetchall():
 			row_dict = dict(row)

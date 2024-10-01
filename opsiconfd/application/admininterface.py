@@ -315,7 +315,7 @@ async def get_depot_list() -> RESTResponse:
 	redis = redis_client()
 	backend = get_unprotected_backend()
 	depots = backend.host_getObjects(type="OpsiDepotserver")
-	max_slots = backend.get_max_transfer_slots(TransferSlotType.OPSICLIENTD_PRODUCT_SYNC, [d.id for d in depots])
+	max_slots = backend.get_max_transfer_slots(TransferSlotType.OPSICLIENTD_PRODUCT_SYNC, [d.id for d in depots])  # type: ignore[misc]
 	slot_key = config.redis_key("slot")
 	depot_infos = sorted(
 		[

@@ -44,33 +44,39 @@ class RPCConfigStateMixin(Protocol):
 		with_defaults: bool = True,
 	) -> dict[str, dict[str, list[Any]]]:
 		config_ids = forceUnicodeList(config_ids or [])
+		# object_ids can contain depot IDs!
 		object_ids = forceObjectIdList(object_ids or [])
 		if client_id := self._get_client_id():
 			object_ids = [client_id]
 
 		res: dict[str, dict[str, list[Any]]] = {}
 		if with_defaults:
+			all_depot_ids = self.host_getIdents(returnType="str", type="OpsiDepotserver")
+			client_ids = [object_id for object_id in object_ids if object_id not in all_depot_ids]
 			configserver_id = get_configserver_id()
 			defaults = {c.id: c.defaultValues for c in self.config_getObjects(id=config_ids)}
 			res = {h: defaults.copy() for h in self.host_getIdents(returnType="str", id=object_ids)}
-			client_id_to_depot_id = {
-				ctd.objectId: (ctd.values or [None])[0]
-				for ctd in self._configState_getObjects(objectId=object_ids, configId="clientconfig.depot.id")
-			}
-			depot_values: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
-			depot_ids = list(set(client_id_to_depot_id.values()))
-			depot_ids.append(configserver_id)
-			if depot_ids:
-				for config_state in self._configState_getObjects(configId=config_ids, objectId=depot_ids):
-					depot_values[config_state.objectId][config_state.configId] = config_state.values or []
-			for host_id in self.host_getIdents(returnType="str", id=object_ids):
-				depot_id = client_id_to_depot_id.get(host_id)
-				if depot_id and depot_id in depot_values:
-					for cid, value in depot_values[depot_id].items():
-						res[host_id][cid] = value
-				elif not depot_id and configserver_id in depot_values:
-					for cid, value in depot_values[configserver_id].items():
-						res[host_id][cid] = value
+			if client_ids:
+				client_id_to_depot_id = {
+					ctd.objectId: (ctd.values or [None])[0]
+					for ctd in self._configState_getObjects(objectId=client_ids, configId="clientconfig.depot.id")
+				}
+				depot_values: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
+				depot_ids = list(set(client_id_to_depot_id.values()))
+				depot_ids.append(configserver_id)
+				if depot_ids:
+					for config_state in self._configState_getObjects(configId=config_ids, objectId=depot_ids):
+						depot_values[config_state.objectId][config_state.configId] = config_state.values or []
+
+				for host_id in self.host_getIdents(returnType="str", id=client_ids):
+					depot_id = client_id_to_depot_id.get(host_id)
+					if depot_id and depot_id in depot_values:
+						for cid, value in depot_values[depot_id].items():
+							res[host_id][cid] = value
+					elif not depot_id and configserver_id in depot_values:
+						for cid, value in depot_values[configserver_id].items():
+							res[host_id][cid] = value
+
 		for config_state in self._configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}

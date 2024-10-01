@@ -149,9 +149,17 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 		assert "error" not in res
 		assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
 
-	# Set config state on configserver, client 1 should use this value, client 2 should still use the default value
 	test_client.reset_cookies()
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	# Depot should use config default values
+	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [depot["id"]], "with_defaults": True}
+	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	print(res)
+	assert "error" not in res
+	assert res["result"][depot["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
+
+	# Set config state on configserver, client 1 should use this value, client 2 should still use the default value
 	server_conf = _set_config_state(test_client, get_configserver_id(), "test-backend-rpc-obj-config", ["acpi=on"])
 
 	res = test_client.jsonrpc20(method="configState_getObjects", params=[[]])
@@ -183,9 +191,16 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 			else:
 				assert res["result"][client["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
 
-	# Set config state on depot, client 2 should use this config value
 	test_client.reset_cookies()
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	# Depot should still use the default value, because depots do not inherit config state from configserver
+	params = {"config_ids": "test-backend-rpc-obj-config", "object_ids": [depot["id"]], "with_defaults": True}
+	res = test_client.jsonrpc20(method="configState_getValues", params=params)
+	print(res)
+	assert "error" not in res
+	assert res["result"][depot["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
+
+	# Set config state on depot, client 2 should use this config value
 	depot_conf = _set_config_state(test_client, depot["id"], "test-backend-rpc-obj-config", ["acpi=off"])
 	default_conf2 = _create_test_server_config(test_client, "test-backend-rpc-obj-config2")
 

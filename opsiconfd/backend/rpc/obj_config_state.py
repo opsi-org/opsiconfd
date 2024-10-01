@@ -106,6 +106,12 @@ class RPCConfigStateMixin(Protocol):
 	def configState_createObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_createObjects")
 		configStates = forceObjectClassList(configStates, ConfigState)
+		newConfigStates = [configState for configState in configStates if configState.values != [None]]
+		if len(newConfigStates) != len(configStates):
+			logger.warning("Removed %d [null] values from configStates", len(configStates) - len(newConfigStates))
+		configStates = newConfigStates
+		if not configStates:
+			return
 		with self._mysql.session() as session:
 			for config_state in configStates:
 				config_state = forceObjectClass(config_state, ConfigState)
@@ -121,6 +127,12 @@ class RPCConfigStateMixin(Protocol):
 	def configState_updateObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObjects")
 		configStates = forceObjectClassList(configStates, ConfigState)
+		newConfigStates = [configState for configState in configStates if configState.values != [None]]
+		if len(newConfigStates) != len(configStates):
+			logger.warning("Removed %d [null] values from configStates", len(configStates) - len(newConfigStates))
+		configStates = newConfigStates
+		if not configStates:
+			return
 		with self._mysql.session() as session:
 			for config_state in configStates:
 				config_state = forceObjectClass(config_state, ConfigState)

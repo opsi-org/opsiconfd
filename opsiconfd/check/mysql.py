@@ -13,7 +13,7 @@
 import re
 from dataclasses import dataclass
 
-from MySQLdb import OperationalError as MySQLdbOperationalError
+from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import-untyped]
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection

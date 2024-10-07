@@ -114,6 +114,7 @@ class OpsiProductOnDepotCheck(Check):
 			if self.product_id not in installed_products:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Mandatory product {self.product_id!r} is not installed on depot {self.depot_id!r}."
+				result.upgrade_issue = "4.3"
 				return result
 
 			product_on_depot = backend.productOnDepot_getObjects(productId=self.product_id, depotId=self.depot_id)[0]

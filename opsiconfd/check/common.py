@@ -103,6 +103,8 @@ class Check:
 			result.add_partial_result(partial_result)
 			if partial_result.check_status != CheckStatus.OK:
 				issue_counter += 1
+				if partial_result.upgrade_issue:
+					result.upgrade_issue = partial_result.upgrade_issue
 
 		if issue_counter > 0:
 			result.message = f"{issue_counter} issue(s) found."

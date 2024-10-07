@@ -144,7 +144,10 @@ def console_health_check() -> int:
 	if config.format == "json":
 		json_result = get_json_result(health_check())
 		console.print_json(json.dumps(json_result, cls=DataclassCapableJSONEncoder, indent=2))
-		return json_result.get("check_status", CheckStatus.ERROR).return_code()  # type: ignore[union-attr]
+		status = json_result.get("check_status", CheckStatus.ERROR)
+		if isinstance(status, str):
+			status = CheckStatus(status)
+		return status.return_code()  # type: ignore[union-attr]
 
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):

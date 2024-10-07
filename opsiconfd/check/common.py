@@ -185,6 +185,10 @@ class CheckResult:
 	details: dict[str, Any] = field(default_factory=dict)
 	upgrade_issue: str | None = None  # version str
 
+	def __post_init__(self) -> None:
+		if isinstance(self.check_status, str):
+			self.check_status = CheckStatus(self.check_status)
+
 	partial_results: list[CheckResult] = field(default_factory=list)
 
 	def add_partial_result(self, partial_result: CheckResult) -> None:
@@ -246,7 +250,7 @@ def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
 	json_result["check_status"] = CheckStatus.OK
 	for result in results:
 		json_result[result.check.id] = result
-		if result.check_status.return_code() > json_result["check_status"].return_code():
+		if CheckStatus(result.check_status).return_code() > CheckStatus(json_result["check_status"]).return_code():
 			json_result["check_status"] = result.check_status
 		summary[result.check_status] += 1
 	json_result["summary"] = summary  # type: ignore

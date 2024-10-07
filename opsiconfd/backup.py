@@ -29,6 +29,7 @@ from opsiconfd.backend.mysql.schema import (
 	update_database,
 )
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
+from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import (
 	FQDN,
 	OPSI_LICENSE_DIR,
@@ -42,7 +43,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_lock, restore, redis_client
+from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_client, redis_lock, restore
 from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
@@ -131,6 +132,7 @@ def get_config_files() -> dict[str, Path]:
 	return config_files
 
 
+@clear_check_cache(check_id="opsi_backup")
 def create_backup(
 	backup_file: Path | None = None,
 	*,
@@ -263,7 +265,6 @@ def create_backup(
 
 		redis = redis_client()
 		redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60 * 60, value=now.timestamp())
-
 
 		return data
 

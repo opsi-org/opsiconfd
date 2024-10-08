@@ -1202,7 +1202,7 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				("opsiconfd", "health-check"),
-				"A list of checks to perform. If not set, all checks are executed. " f"(checks: all, { ', '.join(CHECKS) }).",
+				"A list of checks to perform. If not set, all checks are executed.",
 			),
 			choices=CHECKS,
 		)
@@ -1214,7 +1214,7 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				("opsiconfd", "health-check"),
-				f"A list of checks to skip (checks: { ', '.join(CHECKS) }).",
+				"A list of checks to skip.",
 			),
 			choices=CHECKS,
 		)
@@ -1657,6 +1657,11 @@ class Config(metaclass=Singleton):
 				"--docs",
 				action="store_true",
 				help=self._help("health-check", "Outputs a description of each check on the console."),
+			)
+			self._parser.add(
+				"--list",
+				action="store_true",
+				help=self._help("health-check", "List all available checks."),
 			)
 
 		if self._sub_command == "diagnostic-data":

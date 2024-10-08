@@ -24,7 +24,7 @@ from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
-from opsiconfd.config import get_server_role
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.redis import redis_client
 from opsiconfd.utils import Singleton
@@ -156,8 +156,13 @@ class CheckManager(metaclass=Singleton):
 		for check in checks:
 			if role == "depotserver" and not check.depot_check:
 				continue
+			if (
+				(config.checks and check.id not in config.checks)
+				or (config.skip_checks and check.id in config.skip_checks)
+				and config.list is False
+			):
+				continue
 			self._checks[check.id] = check
-		self._checks[check.id] = check
 
 	def get(self, check_id: str) -> Check:
 		return self._checks[check_id]

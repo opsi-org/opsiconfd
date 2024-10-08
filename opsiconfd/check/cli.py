@@ -136,9 +136,16 @@ def console_health_check() -> int:
 
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
+		register_checks()
 		if config.documentation:
-			register_checks()
 			print_health_check_manual(console=console)
+			return 0
+		elif config.list:
+			console.print("Available checks:")
+			console.print("")
+			console.print("[bold]Check Name - Check ID[/bold]")
+			for check in CheckManager():
+				console.print(f"➔ [bold]{check.name}[/bold]: {check.id}")
 			return 0
 		for result in health_check():
 			summary[result.check_status] += 1

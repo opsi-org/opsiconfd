@@ -71,10 +71,6 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 		if check_version and (not pres.upgrade_issue or compare_versions(pres.upgrade_issue, ">", check_version)):
 			continue
 		partial_results.append(pres)
-		if summary:
-			summary[pres.check_status] += 1
-	if not result.partial_results and summary:
-		summary[result.check_status] += 1
 
 	if check_version:
 		if partial_results:
@@ -96,9 +92,6 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 	if status == CheckStatus.OK and not detailed:
 		console.print("")
 		return
-	# if result.upgrade_issue:
-	# 	console.print("")
-	# 	console_print_message(result, console, 3)
 	if partial_results:
 		console.print("")
 	for partial_result in partial_results:

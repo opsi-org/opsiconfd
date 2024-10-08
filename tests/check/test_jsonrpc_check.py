@@ -18,6 +18,7 @@ from rich.console import Console
 
 from opsiconfd.check.cli import process_check_result
 from opsiconfd.check.common import CheckStatus, check_manager
+from opsiconfd.check.jsonrpc import deprecated_calls_check
 from opsiconfd.config import config
 from opsiconfd.redis import redis_client
 from tests.test_addon_manager import cleanup  # noqa: F401
@@ -35,7 +36,7 @@ DEPRECATED_METHOD = "getClientIds_list"
 
 
 def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	import opsiconfd.check.jsonrpc  # noqa: F401
+	check_manager.register(deprecated_calls_check)
 
 	sync_clean_redis()
 	console = Console(log_time=False, force_terminal=False, width=1000)

@@ -18,7 +18,7 @@ from opsiconfd.config import config
 from opsiconfd.ssl import (
 	create_ca,
 	create_local_server_cert,
-	get_ca_subject,
+	get_opsi_ca_subject,
 	store_local_server_cert,
 	store_local_server_key,
 	store_opsi_ca_cert,
@@ -58,7 +58,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		assert result.partial_results[3].message.startswith("A problem was found with the server certificate")
 		assert result.partial_results[4].message.startswith("A problem was found with the server key")
 
-		ca_subject = get_ca_subject()
+		ca_subject = get_opsi_ca_subject()
 
 		(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=config.ssl_ca_cert_valid_days + 10)
 		store_opsi_ca_key(ca_key)

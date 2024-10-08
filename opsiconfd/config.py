@@ -33,7 +33,6 @@ from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
-from opsiconfd.check.const import CHECKS
 from opsiconfd.utils import lock_file
 
 from .utils import Singleton, is_manager, is_opsiconfd, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
@@ -1204,7 +1203,6 @@ class Config(metaclass=Singleton):
 				("opsiconfd", "health-check"),
 				"A list of checks to perform. If not set, all checks are executed.",
 			),
-			choices=CHECKS,
 		)
 
 		self._parser.add(
@@ -1216,7 +1214,11 @@ class Config(metaclass=Singleton):
 				("opsiconfd", "health-check"),
 				"A list of checks to skip.",
 			),
-			choices=CHECKS,
+		)
+		self._parser.add(
+			"--list",
+			action="store_true",
+			help=self._help("health-check", "List all available checks."),
 		)
 		self._parser.add(
 			"--format",
@@ -1657,11 +1659,6 @@ class Config(metaclass=Singleton):
 				"--docs",
 				action="store_true",
 				help=self._help("health-check", "Outputs a description of each check on the console."),
-			)
-			self._parser.add(
-				"--list",
-				action="store_true",
-				help=self._help("health-check", "List all available checks."),
 			)
 
 		if self._sub_command == "diagnostic-data":

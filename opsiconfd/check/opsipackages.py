@@ -36,6 +36,7 @@ from opsicommon.utils import compare_versions, prepare_proxy_environment
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+from opsiconfd.logging import logger
 
 OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
 OPSI_REPO_FILE = f"https://{OPSI_PACKAGES_HOST}/stable/packages.msgpack.zstd"
@@ -109,19 +110,18 @@ class OpsiProductOnDepotCheck(Check):
 		)
 		with exc_to_result(result):
 			backend = get_unprotected_backend()
-			installed_products = [p.id for p in backend.product_getObjects()]
+			product_on_depot = [p.id for p in backend.productOnDepot_getObjects(productId=self.product_id, depotId=self.depot_id)][0]
 
-			if self.product_id not in installed_products:
+			if self.product_id not in product_on_depot:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Mandatory product {self.product_id!r} is not installed on depot {self.depot_id!r}."
 				result.upgrade_issue = "4.3"
 				return result
 
-			product_on_depot = backend.productOnDepot_getObjects(productId=self.product_id, depotId=self.depot_id)[0]
 			product_version_on_depot = f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"
 			if compare_versions(self.available_version, ">", product_version_on_depot):
 				if self.product_id in MANDATORY_OPSI_PRODUCTS or (
-					self.product_id in installed_products and self.product_id in MANDATORY_IF_INSTALLED
+					self.product_id in product_on_depot and self.product_id in MANDATORY_IF_INSTALLED
 				):
 					result.check_status = CheckStatus.ERROR
 					result.message = (
@@ -172,27 +172,97 @@ class OpsiProductsOnDepotsCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		with exc_to_result(result):
+			result.message = "All important products are up to date on all depots."
+
 			backend = get_unprotected_backend()
 			installed_products = [p.id for p in backend.product_getObjects()]
+
+			not_installed = 0
+			outdated = 0
 			try:
 				available_packages = get_available_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
 			except requests.RequestException as err:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 				return result
+
 			depots = backend.host_getIdents(type="OpsiDepotserver")
+			packages_not_on_repo = []
+
 			enabled_hosts = get_enabled_hosts()
 			for depot_id in depots:
 				if depot_id not in enabled_hosts:
 					continue
 				for product_id, available_version in available_packages.items():
-					check = OpsiProductOnDepotCheck(
-						depot_id=depot_id,
-						product_id=product_id,
-						available_version=available_version,
+					partial_result = CheckResult(
+						check=self,
+						details={"depot_id": depot_id, "product_id": product_id},
 					)
-					self.add_partial_checks(check)
+					try:
+						product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[0]
+					except IndexError:
+						if product_id not in MANDATORY_OPSI_PRODUCTS:
+							continue
+						not_installed = not_installed + 1
+						partial_result.check_status = CheckStatus.ERROR
+						partial_result.message = f"Mandatory product {product_id!r} is not installed on depot {depot_id!r}."
+						partial_result.upgrade_issue = "4.3"
+						result.add_partial_result(partial_result)
+						continue
 
+					product_version_on_depot = f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"
+					partial_result.details["version"] = product_version_on_depot
+					partial_result.details["available_version"] = available_version
+
+					if compare_versions(available_version, ">", product_version_on_depot):
+						outdated = outdated + 1
+						if product_id in MANDATORY_OPSI_PRODUCTS or (
+							product_id in installed_products and product_id in MANDATORY_IF_INSTALLED
+						):
+							partial_result.check_status = CheckStatus.ERROR
+							partial_result.message = (
+								f"Mandatory product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
+								f" < available version {available_version!r}."
+							)
+							partial_result.upgrade_issue = "4.3"
+						else:
+							partial_result.check_status = CheckStatus.WARNING
+							partial_result.message = (
+								f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
+								f" < available version {available_version!r}."
+							)
+					elif available_version == "0.0":
+						logger.info("Could not find product %r on repository %s.", product_id, OPSI_REPO_FILE)
+						logger.info("Removing product %r from checked list.", product_id)
+						packages_not_on_repo.append(product_id)
+						continue
+					else:
+						partial_result.check_status = CheckStatus.OK
+						partial_result.message = (
+							f"Installed version of product {product_id!r} on depot {depot_id!r} is {product_version_on_depot!r}."
+						)
+
+					if product_on_depot.productType == "NetbootProduct" and compare_versions(
+						available_version, ">", product_version_on_depot
+					):
+						partial_result.upgrade_issue = "4.3"
+
+					result.add_partial_result(partial_result)
+
+			for package in packages_not_on_repo:
+				if package in available_packages:
+					del available_packages[package]
+			result.details = {
+				"products": len(available_packages),
+				"depots": len(depots),
+				"not_installed": not_installed,
+				"outdated": outdated,
+			}
+			if not_installed > 0 or outdated > 0:
+				result.message = (
+					f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
+					f"{not_installed} mandatory products are not installed, {outdated} are out of date."
+				)
 		return result
 
 
@@ -270,6 +340,7 @@ class OpsiProductsOnClientsCheck(Check):
 			}
 			if not client_ids:
 				return result
+
 			for depot in depots:
 				if depot.id not in get_enabled_hosts():
 					continue
@@ -298,6 +369,7 @@ class OpsiProductsOnClientsCheck(Check):
 							product_id=product_id,
 							available_version=available_version,
 						)
+						client_ids.remove(product_on_client.clientId)
 
 						self.add_partial_checks(check)
 		return result

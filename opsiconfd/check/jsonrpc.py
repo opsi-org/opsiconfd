@@ -98,16 +98,15 @@ The message also states which client agent called the API method.
 			message="No deprecated method calls found.",
 			check_status=CheckStatus.OK,
 		)
+		redis = redis_client(timeout=5)
+		redis_prefix_stats = config.redis_key("stats")
+		methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
+		for method_name in methods:
+			method_name = method_name.decode("utf-8")
+			deprecated_calls_check.add_partial_checks(DeprecatedClassCheck(method=method_name))
 
 		return result
 
 
 deprecated_calls_check = DeprecatedCallsCheck()
-
-redis = redis_client(timeout=5)
-redis_prefix_stats = config.redis_key("stats")
-methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
-for method_name in methods:
-	method_name = method_name.decode("utf-8")
-	deprecated_calls_check.add_partial_checks(DeprecatedClassCheck(method=method_name))
 check_manager.register(deprecated_calls_check)

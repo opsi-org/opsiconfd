@@ -98,7 +98,10 @@ def new_service_client(user_agent: str = "opsiconfd") -> ServiceClient:
 
 
 def get_service_client(name: str = "", register_messagebus_listener: MessagebusListener | None = None) -> ServiceClient:
+	if config.shared_service_connection:
+		name = ""
 	with service_clients_lock:
+		first_connection = not service_clients
 		if name not in service_clients:
 			from opsiconfd.worker import Worker
 
@@ -118,6 +121,8 @@ def get_service_client(name: str = "", register_messagebus_listener: MessagebusL
 			service_client.messagebus.reconnect_wait_min = 15
 			service_client.messagebus.reconnect_wait_max = 30
 			service_client.connect()
+			if first_connection:
+				service_client.fetch_ca_certs(force_write_ca_cert_file=True)
 			service_client.connect_messagebus()
 			service_clients[name] = service_client
 		elif register_messagebus_listener:

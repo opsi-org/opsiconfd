@@ -175,7 +175,6 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 		proc.test_input = {}
 		with patch("opsiconfd.utils.user.is_ucs", lambda: True):
 			with patch("opsiconfd.utils.user.get_server_role", lambda: "domaincontroller_prim"):
-
 				proc.test_output["univention-admin users/user list --filter (uid=pcpatch)"] = "DN: cn=pcpatch,dc=x,dc=y"
 				backend.user_setCredentials("pcpatch", "password")
 				cmds = list(proc.test_input)

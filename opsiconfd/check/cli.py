@@ -63,13 +63,7 @@ def console_print_message(check_result: CheckResult, console: Console, indent: i
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 
 
-def process_check_result(
-	result: CheckResult,
-	console: Console,
-	check_version: str | None = None,
-	detailed: bool = False,
-	summary: dict[CheckStatus, int] | None = None,
-) -> None:
+def process_check_result(result: CheckResult, console: Console, check_version: str | None = None, detailed: bool = False) -> None:
 	status = result.check_status
 	message = result.message
 	partial_results = []
@@ -89,8 +83,6 @@ def process_check_result(
 		elif result.upgrade_issue and compare_versions(result.upgrade_issue, "<=", check_version):
 			status = CheckStatus.ERROR
 			message = "1 upgrade issue"
-			if summary:
-				summary[result.check_status] += 1
 		else:
 			status = CheckStatus.OK
 			message = "No upgrade issues"
@@ -134,9 +126,9 @@ def console_health_check() -> int:
 		check_cache_clear("all")
 
 	if config.format == "checkmk":
-		for check in health_check():
-			summary[check.check_status] += 1
-			print(check.to_checkmk())
+		for result in health_check():
+			summary[result.check_status] += 1
+			print(result.to_checkmk())
 		return overall_check_status(summary).return_code()
 
 	console = Console(log_time=False)
@@ -156,7 +148,8 @@ def console_health_check() -> int:
 			print_health_check_manual(console=console)
 			return 0
 		for result in health_check():
-			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed, summary=summary)
+			summary[result.check_status] += 1
+			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed)
 
 	status = overall_check_status(summary)
 	style = styles[status]

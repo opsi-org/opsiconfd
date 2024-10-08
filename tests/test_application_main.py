@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 from starlette.types import Receive, Scope, Send
 
-from opsiconfd import contextvar_client_address
+from opsiconfd import __version__, contextvar_client_address
 from opsiconfd.application.main import BaseMiddleware
 
 from .utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, clean_redis, get_config, test_client  # noqa: F401
@@ -56,6 +56,20 @@ def test_server_date_header(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 	server_date = res.headers["date"]
 	server_dt = datetime.strptime(server_date, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
 	assert now < server_dt
+
+
+def test_server_headers(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	res = test_client.get("/login")
+	assert res.status_code == 200
+	assert res.headers["server"] == f"opsiconfd {__version__} (uvicorn)"
+	assert res.headers["X-opsi-server-role"] == "configserver"
+	assert res.headers["X-opsi-worker-id"] == "pytest:1"
+	assert res.headers["X-opsi-auth-methods"] == "password"
+
+	with get_config({"saml-idp-sso-url": "https://keycloak.opsi.test/realms/master/protocol/saml"}):
+		res = test_client.get("/login")
+		assert res.status_code == 200
+		assert res.headers["X-opsi-auth-methods"] == "password,saml"
 
 
 def test_trusted_proxy(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

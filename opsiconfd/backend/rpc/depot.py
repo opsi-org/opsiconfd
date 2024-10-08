@@ -59,7 +59,8 @@ from opsicommon.types import (
 )
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
-from opsisystem.inffile import INFFile, INFTargetOSVersion, Architecture, DeviceType
+from opsisystem.inffile import Architecture, DeviceType, INFFile, INFTargetOSVersion
+
 from opsiconfd import __version__, contextvar_client_session
 from opsiconfd.config import (
 	BOOT_DIR,
@@ -424,6 +425,27 @@ class RPCDepotserverMixin(Protocol):
 			os.chown(zsyncFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(zsyncFilename, 0o660)
 
+	def get_max_transfer_slots(self: BackendProtocol, slot_type: TransferSlotType, depot_ids: list[str] | None) -> dict[str, int]:
+		depot_ids = depot_ids or self.host_getIdents(type="OpsiDepotserver")
+		result = {}
+		slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
+		slot_config = self.configState_getValues(config_ids=slot_config_name, object_ids=depot_ids)
+		for depot_id in depot_ids:
+			result[depot_id] = TRANSFER_SLOT_MAX
+			val = slot_config.get(depot_id, {}).get(slot_config_name)
+			if val:
+				try:
+					val = val[0]
+					result[depot_id] = int(val)
+				except ValueError:
+					logger.warning(
+						"Invalid value '%s' for config '%s' and depot '%s', using default value",
+						val,
+						slot_config_name,
+						depot_id,
+					)
+		return result
+
 	@rpc_method(check_acl=False)
 	def depot_acquireTransferSlot(
 		self: BackendProtocol,
@@ -462,21 +484,12 @@ class RPCDepotserverMixin(Protocol):
 					redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
 					return slot
 
-			max_slots = TRANSFER_SLOT_MAX
-			slot_config_name = TRANSFER_SLOT_CONFIGS[slot_type]
-			slot_config = self.configState_getValues(slot_config_name, depot).get(depot, {}).get(slot_config_name)
-			if slot_config:
-				try:
-					max_slots = int(slot_config[0])
-				except ValueError:
-					logger.warning(
-						"Invalid transfer slot max slots. Set config '%s' with an integer value. Using default: %s",
-						slot_config_name,
-						TRANSFER_SLOT_MAX,
-					)
+			max_slots = self.get_max_transfer_slots(slot_type, [depot])[depot]
 
 			redis = redis_client()
-			depot_slots = len(list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*"))))
+			depot_slots = len(
+				list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*", count=1000)))
+			)
 			if depot_slots >= max_slots:
 				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
 				return TransferSlot(retry_after=retry_after)
@@ -523,14 +536,14 @@ class RPCDepotserverMixin(Protocol):
 
 		Args:
 		        self (BackendProtocol): The backend protocol object.
-		        depot (str): The depot for which to release the transfer slot.
+		        depot (str): The depot for which to get the transfer slot info.
 		Returns:
 		        list[TransferSlot]
 		"""
 
 		slots = []
 
-		slot_keys = redis_client().scan_iter(f"{config.redis_key('slot')}:{depot}:*")
+		slot_keys = redis_client().scan_iter(f"{config.redis_key('slot')}:{depot}:*", count=1000)
 		for slot_key in slot_keys:
 			slot = TransferSlot.from_redis_key(slot_key.decode())
 			if slot:
@@ -549,8 +562,7 @@ class RPCDepotserverMixin(Protocol):
 		workbench_path = Path(WORKBENCH_DIR)
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
-		package_path = package_path.resolve()
-		if not package_path.is_relative_to(workbench_path):
+		if not package_path.resolve().is_relative_to(workbench_path.resolve()):
 			raise ValueError(f"Invalid package dir '{package_path}'")
 		if not package_path.is_dir():
 			raise BackendIOError(f"Package source dir '{package_path}' does not exist")
@@ -583,8 +595,7 @@ class RPCDepotserverMixin(Protocol):
 		workbench_path = Path(WORKBENCH_DIR)
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
-		package_path = package_path.resolve()
-		if not package_path.is_relative_to(workbench_path):
+		if not package_path.resolve().is_relative_to(workbench_path.resolve()):
 			raise ValueError(f"Invalid package file '{package_path}'")
 		if package_path.is_dir():
 			package_path = Path(self.workbench_buildPackage(str(package_path)))

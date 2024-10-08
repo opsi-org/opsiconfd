@@ -463,6 +463,7 @@ def test_get_product_action_groups_1(
 		installationStatus="not_installed",
 		actionRequest="setup",
 	)
+
 	pocs = backend.productOnClient_addDependencies([product_on_client_1])
 	backend.productOnClient_createObjects(pocs)
 	res2 = backend.productOnClient_getObjectsWithSequence(clientId=client_id)
@@ -957,20 +958,11 @@ def test_get_product_action_groups_vmware(
 		productVersion="4.8.0.33",
 		packageVersion="9",
 		productAction="setup",
-		requiredProductId="vmware-osot",
-		requiredInstallationStatus="installed",
-		requirementType="before",
-	)
-	product_dependency12 = ProductDependency(
-		productId="vmware-app-volumes-agent",
-		productVersion="4.8.0.33",
-		packageVersion="9",
-		productAction="setup",
 		requiredProductId="vmware-tools",
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
-	product_dependency13 = ProductDependency(
+	product_dependency12 = ProductDependency(
 		productId="vmware-dem-enterprise",
 		productVersion="2203.10.5",
 		packageVersion="1",
@@ -979,7 +971,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="not_installed",
 		requirementType="before",
 	)
-	product_dependency14 = ProductDependency(
+	product_dependency13 = ProductDependency(
 		productId="vmware-dem-enterprise",
 		productVersion="2203.10.5",
 		packageVersion="1",
@@ -988,7 +980,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
-	product_dependency15 = ProductDependency(
+	product_dependency14 = ProductDependency(
 		productId="vmware-dem-enterprise",
 		productVersion="2203.10.5",
 		packageVersion="1",
@@ -997,7 +989,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
-	product_dependency16 = ProductDependency(
+	product_dependency15 = ProductDependency(
 		productId="vmware-horizon-agent",
 		productVersion="2209.8.7.0.20606795",
 		packageVersion="8",
@@ -1006,7 +998,7 @@ def test_get_product_action_groups_vmware(
 		requiredInstallationStatus="not_installed",
 		requirementType="before",
 	)
-	product_dependency17 = ProductDependency(
+	product_dependency16 = ProductDependency(
 		productId="vmware-horizon-agent",
 		productVersion="2209.8.7.0.20606795",
 		packageVersion="8",
@@ -1062,7 +1054,6 @@ def test_get_product_action_groups_vmware(
 			product_dependency14,
 			product_dependency15,
 			product_dependency16,
-			product_dependency17,
 		]
 	)
 	backend.productOnDepot_createObjects(
@@ -1124,6 +1115,30 @@ def test_get_product_action_groups_vmware(
 		[product_on_client_4],
 		[product_on_client_1, product_on_client_2, product_on_client_3, product_on_client_4, product_on_client_5, product_on_client_6],
 	):
+		# vmware-tools (94)              setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-tools (94)              setup requires vmware-powercli (0)            installed     before
+		# vmware-horizon-agent (93)      setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-horizon-agent (93)      setup requires vmware-tools (94)              installed     before
+		# vmware-dem-enterprise (92)     setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-dem-enterprise (92)     setup requires vmware-horizon-agent (93)      installed     before
+		# vmware-dem-enterprise (92)     setup requires vmware-tools (94)              installed     before
+		# vmware-osot (-80)              setup requires customize-startmenu (-1)       installed     before
+		# vmware-osot (-80)              setup requires vmware-app-volumes-agent (-98) not_installed before
+		# vmware-osot (-80)              setup requires vmware-dem-enterprise (92)     installed     before
+		# vmware-osot (-80)              setup requires vmware-horizon-agent (93)      installed     before
+		# vmware-osot (-80)              setup requires vmware-tools (94)              installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-dem-enterprise (92)     installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-horizon-agent (93)      installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-osot (-80)              installed     before
+		# vmware-app-volumes-agent (-98) setup requires vmware-tools (94)              installed     before
+
+		# vmware-tools (94)          not_installed setup
+		# vmware-horizon-agent (93)  not_installed setup
+		# vmware-dem-enterprise (92) not_installed setup
+		# vmware-powercli (0)        not_installed setup
+		# customize-startmenu (-1)   not_installed setup
+		# vmware-osot (-80)          not_installed setup
+
 		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
 
 		assert len(res) == 1
@@ -1306,6 +1321,179 @@ def test_get_product_action_groups_meta_ubuntu(
 		assert res[0].product_on_clients[3].actionSequence == 3
 
 
+@pytest.mark.parametrize("priority", [90, -90])
+def test_get_product_action_groups_installation_manager(
+	backend: UnprotectedBackend,  # noqa: F811
+	priority: int,
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	product1 = LocalbootProduct(
+		id="installation-manager",
+		name="installation-manager",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="some-product",
+		name="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=priority,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+
+	product_dependency1 = ProductDependency(
+		productId="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="installation-manager",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="uninstall",
+		requiredProductId="installation-manager",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="installation-manager",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="some-product",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2])
+	backend.productDependency_createObjects([product_dependency1, product_dependency2])
+	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2])
+
+	product_on_client_1 = ProductOnClient(
+		productId="installation-manager",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="none",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == priority
+	assert len(res[0].product_on_clients) == 2
+	assert res[0].product_on_clients[0].productId == "installation-manager"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "some-product"
+	assert res[0].product_on_clients[1].actionRequest == "setup"
+	assert res[0].product_on_clients[1].actionSequence == 1
+
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="uninstall",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == priority * -1
+	assert len(res[0].product_on_clients) == 2
+	assert res[0].product_on_clients[0].productId == "installation-manager"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "some-product"
+	assert res[0].product_on_clients[1].actionRequest == "uninstall"
+	assert res[0].product_on_clients[1].actionSequence == 1
+
+	product_on_client_1 = ProductOnClient(
+		productId="installation-manager",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="installed",
+		actionRequest="uninstall",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="uninstall",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == priority * -1
+	assert len(res[0].product_on_clients) == 2
+
+	poc_installation_manager = next(poc for poc in res[0].product_on_clients if poc.productId == "installation-manager")
+	assert poc_installation_manager.actionRequest == "none"
+	assert poc_installation_manager.actionSequence == -1
+
+	poc_some_product = next(poc for poc in res[0].product_on_clients if poc.productId == "some-product")
+	assert poc_some_product.actionRequest == "uninstall"
+	assert poc_some_product.actionSequence == 0
+
+	product_on_client_1 = ProductOnClient(
+		productId="installation-manager",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="uninstall",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="some-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="uninstall",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 1
+	assert res[0].priority == priority * -1
+	assert len(res[0].product_on_clients) == 2
+	assert res[0].product_on_clients[0].productId == "installation-manager"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+	assert res[0].product_on_clients[1].productId == "some-product"
+	assert res[0].product_on_clients[1].actionRequest == "uninstall"
+	assert res[0].product_on_clients[1].actionSequence == 1
+
+
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
 	product1, product2 = create_test_products(test_client)
 
@@ -1339,6 +1527,104 @@ def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:
 	assert "error" not in res
 
 	return (product_dependency1, product_dependency2)
+
+
+def test_uninstall_priority(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	product1 = LocalbootProduct(
+		id="high-priority",
+		name="high-priority",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=90,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="low-priority",
+		name="low-priority",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=-90,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="high-priority",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="low-priority",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2])
+	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2])
+
+	product_on_client_1 = ProductOnClient(
+		productId="high-priority",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="low-priority",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 2
+
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 1
+	assert res[0].product_on_clients[0].productId == "high-priority"
+	assert res[0].product_on_clients[0].actionRequest == "setup"
+	assert res[0].product_on_clients[0].actionSequence == 0
+
+	assert res[1].priority == -90
+	assert len(res[1].product_on_clients) == 1
+	assert res[1].product_on_clients[0].productId == "low-priority"
+	assert res[1].product_on_clients[0].actionRequest == "setup"
+	assert res[1].product_on_clients[0].actionSequence == 1
+
+	product_on_client_1.actionRequest = "uninstall"
+	product_on_client_2.actionRequest = "uninstall"
+
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+
+	assert len(res) == 2
+
+	assert res[0].priority == 90
+	assert len(res[0].product_on_clients) == 1
+	assert res[0].product_on_clients[0].productId == "low-priority"
+	assert res[0].product_on_clients[0].actionRequest == "uninstall"
+	assert res[0].product_on_clients[0].actionSequence == 0
+
+	assert res[1].priority == -90
+	assert len(res[1].product_on_clients) == 1
+	assert res[1].product_on_clients[0].productId == "high-priority"
+	assert res[1].product_on_clients[0].actionRequest == "uninstall"
+	assert res[1].product_on_clients[0].actionSequence == 1
 
 
 def check_products_dependencies(

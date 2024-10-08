@@ -15,11 +15,9 @@ import re
 import shutil
 from pathlib import Path
 from string import ascii_letters
-from threading import Event, Lock, Thread
 from typing import BinaryIO, Type
 from unittest.mock import patch
 
-import psutil
 import pytest
 from pyzsync import (
 	CaseInsensitiveDict,
@@ -294,36 +292,6 @@ def test_webdav_setup_exception(backend: UnprotectedBackend) -> None:  # noqa: F
 			host.setWorkbenchLocalUrl(workbench_url)
 
 
-class MemoryUsageWatcher(Thread):
-	def __init__(self) -> None:
-		super().__init__(daemon=True)
-		self.process = psutil.Process()
-		self.stop = Event()
-		self.lock = Lock()
-		self.memory_usage: list[int] = []
-
-	def avg_mem(self) -> float:
-		with self.lock:
-			return sum(self.memory_usage) / len(self.memory_usage)
-
-	def max_mem(self) -> float:
-		with self.lock:
-			return max(self.memory_usage)
-
-	def cur_mem(self) -> float:
-		with self.lock:
-			return self.memory_usage[-1]
-
-	def clear(self) -> None:
-		with self.lock:
-			self.memory_usage = []
-
-	def run(self) -> None:
-		while not self.stop.wait(0.1):
-			with self.lock:
-				self.memory_usage.append(self.process.memory_info().rss)
-
-
 def test_repository_zsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -375,3 +343,36 @@ def test_repository_zsync(test_client: OpsiconfdTestClient, tmp_path: Path) -> N
 	assert remote_file.stat().st_size == local_file.stat().st_size
 	assert sha256 == zsync_info.sha256
 	assert remote_file.read_bytes() == local_file.read_bytes()
+
+
+def test_webdav_range_requests(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	filename = "pytest-test_webdav_range_requests.bin"
+	test_file = Path("/var/lib/opsi/depot") / filename
+	data = random.randbytes(10_000_000)
+	with open(test_file, "wb") as file:
+		file.write(data)
+	try:
+		url = f"/depot/{filename}"
+
+		done = False
+		req_number = 0
+		while not done:
+			req_number += 1
+			start = 1024 * 1024 * req_number
+			size = 1024 * 1024
+			end = start + size - 1
+			res = test_client.get(url=url, headers={"range": f"bytes={start}-{end}"})
+			assert res.status_code == 206
+			if end >= len(data) - 1:
+				end = len(data) - 1
+				size = end - start + 1
+				done = True
+			assert res.headers["Content-Range"] == f"bytes {start}-{end}/{len(data)}"
+			body = res.read()
+			assert len(body) == size
+			assert body == data[start : end + 1]
+	finally:
+		test_file.unlink()

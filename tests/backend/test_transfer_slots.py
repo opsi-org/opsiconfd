@@ -25,7 +25,7 @@ from opsiconfd.backend.rpc.depot import (
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
 from opsiconfd.redis import decode_redis_result, redis_client
-from tests.backend.rpc.test_config_state import _create_clients_and_depot
+from tests.backend.rpc.test_obj_config_state import _create_clients_and_depot
 
 from ..utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -379,9 +379,9 @@ def test_type_distinction(config: Config, test_client: OpsiconfdTestClient) -> N
 		result = test_client.post("/rpc", json=rpc)
 		print(result)
 	redis = redis_client()
-	assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*"))) == len(TransferSlotType)
+	assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:*", count=1000))) == len(TransferSlotType)
 	for slot_type in TransferSlotType:
-		assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*"))) == 1
+		assert len(list(redis.scan_iter(f"{config.redis_key('slot')}:{depot_id}:{slot_type}:*", count=1000))) == 1
 
 
 def test_acquire_transfer_slot_max_per_type(

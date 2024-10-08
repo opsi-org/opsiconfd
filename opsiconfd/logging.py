@@ -21,7 +21,7 @@ import socket
 import sys
 import threading
 import time
-from asyncio import Event, get_running_loop
+from asyncio import CancelledError, Event, Task, get_running_loop
 from concurrent.futures import ThreadPoolExecutor
 from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO
 
 import colorlog
 import msgspec
-from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]
+from aiofiles.threadpool.text import AsyncTextIOWrapper  # type: ignore[import]
 from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
 from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
 from opsicommon.logging import (
@@ -86,7 +86,7 @@ async def event_wait(event: Event, timeout: float) -> bool:
 
 class AsyncRotatingFileHandler(AsyncFileHandler):
 	rollover_check_interval: int = 60
-	stream: AsyncTextIOWrapper
+	stream: AsyncTextIOWrapper | None
 
 	def __init__(
 		self,
@@ -113,8 +113,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 
 	async def _close_stream(self) -> None:
 		try:
-			await self.stream.flush()
-			await self.stream.close()
+			if self.stream:
+				await self.stream.flush()
+				await self.stream.close()
 		except Exception:
 			pass
 		self.stream = None
@@ -218,6 +219,7 @@ class AsyncRedisLogAdapter:
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
 		self._should_stop = Event()
+		self._reader_task: Task | None = None
 		self._reader_stopped = asyncio.Event()
 		self._set_log_format_stderr()
 
@@ -229,6 +231,8 @@ class AsyncRedisLogAdapter:
 
 	async def stop(self) -> None:
 		self._should_stop.set()
+		if self._reader_task:
+			self._reader_task.cancel()
 		for file_log in self._file_logs.values():
 			await file_log.close()
 		await event_wait(self._reader_stopped, 5.0)
@@ -358,7 +362,7 @@ class AsyncRedisLogAdapter:
 		try:
 			redis = await async_redis_client(timeout=30, test_connection=True)
 			await redis.xtrim(name=self._redis_log_stream, maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
-			asyncio_create_task(self._reader(), self._loop)
+			self._reader_task = asyncio_create_task(self._reader(), self._loop)
 			asyncio_create_task(self._watch_log_files(), self._loop)
 
 		except Exception as err:
@@ -376,7 +380,7 @@ class AsyncRedisLogAdapter:
 		while True:
 			try:
 				# It is also possible to specify multiple streams
-				data = await redis.xread(streams={self._redis_log_stream: last_id}, block=1000)
+				data = await redis.xread(streams={self._redis_log_stream: last_id}, block=3600_000)
 				if self._should_stop.is_set():
 					break
 				if not data:
@@ -399,7 +403,7 @@ class AsyncRedisLogAdapter:
 
 			except (KeyboardInterrupt, SystemExit):
 				raise
-			except EOFError:
+			except (EOFError, CancelledError):
 				break
 			except (RedisConnectionError, RedisBusyLoadingError):
 				pass

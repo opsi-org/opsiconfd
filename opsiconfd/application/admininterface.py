@@ -18,6 +18,7 @@ import signal
 import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
+from typing import Any
 from urllib.parse import urlparse
 
 import msgspec
@@ -37,6 +38,7 @@ from opsiconfd.application import AppState
 from opsiconfd.application.memoryprofiler import memory_profiler_router
 from opsiconfd.application.metrics import create_grafana_datasource
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
+from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates
 from opsiconfd.grafana import (
@@ -45,17 +47,17 @@ from opsiconfd.grafana import (
 	create_dashboard_user,
 )
 from opsiconfd.logging import logger
-from opsiconfd.messagebus.redis import get_websocket_connected_users
+from opsiconfd.messagebus.redis import CHANNEL_INFO_SUFFIX, get_websocket_connected_users
 from opsiconfd.redis import (
 	async_redis_client,
 	decode_redis_result,
 	ip_address_from_redis_key,
 	ip_address_to_redis_key,
-	redis_client
+	redis_client,
 )
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
-from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
+from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
 from opsiconfd.utils import get_manager_pid
 
 admin_interface_router = APIRouter()
@@ -109,6 +111,15 @@ async def admin_interface_index(request: Request) -> Response:
 		if method["doc"]:
 			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])
 			method["doc"] = method["doc"].replace("\n", "<br />").replace("\t", "&nbsp;&nbsp;&nbsp;").replace('"', "\\u0022")
+
+	ca_infos = get_ca_certs_info()
+	for ca_info in ca_infos:
+		ca_info["issuer_txt"] = ", ".join(f"{k} = {v}" for k, v in ca_info["issuer"].items() if v)
+		ca_info["subject_txt"] = ", ".join(f"{k} = {v}" for k, v in ca_info["subject"].items() if v)
+
+	cert_info = get_server_cert_info()
+	cert_info["issuer_txt"] = ", ".join(f"{k} = {v}" for k, v in cert_info["issuer"].items() if v)
+	cert_info["subject_txt"] = ", ".join(f"{k} = {v}" for k, v in cert_info["subject"].items() if v)
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi-common={python_opsi_common_version}]",
@@ -116,8 +127,8 @@ async def admin_interface_index(request: Request) -> Response:
 		"username": username,
 		"interface": interface,
 		"available_modules": backend.available_modules,
-		"ca_info": get_ca_cert_info(),
-		"cert_info": get_server_cert_info(),
+		"ca_infos": ca_infos,
+		"cert_info": cert_info,
 		"num_servers": get_num_servers(),
 		"num_clients": get_num_clients(),
 		"disabled_features": config.disabled_features,
@@ -160,6 +171,52 @@ async def get_messagebus_connected_clients() -> RESTResponse:
 	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids})
 
 
+@admin_interface_router.post("/messagebus-channel-info")
+@rest_api
+async def get_messagebus_channel_info(request: Request) -> RESTResponse:
+	request_body = await request.json()
+	raw_filter = {attribute: value for attribute, value in request_body.get("filter", {}).items() if value}
+	filter = {attribute: re.compile(value) for attribute, value in raw_filter.items()}
+
+	redis = await async_redis_client()
+	channel_prefix = f"{config.redis_key('messagebus')}:channels:"
+	channel_prefix_len = len(channel_prefix)
+	channel_info_suffix = CHANNEL_INFO_SUFFIX.decode("utf-8")
+	channel_info: dict[str, dict[str, Any]] = {}
+	channel_filter = filter.get("channel")
+	info_filter = {k: v for k, v in filter.items() if k != "channel"}
+	async for key_b in redis.scan_iter(f"{channel_prefix}*", count=1000):
+		key = str(key_b.decode("utf-8"))
+		if key.endswith(channel_info_suffix):
+			continue
+		if channel_filter and not channel_filter.search(key):
+			continue
+		info_key = f"{key}{channel_info_suffix}"
+		info = await redis.hgetall(info_key)
+		info = {k.decode("utf-8"): v.decode("utf-8") for k, v in info.items()} if info else {}
+		skip = False
+		for attribute, attr_filter in info_filter.items():
+			value = info.get(attribute)
+			if not value or not attr_filter.search(value):
+				skip = True
+				break
+		if skip:
+			continue
+		name = key[channel_prefix_len:]
+		channel_type, name = name.split(":", 1)
+		if channel_type not in channel_info:
+			channel_info[channel_type] = {}
+		channel_info[channel_type][name] = info
+
+	return RESTResponse(
+		data={
+			"filter": raw_filter,
+			"number_of_channels": {k: len(v) for k, v in channel_info.items()},
+			"channels": dict(sorted(channel_info.items())),
+		}
+	)
+
+
 @admin_interface_router.post("/reload")
 @rest_api
 async def reload() -> RESTResponse:
@@ -176,7 +233,7 @@ async def _unblock_all_clients() -> dict:
 	deleted_keys = set()
 	async with redis.pipeline(transaction=False) as pipe:
 		for base_key in (f"{config.redis_key('stats')}:client:failed_auth", f"{config.redis_key('stats')}:client:blocked"):
-			async for key in redis.scan_iter(f"{base_key}:*"):
+			async for key in redis.scan_iter(f"{base_key}:*", count=1000):
 				key_str = key.decode("utf8")
 				deleted_keys.add(key_str)
 				client = ip_address_from_redis_key(key_str.split(":")[-1])
@@ -235,33 +292,47 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 	client_addr = request_body.get("client_addr")
 	if not client_addr:
 		raise ValueError("client_addr missing")
+
 	redis = await async_redis_client()
-	sessions = []
+	ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}"
+	session_ids = [sid.decode("utf-8") for sid in await redis.smembers(ip_key)]
 	deleted_keys = []
-	keys = redis.scan_iter(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:*")
-	if keys:
-		async with redis.pipeline(transaction=False) as pipe:
-			async for key in keys:
-				sessions.append(key.decode("utf8").split(":")[-1])
-				deleted_keys.append(key.decode("utf8"))
-				await pipe.delete(key)  # type: ignore[attr-defined]
-			await pipe.execute()  # type: ignore[attr-defined]
-	return RESTResponse({"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys})
+	if session_ids:
+		async with redis.pipeline(transaction=True) as pipe:
+			for session_id in session_ids:
+				key = f"{config.redis_key('session')}:{session_id}"
+				await pipe.delete(key)
+				deleted_keys.append(key)
+			await pipe.delete(ip_key)
+			await pipe.execute()
+
+	return RESTResponse({"client": client_addr, "sessions": session_ids, "redis-keys": deleted_keys})
 
 
 @admin_interface_router.get("/depots")
 @rest_api
 async def get_depot_list() -> RESTResponse:
-	return RESTResponse(
-		sorted(
-			[
-				{"id": d.id, "description": d.description, "opsiHostKey": d.opsiHostKey}
-				for d in get_unprotected_backend().host_getObjects(type="OpsiDepotserver")
-				if d.getType() != "OpsiConfigserver"
-			],
-			key=itemgetter("id"),
-		)
+	redis = redis_client()
+	backend = get_unprotected_backend()
+	depots = backend.host_getObjects(type="OpsiDepotserver")
+	max_slots = backend.get_max_transfer_slots(TransferSlotType.OPSICLIENTD_PRODUCT_SYNC, [d.id for d in depots])  # type: ignore[misc]
+	slot_key = config.redis_key("slot")
+	depot_infos = sorted(
+		[
+			{
+				"id": depot.id,
+				"configserver": depot.getType() == "OpsiConfigserver",
+				"description": depot.description,
+				"opsiHostKey": depot.opsiHostKey,
+				"max_product_sync_transfer_slots": max_slots.get(depot.id, 0),
+				"used_product_sync_transfer_slots": len(list(redis.scan_iter(f"{slot_key}:{depot.id}:*", count=1000))),
+			}
+			for depot in depots
+			# if d.getType() != "OpsiConfigserver"
+		],
+		key=itemgetter("id"),
 	)
+	return RESTResponse(depot_infos)
 
 
 @admin_interface_router.post("/depot-create")
@@ -388,35 +459,35 @@ async def get_rpc_count() -> RESTResponse:
 async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
-	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*"):
+	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
 		try:
-			session = await redis.hgetall(redis_key)
+			session_data = await redis.hgetall(redis_key)
 		except ResponseError as err:
 			logger.warning(err)
 			continue
 
-		if not session:
+		if not session_data:
 			continue
 
-		tmp = redis_key.decode("utf-8").rsplit(":", 2)
-		client_addr = ip_address_from_redis_key(tmp[-2])
-		sess = OPSISession(client_addr=client_addr, session_id=tmp[-1])
-		await sess.load()
-		if sess.expired:
+		client_addr = session_data[b"client_addr"].decode("utf-8")
+		session_id = redis_key.decode("utf-8").rsplit(":", 1)[-1]
+		session = OPSISession(client_addr=client_addr, session_id=session_id)
+		await session.load()
+		if session.expired:
 			continue
 		session_list.append(
 			{
-				"created": sess.created,
-				"last_used": sess.last_used,
-				"messagebus_last_used": sess.messagebus_last_used,
-				"validity": sess.validity,
-				"max_age": sess.max_age,
-				"user_agent": sess.user_agent,
-				"authenticated": sess.authenticated,
-				"username": sess.username,
-				"auth_methods": list(sess.auth_methods or []),
+				"created": session.created,
+				"last_used": session.last_used,
+				"messagebus_last_used": session.messagebus_last_used,
+				"validity": session.validity,
+				"max_age": session.max_age,
+				"user_agent": session.user_agent,
+				"authenticated": session.authenticated,
+				"username": session.username,
+				"auth_methods": list(session.auth_methods or []),
 				"address": client_addr,
-				"session_id": tmp[-1][:6] + "...",
+				"session_id": session_id[:6] + "...",
 			}
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))
@@ -499,7 +570,7 @@ async def unlock_all_products() -> RESTResponse:
 @rest_api
 async def get_blocked_clients() -> RESTResponse:
 	redis = await async_redis_client()
-	redis_keys = redis.scan_iter(f"{config.redis_key('stats')}:client:blocked:*")
+	redis_keys = redis.scan_iter(f"{config.redis_key('stats')}:client:blocked:*", count=1000)
 
 	blocked_clients = []
 	async for key in redis_keys:

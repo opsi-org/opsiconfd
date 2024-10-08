@@ -172,6 +172,80 @@ def test_product_property_create(
 	check_products_properties(test_client, [product_property1, product_property2])
 
 
+def test_product_property_createUńicode(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	product1, product2 = create_test_products(test_client)
+
+	product_property1 = {
+		"productId": product1["id"],
+		"productVersion": product1["productVersion"],
+		"packageVersion": product1["packageVersion"],
+		"propertyId": "icon",
+		"description": "Some cool new properety #+,.!§$%&/()= test",
+		"possibleValues": ["1", "2"],
+		"defaultValues": ["1"],
+		"multiValue": False,
+		"editable": False,
+	}
+	product_property2 = {
+		"productId": product2["id"],
+		"productVersion": product2["productVersion"],
+		"packageVersion": product2["packageVersion"],
+		"propertyId": "test-property",
+		"description": "Some cool new properety #+,.!§$%&/()= test",
+		"possibleValues": ["value1", "value2"],
+		"defaultValues": ["value1", "value2"],
+		"multiValue": True,
+		"editable": True,
+	}
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_createUnicode", "params": list(product_property1.values())}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_createUnicode", "params": list(product_property2.values())}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	check_products_properties(test_client, [product_property1, product_property2])
+
+
+def test_product_property_createBool(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	product1, product2 = create_test_products(test_client)
+
+	product_property1 = {
+		"productId": product1["id"],
+		"productVersion": product1["productVersion"],
+		"packageVersion": product1["packageVersion"],
+		"propertyId": "icon",
+		"description": "Some cool new properety #+,.!§$%&/()= test",
+	}
+	product_property2 = {
+		"productId": product2["id"],
+		"productVersion": product2["productVersion"],
+		"packageVersion": product2["packageVersion"],
+		"propertyId": "test-property",
+		"description": "Some cool new properety #+,.!§$%&/()= test",
+	}
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_createBool", "params": list(product_property1.values())}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productProperty_createBool", "params": list(product_property2.values())}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	check_products_properties(test_client, [product_property1, product_property2])
+
+
 def test_product_property_updateObject(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:

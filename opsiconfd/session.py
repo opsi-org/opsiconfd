@@ -56,7 +56,7 @@ from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
+from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task
 from opsiconfd.utils.modules import check_module
 
@@ -518,10 +518,20 @@ class SessionManager:
 				session.client_addr,
 				client_addr,
 			)
-			changed_client_addr = session.client_addr != client_addr
-			if changed_client_addr:
-				logger.debug("Client address changed from %s to %s", session.client_addr, client_addr)
-			if refresh_ok and not session.expired and not changed_client_addr:
+			if refresh_ok and not session.expired:
+				if session.client_addr != client_addr:
+					logger.debug(
+						"Session client address changed from %s to %s",
+						session.client_addr,
+						client_addr,
+					)
+					redis = await async_redis_client()
+					async with redis.pipeline() as pipe:
+						ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}"
+						pipe.sadd(ip_key, session_id)
+						pipe.expire(ip_key, 604800)  # One week
+						await pipe.execute()
+
 				await session.update_last_used()
 				logger.trace("Session refreshed")
 			else:
@@ -627,7 +637,7 @@ class OPSISession:
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:{self.session_id}"
+		return f"{config.redis_key('session')}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -858,11 +868,13 @@ class OPSISession:
 		try:
 			redis = await async_redis_client()
 			now = unix_timestamp()
-			session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
-			async for redis_key in redis.scan_iter(session_key):
+			ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(self.client_addr)}"
+			sids_to_remove = set()
+			for sid_b in await redis.smembers(ip_key):
+				sid = sid_b.decode("utf-8")
 				validity = 0
 				try:
-					vals = await redis.hmget(redis_key, (b"max_age", b"last_used"))
+					vals = await redis.hmget(f"{config.redis_key('session')}:{sid}", (b"max_age", b"last_used"))
 					if vals and vals[0] and vals[1]:
 						validity = int(int(vals[0]) - (now - int(vals[1])))
 				except Exception as err:
@@ -870,7 +882,10 @@ class OPSISession:
 				if validity > 0:
 					session_count += 1
 				else:
-					await redis.delete(redis_key)
+					sids_to_remove.add(sid)
+
+			if sids_to_remove:
+				await redis.srem(ip_key, *sids_to_remove)
 
 			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}"
@@ -882,6 +897,10 @@ class OPSISession:
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		self.version = str(uuid.uuid4())
 		self.created = int(unix_timestamp())
+		async with redis.pipeline() as pipe:
+			pipe.sadd(ip_key, self.session_id)
+			pipe.expire(ip_key, 604800)  # One week
+			await pipe.execute()
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init(self) -> None:
@@ -1081,23 +1100,12 @@ class OPSISession:
 
 	async def delete(self) -> None:
 		logger.debug("Delete session")
+		assert self.session_id
 		redis = await async_redis_client()
-		for _ in range(10):
-			await redis.delete(self.redis_key)
-			await asyncio.sleep(0.01)
-			# Be sure to delete key
-			if not await redis.exists(self.redis_key):
-				break
-		self.deleted = True
-
-	def sync_delete(self) -> None:
-		redis = redis_client()
-		for _ in range(10):
-			redis.delete(self.redis_key)
-			time.sleep(0.01)
-			# Be sure to delete key
-			if not redis.exists(self.redis_key):
-				break
+		async with redis.pipeline(transaction=True) as pipe:
+			pipe.delete(self.redis_key)
+			pipe.srem(f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(self.client_addr)}", self.session_id)
+			await pipe.execute()
 		self.deleted = True
 
 
@@ -1469,14 +1477,15 @@ async def check_admin_networks(session: OPSISession) -> None:
 async def check_blocked(ip_address: str) -> None:
 	logger.info("Checking if client '%s' is blocked", ip_address)
 	redis = await async_redis_client()
-	is_blocked = bool(await redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(ip_address)}"))
+	ip_key = ip_address_to_redis_key(ip_address)
+	is_blocked = bool(await redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_key}"))
 	if is_blocked:
 		logger.info("Client '%s' is blocked", ip_address)
 		raise ConnectionRefusedError(f"Client '{ip_address}' is blocked")
 
 	now = int(unix_timestamp(millis=True))
 	cmd = (
-		f"ts.range {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(ip_address)} "
+		f"ts.range {config.redis_key('stats')}:client:failed_auth:{ip_key} "
 		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
 	)
 	logger.debug(cmd)
@@ -1494,7 +1503,7 @@ async def check_blocked(ip_address: str) -> None:
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True
 		logger.warning("Blocking client '%s' for %0.2f minutes", ip_address, (config.client_block_time / 60))
-		await redis.setex(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(ip_address)}", config.client_block_time, 1)
+		await redis.setex(f"{config.redis_key('stats')}:client:blocked:{ip_key}", config.client_block_time, 1)
 
 
 async def check_network(client_addr: str) -> None:

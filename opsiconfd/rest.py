@@ -102,7 +102,6 @@ class RESTResponse(Response):
 			raise TypeError("RESTResponse total must be integer.")
 		self._total = total
 		if total is not None:
-			self._headers["Access-Control-Expose-Headers"] = "x-total-count"
 			self._headers["X-Total-Count"] = str(self._total)
 
 	@property
@@ -254,7 +253,6 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 						content = result.get("data")
 					if result.get("total") and kwargs.get("request"):
 						headers = create_link_header(int(result.get("total", 0)), kwargs.get("commons", {}), kwargs["request"].url)
-						headers["Access-Control-Expose-Headers"] = "x-total-count"
 						headers["X-Total-Count"] = str(result.get("total"))
 				else:
 					content = result

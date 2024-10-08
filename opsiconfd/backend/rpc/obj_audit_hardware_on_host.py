@@ -83,7 +83,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 
 					query = (
 						f"SELECT hd.hardware_id, hc.config_id"
-						f" FROM HARDWARE_DEVICE_{hardware_class} AS hd LEFT JOIN HARDWARE_CONFIG_{hardware_class} AS hc"
+						f" FROM HARDWARE_DEVICE_{hardware_class.upper()} AS hd LEFT JOIN HARDWARE_CONFIG_{hardware_class.upper()} AS hc"
 						f" ON {' AND '.join(join_conditions)}"
 						f" WHERE {' AND '.join(conditions)}"
 					)
@@ -99,13 +99,17 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 					if not create:
 						continue
 					hardware_id = self._mysql.insert_object(
-						table=f"HARDWARE_DEVICE_{hardware_class}", obj=audit_hardware, ace=[RPCACE_ALLOW_ALL], create=True, set_null=True
+						table=f"HARDWARE_DEVICE_{hardware_class.upper()}",
+						obj=audit_hardware,
+						ace=[RPCACE_ALLOW_ALL],
+						create=True,
+						set_null=True,
 					)
 
 				if config_id or create:
 					# Create only if not exists (ON DUPLICATE KEY will not work!)
 					self._mysql.insert_object(
-						table=f"HARDWARE_CONFIG_{hardware_class}",
+						table=f"HARDWARE_CONFIG_{hardware_class.upper()}",
 						obj=audit_hardware_on_host,
 						ace=ace,
 						create=not config_id,
@@ -200,8 +204,8 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 				if not class_filter and filter:
 					continue
 
-				device_table = f"HARDWARE_DEVICE_{hardware_class}"
-				config_table = f"HARDWARE_CONFIG_{hardware_class}"
+				device_table = f"HARDWARE_DEVICE_{hardware_class.upper()}"
+				config_table = f"HARDWARE_CONFIG_{hardware_class.upper()}"
 				columns = self._mysql.get_columns(tables=[device_table, config_table], ace=ace, attributes=attributes)
 
 				if not return_hardware_ids and "hardware_id" in columns:
@@ -276,7 +280,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 						cond.append(f"`{attr}` {'IS' if val is None else '='} :{param}")
 					conditions.append(f"({' AND '.join(cond)})")
 
-				query = f"DELETE FROM HARDWARE_CONFIG_{hardware_class} WHERE {' OR '.join(conditions)}"
+				query = f"DELETE FROM HARDWARE_CONFIG_{hardware_class.upper()} WHERE {' OR '.join(conditions)}"
 				session.execute(query, params=params)
 
 	@rpc_method(check_acl=False)

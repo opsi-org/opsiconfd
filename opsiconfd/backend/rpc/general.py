@@ -105,10 +105,10 @@ class RPCGeneralMixin(Protocol):
 		return self.get_interface()
 
 	@rpc_method
-	def backend_exit(self: BackendProtocol) -> None:
+	async def backend_exit(self: BackendProtocol) -> None:
 		session = contextvar_client_session.get()
 		if session:
-			session.sync_delete()
+			await session.delete()
 
 	@rpc_method(deprecated=True)
 	def backend_setOptions(self: BackendProtocol, options: dict) -> None:

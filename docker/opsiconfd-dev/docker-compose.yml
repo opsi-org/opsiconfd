@@ -34,7 +34,7 @@ services:
         DEV_USER: $DEV_USER
         DEV_UID: $DEV_UID
     volumes:
-      - ${LOCAL_WORKSPACE_DIR}:/workspace:cached
+      - ${LOCAL_WORKSPACE_DIR}:/workspace:cached,rslave
     ports:
       - ${OPSISERVER_DEV_OPSICONFD_FORWARD_PORT}4447
     env_file:
@@ -90,7 +90,7 @@ services:
         DEV_USER: $DEV_USER
         DEV_UID: $DEV_UID
     volumes:
-      - ${LOCAL_WORKSPACE_DIR}:/workspace:cached
+      - ${LOCAL_WORKSPACE_DIR}:/workspace:cached,rslave
     ports:
       - ${OPSISERVER_CS_OPSICONFD_FORWARD_PORT}4447
     env_file:

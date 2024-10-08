@@ -9,7 +9,6 @@
 ucs utils
 """
 
-
 from functools import lru_cache
 import subprocess
 from typing import Tuple
@@ -48,6 +47,7 @@ def get_server_role() -> str:
 	except subprocess.CalledProcessError as err:
 		logger.error("Failed to get server role: %s", err)
 		raise err
+
 
 def get_ucs_admin_user(interactive: bool = False) -> Tuple[str | None, str | None]:
 	"""

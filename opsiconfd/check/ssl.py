@@ -21,8 +21,8 @@ from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manage
 from opsiconfd.config import config
 from opsiconfd.ssl import (
 	check_intermediate_ca,
-	get_ca_subject,
 	get_not_before_and_not_after,
+	get_opsi_ca_subject,
 	get_server_cn,
 	load_local_server_cert,
 	load_local_server_key,
@@ -65,7 +65,7 @@ Checks the state of the opsi CA certificate
 					result.message = f"The opsi CA certificate is OK but will expire in {not_after_days} days."
 					result.check_status = CheckStatus.WARNING
 				else:
-					ca_subject = get_ca_subject()
+					ca_subject = get_opsi_ca_subject()
 					current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
 					if ca_subject != current_ca_subject:
 						result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."

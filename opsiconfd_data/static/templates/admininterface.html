@@ -447,19 +447,18 @@
 				<h5 style="margin: 10px">Number of depot servers: {{num_servers}}</h4>
 					<h5 style="margin: 10px">Number of clients: {{num_clients}}</h4>
 			</div>
+			{%- for ca_info in ca_infos %}
 			<div class="adminpage-box">
-				<h4 style="margin: 10px">opsi CA:</h4>
+				<h4 style="margin: 10px">{{ca_info.subject.CN}}</h4>
 				<div id="general-info-opsi-ca">
 					<table style="margin-left: 20px;margin-bottom: 0px;">
 						<tr>
-							<td>Issuer:</td>
-							<td>{{ca_info.issuer.C}}, {{ca_info.issuer.ST}}, {{ca_info.issuer.L}},
-								{{ca_info.issuer.OU}}, {{ca_info.issuer.CN}}</td>
+							<td>Subject:</td>
+							<td>{{ca_info.subject_txt}}</td>
 						</tr>
 						<tr>
-							<td>Subject:</td>
-							<td>{{ca_info.subject.C}}, {{ca_info.subject.ST}}, {{ca_info.subject.L}},
-								{{ca_info.subject.OU}}, {{ca_info.subject.CN}}</td>
+							<td>Issuer:</td>
+							<td>{{ca_info.issuer_txt}}</td>
 						</tr>
 						<tr>
 							<td>Serial number:</td>
@@ -481,29 +480,28 @@
 							<td>Expires:</td>
 							<td>in {{ca_info.expires_in_days}} days</td>
 						</tr>
+						{% if ca_info.renewal_in_days %}
 						<tr>
 							<td>Renewal:</td>
 							<td>in {{ca_info.renewal_in_days}} days</td>
 						</tr>
-						<tr>
-							<td colspan="2"><a href="/ssl/opsi-ca-cert.pem">Download as PEM</a></td>
-						</tr>
+						{% endif %}
 					</table>
 				</div>
 			</div>
+			{% endfor %}
+			<a href="/ssl/ca-certs.pem">Download CA certificates as PEM</a>
 			<div class="adminpage-box">
-				<h4 style="margin: 10px">server certificate:</h4>
+				<h4 style="margin: 10px">Server certificate</h4>
 				<div id="general-info-server-cert">
 					<table style="margin-left: 20px;">
 						<tr>
-							<td>Issuer:</td>
-							<td>{{cert_info.issuer.C}}, {{cert_info.issuer.ST}}, {{cert_info.issuer.L}},
-								{{cert_info.issuer.OU}}, {{cert_info.issuer.CN}}</td>
+							<td>Subject:</td>
+							<td>{{cert_info.subject_txt}}</td>
 						</tr>
 						<tr>
-							<td>Subject:</td>
-							<td>{{cert_info.subject.C}}, {{cert_info.subject.ST}}, {{cert_info.subject.L}},
-								{{cert_info.subject.OU}}, {{cert_info.subject.CN}}</td>
+							<td>Issuer:</td>
+							<td>{{cert_info.issuer_txt}}</td>
 						</tr>
 						<tr>
 							<td>SubjectAltName:</td>
@@ -546,7 +544,7 @@
 			</div>
 
 
-			<h3>routes</h3>
+			<h3>Routes</h3>
 			<div class="adminpage-box">
 				<div id="routes">
 					<pre class="route-values" id="route-values"></pre>
@@ -743,6 +741,15 @@
 					Show terminal data messages: <input type="checkbox"
 						id="messagebus-message-show-terminal-data-messages" style="margin-right: 25px;">
 					Show file chunk messages: <input type="checkbox" id="messagebus-message-show-file-chunk-messages">
+				</div>
+			</div>
+			<div class="adminpage-box">
+				<input type="text" id="messagebus-channel-info-filter" placeholder="channel=.*" style="width: 200px" />
+				<button id="messagebus-channel-info-button" onclick="getMessagebusChannelInfo()">Get
+					messagebus channel
+					info</button>
+				<div id="resultMessagebus">
+					<pre class="messagebus-result" id="messagebus-result"></pre>
 				</div>
 			</div>
 			<br /><br /><br /><br /><br /><br /><br /><br /><br />

@@ -50,7 +50,7 @@ from opsicommon.objects import UnicodeConfig
 
 from opsiconfd.config import get_configserver_id
 from opsiconfd.messagebus.websocket import _check_message_type_access
-from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, ip_address_to_redis_key, redis_client
+from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, redis_client
 from opsiconfd.session import OPSISession, session_manager
 from opsiconfd.utils import compress_data, decompress_data
 
@@ -62,8 +62,8 @@ from .utils import (  # noqa: F401
 	WebSocketMessageReader,
 	clean_mysql,
 	clean_redis,
-	client_jsonrpc,
 	config,
+	create_client_via_jsonrpc,
 	get_config,
 	opsiconfd_server,
 	test_client,
@@ -133,9 +133,14 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				assert jsonrpc_response_message.error is None
 
 
-def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_session_channel_subscription(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	connections = get_redis_connections()
+	redis = redis_client()
+	channel_prefix = f"{config.redis_key('messagebus')}:channels"
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket, decode=False) as reader:
@@ -174,6 +179,16 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 					"00000000-0000-4000-8000-000000000002",
 				]
 
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 2
+				assert f"{channel_prefix}:{session_channel}" in keys
+				assert f"{channel_prefix}:{session_channel}:info" in keys
+				info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{session_channel}:info").items()}
+				assert info == {"owner-id": "user:adminuser", "purpose": "connection session", "reader-count": "1"}
+
+				info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{user_channel}:info").items()}
+				assert info["reader-count"] == "1"
+
 				# Subscribe for 2 new session channels
 				other_channel1 = "session:11111111-1111-1111-1111-111111111111"
 				other_channel2 = "session:22222222-2222-2222-2222-222222222222"
@@ -186,8 +201,24 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 				start = time()
 				reader.wait_for_message(count=1)
 				diff = time() - start
-				print(f"Channel subscription took {diff:0.3f} seconfds")
+				print(f"Channel subscription took {diff:0.3f} seconds")
 				assert diff < 1
+
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 6
+				assert f"{channel_prefix}:{other_channel1}" in keys
+				assert f"{channel_prefix}:{other_channel1}:info" in keys
+				assert f"{channel_prefix}:{other_channel2}" in keys
+				assert f"{channel_prefix}:{other_channel2}:info" in keys
+				assert f"{channel_prefix}:{session_channel}" in keys
+				assert f"{channel_prefix}:{session_channel}:info" in keys
+				for chan in (session_channel, other_channel1, other_channel2):
+					info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{chan}:info").items()}
+					assert info == {
+						"owner-id": "user:adminuser",
+						"purpose": "connection session" if chan == session_channel else "temporary",
+						"reader-count": "1",
+					}
 
 				message = Message.from_msgpack(next(reader.get_raw_messages()))
 				assert isinstance(message, ChannelSubscriptionEventMessage)
@@ -224,6 +255,52 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 					"00000000-0000-4000-8000-000000000005",
 					"00000000-0000-4000-8000-000000000006",
 				]
+
+				# Unsubscribe from a session channels
+				message = ChannelSubscriptionRequestMessage(
+					sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=[other_channel2], operation="remove"
+				)
+				websocket.send_bytes(message.to_msgpack())
+
+				start = time()
+				reader.wait_for_message(count=1)
+				diff = time() - start
+				print(f"Channel subscription took {diff:0.3f} seconds")
+				assert diff < 1
+
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 6
+				assert f"{channel_prefix}:{other_channel1}" in keys
+				assert f"{channel_prefix}:{other_channel1}:info" in keys
+				assert f"{channel_prefix}:{other_channel2}" in keys
+				assert f"{channel_prefix}:{other_channel2}:info" in keys
+				assert f"{channel_prefix}:{session_channel}" in keys
+				assert f"{channel_prefix}:{session_channel}:info" in keys
+				for chan in (session_channel, other_channel1, other_channel2):
+					info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{chan}:info").items()}
+					assert info == {
+						"owner-id": "user:adminuser",
+						"purpose": "connection session" if chan == session_channel else "temporary",
+						"reader-count": "0" if chan == other_channel2 else "1",
+					}
+
+				websocket.close()
+				sleep(2)
+				# Websocket disconnected, session channel should be removed, reader counts should be 0
+				keys = list(c.decode("utf-8") for c in redis.scan_iter(f"{channel_prefix}:session:*"))
+				assert len(keys) == 4
+				assert f"{channel_prefix}:{other_channel1}" in keys
+				assert f"{channel_prefix}:{other_channel1}:info" in keys
+				assert f"{channel_prefix}:{other_channel2}" in keys
+				assert f"{channel_prefix}:{other_channel2}:info" in keys
+				for chan in (other_channel1, other_channel2):
+					info = {k.decode("utf-8"): v.decode("utf-8") for k, v in redis.hgetall(f"{channel_prefix}:{chan}:info").items()}
+					assert info == {
+						"owner-id": "user:adminuser",
+						"purpose": "connection session" if chan == session_channel else "temporary",
+						"reader-count": "0",
+					}
+
 	# All redis connections should be closed
 	assert connections == get_redis_connections()
 
@@ -251,7 +328,7 @@ def test_messagebus_multi_client_session_and_user_channel(
 		redis = redis_client()
 		assert redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "reader-count") is None
 
-		with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
+		with create_client_via_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 			client.auth = (host_id, host_key)
 			with (
 				client.websocket_connect("/messagebus/v1") as websocket1,
@@ -387,73 +464,79 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	with test_client as client:
-		with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
+		with create_client_via_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 			client.auth = (host_id, host_key)
-			with client:
-				with client.websocket_connect("/messagebus/v1") as websocket:
-					with WebSocketMessageReader(websocket) as reader:
-						reader.running.wait(3.0)
-						sleep(2)
-						reader.wait_for_message(count=1)
-						assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-						jsonrpc_request_message1 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
-						)
-						websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
-						jsonrpc_request_message2 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL,
-							channel="service:config:jsonrpc",
-							rpc_id="2",
-							method="config_create",
-							params=("test", "descr"),
-						)
-						websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
-						jsonrpc_request_message3 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
-						)
-						websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
-						jsonrpc_request_message4 = JSONRPCRequestMessage(
-							sender=CONNECTION_USER_CHANNEL,
-							channel="service:config:jsonrpc",
-							rpc_id="4",
-							method="hostControl_start",
-							params=("client.opsi.test",),
-						)
-						websocket.send_bytes(jsonrpc_request_message4.to_msgpack())
+			with client.websocket_connect("/messagebus/v1") as websocket:
+				with WebSocketMessageReader(websocket) as reader:
+					reader.running.wait(3.0)
+					sleep(2)
+					reader.wait_for_message(count=1)
+					assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+					jsonrpc_request_message1 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="1",
+						method="accessControl_userIsAdmin",
+					)
+					websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
+					jsonrpc_request_message2 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="2",
+						method="config_create",
+						params=("test", "descr"),
+					)
+					websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
+					jsonrpc_request_message3 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="3",
+						method="invalid",
+						params=(1, 2, 3),
+					)
+					websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
+					jsonrpc_request_message4 = JSONRPCRequestMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel="service:config:jsonrpc",
+						rpc_id="4",
+						method="hostControl_start",
+						params=("client.opsi.test",),
+					)
+					websocket.send_bytes(jsonrpc_request_message4.to_msgpack())
 
-						reader.wait_for_message(count=4, timeout=10.0)
+					reader.wait_for_message(count=4, timeout=10.0)
 
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-						# for res in responses:
-						# 	print(res.to_dict())
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					# for res in responses:
+					# 	print(res.to_dict())
 
-						assert isinstance(responses[0], JSONRPCResponseMessage)
-						assert responses[0].rpc_id == jsonrpc_request_message1.rpc_id
-						assert responses[0].result is False
-						assert responses[0].error is None
+					assert isinstance(responses[0], JSONRPCResponseMessage)
+					assert responses[0].rpc_id == jsonrpc_request_message1.rpc_id
+					assert responses[0].result is False
+					assert responses[0].error is None
 
-						assert isinstance(responses[1], JSONRPCResponseMessage)
-						assert responses[1].rpc_id == jsonrpc_request_message2.rpc_id
-						assert responses[1].result is None
-						assert responses[1].error is None
+					assert isinstance(responses[1], JSONRPCResponseMessage)
+					assert responses[1].rpc_id == jsonrpc_request_message2.rpc_id
+					assert responses[1].result is None
+					assert responses[1].error is None
 
-						assert isinstance(responses[2], JSONRPCResponseMessage)
-						assert responses[2].rpc_id == jsonrpc_request_message3.rpc_id
-						assert responses[2].result is None
-						assert responses[2].error == {
-							"code": 0,
-							"message": "Invalid method 'invalid'",
-							"data": {"class": "ValueError", "details": None},
-						}
+					assert isinstance(responses[2], JSONRPCResponseMessage)
+					assert responses[2].rpc_id == jsonrpc_request_message3.rpc_id
+					assert responses[2].result is None
+					assert responses[2].error == {
+						"code": 0,
+						"message": "Invalid method 'invalid'",
+						"data": {"class": "ValueError", "details": None},
+					}
 
-						assert isinstance(responses[3], JSONRPCResponseMessage)
-						assert responses[3].rpc_id == jsonrpc_request_message4.rpc_id
-						assert responses[3].result is None
-						assert responses[3].error == {
-							"code": 0,
-							"message": "Opsi service permission error: No permission for method 'hostControl_start'",
-							"data": {"class": "OpsiServicePermissionError", "details": None},
-						}
+					assert isinstance(responses[3], JSONRPCResponseMessage)
+					assert responses[3].rpc_id == jsonrpc_request_message4.rpc_id
+					assert responses[3].result is None
+					assert responses[3].error == {
+						"code": 0,
+						"message": "Opsi service permission error: No permission for method 'hostControl_start'",
+						"data": {"class": "OpsiServicePermissionError", "details": None},
+					}
 
 
 def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -497,12 +580,12 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
 						).to_msgpack()
 					)
-					reader.wait_for_message(count=1, timeout=10.0)
+					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
 
-				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-				print(responses[0])
-				assert isinstance(responses[0], GeneralErrorMessage)
-				assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
 
 				_check_message_type_access.cache_clear()
 				with get_config({"disabled_features": ["messagebus_terminal"]}):
@@ -517,10 +600,68 @@ def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> Non
 					)
 					reader.wait_for_message(count=1, timeout=10.0)
 
-				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-				print(responses[0])
-				assert isinstance(responses[0], GeneralErrorMessage)
-				assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
+
+				_check_message_type_access.cache_clear()
+				with get_config({"disabled_features": ["messagebus_execute_process_client"]}):
+					# Executing processes on depot must be allowed
+					websocket.send_bytes(
+						ProcessStartRequestMessage(
+							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					assert isinstance(responses[0], ProcessStartEventMessage)
+
+					# Executing processes on clients must be denied
+					websocket.send_bytes(
+						ProcessStartRequestMessage(
+							sender=CONNECTION_USER_CHANNEL, channel="host:test-client.opsi.org", command=("echo", "test")
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=1, timeout=10.0)
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
+
+				_check_message_type_access.cache_clear()
+				with get_config({"disabled_features": ["messagebus_terminal_client"]}):
+					# Terminal on depot must be allowed
+					websocket.send_bytes(
+						TerminalOpenRequestMessage(
+							sender=CONNECTION_USER_CHANNEL,
+							channel=f"service:depot:{configserver_id}:terminal",
+							terminal_id=str(uuid4()),
+							rows=20,
+							cols=150,
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=5, timeout=10.0, error_on_timeout=False)
+
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], TerminalOpenEventMessage)
+
+					# Terminal on client must be denied
+					websocket.send_bytes(
+						TerminalOpenRequestMessage(
+							sender=CONNECTION_USER_CHANNEL,
+							channel="host:test-client.opsi.org",
+							terminal_id=str(uuid4()),
+							rows=20,
+							cols=150,
+						).to_msgpack()
+					)
+					reader.wait_for_message(count=1, timeout=10.0)
+
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					print(responses[0])
+					assert isinstance(responses[0], GeneralErrorMessage)
+					assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
 
 				_check_message_type_access.cache_clear()
 
@@ -673,7 +814,7 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 
 				host_id = "msgbus-test-client.opsi.test"
 				host_key = "92aa768a259dec1856013c4e458507d5"
-				with client_jsonrpc(client, "", host_id=host_id, host_key=host_key):
+				with create_client_via_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 					client.reset_cookies()
 					client.auth = (host_id, host_key)
 					test_sess = client.websocket_connect("/messagebus/v1")
@@ -727,7 +868,7 @@ async def test_messagebus_close_on_session_deleted(
 				with WebSocketMessageReader(websocket) as reader:
 					reader.wait_for_message(count=1)
 					list(reader.get_messages())
-					redis_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(session.client_addr)}:{session.session_id}"
+					redis_key = f"{config.redis_key('session')}:{session.session_id}"
 					assert await redis.exists(redis_key)
 					await redis.delete(redis_key)
 					await reader.async_wait_for_message(count=1, timeout=10.0)

@@ -87,7 +87,7 @@ def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
 	return (poc1, poc2)
 
 
-def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list) -> None:  # noqa: F811
+def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list, ignore_version: bool = False) -> None:  # noqa: F811
 	for product_on_client in pocs:
 		rpc = {
 			"jsonrpc": "2.0",
@@ -100,6 +100,8 @@ def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list) -> No
 		print(res)
 		poc = res["result"][0]
 		for attr, val in product_on_client.items():
+			if ignore_version and attr in ["productVersion", "packageVersion"]:
+				continue
 			assert val == poc[attr]
 
 
@@ -571,7 +573,7 @@ def _prepare_product_on_client_sequence_dependencies(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "installed", "none")],
 			# productAction "setup" requires installationStatus "installed" before (fulfilled)
 			("setup", None, "installed", "before"),
-			[("product1", "setup"), ("product3", "none"), ("product2", "setup")],
+			[("product1", "setup"), ("product2", "setup"), ("product3", "none")],
 		),
 		(
 			[("product1", "not_installed", "setup"), ("product2", "not_installed", "setup"), ("product3", "not_installed", "none")],

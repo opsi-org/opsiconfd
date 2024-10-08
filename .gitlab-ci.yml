@@ -109,12 +109,13 @@ test:pylint-pytest:
 
     - echo -e "${TXT_HEAD}Run opsiconfd get-config duration test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 0.6 poetry run opsiconfd get-config || (
+      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 0.6 -i 5 poetry run opsiconfd get-config || (
         echo -e "${TXT_ERROR}bencher-command.py failed${TXT_CLEAR}"
         exit 1
       )
 
-    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
+    # Bencher server currently not working
+    # - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'
@@ -188,7 +189,7 @@ publish:obs_ext:
     - build:linux-pyinstaller
     - build:arm64-pyinstaller
   script:
-    - opsi-dev-cli self upgrade
+    - opsi-dev-cli self upgrade --system
     - opsi-dev-cli -l info packaging obs update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
     - opsi-dev-cli -l info changelog from-git output
     - opsi-dev-cli release-service register-package-version opsiconfd SERVER_PACKAGE --changelog-file output/changelog.md

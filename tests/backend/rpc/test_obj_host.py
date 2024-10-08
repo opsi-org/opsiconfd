@@ -53,10 +53,11 @@ from tests.utils import (  # noqa: F401
 def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 	_acl_file = tmp_path / "acl.conf"
 	data = (
-		f"host_getObjects    : sys_user({ADMIN_USER}); self; opsi_client(attributes(!opsiHostKey,!hardwareAddress,!inventoryNumber))\n"
+		f"host_getObjects    : sys_user({ADMIN_USER}); opsi_depotserver; self; opsi_client(attributes(!opsiHostKey,!hardwareAddress,!inventoryNumber))\n"
 		f"host_insertObject  : sys_user({ADMIN_USER}); self\n"
 		f"host_updateObject  : sys_user({ADMIN_USER}); self\n"
 		f"host_deleteObjects : sys_user({ADMIN_USER}); self\n"
+		f".*_get.*           : sys_group({ADMIN_USER}); opsi_depotserver; opsi_client\n"
 		f".*                 : sys_user({ADMIN_USER})\n"
 	)
 	_acl_file.write_text(data=data, encoding="utf-8")
@@ -670,6 +671,79 @@ def test_host_updateObjects(
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client2]]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
+
+
+def test_host_getObjects(
+	acl_file: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+		"inventoryNumber": "host-1",
+	}
+	client2 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-2.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924e",
+		"description": "description",
+		"oneTimePassword": "secret",
+		"inventoryNumber": "host-2",
+	}
+	depot1 = {
+		"type": "OpsiDepotserver",
+		"id": "test-backend-rpc-host-3.opsi.test",
+		"opsiHostKey": "3d58924c50167a2ec547de0976855861",
+		"description": "description",
+		"oneTimePassword": "secret",
+		"inventoryNumber": "host-3",
+	}
+
+	# Create hosts
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2, depot1]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# Get host objects
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": []}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert len(res["result"]) == 4
+	for host in res["result"]:
+		assert host["id"]
+		assert host["opsiHostKey"]
+		if host["id"] in (client1["id"], client2["id"], depot1["id"]):
+			assert host["inventoryNumber"]
+
+	# Test client permissions
+	test_client.reset_cookies()
+	test_client.auth = (client1["id"], client1["opsiHostKey"])
+
+	# Get host objects
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": []}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert len(res["result"]) == 4
+	for host in res["result"]:
+		if host["id"] == client1["id"]:
+			# ACL self
+			assert host["opsiHostKey"]
+			assert host["inventoryNumber"]
+		else:
+			# ACL opsi_client
+			assert not host["opsiHostKey"]
+			assert not host["inventoryNumber"]
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [[], {"opsiHostKey": client2["opsiHostKey"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" in res
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
+	assert res["error"]["message"] == "Opsi service permission error: No permission for attribute opsiHostKey"
 
 
 def test_host_getIdents(

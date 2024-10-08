@@ -14,14 +14,11 @@ from __future__ import annotations
 from functools import lru_cache
 from uuid import UUID
 
-from opsicommon.messagebus.message import MessageType
 from opsicommon.types import forceHostId, forceStringLower, forceUnsignedInt, forceUserId
 
 from opsiconfd.config import get_configserver_id
 from opsiconfd.utils import force_nodename
 from opsiconfd.worker import Worker
-
-RESTRICTED_MESSAGE_TYPES = {MessageType.PROCESS_START_REQUEST.value: "vpn"}
 
 
 @lru_cache()

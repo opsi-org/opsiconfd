@@ -163,6 +163,7 @@ class WorkerManager:
 								delattr(worker, "max_mem_exceeded_since")
 					elif worker.worker_state == WorkerState.RUNNING:
 						logger.warning("%s vanished", worker)
+						redis_client().delete(worker.redis_state_key)
 						worker.worker_state = WorkerState.VANISHED
 						if self.restart_vanished_workers:
 							auto_restart.append(worker)
@@ -173,8 +174,6 @@ class WorkerManager:
 				self.restart_worker(worker)
 				self.should_stop.wait(self.worker_restart_gap)
 
-			self.update_worker_state()
-
 			self.should_restart_workers = False
 			self.should_stop.wait(self.worker_check_interval)
 
@@ -184,6 +183,7 @@ class WorkerManager:
 	def reload(self) -> None:
 		self.check_modules()
 		for worker in self.get_workers():
+			logger.info("Sending SIGHUP to %s", worker)
 			os.kill(worker.pid, signal.SIGHUP)
 
 		self.adjust_worker_count()
@@ -268,22 +268,6 @@ class WorkerManager:
 				self.start_worker()
 			while len(self.workers) > config.workers:
 				self.stop_worker(self.get_workers()[-1])
-
-	def update_worker_state(self) -> None:
-		with self.worker_update_lock, redis_client() as redis:
-			for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
-				try:
-					worker_info = WorkerInfo.from_dict(redis.hgetall(redis_key_b))
-				except Exception as err:
-					logger.error("Failed to read worker info from %r, deleting key: %s", redis_key_b.decode("utf-8"), err)
-					redis.delete(redis_key_b)
-					continue
-				if worker_info.node_name == self.node_name:
-					if worker_info.id not in self.workers:
-						# Delete obsolete worker entry
-						redis.delete(redis_key_b)
-				else:
-					self.workers[worker_info.id] = worker_info
 
 
 class DepotserverManagerMessagebusListener(MessagebusListener):

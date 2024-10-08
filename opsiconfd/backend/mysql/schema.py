@@ -101,7 +101,8 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`workbenchRemoteUrl` varchar(255) DEFAULT NULL,
 	PRIMARY KEY (`hostId`),
 	UNIQUE KEY `systemUUID` (`systemUUID`),
-	KEY `index_host_type` (`type`)
+	KEY `index_host_type` (`type`),
+	KEY `index_host_lastSeen` (`lastSeen`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `LICENSE_CONTRACT` (
@@ -404,8 +405,8 @@ def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, d
 
 	for hw_class, values in get_audit_hardware_database_config().items():
 		logger.debug("Processing hardware class '%s'", hw_class)
-		hardware_device_table_name = f"HARDWARE_DEVICE_{hw_class}"
-		hardware_config_table_name = f"HARDWARE_CONFIG_{hw_class}"
+		hardware_device_table_name = f"HARDWARE_DEVICE_{hw_class.upper()}"
+		hardware_config_table_name = f"HARDWARE_CONFIG_{hw_class.upper()}"
 
 		hardware_device_table_exists = hardware_device_table_name in existing_tables
 		hardware_config_table_exists = hardware_config_table_name in existing_tables
@@ -676,6 +677,17 @@ def create_database(mysql: MySQLConnection) -> None:
 
 def drop_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
+		# Kill all connections to the database to remove all locks
+		our_id = session.connection().connection.thread_id()
+		for row in session.execute(
+			"SELECT `ID` FROM `INFORMATION_SCHEMA`.`PROCESSLIST` WHERE `DB` = :database",
+			params={"database": mysql.database},
+		).fetchall():
+			row_dict = dict(row)
+			if row_dict["ID"] != our_id:
+				logger.info("Killing MySQL process %r", row_dict["ID"])
+				session.execute(f"KILL {row_dict['ID']}")
+
 		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 
 
@@ -749,7 +761,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		logger.info("Running opsi 4.3 updates")
 
 		for row in session.execute(
-			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM	`INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
+			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM `INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
 			params={"database": mysql.database},
 		).fetchall():
 			row_dict = dict(row)
@@ -1261,6 +1273,15 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		# schema_version 12
 		for table in ("GROUP", "HOST", "LICENSE_CONTRACT", "LICENSE_ON_CLIENT"):
 			session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `notes` VARCHAR(8192) DEFAULT NULL")
+
+		# schema_version 13
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="HOST",
+			index="index_host_lastSeen",
+			columns=["lastSeen"],
+		)
 
 		logger.info("All updates completed")
 

@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Optional
 
-from opsiconfd.logging import logger
 from opsiconfd.config import opsi_config
+from opsiconfd.logging import logger
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -132,7 +132,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:
 
 
 def write_default_acl_conf(path: Path) -> None:
-	source = Path("/usr/lib/opsiconfd/opsiconfd_data/etc/opsi/backendManager/acl.conf")
+	source = Path("/usr/lib/opsiconfd/opsiconfd_data/etc/backendManager/acl.conf")
 	if not source.exists():
 		source = Path("opsiconfd_data/etc/backendManager/acl.conf")  # Test scenario
 		if not source.exists():

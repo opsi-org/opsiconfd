@@ -32,6 +32,16 @@ def remove_orphans_config_state(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from CONFIG_STATE", result.rowcount)
 
 
+def remove_config_state_null_values(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE FROM CONFIG_STATE WHERE `values` = "[null]"
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d entries from CONFIG_STATE with values [null]", result.rowcount)
+
+
 def remove_orphans_config_value(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -213,6 +223,18 @@ def remove_orphans_hardware_config(mysql: MySQLConnection, session: Session) -> 
 			logger.notice("Removed %d orphaned entries from %s", result.rowcount, hc_table)
 
 
+def remove_orphans_software_config(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE sc.* FROM SOFTWARE_CONFIG AS sc
+		LEFT JOIN HOST AS h ON h.hostId = sc.clientId
+		WHERE h.hostId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from SOFTWARE_CONFIG")
+
+
 def convert_config_objects(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -358,6 +380,8 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_product_id_to_license_pool(session)
 		remove_orphans_hardware_device(mysql, session)
 		remove_orphans_hardware_config(mysql, session)
+		remove_orphans_software_config(session)
+		remove_config_state_null_values(session)
 		convert_config_objects(session)
 		convert_product_property_objects(session)
 		add_missing_version_info_to_product_on_client(session)

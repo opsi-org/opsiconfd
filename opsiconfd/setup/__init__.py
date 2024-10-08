@@ -10,6 +10,7 @@ opsiconfd - setup
 """
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -28,10 +29,11 @@ from opsiconfd.backend import new_service_client
 from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
 from opsiconfd.dhcpd import setup_dhcpd
+from opsiconfd.exception import ConfigurationError
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import delete_recursively
+from opsiconfd.redis import delete_recursively, redis_client
 from opsiconfd.setup.backend import setup_backend, setup_mysql
 from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
@@ -60,6 +62,21 @@ def setup_redis() -> None:
 		f"{config.redis_key('stats')}:client:sum_http_request_number",
 	):
 		delete_recursively(delete_key)
+
+	# Delete obsolete sessions which were stored beneath the ip address
+	redis = redis_client()
+	for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
+		session_id = key.decode("utf-8").rsplit(":session:", maxsplit=1)[-1].split(":", maxsplit=1)[0]
+		# Check if valid session id
+		if not re.match(r"^[0-9a-f]{32}$", session_id):
+			logger.info("Deleting obsolete session store %s", key)
+			delete_recursively(key)
+
+	for key in redis.scan_iter(f"{config.redis_key('log')}:*", count=1000):
+		node_name = key.decode("utf-8").rsplit(":", maxsplit=1)[-1]
+		if node_name != config.node_name:
+			logger.info("Deleting obsolete log %s", key)
+			delete_recursively(key)
 
 
 def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
@@ -151,7 +168,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 
 				rich_print("[b]Registering depot[/b]")
 				service.host_createObjects([depot])  # type: ignore[attr-defined]
-				service.fetch_ca_certs()
+				service.fetch_ca_certs(force_write_ca_cert_file=True)
 				(srv_crt, srv_key) = fetch_server_cert(service)
 				store_local_server_key(srv_key)
 				store_local_server_cert(srv_crt)
@@ -263,6 +280,8 @@ def setup(explicit: bool = True) -> None:
 	if "backend" not in config.skip_setup and backend_available:
 		try:
 			setup_backend(new_server_id)
+		except ConfigurationError:
+			raise
 		except Exception as err:
 			# This can happen during package installation
 			# where backend config files are missing
@@ -273,7 +292,7 @@ def setup(explicit: bool = True) -> None:
 		setup_limits()
 
 	if "users" not in config.skip_setup and "groups" not in config.skip_setup:
-		setup_users_and_groups(interactive)
+		setup_users_and_groups(interactive, backend_available=backend_available)
 
 	if explicit and "systemd" not in config.skip_setup:
 		setup_systemd()

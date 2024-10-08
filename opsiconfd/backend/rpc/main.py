@@ -318,6 +318,9 @@ class Backend(
 	def _check_role(self, required_role: str) -> None:
 		return None
 
+	def _get_client_id(self) -> str | None:
+		return None
+
 	def _check_module(self, module: str) -> None:
 		if app.app_state.type == "maintenance":
 			# Do not check in maintenance mode (backup / restore)
@@ -335,6 +338,8 @@ class Backend(
 	def _send_messagebus_event(self, event: str, data: dict[str, Any]) -> None:
 		if not self.events_enabled or not self._messagebus_user_id:
 			return
+		if not event:
+			raise ValueError("Event must not be empty")
 		sync_send_message(
 			EventMessage(
 				sender=self._messagebus_user_id,
@@ -373,6 +378,9 @@ class UnprotectedBackend(Backend):
 	def _check_role(self, required_role: str) -> None:
 		return None
 
+	def _get_client_id(self) -> str | None:
+		return None
+
 
 class ProtectedBackend(Backend):
 	def __init__(self) -> None:
@@ -385,9 +393,19 @@ class ProtectedBackend(Backend):
 		self._read_acl_file()
 
 	def _read_acl_file(self) -> None:
+		self._acl = {}
 		acl = read_acl_file(config.acl_file)
 		for method_name in list(self._interface):
-			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
+			self._acl[method_name] = []
+			re_pattern = ""
+			for ace in acl:
+				if ace.method_re.match(method_name):
+					if not re_pattern:
+						re_pattern = ace.method_re.pattern
+					elif re_pattern != ace.method_re.pattern:
+						# Only use first match from acl config
+						break
+					self._acl[method_name].append(ace)
 
 	def _get_ace(self, method: str) -> list[RPCACE]:
 		"""
@@ -406,6 +424,7 @@ class ProtectedBackend(Backend):
 
 		ace_list = []
 		for ace in self._acl.get(method, []):
+			logger.trace("Checking %r for method %r (username=%r, user_type=%r)", ace, method, session.username, user_type)
 			if ace.type == "all":
 				ace_list.append(ace)
 			elif user_type == "user":
@@ -427,9 +446,10 @@ class ProtectedBackend(Backend):
 					ace_list.append(ace)
 
 		if ace_list:
+			logger.debug("Matching ACEs for method %r (username=%r, user_type=%r): %s", method, session.username, user_type, ace_list)
 			return ace_list
 
-		logger.info("No macthing ACEs for method %r (user=%r, acl-file=%r)", method, session.username, config.acl_file)
+		logger.info("No macthing ACEs for method %r (username=%r, acl-file=%r)", method, session.username, config.acl_file)
 		raise BackendPermissionDeniedError(f"No permission for method {method!r}")
 
 	def _check_role(self, required_role: str) -> None:
@@ -443,3 +463,16 @@ class ProtectedBackend(Backend):
 			raise BackendPermissionDeniedError("Insufficient permissions")
 
 		raise ValueError(f"Invalid role {required_role!r}")
+
+	def _get_client_id(self) -> str | None:
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Invalid session")
+
+		if not session.host_type == "OpsiClient":
+			return None
+
+		if not session.host_id:
+			raise BackendPermissionDeniedError("Invalid host id")
+
+		return session.host_id

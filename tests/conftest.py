@@ -32,6 +32,7 @@ from opsicommon.logging import logging_config
 from pluggy._result import Result
 from pytest import fixture, hookimpl, skip
 
+from opsiconfd.application import app
 from opsiconfd.application.main import application_setup
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.schema import drop_database
@@ -52,6 +53,8 @@ def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:
 	sys.exit(1)
 
 
+# Set a different redis key prefix to not interfere with running tests
+app.app_state_redis_key = "pytest:main_application:app_state"
 Manager.orig_signal_handler = Manager.signal_handler  # type: ignore[attr-defined]
 Manager.signal_handler = signal_handler  # type: ignore[assignment]
 

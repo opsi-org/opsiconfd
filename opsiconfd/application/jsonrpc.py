@@ -47,7 +47,7 @@ from opsiconfd.backend import (
 )
 from opsiconfd.config import RPC_DEBUG_DIR, config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger
-from opsiconfd.messagebus import get_user_id_for_service_worker
+from opsiconfd.messagebus import get_messagebus_worker_id
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
 from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession
@@ -594,8 +594,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 async def messagebus_jsonrpc_request_worker_configserver() -> None:
 	global jsonrpc_message_reader
 
-	worker = Worker.get_instance()
-	messagebus_worker_id = get_user_id_for_service_worker(worker.id)
+	messagebus_worker_id = get_messagebus_worker_id()
 	channel = f"service:depot:{get_depotserver_id()}:jsonrpc"
 
 	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages

@@ -18,6 +18,7 @@ import pytest
 from fastapi import status
 from fastapi.websockets import WebSocketDisconnect
 from msgspec import msgpack
+from opsicommon.logging import LOG_TRACE, use_logging_config
 
 from opsiconfd.application import (
 	AppState,
@@ -107,57 +108,71 @@ def test_maintenance(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	app_state_reader: AppStateReaderThread,
 ) -> None:
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	initalized_event = Event()
-	thread = Thread(
-		target=asyncio.run,
-		args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
-		daemon=True,
-	)
-	thread.start()
-	try:
-		initalized_event.wait(5)
+	with use_logging_config(stderr_level=LOG_TRACE):
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		initalized_event = Event()
+		thread = Thread(
+			target=asyncio.run,
+			args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
+			daemon=True,
+		)
+		thread.start()
+		try:
+			initalized_event.wait(5)
 
-		response = test_client.get("/session/authenticated")
-		assert response.status_code == 200
-		with test_client.websocket_connect("/messagebus/v1") as websocket:
-			assert websocket
-			data = websocket.receive()
-			assert data["type"] == "websocket.send"
-			assert b"channel_subscription_event" in data["bytes"]
-
-		app.set_app_state(MaintenanceState(address_exceptions=[], retry_after=11, message="pytest"))
-		time.sleep(1)
-		response = test_client.get("/session/authenticated")
-		assert response.status_code == 503
-		assert response.headers["Retry-After"] == "11"
-		assert response.text == "pytest"
-
-		with pytest.raises(WebSocketDisconnect) as excinfo:
+			response = test_client.get("/session/authenticated")
+			assert response.status_code == 200
 			with test_client.websocket_connect("/messagebus/v1") as websocket:
-				pass
-		assert excinfo.value.code == status.WS_1013_TRY_AGAIN_LATER
-		assert excinfo.value.reason == "pytest\nRetry-After: 11"
+				assert websocket
+				data = websocket.receive()
+				assert data["type"] == "websocket.send"
+				assert b"channel_subscription_event" in data["bytes"]
 
-		app.set_app_state(NormalState())
-		time.sleep(1)
-		response = test_client.get("/session/authenticated")
-		assert response.status_code == 200
+			print("Set maintenance state")
+			app.set_app_state(MaintenanceState(address_exceptions=[], retry_after=11, message="pytest"))
+			time.sleep(1)
 
-		app.set_app_state(MaintenanceState(address_exceptions=[]))
-		time.sleep(1)
-		response = test_client.get("/session/authenticated")
-		assert response.status_code == 503
+			print("Test /session/authenticated")
+			response = test_client.get("/session/authenticated")
+			assert response.status_code == 503
+			assert response.headers["Retry-After"] == "11"
+			assert response.text == "pytest"
 
-		app.set_app_state(NormalState())
-		time.sleep(1)
-		response = test_client.get("/session/authenticated")
-		assert response.status_code == 200
+			print("Test messagebus connect")
+			with pytest.raises(WebSocketDisconnect) as excinfo:
+				with test_client.websocket_connect("/messagebus/v1") as websocket:
+					pass
+			assert excinfo.value.code == status.WS_1013_TRY_AGAIN_LATER
+			assert excinfo.value.reason == "pytest\nRetry-After: 11"
 
-		app.set_app_state(MaintenanceState(address_exceptions=["::1/128", "127.0.0.1/32"]))
-		time.sleep(1)
-		response = test_client.get("/session/authenticated")
-		assert response.status_code == 200
-	finally:
-		app.set_app_state(ShutdownState())
-		thread.join(5)
+			print("Set normal state")
+			app.set_app_state(NormalState())
+			time.sleep(1)
+			print("Test /session/authenticated")
+			response = test_client.get("/session/authenticated")
+			assert response.status_code == 200
+
+			print("Set maintenance state with no address exceptions")
+			app.set_app_state(MaintenanceState(address_exceptions=[]))
+			time.sleep(1)
+			print("Test /session/authenticated")
+			response = test_client.get("/session/authenticated")
+			assert response.status_code == 503
+
+			print("Set normal state")
+			app.set_app_state(NormalState())
+			time.sleep(1)
+			print("Test /session/authenticated")
+			response = test_client.get("/session/authenticated")
+			assert response.status_code == 200
+
+			print("Set maintenance state with address exceptions")
+			app.set_app_state(MaintenanceState(address_exceptions=["::1/128", "127.0.0.1/32"]))
+			time.sleep(1)
+			print("Test /session/authenticated")
+			response = test_client.get("/session/authenticated")
+			assert response.status_code == 200
+		finally:
+			print("Set shutdown state")
+			app.set_app_state(ShutdownState())
+			thread.join(5)

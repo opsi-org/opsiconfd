@@ -54,7 +54,8 @@ class RPCExtOpsiMixin(Protocol):
 		clientId = forceHostId(clientId)
 		actionRequest = forceActionRequest(actionRequest)
 		depotId = self.getDepotId(clientId=clientId)
-		if not self.productOnDepot_getObjects(depotId=depotId, productId=productId):
+		product_on_depot = self.productOnDepot_getObjects(depotId=depotId, productId=productId)
+		if not product_on_depot:
 			raise BackendMissingDataError(f"Product {productId!r} not found on depot {depotId!r}")
 
 		if res := self.productOnClient_getObjects(clientId=clientId, productId=productId):
@@ -63,7 +64,7 @@ class RPCExtOpsiMixin(Protocol):
 		else:
 			product_on_client = ProductOnClient(
 				productId=productId,
-				productType="LocalbootProduct",
+				productType=product_on_depot[0].productType,
 				clientId=clientId,
 				installationStatus="not_installed",
 				actionRequest=actionRequest,

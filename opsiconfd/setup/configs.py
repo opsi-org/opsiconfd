@@ -445,6 +445,19 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "opsiconfd.transfer.slots_opsiclientd_product_sync" not in config_ids:
+		logger.info("Creating config 'opsiconfd.transfer.slots_opsiclientd_product_sync'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsiconfd.transfer.slots_opsiclientd_product_sync",
+				description="Maximum number of simultaneous product synchronizations",
+				possibleValues=["10", "25", "50", "75", "100", "150", "200", "250", "300", "400", "500", "750", "1000"],
+				defaultValues=["100"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
 	if add_configs:
 		backend.config_createObjects(add_configs)
 	if add_config_states:

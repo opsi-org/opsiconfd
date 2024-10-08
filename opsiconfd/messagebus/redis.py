@@ -11,13 +11,15 @@ opsiconfd.messagebus.redis
 
 from __future__ import annotations
 
-from asyncio import Event, Lock, sleep
+from asyncio import Event, Lock, Task, create_task, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
+from logging import DEBUG
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
 import msgspec
+from opsicommon.logging.constants import TRACE
 from opsicommon.messagebus.message import (
 	Message,
 	TraceRequestMessage,
@@ -71,7 +73,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 			await async_delete_recursively(f"{channel_prefix}{obj}")
 		await async_delete_recursively(f"{channel_prefix}session")
 
-	# async for key_b in redis.scan_iter(f"{channel_prefix}service:*"):
+	# async for key_b in redis.scan_iter(f"{channel_prefix}service:*", count=1000):
 	# 	key = key_b.decode("utf-8")
 	# 	stream = await redis.xinfo_stream(name=key, full=True)
 	# 	for group in stream["groups"]:
@@ -92,7 +94,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 	stream_keys = set()
 	channel_info_keys = set()
 	remove_keys = set()
-	async for key_b in redis.scan_iter(f"{channel_prefix}*"):
+	async for key_b in redis.scan_iter(f"{channel_prefix}*", count=1000):
 		key = str(key_b.decode("utf-8"))
 		if key.endswith(channel_info_suffix):
 			channel_info_keys.add(key)
@@ -135,6 +137,45 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 				pipeline.xtrim(stream_key, maxlen=maxlen, approximate=trim_approximate)
 		await pipeline.execute()
 
+	if full:
+		now_ts = timestamp()  # Current unix timestamp in milliseconds
+		for obj in ("host", "user", "event"):
+			key = f"{channel_prefix}{obj}"
+			remove_keys = set()
+			all_info_keys = set()
+			async for key_b in redis.scan_iter(f"{channel_prefix}{obj}:*", count=1000):
+				if key_b.endswith(CHANNEL_INFO_SUFFIX):
+					continue
+
+				logger.trace("Checking %r", key_b)
+				info_key_b = key_b + CHANNEL_INFO_SUFFIX
+
+				info = await redis.hgetall(info_key_b)
+				if info:
+					all_info_keys.add(info_key_b)
+					last_delivered_id = info.get(b"last-delivered-id")
+					if last_delivered_id:
+						try:
+							ts = int(last_delivered_id.decode("utf-8").split("-", 1)[0])
+						except Exception as err:
+							logger.debug("Failed to read channel info: %s", err, exc_info=True)
+							ts = 0
+						if (now_ts - ts) > 7776000000:  # 90 days
+							remove_keys.add(key_b)
+							remove_keys.add(info_key_b)
+				else:
+					remove_keys.add(key_b)
+
+			keep_info_keys = all_info_keys - remove_keys
+			pipeline = redis.pipeline()
+			for key in remove_keys:
+				logger.debug("Removing %r", key)
+				pipeline.unlink(key)
+			for key in keep_info_keys:
+				logger.debug("Resetting reader-count on %r", key)
+				pipeline.hset(key, "reader-count", 0)
+			await pipeline.execute()
+
 
 _context_encoder = msgspec.msgpack.Encoder()
 
@@ -152,6 +193,9 @@ def _prepare_send_message(message: Message, context: Any = None) -> dict[str, by
 async def send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
+	if not message.channel:
+		raise ValueError("Channel not set")
+
 	redis = await async_redis_client()
 	await redis.xadd(
 		f"{config.redis_key('messagebus')}:channels:{message.channel}",
@@ -164,6 +208,9 @@ async def send_message(message: Message, context: Any = None) -> None:
 def sync_send_message(message: Message, context: Any = None) -> None:
 	fields = _prepare_send_message(message, context)
 	logger.debug("Message to redis: %r", message)
+	if not message.channel:
+		raise ValueError("Channel not set")
+
 	redis_client().xadd(
 		f"{config.redis_key('messagebus')}:channels:{message.channel}",
 		maxlen=MAX_STREAM_LENGTH,
@@ -172,10 +219,14 @@ def sync_send_message(message: Message, context: Any = None) -> None:
 	)
 
 
-async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
-	redis = await async_redis_client()
+async def create_session_channel(*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True) -> str:
 	session_id = str(UUID(session_id) if session_id else uuid4())
 	channel = f"session:{session_id}"
+	return await create_channel(channel, info={"owner-id": owner_id, "purpose": purpose, "reader-count": 0}, exists_ok=exists_ok)
+
+
+async def create_channel(channel: str, *, info: dict[str, str | int] | None = None, exists_ok: bool = True) -> str:
+	redis = await async_redis_client()
 	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
 	exists = await redis.exists(stream_key)
 	if exists:
@@ -185,7 +236,8 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 		pipeline = redis.pipeline()
 		# Add one message to create the stream, the message will be ignored by the reader
 		pipeline.xadd(stream_key, fields={"ignore": ""})
-		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping={"owner-id": owner_id, "reader-count": 0})
+		if info:
+			pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping=info)  # type: ignore[arg-type]
 		await pipeline.execute()
 	return channel
 
@@ -193,12 +245,15 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 async def delete_channel(channel: str) -> None:
 	redis = await async_redis_client()
 	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
-	await redis.unlink(stream_key)
+	stream_key_info = stream_key + CHANNEL_INFO_SUFFIX
+	await redis.unlink(stream_key_info, stream_key)
 
 
 @asynccontextmanager
-async def session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> AsyncGenerator[str, None]:
-	channel = await create_messagebus_session_channel(owner_id=owner_id, session_id=session_id, exists_ok=exists_ok)
+async def session_channel(
+	*, owner_id: str, purpose: str, session_id: str | None = None, exists_ok: bool = True
+) -> AsyncGenerator[str, None]:
+	channel = await create_session_channel(owner_id=owner_id, purpose=purpose, session_id=session_id, exists_ok=exists_ok)
 	try:
 		yield channel
 	finally:
@@ -238,7 +293,7 @@ async def get_websocket_connected_users(
 		search_base = f"{config.redis_key('messagebus')}:connections"
 		if user_type:
 			search_base = f"{search_base}:{user_type}s"
-		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*")]
+		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*", count=1000)]
 
 	for state_key in state_keys:
 		try:
@@ -272,8 +327,11 @@ class MessageReader:
 
 	_info_suffix = CHANNEL_INFO_SUFFIX
 	_count_readers = True
+	_xread_block_time = 3600_000
+	_xread_count = 25
 
-	def __init__(self) -> None:
+	def __init__(self, name: str | None = None) -> None:
+		self.name: str = name or str(id(self))
 		self._channels: dict[str, StreamIdT] = {}
 		self._streams: dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{config.redis_key('messagebus')}:channels"
@@ -281,9 +339,10 @@ class MessageReader:
 		self._stopped_event = Event()
 		self._context_decoder = msgspec.msgpack.Decoder()
 		self._channels_lock = Lock()
+		self._get_stream_entries_task: Task | None = None
 
 	def __repr__(self) -> str:
-		return f"{self.__class__.__name__}({','.join(self._channels)})"
+		return f"{self.__class__.__name__}({self.name})"
 
 	__str__ = __repr__
 
@@ -331,6 +390,8 @@ class MessageReader:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
 				del self._streams[stream_key]
 
+		# Streams have changed, cancel the current read task, so that the new streams are read
+		self._cancel_get_stream_entries()
 		logger.debug("%s updated streams: %s", self, self._streams)
 
 	async def get_channel_names(self) -> list[str]:
@@ -354,8 +415,30 @@ class MessageReader:
 					del self._channels[channel]
 			await self._update_streams()
 
+	def _cancel_get_stream_entries(self) -> None:
+		if self._get_stream_entries_task:
+			logger.debug("Cancelling get_stream_entries")
+			self._get_stream_entries_task.cancel()
+
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
-		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
+		if logger.isEnabledFor(DEBUG):
+			logger.debug("MessageReader %r is reading %d streams", self.name, len(self._streams))
+			if logger.isEnabledFor(TRACE):
+				logger.trace("Streams: %s", list(self._streams))
+
+		self._get_stream_entries_task = create_task(
+			redis.xread(
+				streams=self._streams,
+				block=self._xread_block_time,
+				count=self._xread_count,
+			)
+		)
+		try:
+			await self._get_stream_entries_task
+			return self._get_stream_entries_task.result()
+		except CancelledError:
+			logger.debug("MessageReader was cancelled")
+		return {}
 
 	async def get_messages(self, timeout: float = 0.0) -> AsyncGenerator[tuple[str, Message, Any], None]:
 		if not self._channels:
@@ -374,9 +457,13 @@ class MessageReader:
 
 			while not self._should_stop:
 				try:
+					if not self._streams:
+						await sleep(0.1)
 					stream_entries = await self._get_stream_entries(redis)
 					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
+						if self._should_stop:
+							break
 						if end_ts and now_ts > end_ts:
 							_logger.debug("Reader timed out after %0.2f seconds", (now_ts - end_ts) / 1000)
 							break
@@ -392,7 +479,7 @@ class MessageReader:
 								context = self._context_decoder.decode(context_data)
 							message_data = message[1].get(b"message")
 							if not message_data:
-								if not message[1].get(b"ignore"):
+								if b"ignore" not in message[1]:
 									logger.warning("Received malformed message from redis: %r", message)
 								continue
 							msg = Message.from_msgpack(message_data)
@@ -417,7 +504,6 @@ class MessageReader:
 							# pending messages have been read.
 							# In this case the ID must be set to ">" to start reading new messages.
 							self._streams[stream_key] = ">"
-
 				except Exception as err:
 					_logger.error(err, exc_info=True)
 					await sleep(3)
@@ -428,7 +514,10 @@ class MessageReader:
 				if self._count_readers:
 					# Do not run in a pipeline, can result in problems on application shutdown
 					for stream_key in list(self._streams):
-						await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+						info_key = stream_key + self._info_suffix
+						# Test if the info key still exists (do not recerate it)
+						if await redis.exists(info_key):
+							await redis.hincrby(info_key, "reader-count", -1)
 			finally:
 				self._stopped_event.set()
 
@@ -442,6 +531,8 @@ class MessageReader:
 
 	async def stop(self, wait: bool = True) -> None:
 		self._should_stop = True
+		self._cancel_get_stream_entries()
+
 		if wait:
 			await self.wait_stopped()
 
@@ -480,7 +571,7 @@ class ConsumerGroupMessageReader(MessageReader):
 		consumer_name:
 		        Name of the consumer as member of the consumer group
 		"""
-		super().__init__()
+		super().__init__(name=f"{consumer_group}/{consumer_name}")
 		self._consumer_group = consumer_group.encode("utf-8")
 		self._consumer_name = consumer_name.encode("utf-8")
 
@@ -524,13 +615,26 @@ class ConsumerGroupMessageReader(MessageReader):
 				del self._streams[stream_key]
 
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
-		return await redis.xreadgroup(
-			self._consumer_group,
-			self._consumer_name,
-			streams=self._streams,
-			block=1000,
-			count=10,  # type: ignore[arg-type]
+		if logger.isEnabledFor(DEBUG):
+			logger.debug("ConsumerGroupMessageReader %r is reading %d streams", self.name, len(self._streams))
+			if logger.isEnabledFor(TRACE):
+				logger.trace("Streams: %s", list(self._streams))
+
+		self._get_stream_entries_task = create_task(
+			redis.xreadgroup(
+				self._consumer_group,
+				self._consumer_name,
+				streams=self._streams,
+				block=self._xread_block_time,
+				count=self._xread_count,
+			)
 		)
+		try:
+			await self._get_stream_entries_task
+			return self._get_stream_entries_task.result()
+		except CancelledError:
+			logger.debug("ConsumerGroupMessageReader was cancelled")
+		return {}
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()

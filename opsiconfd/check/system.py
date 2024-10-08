@@ -92,6 +92,7 @@ LINUX_DISTRO_REPO_NAMES = {
 		"20.04": "Ubuntu_20.04",
 		"22.04": "Ubuntu_22.04",
 		"24.04": "Ubuntu_24.04",
+		"24.04": "Ubuntu_24.04",
 	},
 	"opensuse-leap": {
 		"15.3": "openSUSE_Leap_15.3",
@@ -123,7 +124,6 @@ def get_repo_versions() -> dict[str, str | None]:
 	url = REPO_URL
 	packages = CHECK_SYSTEM_PACKAGES
 	repo_data = None
-
 	repo_versions: dict[str, str | None] = {}
 
 	try:

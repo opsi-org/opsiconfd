@@ -10,6 +10,7 @@ opsiconfd.messagebus.redis tests
 """
 
 import asyncio
+from random import randint
 from typing import Any
 from unittest.mock import patch
 from uuid import uuid4
@@ -24,7 +25,7 @@ from opsiconfd.messagebus.redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
 	cleanup_channels,
-	create_messagebus_session_channel,
+	create_session_channel,
 	send_message,
 )
 from opsiconfd.redis import async_redis_client, get_redis_connections
@@ -57,6 +58,40 @@ async def test_message_reader_redis_connection() -> None:
 
 	# All redis connections should be closed
 	assert connections == get_redis_connections()
+
+
+async def test_message_reader_cancel_get_stream_entries() -> None:
+	class MyMessageReader(MessageReader):
+		def __init__(self, **kwargs: Any) -> None:
+			self.received: list[tuple[str, Message, bytes]] = []
+			self.cancel_counter = 0
+			super().__init__(**kwargs)
+
+		def _cancel_get_stream_entries(self) -> None:
+			self.cancel_counter += 1
+			super()._cancel_get_stream_entries()
+
+	async def reader_task(reader: MyMessageReader) -> None:
+		async for redis_id, message, context in reader.get_messages():
+			reader.received.append((redis_id, message, context))
+
+	reader = MyMessageReader()
+	asyncio.create_task(reader_task(reader))
+
+	# With every add_channels call the xread call is canceled
+	# Assert that the reader still receives messages in time
+	for message_num in range(0, 300):
+		channel = f"host:test-channel{message_num}"
+		await reader.add_channels({channel: ">"})
+		await send_message(Message(id=f"00000000-0000-4000-8000-00000000{message_num:04}", type="test", sender="*", channel=channel))
+		assert reader.cancel_counter == message_num + 1
+		messages_received = len(reader.received)
+		assert message_num - messages_received < 20
+		sleep_time = randint(1, 10) / 1000
+		await asyncio.sleep(sleep_time)
+
+	await asyncio.sleep(2)
+	await reader.stop(wait=True)
 
 
 async def test_message_reader_user_channel(config: Config) -> None:  # noqa: F811
@@ -425,8 +460,8 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 	session1_id = str(uuid4())
 	session2_id = str(uuid4())
 	user_id = "user:admin"
-	await create_messagebus_session_channel(owner_id=user_id, session_id=session1_id)
-	await create_messagebus_session_channel(owner_id=user_id, session_id=session2_id)
+	await create_session_channel(owner_id=user_id, purpose="test 1", session_id=session1_id)
+	await create_session_channel(owner_id=user_id, purpose="test 2", session_id=session2_id)
 
 	for count in range(0, 5):
 		await send_message(
@@ -446,8 +481,18 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 	assert await redis.exists(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") == 1
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}") == 1
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}:info") == 1
+	assert await redis.hgetall(f"{messagbus_prefix}:channels:session:{session1_id}:info") == {
+		b"owner-id": user_id.encode("utf-8"),
+		b"purpose": b"test 1",
+		b"reader-count": b"0",
+	}
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}") == 0
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session2_id}:info") == 1
+	assert await redis.hgetall(f"{messagbus_prefix}:channels:session:{session2_id}:info") == {
+		b"owner-id": user_id.encode("utf-8"),
+		b"purpose": b"test 2",
+		b"reader-count": b"0",
+	}
 
 	assert await redis.xlen(f"{messagbus_prefix}:channels:host:test-client-act.opsi.org") in (5, 6)  # 1 ignore + 5 messages
 	assert await redis.xlen(f"{messagbus_prefix}:channels:session:{session1_id}") in (5, 6)

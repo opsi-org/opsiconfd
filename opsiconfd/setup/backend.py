@@ -40,6 +40,7 @@ from opsiconfd.config import (
 	get_server_role,
 	opsi_config,
 )
+from opsiconfd.exception import ConfigurationError
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.ssl import fetch_server_cert, store_local_server_cert, store_local_server_key
 from opsiconfd.utils import get_ip_addresses, get_random_string
@@ -296,13 +297,12 @@ def setup_backend_configserver(new_server_id: str | None = None) -> None:
 				logger.notice("Renaming configserver from %r to %r, do not abort", conf_servers[0].id, configserver_id)
 				backend.host_renameOpsiDepotserver(conf_servers[0].id, configserver_id)
 			else:
-				raise ValueError(
+				raise ConfigurationError(
 					f"Config server ID {conf_servers[0].id!r} in database differs from "
 					f"host.id {configserver_id!r} in /etc/opsi/opsi.conf. "
 					f"Please change host.id in /etc/opsi/opsi.conf to {conf_servers[0].id!r} "
 					"or use `opsiconfd setup --rename-server` to fix this issue."
 				)
-		backend.exit()
 
 		opsi_config.set("host", "id", configserver_id, persistent=True)
 		opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)

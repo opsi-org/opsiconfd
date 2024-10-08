@@ -27,6 +27,7 @@ from opsiconfd.config import (
 	BACKUP_DIR,
 	DEPOT_DIR,
 	FILE_TRANSFER_STORAGE_DIR,
+	LETSENCRYPT_DATA_DIR,
 	LOG_DIR,
 	NTFS_IMAGES_DIR,
 	OPSI_LICENSE_DIR,
@@ -143,6 +144,7 @@ def setup_file_permissions() -> None:
 		DirPermission(OPSICONFD_HOME, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o600, 0o700, recursive=False),
 		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
 		DirPermission(BACKUP_DIR, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770, recursive=False),
+		DirPermission(LETSENCRYPT_DATA_DIR, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770),
 	]
 
 	# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)

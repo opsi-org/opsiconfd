@@ -49,7 +49,7 @@ from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.config import config
+from opsiconfd.config import config, get_configserver_id, get_server_role
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
 from opsiconfd.worker import Worker
@@ -59,7 +59,6 @@ if TYPE_CHECKING:
 
 
 from . import (
-	RESTRICTED_MESSAGE_TYPES,
 	check_channel_name,
 	get_config_service_channel,
 	get_user_id_for_host,
@@ -69,7 +68,8 @@ from . import (
 from .redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
-	create_messagebus_session_channel,
+	create_channel,
+	create_session_channel,
 	delete_channel,
 	get_websocket_connected_users,
 	send_message,
@@ -81,18 +81,32 @@ if TYPE_CHECKING:
 
 RE_USER_ID = re.compile("^[a-z-0-9_]$")
 
+configserver_id = ""
+if get_server_role() == "configserver":
+	configserver_id = get_configserver_id()
+
 
 @lru_cache
 def _check_message_type_access(message_type: str, is_service_channel: bool, backend: Backend) -> bool:
-	if message_type == MessageType.TERMINAL_OPEN_REQUEST and "messagebus_terminal" in config.disabled_features:
-		return False
-	if message_type == MessageType.PROCESS_START_REQUEST and "messagebus_execute_process" in config.disabled_features:
-		return False
-	if is_service_channel:
-		return True
-	if message_type not in RESTRICTED_MESSAGE_TYPES:
-		return True
-	return RESTRICTED_MESSAGE_TYPES[message_type] in backend.available_modules
+	if message_type == MessageType.TERMINAL_OPEN_REQUEST:
+		if "messagebus_terminal" in config.disabled_features:
+			return False
+		if not is_service_channel:
+			# Terminal connection to client
+			if "messagebus_terminal_client" in config.disabled_features:
+				return False
+			if "vpn" not in backend.available_modules:
+				return False
+	elif message_type == MessageType.PROCESS_START_REQUEST:
+		if "messagebus_execute_process" in config.disabled_features:
+			return False
+		if not is_service_channel:
+			# Start process on client
+			if "messagebus_execute_process_client" in config.disabled_features:
+				return False
+			if "vpn" not in backend.available_modules:
+				return False
+	return True
 
 
 @dataclass
@@ -271,20 +285,21 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				if channel != self._session_channel and channel not in channels:
 					remove_channels.append(channel)
 
-		remove_by_reader: dict[MessageReader, list[str]] = {}
-		for channel in remove_channels:
-			reader = subscribed_channels.get(channel)
-			if reader:
-				if reader not in remove_by_reader:
-					remove_by_reader[reader] = []
-				remove_by_reader[reader].append(channel)
+		if remove_channels:
+			remove_by_reader: dict[MessageReader, list[str]] = {}
+			for channel in remove_channels:
+				reader = subscribed_channels.get(channel)
+				if reader:
+					if reader not in remove_by_reader:
+						remove_by_reader[reader] = []
+					remove_by_reader[reader].append(channel)
 
-		for reader, chans in remove_by_reader.items():
-			if sorted(chans) == sorted(await reader.get_channel_names()):
-				await reader.stop(wait=False)
-				self._messagebus_reader.remove(reader)
-			else:
-				await reader.remove_channels(chans)
+			for reader, chans in remove_by_reader.items():
+				if sorted(chans) == sorted(await reader.get_channel_names()):
+					await reader.stop(wait=False)
+					self._messagebus_reader.remove(reader)
+				else:
+					await reader.remove_channels(chans)
 
 		if operation in (ChannelSubscriptionOperation.SET, ChannelSubscriptionOperation.ADD):
 			message_reader_channels: dict[str, str] = {}
@@ -310,9 +325,12 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					# ID "$" means that we only want new messages (added after reader was started).
 					message_reader_channels[channel] = "$" if channel.startswith(("event:", "session:")) else ">"
 					if channel.startswith("session:") and channel != self._session_channel:
-						await create_messagebus_session_channel(
-							owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True
+						await create_session_channel(
+							owner_id=self._messagebus_user_id, purpose="temporary", session_id=channel.split(":", 1)[1], exists_ok=True
 						)
+					elif channel.startswith(("host:", "user:", "event:")):
+						info: dict[str, str | int] = {} if channel.startswith("event:") else {"owner-id": self._messagebus_user_id}
+						await create_channel(channel=channel, info=info, exists_ok=True)
 
 			if message_reader_channels:
 				msr = [
@@ -324,7 +342,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				if msr:
 					await msr[0].add_channels(message_reader_channels)  # type: ignore[arg-type]
 				else:
-					reader = MessageReader()
+					reader = MessageReader(name=f"{self._messagebus_user_id}/{self._session_channel}")
 					await reader.set_channels(message_reader_channels)  # type: ignore[arg-type]
 					self._messagebus_reader.append(reader)
 					asyncio_create_task(self.message_reader_task(websocket, reader))
@@ -451,16 +469,16 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 		if session.host_id:
 			self._messagebus_user_id = get_user_id_for_host(session.host_id)
-
-			user_type: Literal["client", "depot"] = "client" if session.host_type == "OpsiClient" else "depot"
-			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type)])
-			if not connected:
-				event.event = "host_connected"
-				event.channel = "event:host_connected"
-				event.data["host"] = {
-					"type": session.host_type,
-					"id": session.host_id,
-				}
+			if not session.host_id == configserver_id:
+				user_type: Literal["client", "depot"] = "client" if session.host_type == "OpsiClient" else "depot"
+				connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type)])
+				if not connected:
+					event.event = "host_connected"
+					event.channel = "event:host_connected"
+					event.data["host"] = {
+						"type": session.host_type,
+						"id": session.host_id,
+					}
 		elif session.username and session.is_admin:
 			self._messagebus_user_id = get_user_id_for_user(session.username)
 
@@ -474,10 +492,13 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 		await update_websocket_count(session, 1)
 
-		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=True)
+		self._session_channel = await create_session_channel(
+			owner_id=self._messagebus_user_id, purpose="connection session", exists_ok=True
+		)
 		await self._process_channel_subscription(websocket=websocket, channels=[self._user_channel, self._session_channel])
 
-		await send_message(event)
+		if event.event and event.channel:
+			await send_message(event)
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		logger.info("Websocket client disconnected from messagebus")
@@ -488,7 +509,6 @@ class MessagebusWebsocket(WebSocketEndpoint):
 				logger.error(err, exc_info=True)
 
 		session: OPSISession = self.scope["session"]
-
 		await update_websocket_count(session, -1)
 		await delete_channel(self._session_channel)
 
@@ -512,14 +532,15 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					"type": session.host_type,
 					"id": session.host_id,
 				}
-				await send_message(event)
 		elif session.username:
 			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.username], user_type="user")])
 			if not connected:
 				event.event = "user_disconnected"
 				event.channel = "event:user_disconnected"
 				event.data["user"] = {"id": session.username, "username": session.username}
-				await send_message(event)
+
+		if event.event and event.channel:
+			await send_message(event)
 
 		# Wait for task to finish to prevent that task is ended by garbage collector
 		for reader in self._messagebus_reader:

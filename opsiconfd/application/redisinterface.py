@@ -70,7 +70,7 @@ async def get_redis_debug_keys(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
 	try:
 		info = {}
-		async for key in redis.scan_iter(f"{redis_key}:*"):
+		async for key in redis.scan_iter(f"{redis_key}:*", count=1000):
 			key_str = key.decode("utf8")
 			info[key_str] = await redis.debug_object(key)
 		return RESTResponse(dict(sorted(info.items())))
@@ -101,7 +101,7 @@ async def delete_deprecated_calls() -> RESTResponse:
 	redis = await async_redis_client()
 	deleted_keys = set()
 	async with redis.pipeline(transaction=False) as pipe:
-		async for key in redis.scan_iter(f"{redis_prefix_stats}:rpcs:deprecated:*"):
+		async for key in redis.scan_iter(f"{redis_prefix_stats}:rpcs:deprecated:*", count=1000):
 			key_str = key.decode("utf8")
 			deleted_keys.add(key_str)
 			logger.debug("redis key to delete: %s", key_str)

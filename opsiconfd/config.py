@@ -69,6 +69,7 @@ OPSI_MODULES_FILE = "/etc/opsi/modules"
 OPSI_PASSWD_FILE = "/etc/opsi/passwd"
 OPSICONFD_DIR = "/var/lib/opsiconfd"
 OPSICONFD_HOME = "/var/lib/opsiconfd/home"
+LETSENCRYPT_DATA_DIR = "/var/lib/opsiconfd/letsencrypt"
 PUBLIC_DIR = "/var/lib/opsi/public"
 REPOSITORY_DIR = "/var/lib/opsi/repository"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
@@ -939,12 +940,6 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "The location of the opsi ssl ca certificate."),
 		)
 		self._parser.add(
-			"--ssl-ca-certs",
-			env_var="OPSICONFD_SSL_CA_CERTS",
-			default="/etc/opsi/ssl/ca-certs",
-			help=self._help("expert", "The ssl ca certificates location."),
-		)
-		self._parser.add(
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
 			type=int,
@@ -964,6 +959,31 @@ class Config(metaclass=Singleton):
 			nargs="+",
 			default=[],
 			help=self._help("opsiconfd", "The CA will be limited to these domains (X.509 Name Constraints)."),
+		)
+		self._parser.add(
+			"--ssl-server-cert-type",
+			env_var="OPSICONFD_SSL_SERVER_CERT_TYPE",
+			choices=("opsi-ca", "letsencrypt", "unmanaged"),
+			default="opsi-ca",
+			help=self._help(
+				"expert",
+				"The type of the server certificate.\n"
+				"opsi-ca: Automatically managed and signed by the opsi CA\n"
+				"letsencrypt: Automatically managed Let's Encrypt certificate\n"
+				"unmanaged: Manually use a custom certificate.",
+			),
+		)
+		self._parser.add(
+			"--letsencrypt-directory-url",
+			env_var="OPSICONFD_LETSENCRYPT_DIRECTORY_URL",
+			default="https://acme-v02.api.letsencrypt.org/directory",
+			help=self._help("expert", "The URL of the Let's Encrypt directory."),
+		)
+		self._parser.add(
+			"--letsencrypt-contact-email",
+			env_var="OPSICONFD_LETSENCRYPT_CONTACT_EMAIL",
+			default="",
+			help=self._help("expert", "The contact e-mail for the Let's Encrypt account."),
 		)
 		self._parser.add(
 			"--ssl-server-key",
@@ -1274,7 +1294,7 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_MAX_BACKUP_AGE",
 			type=int,
 			default=24,
-			help=self._help("opsiconfd", "he maximum age of the last successful backup in hours."),
+			help=self._help("opsiconfd", "The maximum age of the last successful backup in hours."),
 		)
 		self._parser.add(
 			"--welcome-page",
@@ -1413,10 +1433,19 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"opsiconfd",
 				"A list of features to disable "
-				"(features: status-page, public-folder, rpc-interface, messagebus_terminal, messagebus_execute_process).",
+				"(features: status-page, public-folder, rpc-interface, messagebus_terminal,  messagebus_terminal_client, messagebus_execute_process, messagebus_execute_process_client).",
 			),
 			# terminal was renamed to messagebus_terminal
-			choices=("status-page", "public-folder", "rpc-interface", "messagebus_terminal", "terminal", "messagebus_execute_process"),
+			choices=(
+				"status-page",
+				"public-folder",
+				"rpc-interface",
+				"messagebus_terminal",
+				"terminal",
+				"messagebus_terminal_client",
+				"messagebus_execute_process",
+				"messagebus_execute_process_client",
+			),
 		)
 		self._parser.add(
 			"--admin-interface-terminal-shell",
@@ -1484,6 +1513,18 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"opsiconfd",
 				"If enabled, opsiconfd will send security headers in http responses.",
+			),
+		)
+		self._parser.add(
+			"--shared-service-connection",
+			env_var="OPSICONFD_SHARED_SERVICE_CONNECTION",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"expert",
+				"Shared use of a single service connection per worker process for all purposes.",
 			),
 		)
 		self._parser.add(
@@ -1754,21 +1795,22 @@ class Config(metaclass=Singleton):
 
 		if self._sub_command == "set-config":
 			self._parser.add(
-				"set_configs",
-				metavar="CONFIG",
-				nargs="+",
-				help=self._help(
-					"set-config",
-					"Configuration to set in the form of <option>=<value>.\nExamples:\n"
-					'"log-level = 6"\n"welcome-page = false"\n"admin-networks = [127.0.0.1/32, 10.10.10.0/24]"\n',
-				),
-			)
-			self._parser.add(
 				"--on-change",
 				choices=("reload", "restart"),
 				default=None,
 				help=self._help(
 					"set-config", "Restart or reload opsiconfd if the configuration has been changed and opsiconfd is running."
+				),
+			)
+			self._parser.add(
+				"set_configs",
+				metavar="CONFIG",
+				# Do not use nargs="+", this will break the cmdline parsing.
+				nargs="*",
+				help=self._help(
+					"set-config",
+					"Configuration to set in the form of <option>=<value>.\nExamples:\n"
+					'"log-level = 6"\n"welcome-page = false"\n"admin-networks = [127.0.0.1/32, 10.10.10.0/24]"\n',
 				),
 			)
 

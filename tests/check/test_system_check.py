@@ -15,12 +15,19 @@ import requests
 from mock import Mock  # type: ignore[import]
 from rich.console import Console
 
-import opsiconfd.check.system  # noqa: F401
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.cli import process_check_result
 from opsiconfd.check.common import CheckStatus, check_manager
 from opsiconfd.check.opsipackages import get_available_product_versions
-from opsiconfd.check.system import CHECK_SYSTEM_PACKAGES, get_repo_versions
+from opsiconfd.check.register import register_checks
+from opsiconfd.check.system import (
+	CHECK_SYSTEM_PACKAGES,
+	disk_usage_check,
+	get_repo_versions,
+	system_eol_check,
+	system_packages_check,
+	system_repositories_check,
+)
 from tests.test_addon_manager import cleanup  # noqa: F401
 from tests.utils import (  # noqa: F401
 	ACL_CONF_41,
@@ -30,6 +37,7 @@ from tests.utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	captured_function_output,
 	clean_mysql,
+	cleanup_checks,
 	get_config,
 	get_opsi_config,
 	sync_clean_redis,
@@ -43,11 +51,13 @@ DEPRECATED_METHOD = "getClientIds_list"
 
 
 def test_check_disk_usage() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
 	result = check_manager.get("disk_usage").run(use_cache=False)
 	assert result.check_status
 
 
 def test_get_repo_versions() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
 	result = get_repo_versions()
 	for package in CHECK_SYSTEM_PACKAGES:
 		assert package in result
@@ -69,6 +79,7 @@ def test_get_repo_versions() -> None:
 
 
 def test_check_system_packages_debian() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
 	# test up to date packages - status sould be ok and output should be green
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	console = Console(log_time=False, force_terminal=False, width=1000)
@@ -133,6 +144,7 @@ def test_check_system_packages_debian() -> None:
 
 
 def test_check_system_packages_open_suse() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	zypper_lines = [
@@ -167,6 +179,7 @@ def test_check_system_packages_open_suse() -> None:
 
 
 def test_check_system_packages_redhat() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	repo_versions = installed_versions = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"] + [
@@ -198,6 +211,7 @@ def test_check_system_packages_redhat() -> None:
 
 
 def test_get_available_product_versions() -> None:
+	register_checks()
 	product_ids = ["opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-mac-client-agent", "hwaudit", "win10", "hwinvent"]
 	available_packages = get_available_product_versions(product_ids)
 	assert list(available_packages) == product_ids
@@ -206,6 +220,7 @@ def test_get_available_product_versions() -> None:
 
 
 def test_check_system_repos() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
 	# Test debian 10 with debian 11 repository and debian 10 repository
 	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
 		mock_distro_id.return_value = "debian"

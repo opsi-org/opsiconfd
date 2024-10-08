@@ -12,8 +12,8 @@ check tests
 from pathlib import Path
 from unittest import mock
 
-import opsiconfd.check.ssl  # noqa: F401
 from opsiconfd.check.common import CheckStatus, check_manager
+from opsiconfd.check.ssl import ssl_check
 from opsiconfd.config import config
 from opsiconfd.ssl import (
 	create_ca,
@@ -25,15 +25,17 @@ from opsiconfd.ssl import (
 	store_opsi_ca_key,
 )
 from tests.test_addon_manager import cleanup  # noqa: F401
+from tests.utils import (  # noqa: F401
+	cleanup_checks,
+	get_config,
+)
 from tests.utils import (
 	config as test_config,  # noqa: F401
-)
-from tests.utils import (  # noqa: F401
-	get_config,
 )
 
 
 def test_check_ssl(tmpdir: Path) -> None:
+	check_manager.register(ssl_check)
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	ssl_server_cert = tmpdir / "opsi-server-cert.pem"

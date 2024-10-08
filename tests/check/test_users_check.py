@@ -11,15 +11,16 @@ check tests
 
 from unittest import mock
 
-import opsiconfd.check.users  # noqa: F401
 from opsiconfd.check.common import CheckStatus, check_manager
+from opsiconfd.check.register import register_checks
+from opsiconfd.check.users import opsi_users_check
 from opsiconfd.utils import NameService, UserInfo
-from tests.utils import (  # noqa: F401
-	get_opsi_config,
-)
+from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
 
 
 def test_check_opsi_users() -> None:
+	register_checks()
+	check_manager.register(opsi_users_check)
 	result = check_manager.get("opsi_users").run(use_cache=False)
 	assert result.check_status == CheckStatus.OK
 

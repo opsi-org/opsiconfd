@@ -39,8 +39,8 @@ def test_driver_updateDatabase(
 		INFTargetOSVersion(Architecture=Architecture.X64, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=22000),
 		INFTargetOSVersion(Architecture=Architecture.X86, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=1507),
 	]
-	with patch("opsiconfd.backend.rpc.depot.DEPOT_DIR", str(tmp_path)), patch(
-		"opsiconfd.backend.rpc.depot.get_target_os_versions", return_value=get_target_os_versions
+	with patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)), patch(
+		"opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions
 	):
 		backend.driver_updateDatabase(productId=product.id)
 

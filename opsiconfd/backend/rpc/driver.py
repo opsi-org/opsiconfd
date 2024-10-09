@@ -117,3 +117,5 @@ class RPCDriverMixin(Protocol):
 		"""
 		Get drivers for product and client.
 		"""
+		return None
+

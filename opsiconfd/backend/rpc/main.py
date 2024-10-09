@@ -47,6 +47,7 @@ from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
 from ..mysql import MySQLConnection
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin
+from .driver import RPCDriverMixin
 from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin
@@ -139,6 +140,7 @@ class Backend(
 	RPCExtWANMixin,
 	RPCExtOpsiMixin,
 	RPCDepotserverMixin,
+	RPCDriverMixin,
 	RPCHostControlMixin,
 	RPCDHCPDControlMixin,
 	RPCOpsiPXEConfdControlMixin,

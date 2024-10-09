@@ -116,8 +116,9 @@ class Check:
 		return result
 
 	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
-		if self.id not in CheckManager().check_ids:
-			logger.error("Invalid check cache id: %s", self.id)
+		# TODO: check if check id is valid. With partial checks...
+		# if self.id not in CheckManager().check_ids:
+		# 	logger.error("Invalid check cache id: %s", self.id)
 		if self.cache is False:
 			return
 		redis_key = f"opsiconfd:checkcache:{self.id}"

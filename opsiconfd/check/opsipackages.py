@@ -72,68 +72,6 @@ def get_enabled_hosts() -> list[str]:
 
 
 @dataclass()
-class OpsiProductOnDepotCheck(Check):
-	id: str = "product_on_depot"
-	name: str = "Product on depot"
-	description: str = "Check opsi package versions on depot"
-	depot_id: str = ""
-	product_id: str = ""
-	available_version: str = ""
-	upgrade_issue: str | None = None
-	partial_check: bool = True
-
-	def __post_init__(self) -> None:
-		super().__post_init__()
-		self.id = f"{self.id}:{self.depot_id}:{self.product_id}"
-		self.name = f"{self.name} {self.product_id!r} on {self.depot_id!r}"
-		self.description = f"{self.description} {self.product_id!r} on {self.depot_id!r}"
-
-	def check(self) -> CheckResult:
-		result = CheckResult(
-			check=self,
-			message="Product is up to date on depot.",
-			check_status=CheckStatus.OK,
-		)
-		with exc_to_result(result):
-			backend = get_unprotected_backend()
-			product_on_depot = [p.id for p in backend.productOnDepot_getObjects(productId=self.product_id, depotId=self.depot_id)][0]
-
-			if self.product_id not in product_on_depot:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"Mandatory product {self.product_id!r} is not installed on depot {self.depot_id!r}."
-				result.upgrade_issue = "4.3"
-				return result
-
-			product_version_on_depot = f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"
-			if compare_versions(self.available_version, ">", product_version_on_depot):
-				if self.product_id in MANDATORY_OPSI_PRODUCTS or (
-					self.product_id in product_on_depot and self.product_id in MANDATORY_IF_INSTALLED
-				):
-					result.check_status = CheckStatus.ERROR
-					result.message = (
-						f"Mandatory product {self.product_id!r} is outdated on depot {self.depot_id!r}. Installed version {product_version_on_depot!r}"
-						f" < available version {self.available_version!r}."
-					)
-					result.upgrade_issue = "4.3"
-				else:
-					result.check_status = CheckStatus.WARNING
-					result.message = (
-						f"Product {self.product_id!r} is outdated on depot {self.depot_id!r}. Installed version {product_version_on_depot!r}"
-						f" < available version {self.available_version!r}."
-					)
-			else:
-				result.check_status = CheckStatus.OK
-				result.message = (
-					f"Installed version of product {self.product_id!r} on depot {self.depot_id!r} is {product_version_on_depot!r}."
-				)
-
-			if product_on_depot.productType == "NetbootProduct" and compare_versions(self.available_version, ">", product_version_on_depot):
-				result.upgrade_issue = "4.3"
-
-		return result
-
-
-@dataclass()
 class OpsiProductsOnDepotsCheck(Check):
 	id: str = "products_on_depots"
 	name: str = "Products on depots"
@@ -249,49 +187,6 @@ class OpsiProductsOnDepotsCheck(Check):
 					f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
 					f"{not_installed} mandatory products are not installed, {outdated} are out of date."
 				)
-		return result
-
-
-@dataclass()
-class OpsiProductOnClientCheck(Check):
-	id: str = "product_on_client"
-	name: str = "Product on client"
-	description: str = "Check opsi package versions on clients"
-	client_id: str = ""
-	product_id: str = ""
-	available_version: str = ""
-	partial_check: bool = True
-
-	def __post_init__(self) -> None:
-		super().__post_init__()
-		self.id = f"{self.id}:{self.client_id}:{self.product_id}"
-		self.name = f"{self.name} {self.product_id!r} on {self.client_id!r}"
-		self.description = f"{self.description} {self.product_id!r} on {self.client_id!r}"
-
-	def check(self) -> CheckResult:
-		result = CheckResult(
-			check=self,
-			message=f"Product '{self.product_id}' is up to date on client '{self.client_id}'.",
-			check_status=CheckStatus.OK,
-		)
-		with exc_to_result(result):
-			backend = get_unprotected_backend()
-			product_on_client = backend.productOnClient_getObjects(
-				attributes=["productVersion", "packageVersion"],
-				clientId=self.client_id,
-				productId=self.product_id,
-				installationStatus="installed",
-			)[0]
-			version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
-			if compare_versions(version, ">=", self.available_version):
-				return result
-			if self.product_id in MANDATORY_OPSI_PRODUCTS or self.product_id in MANDATORY_IF_INSTALLED:
-				result.check_status = CheckStatus.ERROR
-			else:
-				result.check_status = CheckStatus.WARNING
-			result.message = f"Product {self.product_id!r} is outdated on client {self.client_id!r}. Installed version {version!r} < depot version {self.available_version!r}"
-			result.upgrade_issue = "4.3"
-
 		return result
 
 

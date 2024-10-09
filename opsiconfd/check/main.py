@@ -14,9 +14,9 @@ from typing import Iterator
 from opsiconfd.check.common import CheckResult, check_manager
 
 
-def health_check(use_cache: bool = True) -> Iterator[CheckResult]:
+def health_check(clear_cache: bool = False) -> Iterator[CheckResult]:
 	from opsiconfd.check.register import register_checks
 
 	register_checks()
 	for check in check_manager:
-		yield check.run(use_cache)
+		yield check.run(clear_cache)

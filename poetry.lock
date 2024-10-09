@@ -3250,13 +3250,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.21.1"
+version = "4.3.21.10"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.21.1-py3-none-any.whl", hash = "sha256:81e3ef7b1702e4eb62d98f03318e65698c9c121485ed8a8b766da8911cea06b3"},
-    {file = "python_opsi_common-4.3.21.1.tar.gz", hash = "sha256:e6364f85b1f5f455d17e4dcd416a079bda9ae548349a8a0d26ce23aced1fc1ef"},
+    {file = "python_opsi_common-4.3.21.10-py3-none-any.whl", hash = "sha256:04491c4d893a416ed7beffe2bb96298410a6eec8c323c067af1512ebd6884700"},
+    {file = "python_opsi_common-4.3.21.10.tar.gz", hash = "sha256:1efaccb93893f996f1663fb2d99222755129486b98121fd0d8f48a6831be7605"},
 ]
 
 [package.dependencies]
@@ -3270,6 +3270,7 @@ lz4 = ">=4.0"
 mailbits = ">=0.2,<0.3"
 msgpack = ">=1.0"
 msgspec = ">=0.15"
+packaging = ">=24.1,<25.0"
 psutil = ">=5.8"
 ptyprocess = ">=0.7,<0.8"
 pycryptodome = ">=3.10"

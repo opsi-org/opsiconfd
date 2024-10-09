@@ -106,10 +106,10 @@ class RunAsUserCheck(Check):
 	name: str = "Run as user"
 	description: str = "Check system user running opsiconfd"
 	documentation: str = """
-## Run as user
-Checks the system user running opsiconfd.
-Checks for group membership and home directory.
-"""
+		## Run as user
+		Checks the system user running opsiconfd.
+		Checks for group membership and home directory.
+	"""
 	depot_check: bool = True
 
 	def check(self) -> CheckResult:
@@ -239,21 +239,21 @@ class OpsiconfdConfigCheck(Check):
 	name: str = "Opsiconfd config"
 	description: str = "Check opsiconfd configuration"
 	documentation: str = """
-## Opsiconfd config
-This check examines the configuration of the opsiconfd service by checking the following values:
+		## Opsiconfd config
+		This check examines the configuration of the opsiconfd service by checking the following values:
 
-* `log-level-stderr`, `log-level-file`, `log-level`
-	* If the log level is too high for a productive environment, then performance problems may occur.
-		For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
-* `debug-options`
-	* If a debug option is active, this is considered an error, as it can lead to performance problems in productive environments.
-* `profiler`
-	* The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
-* `run-as-user`
-	* Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
-* `acl-self-for-all`
-	* Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
-"""
+		* `log-level-stderr`, `log-level-file`, `log-level`
+			* If the log level is too high for a productive environment, then performance problems may occur.
+				For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
+		* `debug-options`
+			* If a debug option is active, this is considered an error, as it can lead to performance problems in productive environments.
+		* `profiler`
+			* The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
+		* `run-as-user`
+			* Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
+		* `acl-self-for-all`
+			* Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
+	"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(
@@ -310,14 +310,14 @@ class OpsiConfigCheck(Check):
 	name: str = "OPSI Configuration"
 	description: str = "Check opsi configuration state"
 	documentation: str = """
-## OPSI Configuration
+		## OPSI Configuration
 
-Here we check whether certain configurations deviate from the standard.
-If this is the case, a warning is issued.
-An error is output if the value does not exist.
+		Here we check whether certain configurations deviate from the standard.
+		If this is the case, a warning is issued.
+		An error is output if the value does not exist.
 
-* `opsiclientd.global.verify_server_cert` must be activated.
-"""
+		* `opsiclientd.global.verify_server_cert` must be activated.
+	"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

@@ -27,9 +27,9 @@ class RedisMemoryUsageCheck(Check):
 	description: str = "Check whether the Redis memory usage is not too high."
 	partial_check: bool = True
 	documentation: str = """
-	## Redis memory usage
+		## Redis memory usage
 
-	Checks whether the Redis memory usage is not too high.
+		Checks whether the Redis memory usage is not too high.
 	"""
 
 	def check(self) -> CheckResult:
@@ -59,9 +59,9 @@ class RedisTimeseriesCheck(Check):
 	description: str = "Check whether the RedisTimeSeries module is loaded."
 	partial_check: bool = True
 	documentation: str = """
-	## RedisTimeSeries module
+		## RedisTimeSeries module
 
-	Checks whether the RedisTimeSeries module is loaded.
+		Checks whether the RedisTimeSeries module is loaded.
 	"""
 
 	def check(self) -> CheckResult:
@@ -87,11 +87,11 @@ class RedisCheck(Check):
 	name: str = "Redis Server"
 	description: str = "Check Redis server state."
 	documentation: str = """
-	## Redis server
+		## Redis server
 
-	Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
-	If the server is not available or the module is not loaded, this is considered an error.
-	Also checks whether the memory usage is not too high.
+		Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
+		If the server is not available or the module is not loaded, this is considered an error.
+		Also checks whether the memory usage is not too high.
 	"""
 	status: CheckStatus = CheckStatus.OK
 	message: str = "No Redis issues found."

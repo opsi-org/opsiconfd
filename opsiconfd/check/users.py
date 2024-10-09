@@ -9,9 +9,6 @@
 # health check users
 # """
 
-# from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, Check
-# from opsiconfd.config import config, opsi_config
-# from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_exists
 from dataclasses import dataclass
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
@@ -107,11 +104,11 @@ class OpsiUsersCheck(Check):
 	name: str = "OPSI Users"
 	description: str = "Check opsi users."
 	documentation: str = """
-	## Check users
+		## Check users
 
-	Checks if opsi depot user and opsiconfd user exist.
-	If the system is part of a domain, it checks if the users are domain users.
-	Searches sssd, winbind, ldap in /etc/nsswitch.conf to determine the domain bind.
+		Checks if opsi depot user and opsiconfd user exist.
+		If the system is part of a domain, it checks if the users are domain users.
+		Searches sssd, winbind, ldap in /etc/nsswitch.conf to determine the domain bind.
 	"""
 
 	def check(self) -> CheckResult:

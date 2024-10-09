@@ -10,23 +10,6 @@
 # """
 
 
-# from __future__ import annotations
-
-# from datetime import datetime, timezone
-
-# import requests
-# from opsicommon.package.repo_meta import RepoMetaPackageCollection
-# from opsicommon.utils import compare_versions, prepare_proxy_environment
-
-# from opsiconfd.backend import get_unprotected_backend
-# from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result, Check
-# from opsiconfd.logging import logger
-
-# OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
-# OPSI_REPO_FILE = f"https://{OPSI_PACKAGES_HOST}/stable/packages.msgpack.zstd"
-# MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
-# MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
-
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -156,15 +139,15 @@ class OpsiProductsOnDepotsCheck(Check):
 	name: str = "Products on depots"
 	description: str = "Check opsi package versions on depots"
 	documentation: str = """
-	## Products on depots
+		## Products on depots
 
-	It is checked whether the following products are installed and up-to-date on the depots:
+		It is checked whether the following products are installed and up-to-date on the depots:
 
-	* opsi-script
-	* opsi-client-agent
+		* opsi-script
+		* opsi-client-agent
 
-	If opsi-linux-client-agent and opsi-macos-client-agent are installed, these packages are also checked.
-	Here, an outdated package is considered a warning and an uninstalled package is considered an error.
+		If opsi-linux-client-agent and opsi-macos-client-agent are installed, these packages are also checked.
+		Here, an outdated package is considered a warning and an uninstalled package is considered an error.
 	"""
 	cache_partial_checks: bool = True
 
@@ -318,10 +301,10 @@ class OpsiProductsOnClientsCheck(Check):
 	name: str = "Products on clients"
 	description: str = "Check opsi package versions on clients"
 	documentation: str = """
-	## Products on clients
+		## Products on clients
 
-	Checks whether newer versions of the products installed on the client are available in the depot.
-	If an older version is installed, the Health Check issues a warning.
+		Checks whether newer versions of the products installed on the client are available in the depot.
+		If an older version is installed, the Health Check issues a warning.
 	"""
 	cache_partial_checks: bool = True
 

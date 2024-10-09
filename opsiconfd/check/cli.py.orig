@@ -9,6 +9,8 @@
 health check
 """
 
+from __future__ import annotations
+
 import json
 
 from opsicommon.utils import compare_versions
@@ -16,10 +18,28 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
 
+<<<<<<< HEAD
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.common import CheckManager, CheckResult, CheckStatus, get_json_result
 from opsiconfd.check.main import health_check
 from opsiconfd.check.register import register_checks
+=======
+from opsiconfd.check.addon import check_opsi_failed_addons
+from opsiconfd.check.backend import check_depotservers
+from opsiconfd.check.backup import check_opsi_backup
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, get_json_result
+from opsiconfd.check.config import check_opsi_config, check_opsiconfd_config, check_run_as_user
+from opsiconfd.check.jsonrpc import check_deprecated_calls
+from opsiconfd.check.ldap import check_ldap_connection
+from opsiconfd.check.main import CHECKS, health_check
+from opsiconfd.check.mysql import check_mysql, check_unique_hardware_addresses
+from opsiconfd.check.opsilicense import check_opsi_licenses
+from opsiconfd.check.opsipackages import check_product_on_clients, check_product_on_depots
+from opsiconfd.check.redis import check_redis
+from opsiconfd.check.ssl import check_ssl
+from opsiconfd.check.system import check_disk_usage, check_distro_eol, check_system_packages, check_system_repos
+from opsiconfd.check.users import check_opsi_users
+>>>>>>> v4.3
 from opsiconfd.config import config
 from opsiconfd.utils import DataclassCapableJSONEncoder
 
@@ -69,6 +89,13 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 		if check_version and (not pres.upgrade_issue or compare_versions(pres.upgrade_issue, ">", check_version)):
 			continue
 		partial_results.append(pres)
+<<<<<<< HEAD
+		if summary:
+			summary[pres.check_status] += 1
+	if not result.partial_results and summary:
+		summary[result.check_status] += 1
+=======
+>>>>>>> v4.3
 
 	if check_version:
 		if partial_results:
@@ -90,6 +117,9 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 	if status == CheckStatus.OK and not detailed:
 		console.print("")
 		return
+	# if result.upgrade_issue:
+	# 	console.print("")
+	# 	console_print_message(result, console, 3)
 	if partial_results:
 		console.print("")
 	for partial_result in partial_results:
@@ -134,16 +164,9 @@ def console_health_check() -> int:
 
 	styles = STYLES
 	with console.status("Health check running", spinner="arrow3"):
-		register_checks()
 		if config.documentation:
+			register_checks()
 			print_health_check_manual(console=console)
-			return 0
-		elif config.list:
-			console.print("Available checks:")
-			console.print("")
-			console.print("[bold]Check Name - Check ID[/bold]")
-			for check in CheckManager():
-				console.print(f"➔ [bold]{check.name}[/bold]: {check.id}")
 			return 0
 		for result in health_check():
 			summary[result.check_status] += 1

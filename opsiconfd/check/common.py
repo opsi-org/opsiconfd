@@ -16,6 +16,7 @@ import re
 from contextlib import contextmanager
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
+from textwrap import dedent
 from typing import Any, Generator, Iterator
 
 from msgspec.msgpack import decode, encode
@@ -71,7 +72,7 @@ class Check:
 			raise ValueError("Check id must be set")
 		self.name = self.name or self.id
 		self.description = self.description or self.name
-		self.documentation = self.documentation or ""
+		self.documentation = dedent(self.documentation or "")
 		self.cache_expiration = self.cache_expiration or CACHE_EXPIRATION
 
 	def add_partial_checks(self, *checks: Check) -> None:

@@ -9,10 +9,7 @@
 health check
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from textwrap import dedent
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
@@ -113,11 +110,11 @@ class DepotserverCheck(Check):
 	description: str = (
 		"The opsi repository, workbench and depot must be located under /var/lib/opsi/. If this is not the case, an error will be reported."
 	)
-	documentation: str = dedent("""
-							## Depotserver check
-							The opsi repository, workbench and depot must be located under /var/lib/opsi/.
-							If this is not the case, an error will be reported.
-						""")
+	documentation: str = """
+		## Depotserver check
+		The opsi repository, workbench and depot must be located under /var/lib/opsi/.
+		If this is not the case, an error will be reported.
+		"""
 	depot_check: bool = False
 	partial_check: bool = False
 	depot = ""

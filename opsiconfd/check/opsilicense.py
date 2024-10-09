@@ -9,9 +9,6 @@
 # health check
 # """
 
-# from __future__ import annotations
-
-from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -72,9 +69,9 @@ class OpsiLicensesCheck(Check):
 	description: str = "Check opsi licensing state"
 	depot_check: bool = False
 	documentation: str = """
-	## OPSI licenses
+		## OPSI licenses
 
-	Checks whether the imported licenses will soon exceed one of the defined limits (WARNING) or have already exceeded one (ERROR).
+		Checks whether the imported licenses will soon exceed one of the defined limits (WARNING) or have already exceeded one (ERROR).
 	"""
 
 	def check(self) -> CheckResult:

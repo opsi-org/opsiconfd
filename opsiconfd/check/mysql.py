@@ -20,29 +20,6 @@ from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
 from opsiconfd.logging import logger
 
-# @dataclass()
-# class MysqlConnectionCheck(Check):
-# 	id: str = "mysql:connection"
-# 	name: str = "MySQL Connection"
-# 	description: str = "Check MySQL server state"
-# 	partial_check: bool = True
-
-# 	def check(self) -> CheckResult:
-# 		result = CheckResult(
-# 			check=self,
-# 			message="Could not connect to MySQL Server.",
-# 			check_status=CheckStatus.ERROR,
-# 		)
-
-# 		with exc_to_result(result):
-# 			mysql = MySQLConnection()
-# 			with mysql.connection():
-# 				with mysql.session() as session:
-# 					session.execute("SELECT 1").fetchone()
-# 					result.message = "Connection to MySQL is working"
-# 					result.check_status = CheckStatus.OK
-# 		return result
-
 
 @dataclass()
 class MysqlConfigurationCheck(Check):
@@ -78,11 +55,11 @@ class MysqlCheck(Check):
 	name: str = "MySQL"
 	description: str = "Check MySQL server state"
 	documentation: str = """
-	## Check MySQL
+		## Check MySQL
 
-	Checks whether the database is accessible.
-	The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
-	If no connection can be established, this is an error.
+		Checks whether the database is accessible.
+		The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
+		If no connection can be established, this is an error.
 	"""
 
 	def check(self) -> CheckResult:
@@ -117,9 +94,9 @@ class UniqueHardwareAddressesCheck(Check):
 	name: str = "Unique Hardware Addresses"
 	description: str = "Check if all hardware addresses are unique"
 	documentation: str = """
-	## Check Unique Hardware Addresses
+		## Check Unique Hardware Addresses
 
-	Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
+		Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
 	"""
 
 	def check(self) -> CheckResult:

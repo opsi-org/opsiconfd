@@ -21,10 +21,10 @@ class AddonCheck(Check):
 	name: str = "OPSI failed addons"
 	description: str = "Checks if there are any failed addons."
 	documentation: str = """
-	## Check Failed Addons
+		## Check Failed Addons
 
-	Checks if there are any failed addons. If there are any failed addons, the check will return an error and list the failed addons.
-	"""
+		Checks if there are any failed addons. If there are any failed addons, the check will return an error and list the failed addons.
+		"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

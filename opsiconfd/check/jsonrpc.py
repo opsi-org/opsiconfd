@@ -9,10 +9,7 @@
 # health check
 # """
 
-# from __future__ import annotations
 
-# from opsiconfd.backend import get_unprotected_backend
-# from opsiconfd.check.common import Check, CheckResult, CheckStatus, PartialCheckResult, exc_to_result
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -23,7 +20,7 @@ from opsiconfd.redis import decode_redis_result, redis_client
 
 
 @dataclass()
-class DeprecatedClassCheck(Check):
+class DeprecatedCallCheck(Check):
 	id: str = "deprecated_calls"
 	name: str = "Deprecated Check"
 	description: str = "Deprecated Check"
@@ -85,12 +82,12 @@ class DeprecatedCallsCheck(Check):
 	name: str = "Deprecated RPCs"
 	description: str = "Check use of deprecated RPC methods"
 	documentation: str = """
-## Deprecated RPCs
+		## Deprecated RPCs
 
-Among other things, opsi stores calls to methods marked as deprecated in Redis.
-This check looks whether such calls have been made and then issues a warning.
-The message also states which client agent called the API method.
-"""
+		Among other things, opsi stores calls to methods marked as deprecated in Redis.
+		This check looks whether such calls have been made and then issues a warning.
+		The message also states which client agent called the API method.
+	"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(
@@ -103,7 +100,7 @@ The message also states which client agent called the API method.
 		methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
 		for method_name in methods:
 			method_name = method_name.decode("utf-8")
-			deprecated_calls_check.add_partial_checks(DeprecatedClassCheck(method=method_name))
+			deprecated_calls_check.add_partial_checks(DeprecatedCallCheck(method=method_name))
 
 		return result
 

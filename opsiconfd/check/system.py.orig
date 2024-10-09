@@ -9,6 +9,8 @@
 # health check
 # """
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -27,7 +29,11 @@ from requests.exceptions import ConnectTimeout
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
+<<<<<<< HEAD
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+=======
+from opsiconfd.check.common import CheckResult, CheckStatus, PartialCheckResult, exc_to_result
+>>>>>>> v4.3
 from opsiconfd.logging import logger
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_12/"
@@ -38,7 +44,11 @@ LINUX_DISTRO_EOL = {
 		"18.04": date(2023, 4, 1),
 		"20.04": date(2025, 4, 1),
 		"22.04": date(2027, 4, 1),
+<<<<<<< HEAD
 		"24.04": date(2029, 6, 1),
+=======
+		"24.04": date(2029, 4, 1),
+>>>>>>> v4.3
 	},
 	# https://wiki.debian.org/DebianReleases
 	"debian": {
@@ -198,6 +208,86 @@ def get_installed_packages(packages: dict | None = None) -> dict:
 	return installed_versions
 
 
+<<<<<<< HEAD
+=======
+def check_system_packages() -> CheckResult:
+	"""
+	## System packages
+	Currently the following system packages are checked for actuality:
+
+	* opsiconfd
+	* opsi-utils
+	* opsipxeconfd
+
+	The check is carried out against the stable repository of uib
+	(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11/).
+	Older versions are considered a warning and if one of the packages is not installed, an error is issued.
+	"""
+	opsipxeconfd_control_enabled = get_unprotected_backend()._opsipxeconfd_control_enabled
+
+	result = CheckResult(
+		check_id="system_packages",
+		check_name="System packages",
+		check_description="Check system package versions",
+		message="All packages are up to date.",
+	)
+	with exc_to_result(result):
+		repo_versions = get_repo_versions()
+		installed_versions: dict[str, str] = {}
+		try:
+			installed_versions = get_installed_packages(repo_versions)
+		except RuntimeError as err:
+			error = f"Could not get package versions from system: {err}"
+			logger.error(error)
+			result.check_status = CheckStatus.ERROR
+			result.message = error
+			return result
+
+		logger.info("Installed packages: %s", installed_versions)
+
+		not_installed = 0
+		outdated = 0
+		for package, available_version in repo_versions.items():
+			details = {
+				"package": package,
+				"available_version": available_version,
+				"version": installed_versions.get(package),
+				"outdated": False,
+			}
+			partial_result = PartialCheckResult(
+				check_id=f"system_packages:{package}", check_name=f"System package {package!r}", details=details
+			)
+			if not details["version"]:
+				if package == "opsipxeconfd" and not opsipxeconfd_control_enabled:
+					partial_result.check_status = CheckStatus.OK
+					partial_result.message = f"Package {package!r} is not installed and opsipxeconfd control is disabled."
+				else:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = f"Package {package!r} is not installed."
+					partial_result.upgrade_issue = __version__
+				not_installed = not_installed + 1
+			elif compare_versions(available_version or "0", ">", details["version"]):  # type: ignore[arg-type]
+				outdated = outdated + 1
+				partial_result.check_status = CheckStatus.WARNING
+				partial_result.message = (
+					f"Package {package!r} is out of date. "
+					f"Installed version {details['version']!r} < available version {available_version!r}"
+				)
+				details["outdated"] = True
+			else:
+				partial_result.check_status = CheckStatus.OK
+				partial_result.message = f"Package {package!r} is up to date. Installed version: {details['version']!r}"
+			result.add_partial_result(partial_result)
+
+		result.details = {"packages": len(repo_versions.keys()), "not_installed": not_installed, "outdated": outdated}
+		if not_installed > 0 or outdated > 0:
+			result.message = (
+				f"Out of {len(repo_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of date."
+			)
+	return result
+
+
+>>>>>>> v4.3
 def get_disk_mountpoints() -> set:
 	partitions = psutil.disk_partitions()
 	check_mountpoints = set()
@@ -220,12 +310,12 @@ class SystemEOLCheck(Check):
 		limiting it's support on the product and/or version to shift focus on their newer products and/or version.
 	"""
 	documentation: str = """
-		## Operating System End Of Life
+## Operating System End Of Life
 
-		Checks whether the server system still receives updates.
-		The check issues a warning 90 days before the end of life of a distribution.
-		After the end-of-life date, it issues an error.
-	"""
+Checks whether the server system still receives updates.
+The check issues a warning 90 days before the end of life of a distribution.
+After the end-of-life date, it issues an error.
+"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(
@@ -272,17 +362,17 @@ class SystemPackagesCheck(Check):
 	name: str = "System packages"
 	description: str = "Check system package versions"
 	documentation: str = """
-		## System packages
-		Currently the following system packages are checked for actuality:
+## System packages
+Currently the following system packages are checked for actuality:
 
-		* opsiconfd
-		* opsi-utils
-		* opsipxeconfd
+* opsiconfd
+* opsi-utils
+* opsipxeconfd
 
-		The check is carried out against the stable repository of uib
-		(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_12/).
-		Older versions are considered a warning and if one of the packages is not installed, an error is issued.
-	"""
+The check is carried out against the stable repository of uib
+(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_12/).
+Older versions are considered a warning and if one of the packages is not installed, an error is issued.
+"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(
@@ -389,16 +479,16 @@ class DiskUsageCheck(Check):
 	name: str = "Disk usage"
 	description: str = "Check disk usage"
 	documentation: str = """
-		## Disk usage
-		Checks the free space for the following mount points:
+## Disk usage
+Checks the free space for the following mount points:
 
-		* /
-		* /temp
-		* /var, /var/lib or var/lib/opsi
+* /
+* /temp
+* /var, /var/lib or var/lib/opsi
 
-		If there is less than 15 GiB free, a warning is given.
-		If there are less than 7.5 GiB, it is considered an error.
-	"""
+If there is less than 15 GiB free, a warning is given.
+If there are less than 7.5 GiB, it is considered an error.
+"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(
@@ -420,9 +510,9 @@ class SystemRepositoriesCheck(Check):
 	name: str = "System repositories"
 	description: str = "Check system repositories"
 	documentation: str = """
-		## System repositories
-		Check if the system repositories are compatible with opsi repositories.
-	"""
+## System repositories
+Check if the system repositories are compatible with opsi repositories.
+"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

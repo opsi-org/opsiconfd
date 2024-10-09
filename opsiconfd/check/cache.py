@@ -12,7 +12,6 @@ opsiconfd.check.cache
 from functools import wraps
 from typing import Any, Callable
 
-
 from opsiconfd.logging import logger
 from opsiconfd.redis import delete_recursively
 
@@ -23,7 +22,6 @@ def check_cache_clear(cache_id: str | None = None) -> Any:
 	if cache_id != "all":
 		redis_key = f"{redis_key}:{cache_id}"
 	delete_recursively(redis_key)
-
 
 
 def clear_check_cache(
@@ -37,7 +35,7 @@ def clear_check_cache(
 		def wrapper(*args: Any, **kwargs: Any) -> Any:
 			check_cache_clear(check_id)
 			return func(*args, **kwargs)
+
 		return wrapper
+
 	return decorator
-
-

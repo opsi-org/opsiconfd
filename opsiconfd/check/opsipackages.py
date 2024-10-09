@@ -191,6 +191,49 @@ class OpsiProductsOnDepotsCheck(Check):
 
 
 @dataclass()
+class OpsiProductOnClientCheck(Check):
+	id: str = "product_on_client"
+	name: str = "Product on client"
+	description: str = "Check opsi package versions on clients"
+	client_id: str = ""
+	product_id: str = ""
+	available_version: str = ""
+	partial_check: bool = True
+
+	def __post_init__(self) -> None:
+		super().__post_init__()
+		self.id = f"{self.id}:{self.client_id}:{self.product_id}"
+		self.name = f"{self.name} {self.product_id!r} on {self.client_id!r}"
+		self.description = f"{self.description} {self.product_id!r} on {self.client_id!r}"
+
+	def check(self) -> CheckResult:
+		result = CheckResult(
+			check=self,
+			message=f"Product '{self.product_id}' is up to date on client '{self.client_id}'.",
+			check_status=CheckStatus.OK,
+		)
+		with exc_to_result(result):
+			backend = get_unprotected_backend()
+			product_on_client = backend.productOnClient_getObjects(
+				attributes=["productVersion", "packageVersion"],
+				clientId=self.client_id,
+				productId=self.product_id,
+				installationStatus="installed",
+			)[0]
+			version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
+			if compare_versions(version, ">=", self.available_version):
+				return result
+			if self.product_id in MANDATORY_OPSI_PRODUCTS or self.product_id in MANDATORY_IF_INSTALLED:
+				result.check_status = CheckStatus.ERROR
+			else:
+				result.check_status = CheckStatus.WARNING
+			result.message = f"Product {self.product_id!r} is outdated on client {self.client_id!r}. Installed version {version!r} < depot version {self.available_version!r}"
+			result.upgrade_issue = "4.3"
+
+		return result
+
+
+@dataclass()
 class OpsiProductsOnClientsCheck(Check):
 	id: str = "products_on_clients"
 	name: str = "Products on clients"
@@ -201,7 +244,6 @@ class OpsiProductsOnClientsCheck(Check):
 		Checks whether newer versions of the products installed on the client are available in the depot.
 		If an older version is installed, the Health Check issues a warning.
 	"""
-	cache_partial_checks: bool = True
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

@@ -50,7 +50,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		}
 	):
 		# CA key, CA cert, server key, server cert file missing
-		result = check_manager.get("ssl").run(use_cache=False)
+		result = check_manager.get("ssl").run(clear_cache=True)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "5 issue(s) found."
 		assert result.partial_results[0].message.startswith("A problem was found with the opsi CA certificate")
@@ -68,7 +68,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		store_local_server_cert(srv_crt)
 		store_local_server_key(srv_key)
 
-		result = check_manager.get("ssl").run(use_cache=False)
+		result = check_manager.get("ssl").run(clear_cache=True)
 		assert result.check_status == CheckStatus.OK
 		assert result.message == "No SSL issues found."
 		assert (
@@ -80,7 +80,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		assert result.partial_results[2].message == "The opsi CA key is OK."
 
 		with mock.patch(
-			"opsiconfd.check.ssl.get_ca_subject",
+			"opsiconfd.check.ssl.get_opsi_ca_subject",
 			lambda: {
 				"C": "DE",
 				"ST": "RP",
@@ -91,7 +91,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 				"emailAddress": "opsi@new.domain",
 			},
 		):
-			result = check_manager.get("ssl").run(use_cache=False)
+			result = check_manager.get("ssl").run(clear_cache=True)
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].message.startswith("The subject of the CA has changed from")
 
@@ -99,7 +99,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		store_opsi_ca_key(ca_key)
 		store_opsi_ca_cert(ca_crt)
 
-		result = check_manager.get("ssl").run(use_cache=False)
+		result = check_manager.get("ssl").run(clear_cache=True)
 
 		assert result.check_status == CheckStatus.ERROR
 		assert (

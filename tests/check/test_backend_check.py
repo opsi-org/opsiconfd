@@ -36,5 +36,5 @@ def test_check_depotservers(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
-	result = check_manager.get("depotservers").run(use_cache=False)
+	result = check_manager.get("depotservers").run(clear_cache=True)
 	assert result.check_status == CheckStatus.ERROR

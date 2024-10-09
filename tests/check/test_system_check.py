@@ -52,7 +52,7 @@ DEPRECATED_METHOD = "getClientIds_list"
 
 def test_check_disk_usage() -> None:
 	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
-	result = check_manager.get("disk_usage").run(use_cache=False)
+	result = check_manager.get("disk_usage").run(clear_cache=True)
 	assert result.check_status
 
 
@@ -96,7 +96,7 @@ def test_check_system_packages_debian() -> None:
 		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
-		result = check_manager.get("system_packages").run(use_cache=False)
+		result = check_manager.get("system_packages").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in installed_versions.items():
@@ -125,7 +125,7 @@ def test_check_system_packages_debian() -> None:
 		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
-		result = check_manager.get("system_packages").run(use_cache=False)
+		result = check_manager.get("system_packages").run(clear_cache=True)
 
 		assert result.message == "Out of 2 packages checked, 0 are not installed and 2 are out of date."
 		assert result.check_status == CheckStatus.WARNING
@@ -163,7 +163,7 @@ def test_check_system_packages_open_suse() -> None:
 		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"opensuse"})),
 	):
-		result = check_manager.get("system_packages").run(use_cache=False)
+		result = check_manager.get("system_packages").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in repo_versions.items():
@@ -194,7 +194,7 @@ def test_check_system_packages_redhat() -> None:
 		mock.patch("opsiconfd.check.system.run", mock.PropertyMock(return_value=Proc())),
 		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"rhel"})),
 	):
-		result = check_manager.get("system_packages").run(use_cache=False)
+		result = check_manager.get("system_packages").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		for name, version in repo_versions.items():
@@ -241,7 +241,7 @@ def test_check_system_repos() -> None:
 						"Pinned packages:\n"
 					)
 				)
-				result = check_manager.get("system_repositories").run(use_cache=False)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
@@ -263,7 +263,7 @@ def test_check_system_repos() -> None:
 					"Pinned packages:\n"
 				)
 			)
-			result = check_manager.get("system_repositories").run(use_cache=False)
+			result = check_manager.get("system_repositories").run(clear_cache=True)
 			assert result.check_status == CheckStatus.OK
 			assert result.message == "No issues found with the system repositories."
 	# test rocky 9 with rocky 8 repository and rocky 9 repository
@@ -284,7 +284,7 @@ def test_check_system_repos() -> None:
 						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_8)\n"
 					)
 				)
-				result = check_manager.get("system_repositories").run(use_cache=False)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
@@ -303,7 +303,7 @@ def test_check_system_repos() -> None:
 						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_9)\n"
 					)
 				)
-				result = check_manager.get("system_repositories").run(use_cache=False)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
 	# Test openSUSE 15.5 with openSUSE 15.4 repository and openSUSE 15.5 repository
@@ -328,7 +328,7 @@ def test_check_system_repos() -> None:
 						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
 					)
 				)
-				result = check_manager.get("system_repositories").run(use_cache=False)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
@@ -351,6 +351,6 @@ def test_check_system_repos() -> None:
 						"10 | repo-sle-update                     | Update repository with updates from SUSE Linux Enterprise 15 | Ja      | (r ) Ja   | Ja\n"
 					)
 				)
-				result = check_manager.get("system_repositories").run(use_cache=False)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."

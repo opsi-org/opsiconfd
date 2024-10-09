@@ -40,7 +40,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 
 	sync_clean_redis()
 	console = Console(log_time=False, force_terminal=False, width=1000)
-	result = check_manager.get("deprecated_calls").run(use_cache=False)
+	result = check_manager.get("deprecated_calls").run(clear_cache=True)
 	captured_output = captured_function_output(process_check_result, result=result, console=console)
 	assert "No deprecated method calls found." in captured_output
 	assert result.check_status == CheckStatus.OK
@@ -53,7 +53,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 
 	assert res.status_code == 200
 	time.sleep(3)
-	result = check_manager.get("deprecated_calls").run(use_cache=False)
+	result = check_manager.get("deprecated_calls").run(clear_cache=True)
 
 	# print(result)
 	assert result.check_status == CheckStatus.WARNING
@@ -80,7 +80,7 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # no
 	assert len(methods) == 1
 	redis.expire(f"{redis_prefix_stats}:rpcs:deprecated:{DEPRECATED_METHOD}:count", 1)
 	time.sleep(5)
-	result = check_manager.get("deprecated_calls").run(use_cache=False)
+	result = check_manager.get("deprecated_calls").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK
 
 	methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")

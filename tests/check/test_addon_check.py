@@ -29,7 +29,7 @@ def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction)
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
 
-	result = check_manager.get("opsi_failed_addons").run(use_cache=False)
+	result = check_manager.get("opsi_failed_addons").run(clear_cache=True)
 	assert result.check_status == CheckStatus.ERROR
 
 	test_config.addon_dirs = []
@@ -37,5 +37,5 @@ def test_check_opsi_failed_addons(test_config: Config, cleanup: FixtureFunction)
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
 
-	result = check_manager.get("opsi_failed_addons").run(use_cache=False)
+	result = check_manager.get("opsi_failed_addons").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK

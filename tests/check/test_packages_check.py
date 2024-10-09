@@ -93,7 +93,7 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	_prepare_products(test_client=test_client)
 	check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check)
-	result = check_manager.get("products_on_depots").run(use_cache=False)
+	result = check_manager.get("products_on_depots").run(clear_cache=True)
 	print(result)
 	assert result.check_status == CheckStatus.ERROR
 	assert "Out of 2 products on 2 depots checked, 2 mandatory products are not installed, 1 are out of date." in result.message
@@ -123,7 +123,7 @@ def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # n
 def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	_prepare_products(test_client=test_client)
 	check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check)
-	result = check_manager.get("products_on_clients").run(use_cache=False)
+	result = check_manager.get("products_on_clients").run(clear_cache=True)
 	# print(result)
 	assert result.check_status == CheckStatus.ERROR
 	assert "1 issue(s) found." in result.message

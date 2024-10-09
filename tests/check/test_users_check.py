@@ -21,7 +21,7 @@ from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
 def test_check_opsi_users() -> None:
 	register_checks()
 	check_manager.register(opsi_users_check)
-	result = check_manager.get("opsi_users").run(use_cache=False)
+	result = check_manager.get("opsi_users").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK
 
 	# If the server is part of a domain and the opsi users are local users, a warning should be issued.
@@ -44,7 +44,7 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
 	):
-		result = check_manager.get("opsi_users").run(use_cache=False)
+		result = check_manager.get("opsi_users").run(clear_cache=True)
 		assert result.check_status == CheckStatus.WARNING
 
 	# If the server  is part of a domain and the opsi users are only domain users, no warning should be issued.
@@ -69,7 +69,7 @@ def test_check_opsi_users() -> None:
 			"opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SYSTEMD, NameService.WINBIND])
 		),
 	):
-		result = check_manager.get("opsi_users").run(use_cache=False)
+		result = check_manager.get("opsi_users").run(clear_cache=True)
 		assert result.check_status == CheckStatus.OK
 
 	# If the server is part of a domain and the opsi users are local and domain users, an error should be issued.
@@ -101,7 +101,7 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD, NameService.LDAP])),
 	):
-		result = check_manager.get("opsi_users").run(use_cache=False)
+		result = check_manager.get("opsi_users").run(clear_cache=True)
 		assert result.check_status == CheckStatus.ERROR
 
 	# If the server is not part of a domain and the opsi users are local users, no warning should be issued.
@@ -124,11 +124,11 @@ def test_check_opsi_users() -> None:
 		),
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.COMPAT, NameService.SYSTEMD])),
 	):
-		result = check_manager.get("opsi_users").run(use_cache=False)
+		result = check_manager.get("opsi_users").run(clear_cache=True)
 		assert result.check_status == CheckStatus.OK
 
 	# check for missing user
 	with get_opsi_config([{"category": "depot_user", "config": "username", "value": "pcpatch-local"}]):
-		result = check_manager.get("opsi_users").run(use_cache=False)
+		result = check_manager.get("opsi_users").run(clear_cache=True)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "1 issue(s) found."

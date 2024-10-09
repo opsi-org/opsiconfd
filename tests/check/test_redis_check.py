@@ -34,7 +34,7 @@ def test_check_redis() -> None:
 	register_redis_check()
 
 	console = Console(log_time=False, force_terminal=False, width=1000)
-	result = check_manager.get("redis").run(use_cache=False)
+	result = check_manager.get("redis").run(clear_cache=True)
 	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 	assert "Redis Server: OK" in captured_output
 	assert "The connection to the Redis server does work. " in captured_output
@@ -48,7 +48,7 @@ def test_check_redis_connection_error() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 
 	with mock.patch("opsiconfd.check.redis.redis_client", side_effect=RedisConnectionError("Redis test error")):
-		result = check_manager.get("redis").run(use_cache=False)
+		result = check_manager.get("redis").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		assert "Cannot connect to Redis" in captured_output
@@ -61,7 +61,7 @@ def test_check_redis_memory_warning() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 
 	with mock.patch("opsiconfd.check.redis.MEMORY_USAGE_WARN", 1):
-		result = check_manager.get("redis").run(use_cache=False)
+		result = check_manager.get("redis").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 		assert "WARNING - Redis memory usage is high" in captured_output
 
@@ -70,6 +70,6 @@ def test_check_redis_memory_error() -> None:
 	register_redis_check()
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	with mock.patch("opsiconfd.check.redis.MEMORY_USAGE_ERR", 1):
-		result = check_manager.get("redis").run(use_cache=False)
+		result = check_manager.get("redis").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 		assert "ERROR - Redis memory usage is too high" in captured_output

@@ -51,7 +51,7 @@ def test_check_mysql() -> None:
 	register_mysql_check()
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	with mock.patch("opsiconfd.check.mysql.MAX_ALLOWED_PACKET", 1):
-		result = check_manager.get("mysql").run(use_cache=False)
+		result = check_manager.get("mysql").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		assert "No MySQL issues found." in captured_output
@@ -66,7 +66,7 @@ def test_check_mysql_error() -> None:
 		side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'),
 	):
 		console = Console(log_time=False, force_terminal=False, width=1000)
-		result = check_manager.get("mysql").run(use_cache=False)
+		result = check_manager.get("mysql").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 
 		assert '2005 - "Unknown MySQL server host bla (-3)"' in captured_output
@@ -75,7 +75,7 @@ def test_check_mysql_error() -> None:
 
 	check_cache_clear("all")
 	with mock.patch("opsiconfd.check.mysql.MAX_ALLOWED_PACKET", 1_000_000_000):
-		result = check_manager.get("mysql").run(use_cache=False)
+		result = check_manager.get("mysql").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 		assert "is too small (should be at least 1000000000)" in captured_output
 
@@ -95,7 +95,7 @@ def test_check_unique_hardware_addresses(test_client: OpsiconfdTestClient) -> No
 	assert "error" not in res
 
 	# result = check_unique_hardware_addresses(CheckRegistry().get("unique_hardware_addresses").result)
-	result = check_manager.get("unique_hardware_addresses").run(use_cache=False)
+	result = check_manager.get("unique_hardware_addresses").run(clear_cache=True)
 	assert result.check_status == CheckStatus.ERROR
 
 	client2.hardwareAddress = "00:00:00:00:00:01"
@@ -105,5 +105,5 @@ def test_check_unique_hardware_addresses(test_client: OpsiconfdTestClient) -> No
 
 	time.sleep(1)
 
-	result = check_manager.get("unique_hardware_addresses").run(use_cache=False)
+	result = check_manager.get("unique_hardware_addresses").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK

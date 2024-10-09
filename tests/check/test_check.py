@@ -95,7 +95,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_manager.get("opsi_config").run(use_cache=False)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("0")
 	assert result.check.name in checkmk
@@ -106,7 +106,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_manager.get("opsi_config").run(use_cache=False)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("1")
 	assert "1 issue(s) found." in checkmk
@@ -116,7 +116,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_manager.get("opsi_config").run(use_cache=False)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("2")
 	assert "1 issue(s) found." in checkmk

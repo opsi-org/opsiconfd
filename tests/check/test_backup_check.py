@@ -38,7 +38,7 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	sync_clean_redis()
 	# backup check should fail. No backup was created.
 
-	result = check_manager.get("opsi_backup").run(use_cache=False)
+	result = check_manager.get("opsi_backup").run(clear_cache=True)
 	assert result.check_status == CheckStatus.ERROR
 
 	# create a backup
@@ -47,7 +47,7 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert res.status_code == 200
 
 	# backup check should pass. A backup was created.
-	result = check_manager.get("opsi_backup").run(use_cache=False)
+	result = check_manager.get("opsi_backup").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK
 
 	redis = redis_client()
@@ -56,5 +56,5 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 	time.sleep(1)
 
-	result = check_manager.get("opsi_backup").run(use_cache=False)
+	result = check_manager.get("opsi_backup").run(clear_cache=True)
 	assert result.check_status == CheckStatus.ERROR

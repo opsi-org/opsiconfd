@@ -25,6 +25,7 @@ from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
+from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.redis import redis_client
@@ -89,17 +90,18 @@ class Check:
 			check_status=CheckStatus.ERROR,
 		)
 
-	def run(self, use_cache: bool = True) -> CheckResult:
+	def run(self, clear_cache: bool = False) -> CheckResult:
 		result = None
 		issue_counter = 0
-
-		if self.cache and use_cache:
+		if clear_cache:
+			check_cache_clear(self.id)
+		if self.cache:
 			result = self.check_cache_load()
 		if result is None:
 			result = self.check()
 
 		for partial_check in self.partial_checks:
-			partial_result = partial_check.run(use_cache)
+			partial_result = partial_check.run(clear_cache)
 
 			result.add_partial_result(partial_result)
 			if partial_result.check_status != CheckStatus.OK:
@@ -109,7 +111,7 @@ class Check:
 
 		if issue_counter > 0:
 			result.message = f"{issue_counter} issue(s) found."
-		if self.cache and use_cache:
+		if self.cache:
 			self.check_cache_store(result, self.cache_expiration)
 		return result
 

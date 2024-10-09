@@ -16,6 +16,6 @@ from tests.utils import cleanup_checks  # noqa: F401
 
 def test_check_licenses() -> None:  # noqa: F811
 	check_manager.register(opsi_licenses_check)
-	result = check_manager.get("opsi_licenses").run(use_cache=False)
+	result = check_manager.get("opsi_licenses").run(clear_cache=True)
 	assert result.check_status == "ok"
 	assert result.partial_results is not None

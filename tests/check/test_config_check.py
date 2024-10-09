@@ -34,7 +34,7 @@ def test_check_opsiconfd_config(tmp_path: Path) -> None:
 	acl_file = tmp_path / "acl.conf"
 	acl_file.write_text(ACL_CONF_41, encoding="utf-8")
 	with get_config({"log_level_stderr": 9, "debug_options": ["rpc-log", "asyncio"], "acl_file": str(acl_file)}):
-		result = check_manager.get("opsiconfd_config").run(use_cache=False)
+		result = check_manager.get("opsiconfd_config").run(clear_cache=True)
 		# print(result)
 		ids_found = 0
 		assert result.check_status == CheckStatus.ERROR
@@ -88,7 +88,7 @@ def test_check_run_as_user() -> None:
 		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
 			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
-			result = check_manager.get("run_as_user").run(use_cache=False)
+			result = check_manager.get("run_as_user").run(clear_cache=True)
 
 			pprint.pprint(result)
 			assert result.check_status == CheckStatus.OK
@@ -97,7 +97,7 @@ def test_check_run_as_user() -> None:
 			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
 		):
 			mock_user.pw_dir = "/wrong/home"
-			result = check_manager.get("run_as_user").run(use_cache=False)
+			result = check_manager.get("run_as_user").run(clear_cache=True)
 			assert result.check_status == CheckStatus.WARNING
 			assert result.partial_results[0].details["home_directory"] == "/wrong/home"
 	with (
@@ -105,7 +105,7 @@ def test_check_run_as_user() -> None:
 		mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
 		mock.patch("opsiconfd.check.config.grp.getgrnam", mock_getgrnam),
 	):
-		result = check_manager.get("run_as_user").run(use_cache=False)
+		result = check_manager.get("run_as_user").run(clear_cache=True)
 		assert result.check_status == CheckStatus.ERROR
 		print(result)
 		for partial_result in result.partial_results:
@@ -127,7 +127,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_manager.get("opsi_config").run(use_cache=False)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	print(result)
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "No issues found in the opsi configuration."
@@ -139,7 +139,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_manager.get("opsi_config").run(use_cache=False)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	assert result.check_status == CheckStatus.WARNING
 	assert result.message == "1 issue(s) found."
 	assert len(result.partial_results) == 1
@@ -150,7 +150,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
 
-	result = check_manager.get("opsi_config").run(use_cache=False)
+	result = check_manager.get("opsi_config").run(clear_cache=True)
 	assert result.check_status == CheckStatus.ERROR
 	assert result.message == "1 issue(s) found."
 	assert len(result.partial_results) == 1

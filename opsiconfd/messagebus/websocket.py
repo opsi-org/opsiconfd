@@ -206,11 +206,12 @@ class MessagebusWebsocket(WebSocketEndpoint):
 	async def message_reader_task(self, websocket: WebSocket, reader: MessageReader) -> None:
 		ack_all_messages = isinstance(reader, ConsumerGroupMessageReader)
 		try:
+			logger.trace("Start reading messages from %r for %r", reader, websocket)
 			async for redis_id, message, _context in reader.get_messages():
+				logger.trace("Message from %r: %r", reader, message)
 				await self._send_message_to_websocket(websocket, message)
 				if ack_all_messages or message.channel == self._user_channel:
 					# ACK message (set last-delivered-id)
-					# create_task(reader.ack_message(redis_id))
 					await reader.ack_message(message.channel, redis_id)
 		except StopAsyncIteration:
 			pass

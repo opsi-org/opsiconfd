@@ -33,7 +33,6 @@ from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
-from opsiconfd.check.const import CHECKS
 from opsiconfd.utils import lock_file
 
 from .utils import Singleton, is_manager, is_opsiconfd, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
@@ -1202,9 +1201,8 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				("opsiconfd", "health-check"),
-				"A list of checks to perform. If not set, all checks are executed. " f"(checks: all, { ', '.join(CHECKS) }).",
+				"A list of checks to perform. If not set, all checks are executed.",
 			),
-			choices=CHECKS,
 		)
 
 		self._parser.add(
@@ -1214,9 +1212,13 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				("opsiconfd", "health-check"),
-				f"A list of checks to skip (checks: { ', '.join(CHECKS) }).",
+				"A list of checks to skip.",
 			),
-			choices=CHECKS,
+		)
+		self._parser.add(
+			"--list",
+			action="store_true",
+			help=self._help("health-check", "List all available checks."),
 		)
 		self._parser.add(
 			"--format",
@@ -1545,6 +1547,16 @@ class Config(metaclass=Singleton):
 				"Admin password to use for setup.",
 			),
 		)
+		self._parser.add(
+			"--clear-cache",
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"health-check",
+				"Clear the cache before running the checks.",
+			),
+		)
 
 		if self._pytest:
 			self._parser.add("args", nargs="*")
@@ -1644,6 +1656,7 @@ class Config(metaclass=Singleton):
 			)
 			self._parser.add(
 				"--documentation",
+				"--docs",
 				action="store_true",
 				help=self._help("health-check", "Outputs a description of each check on the console."),
 			)

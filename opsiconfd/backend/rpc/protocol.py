@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin
+from .driver import RPCDriverMixin
 from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin
@@ -99,6 +100,7 @@ class BackendProtocol(
 	RPCExtSSHCommandsMixin,
 	RPCDepotserverMixin,
 	RPCHostControlMixin,
+	RPCDriverMixin,
 	RPCDHCPDControlMixin,
 	RPCOpsiPXEConfdControlMixin,
 	RPCExtenderMixin,

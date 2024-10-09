@@ -161,7 +161,7 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	if ucs_password:
 		secret_filter.add_secrets(ucs_password)
 
-	if not ucs_admin_dn and get_server_role() != "domaincontroller_prim":
+	if not ucs_admin_dn and get_server_role() not in ("domaincontroller_prim", "domaincontroller_master"):
 		try:
 			grp.getgrnam(admingroup)
 			grp.getgrnam(fileadmingroup)

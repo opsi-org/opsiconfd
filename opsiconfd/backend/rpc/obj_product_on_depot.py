@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 from opsicommon.objects import ProductOnDepot
 from opsicommon.types import forceList, forceObjectClass
 
+from opsiconfd.check.cache import clear_check_cache
+
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -38,6 +40,7 @@ class RPCProductOnDepotMixin(Protocol):
 		productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
 		self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=False, set_null=False)
 
+	@clear_check_cache(check_id="products_on_depots")
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_createObjects(
 		self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot] | dict | ProductOnDepot
@@ -64,6 +67,7 @@ class RPCProductOnDepotMixin(Protocol):
 		del _hash["self"]
 		self.productOnDepot_createObjects(ProductOnDepot.fromHash(_hash))
 
+	@clear_check_cache(check_id="products_on_depots")
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_updateObjects(
 		self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot] | dict | ProductOnDepot
@@ -97,6 +101,7 @@ class RPCProductOnDepotMixin(Protocol):
 		ace = self._get_ace("productOnDepot_getObjects")
 		return self._mysql.get_idents(table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, ace=ace, ident_type=returnType, filter=filter)
 
+	@clear_check_cache(check_id="products_on_depots")
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_deleteObjects(
 		self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot] | dict | ProductOnDepot

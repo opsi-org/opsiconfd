@@ -46,6 +46,7 @@ from opsicommon.ssl import (
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.config import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	FQDN,
@@ -329,6 +330,7 @@ def _clear_ca_certs_cache(lock: bool = True) -> None:
 		_get_opsi_ca_cert_as_pem.cache_clear()
 		_get_ca_certs.cache_clear()
 		_get_ca_certs_as_pem.cache_clear()
+		check_cache_clear("ssl")
 
 
 def _check_certs_modified() -> bool:

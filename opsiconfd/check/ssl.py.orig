@@ -9,6 +9,8 @@
 health check
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from cryptography import x509
@@ -19,6 +21,7 @@ from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manage
 from opsiconfd.config import config
 from opsiconfd.ssl import (
 	check_intermediate_ca,
+	get_ca_certs,
 	get_not_before_and_not_after,
 	get_opsi_ca_subject,
 	get_server_cn,
@@ -38,10 +41,11 @@ class OpsiCaCert(Check):
 	name: str = "opsi CA certificate"
 	description: str = "Checks the state of the opsi CA certificate."
 	documentation: str = """
-		## opsi CA certificate
 
-		Checks the state of the opsi CA certificate
-	"""
+## opsi CA certificate
+Checks the state of the opsi CA certificate
+
+"""
 	partial_check: bool = True
 
 	def check(self) -> CheckResult:
@@ -79,9 +83,9 @@ class IntermediateCACheck(Check):
 	name: str = "opsi CA as intermediate CA"
 	description: str = "Checks if the opsi CA is an intermediate CA."
 	documentation: str = """
-		## Intermediate CA
-		Checks if the opsi CA is an intermediate CA.
-	"""
+## Intermediate CA
+Checks if the opsi CA is an intermediate CA.
+"""
 	depot_check: bool = False
 	partial_check: bool = True
 
@@ -110,10 +114,10 @@ class OpsiCaKeyCheck(Check):
 	name: str = "opsi CA key"
 	description: str = "Checks the state of the opsi CA key."
 	documentation: str = """
-		## opsi CA key
+## opsi CA key
 
-		Checks the state of the opsi CA key.
-	"""
+Checks the state of the opsi CA key.
+"""
 	depot_check: bool = False
 	partial_check: bool = True
 
@@ -138,9 +142,9 @@ class ServerCertCheck(Check):
 	name: str = "Server certificate"
 	description: str = "Checks the state of the server certificate."
 	documentation: str = """
-		## Server certificate
-		Checks the state of the server certificate.
-	"""
+## Server certificate
+Checks the state of the server certificate.
+"""
 	depot_check: bool = False
 	partial_check: bool = True
 
@@ -159,11 +163,40 @@ class ServerCertCheck(Check):
 			else:
 				result.message = f"The server certificate is OK and will expire in {not_after_days} days."
 				if not_after_days <= config.ssl_server_cert_renew_days:
+<<<<<<< HEAD
 					result.message = f"The server certificate is OK but will expire in {not_after_days} days."
 					result.check_status = CheckStatus.WARNING
 		except Exception as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"A problem was found with the server certificate: {err}."
+=======
+					partial_result.message = f"The server certificate is OK but will expire in {not_after_days} days."
+					partial_result.check_status = CheckStatus.WARNING
+
+				server_cn = get_server_cn()
+				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
+				if not isinstance(cert_cn, str):
+					cert_cn = cert_cn.decode("utf-8")
+				if server_cn != cert_cn:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
+
+				try:
+					validate_cert(srv_crt, get_ca_certs())
+				except verification.VerificationError as err:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = str(err)
+
+		except Exception as err:
+			print(err)
+			print(err.__class__)
+			import traceback
+
+			print(traceback.format_exc())
+			partial_result.check_status = CheckStatus.ERROR
+			partial_result.message = f"A problem was found with the server certificate: {err}."
+			ca_cert = None
+>>>>>>> v4.3
 
 		return result
 
@@ -174,10 +207,10 @@ class ServerKeyCheck(Check):
 	name: str = "server key"
 	description: str = "Checks the state of the server key."
 	documentation: str = """
-		## Server key
+## Server key
 
-		Checks the state of the server key.
-	"""
+Checks the state of the server key.
+"""
 	partial_check: bool = True
 
 	def check(self) -> CheckResult:
@@ -194,6 +227,7 @@ class ServerKeyCheck(Check):
 			if srv_key.public_key().public_bytes(
 				encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1
 			) != srv_crt.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.PKCS1):
+<<<<<<< HEAD
 				result.check_status = CheckStatus.ERROR
 				result.message = "Server cert does not match server key."
 			else:
@@ -210,6 +244,10 @@ class ServerKeyCheck(Check):
 					except verification.VerificationError:
 						result.check_status = CheckStatus.ERROR
 						result.message = "Failed to verify server cert with opsi CA."
+=======
+				partial_result.check_status = CheckStatus.ERROR
+				partial_result.message = "Server cert does not match server key."
+>>>>>>> v4.3
 		except Exception as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"A problem was found with the server key: {err}."
@@ -222,9 +260,9 @@ class SSLCheck(Check):
 	name: str = "SSL"
 	description: str = "Checks the state of the opsi CA and the server certificate."
 	documentation: str = """
-		## SSL
-		Checks the state of the opsi CA and the server certificate.
-	"""
+## SSL
+Checks the state of the opsi CA and the server certificate.
+"""
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

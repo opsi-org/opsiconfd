@@ -26,6 +26,7 @@ from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
 from opsiconfd.backend import new_service_client
+from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
 from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.exception import ConfigurationError
@@ -195,6 +196,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
 
 
+@clear_check_cache(check_id="all")
 def setup(explicit: bool = True) -> None:
 	"""
 	explicit: called as "opsiconfd setup"?

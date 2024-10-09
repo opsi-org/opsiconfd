@@ -13,14 +13,16 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import io
 import os
 import socket
+import sys
 import time
 import types
 from contextlib import closing, contextmanager
 from queue import Empty, Queue
 from threading import Event, Thread
-from typing import Any, Generator, Type
+from typing import Any, Callable, Generator, Type
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -40,6 +42,8 @@ from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
+from opsiconfd.check.cache import check_cache_clear
+from opsiconfd.check.common import check_manager
 from opsiconfd.config import Config, OpsiConfig, get_configserver_id
 from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config as _opsi_config
@@ -646,3 +650,22 @@ user_getCredentials    : opsi_depotserver; opsi_client
 get(Raw){0,1}Data      : sys_group(opsiadmin); opsi_depotserver
 .*                     : sys_group(opsiadmin); opsi_depotserver; self
 """
+
+
+def captured_function_output(func: Callable, **kwargs: Any) -> str:
+	captured_output = io.StringIO()
+	sys.stdout = captured_output
+	func(**kwargs)
+	sys.stdout = sys.__stdout__
+	return captured_output.getvalue()
+
+
+@pytest.fixture(autouse=True)
+def cache_clear() -> None:
+	check_cache_clear("all")
+
+
+@pytest.fixture(autouse=True)
+def cleanup_checks() -> None:
+	check_cache_clear("all")
+	check_manager.remove_check(check_id="all")

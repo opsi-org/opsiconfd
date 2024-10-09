@@ -162,9 +162,9 @@ class RPCGeneralMixin(Protocol):
 		return list(session.user_groups)
 
 	@rpc_method
-	def service_healthCheck(self: BackendProtocol) -> list[CheckResult]:
+	def service_healthCheck(self: BackendProtocol, clear_cache: bool = False) -> list[CheckResult]:
 		self._check_role("admin")
-		return list(health_check())
+		return list(health_check(clear_cache))
 
 	@rpc_method
 	async def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:

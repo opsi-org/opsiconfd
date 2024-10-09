@@ -133,18 +133,21 @@ def console_health_check() -> int:
 		return status.return_code()  # type: ignore[union-attr]
 
 	styles = STYLES
-	with console.status("Health check running", spinner="arrow3"):
-		register_checks()
-		if config.documentation:
-			print_health_check_manual(console=console)
-			return 0
-		elif config.list:
-			console.print("Available checks:")
-			console.print("")
+	register_checks()
+	if config.documentation:
+		print_health_check_manual(console=console)
+		return 0
+	elif config.list:
+		if config.detailed:
 			console.print("[bold]Check Name - Check ID[/bold]")
 			for check in CheckManager():
 				console.print(f"➔ [bold]{check.name}[/bold]: {check.id}")
-			return 0
+				console.print(f"	{check.description}")
+		else:
+			for check in CheckManager():
+				console.print(check.id)
+		return 0
+	with console.status("Health check running", spinner="arrow3"):
 		for result in health_check():
 			summary[result.check_status] += 1
 			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed)

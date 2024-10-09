@@ -71,7 +71,7 @@ class Check:
 		if self.id == "":
 			raise ValueError("Check id must be set")
 		self.name = self.name or self.id
-		self.description = self.description or self.name
+		self.description = dedent(self.description or self.name)
 		self.documentation = dedent(self.documentation or "")
 		self.cache_expiration = self.cache_expiration or CACHE_EXPIRATION
 

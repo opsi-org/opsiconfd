@@ -215,7 +215,8 @@ def get_disk_mountpoints() -> set:
 class SystemEOLCheck(Check):
 	id: str = "linux_distro_eol"
 	name: str = "Operating System End Of Life"
-	description: str = """Check Operating System end-of-life date.
+	description: str = """
+		Check Operating System end-of-life date.
 		'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
 		limiting it's support on the product and/or version to shift focus on their newer products and/or version.
 	"""
@@ -225,6 +226,9 @@ class SystemEOLCheck(Check):
 		Checks whether the server system still receives updates.
 		The check issues a warning 90 days before the end of life of a distribution.
 		After the end-of-life date, it issues an error.
+
+		'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
+		limiting it's support on the product and/or version to shift focus on their newer products and/or version.
 	"""
 
 	def check(self) -> CheckResult:

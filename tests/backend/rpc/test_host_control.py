@@ -12,6 +12,7 @@ test opsiconfd.backend.rpc.host_control
 from typing import Any
 from unittest import mock
 
+import pytest
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductDependency, ProductOnClient, ProductOnDepot
 
 from opsiconfd.config import get_depotserver_id
@@ -125,3 +126,22 @@ async def test_hostControl_processActionRequests(
 		await backend.hostControl_processActionRequests(hostIds=[client_id])
 		assert len(messagebus_rpcs) == 1
 		assert messagebus_rpcs[0] == ([client_id], "processActionRequests", [])
+
+		# Test visibility param
+		messagebus_rpcs = []
+		await backend.hostControl_processActionRequests(hostIds=[client_id], productIds=["prod1"], visibility="visible")
+		assert len(messagebus_rpcs) == 1
+		assert messagebus_rpcs[0] == ([client_id], "processActionRequests", [["prod1"], "visible"])
+
+		messagebus_rpcs = []
+		await backend.hostControl_processActionRequests(hostIds=[client_id], visibility="hidden")
+		assert len(messagebus_rpcs) == 1
+		assert messagebus_rpcs[0] == ([client_id], "processActionRequests", [None, "hidden"])
+
+		messagebus_rpcs = []
+		await backend.hostControl_processActionRequests(hostIds=[client_id], visibility="")
+		assert len(messagebus_rpcs) == 1
+		assert messagebus_rpcs[0] == ([client_id], "processActionRequests", [])
+
+		with pytest.raises(ValueError):
+			await backend.hostControl_processActionRequests(hostIds=[client_id], visibility="invisible")

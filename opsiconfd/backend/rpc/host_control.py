@@ -541,16 +541,21 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method
 	async def hostControl_processActionRequests(
-		self: BackendProtocol, hostIds: list[str] | None = None, productIds: list[str] | None = None
+		self: BackendProtocol, hostIds: list[str] | None = None, productIds: list[str] | None = None, visibility: str | None = None
 	) -> dict[str, dict[str, Any]]:
+		visibility = visibility or None
+		if visibility not in (None, "visible", "hidden"):
+			raise ValueError(f"Invalid visibility {visibility!r}, must be 'visible' or 'hidden' if set")
+
 		client_ids = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not client_ids:
 			raise BackendMissingDataError("No matching host ids found")
 
+		params: list[list[str] | str | None] = [None, visibility] if visibility else []
 		if not productIds:
 			if self._host_control_use_messagebus:
-				return await self._messagebus_rpc(client_ids=client_ids, method="processActionRequests", params=[])
-			return await run_in_threadpool(self._opsiclientd_rpc, host_ids=client_ids, method="processActionRequests", params=[])
+				return await self._messagebus_rpc(client_ids=client_ids, method="processActionRequests", params=params)
+			return await run_in_threadpool(self._opsiclientd_rpc, host_ids=client_ids, method="processActionRequests", params=params)
 
 		result: dict[str, dict[str, Any]] = {}
 		for client_id in client_ids:
@@ -564,14 +569,14 @@ class RPCHostControlMixin(Protocol):
 				continue
 
 			pocs = await run_in_threadpool(self.productOnClient_updateObjectsWithDependencies, productOnClients=pocs)
-			product_ids = [poc.productId for poc in pocs]
+			params = [[poc.productId for poc in pocs]]
+			if visibility:
+				params.append(visibility)
 			if self._host_control_use_messagebus:
-				result.update(await self._messagebus_rpc(client_ids=[client_id], method="processActionRequests", params=[product_ids]))
+				result.update(await self._messagebus_rpc(client_ids=[client_id], method="processActionRequests", params=params))
 			else:
 				result.update(
-					await run_in_threadpool(
-						self._opsiclientd_rpc, host_ids=[client_id], method="processActionRequests", params=[product_ids]
-					)
+					await run_in_threadpool(self._opsiclientd_rpc, host_ids=[client_id], method="processActionRequests", params=params)
 				)
 		return result
 

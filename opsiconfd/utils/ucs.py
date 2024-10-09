@@ -9,9 +9,10 @@
 ucs utils
 """
 
-from functools import lru_cache
 import subprocess
+from functools import lru_cache
 from typing import Tuple
+
 from rich import print as rich_print
 from rich.prompt import Prompt
 
@@ -53,7 +54,7 @@ def get_ucs_admin_user(interactive: bool = False) -> Tuple[str | None, str | Non
 	"""
 	Get the UCS Administrator user and password.
 	"""
-	if get_server_role() == "domaincontroller_prim":
+	if get_server_role() in ("domaincontroller_prim", "domaincontroller_master"):
 		return None, None
 
 	if not interactive and not config.admin_user:

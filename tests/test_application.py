@@ -120,10 +120,15 @@ def test_maintenance(
 		try:
 			initalized_event.wait(5)
 
+			print("Connecting to service")
 			response = test_client.get("/session/authenticated")
 			assert response.status_code == 200
+			print("Connecting to messagebus")
 			with test_client.websocket_connect("/messagebus/v1") as websocket:
 				assert websocket
+				# Wait a second, because sometimes websocket.receive() blocks forever and does not receive any messages (why?)
+				time.sleep(1)
+				print("Reading from websocket")
 				data = websocket.receive()
 				assert data["type"] == "websocket.send"
 				assert b"channel_subscription_event" in data["bytes"]

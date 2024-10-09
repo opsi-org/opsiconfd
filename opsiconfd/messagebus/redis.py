@@ -351,6 +351,7 @@ class MessageReader:
 		stream_keys: list[bytes] = []
 		redis_time = await redis.time()
 		redis_time_id = str(int(redis_time[0] * 1000 + redis_time[1] / 1000))
+		streams_changed = False
 		for channel, redis_msg_id in self._channels.items():
 			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
 			stream_keys.append(stream_key)
@@ -358,7 +359,6 @@ class MessageReader:
 				# Already in streams
 				continue
 
-			# redis_msg_id = self._streams.get(stream_key, redis_msg_id)
 			if not redis_msg_id:
 				raise ValueError(f"Missing redis message id for channel {channel:!r}")
 
@@ -383,15 +383,22 @@ class MessageReader:
 			if self._count_readers:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", 1)
 
+			logger.trace("Adding stream %r: %r", stream_key, redis_msg_id)
 			self._streams[stream_key] = redis_msg_id
+			streams_changed = True
 
 		for stream_key in list(self._streams):
-			if self._count_readers and stream_key not in stream_keys:
-				await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+			if stream_key not in stream_keys:
+				if self._count_readers:
+					await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+				logger.trace("Removing stream %r", stream_key)
 				del self._streams[stream_key]
+				streams_changed = True
 
-		# Streams have changed, cancel the current read task, so that the new streams are read
-		self._cancel_get_stream_entries()
+		if streams_changed:
+			logger.debug("Streams have changed, cancel the current read task, so that the new streams are read")
+			self._cancel_get_stream_entries()
+
 		logger.debug("%s updated streams: %s", self, self._streams)
 
 	async def get_channel_names(self) -> list[str]:
@@ -422,7 +429,7 @@ class MessageReader:
 
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		if logger.isEnabledFor(DEBUG):
-			logger.debug("MessageReader %r is reading %d streams", self.name, len(self._streams))
+			logger.debug("%r is reading %d streams", self, len(self._streams))
 			if logger.isEnabledFor(TRACE):
 				logger.trace("Streams: %s", list(self._streams))
 
@@ -460,6 +467,8 @@ class MessageReader:
 					if not self._streams:
 						await sleep(0.1)
 					stream_entries = await self._get_stream_entries(redis)
+					_logger.trace("%r message data from redis: %r", self, stream_entries)
+
 					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
 						if self._should_stop:
@@ -479,6 +488,7 @@ class MessageReader:
 								context = self._context_decoder.decode(context_data)
 							message_data = message[1].get(b"message")
 							if not message_data:
+								logger.trace("Received message without message data: %r", message)
 								if b"ignore" not in message[1]:
 									logger.warning("Received malformed message from redis: %r", message)
 								continue

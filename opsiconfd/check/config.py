@@ -35,10 +35,10 @@ from opsiconfd.logging import logger
 @dataclass()
 class HomeDirectoryCheck(Check):
 	id: str = "home_directory"
-	name: str = "Home directory"
+	name: str = "Home Directory"
 	description: str = "Check home directory of opsiconfd user"
 	documentation: str = """
-## Home directory
+## Home Directory
 Checks the home directory of the system user running opsiconfd.
 """
 	partial_check: bool = True
@@ -59,7 +59,7 @@ Checks the home directory of the system user running opsiconfd.
 @dataclass()
 class GroupMembershipCheck(Check):
 	id: str = "run_as_user:group_membership"
-	name: str = "Group membership"
+	name: str = "Group Membership"
 	description: str = "Check group membership of opsiconfd user"
 	documentation: str = """
 ## Group membership
@@ -103,7 +103,7 @@ Checks the group membership of the system user running opsiconfd.
 @dataclass()
 class RunAsUserCheck(Check):
 	id: str = "run_as_user"
-	name: str = "Run as user"
+	name: str = "Run As User"
 	description: str = "Check system user running opsiconfd"
 	documentation: str = """
 		## Run as user
@@ -127,7 +127,7 @@ class RunAsUserCheck(Check):
 @dataclass()
 class LogLevelCheck(Check):
 	id: str = "opsiconfd_config:log-level"
-	name: str = "Log level"
+	name: str = "Log Level"
 	description: str = "Check log level of opsiconfd"
 	partial_check: bool = True
 	attribute: str = "log-level"
@@ -157,7 +157,7 @@ class LogLevelCheck(Check):
 @dataclass()
 class DebugOptionsCheck(Check):
 	id: str = "opsiconfd_config:debug_options"
-	name: str = "Debug options"
+	name: str = "Debug Options"
 	description: str = "Check debug options of opsiconfd"
 	partial_check: bool = True
 
@@ -215,7 +215,7 @@ class AclSelfForAllCheck(Check):
 @dataclass()
 class OpsiconfdConfigRunAsUser(Check):
 	id: str = "opsiconfd_config:run_as_user"
-	name: str = "Run as user"
+	name: str = "Run As User"
 	description: str = "Check system user running opsiconfd"
 	partial_check: bool = True
 
@@ -236,10 +236,10 @@ class OpsiconfdConfigRunAsUser(Check):
 @dataclass()
 class OpsiconfdConfigCheck(Check):
 	id: str = "opsiconfd_config"
-	name: str = "Opsiconfd config"
+	name: str = "Opsiconfd Config"
 	description: str = "Check opsiconfd configuration"
 	documentation: str = """
-		## Opsiconfd config
+		## Opsiconfd Config
 		This check examines the configuration of the opsiconfd service by checking the following values:
 
 		* `log-level-stderr`, `log-level-file`, `log-level`

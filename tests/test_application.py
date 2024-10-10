@@ -34,6 +34,7 @@ from .utils import (  # noqa: F401
 	ADMIN_USER,
 	Config,
 	OpsiconfdTestClient,
+	WebSocketMessageReader,
 	clean_redis,
 	config,
 	test_client,
@@ -124,12 +125,12 @@ def test_maintenance(
 			response = test_client.get("/session/authenticated")
 			assert response.status_code == 200
 			print("Connecting to messagebus")
+
 			with test_client.websocket_connect("/messagebus/v1") as websocket:
-				assert websocket
-				print("Reading from websocket")
-				data = websocket.receive()
-				assert data["type"] == "websocket.send"
-				assert b"channel_subscription_event" in data["bytes"]
+				with WebSocketMessageReader(websocket, messagebus_messages=True) as reader:
+					reader.wait_for_message(count=1)
+					message = next(reader.get_messagbus_messages())
+					assert message.type == "channel_subscription_event"
 
 			print("Set maintenance state")
 			app.set_app_state(MaintenanceState(address_exceptions=[], retry_after=11, message="pytest"))

@@ -496,7 +496,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		self._session_channel = await create_session_channel(
 			owner_id=self._messagebus_user_id, purpose="connection session", exists_ok=True
 		)
-		asyncio_create_task(self._process_channel_subscription(websocket=websocket, channels=[self._user_channel, self._session_channel]))
+		await self._process_channel_subscription(websocket=websocket, channels=[self._user_channel, self._session_channel])
 
 		if event.event and event.channel:
 			await send_message(event)

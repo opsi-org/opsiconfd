@@ -140,7 +140,7 @@ class RPCDriverMixin(Protocol):
 		"""
 		product_id = typeForceProductId(productId)
 		client_id = typeForceProductId(clientId)
-		tov = INFTargetOSVersion(Architecture=architecture)
+		tov = INFTargetOSVersion(Architecture=Architecture.from_string(architecture))
 		version_parts = osVersion.split(".")
 		if len(version_parts) >= 1:
 			tov.OSMajorVersion = int(version_parts[0])

@@ -23,11 +23,11 @@ MEMORY_USAGE_ERR = 500_000_000
 @dataclass()
 class RedisMemoryUsageCheck(Check):
 	id: str = "redis:memory_usage"
-	name: str = "Redis memory usage"
+	name: str = "Redis Memory Usage"
 	description: str = "Check whether the Redis memory usage is not too high."
 	partial_check: bool = True
 	documentation: str = """
-		## Redis memory usage
+		## Redis Memory Usage
 
 		Checks whether the Redis memory usage is not too high.
 	"""
@@ -55,11 +55,11 @@ class RedisMemoryUsageCheck(Check):
 @dataclass()
 class RedisTimeseriesCheck(Check):
 	id: str = "redis:timeseries"
-	name: str = "RedisTimeSeries module"
+	name: str = "RedisTimeSeries Module"
 	description: str = "Check whether the RedisTimeSeries module is loaded."
 	partial_check: bool = True
 	documentation: str = """
-		## RedisTimeSeries module
+		## RedisTimeSeries Module
 
 		Checks whether the RedisTimeSeries module is loaded.
 	"""
@@ -84,10 +84,10 @@ class RedisTimeseriesCheck(Check):
 @dataclass()
 class RedisCheck(Check):
 	id: str = "redis"
-	name: str = "Redis Server"
-	description: str = "Check Redis server state."
+	name: str = "Redis"
+	description: str = "Check Redis Server State."
 	documentation: str = """
-		## Redis server
+		## Redis
 
 		Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
 		If the server is not available or the module is not loaded, this is considered an error.

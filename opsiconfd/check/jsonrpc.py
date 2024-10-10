@@ -21,8 +21,8 @@ from opsiconfd.redis import decode_redis_result, redis_client
 
 @dataclass()
 class DeprecatedCallCheck(Check):
-	id: str = "deprecated_calls"
-	name: str = "Deprecated Check"
+	id: str = "deprecated_call"
+	name: str = "Deprecated Call"
 	description: str = "Deprecated Check"
 	partial_check: bool = True
 	method: str = "method"
@@ -36,7 +36,7 @@ class DeprecatedCallCheck(Check):
 	def check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
-			message="Deprecated Check",
+			message="Deprecated Call",
 			check_status=CheckStatus.OK,
 		)
 		with exc_to_result(result):
@@ -79,10 +79,10 @@ class DeprecatedCallCheck(Check):
 @dataclass()
 class DeprecatedCallsCheck(Check):
 	id: str = "deprecated_calls"
-	name: str = "Deprecated RPCs"
+	name: str = "Deprecated API Calls"
 	description: str = "Check use of deprecated RPC methods"
 	documentation: str = """
-		## Deprecated RPCs
+		## Deprecated API Calls
 
 		Among other things, opsi stores calls to methods marked as deprecated in Redis.
 		This check looks whether such calls have been made and then issues a warning.

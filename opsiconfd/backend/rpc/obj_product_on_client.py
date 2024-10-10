@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any, Protocol
 from opsicommon.objects import ProductOnClient
 from opsicommon.types import forceObjectClass, forceObjectClassList
 
-from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import config
 
 from . import rpc_method
@@ -64,7 +63,6 @@ class RPCProductOnClientMixin(Protocol):
 		self._send_messagebus_event("productOnClient_updated", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
-	@clear_check_cache(check_id="products_on_clients")
 	@rpc_method(check_acl=False)
 	def productOnClient_createObjects(
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
@@ -89,7 +87,6 @@ class RPCProductOnClientMixin(Protocol):
 			self._send_messagebus_event("productOnClient_created", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
-	@clear_check_cache(check_id="products_on_clients")
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObjects(
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
@@ -145,7 +142,6 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_idents(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, ace=ace, ident_type=returnType, filter=filter)
 
-	@clear_check_cache(check_id="products_on_clients")
 	@rpc_method(check_acl=False)
 	def productOnClient_deleteObjects(
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient

@@ -10,6 +10,7 @@ health check
 """
 
 import json
+from textwrap import indent
 
 from opsicommon.utils import compare_versions
 from rich.console import Console
@@ -147,7 +148,7 @@ def console_health_check() -> int:
 			console.print("[bold]Check Name - Check ID[/bold]")
 			for check in CheckManager():
 				console.print(f"➔ [bold]{check.name}[/bold]: {check.id}")
-				console.print(f"	{check.description}")
+				console.print(indent(check.description.strip(), "\t"))
 		else:
 			for check in CheckManager():
 				console.print(check.id)

@@ -19,7 +19,7 @@ from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manage
 @dataclass()
 class OpsiLicensesLimitCheck(Check):
 	id: str = "opsi_licenses:limit"
-	name: str = "OPSI licenses limit"
+	name: str = "OPSI Licenses Limit"
 	description: str = "Check opsi licensing limits"
 	module_id: str = ""
 	partial_check: bool = True
@@ -65,7 +65,7 @@ class OpsiLicensesLimitCheck(Check):
 @dataclass()
 class OpsiLicensesCheck(Check):
 	id: str = "opsi_licenses"
-	name: str = "OPSI licenses"
+	name: str = "OPSI Licenses"
 	description: str = "Check opsi licensing state"
 	depot_check: bool = False
 	documentation: str = """

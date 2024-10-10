@@ -74,7 +74,7 @@ def get_enabled_hosts() -> list[str]:
 @dataclass()
 class OpsiProductsOnDepotsCheck(Check):
 	id: str = "products_on_depots"
-	name: str = "Products on depots"
+	name: str = "Products On Depots"
 	description: str = "Check opsi package versions on depots"
 	documentation: str = """
 		## Products on depots
@@ -193,7 +193,7 @@ class OpsiProductsOnDepotsCheck(Check):
 @dataclass()
 class OpsiProductOnClientCheck(Check):
 	id: str = "product_on_client"
-	name: str = "Product on client"
+	name: str = "Product On Client"
 	description: str = "Check opsi package versions on clients"
 	client_id: str = ""
 	product_id: str = ""
@@ -236,7 +236,7 @@ class OpsiProductOnClientCheck(Check):
 @dataclass()
 class OpsiProductsOnClientsCheck(Check):
 	id: str = "products_on_clients"
-	name: str = "Products on clients"
+	name: str = "Products On Clients"
 	description: str = "Check opsi package versions on clients"
 	documentation: str = """
 		## Products on clients

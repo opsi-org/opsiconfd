@@ -146,7 +146,7 @@ def test_check_console_health_check(capsys: CaptureFixture[str], format: str) ->
 			status, _ = services[0].split(" ", 1)
 			assert 0 <= int(status) <= 2
 		else:
-			assert "● Redis Server" in captured.out
+			assert "● Redis" in captured.out
 
 
 def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

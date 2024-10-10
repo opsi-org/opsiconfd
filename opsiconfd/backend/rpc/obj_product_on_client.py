@@ -37,7 +37,14 @@ class RPCProductOnClientMixin(Protocol):
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
-		self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		data = {
+			"productId": productOnClient.productId,
+			"productType": productOnClient.productType,
+			"clientId": productOnClient.clientId,
+			"installationStatus": productOnClient.installationStatus,
+			"actionRequest": productOnClient.actionRequest,
+		}
+		self._send_messagebus_event("productOnClient_created", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
@@ -47,7 +54,14 @@ class RPCProductOnClientMixin(Protocol):
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
-		self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+		data = {
+			"productId": productOnClient.productId,
+			"productType": productOnClient.productType,
+			"clientId": productOnClient.clientId,
+			"installationStatus": productOnClient.installationStatus,
+			"actionRequest": productOnClient.actionRequest,
+		}
+		self._send_messagebus_event("productOnClient_updated", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@clear_check_cache(check_id="products_on_clients")
@@ -65,7 +79,14 @@ class RPCProductOnClientMixin(Protocol):
 		if not self.events_enabled:
 			return
 		for productOnClient in productOnClients:
-			self._send_messagebus_event("productOnClient_created", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+			data = {
+				"productId": productOnClient.productId,
+				"productType": productOnClient.productType,
+				"clientId": productOnClient.clientId,
+				"installationStatus": productOnClient.installationStatus,
+				"actionRequest": productOnClient.actionRequest,
+			}
+			self._send_messagebus_event("productOnClient_created", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@clear_check_cache(check_id="products_on_clients")
@@ -83,7 +104,14 @@ class RPCProductOnClientMixin(Protocol):
 		if not self.events_enabled:
 			return
 		for productOnClient in productOnClients:
-			self._send_messagebus_event("productOnClient_updated", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+			data = {
+				"productId": productOnClient.productId,
+				"productType": productOnClient.productType,
+				"clientId": productOnClient.clientId,
+				"installationStatus": productOnClient.installationStatus,
+				"actionRequest": productOnClient.actionRequest,
+			}
+			self._send_messagebus_event("productOnClient_updated", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
@@ -130,7 +158,14 @@ class RPCProductOnClientMixin(Protocol):
 			return
 		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
 		for productOnClient in productOnClients:
-			self._send_messagebus_event("productOnClient_deleted", data=productOnClient.getIdent("dict"))  # type: ignore[arg-type]
+			data = {
+				"productId": productOnClient.productId,
+				"productType": productOnClient.productType,
+				"clientId": productOnClient.clientId,
+				"installationStatus": productOnClient.installationStatus,
+				"actionRequest": productOnClient.actionRequest,
+			}
+			self._send_messagebus_event("productOnClient_deleted", data=data)
 		self.opsipxeconfd_product_on_clients_deleted(productOnClients)
 
 	@rpc_method(check_acl=False)

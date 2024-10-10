@@ -36,7 +36,7 @@ def test_check_redis() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	result = check_manager.get("redis").run(clear_cache=True)
 	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
-	assert "Redis Server: OK" in captured_output
+	assert "Redis: OK" in captured_output
 	assert "The connection to the Redis server does work. " in captured_output
 	assert "RedisTimeSeries version " in captured_output
 	assert "Redis memory usage is OK" in captured_output

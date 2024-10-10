@@ -17,8 +17,8 @@ from subprocess import run
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import secret_filter
 from opsicommon.server.rights import set_rights
-from opsicommon.types import forceHostId
 from opsicommon.system.info import is_ucs
+from opsicommon.types import forceHostId
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
@@ -89,7 +89,7 @@ def user_set_credentials(username: str, password: str) -> None:
 		univention_server_role = get_server_role()
 		try:
 			logger.debug("Running on univention %s", univention_server_role)
-			if univention_server_role not in ("domaincontroller_prim", "domaincontroller_backup"):
+			if univention_server_role not in ("domaincontroller_prim", "domaincontroller_master", "domaincontroller_backup"):
 				logger.warning("Did not change the password for %r, please change it on the master server.", username)
 				return
 

@@ -126,8 +126,6 @@ def test_maintenance(
 			print("Connecting to messagebus")
 			with test_client.websocket_connect("/messagebus/v1") as websocket:
 				assert websocket
-				# Wait a second, because sometimes websocket.receive() blocks forever and does not receive any messages (why?)
-				time.sleep(1)
 				print("Reading from websocket")
 				data = websocket.receive()
 				assert data["type"] == "websocket.send"

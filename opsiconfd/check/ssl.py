@@ -35,7 +35,7 @@ from opsiconfd.ssl import (
 @dataclass()
 class OpsiCaCert(Check):
 	id: str = "ssl:opsi_ca_cert"
-	name: str = "opsi CA certificate"
+	name: str = "opsi CA Certificate"
 	description: str = "Checks the state of the opsi CA certificate."
 	documentation: str = """
 		## opsi CA certificate
@@ -107,7 +107,7 @@ class IntermediateCACheck(Check):
 @dataclass()
 class OpsiCaKeyCheck(Check):
 	id: str = "ssl:opsi_ca_key"
-	name: str = "opsi CA key"
+	name: str = "opsi CA Key"
 	description: str = "Checks the state of the opsi CA key."
 	documentation: str = """
 		## opsi CA key
@@ -135,7 +135,7 @@ class OpsiCaKeyCheck(Check):
 @dataclass()
 class ServerCertCheck(Check):
 	id: str = "ssl:server_cert"
-	name: str = "Server certificate"
+	name: str = "Server Certificate"
 	description: str = "Checks the state of the server certificate."
 	documentation: str = """
 		## Server certificate
@@ -171,7 +171,7 @@ class ServerCertCheck(Check):
 @dataclass
 class ServerKeyCheck(Check):
 	id: str = "ssl:server_key"
-	name: str = "server key"
+	name: str = "Server Key"
 	description: str = "Checks the state of the server key."
 	documentation: str = """
 		## Server key

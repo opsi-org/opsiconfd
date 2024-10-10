@@ -22,7 +22,7 @@ __all__ = ["BackupCheck"]
 class BackupCheck(Check):
 	# TODO doc string?
 	id: str = "opsi_backup"
-	name: str = "OPSI backup"
+	name: str = "OPSI Backup"
 	description: str = "Checks if the backup is up to date."
 	documentation: str = """
 			## Check Backup

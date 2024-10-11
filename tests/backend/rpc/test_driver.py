@@ -49,6 +49,9 @@ def test_driver_updateDatabase_and_getSources(
 		patch("opsiconfd.backend.rpc.driver.find_wim_files", return_value=[Path("install.wim")]),
 		patch.object(backend, "productPropertyState_getValues", lambda **kwargs: {client_id: {product_id: {"image": ["install.wim:0"]}}}),
 	):
+		install_wim = tmp_path / product_id / "images" / "install.wim"
+		install_wim.parent.mkdir(parents=True)
+		install_wim.touch()
 		backend.driver_updateDatabase(productId=product.id)
 
 		links = []

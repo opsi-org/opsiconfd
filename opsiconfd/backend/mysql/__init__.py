@@ -184,7 +184,7 @@ class MySQLConnection:
 		self._connection_pool_recycling = -1
 
 		self.unique_hardware_addresses = True
-		self.unique_systemUUID = True
+		self.unique_system_uuid = True
 
 		self._Session: scoped_session | None = lambda: None
 		self._session_factory = None
@@ -211,12 +211,12 @@ class MySQLConnection:
 
 	@contextmanager
 	def disable_unique_systemUUIDs(self) -> Generator[None, None, None]:
-		unique_systemUUID = self.unique_systemUUID
-		self.unique_systemUUID = False
+		unique_systemUUID = self.unique_system_uuid
+		self.unique_system_uuid = False
 		try:
 			yield
 		finally:
-			self.unique_systemUUID = unique_systemUUID
+			self.unique_system_uuid = unique_systemUUID
 
 	def _parse_config(self, conf: dict[str, Any]) -> None:
 		for key, val in conf.items():

@@ -42,6 +42,7 @@ from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.rpc.main import UnprotectedBackend
+from opsiconfd.backend.rpc.obj_audit_hardware import get_audit_hardware_database_config
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.common import check_manager
 from opsiconfd.config import Config, OpsiConfig, get_configserver_id
@@ -211,35 +212,39 @@ def worker_state() -> None:
 
 
 def delete_mysql_data() -> None:
+	tables = [
+		"LICENSE_ON_CLIENT",
+		"SOFTWARE_CONFIG",
+		"SOFTWARE_LICENSE_TO_LICENSE_POOL",
+		"WINDOWS_SOFTWARE_ID_TO_PRODUCT",
+		"AUDIT_SOFTWARE_TO_LICENSE_POOL",
+		"SOFTWARE_LICENSE",
+		"LICENSE_POOL",
+		"LICENSE_CONTRACT",
+		"CONFIG_STATE",
+		"CONFIG_VALUE",
+		"CONFIG",
+		"OBJECT_TO_GROUP",
+		"PRODUCT_ID_TO_LICENSE_POOL",
+		"PRODUCT_ON_CLIENT",
+		"PRODUCT_ON_DEPOT",
+		"PRODUCT_PROPERTY",
+		"PRODUCT_PROPERTY_STATE",
+		"PRODUCT_PROPERTY_VALUE",
+		"PRODUCT_DEPENDENCY",
+		"PRODUCT",
+		"SOFTWARE",
+		"HOST",
+		"GROUP",
+		"USER",
+	]
+	for hw_class in get_audit_hardware_database_config():
+		tables.extend([f"HARDWARE_CONFIG_{hw_class.upper()}", f"HARDWARE_DEVICE_{hw_class.upper()}"])
+
 	mysql = MySQLConnection()
 	with mysql.connection():
 		with mysql.session() as session:
-			for table in (
-				"LICENSE_ON_CLIENT",
-				"SOFTWARE_CONFIG",
-				"SOFTWARE_LICENSE_TO_LICENSE_POOL",
-				"WINDOWS_SOFTWARE_ID_TO_PRODUCT",
-				"AUDIT_SOFTWARE_TO_LICENSE_POOL",
-				"SOFTWARE_LICENSE",
-				"LICENSE_POOL",
-				"LICENSE_CONTRACT",
-				"CONFIG_STATE",
-				"CONFIG_VALUE",
-				"CONFIG",
-				"OBJECT_TO_GROUP",
-				"PRODUCT_ID_TO_LICENSE_POOL",
-				"PRODUCT_ON_CLIENT",
-				"PRODUCT_ON_DEPOT",
-				"PRODUCT_PROPERTY",
-				"PRODUCT_PROPERTY_STATE",
-				"PRODUCT_PROPERTY_VALUE",
-				"PRODUCT_DEPENDENCY",
-				"PRODUCT",
-				"SOFTWARE",
-				"HOST",
-				"GROUP",
-				"USER",
-			):
+			for table in tables:
 				if table == "HOST":
 					session.execute("DELETE FROM `HOST` WHERE hostId != :configserver_id", {"configserver_id": get_configserver_id()})
 				else:

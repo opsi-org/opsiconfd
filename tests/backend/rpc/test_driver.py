@@ -29,11 +29,9 @@ def test_driver_updateDatabase_and_getSources(
 	backend: UnprotectedBackend,  # noqa: F811
 	tmp_path: Path,
 ) -> None:
-	product = NetbootProduct(id="win11-x64-drivers-test", productVersion="1", packageVersion="1")
-	backend.product_createObjects([product])
-
+	product_id = "win11-x64-drivers-test"
 	client_id = "test-client.opsi.test"
-	client_data_dir = tmp_path / product.id
+	client_data_dir = tmp_path / product_id
 	drivers_dir = client_data_dir / "drivers"
 	client_data_dir.mkdir()
 	shutil.copytree("tests/data/windows_drivers", drivers_dir)
@@ -41,11 +39,15 @@ def test_driver_updateDatabase_and_getSources(
 		INFTargetOSVersion(Architecture=Architecture.X64, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=22000),
 		INFTargetOSVersion(Architecture=Architecture.X86, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=1507),
 	]
+
+	product = NetbootProduct(id=product_id, productVersion="1", packageVersion="1")
+	backend.product_createObjects([product])
+
 	with (
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions),
 		patch("opsiconfd.backend.rpc.driver.find_wim_files", return_value=[Path("install.wim")]),
-		patch.object(backend, "productPropertyState_getValues", lambda **kwargs: {client_id: {"image": ["install.wim:0"]}}),
+		patch.object(backend, "productPropertyState_getValues", lambda **kwargs: {client_id: {product_id: {"image": ["install.wim:0"]}}}),
 	):
 		backend.driver_updateDatabase(productId=product.id)
 

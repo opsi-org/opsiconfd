@@ -160,20 +160,28 @@ class RPCDriverMixin(Protocol):
 		depot_dir = Path(DEPOT_DIR)
 
 		if not architecture or not osVersion:
+			logger.debug("Getting architecture and OS version from WIM image")
 			values = self.productPropertyState_getValues(product_ids=product_id, property_ids="image", object_ids=client_id)
-			image = values.get(client_id, {}).get("image", [""])[0]
+			image = values.get(client_id, {}).get(product_id, {}).get("image", [""])[0]
+			logger.debug("Image: %s", image)
 			if image:
 				image_file, image_name_or_index = image.split(":", 1) if ":" in image else ("install.wim", image)
 				image_path = depot_dir / product_id / "images" / image_file
+				logger.debug("Image file: %s", image_path)
+				if not image_path.exists():
+					raise BackendError(f"Image file '{image_path}' from product property 'image' not found")
 				for tov in get_target_os_versions(image_path, image_name_or_index):
+					logger.debug("Using target OS version %s", tov)
 					if not architecture:
 						architecture = str(tov.Architecture)
 					if not osVersion:
 						osVersion = f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
 					break
 
-		if not architecture or not osVersion:
-			raise BackendError("Missing architecture or osVersion")
+		if not architecture:
+			raise BackendError("Missing architecture")
+		if not osVersion:
+			raise BackendError("Missing OS version")
 
 		tov = INFTargetOSVersion(Architecture=Architecture.from_string(architecture))
 		version_parts = osVersion.split(".")

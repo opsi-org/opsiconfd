@@ -578,9 +578,10 @@ class RPCHostMixin(Protocol):
 			return new_value
 
 		old_depot = deepcopy(depot)
-		if old_depot.hardwareAddress:
-			# Hardware address needs to be unique
+		if old_depot.hardwareAddress or old_depot.systemUUID:
+			# Hardware address and systemUUID needs to be unique
 			old_depot.hardwareAddress = None
+			old_depot.systemUUID = None
 			self.host_createObjects([old_depot])
 
 		logger.info("Updating depot and it's urls...")

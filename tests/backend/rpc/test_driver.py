@@ -31,6 +31,8 @@ def test_driver_updateDatabase_and_getSources(
 ) -> None:
 	product = NetbootProduct(id="win11-x64-drivers-test", productVersion="1", packageVersion="1")
 	backend.product_createObjects([product])
+
+	client_id = "test-client.opsi.test"
 	client_data_dir = tmp_path / product.id
 	drivers_dir = client_data_dir / "drivers"
 	client_data_dir.mkdir()
@@ -39,8 +41,11 @@ def test_driver_updateDatabase_and_getSources(
 		INFTargetOSVersion(Architecture=Architecture.X64, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=22000),
 		INFTargetOSVersion(Architecture=Architecture.X86, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=1507),
 	]
-	with patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)), patch(
-		"opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions
+	with (
+		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
+		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions),
+		patch("opsiconfd.backend.rpc.driver.find_wim_files", return_value=[Path("install.wim")]),
+		patch.object(backend, "productPropertyState_getValues", lambda **kwargs: {client_id: {"image": ["install.wim:0"]}}),
 	):
 		backend.driver_updateDatabase(productId=product.id)
 
@@ -61,7 +66,7 @@ def test_driver_updateDatabase_and_getSources(
 			assert inf_file.exists()
 			assert inf_file.is_file()
 
-		client = OpsiClient(id="test-client.opsi.test")
+		client = OpsiClient(id=client_id)
 		ahohs = [
 			AuditHardwareOnHost(
 				hardwareClass="PCI_DEVICE",
@@ -98,36 +103,38 @@ def test_driver_updateDatabase_and_getSources(
 		backend.host_createObjects([client])
 		backend.auditHardwareOnHost_createObjects(ahohs)
 
-		sources = backend.driver_getSources(productId=product.id, architecture="x64", osVersion="10.0.22000", clientId=client.id)
-		sources.sort(key=lambda src: src.url)
-		assert len(sources) == 3
+		for architecture, os_version in (("x64", "10.0.22000"), ("x64", None), (None, "10.0.22000"), (None, None)):
+			# Default image: x64 10.0.22000
+			sources = backend.driver_getSources(productId=product.id, clientId=client.id, architecture=architecture, osVersion=os_version)
+			sources.sort(key=lambda src: src.url)
+			assert len(sources) == 3
 
-		for source in sources:
-			assert source.binary_type == "windows_driver"
-			assert source.access_type == "depot"
-			assert source.operation_type == "recursive_copy"
+			for source in sources:
+				assert source.binary_type == "windows_driver"
+				assert source.access_type == "depot"
+				assert source.operation_type == "recursive_copy"
 
-		assert sources[0].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/HDAUDIO/10EC/0236"
-		assert sources[0].information["device_type"] == "HDAUDIO"
-		assert sources[0].information["vendor_id"] == "10EC"
-		assert sources[0].information["device_id"] == "0236"
-		assert sources[0].information["device_name"] == "Realtek Audio"
+			assert sources[0].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/HDAUDIO/10EC/0236"
+			assert sources[0].information["device_type"] == "HDAUDIO"
+			assert sources[0].information["vendor_id"] == "10EC"
+			assert sources[0].information["device_id"] == "0236"
+			assert sources[0].information["device_name"] == "Realtek Audio"
 
-		assert sources[1].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/PCI/1AF4/1001"
-		assert sources[1].information["device_type"] == "PCI"
-		assert sources[1].information["vendor_id"] == "1AF4"
-		assert sources[1].information["device_id"] == "1001"
-		assert sources[1].information["vendor_name"] == "Red Hat, Inc."
-		assert sources[1].information["device_name"] == "Red Hat VirtIO SCSI controller"
+			assert sources[1].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/PCI/1AF4/1001"
+			assert sources[1].information["device_type"] == "PCI"
+			assert sources[1].information["vendor_id"] == "1AF4"
+			assert sources[1].information["device_id"] == "1001"
+			assert sources[1].information["vendor_name"] == "Red Hat, Inc."
+			assert sources[1].information["device_name"] == "Red Hat VirtIO SCSI controller"
 
-		assert sources[2].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/USB/0BDA/4001"
-		assert sources[2].information["device_type"] == "USB"
-		assert sources[2].information["vendor_id"] == "0BDA"
-		assert sources[2].information["device_id"] == "4001"
-		assert sources[2].information["vendor_name"] == "Realtek"
-		assert sources[2].information["device_name"] == "Realtek USB Audio"
+			assert sources[2].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/USB/0BDA/4001"
+			assert sources[2].information["device_type"] == "USB"
+			assert sources[2].information["vendor_id"] == "0BDA"
+			assert sources[2].information["device_id"] == "4001"
+			assert sources[2].information["vendor_name"] == "Realtek"
+			assert sources[2].information["device_name"] == "Realtek USB Audio"
 
-		sources = backend.driver_getSources(productId=product.id, architecture="x86", osVersion="10.0.1507", clientId=client.id)
+		sources = backend.driver_getSources(clientId=client.id, productId=product.id, architecture="x86", osVersion="10.0.1507")
 		assert len(sources) == 1
 
 		assert sources[0].binary_type == "windows_driver"

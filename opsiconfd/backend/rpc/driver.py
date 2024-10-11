@@ -14,12 +14,12 @@ from __future__ import annotations
 import os
 import re
 import shutil
+from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import (
-	BackendError,
-)
+from opsicommon.exceptions import BackendError, BackendMissingDataError
 from opsicommon.package.wim import wim_info
 from opsicommon.types import forceProductId as typeForceProductId
 from opsisystem.inffile import Architecture, DeviceType, INFFile, INFTargetOSVersion
@@ -31,6 +31,27 @@ from . import rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
+
+
+class BinarySourceBinaryType(StrEnum):
+	WINDOWS_DRIVER = "windows_driver"
+
+
+class BinarySourceAccessType(StrEnum):
+	DEPOT = "depot"
+
+
+class BinarySourceOperationType(StrEnum):
+	RECURSIVE_COPY = "recursive_copy"
+
+
+@dataclass(kw_only=True, slots=True)
+class BinarySource:
+	binary_type: BinarySourceBinaryType
+	access_type: BinarySourceAccessType
+	operation_type: BinarySourceOperationType
+	url: str
+	information: dict[str, Any] = field(default_factory=dict)
 
 
 def get_target_os_versions(client_data_dir: Path) -> list[INFTargetOSVersion]:
@@ -113,9 +134,54 @@ class RPCDriverMixin(Protocol):
 								logger.debug("Created link '%s' -> '%s'", link, root)
 
 	@rpc_method
-	def driver_getSources(self: BackendProtocol, productId: str, clientId: str) -> None:
+	def driver_getSources(self: BackendProtocol, productId: str, architecture: str, osVersion: str, clientId: str) -> list[BinarySource]:
 		"""
 		Get drivers for product and client.
 		"""
-		return None
+		product_id = typeForceProductId(productId)
+		client_id = typeForceProductId(clientId)
+		tov = INFTargetOSVersion(Architecture=architecture)
+		version_parts = osVersion.split(".")
+		if len(version_parts) >= 1:
+			tov.OSMajorVersion = int(version_parts[0])
+			if len(version_parts) >= 2:
+				tov.OSMinorVersion = int(version_parts[1])
+				if len(version_parts) >= 3:
+					tov.BuildNumber = int(version_parts[2])
 
+		ahohs = self.auditHardwareOnHost_getObjects(hostId=client_id)
+		if not ahohs:
+			raise BackendMissingDataError(f"No hardware information found for client '{client_id}'")
+
+		depot_dir = Path(DEPOT_DIR)
+		driver_db_dir = depot_dir / product_id / "driver_db"
+		tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+
+		sources = []
+		for ahoh in ahohs:
+			if ahoh.hardwareClass not in ("PCI_DEVICE", "USB_DEVICE", "HDAUDIO_DEVICE"):
+				continue
+			if not ahoh.vendorId or not ahoh.deviceId:
+				continue
+			device_type = ahoh.hardwareClass.removesuffix("_DEVICE")
+			drv_dir = tov_dir / device_type / ahoh.vendorId / ahoh.deviceId
+			if not drv_dir.exists():
+				continue
+
+			ahoh_dict = ahoh.to_hash()
+			sources.append(
+				BinarySource(
+					binary_type=BinarySourceBinaryType.WINDOWS_DRIVER,
+					access_type=BinarySourceAccessType.DEPOT,
+					operation_type=BinarySourceOperationType.RECURSIVE_COPY,
+					url=str(drv_dir.relative_to(depot_dir)),
+					information={
+						"device_type": device_type,
+						"vendor_id": ahoh_dict.get("vendorId"),
+						"device_id": ahoh_dict.get("deviceId"),
+						"vendor_name": ahoh_dict.get("vendor"),
+						"device_name": ahoh_dict.get("name"),
+					},
+				)
+			)
+		return sources

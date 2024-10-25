@@ -72,7 +72,7 @@ def check_channel_name(channel: str) -> str:
 			parts = channel.split(":")
 			if len(parts) != 4:
 				raise ValueError(f"Invalid service channel: {channel!r}")
-			if parts[3] not in ("jsonrpc", "terminal", "process"):
+			if parts[3] not in ("jsonrpc", "terminal", "process", "filetransfer"):
 				raise ValueError(f"Invalid service channel: {channel!r}")
 			try:
 				parts[2] = forceHostId(parts[2])

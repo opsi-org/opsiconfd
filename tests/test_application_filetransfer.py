@@ -14,16 +14,26 @@ from time import sleep, time
 from typing import Generator
 from unittest.mock import patch
 
+import pytest
 from msgspec import json
+from opsicommon.messagebus.message import (
+	ChannelSubscriptionEventMessage,
+	FileChunkMessage,
+	FileDownloadRequestMessage,
+	FileDownloadResponseMessage,
+)
 from opsicommon.objects import OpsiClient
 from werkzeug.http import parse_options_header
 
 from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage
+from opsiconfd.config import get_configserver_id
+from opsiconfd.messagebus import get_user_id_for_user
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	WebSocketMessageReader,
 	test_client,
 )
 
@@ -187,3 +197,31 @@ def test_raw_file_stream_upload(tmp_path: Path, test_client: OpsiconfdTestClient
 			resp = test_client.delete(f"/file-transfer/{file_id}")
 			assert resp.status_code == 200
 			assert resp.json()["file_id"] == file_id
+
+
+@pytest.mark.parametrize(
+	"channel",
+	(f"service:depot:{get_configserver_id()}:filetransfer",),
+)
+def test_messagebus_filetransfer(tmp_path: Path, test_client: OpsiconfdTestClient, channel: str) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	user_id = get_user_id_for_user(ADMIN_USER)
+	(tmp_path / "tesfile.txt").write_text("0" * 4000)
+	with test_client:
+		with test_client.websocket_connect("/messagebus/v1") as websocket:
+			with WebSocketMessageReader(websocket, messagebus_messages=True) as reader:
+				reader.wait_for_message(count=1)
+				message = next(reader.get_messagbus_messages())
+				assert isinstance(message, ChannelSubscriptionEventMessage)
+
+				file_download_request = FileDownloadRequestMessage(
+					sender=user_id, channel=channel, path=str(tmp_path / "tesfile.txt"), chunk_size=1000
+				)
+				websocket.send_bytes(file_download_request.to_msgpack())
+				reader.wait_for_message(count=5)
+				message = next(reader.get_messagbus_messages())
+				assert isinstance(message, FileDownloadResponseMessage)
+				for _ in range(5):
+					message = next(reader.get_messagbus_messages())
+					assert isinstance(message, FileChunkMessage)
+					print(message.number, len(message.data), message.last)

@@ -1382,6 +1382,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		raise OpsiServiceAuthenticationError("No password specified")
 
 	if session.username == config.monitoring_user:
+		# Monitoring user
 		if not check_module("monitoring"):
 			raise OpsiServicePermissionError("Monitoring module not available. Please check your opsi licenses.")
 		await authenticate_user_passwd(scope=scope)
@@ -1396,6 +1397,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		or HARDWARE_ADDRESS_RE.search(session.username)
 		or session.username.count(".") >= 2
 	):
+		# Host authentication
 		await authenticate_host(scope=scope)
 		await post_authenticate(scope)
 		return
@@ -1429,6 +1431,9 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 			raise OpsiServiceAuthenticationError("Incorrect one-time password")
 		session.add_auth_methods(AuthenticationMethod.TOTP)
 		logger.info("OTP MFA successful")
+
+	if not auth_module.user_is_admin(session.username) and not auth_module.user_is_read_only(session.username):
+		raise RuntimeError(f"Neither admin nor read_only user: {username!r}")
 
 	session.authenticated = True
 	session.user_groups = auth_module.get_groupnames(session.username)

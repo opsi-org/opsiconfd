@@ -263,7 +263,7 @@ def get_network_info() -> dict:
 def get_proxy_vars() -> dict[str, str]:
 	logger.debug("get_proxy_vars")
 	prepare_proxy_environment("www.opsi.org")
-	return {os.environ.get(var, "") for var in ["http_proxy", "https_proxy", "no_proxy"]}
+	return {var_name: os.environ.get(var_name, "") for var_name in ["http_proxy", "https_proxy", "no_proxy"]}
 
 
 async def get_diagnostic_data() -> dict[str, Any]:

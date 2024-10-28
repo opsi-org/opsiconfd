@@ -18,14 +18,22 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from opsicommon.testing.helpers import http_test_server, HTTPTestServerRequestHandler
+from opsicommon.testing.helpers import HTTPTestServerRequestHandler, http_test_server
 
 from opsiconfd.grafana import async_grafana_admin_session, create_dashboard_user, grafana_admin_session, set_grafana_root_url
 
 from .utils import get_config
 
 
-@pytest.mark.parametrize("filename", ("tests/data/grafana/faulty.ini", "tests/data/grafana/defaults.ini", "tests/data/grafana/sample.ini"))
+@pytest.mark.parametrize(
+	"filename",
+	(
+		"tests/data/grafana/faulty.ini",
+		"tests/data/grafana/defaults.ini",
+		"tests/data/grafana/sample.ini",
+		"tests/data/grafana/duplicatesection.ini",
+	),
+)
 def test_set_grafana_root_url(tmp_path: Path, filename: str) -> None:
 	grafana_ini = tmp_path / "grafana.ini"
 	grafana_ini_orig = Path(filename)
@@ -34,7 +42,10 @@ def test_set_grafana_root_url(tmp_path: Path, filename: str) -> None:
 		time.sleep(1)
 		mtime = grafana_ini.stat().st_mtime
 		set_grafana_root_url()
-		assert abs(grafana_ini.stat().st_size - grafana_ini_orig.stat().st_size) < 60
+		if filename == "tests/data/grafana/duplicatesection.ini":
+			assert abs(grafana_ini.stat().st_size - grafana_ini_orig.stat().st_size) < 150
+		else:
+			assert abs(grafana_ini.stat().st_size - grafana_ini_orig.stat().st_size) < 60
 		assert mtime != grafana_ini.stat().st_mtime
 
 		# Call again, no changes needed

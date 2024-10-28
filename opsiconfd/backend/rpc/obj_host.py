@@ -89,22 +89,6 @@ class RPCHostMixin(Protocol):
 			if res:
 				raise ValueError(f"Hardware address {host.hardwareAddress!r} is already used by host {res[0]!r}")
 
-	def _host_check_unique_system_uuid(self: BackendProtocol, host: Host) -> None:
-		if not self._mysql.unique_system_uuid or not host.systemUUID:
-			return
-
-		with self._mysql.session() as session:
-			res = session.execute(
-				"""
-				SELECT hostId FROM `HOST`
-				WHERE hostId != :hostId AND systemUUID = :systemUUID
-				LIMIT 1
-				""",
-				params={"hostId": host.id, "systemUUID": host.systemUUID},
-			).fetchone()
-			if res:
-				raise ValueError(f"System UUID {host.systemUUID!r} is already used by host {res[0]!r}")
-
 	def host_bulkInsertObjects(self: BackendProtocol, hosts: list[dict] | list[Host]) -> None:
 		self._mysql.bulk_insert_objects(table="HOST", objs=hosts)  # type: ignore[arg-type]
 
@@ -113,7 +97,6 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_insertObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
-		self._host_check_unique_system_uuid(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
@@ -128,7 +111,6 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_updateObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
-		self._host_check_unique_system_uuid(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
@@ -156,7 +138,6 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
-				self._host_check_unique_system_uuid(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
 		if not self.events_enabled:
 			return
@@ -177,7 +158,6 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
-				self._host_check_unique_system_uuid(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
 		if not self.events_enabled:
 			return
@@ -578,10 +558,9 @@ class RPCHostMixin(Protocol):
 			return new_value
 
 		old_depot = deepcopy(depot)
-		if old_depot.hardwareAddress or old_depot.systemUUID:
-			# Hardware address and systemUUID needs to be unique
+		if old_depot.hardwareAddress:
+			# Hardware address needs to be unique
 			old_depot.hardwareAddress = None
-			old_depot.systemUUID = None
 			self.host_createObjects([old_depot])
 
 		logger.info("Updating depot and it's urls...")

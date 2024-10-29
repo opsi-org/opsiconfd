@@ -244,6 +244,7 @@ class OpsiProductsOnClientsCheck(Check):
 		Checks whether newer versions of the products installed on the client are available in the depot.
 		If an older version is installed, the Health Check issues a warning.
 	"""
+	cache_partial_checks: bool = True
 
 	def check(self) -> CheckResult:
 		result = CheckResult(

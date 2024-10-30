@@ -186,6 +186,10 @@ def str2bool(value: str) -> bool:
 	return str(value).lower() in ("yes", "true", "y", "1")
 
 
+def str_lower(value: str) -> str:
+	return str(value).lower()
+
+
 def str2version(value: str) -> Version:
 	return Version(value)
 
@@ -438,6 +442,12 @@ class Config(metaclass=Singleton):
 				self._config.skip_setup.append("server_cert")
 		if not self._config.ssl_server_cert_sans:
 			self._config.ssl_server_cert_sans = []
+		if self._config.auth_allowed_groups:
+			for idx in range(len(self._config.auth_allowed_groups)):
+				if self._config.auth_allowed_groups[idx].startswith("{") and self._config.auth_allowed_groups[idx].endswith("}"):
+					self._config.auth_allowed_groups[idx] = opsi_config.get("groups", self._config.auth_allowed_groups[idx].strip("{}"))
+		else:
+			self._config.auth_allowed_groups = []
 		if not self._config.client_cert_auth:
 			self._config.client_cert_auth = []
 		if not self._config.disabled_features:
@@ -1076,6 +1086,18 @@ class Config(metaclass=Singleton):
 			type=int,
 			default=120,
 			help=self._help("opsiconfd", "The time window in seconds in which max auth failures are counted."),
+		)
+		self._parser.add(
+			"--auth-allowed-groups",
+			env_var="OPSICONFD_AUTH_ALLOWED_GROUPS",
+			type=str_lower,
+			default=[],
+			help=self._help(
+				"opsiconfd",
+				"A list of groups which are allowed to connect.\n"
+				"If the list is empty, all groups are allowed to connect.\n"
+				"Placeholders in the form of {groupname} can be used to refer to groups from /etc/opsi/opsi.conf.",
+			),
 		)
 		self._parser.add(
 			"--multi-factor-auth",

@@ -1432,11 +1432,12 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		session.add_auth_methods(AuthenticationMethod.TOTP)
 		logger.info("OTP MFA successful")
 
-	if not auth_module.user_is_admin(session.username) and not auth_module.user_is_read_only(session.username):
-		raise RuntimeError(f"Neither admin nor read_only user: {username!r}")
+	groups = auth_module.get_groupnames(session.username)
+	if config.auth_allowed_groups and not groups.intersection(config.auth_allowed_groups):
+		raise OpsiServicePermissionError(f"User '{session.username}' not in allowed groups")
 
 	session.authenticated = True
-	session.user_groups = auth_module.get_groupnames(session.username)
+	session.user_groups = groups
 	session.is_admin = auth_module.user_is_admin(session.username)
 	session.is_read_only = auth_module.user_is_read_only(session.username)
 

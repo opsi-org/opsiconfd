@@ -46,7 +46,7 @@ from opsicommon.messagebus.message import (
 	TraceResponseMessage,
 	timestamp,
 )
-from opsicommon.objects import UnicodeConfig
+from opsicommon.objects import OpsiClient, UnicodeConfig
 
 from opsiconfd.config import get_configserver_id
 from opsiconfd.messagebus.websocket import _check_message_type_access
@@ -59,7 +59,9 @@ from .utils import (  # noqa: F401
 	ADMIN_USER,
 	Config,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
 	WebSocketMessageReader,
+	backend,
 	clean_mysql,
 	clean_redis,
 	config,
@@ -539,131 +541,206 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 					}
 
 
-def test_messagebus_message_type_access(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+def test_messagebus_message_type_access(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
 	configserver_id = get_configserver_id()
-	with test_client as client:
-		with client.websocket_connect("/messagebus/v1") as websocket:
-			with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
-				reader.wait_for_message(count=1)
-				assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
 
-				_check_message_type_access.cache_clear()
-				with patch("opsiconfd.backend.unprotected_backend.available_modules", []):
-					# Not checking against the actual value here, as we might use a license file for testing
+	available_modules_with_vpn = backend.available_modules
+	if "vpn" not in available_modules_with_vpn:
+		available_modules_with_vpn.append("vpn")
+	available_modules_without_vpn = available_modules_with_vpn.copy()
+	available_modules_without_vpn.remove("vpn")
 
-					# Executing processes on depot must be allowed
-					websocket.send_bytes(
-						ProcessStartRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					assert isinstance(responses[0], ProcessStartEventMessage)
+	opsi_client = OpsiClient(id="test-client.opsi.org", opsiHostKey="f0240d7c5e229cde51085d9e08cd9c04")
+	assert opsi_client.opsiHostKey
+	backend.host_createObjects([opsi_client])
 
-					# Executing processes on clients must be denied
-					websocket.send_bytes(
-						ProcessStartRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel="host:test-client.opsi.org", command=("echo", "test")
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=1, timeout=10.0)
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					assert isinstance(responses[0], GeneralErrorMessage)
-					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
+	for user, password in ((ADMIN_USER, ADMIN_PASS), (opsi_client.id, opsi_client.opsiHostKey)):
+		test_client.reset_cookies()
+		test_client.auth = (user, password)
+		is_admin = user == ADMIN_USER
+		print("Using user", user)
+		_check_message_type_access.cache_clear()
+		with test_client as client:
+			with client.websocket_connect("/messagebus/v1") as websocket:
+				with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
+					reader.wait_for_message(count=10, timeout=5.0, error_on_timeout=False)
+					assert any(msg["type"] == "channel_subscription_event" for msg in list(reader.get_messages()))  # type: ignore[call-overload]
 
-				_check_message_type_access.cache_clear()
-				with get_config({"disabled_features": ["messagebus_execute_process"]}):
-					websocket.send_bytes(
-						ProcessStartRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
+					_check_message_type_access.cache_clear()
+					with patch("opsiconfd.backend.unprotected_backend.available_modules", available_modules_with_vpn):
+						for host_id in (opsi_client.id, "test-client2.opsi.org"):
+							# Executing processes on clients must be allowed for admins and denied for non admins
+							websocket.send_bytes(
+								ProcessStartRequestMessage(
+									sender=CONNECTION_USER_CHANNEL, channel=f"host:{host_id}", command=("echo", "test")
+								).to_msgpack()
+							)
+							reader.wait_for_message(count=1, timeout=5.0, error_on_timeout=False)
+							responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+							if is_admin:
+								assert not responses
+							else:
+								assert isinstance(responses[0], GeneralErrorMessage)
+								if host_id == opsi_client.id:
+									assert (
+										responses[0].error.message
+										== "Access to message type 'process_start_request' denied - check permission, config and license"
+									)
+								else:
+									assert responses[0].error.message == f"Read access to channel 'host:{host_id}' denied"
 
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					print(responses[0])
-					assert isinstance(responses[0], GeneralErrorMessage)
-					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
+					_check_message_type_access.cache_clear()
+					with patch("opsiconfd.backend.unprotected_backend.available_modules", available_modules_without_vpn):
+						# Not checking against the actual value here, as we might use a license file for testing
 
-				_check_message_type_access.cache_clear()
-				with get_config({"disabled_features": ["messagebus_terminal"]}):
-					websocket.send_bytes(
-						TerminalOpenRequestMessage(
-							sender=CONNECTION_USER_CHANNEL,
-							channel=f"service:depot:{configserver_id}:terminal",
-							terminal_id=str(uuid4()),
-							rows=20,
-							cols=150,
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=1, timeout=10.0)
+						# Executing processes on depot must be allowed
+						websocket.send_bytes(
+							ProcessStartRequestMessage(
+								sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						if is_admin:
+							assert isinstance(responses[0], ProcessStartEventMessage)
+						else:
+							assert isinstance(responses[0], GeneralErrorMessage)
+							assert responses[0].error.message == f"Read access to channel 'service:depot:{configserver_id}:process' denied"
 
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					print(responses[0])
-					assert isinstance(responses[0], GeneralErrorMessage)
-					assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
+						# Executing processes on clients must be denied
+						websocket.send_bytes(
+							ProcessStartRequestMessage(
+								sender=CONNECTION_USER_CHANNEL, channel=f"host:{opsi_client.id}", command=("echo", "test")
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=1, timeout=10.0)
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						assert isinstance(responses[0], GeneralErrorMessage)
+						assert (
+							responses[0].error.message
+							== "Access to message type 'process_start_request' denied - check permission, config and license"
+						)
 
-				_check_message_type_access.cache_clear()
-				with get_config({"disabled_features": ["messagebus_execute_process_client"]}):
-					# Executing processes on depot must be allowed
-					websocket.send_bytes(
-						ProcessStartRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					assert isinstance(responses[0], ProcessStartEventMessage)
+					_check_message_type_access.cache_clear()
+					with get_config({"disabled_features": ["messagebus_execute_process"]}):
+						websocket.send_bytes(
+							ProcessStartRequestMessage(
+								sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
 
-					# Executing processes on clients must be denied
-					websocket.send_bytes(
-						ProcessStartRequestMessage(
-							sender=CONNECTION_USER_CHANNEL, channel="host:test-client.opsi.org", command=("echo", "test")
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=1, timeout=10.0)
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					assert isinstance(responses[0], GeneralErrorMessage)
-					assert responses[0].error.message == "Access to message type 'process_start_request' denied - check config and license"
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						print(responses[0])
+						assert isinstance(responses[0], GeneralErrorMessage)
+						if is_admin:
+							assert (
+								responses[0].error.message
+								== "Access to message type 'process_start_request' denied - check permission, config and license"
+							)
+						else:
+							assert responses[0].error.message == f"Read access to channel 'service:depot:{configserver_id}:process' denied"
 
-				_check_message_type_access.cache_clear()
-				with get_config({"disabled_features": ["messagebus_terminal_client"]}):
-					# Terminal on depot must be allowed
-					websocket.send_bytes(
-						TerminalOpenRequestMessage(
-							sender=CONNECTION_USER_CHANNEL,
-							channel=f"service:depot:{configserver_id}:terminal",
-							terminal_id=str(uuid4()),
-							rows=20,
-							cols=150,
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=5, timeout=10.0, error_on_timeout=False)
+					_check_message_type_access.cache_clear()
+					with get_config({"disabled_features": ["messagebus_terminal"]}):
+						websocket.send_bytes(
+							TerminalOpenRequestMessage(
+								sender=CONNECTION_USER_CHANNEL,
+								channel=f"service:depot:{configserver_id}:terminal",
+								terminal_id=str(uuid4()),
+								rows=20,
+								cols=150,
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=1, timeout=10.0)
 
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					print(responses[0])
-					assert isinstance(responses[0], TerminalOpenEventMessage)
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						print(responses[0])
+						assert isinstance(responses[0], GeneralErrorMessage)
+						if is_admin:
+							assert (
+								responses[0].error.message
+								== "Access to message type 'terminal_open_request' denied - check permission, config and license"
+							)
+						else:
+							assert responses[0].error.message == f"Read access to channel 'service:depot:{configserver_id}:terminal' denied"
 
-					# Terminal on client must be denied
-					websocket.send_bytes(
-						TerminalOpenRequestMessage(
-							sender=CONNECTION_USER_CHANNEL,
-							channel="host:test-client.opsi.org",
-							terminal_id=str(uuid4()),
-							rows=20,
-							cols=150,
-						).to_msgpack()
-					)
-					reader.wait_for_message(count=1, timeout=10.0)
+					_check_message_type_access.cache_clear()
+					with get_config({"disabled_features": ["messagebus_execute_process_client"]}):
+						# Executing processes on depot must be allowed
+						websocket.send_bytes(
+							ProcessStartRequestMessage(
+								sender=CONNECTION_USER_CHANNEL, channel=f"service:depot:{configserver_id}:process", command=("echo", "test")
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						if is_admin:
+							assert isinstance(responses[0], ProcessStartEventMessage)
+						else:
+							assert isinstance(responses[0], GeneralErrorMessage)
+							assert responses[0].error.message == f"Read access to channel 'service:depot:{configserver_id}:process' denied"
 
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
-					print(responses[0])
-					assert isinstance(responses[0], GeneralErrorMessage)
-					assert responses[0].error.message == "Access to message type 'terminal_open_request' denied - check config and license"
+						# Executing processes on clients must be denied
+						websocket.send_bytes(
+							ProcessStartRequestMessage(
+								sender=CONNECTION_USER_CHANNEL, channel=f"host:{opsi_client.id}", command=("echo", "test")
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=1, timeout=10.0)
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						assert isinstance(responses[0], GeneralErrorMessage)
+						assert (
+							responses[0].error.message
+							== "Access to message type 'process_start_request' denied - check permission, config and license"
+						)
 
-				_check_message_type_access.cache_clear()
+					_check_message_type_access.cache_clear()
+					with get_config({"disabled_features": ["messagebus_terminal_client"]}):
+						# Terminal on depot must be allowed
+						websocket.send_bytes(
+							TerminalOpenRequestMessage(
+								sender=CONNECTION_USER_CHANNEL,
+								channel=f"service:depot:{configserver_id}:terminal",
+								terminal_id=str(uuid4()),
+								rows=20,
+								cols=150,
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=5, timeout=10.0, error_on_timeout=False)
+
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						print(responses[0])
+						if is_admin:
+							assert isinstance(responses[0], TerminalOpenEventMessage)
+						else:
+							assert isinstance(responses[0], GeneralErrorMessage)
+							assert responses[0].error.message == f"Read access to channel 'service:depot:{configserver_id}:terminal' denied"
+
+						# Terminal on client must be denied
+						websocket.send_bytes(
+							TerminalOpenRequestMessage(
+								sender=CONNECTION_USER_CHANNEL,
+								channel=f"host:{opsi_client.id}",
+								terminal_id=str(uuid4()),
+								rows=20,
+								cols=150,
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=1, timeout=10.0)
+
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						print(responses[0])
+						assert isinstance(responses[0], GeneralErrorMessage)
+						assert (
+							responses[0].error.message
+							== "Access to message type 'terminal_open_request' denied - check permission, config and license"
+						)
+
+					_check_message_type_access.cache_clear()
 
 
 def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

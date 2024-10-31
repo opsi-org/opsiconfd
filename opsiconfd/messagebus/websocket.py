@@ -87,8 +87,10 @@ if get_server_role() == "configserver":
 
 
 @lru_cache
-def _check_message_type_access(message_type: str, is_service_channel: bool, backend: Backend) -> bool:
+def _check_message_type_access(message_type: str, is_admin: bool, is_service_channel: bool, backend: Backend) -> bool:
 	if message_type == MessageType.TERMINAL_OPEN_REQUEST:
+		if not is_admin:
+			return False
 		if "messagebus_terminal" in config.disabled_features:
 			return False
 		if not is_service_channel:
@@ -98,6 +100,8 @@ def _check_message_type_access(message_type: str, is_service_channel: bool, back
 			if "vpn" not in backend.available_modules:
 				return False
 	elif message_type == MessageType.PROCESS_START_REQUEST:
+		if not is_admin:
+			return False
 		if "messagebus_execute_process" in config.disabled_features:
 			return False
 		if not is_service_channel:
@@ -106,6 +110,12 @@ def _check_message_type_access(message_type: str, is_service_channel: bool, back
 				return False
 			if "vpn" not in backend.available_modules:
 				return False
+	elif message_type == MessageType.JSONRPC_REQUEST:
+		if not is_admin and not is_service_channel:
+			return False
+	elif message_type in (MessageType.FILE_DOWNLOAD_REQUEST, MessageType.FILE_UPLOAD_REQUEST):
+		if not is_admin:
+			return False
 	return True
 
 
@@ -423,8 +433,10 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):
 				raise RuntimeError(f"Read access to channel {message.channel!r} denied")
 
-			if not _check_message_type_access(message.type, message.channel.startswith("service:"), self._backend):
-				raise RuntimeError(f"Access to message type {message.type!r} denied - check config and license")
+			if not _check_message_type_access(
+				message.type, self.scope["session"].is_admin, message.channel.startswith("service:"), self._backend
+			):
+				raise RuntimeError(f"Access to message type {message.type!r} denied - check permission, config and license")
 
 			logger.debug("Message from websocket: %r", message)
 			statistics.messages_received += 1

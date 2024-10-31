@@ -391,9 +391,23 @@ def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa:
 		assert res.json()["is_admin"] is True
 		test_client.reset_cookies()
 
-	with get_opsi_config([]) as opsi_config:
+	with get_opsi_config(
+		[
+			{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+			{"category": "groups", "config": "readonly", "value": ""},
+		]
+	):
 		with get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config:
-			assert opsiconfd_config.auth_allowed_groups == [opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "readonly")]
+			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group", "{readonly}"]
+
+	with get_opsi_config(
+		[
+			{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+			{"category": "groups", "config": "readonly", "value": "opsi-readonly-group"},
+		]
+	):
+		with get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config:
+			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group", "opsi-readonly-group"]
 
 
 def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

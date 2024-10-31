@@ -1091,7 +1091,7 @@ class Config(metaclass=Singleton):
 			"--auth-allowed-groups",
 			env_var="OPSICONFD_AUTH_ALLOWED_GROUPS",
 			type=str_lower,
-			default=[],
+			default=["{admingroup}", "{readonly}"],
 			help=self._help(
 				"opsiconfd",
 				"A list of groups which are allowed to connect.\n"

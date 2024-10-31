@@ -445,7 +445,9 @@ class Config(metaclass=Singleton):
 		if self._config.auth_allowed_groups:
 			for idx in range(len(self._config.auth_allowed_groups)):
 				if self._config.auth_allowed_groups[idx].startswith("{") and self._config.auth_allowed_groups[idx].endswith("}"):
-					self._config.auth_allowed_groups[idx] = opsi_config.get("groups", self._config.auth_allowed_groups[idx].strip("{}"))
+					groupname = opsi_config.get("groups", self._config.auth_allowed_groups[idx].strip("{}"))
+					if groupname:
+						self._config.auth_allowed_groups[idx] = groupname
 		else:
 			self._config.auth_allowed_groups = []
 		if not self._config.client_cert_auth:

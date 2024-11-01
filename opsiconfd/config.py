@@ -1093,6 +1093,7 @@ class Config(metaclass=Singleton):
 			"--auth-allowed-groups",
 			env_var="OPSICONFD_AUTH_ALLOWED_GROUPS",
 			type=str_lower,
+			nargs="*",
 			default=["{admingroup}", "{readonly}"],
 			help=self._help(
 				"opsiconfd",

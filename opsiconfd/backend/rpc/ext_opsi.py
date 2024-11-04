@@ -24,7 +24,7 @@ from opsicommon.types import (
 	forceProductId,
 )
 
-from opsiconfd.config import DEPOT_DIR
+from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -100,6 +100,10 @@ class RPCExtOpsiMixin(Protocol):
 		"""
 		if not path:
 			path = DEPOT_DIR
+		path = os.path.normpath(path)
+
+		if not any(path.startswith(p) for p in [DEPOT_DIR, WORKBENCH_DIR, REPOSITORY_DIR]):
+			raise ValueError(f"Path {path!r} is not in a valid directory")
 
 		if not os.path.exists(path):
 			raise IOError(f"The path {path!r} does not exist")

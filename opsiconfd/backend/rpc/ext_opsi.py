@@ -16,7 +16,7 @@ import os
 import subprocess
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.exceptions import BackendMissingDataError, BackendPermissionDeniedError
 from opsicommon.objects import ProductOnClient
 from opsicommon.types import (
 	forceActionRequest,
@@ -24,6 +24,7 @@ from opsicommon.types import (
 	forceProductId,
 )
 
+from opsiconfd import contextvar_client_session
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 from opsiconfd.logging import logger
 
@@ -98,6 +99,10 @@ class RPCExtOpsiMixin(Protocol):
 		Setting rights for a specified path.
 		If no path is given it will try to set the rights for the current depot.
 		"""
+		session = contextvar_client_session.get()
+		if not session or not session.is_admin:
+			raise BackendPermissionDeniedError("Access denied")
+
 		if not path:
 			path = DEPOT_DIR
 		path = os.path.normpath(path)

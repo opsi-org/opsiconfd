@@ -167,7 +167,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 	# all host should be enabled
 	enabled_hosts = get_enabled_hosts()
-	assert hosts == enabled_hosts
+	assert sorted(hosts) == sorted(enabled_hosts)
 
 	# set downtime for client 1 for tomorrow and check if it is disabled
 	tomorrow = datetime.now() + timedelta(days=1)
@@ -296,7 +296,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	enabled_hosts = get_enabled_hosts()
-	assert hosts == enabled_hosts
+	assert sorted(hosts) == sorted(enabled_hosts)
 
 
 def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

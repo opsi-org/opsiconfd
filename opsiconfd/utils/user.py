@@ -183,8 +183,6 @@ def user_get_credentials(username: str | None = None, hostId: str | None = None)
 
 	depot_user = get_opsi_config().get("depot_user", "username")
 	username = username or depot_user
-	if username != depot_user:
-		raise ValueError(f"Invalid user: {username!r}")
 
 	if hostId:
 		hostId = forceHostId(hostId)

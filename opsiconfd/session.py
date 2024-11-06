@@ -59,6 +59,7 @@ from opsiconfd.logging import logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task
 from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.user import user_get_credentials
 
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
@@ -1262,8 +1263,7 @@ async def authenticate_host(scope: Scope) -> None:
 
 async def authenticate_user_passwd(scope: Scope) -> None:
 	session: OPSISession = scope["session"]
-	backend = get_unprotected_backend()
-	credentials = await backend.async_call("user_getCredentials", username=session.username)
+	credentials = await run_in_threadpool(user_get_credentials, session.username)
 	if credentials and session.password == credentials.get("password"):
 		session.authenticated = True
 		session.is_read_only = True

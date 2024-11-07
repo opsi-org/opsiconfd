@@ -354,3 +354,14 @@ def test_check_system_repos() -> None:
 				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
+
+def test_check_system_distro_id() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "ol"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "9.4"
+			result = check_manager.get("system_eol_check").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "All systems are up to date."
+

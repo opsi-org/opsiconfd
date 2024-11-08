@@ -361,7 +361,7 @@ def test_check_system_distro_id() -> None:
 		mock_distro_id.return_value = "ol"
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
 			mock_distro_version.return_value = "9.4"
-			result = check_manager.get("system_eol_check").run(clear_cache=True)
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
 			assert result.check_status == CheckStatus.OK
 			assert result.message == "All systems are up to date."
 

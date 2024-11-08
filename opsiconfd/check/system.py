@@ -254,7 +254,7 @@ class SystemEOLCheck(Check):
 						result.message = f"Version {version} of distribution {distro} is supported until {eol}."
 					else:
 						result.check_status = CheckStatus.ERROR
-						result.message = f"Support of version {version} of distribution {distro} ended on {eol}"
+						result.message = f"Support of version {version} of distribution {distro} ended on {eol}."
 						result.upgrade_issue = __version__
 				else:
 					result.check_status = CheckStatus.ERROR

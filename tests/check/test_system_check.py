@@ -393,3 +393,71 @@ def test_check_system_distro_eol() -> None:
 			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
 			assert result.check_status == CheckStatus.ERROR
 			assert result.message == "Support of version 8 of distribution almalinux ended on 2024-05-01."
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "rhel"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "9"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 9 of distribution rhel is supported until 2032-06-01."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "8"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 8 of distribution rhel is supported until 2030-06-01."
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "opensuse-leap"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "15.6"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 15.6 of distribution opensuse-leap is supported until 2025-11-01."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "15.5"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.ERROR
+			assert result.message == "Support of version 15.6 of distribution opensuse-leap ended on 2024-11-01."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "15.4"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.ERROR
+			assert result.message == "Support of version 15.6 of distribution opensuse-leap ended on 2023-11-01."
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "debian"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "12"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 12 of distribution debian is supported until 2026-06-10."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "11"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.ERROR
+			assert result.message == "Support of version 11 of distribution debian ended on 2024-07-01."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "10"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.ERROR
+			assert result.message == "Support of version 11 of distribution debian ended on 2022-08-01."
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "ubuntu"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "24.04"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 24.04 of distribution ubuntu is supported until 2029-06-01."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "22.04"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 22.04 of distribution ubuntu is supported until 2027-04-01."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "20.04"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 20.04 of distribution ubuntu is supported until 2025-04-01."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "18.04"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.ERROR
+			assert result.message == "Support of version 18.04 of distribution ubuntu ended on 2023-04-01."

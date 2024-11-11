@@ -204,10 +204,12 @@ def test_store_load_cert(tmp_path: Path) -> None:
 				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
 				response = get_ssl_opsi_ca_cert(None)  # type: ignore
-				assert response.body.decode("ascii") == as_pem(cert)
+				body = response.body.tobytes() if isinstance(response.body, memoryview) else response.body
+				assert body.decode("ascii") == as_pem(cert)
 
 				response = get_ssl_ca_certs(None)  # type: ignore
-				assert response.body.decode("ascii") == "".join(as_pem(c) for c in certs)
+				body = response.body.tobytes() if isinstance(response.body, memoryview) else response.body
+				assert body.decode("ascii") == "".join(as_pem(c) for c in certs)
 
 
 def test_create_ca(tmp_path: Path) -> None:

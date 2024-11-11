@@ -15,8 +15,8 @@ volumes:
     driver: local
 
 services:
-  opsiserver43-dev:
-    hostname: opsiserver43-dev
+  opsiserver44-dev:
+    hostname: opsiserver44-dev
     domainname: opsi.test
     # Needed for mount
     privileged: true
@@ -39,7 +39,7 @@ services:
       - ${OPSISERVER_DEV_OPSICONFD_FORWARD_PORT}4447
     env_file:
       - .env
-      - opsiserver43-dev.env
+      - opsiserver44-dev.env
 
   mysql-dev:
     image: mariadb:10.7
@@ -71,8 +71,8 @@ services:
     volumes:
       - grafana-dev_data:/var/lib/grafana
 
-  opsiserver43-cs:
-    hostname: opsiserver43-cs
+  opsiserver44-cs:
+    hostname: opsiserver44-cs
     domainname: opsi.test
     # Needed for mount
     privileged: true
@@ -95,7 +95,7 @@ services:
       - ${OPSISERVER_CS_OPSICONFD_FORWARD_PORT}4447
     env_file:
       - .env
-      - opsiserver43-cs.env
+      - opsiserver44-cs.env
     command: poetry run opsiconfd
 
   mysql-cs:

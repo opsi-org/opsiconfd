@@ -11,6 +11,7 @@ logging tests
 
 import asyncio
 import os
+import re
 import time
 from logging import LogRecord
 from pathlib import Path
@@ -150,4 +151,5 @@ async def test_slow_callback_logging(tmp_path: Path) -> None:
 
 		with open(log_file, "r", encoding="utf-8") as file:
 			log = file.read()
-			assert "Slow asyncio callback: <Handle sleep()> took 1.000 seconds" in log
+			assert re.match(r"Slow asyncio callback: \<Handle sleep\(\d*\)\> took 1\.000 seconds", log)
+

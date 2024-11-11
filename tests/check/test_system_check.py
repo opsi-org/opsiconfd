@@ -461,3 +461,14 @@ def test_check_system_distro_eol() -> None:
 			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
 			assert result.check_status == CheckStatus.ERROR
 			assert result.message == "Support of version 18.04 of distribution ubuntu ended on 2023-04-01."
+
+
+def test_check_system_repo_address() -> None:
+	check_manager.register(system_eol_check, disk_usage_check, system_repositories_check, system_packages_check)
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "ol"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "9.4"
+			result = check_manager.get("system_repositories").run(clear_cache=True)
+			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 9 of distribution ol is supported until 2032-06-01."

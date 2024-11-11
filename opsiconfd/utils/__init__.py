@@ -35,7 +35,7 @@ from logging import INFO  # type: ignore[import]
 from pathlib import Path
 from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, List, Optional, TextIO
+from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Optional, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -447,7 +447,7 @@ def user_exists(username: str) -> bool:
 #           2      One or more supplied key could not be found in the database.
 #           3      Enumeration not supported on this database.
 ###
-def get_user_passwd_details(username: str) -> List[UserInfo]:
+def get_user_passwd_details(username: str) -> list[UserInfo]:
 	user_details = []
 	if is_ucs():
 		ucs_details = get_ucs_user_details(username)
@@ -527,7 +527,7 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 		return None
 
 
-def get_passwd_services() -> List[NameService]:
+def get_passwd_services() -> list[NameService]:
 	nsswitch_conf = Path("/etc/nsswitch.conf")
 	if not nsswitch_conf.is_file():
 		return []

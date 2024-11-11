@@ -18,7 +18,7 @@ from asyncio import sleep
 from datetime import datetime, timezone
 from itertools import product
 from statistics import mean, median
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -41,7 +41,7 @@ class TestManager:
 		base_url = f"{url.scheme or 'https'}://{url.hostname}:{url.port or 4447}"
 		self.args.jsonrpc_url = f"{base_url}/rpc"
 		self.args.metrics_url = f"{base_url}/metrics/grafana"
-		self.request_stats: List[float] = []
+		self.request_stats: list[float] = []
 
 	async def jsonrpc_request(self, client: httpx.AsyncClient, url: str, method: str, *params: Any) -> Any:
 		params = params or tuple()
@@ -86,7 +86,7 @@ class TestManager:
 			return 0
 		return round(response.json()[0]["datapoints"][-1][0])
 
-	async def run_test(self) -> Dict[str, int]:
+	async def run_test(self) -> dict[str, int]:
 		self.request_stats = []
 		test_clients = [TestClient(self, f"client{c}.opsi.test") for c in range(min(self.args.clients, 100))]
 		async with httpx.AsyncClient(

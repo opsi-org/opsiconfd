@@ -198,6 +198,7 @@ def pytest_configure(config: Config) -> None:
 	# When the mode is auto, all discovered async tests are considered
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
 	config.option.asyncio_mode = "auto"
+	config.option.asyncio_default_fixture_loop_scope = "function"
 	config.addinivalue_line("markers", "grafana_is_local: mark test to run only if a local grafana instance is running on the local host")
 
 

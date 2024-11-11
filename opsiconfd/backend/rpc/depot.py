@@ -203,11 +203,15 @@ class RPCDepotserverMixin(Protocol):
 	_package_manager: DepotserverPackageManager | None
 
 	def __init__(self: BackendProtocol) -> None:
-		if self.host_getIdents(id=self._depot_id):
+		self._package_manager = None
+
+	def _get_package_manager(self: BackendProtocol) -> DepotserverPackageManager:
+		if not self._package_manager:
+			if not self.host_getIdents(id=self._depot_id, type="OpsiDepotserver"):
+				logger.info("Depot %r not found in backend", self._depot_id)
+				raise RuntimeError("Not a depotserver")
 			self._package_manager = DepotserverPackageManager(self, self._depot_id)
-		else:
-			logger.info("Depot %r not found in backend", self._depot_id)
-			self._package_manager = None  # type: ignore[assignment]
+		return self._package_manager
 
 	@rpc_method
 	def depot_getHostRSAPublicKey(self: BackendProtocol) -> str:
@@ -289,11 +293,8 @@ class RPCDepotserverMixin(Protocol):
 		"""
 		Installing a package on the depot corresponding to this Backend.
 		"""
-		if not self._package_manager:
-			raise RuntimeError("Not a depotserver")
-
 		with log_context({"instance": "package_install"}):
-			self._package_manager.install_package(
+			self._get_package_manager().install_package(
 				filename,
 				force=force,
 				property_default_values=propertyDefaultValues or {},
@@ -304,10 +305,7 @@ class RPCDepotserverMixin(Protocol):
 
 	@rpc_method
 	def depot_uninstallPackage(self: BackendProtocol, productId: str, force: bool = False, deleteFiles: bool = True) -> None:
-		if not self._package_manager:
-			raise RuntimeError("Not a depotserver")
-
-		self._package_manager.uninstall_package(productId, force, deleteFiles)
+		self._get_package_manager().uninstall_package(productId, force, deleteFiles)
 
 	@rpc_method
 	def depot_createPackageContentFile(self: BackendProtocol, productId: str) -> None:

@@ -17,7 +17,7 @@ __version__ = "4.3.24.7"
 from contextlib import contextmanager
 from contextvars import Context, ContextVar
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Dict, Generator, Optional
+from typing import TYPE_CHECKING, Any, Generator, Optional
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
@@ -25,10 +25,10 @@ if TYPE_CHECKING:
 contextvar_request_id: ContextVar[Optional[int]] = ContextVar("request_id", default=None)
 contextvar_client_session: ContextVar[Optional[OPSISession]] = ContextVar("client_session", default=None)
 contextvar_client_address: ContextVar[Optional[str]] = ContextVar("client_address", default=None)
-contextvar_server_timing: ContextVar[Dict[str, float]] = ContextVar("server_timing", default={})
+contextvar_server_timing: ContextVar[list[str, float]] = ContextVar("server_timing", default={})
 
 
-def get_contextvars() -> Dict[str, Any]:
+def get_contextvars() -> dict[str, Any]:
 	return {
 		var.name: var.get()  # type: ignore[attr-defined]
 		for var in (
@@ -40,7 +40,7 @@ def get_contextvars() -> Dict[str, Any]:
 	}
 
 
-def set_contextvars(values: Dict[str, Any]) -> None:
+def set_contextvars(values: dict[str, Any]) -> None:
 	for var, val in values.items():
 		try:
 			globals()[f"contextvar_{var}"].set(val)

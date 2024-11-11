@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 import tracemalloc
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import msgspec
 import objgraph  # type: ignore[import]
@@ -84,7 +84,7 @@ def memory_tracemalloc_snapshot_new(num_stats: int = 25) -> JSONResponse:
 	return JSONResponse({"status": 200, "error": None, "data": data})
 
 
-LAST_OBJGRAPH_SNAPSHOT: Dict[str, Any] = {}
+LAST_OBJGRAPH_SNAPSHOT: dict[str, Any] = {}
 
 
 @memory_profiler_router.get("/objgraph-snapshot-new")

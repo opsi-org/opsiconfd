@@ -19,7 +19,7 @@ import re
 from asyncio import create_task, get_event_loop, sleep
 from datetime import datetime
 from statistics import mean, median
-from typing import Dict, List, Optional, Set
+from typing import Optional, Set
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -161,9 +161,9 @@ class TestManager:
 		base_url = f"{url.scheme or 'https'}://{url.hostname}:{url.port or 4447}"
 		self.args.messagebus_url = f"{base_url}/messagebus/v1"
 		# self.args.metrics_url = f"{base_url}/metrics/grafana"
-		self.request_stats: List[float] = []
+		self.request_stats: list[float] = []
 
-	async def run_test(self) -> Dict[str, int]:
+	async def run_test(self) -> dict[str, int]:
 		self.request_stats = []
 		test_clients = [TerminalClient(self, name=f"terminal client{c+1}") for c in range(self.args.clients)]
 		await asyncio.gather(*[client.setup() for client in test_clients])

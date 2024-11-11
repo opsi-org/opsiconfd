@@ -25,7 +25,7 @@ from asyncio import CancelledError, Event, Task, get_running_loop
 from concurrent.futures import ThreadPoolExecutor
 from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO
+from typing import TYPE_CHECKING, Any, Callable, TextIO
 
 import colorlog
 import msgspec
@@ -214,7 +214,7 @@ class AsyncRedisLogAdapter:
 		self._read_config()
 		self._loop = get_running_loop()
 		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
-		self._file_logs: Dict[str, AsyncFileHandler] = {}
+		self._file_logs: dict[str, AsyncFileHandler] = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
@@ -468,7 +468,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 		self._should_stop.set()
 		self._stopped.wait(3.0)
 
-	def log_record_to_dict(self, record: LogRecord) -> Dict[str, Any]:
+	def log_record_to_dict(self, record: LogRecord) -> dict[str, Any]:
 		try:
 			msg = record.getMessage()
 		except TypeError:

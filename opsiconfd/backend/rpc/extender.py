@@ -15,7 +15,7 @@ from functools import partial
 from inspect import isfunction
 from pathlib import Path
 from types import MethodType
-from typing import Any, Callable, Dict, Protocol
+from typing import Any, Callable, Protocol
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
@@ -44,7 +44,7 @@ class RPCExtenderMixin(Protocol):
 		for file in sorted(Path(config.extension_config_dir).glob("*.conf")):
 			logger.info("Reading rpc extension methods from '%s'", file)
 			try:
-				loc: Dict[str, Any] = {}
+				loc: dict[str, Any] = {}
 				if file.is_file():
 					exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)
 				for function_name, function in loc.items():

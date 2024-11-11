@@ -12,7 +12,7 @@ metrics
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Generator, List, Type
+from typing import Any, Generator, List, Type
 
 from opsiconfd.config import config
 from opsiconfd.grafana import GrafanaPanelConfig
@@ -95,7 +95,7 @@ class Metric:
 	def get_name(self, **kwargs: Any) -> str:
 		return self.name.format(**kwargs)
 
-	def get_vars_by_redis_key(self, redis_key: str) -> Dict[str, Any]:
+	def get_vars_by_redis_key(self, redis_key: str) -> dict[str, Any]:
 		vars = {}
 		if self.vars:
 			values = redis_key[len(self.redis_key_prefix) + 1 :].split(":")
@@ -106,7 +106,7 @@ class Metric:
 		vars = self.get_vars_by_redis_key(redis_key)
 		return self.get_name(**vars)
 
-	def get_vars_by_name(self, name: str) -> Dict[str, Any]:
+	def get_vars_by_name(self, name: str) -> dict[str, Any]:
 		match = self.name_regex.fullmatch(name)
 		if not match:
 			raise ValueError(f"Name not found {name!r}")
@@ -356,7 +356,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 
 class MetricsRegistry(metaclass=Singleton):
 	def __init__(self) -> None:
-		self._metrics_by_id: Dict[str, Metric] = {}
+		self._metrics_by_id: dict[str, Metric] = {}
 		self.register(*_get_metrics())
 
 	def register(self, *metric: Metric) -> None:

@@ -12,8 +12,8 @@ test opsiconfd.backend.rpc.test_obj_audit_hardware
 import json
 from collections import defaultdict
 from pathlib import Path
+from unittest import mock
 
-import mock
 from opsicommon.objects import AuditHardware, deserialize, serialize
 
 from opsiconfd.backend.rpc.obj_audit_hardware import get_audit_hardware_config
@@ -37,6 +37,7 @@ def test_get_audit_hardware_config(tmp_path: Path) -> None:
 		translations_found = 0
 		for hw_conf in get_audit_hardware_config("de"):
 			for val in hw_conf["Values"]:
+				assert isinstance(val, dict)
 				if val["Opsi"] == "deviceType":
 					assert val["UI"] == "Deutsche Übersetzung"
 					translations_found += 1

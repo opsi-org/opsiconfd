@@ -16,7 +16,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
 from types import FrameType
-from typing import Optional
 
 import psutil
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
@@ -195,7 +194,7 @@ class WorkerManager:
 		if not force:
 			logger.notice("All workers stopped")
 
-	def get_worker(self, pid: int) -> Optional[Worker]:
+	def get_worker(self, pid: int) -> Worker | None:
 		for worker in self.get_workers():
 			if worker.pid == pid:
 				return worker

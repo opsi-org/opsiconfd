@@ -117,7 +117,7 @@ def is_manager(proc: psutil.Process) -> bool:
 	return manager
 
 
-def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> Optional[int]:
+def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> int  | None:
 	container_procs = ("containerd-shim", "lxc-start")
 
 	manager_pid = None

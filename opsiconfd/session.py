@@ -18,7 +18,7 @@ import time
 import uuid
 from collections import namedtuple
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
 import pyotp
@@ -158,7 +158,7 @@ class SessionMiddleware:
 		return time_left
 
 	@staticmethod
-	def get_session_id_from_headers(headers: Headers) -> Optional[str]:
+	def get_session_id_from_headers(headers: Headers) -> str | None:
 		# connection.cookies.get(SESSION_COOKIE_NAME, None)
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
@@ -379,7 +379,7 @@ class SessionMiddleware:
 		if session := scope.get("session"):
 			session.add_session_headers(headers)
 
-		response: Optional[Response] = None
+		response: Response | None = None
 		if path.startswith("/rpc"):
 			logger.debug("Returning jsonrpc response because path startswith /rpc")
 			content = {"id": None, "result": None, "error": error}
@@ -989,7 +989,7 @@ class OPSISession:
 				pass
 		return obj
 
-	def get_cookie(self) -> Optional[str]:
+	def get_cookie(self) -> str | None:
 		if not self.session_id or not self.persistent:
 			return None
 		attrs = "; ".join(SESSION_COOKIE_ATTRIBUTES)

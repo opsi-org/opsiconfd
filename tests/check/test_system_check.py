@@ -306,6 +306,44 @@ def test_check_system_repos() -> None:
 				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.OK
 				assert result.message == "No issues found with the system repositories."
+	#Oracle Linux repo test
+	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
+		mock_distro_id.return_value = "ol"
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "9.4"
+			with mock.patch("opsiconfd.check.system.run") as mock_run:
+				mock_run.return_value = Mock(
+					stdout=(
+						"Paketquellenkennung              Paketquellenname\n"
+						"grafana                          grafana\n"
+						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (OracleLinux_8)\n"
+						"ol9_UEKR7                        Oracle Linux 9 UEK Release 7 (x86_64)\n"
+						"ol9_appstream                    Oracle Linux 9 Application Stream Packages (x86_64)\n"
+						"ol9_baseos_latest                Oracle Linux 9 BaseOS Latest (x86_64)\n"
+						"ol9_developer_EPEL               Oracle Linux 9 EPEL Packages for Development (x86_64)\n"
+					)
+				)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
+				assert result.check_status == CheckStatus.ERROR
+				assert (
+					result.message
+					== "System and opsi repositories are incompatible. System 'ol 9' using repository: home_uibmz_opsi_4.3_stable opsi 4.3 stable (OracleLinux_8)"
+				)
+			with mock.patch("opsiconfd.check.system.run") as mock_run:
+				mock_run.return_value = Mock(
+					stdout=(
+						"Paketquellenkennung              Paketquellenname\n"
+						"grafana                          grafana\n"
+						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (OracleLinux_9)\n"
+						"ol9_UEKR7                        Oracle Linux 9 UEK Release 7 (x86_64)\n"
+						"ol9_appstream                    Oracle Linux 9 Application Stream Packages (x86_64)\n"
+						"ol9_baseos_latest                Oracle Linux 9 BaseOS Latest (x86_64)\n"
+						"ol9_developer_EPEL               Oracle Linux 9 EPEL Packages for Development (x86_64)\n"
+					)
+				)
+				result = check_manager.get("system_repositories").run(clear_cache=True)
+				assert result.check_status == CheckStatus.OK
+				assert result.message == "No issues found with the system repositories."
 	# Test openSUSE 15.5 with openSUSE 15.4 repository and openSUSE 15.5 repository
 	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
 		mock_distro_id.return_value = "opensuse-leap"

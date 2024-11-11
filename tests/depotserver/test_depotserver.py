@@ -10,6 +10,7 @@ test depotserver
 """
 
 import subprocess
+import tomllib
 from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
@@ -17,7 +18,6 @@ from types import EllipsisType
 from typing import Generator
 from unittest.mock import patch
 
-import tomllib
 from opsicommon import objects
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
 from opsicommon.logging import LOG_TRACE, get_logger, use_logging_config
@@ -36,7 +36,7 @@ from opsiconfd.setup.backend import setup_backend
 from opsiconfd.ssl import setup_ssl
 from tests.utils import ADMIN_PASS, ADMIN_USER, Config, OpsiconfdTestClient, get_config, test_client  # noqa: F401
 
-CONFIGSERVER = "opsiserver43-cs"
+CONFIGSERVER = "opsiserver44-cs"
 
 logger = get_logger()
 

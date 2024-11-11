@@ -19,7 +19,6 @@ import re
 from asyncio import create_task, get_event_loop, sleep
 from datetime import datetime
 from statistics import mean, median
-from typing import Set
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -65,7 +64,7 @@ class TerminalClient:
 		self.terminal_id = str(uuid4())
 		self.back_channel: str | None = None
 		self.should_exit = False
-		self.received_nums: Set[int] = set()
+		self.received_nums: set[int] = set()
 		self.time_started: datetime | None = None
 		self.time_ended: datetime | None = None
 

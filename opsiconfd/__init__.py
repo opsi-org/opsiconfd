@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 contextvar_request_id: ContextVar[int | None] = ContextVar("request_id", default=None)
 contextvar_client_session: ContextVar[OPSISession | None] = ContextVar("client_session", default=None)
 contextvar_client_address: ContextVar[str | None] = ContextVar("client_address", default=None)
-contextvar_server_timing: ContextVar[dict[str, float]] = ContextVar("server_timing", default={})
+contextvar_server_timing: ContextVar[dict[str, float] | None] = ContextVar("server_timing", default=None)
 
 
 def get_contextvars() -> dict[str, Any]:

@@ -265,8 +265,10 @@ class RPCProductDependencyMixin(Protocol):
 					productVersion=product_version,
 					packageVersion=package_version,
 				)
-				product_cache[pkey] = objs[0] if objs else None
-			if not product_cache[pkey]:
+				if objs:
+					product_cache[pkey] = objs[0]
+
+			if pkey not in product_cache:
 				raise OpsiProductNotAvailableError(f"Product {product_id!r} (version: {product_version}-{package_version}) not found")
 
 			return product_cache[pkey]
@@ -280,10 +282,11 @@ class RPCProductDependencyMixin(Protocol):
 			pkey = (depot_id, product_id)
 			if pkey not in product_on_depot_cache:
 				objs = self.productOnDepot_getObjects(productId=product_id, depotId=depot_id)
-				product_on_depot_cache[pkey] = objs[0] if objs else None
+				if objs:
+					product_on_depot_cache[pkey] = objs[0]
 
 			if (
-				not product_on_depot_cache[pkey]
+				pkey not in product_on_depot_cache
 				or (product_version and product_on_depot_cache[pkey].productVersion != product_version)
 				or (package_version and product_on_depot_cache[pkey].packageVersion != package_version)
 			):

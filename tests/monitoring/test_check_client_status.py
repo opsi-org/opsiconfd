@@ -33,7 +33,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 	# check client that does not exists -> result sould be UNKNOWN
 	result = check_client_status(backend, client_id=client_id)
 	assert result.status_code == status.HTTP_200_OK
-	body = json.loads(result.body.decode("utf-8"))
+	body = json.loads(result.body)
 	assert body.get("state") == 3
 	assert body.get("message") == f"UNKNOWN: opsi-client: '{client_id}' not found"
 
@@ -42,7 +42,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 		result = check_client_status(backend, client_id=client_id)
 
 		assert result.status_code == status.HTTP_200_OK
-		body = json.loads(result.body.decode("utf-8"))
+		body = json.loads(result.body)
 		assert body.get("state") == 0
 		assert body.get("message") == (f"OK: opsi-client {client_id} has been seen today. No failed products and no actions set for client")
 
@@ -54,7 +54,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 		):
 			result = check_client_status(backend, client_id=client_id)
 			assert result.status_code == status.HTTP_200_OK
-			body = json.loads(result.body.decode("utf-8"))
+			body = json.loads(result.body)
 			assert body.get("state") == 0
 			assert body.get("message") == (
 				f"OK: opsi-client {client_id} has been seen today. No failed products and no actions set for client"
@@ -65,7 +65,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 		):
 			result = check_client_status(backend, client_id=client_id)
 			assert result.status_code == status.HTTP_200_OK
-			body = json.loads(result.body.decode("utf-8"))
+			body = json.loads(result.body)
 			print(body)
 			assert body.get("state") == 1
 			assert body.get("message") == (
@@ -77,7 +77,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 		):
 			result = check_client_status(backend, client_id=client_id)
 			assert result.status_code == status.HTTP_200_OK
-			body = json.loads(result.body.decode("utf-8"))
+			body = json.loads(result.body)
 			print(body)
 			assert body.get("state") == 2
 			assert body.get("message") == (
@@ -91,7 +91,7 @@ def test_check_client_status(backend: UnprotectedBackend, test_client: Opsiconfd
 		):
 			result = check_client_status(backend, client_id=client_id)
 			assert result.status_code == status.HTTP_200_OK
-			body = json.loads(result.body.decode("utf-8"))
+			body = json.loads(result.body)
 			print(body)
 			assert body.get("state") == 2
 			assert body.get("message") == (

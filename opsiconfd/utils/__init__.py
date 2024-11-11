@@ -35,7 +35,7 @@ from logging import INFO  # type: ignore[import]
 from pathlib import Path
 from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Optional, TextIO
+from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -117,7 +117,7 @@ def is_manager(proc: psutil.Process) -> bool:
 	return manager
 
 
-def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> int  | None:
+def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> int | None:
 	container_procs = ("containerd-shim", "lxc-start")
 
 	manager_pid = None

@@ -470,5 +470,5 @@ def test_check_system_repo_address() -> None:
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
 			mock_distro_version.return_value = "9.4"
 			result = check_manager.get("system_repositories").run(clear_cache=True)
-			assert result.check_status == CheckStatus.OK
+			assert result.check_status == CheckStatus.WARNING
 			assert result.message == "Version 9 of distribution ol is supported until 2032-06-01."

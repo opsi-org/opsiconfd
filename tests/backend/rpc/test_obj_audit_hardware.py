@@ -13,8 +13,10 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+import mock
 from opsicommon.objects import AuditHardware, deserialize, serialize
 
+from opsiconfd.backend.rpc.obj_audit_hardware import get_audit_hardware_config
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -23,6 +25,24 @@ from tests.utils import (  # noqa: F401
 	clean_redis,
 	test_client,
 )
+
+
+def test_get_audit_hardware_config(tmp_path: Path) -> None:
+	get_audit_hardware_config.cache_clear()
+	(tmp_path / "hwaudit_de.properties").write_text("DEVICE_ID.deviceType = Deutsche Übersetzung\n", encoding="utf-8")
+	with (
+		mock.patch("opsiconfd.backend.rpc.obj_audit_hardware.AUDIT_HARDWARE_CONFIG_FILE", "opsiconfd_data/etc/hwaudit/opsihwaudit.conf"),
+		mock.patch("opsiconfd.backend.rpc.obj_audit_hardware.AUDIT_HARDWARE_CONFIG_LOCALES_DIR", str(tmp_path)),
+	):
+		translations_found = 0
+		for hw_conf in get_audit_hardware_config("de"):
+			for val in hw_conf["Values"]:
+				if val["Opsi"] == "deviceType":
+					assert val["UI"] == "Deutsche Übersetzung"
+					translations_found += 1
+		assert translations_found == 11
+
+	get_audit_hardware_config.cache_clear()
 
 
 def test_auditHardware_create_get_delete(

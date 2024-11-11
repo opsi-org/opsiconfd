@@ -30,6 +30,14 @@ follow_imports = "silent"
 line-length = 140
 target-version = "py313"
 
+[tool.pytest.ini_options]
+# https://pypi.org/project/pytest-asyncio
+# When the mode is auto, all discovered async tests are considered
+# asyncio-driven even if they have no @pytest.mark.asyncio marker.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"
 

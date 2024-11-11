@@ -121,7 +121,7 @@ class RPCDriverMixin(Protocol):
 		driver_db_dir = client_data_dir / "driver_db"
 		if driver_db_dir.exists():
 			shutil.rmtree(driver_db_dir)
-		inf_re = re.compile(".*\.inf", re.IGNORECASE)
+		inf_re = re.compile(r".*\.inf", re.IGNORECASE)
 
 		for root, _dirs, files in os.walk(drivers_dir):
 			for filename in files:

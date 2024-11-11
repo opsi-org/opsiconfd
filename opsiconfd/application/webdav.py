@@ -10,7 +10,6 @@ webdav
 """
 
 import os
-from typing import Optional
 
 import wsgidav.fs_dav_provider  # type: ignore[import]
 from fastapi import FastAPI
@@ -105,7 +104,7 @@ class VirtualRootFilesystemCollection(DAVCollection):
 	def get_member_names(self) -> list[str]:
 		return [name.lstrip("/") for name in self.provider.provider_mapping if name != "/"]
 
-	def get_member(self, name: str) -> Optional[FolderResource]:
+	def get_member(self, name: str) -> FolderResource | None:
 		if not (provider := self.provider.provider_mapping.get(f"/{name}")):
 			raise DAVError(HTTP_FORBIDDEN)
 		resource = FolderResource(f"/{name}", self.environ, provider.root_folder_path)

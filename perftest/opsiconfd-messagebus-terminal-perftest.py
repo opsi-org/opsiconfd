@@ -19,7 +19,7 @@ import re
 from asyncio import create_task, get_event_loop, sleep
 from datetime import datetime
 from statistics import mean, median
-from typing import Optional, Set
+from typing import Set
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -57,17 +57,17 @@ class TerminalClient:
 	def __init__(self, test_manager: TestManager, name: str) -> None:
 		self.test_manager = test_manager
 		self.name = name
-		self.loop: Optional[asyncio.AbstractEventLoop] = None
-		self.session: Optional[aiohttp.ClientSession] = None
-		self.websocket: Optional[aiohttp.ClientWebSocketResponse] = None
-		self.websocket_reader_task: Optional[asyncio.Task] = None
-		self.websocker_writer_task: Optional[asyncio.Task] = None
+		self.loop: asyncio.AbstractEventLoop | None = None
+		self.session: aiohttp.ClientSession | None = None
+		self.websocket: aiohttp.ClientWebSocketResponse | None = None
+		self.websocket_reader_task: asyncio.Task | None = None
+		self.websocker_writer_task: asyncio.Task | None = None
 		self.terminal_id = str(uuid4())
 		self.back_channel: str | None = None
 		self.should_exit = False
 		self.received_nums: Set[int] = set()
-		self.time_started: Optional[datetime] = None
-		self.time_ended: Optional[datetime] = None
+		self.time_started: datetime | None = None
+		self.time_ended: datetime | None = None
 
 	async def websocker_writer(self) -> None:
 		for num in range(self.test_manager.args.commands):

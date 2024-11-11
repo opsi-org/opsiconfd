@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 import tracemalloc
-from typing import Any, Optional
+from typing import Any
 
 import msgspec
 import objgraph  # type: ignore[import]
@@ -34,11 +34,11 @@ from opsiconfd.redis import async_redis_client
 
 memory_profiler_router = APIRouter()
 
-MEMORY_TRACKER: Optional[tracker.SummaryTracker] = None
-CLASS_TRACKER: Optional[classtracker.ClassTracker] = None
+MEMORY_TRACKER: tracker.SummaryTracker | None = None
+CLASS_TRACKER: classtracker.ClassTracker | None = None
 HEAP = None
 
-tracemalloc_prev_snapshot: Optional[tracemalloc.Snapshot] = None
+tracemalloc_prev_snapshot: tracemalloc.Snapshot | None = None
 tracemalloc_rss_start = 0
 tracemalloc_rss_prev = 0
 

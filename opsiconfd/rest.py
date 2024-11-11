@@ -15,7 +15,7 @@ import traceback
 import warnings
 from functools import wraps
 from types import NoneType
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import msgspec
 from fastapi import Body, Query, status
@@ -34,8 +34,8 @@ class RestApiValidationError(BaseModel):
 	class_value: str = "RequestValidationError"
 	message: str
 	status: int = 422
-	code: Optional[str] = None
-	details: Optional[str] = None
+	code: str | None = None
+	details: str | None = None
 	model_config = ConfigDict()
 
 
@@ -181,21 +181,21 @@ def pagination(query: SQLQuery, params: dict[str, Any]) -> SQLQuery:
 
 
 def common_parameters(
-	filterQuery: Optional[str] = Body(default=None, embed=True),
-	pageNumber: Optional[int] = Body(default=1, embed=True),
-	perPage: Optional[int] = Body(default=20, embed=True),
-	sortBy: Optional[list[str]] = Body(default=None, embed=True),
-	sortDesc: Optional[bool] = Body(default=True, embed=True),
+	filterQuery: str | None = Body(default=None, embed=True),
+	pageNumber: int | None = Body(default=1, embed=True),
+	perPage: int | None = Body(default=20, embed=True),
+	sortBy: list[str] | None = Body(default=None, embed=True),
+	sortDesc: bool = Body(default=True, embed=True),
 ) -> dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": sortBy, "sortDesc": sortDesc}
 
 
 def common_query_parameters(
-	filterQuery: Optional[str] = Query(default=None, embed=True),
-	pageNumber: Optional[int] = Query(default=1, embed=True),
-	perPage: Optional[int] = Query(default=20, embed=True),
-	sortBy: Optional[list[str]] = Query(default=None, embed=True),
-	sortDesc: Optional[bool] = Query(default=True, embed=True),
+	filterQuery: str | None = Query(default=None, embed=True),
+	pageNumber: int | None = Query(default=1, embed=True),
+	perPage: int | None = Query(default=20, embed=True),
+	sortBy: list[str] | None = Query(default=None, embed=True),
+	sortDesc: bool = Query(default=True, embed=True),
 ) -> dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 

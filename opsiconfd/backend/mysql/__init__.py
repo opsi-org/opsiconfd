@@ -26,7 +26,6 @@ from typing import (
 	Callable,
 	Generator,
 	Literal,
-	Optional,
 	Type,
 	overload,
 )
@@ -294,7 +293,7 @@ class MySQLConnection:
 		listen(self._engine, "engine_connect", self._on_engine_connect)
 
 	@staticmethod
-	def _on_engine_connect(conn: Connection, branch: Optional[Connection]) -> None:
+	def _on_engine_connect(conn: Connection, branch: Connection | None) -> None:
 		conn.execute(
 			"""
 			SET SESSION sql_mode=(SELECT

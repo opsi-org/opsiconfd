@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.types import forceList
 from pydantic import (
@@ -131,7 +131,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 		)
 
 	@rpc_method
-	def SSHCommand_getObject(self: BackendProtocol, menuText: str) -> Optional[dict[str, Any]]:
+	def SSHCommand_getObject(self: BackendProtocol, menuText: str) -> dict[str, Any] | None:
 		for command in self._read_ssh_commands_files().values():
 			if command.menuText == menuText:
 				return command.model_dump()

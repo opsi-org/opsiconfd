@@ -379,7 +379,7 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		secret_filter.add_secrets(password)
 
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
-		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+		now = datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(
 			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) "
 			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",

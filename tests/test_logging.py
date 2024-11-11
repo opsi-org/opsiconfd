@@ -150,4 +150,4 @@ async def test_slow_callback_logging(tmp_path: Path) -> None:
 
 		with open(log_file, "r", encoding="utf-8") as file:
 			log = file.read()
-			assert "<Handle sleep(1)> took 1.0" in log
+			assert "Slow asyncio callback: <Handle sleep()> took 1.000 seconds" in log

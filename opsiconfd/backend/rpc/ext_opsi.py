@@ -80,7 +80,7 @@ class RPCExtOpsiMixin(Protocol):
 	@rpc_method(deprecated=True, check_acl=False)
 	def getServiceTime(self: BackendProtocol, utctime: bool = False) -> str:
 		if utctime:
-			return str(datetime.datetime.utcnow())
+			return str(datetime.datetime.now(tz=datetime.timezone.utc))
 		return str(datetime.datetime.now())
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects", check_acl=False)

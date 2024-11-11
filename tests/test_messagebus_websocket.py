@@ -24,8 +24,7 @@ from opsicommon.client.opsiservice import (
 	ServiceVerificationFlags,
 	WebSocket,
 )
-from opsicommon.logging import get_logger, use_logging_config
-from opsicommon.logging.constants import LOG_TRACE
+from opsicommon.logging import get_logger
 from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
@@ -804,71 +803,70 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa:
 
 
 def test_trace(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	with use_logging_config(stderr_level=LOG_TRACE):
-		test_client.auth = (ADMIN_USER, ADMIN_PASS)
-		with test_client as client:
-			logger.debug("Connecting to messagebus")
-			with client.websocket_connect("/messagebus/v1") as websocket:
-				with WebSocketMessageReader(websocket, print_raw_data=0) as reader:
-					logger.debug("Waiting for channel_subscription_event")
-					reader.wait_for_message(count=1)
-					msg = Message.from_dict(next(reader.get_messages()))
-					assert isinstance(msg, ChannelSubscriptionEventMessage)
-					logger.debug("Got channel_subscription_event")
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with test_client as client:
+		logger.debug("Connecting to messagebus")
+		with client.websocket_connect("/messagebus/v1") as websocket:
+			with WebSocketMessageReader(websocket) as reader:
+				logger.debug("Waiting for channel_subscription_event")
+				reader.wait_for_message(count=1)
+				msg = Message.from_dict(next(reader.get_messages()))
+				assert isinstance(msg, ChannelSubscriptionEventMessage)
+				logger.debug("Got channel_subscription_event")
 
-					payload = randbytes(16 * 1024)
-					message1 = TraceRequestMessage(
-						sender=CONNECTION_USER_CHANNEL, channel=CONNECTION_SESSION_CHANNEL, payload=payload, trace={}
-					)
-					assert round(message1.created / 1000) == round(time())
-					message1.trace["sender_ws_send"] = int(time() * 1000)
-					logger.debug("Sending trace request to self")
-					websocket.send_bytes(message1.to_msgpack())
+				payload = randbytes(16 * 1024)
+				message1 = TraceRequestMessage(
+					sender=CONNECTION_USER_CHANNEL, channel=CONNECTION_SESSION_CHANNEL, payload=payload, trace={}
+				)
+				assert round(message1.created / 1000) == round(time())
+				message1.trace["sender_ws_send"] = int(time() * 1000)
+				logger.debug("Sending trace request to self")
+				websocket.send_bytes(message1.to_msgpack())
 
-					logger.debug("Waiting for trace request to self")
-					reader.wait_for_message(count=1)
-					message2 = Message.from_dict(next(reader.get_messages()))
-					assert isinstance(message2, TraceRequestMessage)
-					message2.trace["recipient_ws_receive"] = timestamp()
-					assert message2.created == message1.created
+				logger.debug("Waiting for trace request to self")
+				reader.wait_for_message(count=1)
+				message2 = Message.from_dict(next(reader.get_messages()))
+				assert isinstance(message2, TraceRequestMessage)
+				message2.trace["recipient_ws_receive"] = timestamp()
+				assert message2.created == message1.created
 
-					message3 = TraceResponseMessage(
-						sender=CONNECTION_USER_CHANNEL,
-						channel=CONNECTION_SESSION_CHANNEL,
-						ref_id=message2.id,
-						req_trace=message2.trace,
-						trace={"sender_ws_send": timestamp()},
-						payload=message2.payload,
-					)
-					logger.debug("Sending trace response to self")
-					websocket.send_bytes(message3.to_msgpack())
+				message3 = TraceResponseMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel=CONNECTION_SESSION_CHANNEL,
+					ref_id=message2.id,
+					req_trace=message2.trace,
+					trace={"sender_ws_send": timestamp()},
+					payload=message2.payload,
+				)
+				logger.debug("Sending trace response to self")
+				websocket.send_bytes(message3.to_msgpack())
 
-					logger.debug("Waiting for trace response to self")
-					reader.wait_for_message(count=1)
-					message4 = Message.from_dict(next(reader.get_messages()))
-					assert isinstance(message4, TraceResponseMessage)
+				logger.debug("Waiting for trace response to self")
+				reader.wait_for_message(count=1)
+				message4 = Message.from_dict(next(reader.get_messages()))
+				assert isinstance(message4, TraceResponseMessage)
 
-					message4.trace["recipient_ws_receive"] = timestamp()
-					assert message4.ref_id == message1.id
-					assert message4.payload == message1.payload
-					trc = message4.req_trace
-					assert (
-						trc["sender_ws_send"]
-						<= trc["broker_ws_receive"]
-						<= trc["broker_redis_send"]
-						<= trc["broker_redis_receive"]
-						<= trc["broker_ws_send"]
-						<= trc["recipient_ws_receive"]
-					)
-					trc = message4.trace
-					assert (
-						trc["sender_ws_send"]
-						<= trc["broker_ws_receive"]
-						<= trc["broker_redis_send"]
-						<= trc["broker_redis_receive"]
-						<= trc["broker_ws_send"]
-						<= trc["recipient_ws_receive"]
-					)
+				message4.trace["recipient_ws_receive"] = timestamp()
+				assert message4.ref_id == message1.id
+				assert message4.payload == message1.payload
+				trc = message4.req_trace
+				assert (
+					trc["sender_ws_send"]
+					<= trc["broker_ws_receive"]
+					<= trc["broker_redis_send"]
+					<= trc["broker_redis_receive"]
+					<= trc["broker_ws_send"]
+					<= trc["recipient_ws_receive"]
+				)
+				trc = message4.trace
+				assert (
+					trc["sender_ws_send"]
+					<= trc["broker_ws_receive"]
+					<= trc["broker_redis_send"]
+					<= trc["broker_redis_receive"]
+					<= trc["broker_ws_send"]
+					<= trc["recipient_ws_receive"]
+				)
 
 
 def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -972,12 +970,12 @@ def test_messagebus_ping(websocket_protocol: str) -> None:
 				connection_closed = 0
 
 				def messagebus_connection_failed(self, messagebus: Messagebus, exception: Exception) -> None:
-					print("messagebus_connection_failed:", exception)
 					self.connection_failed += 1
+					print(f"messagebus_connection_failed #{self.connection_failed}: {exception}")
 
 				def messagebus_connection_closed(self, messagebus: Messagebus) -> None:
-					print("messagebus_connection_closed")
 					self.connection_closed += 1
+					print(f"messagebus_connection_closed #{self.messagebus_connection_closed}")
 
 			listener = ConFailMessagebusListener()
 
@@ -1000,6 +998,8 @@ def test_messagebus_ping(websocket_protocol: str) -> None:
 			print("Block pong")
 			# Block ServiceClient sending pongs, server should close websocket after ping timeout
 			client.messagebus._app.sock.pong = lambda *args: None  # type: ignore
+			print("sleep start")
 			sleep(5)
+			print("sleep done")
 
 			assert listener.connection_closed > 0

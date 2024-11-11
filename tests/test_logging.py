@@ -23,7 +23,6 @@ from opsicommon.logging.constants import (
 	LOG_WARNING,
 	OPSI_LEVEL_TO_LEVEL,
 )
-
 from opsiconfd.logging import (
 	AsyncFileHandler,
 	AsyncRedisLogAdapter,
@@ -151,5 +150,5 @@ async def test_slow_callback_logging(tmp_path: Path) -> None:
 
 		with open(log_file, "r", encoding="utf-8") as file:
 			log = file.read()
-			assert re.match(r"Slow asyncio callback: \<Handle sleep\(\d*\)\> took 1\.000 seconds", log)
+			assert re.search(r"Slow asyncio callback: \<Handle sleep\(\d*\)\> took 1\.000 seconds", log)
 

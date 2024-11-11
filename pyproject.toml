@@ -28,6 +28,7 @@ follow_imports = "silent"
 
 [tool.ruff]
 line-length = 140
+target-version = "py313"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"

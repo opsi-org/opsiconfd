@@ -215,7 +215,7 @@ def test_redis_ts_cmd_error(metrics_registry: MetricsRegistry, metrics_collector
 	with pytest.raises(ValueError) as excinfo:
 		metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42)
 
-	assert excinfo.type == ValueError
+	assert excinfo.type is ValueError
 	assert str(excinfo.value) == "Invalid command unknown CMD"
 
 
@@ -231,5 +231,5 @@ def test_metric_by_redis_key_error(config: Config, metrics_registry: MetricsRegi
 	with pytest.raises(ValueError) as excinfo:
 		metrics_registry.get_metric_by_redis_key(f"{config.redis_key('stats')}:opsiconfd:notinredis:metric")
 
-	assert excinfo.type == ValueError
+	assert excinfo.type is ValueError
 	assert str(excinfo.value) == f"Metric with redis key '{config.redis_key('stats')}:opsiconfd:notinredis:metric' not found"

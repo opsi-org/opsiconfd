@@ -109,7 +109,7 @@ LINUX_DISTRO_REPO_NAMES = {
 		"8": "RockyLinux_8",
 		"9": "RockyLinux_9",
 	},
-	"oracle": {
+	"ol": {
 		"7": "OracleLinux_7",
 		"8": "OracleLinux_8",
 		"9": "OracleLinux_9",

@@ -809,7 +809,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		with test_client as client:
 			logger.debug("Connecting to messagebus")
 			with client.websocket_connect("/messagebus/v1") as websocket:
-				with WebSocketMessageReader(websocket) as reader:
+				with WebSocketMessageReader(websocket, print_raw_data=0) as reader:
 					logger.debug("Waiting for channel_subscription_event")
 					reader.wait_for_message(count=1)
 					msg = Message.from_dict(next(reader.get_messages()))

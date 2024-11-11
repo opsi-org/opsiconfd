@@ -9,7 +9,7 @@
 opsiconfd.auth.rights
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBool
@@ -79,7 +79,7 @@ class Rights:
 		self.ssh_menu_server_console = ssh_menu_server_console
 		self.ssh_server_configuration = ssh_server_configuration
 
-		now = datetime.utcnow()
+		now = datetime.now(tz=timezone.utc)
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
 
 		from opsiconfd.backend import get_unprotected_backend

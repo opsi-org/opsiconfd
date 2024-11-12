@@ -77,8 +77,12 @@ websockets = "^14.0"
 werkzeug = "^3.0"
 wsgidav = "^4.3"
 wsproto = "^1.2"
+# xmlsec 1.3.14 does not compile
 xmlsec = "1.3.13"
-yappi = "^1.4"
+
+[tool.poetry.dependencies.yappi]
+platform = "amd64"
+version = ">=1.4"
 
 [tool.ruff.format]
 indent-style = "tab"

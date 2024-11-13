@@ -1076,14 +1076,8 @@ class OPSISession:
 
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
-		redis = await async_redis_client()
-		if modifications_only and not await redis.exists(self.redis_key):
-			# Session was deleted elsewhere
-			logger.debug("Session deleted elsewhere, not storing: %s", self.session_id)
-			self.deleted = True
-			return
-
 		first_store = not self.last_stored
+		redis = await async_redis_client()
 		self.version = str(uuid.uuid4())
 		self.last_stored = int(unix_timestamp())
 

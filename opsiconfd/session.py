@@ -55,7 +55,7 @@ from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
-from opsiconfd.logging import logger
+from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task
 from opsiconfd.utils.modules import check_module
@@ -99,6 +99,8 @@ session_data_msgpack_decoder = msgspec.msgpack.Decoder()
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 AUTH_HEADERS = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+
+logger = get_logger("opsiconfd.session")
 
 
 def get_basic_auth(headers: Headers) -> BasicAuth:
@@ -458,8 +460,6 @@ class SessionManager:
 					elif session.deleted:
 						logger.debug("Removing deleted session: %s", session.session_id)
 						delete_session_ids.append(session.session_id)
-					elif not session.last_stored:
-						await session.store(modifications_only=False)
 					elif session.modifications:
 						logger.trace("Session modifications: %s", session.modifications)
 						if not set(session.modifications) - {"last_used", "messagebus_last_used"}:
@@ -570,6 +570,24 @@ class SessionManager:
 
 
 class OPSISession:
+	_serialization_attributes = (
+		"version",
+		"client_addr",
+		"user_agent",
+		"max_age",
+		"created",
+		"last_used",
+		"messagebus_last_used",
+		"username",
+		"user_groups",
+		"host_id",
+		"host_type",
+		"authenticated",
+		"auth_methods",
+		"is_admin",
+		"is_read_only",
+	)
+
 	def __init__(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> None:
 		self._headers = Headers()
 		self._redis_expiration_seconds = 3600
@@ -898,10 +916,6 @@ class OPSISession:
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		self.version = str(uuid.uuid4())
 		self.created = int(unix_timestamp())
-		async with redis.pipeline() as pipe:
-			pipe.sadd(ip_key, self.session_id)
-			pipe.expire(ip_key, 604800)  # One week
-			await pipe.execute()
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init(self) -> None:
@@ -920,25 +934,9 @@ class OPSISession:
 				await self.init_new_session()
 		await self.update_last_used()
 
-	def serialize(self) -> dict[str, float | int | str | bytes]:
+	def serialize(self, attributes: list[str] | None = None) -> dict[str, float | int | str | bytes]:
 		ser = {}
-		for attribute in (
-			"version",
-			"client_addr",
-			"user_agent",
-			"max_age",
-			"created",
-			"last_used",
-			"messagebus_last_used",
-			"username",
-			"user_groups",
-			"host_id",
-			"host_type",
-			"authenticated",
-			"auth_methods",
-			"is_admin",
-			"is_read_only",
-		):
+		for attribute in attributes or self._serialization_attributes:
 			val = getattr(self, f"_{attribute}")
 			if isinstance(val, set):
 				val = msgspec.msgpack.encode(list(val))
@@ -1075,19 +1073,30 @@ class OPSISession:
 			return
 		if modifications_only and not self._modifications:
 			return
-		logger.debug("Store session")
-		self.version = str(uuid.uuid4())
-		self.last_stored = int(unix_timestamp())
+
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
 		redis = await async_redis_client()
-		data = self.serialize()
-		if modifications_only and await redis.exists(self.redis_key):
-			data = {a: v for a, v in data.items() if a in self._modifications}
+		if modifications_only and not await redis.exists(self.redis_key):
+			# Session was deleted elsewhere
+			logger.debug("Session deleted elsewhere, not storing: %s", self.session_id)
+			self.deleted = True
+			return
+
+		first_store = not self.last_stored
+		self.version = str(uuid.uuid4())
+		self.last_stored = int(unix_timestamp())
+
+		data = self.serialize(list(self._modifications) if modifications_only else None)
 		if data:
+			logger.debug("Store session in redis")
 			async with redis.pipeline() as pipe:
 				pipe.hset(self.redis_key, mapping=data)  # type: ignore
 				pipe.expire(self.redis_key, self._redis_expiration_seconds)
+				if first_store:
+					ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(self.client_addr)}"
+					pipe.sadd(ip_key, self.session_id)
+					pipe.expire(ip_key, 604800)  # One week
 				await pipe.execute()
 
 		self._modifications = {}

@@ -469,7 +469,10 @@ async def get_session_list() -> RESTResponse:
 		if not session_data:
 			continue
 
-		client_addr = session_data[b"client_addr"].decode("utf-8")
+		client_addr = session_data.get(b"client_addr", b"").decode("utf-8")
+		if not client_addr:
+			continue
+
 		session_id = redis_key.decode("utf-8").rsplit(":", 1)[-1]
 		session = OPSISession(client_addr=client_addr, session_id=session_id)
 		await session.load()

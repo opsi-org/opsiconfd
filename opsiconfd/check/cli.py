@@ -139,15 +139,35 @@ def console_health_check() -> int:
 		print_health_check_manual(console=console)
 		return 0
 	elif config.list:
+		if not CheckManager().check_ids:
+			style = styles[CheckStatus.ERROR]
+			console.print(f"[{style}]Error[/{style}]: No valid checks selected. Please check your configuration.")
+			console.print(f"[bold]Configured checks[/bold]: {', '.join(config.checks)}")
+			console.print("[bold]Available checks[/bold]:")
+			for check_id in CheckManager().possible_checks.keys():
+				console.print(check_id)
+			return 1
 		if config.detailed:
+			# only active checks are listed
 			console.print("[bold]Check Name - Check ID[/bold]")
-			for check in CheckManager():
-				console.print(f"➔ [bold]{check.name}[/bold]: {check.id}")
+			for check in CheckManager().possible_checks.values():
+				console.print(
+					f"➔ [bold]{check.name}[/bold]: {check.id} \[[green]active[/green]]"
+				) if check.id in CheckManager().check_ids else console.print(
+					f"➔ [bold]{check.name}[/bold]: {check.id} \[[red]inactive[/red]]"
+				)
 				console.print(indent(check.description.strip(), "\t"))
 		else:
-			for check in CheckManager():
-				console.print(check.id)
+			for check in CheckManager().possible_checks.values():
+				console.print(f"{check.id} \[[green]active[/green]]") if check.id in CheckManager().check_ids else console.print(
+					f"{check.id} \[[red]inactive[/red]]"
+				)
+
 		return 0
+	if not CheckManager().check_ids:
+		style = styles[CheckStatus.ERROR]
+		console.print(f"[{style}]Error[/{style}]: No valid checks selected. Please check your configuration.")
+		return 1
 	with console.status("Health check running", spinner="arrow3"):
 		for result in health_check():
 			summary[result.check_status] += 1

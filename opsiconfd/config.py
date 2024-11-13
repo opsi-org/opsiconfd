@@ -773,8 +773,11 @@ class Config(metaclass=Singleton):
 			default="",
 			help=self._help(
 				"expert",
-				"Set the log levels of individual loggers. "
-				"<logger-regex>:<level>[,<logger-regex-2>:<level-2>]"
+				"Set the log levels of individual loggers.\n"
+				"<logger-regex>:<level>[,<logger-regex-2>:<level-2>]\n"
+				"Available opsiconfd related logger are:\n"
+				"opsiconfd, opsiconfd.general, opsiconfd.session, opsiconfd.headers, "
+				"opsiconfd.reverse_proxy, opsiconfd.messagebus, opsiconfd.metrics\n"
 				r'Example: --log-levels=".*:4,opsiconfd\.headers:8"',
 			),
 		)

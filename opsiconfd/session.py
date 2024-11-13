@@ -1069,7 +1069,7 @@ class OPSISession:
 		return True
 
 	async def _store(self, modifications_only: bool = False) -> None:
-		if self.deleted or self.expired or not self.persistent:
+		if self.deleted or self.expired or not self.persistent or not self.session_id:
 			return
 		if modifications_only and not self._modifications:
 			return

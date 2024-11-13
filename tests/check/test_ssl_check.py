@@ -107,4 +107,4 @@ def test_check_ssl(tmpdir: Path) -> None:
 			== f"The opsi CA certificate is OK but will expire in {config.ssl_ca_cert_renew_days - 11} days."
 		)
 		assert result.partial_results[4].check_status == CheckStatus.ERROR
-		assert result.partial_results[4].message == "Failed to verify server cert with opsi CA."
+		assert result.partial_results[4].message == "Failed to verify server cert with CA certs."

@@ -30,7 +30,7 @@ from starlette.types import ASGIApp
 
 from opsiconfd import __version__
 from opsiconfd.config import config
-from opsiconfd.logging import logger
+from opsiconfd.logging import configure_loggers, logger
 from opsiconfd.redis import (
 	async_redis_client,
 	async_redis_lock,
@@ -131,6 +131,8 @@ async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
 		asyncio_create_task(opsiconfd_app.app_state_manager_task(manager_mode=False))
 		await run_in_threadpool(application_startup)
 		await async_application_startup()
+		# Now all loggers should be available, reconfigure them
+		configure_loggers()
 	except Exception as error:
 		logger.critical("Error during application startup: %s", error, exc_info=True)
 		raise error

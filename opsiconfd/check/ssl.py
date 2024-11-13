@@ -19,6 +19,7 @@ from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manage
 from opsiconfd.config import config
 from opsiconfd.ssl import (
 	check_intermediate_ca,
+	get_ca_certs,
 	get_not_before_and_not_after,
 	get_opsi_ca_subject,
 	get_server_cn,
@@ -188,7 +189,7 @@ class ServerKeyCheck(Check):
 			message="The server key is OK.",
 		)
 		try:
-			ca_cert = load_opsi_ca_cert()
+			ca_certs = get_ca_certs()
 			srv_crt = load_local_server_cert()
 			srv_key = load_local_server_key()
 			if srv_key.public_key().public_bytes(
@@ -204,12 +205,12 @@ class ServerKeyCheck(Check):
 				if server_cn != cert_cn:
 					result.check_status = CheckStatus.ERROR
 					result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
-				elif ca_cert:
+				elif ca_certs:
 					try:
-						validate_cert(srv_crt, ca_cert)
+						validate_cert(srv_crt, ca_certs)
 					except verification.VerificationError:
 						result.check_status = CheckStatus.ERROR
-						result.message = "Failed to verify server cert with opsi CA."
+						result.message = "Failed to verify server cert with CA certs."
 		except Exception as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"A problem was found with the server key: {err}."

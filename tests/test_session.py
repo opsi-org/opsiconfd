@@ -43,6 +43,7 @@ def test_session_serialize() -> None:
 async def test_session_store_and_load() -> None:
 	redis = await async_redis_client()
 	client_addr = "172.10.11.12"
+
 	sess1 = OPSISession(client_addr=client_addr)
 	sess1.is_read_only = False
 	sess1.is_admin = True
@@ -61,6 +62,7 @@ async def test_session_store_and_load() -> None:
 
 	assert not sess1.modifications
 
+	# Load the same session in a new object
 	sess2 = OPSISession(client_addr=client_addr, session_id=sess1.session_id)
 	await sess2.load()
 	assert not sess2.modifications
@@ -73,17 +75,23 @@ async def test_session_store_and_load() -> None:
 	assert sess2.messagebus_last_used == sess1.messagebus_last_used
 	assert sess2.auth_methods == sess1.auth_methods
 
+	# Delete session in redis, full data should be written to redis despite modifications_only is True
 	await redis.delete(sess2.redis_key)
 	await sleep(1)
 	await sess2.update_last_used()
 	assert list(sess2.modifications) == ["last_used"]
 	await sess2.store(wait=True, modifications_only=True)
-	# Session is stored with modifications only, but session does not exist in redis
-	assert not await redis.exists(sess2.redis_key)
-	assert sess2.deleted
 
 	sess3 = OPSISession(client_addr=client_addr, session_id=sess1.session_id)
-	assert not await sess3.load()
+	await sess3.load()
+	assert not sess3.modifications
+	assert sess3.is_read_only == sess2.is_read_only
+	assert sess3.is_admin == sess2.is_admin
+	assert sess3.username == sess2.username
+	assert sess3.user_groups == sess2.user_groups
+	assert sess3.max_age == sess2.max_age
+	assert sess3.last_used == sess2.last_used
+	assert sess3.messagebus_last_used == sess2.messagebus_last_used
 
 
 async def test_session_manager_max_age() -> None:

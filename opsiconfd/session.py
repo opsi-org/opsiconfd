@@ -1081,7 +1081,7 @@ class OPSISession:
 		self.version = str(uuid.uuid4())
 		self.last_stored = int(unix_timestamp())
 
-		data = self.serialize(list(self._modifications) if modifications_only else None)
+		data = self.serialize(list(self._modifications) if modifications_only and await redis.exists(self.redis_key) else None)
 		if data:
 			logger.debug("Store session in redis")
 			async with redis.pipeline() as pipe:

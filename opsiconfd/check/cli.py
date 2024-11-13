@@ -152,15 +152,15 @@ def console_health_check() -> int:
 			console.print("[bold]Check Name - Check ID[/bold]")
 			for check in CheckManager().possible_checks.values():
 				console.print(
-					f"➔ [bold]{check.name}[/bold]: {check.id} \[[green]active[/green]]"
+					f"➔ [bold]{check.name}[/bold]: {check.id} ([green]active[/green])"
 				) if check.id in CheckManager().check_ids else console.print(
-					f"➔ [bold]{check.name}[/bold]: {check.id} \[[red]inactive[/red]]"
+					f"➔ [bold]{check.name}[/bold]: {check.id} ([red]inactive[/red])"
 				)
 				console.print(indent(check.description.strip(), "\t"))
 		else:
 			for check in CheckManager().possible_checks.values():
-				console.print(f"{check.id} \[[green]active[/green]]") if check.id in CheckManager().check_ids else console.print(
-					f"{check.id} \[[red]inactive[/red]]"
+				console.print(f"{check.id} ([green]active[/green])") if check.id in CheckManager().check_ids else console.print(
+					f"{check.id} ([red]inactive[/red])"
 				)
 
 		return 0

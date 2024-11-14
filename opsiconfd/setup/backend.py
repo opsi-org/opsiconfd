@@ -239,7 +239,7 @@ def file_mysql_migration() -> None:
 		mysql.connect()
 		update_database(mysql, force=True)
 
-		with mysql.disable_unique_hardware_addresses():
+		with mysql.disable_unique_hardware_addresses(), mysql.disable_unique_systemUUIDs():
 			backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)
 			backend_replicator.replicate(audit=False)
 

@@ -50,7 +50,7 @@ def print_health_check_manual(console: Console) -> None:
 	# for check_id in CHECKS:
 	# 	check = globals()[f"check_{check_id}"]
 	# 	console.print(Markdown((check.__doc__ or "").replace("\t", "")))
-	for check in CheckManager():
+	for check in CheckManager().possible_checks.values():
 		console.print(Markdown(check.documentation.replace("\t", "")))
 
 

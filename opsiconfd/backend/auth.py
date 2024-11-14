@@ -13,7 +13,7 @@ import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
@@ -25,7 +25,7 @@ class RPCACE:
 
 	method_re: re.Pattern
 	type: Literal["all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"]
-	id: Optional[str] = None
+	id: str | None = None
 	allowed_attributes: set[str] = field(default_factory=set)
 	denied_attributes: set[str] = field(default_factory=set)
 

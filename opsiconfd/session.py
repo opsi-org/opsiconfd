@@ -18,7 +18,7 @@ import time
 import uuid
 from collections import namedtuple
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
 import pyotp
@@ -55,10 +55,11 @@ from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
-from opsiconfd.logging import logger
+from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task
 from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.user import user_get_credentials
 
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.main import Backend
@@ -98,6 +99,8 @@ session_data_msgpack_decoder = msgspec.msgpack.Decoder()
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 AUTH_HEADERS = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+
+logger = get_logger("opsiconfd.session")
 
 
 def get_basic_auth(headers: Headers) -> BasicAuth:
@@ -157,7 +160,7 @@ class SessionMiddleware:
 		return time_left
 
 	@staticmethod
-	def get_session_id_from_headers(headers: Headers) -> Optional[str]:
+	def get_session_id_from_headers(headers: Headers) -> str | None:
 		# connection.cookies.get(SESSION_COOKIE_NAME, None)
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
@@ -378,7 +381,7 @@ class SessionMiddleware:
 		if session := scope.get("session"):
 			session.add_session_headers(headers)
 
-		response: Optional[Response] = None
+		response: Response | None = None
 		if path.startswith("/rpc"):
 			logger.debug("Returning jsonrpc response because path startswith /rpc")
 			content = {"id": None, "result": None, "error": error}
@@ -457,8 +460,6 @@ class SessionManager:
 					elif session.deleted:
 						logger.debug("Removing deleted session: %s", session.session_id)
 						delete_session_ids.append(session.session_id)
-					elif not session.last_stored:
-						await session.store(modifications_only=False)
 					elif session.modifications:
 						logger.trace("Session modifications: %s", session.modifications)
 						if not set(session.modifications) - {"last_used", "messagebus_last_used"}:
@@ -569,6 +570,24 @@ class SessionManager:
 
 
 class OPSISession:
+	_serialization_attributes = (
+		"version",
+		"client_addr",
+		"user_agent",
+		"max_age",
+		"created",
+		"last_used",
+		"messagebus_last_used",
+		"username",
+		"user_groups",
+		"host_id",
+		"host_type",
+		"authenticated",
+		"auth_methods",
+		"is_admin",
+		"is_read_only",
+	)
+
 	def __init__(self, client_addr: str, headers: Headers | None = None, session_id: str | None = None) -> None:
 		self._headers = Headers()
 		self._redis_expiration_seconds = 3600
@@ -897,10 +916,6 @@ class OPSISession:
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		self.version = str(uuid.uuid4())
 		self.created = int(unix_timestamp())
-		async with redis.pipeline() as pipe:
-			pipe.sadd(ip_key, self.session_id)
-			pipe.expire(ip_key, 604800)  # One week
-			await pipe.execute()
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init(self) -> None:
@@ -919,25 +934,9 @@ class OPSISession:
 				await self.init_new_session()
 		await self.update_last_used()
 
-	def serialize(self) -> dict[str, float | int | str | bytes]:
+	def serialize(self, attributes: list[str] | None = None) -> dict[str, float | int | str | bytes]:
 		ser = {}
-		for attribute in (
-			"version",
-			"client_addr",
-			"user_agent",
-			"max_age",
-			"created",
-			"last_used",
-			"messagebus_last_used",
-			"username",
-			"user_groups",
-			"host_id",
-			"host_type",
-			"authenticated",
-			"auth_methods",
-			"is_admin",
-			"is_read_only",
-		):
+		for attribute in attributes or self._serialization_attributes:
 			val = getattr(self, f"_{attribute}")
 			if isinstance(val, set):
 				val = msgspec.msgpack.encode(list(val))
@@ -988,7 +987,7 @@ class OPSISession:
 				pass
 		return obj
 
-	def get_cookie(self) -> Optional[str]:
+	def get_cookie(self) -> str | None:
 		if not self.session_id or not self.persistent:
 			return None
 		attrs = "; ".join(SESSION_COOKIE_ATTRIBUTES)
@@ -1070,23 +1069,28 @@ class OPSISession:
 		return True
 
 	async def _store(self, modifications_only: bool = False) -> None:
-		if self.deleted or self.expired or not self.persistent:
+		if self.deleted or self.expired or not self.persistent or not self.session_id:
 			return
 		if modifications_only and not self._modifications:
 			return
-		logger.debug("Store session")
-		self.version = str(uuid.uuid4())
-		self.last_stored = int(unix_timestamp())
+
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
+		first_store = not self.last_stored
 		redis = await async_redis_client()
-		data = self.serialize()
-		if modifications_only and await redis.exists(self.redis_key):
-			data = {a: v for a, v in data.items() if a in self._modifications}
+		self.version = str(uuid.uuid4())
+		self.last_stored = int(unix_timestamp())
+
+		data = self.serialize(list(self._modifications) if modifications_only and await redis.exists(self.redis_key) else None)
 		if data:
+			logger.debug("Store session in redis")
 			async with redis.pipeline() as pipe:
 				pipe.hset(self.redis_key, mapping=data)  # type: ignore
 				pipe.expire(self.redis_key, self._redis_expiration_seconds)
+				if first_store:
+					ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(self.client_addr)}"
+					pipe.sadd(ip_key, self.session_id)
+					pipe.expire(ip_key, 604800)  # One week
 				await pipe.execute()
 
 		self._modifications = {}
@@ -1262,8 +1266,7 @@ async def authenticate_host(scope: Scope) -> None:
 
 async def authenticate_user_passwd(scope: Scope) -> None:
 	session: OPSISession = scope["session"]
-	backend = get_unprotected_backend()
-	credentials = await backend.async_call("user_getCredentials", username=session.username)
+	credentials = await run_in_threadpool(user_get_credentials, session.username)
 	if credentials and session.password == credentials.get("password"):
 		session.authenticated = True
 		session.is_read_only = True
@@ -1382,6 +1385,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		raise OpsiServiceAuthenticationError("No password specified")
 
 	if session.username == config.monitoring_user:
+		# Monitoring user
 		if not check_module("monitoring"):
 			raise OpsiServicePermissionError("Monitoring module not available. Please check your opsi licenses.")
 		await authenticate_user_passwd(scope=scope)
@@ -1396,6 +1400,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		or HARDWARE_ADDRESS_RE.search(session.username)
 		or session.username.count(".") >= 2
 	):
+		# Host authentication
 		await authenticate_host(scope=scope)
 		await post_authenticate(scope)
 		return
@@ -1430,8 +1435,12 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		session.add_auth_methods(AuthenticationMethod.TOTP)
 		logger.info("OTP MFA successful")
 
+	groups = auth_module.get_groupnames(session.username)
+	if config.auth_allowed_groups and not groups.intersection(config.auth_allowed_groups):
+		raise OpsiServicePermissionError(f"User '{session.username}' not in allowed groups")
+
 	session.authenticated = True
-	session.user_groups = auth_module.get_groupnames(session.username)
+	session.user_groups = groups
 	session.is_admin = auth_module.user_is_admin(session.username)
 	session.is_read_only = auth_module.user_is_read_only(session.username)
 

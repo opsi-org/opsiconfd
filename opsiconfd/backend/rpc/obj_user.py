@@ -21,6 +21,7 @@ from opsicommon.types import forceList
 from qrcode import QRCode  # type: ignore[import]
 
 from opsiconfd.config import get_configserver_id
+from opsiconfd.utils import get_opsi_config
 from opsiconfd.utils.user import user_get_credentials, user_set_credentials
 
 from . import rpc_method
@@ -161,6 +162,13 @@ class RPCUserMixin(Protocol):
 		If this is called with an valid hostId the data will be encrypted with the opsi host key.
 		:rtype: dict
 		"""
+		depot_user = get_opsi_config().get("depot_user", "username")
+		if not username or username == "pcpatch":
+			username = depot_user
+
+		if username != depot_user:
+			raise ValueError(f"Invalid user: {username!r}")
+
 		return user_get_credentials(username, hostId)
 
 	@rpc_method

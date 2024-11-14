@@ -129,8 +129,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 					raise
 				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
 
-		depot_id = opsi_config.get("host", "id")
-		depot = OpsiDepotserver(id=depot_id)
+		depot = OpsiDepotserver(id=opsi_config.get("host", "id"))
 		while True:
 			try:
 				if unattended_configuration:
@@ -169,7 +168,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				rich_print("[b]Registering depot[/b]")
 				service.host_createObjects([depot])  # type: ignore[attr-defined]
 				service.fetch_ca_certs(force_write_ca_cert_file=True)
-				(srv_crt, srv_key) = fetch_server_cert(service)
+				(srv_crt, srv_key) = fetch_server_cert(service, server_id=depot.id)
 				store_local_server_key(srv_key)
 				store_local_server_cert(srv_crt)
 
@@ -178,7 +177,7 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				depot = service.host_getObjects(id=depot.id)[0]  # type: ignore[attr-defined]
 
 				opsi_config.set("host", "server-role", "depotserver")
-				opsi_config.set("host", "id", depot_id)
+				opsi_config.set("host", "id", depot.id)
 				opsi_config.set("host", "key", depot.opsiHostKey)
 				opsi_config.set("service", "url", service.base_url)
 				opsi_config.write_config_file()

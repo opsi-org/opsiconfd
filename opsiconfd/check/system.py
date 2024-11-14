@@ -71,7 +71,7 @@ LINUX_DISTRO_EOL = {
 		"8": date(2024, 5, 1),
 		"9": date(2027, 5, 31),
 	},
-	"oracle": {
+	"ol": {
 		"7": date(2024, 12, 1),
 		"8": date(2029, 6, 1),
 		"9": date(2032, 6, 1),
@@ -109,7 +109,7 @@ LINUX_DISTRO_REPO_NAMES = {
 		"8": "RockyLinux_8",
 		"9": "RockyLinux_9",
 	},
-	"oracle": {
+	"ol": {
 		"7": "OracleLinux_7",
 		"8": "OracleLinux_8",
 		"9": "OracleLinux_9",
@@ -254,7 +254,7 @@ class SystemEOLCheck(Check):
 						result.message = f"Version {version} of distribution {distro} is supported until {eol}."
 					else:
 						result.check_status = CheckStatus.ERROR
-						result.message = f"Support of version {version} of distribution {distro} ended on {eol}"
+						result.message = f"Support of version {version} of distribution {distro} ended on {eol}."
 						result.upgrade_issue = __version__
 				else:
 					result.check_status = CheckStatus.ERROR

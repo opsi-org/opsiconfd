@@ -181,7 +181,9 @@ def user_get_credentials(username: str | None = None, hostId: str | None = None)
 	:rtype: dict
 	"""
 
-	username = username or get_opsi_config().get("depot_user", "username")
+	depot_user = get_opsi_config().get("depot_user", "username")
+	username = username or depot_user
+
 	if hostId:
 		hostId = forceHostId(hostId)
 
@@ -210,7 +212,7 @@ def user_get_credentials(username: str | None = None, hostId: str | None = None)
 
 	result["password"] = blowfish_decrypt(depot.opsiHostKey, result["password"])
 
-	if username == get_opsi_config().get("depot_user", "username"):
+	if username == depot_user:
 		try:
 			id_rsa = os.path.join(pwd.getpwnam(username)[5], ".ssh", "id_rsa")
 			with open(id_rsa, encoding="utf-8") as file:

@@ -216,7 +216,7 @@ class StatisticsMiddleware:
 				elif worker.metrics_collector:
 					await worker.metrics_collector.add_value("worker:avg_http_response_bytes", int(content_length))
 
-				server_timing = contextvar_server_timing.get()
+				server_timing = contextvar_server_timing.get() or {}
 				server_timing["request_processing"] = int(1000 * (time.perf_counter() - start))
 				headers.append("Server-Timing", ",".join([f"{k};dur={v:.3f}" for k, v in server_timing.items()]))
 				if self._profiler_enabled:
@@ -233,7 +233,7 @@ class StatisticsMiddleware:
 				end = time.perf_counter()
 				if worker.metrics_collector:
 					await worker.metrics_collector.add_value("worker:avg_http_request_duration", end - start)
-				server_timing = contextvar_server_timing.get()
+				server_timing = contextvar_server_timing.get() or {}
 				server_timing["total"] = int(1000 * (time.perf_counter() - start))
 				logger.info(
 					"Server-Timing %s %s: %s",

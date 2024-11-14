@@ -14,12 +14,12 @@ from __future__ import annotations
 import os
 import re
 import shutil
+from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import (
-	BackendError,
-)
+from opsicommon.exceptions import BackendError, BackendMissingDataError
 from opsicommon.package.wim import wim_info
 from opsicommon.types import forceProductId as typeForceProductId
 from opsisystem.inffile import Architecture, DeviceType, INFFile, INFTargetOSVersion
@@ -33,8 +33,28 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol
 
 
-def get_target_os_versions(client_data_dir: Path) -> list[INFTargetOSVersion]:
-	target_os_versions: dict[str, INFTargetOSVersion] = {}
+class BinarySourceBinaryType(StrEnum):
+	WINDOWS_DRIVER = "windows_driver"
+
+
+class BinarySourceAccessType(StrEnum):
+	DEPOT = "depot"
+
+
+class BinarySourceOperationType(StrEnum):
+	RECURSIVE_COPY = "recursive_copy"
+
+
+@dataclass(kw_only=True, slots=True)
+class BinarySource:
+	binary_type: BinarySourceBinaryType
+	access_type: BinarySourceAccessType
+	operation_type: BinarySourceOperationType
+	url: str
+	information: dict[str, Any] = field(default_factory=dict)
+
+
+def find_wim_files(client_data_dir: Path) -> list[Path]:
 	wim_files = set()
 	for image_dir in ("images", "installfiles/sources"):
 		image_path = client_data_dir / image_dir
@@ -46,27 +66,35 @@ def get_target_os_versions(client_data_dir: Path) -> list[INFTargetOSVersion]:
 			if file.suffix.lower() == ".swm" and re.match(r"\d+\.swm", file.stem):
 				# Only process first part of split wim
 				continue
-			logger.info("Processing WIM file '%s'", file)
+			logger.info("Found WIM file '%s'", file)
 			wim_files.add(file)
-			images = wim_info(file).images
-			if not images:
-				continue
-			windows_info = images[0].windows_info
-			if not windows_info:
-				continue
-			tov = INFTargetOSVersion(
-				Architecture=Architecture.from_string(windows_info.architecture),
-				OSMajorVersion=windows_info.major_version,
-				OSMinorVersion=windows_info.minor_version,
-				BuildNumber=windows_info.build,
-			)
-			target_os_versions[f"{tov.Architecture}_{tov.OSMajorVersion}_{tov.OSMinorVersion}_{tov.BuildNumber}"] = tov
-		break
+	return list(wim_files)
 
-	if not wim_files:
-		raise BackendError(f"No WIM files found in '{client_data_dir}'")
 
-	return list(target_os_versions.values())
+def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | None = None) -> list[INFTargetOSVersion]:
+	target_os_versions: list[INFTargetOSVersion] = []
+	image_index = -1
+	image_name = image_name_or_index
+	try:
+		image_index = int(image_name)  # type: ignore[arg-type]
+		image_name = ""
+	except ValueError:
+		pass
+
+	for image in wim_info(wim_image).images:
+		logger.debug("Processing image %s in '%s'", image.name, wim_image)
+		if not image.windows_info or (image_index > -1 and image.index != image_index) or (image_name and image.name != image_name):
+			continue
+		tov = INFTargetOSVersion(
+			Architecture=Architecture.from_string(image.windows_info.architecture),
+			OSMajorVersion=image.windows_info.major_version,
+			OSMinorVersion=image.windows_info.minor_version,
+			BuildNumber=image.windows_info.build,
+		)
+		logger.debug("Found target OS version %s", tov)
+		target_os_versions.append(tov)
+
+	return target_os_versions
 
 
 class RPCDriverMixin(Protocol):
@@ -77,7 +105,15 @@ class RPCDriverMixin(Protocol):
 		"""
 		product_id = typeForceProductId(productId)
 		client_data_dir = Path(DEPOT_DIR) / product_id
-		target_os_versions = get_target_os_versions(client_data_dir)
+		wim_files = find_wim_files(client_data_dir)
+		if not wim_files:
+			raise BackendError(f"No WIM files found in '{client_data_dir}'")
+
+		target_os_versions = []
+		for file in wim_files:
+			for tov in get_target_os_versions(file):
+				if tov not in target_os_versions:
+					target_os_versions.append(tov)
 		if not target_os_versions:
 			raise BackendError(f"No target OS versions found in images for product '{product_id}'")
 
@@ -113,9 +149,81 @@ class RPCDriverMixin(Protocol):
 								logger.debug("Created link '%s' -> '%s'", link, root)
 
 	@rpc_method
-	def driver_getSources(self: BackendProtocol, productId: str, clientId: str) -> None:
+	def driver_getSources(
+		self: BackendProtocol, clientId: str, productId: str, architecture: str | None = None, osVersion: str | None = None
+	) -> list[BinarySource]:
 		"""
 		Get drivers for product and client.
 		"""
-		return None
+		product_id = typeForceProductId(productId)
+		client_id = typeForceProductId(clientId)
+		depot_dir = Path(DEPOT_DIR)
 
+		if not architecture or not osVersion:
+			logger.debug("Getting architecture and OS version from WIM image")
+			values = self.productPropertyState_getValues(product_ids=product_id, property_ids="image", object_ids=client_id)
+			image = values.get(client_id, {}).get(product_id, {}).get("image", [""])[0]
+			logger.debug("Image: %s", image)
+			if image:
+				image_file, image_name_or_index = image.split(":", 1) if ":" in image else ("install.wim", image)
+				image_path = depot_dir / product_id / "images" / image_file
+				logger.debug("Image file: %s", image_path)
+				if not image_path.exists():
+					raise BackendError(f"Image file '{image_path}' from product property 'image' not found")
+				for tov in get_target_os_versions(image_path, image_name_or_index):
+					logger.debug("Using target OS version %s", tov)
+					if not architecture:
+						architecture = str(tov.Architecture)
+					if not osVersion:
+						osVersion = f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+					break
+
+		if not architecture:
+			raise BackendError("Missing architecture")
+		if not osVersion:
+			raise BackendError("Missing OS version")
+
+		tov = INFTargetOSVersion(Architecture=Architecture.from_string(architecture))
+		version_parts = osVersion.split(".")
+		if len(version_parts) >= 1:
+			tov.OSMajorVersion = int(version_parts[0])
+			if len(version_parts) >= 2:
+				tov.OSMinorVersion = int(version_parts[1])
+				if len(version_parts) >= 3:
+					tov.BuildNumber = int(version_parts[2])
+
+		ahohs = self.auditHardwareOnHost_getObjects(hostId=client_id)
+		if not ahohs:
+			raise BackendMissingDataError(f"No hardware information found for client '{client_id}'")
+
+		driver_db_dir = depot_dir / product_id / "driver_db"
+		tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+
+		sources = []
+		for ahoh in ahohs:
+			if ahoh.hardwareClass not in ("PCI_DEVICE", "USB_DEVICE", "HDAUDIO_DEVICE"):
+				continue
+			if not ahoh.vendorId or not ahoh.deviceId:
+				continue
+			device_type = ahoh.hardwareClass.removesuffix("_DEVICE")
+			drv_dir = tov_dir / device_type / ahoh.vendorId / ahoh.deviceId
+			if not drv_dir.exists():
+				continue
+
+			ahoh_dict = ahoh.to_hash()
+			sources.append(
+				BinarySource(
+					binary_type=BinarySourceBinaryType.WINDOWS_DRIVER,
+					access_type=BinarySourceAccessType.DEPOT,
+					operation_type=BinarySourceOperationType.RECURSIVE_COPY,
+					url=str(drv_dir.relative_to(depot_dir)),
+					information={
+						"device_type": device_type,
+						"vendor_id": ahoh_dict.get("vendorId"),
+						"device_id": ahoh_dict.get("deviceId"),
+						"vendor_name": ahoh_dict.get("vendor"),
+						"device_name": ahoh_dict.get("name"),
+					},
+				)
+			)
+		return sources

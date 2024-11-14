@@ -26,7 +26,7 @@ from enum import StrEnum
 from logging import DEBUG
 from multiprocessing.context import SpawnProcess
 from types import FrameType
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 import uvloop
 from anyio import CapacityLimiter
@@ -173,7 +173,7 @@ class WorkerInfo:
 
 # uvicorn._subprocess.get_subprocess
 def get_subprocess(uvicorn_config: Config, target: Callable[..., None]) -> SpawnProcess:
-	stdin_fileno: Optional[int]
+	stdin_fileno: int | None
 	try:
 		stdin_fileno = sys.stdin.fileno()
 	except OSError:
@@ -436,7 +436,7 @@ class Worker(WorkerInfo, UvicornServer):
 			info = f'{info} - {method + " " if method else ""}{scope.get("path", "")}'
 		return f"{connection.__class__.__name__}({info})"
 
-	async def shutdown(self, sockets: Optional[list[socket.socket]] = None) -> None:
+	async def shutdown(self, sockets: list[socket.socket] | None = None) -> None:
 		logger.info("Shutting down")
 		# Stop accepting new connections.
 		logger.info("Stop accepting new connections")

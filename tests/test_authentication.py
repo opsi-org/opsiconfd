@@ -48,6 +48,7 @@ from .utils import (  # noqa: F401
 	database_connection,
 	depot_jsonrpc,
 	get_config,
+	get_opsi_config,
 	opsiconfd_server,
 	test_client,
 )
@@ -375,6 +376,38 @@ def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	with get_config({"networks": ["10.0.0.0/8"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
+
+
+def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	with get_config({"auth_allowed_groups": ["some-group"]}):
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == status.HTTP_401_UNAUTHORIZED
+		assert res.json()["message"] == f"Opsi service permission error: User '{ADMIN_USER}' not in allowed groups"
+		test_client.reset_cookies()
+
+	with get_config({"auth_allowed_groups": []}):
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+		assert res.status_code == status.HTTP_200_OK
+		assert res.json()["is_admin"] is True
+		test_client.reset_cookies()
+
+	with get_opsi_config(
+		[
+			{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+			{"category": "groups", "config": "readonly", "value": ""},
+		]
+	):
+		with get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config:
+			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group", "{readonly}"]
+
+	with get_opsi_config(
+		[
+			{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+			{"category": "groups", "config": "readonly", "value": "opsi-readonly-group"},
+		]
+	):
+		with get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config:
+			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group", "opsi-readonly-group"]
 
 
 def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

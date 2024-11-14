@@ -43,6 +43,7 @@ def test_session_serialize() -> None:
 async def test_session_store_and_load() -> None:
 	redis = await async_redis_client()
 	client_addr = "172.10.11.12"
+
 	sess1 = OPSISession(client_addr=client_addr)
 	sess1.is_read_only = False
 	sess1.is_admin = True
@@ -61,6 +62,7 @@ async def test_session_store_and_load() -> None:
 
 	assert not sess1.modifications
 
+	# Load the same session in a new object
 	sess2 = OPSISession(client_addr=client_addr, session_id=sess1.session_id)
 	await sess2.load()
 	assert not sess2.modifications
@@ -73,6 +75,7 @@ async def test_session_store_and_load() -> None:
 	assert sess2.messagebus_last_used == sess1.messagebus_last_used
 	assert sess2.auth_methods == sess1.auth_methods
 
+	# Delete session in redis, full data should be written to redis despite modifications_only is True
 	await redis.delete(sess2.redis_key)
 	await sleep(1)
 	await sess2.update_last_used()
@@ -180,6 +183,8 @@ async def test_session_manager_store_session() -> None:
 	asyncio_create_task(manager.manager_task())
 
 	sess1 = await manager.get_session("172.10.11.11")
+	await sess1.store()
+
 	await sleep(2)
 	res = await redis.hgetall(sess1.redis_key)
 	assert res[b"authenticated"] == b"0"
@@ -189,14 +194,6 @@ async def test_session_manager_store_session() -> None:
 	res = await redis.hgetall(sess1.redis_key)
 	assert res
 	assert res[b"authenticated"] == b"1"
-
-	sess2 = await manager.get_session("172.10.11.12")
-	res = await redis.hgetall(sess2.redis_key)
-	assert not res
-	await sleep(2)
-	res = await redis.hgetall(sess2.redis_key)
-	assert res
-	assert res[b"authenticated"] == b"0"
 
 	await manager.stop(wait=True)
 
@@ -209,6 +206,7 @@ async def test_session_manager_remove_expired_session() -> None:
 	headers = Headers({"x-opsi-session-lifetime": "5"})
 	sess = await manager.get_session("172.10.11.12", headers=headers)
 	sess.authenticated = True
+	await sess.store()
 	await sleep(3)
 	assert sess.session_id in manager.sessions
 	res = await redis.hgetall(sess.redis_key)
@@ -262,6 +260,8 @@ async def test_session_manager_remove_deleted_session() -> None:
 
 	sess = await manager.get_session("172.10.11.12")
 	sess.authenticated = True
+	await sess.store()
+
 	await sleep(3)
 	assert sess.session_id in manager.sessions
 

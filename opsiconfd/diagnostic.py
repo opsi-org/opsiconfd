@@ -19,6 +19,7 @@ from subprocess import CalledProcessError, run
 from typing import Any
 
 import psutil
+from opsicommon.utils import prepare_proxy_environment
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_unprotected_backend
@@ -261,10 +262,8 @@ def get_network_info() -> dict:
 
 def get_proxy_vars() -> dict[str, str]:
 	logger.debug("get_proxy_vars")
-	proxy_vars = {}
-	for var in ["http_proxy", "https_proxy", "no_proxy"]:
-		proxy_vars[var] = os.environ.get(var, "")
-	return proxy_vars
+	prepare_proxy_environment("www.opsi.org")
+	return {var_name: os.environ.get(var_name, "") for var_name in ["http_proxy", "https_proxy", "no_proxy"]}
 
 
 async def get_diagnostic_data() -> dict[str, Any]:

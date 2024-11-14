@@ -25,7 +25,7 @@ from asyncio import CancelledError, Event, Task, get_running_loop
 from concurrent.futures import ThreadPoolExecutor
 from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO
+from typing import TYPE_CHECKING, Any, Callable, TextIO
 
 import colorlog
 import msgspec
@@ -214,7 +214,7 @@ class AsyncRedisLogAdapter:
 		self._read_config()
 		self._loop = get_running_loop()
 		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
-		self._file_logs: Dict[str, AsyncFileHandler] = {}
+		self._file_logs: dict[str, AsyncFileHandler] = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
@@ -468,7 +468,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 		self._should_stop.set()
 		self._stopped.wait(3.0)
 
-	def log_record_to_dict(self, record: LogRecord) -> Dict[str, Any]:
+	def log_record_to_dict(self, record: LogRecord) -> dict[str, Any]:
 		try:
 			msg = record.getMessage()
 		except TypeError:
@@ -525,6 +525,30 @@ def enable_slow_callback_logging(slow_callback_duration: float | None = None) ->
 	asyncio.events.Handle._run = _run  # type: ignore[assignment]
 
 
+def configure_loggers() -> None:
+	add_context_filter_to_loggers()
+	loggers = {
+		getattr(logger_, "name"): logger_ for logger_ in list(pylogging.Logger.manager.loggerDict.values()) if hasattr(logger_, "name")
+	}
+	logger_level_configs = {}
+	for entry in [entry.strip() for entry in config.log_levels.split(",") if entry.strip()]:
+		logger_re, level = entry.rsplit(":", 1)
+		logger_level_configs[logger_re.strip()] = int(level.strip())
+
+	# Sort by regex length so the closest match will be applied at last
+	for logger_re in sorted(logger_level_configs, key=len):
+		level = logger_level_configs[logger_re]
+		logger_re = re.compile(logger_re)
+		for logger_name in sorted(loggers):
+			logger_obj = loggers[logger_name]
+			if isinstance(logger_obj, PlaceHolder):
+				continue
+			if logger_re.match(logger_name):
+				if level < 10:
+					level = OPSI_LEVEL_TO_LEVEL[level]
+				logger_obj.setLevel(level)
+
+
 def init_logging(log_mode: str = "redis", is_worker: bool = False, console: Console | None = None) -> None:
 	redis_error = None
 	try:
@@ -570,30 +594,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False, console: Cons
 			logger_.handlers = [log_handler]
 			logger_.propagate = False
 
-		if config.log_levels:
-			loggers = {
-				getattr(logger_, "name"): logger_
-				for logger_ in list(pylogging.Logger.manager.loggerDict.values())
-				if hasattr(logger_, "name")
-			}
-			logger_level_configs = {}
-			for entry in [entry.strip() for entry in config.log_levels.split(",") if entry.strip()]:
-				logger_re, level = entry.rsplit(":", 1)
-				logger_level_configs[logger_re.strip()] = int(level.strip())
-
-			# Sort by regex length so the closest match will be applied at last
-			for logger_re in sorted(logger_level_configs, key=len):
-				level = logger_level_configs[logger_re]
-				logger_re = re.compile(logger_re)
-				for logger_name, logger_obj in loggers.items():
-					if isinstance(logger_obj, PlaceHolder):
-						continue
-					if logger_re.match(logger_name):
-						if level < 10:
-							level = OPSI_LEVEL_TO_LEVEL[level]
-						logger_obj.setLevel(level)
-
-		add_context_filter_to_loggers()
+		configure_loggers()
 
 		if config.log_slow_async_callbacks > 0:
 			enable_slow_callback_logging(config.log_slow_async_callbacks)

@@ -29,7 +29,12 @@ def get_saml_settings(
 	settings: dict[str, Any] = {
 		"strict": False,
 		"debug": True,
-		"security": {"allowRepeatAttributeName": True},
+		"security": {
+			"allowRepeatAttributeName": True,
+			# Prevent sending RequestedAuthnContext in AuthnRequest to avoid error AADSTS75011
+			# See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
+			"requestedAuthnContext": False,
+		},
 		# Identity Provider
 		"idp": {
 			"entityId": config.saml_idp_entity_id,

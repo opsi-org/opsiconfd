@@ -17,7 +17,6 @@ from importlib._bootstrap import BuiltinImporter, ModuleSpec  # type: ignore[imp
 from os import listdir
 from os.path import abspath, exists, isdir, join
 from pathlib import Path
-from typing import Optional
 from urllib.parse import quote, unquote
 
 from opsiconfd.addon.addon import Addon
@@ -134,7 +133,7 @@ class AddonManager(metaclass=Singleton):
 		self.load_addons()
 
 	@lru_cache(maxsize=50)
-	def get_addon_by_path(self, path: str) -> Optional[Addon]:
+	def get_addon_by_path(self, path: str) -> Addon | None:
 		path = path or ""
 		for addon in self.addons:
 			if path.lower().startswith(addon.router_prefix.lower()):

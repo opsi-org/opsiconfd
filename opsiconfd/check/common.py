@@ -151,6 +151,7 @@ class Check:
 
 class CheckManager(metaclass=Singleton):
 	_checks: dict[str, Check] = {}
+	_possible_checks: dict[str, Check] = {}
 
 	def __init__(self) -> None:
 		self._checks = {}
@@ -158,6 +159,7 @@ class CheckManager(metaclass=Singleton):
 	def register(self, *checks: Check) -> None:
 		role = get_server_role()
 		for check in checks:
+			self._possible_checks[check.id] = check
 			if role == "depotserver" and not check.depot_check:
 				continue
 			if (
@@ -181,6 +183,10 @@ class CheckManager(metaclass=Singleton):
 	@property
 	def check_ids(self) -> list[str]:
 		return list(self._checks.keys())
+
+	@property
+	def possible_checks(self) -> dict[str, Check]:
+		return self._possible_checks
 
 	def __iter__(self) -> Iterator[Check]:
 		return iter(self._checks.values())

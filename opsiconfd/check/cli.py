@@ -47,9 +47,6 @@ def print_health_check_manual(console: Console) -> None:
 	All the checks are described below:
 	"""
 	console.print(Markdown(text.replace("\t", "")))
-	# for check_id in CHECKS:
-	# 	check = globals()[f"check_{check_id}"]
-	# 	console.print(Markdown((check.__doc__ or "").replace("\t", "")))
 	for check in CheckManager().possible_checks.values():
 		console.print(Markdown(check.documentation.replace("\t", "")))
 
@@ -148,7 +145,6 @@ def console_health_check() -> int:
 				console.print(check_id)
 			return 1
 		if config.detailed:
-			# only active checks are listed
 			console.print("[bold]Check Name - Check ID[/bold]")
 			for check in CheckManager().possible_checks.values():
 				console.print(

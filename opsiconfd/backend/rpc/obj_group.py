@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import Group, HostGroup
+from opsicommon.objects import Group, HostGroup, ProductGroup
 from opsicommon.types import forceList, forceObjectClass
 
 from ..mysql.cleanup import remove_orphans_object_to_group_host
@@ -102,6 +102,18 @@ class RPCGroupMixin(Protocol):
 		_hash = locals()
 		del _hash["self"]
 		self.group_createObjects(HostGroup.fromHash(_hash))
+
+	@rpc_method(check_acl=False)
+	def group_createProductGroup(
+		self,
+		id: str,
+		description: str | None = None,
+		notes: str | None = None,
+		parentGroupId: str | None = None,
+	):
+		_hash = locals()
+		del _hash["self"]
+		self.group_createObjects(ProductGroup.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
 	def group_delete(self: BackendProtocol, id: list[str] | str) -> None:

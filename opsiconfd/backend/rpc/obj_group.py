@@ -110,7 +110,7 @@ class RPCGroupMixin(Protocol):
 		description: str | None = None,
 		notes: str | None = None,
 		parentGroupId: str | None = None,
-	):
+	) -> None:
 		_hash = locals()
 		del _hash["self"]
 		self.group_createObjects(ProductGroup.fromHash(_hash))

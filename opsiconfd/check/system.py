@@ -10,12 +10,14 @@
 # """
 
 import re
+import subprocess
 from dataclasses import dataclass
 from datetime import date
 from subprocess import CalledProcessError, run
 
 import psutil
 from opsicommon.system.info import (
+	is_ucs,
 	linux_distro_id,
 	linux_distro_id_like_contains,
 	linux_distro_version_id,
@@ -75,6 +77,13 @@ LINUX_DISTRO_EOL = {
 		"7": date(2024, 12, 1),
 		"8": date(2029, 6, 1),
 		"9": date(2032, 6, 1),
+	},
+	"UCS": {
+		"4.4-9": date(2024, 12, 31),
+		"5.0-6": date(2024, 6, 6),
+		"5.0-7": date(2024, 9, 3),
+		"5.0-8": date(2025, 12, 17),
+		"5.0-9": date(2025, 12, 31),
 	},
 }
 
@@ -238,8 +247,15 @@ class SystemEOLCheck(Check):
 			message="All systems are up to date.",
 		)
 		with exc_to_result(result):
-			distro = linux_distro_id()
-			version = linux_distro_version_id()
+			if is_ucs():
+				distro = "UCS"
+				version = subprocess.check_output(["ucr", "get", "version/version"], encoding="utf-8", timeout=10).strip()
+				version = (
+					version + "-" + subprocess.check_output(["ucr", "get", "version/patchlevel"], encoding="utf-8", timeout=10).strip()
+				)
+			else:
+				distro = linux_distro_id()
+				version = linux_distro_version_id()
 			if distro in ("rocky", "ol"):
 				version = version.split(".")[0]
 			if version_info := LINUX_DISTRO_EOL.get(distro):

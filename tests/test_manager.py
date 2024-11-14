@@ -215,6 +215,8 @@ def test_worker_manager_and_workers() -> None:
 
 			# Assert that worker processes are restarted with new pid
 			wait_for_workers_running(worker_manager, count=2)
+			time.sleep(2)
+
 			assert worker_manager.workers[f"{worker_manager.node_name}:1"].pid != pid1
 			assert worker_manager.workers[f"{worker_manager.node_name}:2"].pid != pid2
 			pid1 = worker_manager.workers[f"{worker_manager.node_name}:1"].pid

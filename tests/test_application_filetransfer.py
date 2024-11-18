@@ -24,7 +24,6 @@ from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
-	WebSocketMessageReader,
 	test_client,
 )
 

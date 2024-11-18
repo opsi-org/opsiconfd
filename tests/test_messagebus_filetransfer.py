@@ -1,0 +1,48 @@
+from pathlib import Path
+
+import pytest
+from opsicommon.messagebus.message import (
+	ChannelSubscriptionEventMessage,
+	FileChunkMessage,
+	FileDownloadRequestMessage,
+	FileDownloadResponseMessage,
+)
+
+from opsiconfd.config import get_configserver_id
+from opsiconfd.messagebus import get_user_id_for_user
+
+from .utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	WebSocketMessageReader,
+	test_client,
+)
+
+
+@pytest.mark.parametrize(
+	"channel",
+	(f"service:depot:{get_configserver_id()}:filetransfer",),
+)
+def test_messagebus_filetransfer(tmp_path: Path, test_client: OpsiconfdTestClient, channel: str) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	user_id = get_user_id_for_user(ADMIN_USER)
+	(tmp_path / "tesfile.txt").write_text("0" * 4000)
+	with test_client:
+		with test_client.websocket_connect("/messagebus/v1") as websocket:
+			with WebSocketMessageReader(websocket, messagebus_messages=True) as reader:
+				reader.wait_for_message(count=1)
+				message = next(reader.get_messagbus_messages())
+				assert isinstance(message, ChannelSubscriptionEventMessage)
+
+				file_download_request = FileDownloadRequestMessage(
+					sender=user_id, channel=channel, path=str(tmp_path / "tesfile.txt"), chunk_size=1000
+				)
+				websocket.send_bytes(file_download_request.to_msgpack())
+				reader.wait_for_message(count=5)
+				message = next(reader.get_messagbus_messages())
+				assert isinstance(message, FileDownloadResponseMessage)
+				for _ in range(5):
+					message = next(reader.get_messagbus_messages())
+					assert isinstance(message, FileChunkMessage)
+					print(message.number, len(message.data), message.last)

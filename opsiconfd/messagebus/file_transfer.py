@@ -30,6 +30,8 @@ async def async_file_transfer_startup() -> None:
 
 
 async def async_file_transfer_shutdown() -> None:
+	if filetransfer_request_reader:
+		await filetransfer_request_reader.stop()
 	await stop_running_file_transfers()
 
 
@@ -45,7 +47,6 @@ async def messagebus_filetransfer_start_request_worker() -> None:
 		consumer_name=messagebus_worker_id,
 	)
 	await filetransfer_request_reader.set_channels({channel: "0"})
-	logger.devel("Starting filetransfer request worker")
 	async for redis_id, message, _context in filetransfer_request_reader.get_messages():
 		try:
 			if isinstance(message, (FileDownloadRequestMessage, FileDownloadAbortRequestMessage)):

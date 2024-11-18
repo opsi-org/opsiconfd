@@ -172,6 +172,7 @@ def test_grafana_reverse_proxy(test_client: OpsiconfdTestClient, config: Config)
 		assert client.cookies.get("grafana_session") is not None
 		assert client.cookies.get("grafana_session_expiry") is not None
 
+		print("requesting home dashboard")
 		res = client.get("/grafana/api/dashboards/home")
-
+		print(res)
 		assert res.status_code == 200

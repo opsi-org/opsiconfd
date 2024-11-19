@@ -75,6 +75,7 @@ RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
 PROD_DEP_DEBUG_DIR = "/tmp/opsiconfd-prod-dep-debug"
 SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
 SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
+ADDON_DIR = "/usr/lib/opsiconfd/addons"
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 WORKBENCH_DIR = "/var/lib/opsi/workbench"
 SMB_CONF = "/etc/samba/smb.conf"
@@ -1445,7 +1446,7 @@ class Config(metaclass=Singleton):
 			"--addon-dirs",
 			nargs="+",
 			env_var="OPSICONFD_ADDON_DIRS",
-			default=["/usr/lib/opsiconfd/addons", VAR_ADDON_DIR],
+			default=[ADDON_DIR, VAR_ADDON_DIR],
 			help=self._help("expert", "A list of addon directories"),
 		)
 		self._parser.add(
@@ -1463,7 +1464,7 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"opsiconfd",
 				"A list of features to disable "
-				"(features: status-page, public-folder, rpc-interface, messagebus_terminal,  messagebus_terminal_client, messagebus_execute_process, messagebus_execute_process_client).",
+				"(features: status-page, public-folder, rpc-interface, messagebus_terminal, messagebus_terminal_client, messagebus_execute_process, messagebus_execute_process_client).",
 			),
 			# terminal was renamed to messagebus_terminal
 			choices=(

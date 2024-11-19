@@ -434,10 +434,12 @@
 				</div>
 				<div id="failed-addon-table-div">
 				</div>
+				{%- if addon_install_enabled %}
 				<div style="margin-top: 25px">
 					<input id="addon-file" type="file" name="addon-file" />
 					<button id="addon-upload" onclick="installAddon()">Install addon</button>
 				</div>
+				{% endif %}
 			</div>
 		</div>
 

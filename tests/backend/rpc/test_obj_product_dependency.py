@@ -1494,6 +1494,253 @@ def test_get_product_action_groups_installation_manager(
 	assert res[0].product_on_clients[1].actionSequence == 1
 
 
+def test_get_product_action_groups_sql(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	product1 = LocalbootProduct(
+		id="sql_management_studio", productVersion="24.4.1.1", packageVersion="2", priority=-28, setupScript="setup.opsiscript"
+	)
+	product2 = LocalbootProduct(
+		id="sql_commandline_utilities", productVersion="24.4.1.1", packageVersion="2", priority=-27, setupScript="setup.opsiscript"
+	)
+	product3 = LocalbootProduct(
+		id="odbc_sql_treiber", productVersion="24.4.1.1", packageVersion="2", priority=-26, setupScript="setup.opsiscript"
+	)
+	product4 = LocalbootProduct(
+		id="reportviewer", productVersion="24.4.1.1", packageVersion="1", priority=0, setupScript="setup.opsiscript"
+	)
+	product5 = LocalbootProduct(
+		id="sql_system_control_types", productVersion="24.4.1.1", packageVersion="2", priority=0, setupScript="setup.opsiscript"
+	)
+
+	product_dependency1 = ProductDependency(
+		productId="sql_management_studio",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		productAction="setup",
+		requiredProductId="sql_commandline_utilities",
+		requiredAction="setup",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="sql_management_studio",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		productAction="setup",
+		requiredProductId="sql_system_control_types",
+		requiredAction="setup",
+		requirementType="after",
+	)
+	product_dependency3 = ProductDependency(
+		productId="sql_commandline_utilities",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		productAction="setup",
+		requiredProductId="odbc_sql_treiber",
+		requiredAction="setup",
+		requirementType="before",
+	)
+	product_dependency4 = ProductDependency(
+		productId="sql_commandline_utilities",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		productAction="setup",
+		requiredProductId="sql_management_studio",
+		requiredAction="setup",
+		requirementType="after",
+	)
+	product_dependency5 = ProductDependency(
+		productId="odbc_sql_treiber",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		productAction="setup",
+		requiredProductId="sql_commandline_utilities",
+		requiredAction="setup",
+		requirementType="after",
+	)
+	product_dependency6 = ProductDependency(
+		productId="reportviewer",
+		productVersion="24.4.1.1",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="sql_system_control_types",
+		requiredAction="setup",
+		requirementType="before",
+	)
+	product_dependency7 = ProductDependency(
+		productId="sql_system_control_types",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		productAction="setup",
+		requiredProductId="reportviewer",
+		requiredAction="setup",
+		requirementType="after",
+	)
+	product_dependency8 = ProductDependency(
+		productId="sql_system_control_types",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		productAction="setup",
+		requiredProductId="sql_management_studio",
+		requiredAction="setup",
+		requirementType="before",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="sql_management_studio", productType="localboot", productVersion="24.4.1.1", packageVersion="2", depotId=depot_id
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="sql_commandline_utilities",
+		productType="localboot",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		depotId=depot_id,
+	)
+	product_on_depot3 = ProductOnDepot(
+		productId="odbc_sql_treiber", productType="localboot", productVersion="24.4.1.1", packageVersion="2", depotId=depot_id
+	)
+	product_on_depot4 = ProductOnDepot(
+		productId="reportviewer", productType="localboot", productVersion="24.4.1.1", packageVersion="1", depotId=depot_id
+	)
+	product_on_depot5 = ProductOnDepot(
+		productId="sql_system_control_types",
+		productType="localboot",
+		productVersion="24.4.1.1",
+		packageVersion="2",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2, product3, product4, product5])
+	backend.productDependency_createObjects(
+		[
+			product_dependency1,
+			product_dependency2,
+			product_dependency3,
+			product_dependency4,
+			product_dependency5,
+			product_dependency6,
+			product_dependency7,
+			product_dependency8,
+		]
+	)
+	backend.productOnDepot_createObjects(
+		[
+			product_on_depot1,
+			product_on_depot2,
+			product_on_depot3,
+			product_on_depot4,
+			product_on_depot5,
+		]
+	)
+
+	product_on_client_1 = ProductOnClient(
+		productId="odbc_sql_treiber",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_2 = ProductOnClient(
+		productId="sql_commandline_utilities",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_3 = ProductOnClient(
+		productId="sql_management_studio",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_4 = ProductOnClient(
+		productId="sql_system_control_types",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_5 = ProductOnClient(
+		productId="reportviewer",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	# sql_management_studio (-28)     setup requires sql_commandline_utilities (-27) setup before
+	# sql_management_studio (-28)     setup requires sql_system_control_types (0)    setup after
+	# sql_commandline_utilities (-27) setup requires odbc_sql_treiber (-26)          setup before
+	# sql_commandline_utilities (-27) setup requires sql_management_studio (-28)     setup after
+	# odbc_sql_treiber (-26)          setup requires sql_commandline_utilities (-28) setup after
+	# reportviewer (0)                setup requires sql_system_control_types (0)    setup before
+	# sql_system_control_types (0)    setup requires reportviewer (0)                setup after
+	# sql_system_control_types (0)    setup requires sql_management_studio (-28)     setup before
+
+	# odbc_sql_treiber (-26)           setup
+	# sql_commandline_utilities (-27)  setup
+	# sql_management_studio (-28)      setup
+	# sql_system_control_types (0)     setup
+	# reportviewer (0)                 setup
+
+	for pocs in (
+		[product_on_client_3],
+		[product_on_client_5],
+		[product_on_client_4, product_on_client_2],
+		[product_on_client_1, product_on_client_2, product_on_client_3, product_on_client_4, product_on_client_5],
+	):
+		res = backend.get_product_action_groups(list(pocs))[client_id]  # type: ignore[misc]
+		assert len(res) == 1
+
+		assert res[0].priority == -28
+		assert len(res[0].product_on_clients) == 5
+		assert res[0].product_on_clients[0].productId == "odbc_sql_treiber"
+		assert res[0].product_on_clients[0].actionRequest == "setup"
+		assert res[0].product_on_clients[0].actionSequence == 0
+		assert res[0].product_on_clients[1].productId == "sql_commandline_utilities"
+		assert res[0].product_on_clients[1].actionRequest == "setup"
+		assert res[0].product_on_clients[1].actionSequence == 1
+		assert res[0].product_on_clients[2].productId == "sql_management_studio"
+		assert res[0].product_on_clients[2].actionRequest == "setup"
+		assert res[0].product_on_clients[2].actionSequence == 2
+		assert res[0].product_on_clients[3].productId == "sql_system_control_types"
+		assert res[0].product_on_clients[3].actionRequest == "setup"
+		assert res[0].product_on_clients[3].actionSequence == 3
+		assert res[0].product_on_clients[4].productId == "reportviewer"
+		assert res[0].product_on_clients[4].actionRequest == "setup"
+		assert res[0].product_on_clients[4].actionSequence == 4
+
+		assert res[0].dependencies["odbc_sql_treiber"] == [product_dependency5]
+		assert res[0].dependencies["sql_commandline_utilities"] == [product_dependency3, product_dependency4]
+		assert res[0].dependencies["sql_management_studio"] == [product_dependency1, product_dependency2]
+		assert res[0].dependencies["sql_system_control_types"] == [product_dependency7, product_dependency8]
+		assert res[0].dependencies["reportviewer"] == [product_dependency6]
+
+	product_ordering = backend.getProductOrdering(depotId=depot_id)
+	assert product_ordering["not_sorted"] == [
+		"odbc_sql_treiber",
+		"reportviewer",
+		"sql_commandline_utilities",
+		"sql_management_studio",
+		"sql_system_control_types",
+	]
+	assert product_ordering["sorted"] == [
+		"odbc_sql_treiber",
+		"sql_commandline_utilities",
+		"sql_management_studio",
+		"sql_system_control_types",
+		"reportviewer",
+	]
+
+
 def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
 	product1, product2 = create_test_products(test_client)
 

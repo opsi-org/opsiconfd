@@ -49,7 +49,7 @@ class DeprecatedCallCheck(Check):
 				redis.srem(f"{redis_prefix_stats}:rpcs:deprecated:methods", self.method)
 				return result
 			interface = backend.get_method_interface(self.method)
-			applications = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:clients"))
+			applications = sorted(set(decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:clients"))))
 			last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:last_call"))
 			last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
 			last_call = last_call_dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -57,7 +57,7 @@ class DeprecatedCallCheck(Check):
 			if interface and interface.drop_version:
 				message += f"The method will be dropped with opsiconfd version {interface.drop_version}.\n"
 			message += f"Last call was {last_call}\nThe method was called from the following applications:\n"
-			message += "\n".join([f"- {app}" for app in applications])
+			message += "\n".join([f"  - {app}" for app in applications])
 
 			result = CheckResult(
 				check=self,

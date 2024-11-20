@@ -136,6 +136,7 @@ async def admin_interface_index(request: Request) -> Response:
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 			for addon in AddonManager().addons
 		],
+		"addon_install_enabled": VAR_ADDON_DIR in config.addon_dirs,
 		"multi_factor_auth": config.multi_factor_auth,
 	}
 
@@ -380,6 +381,8 @@ def _get_failed_addons() -> list:
 
 
 def _install_addon(data: bytes) -> None:
+	if VAR_ADDON_DIR not in config.addon_dirs:
+		raise RuntimeError("Addon dir configuration error")
 	addon_installed = None
 	join = os.path.join
 	exists = os.path.exists

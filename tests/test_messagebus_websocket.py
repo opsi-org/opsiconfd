@@ -30,6 +30,8 @@ from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CH
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	FileDownloadRequestMessage,
+	FileTransferErrorMessage,
 	GeneralErrorMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
@@ -591,6 +593,28 @@ def test_messagebus_message_type_access(
 									)
 								else:
 									assert responses[0].error.message == f"Read access to channel 'host:{host_id}' denied"
+
+					_check_message_type_access.cache_clear()
+					with patch("opsiconfd.backend.unprotected_backend.available_modules", available_modules_with_vpn):
+						# Requesting Files must be allowed for admins and denied for non admins
+						websocket.send_bytes(
+							FileDownloadRequestMessage(
+								sender=CONNECTION_USER_CHANNEL,
+								channel=f"service:depot:{configserver_id}:filetransfer",
+								path="bogus-path/testfile.txt",
+							).to_msgpack()
+						)
+						reader.wait_for_message(count=1, timeout=5.0, error_on_timeout=False)
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						if is_admin:
+							assert isinstance(responses[0], FileTransferErrorMessage)
+							assert responses[0].error.message == "File bogus-path/testfile.txt does not exist"
+						else:
+							assert isinstance(responses[0], GeneralErrorMessage)
+							assert (
+								responses[0].error.message
+								== f"Read access to channel 'service:depot:{configserver_id}:filetransfer' denied"
+							)
 
 					_check_message_type_access.cache_clear()
 					with patch("opsiconfd.backend.unprotected_backend.available_modules", available_modules_without_vpn):

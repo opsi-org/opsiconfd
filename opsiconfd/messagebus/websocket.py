@@ -110,6 +110,8 @@ def _check_message_type_access(message_type: str, is_admin: bool, is_service_cha
 				return False
 			if "vpn" not in backend.available_modules:
 				return False
+	elif message_type == MessageType.FILE_DOWNLOAD_REQUEST and not is_admin:
+		return False
 	elif message_type == MessageType.JSONRPC_REQUEST:
 		if not is_admin and not is_service_channel:
 			return False

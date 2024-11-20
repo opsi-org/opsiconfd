@@ -261,9 +261,13 @@ def test_webdav_symlink(
 
 		forbidden_file = Path("/etc/shadow")
 		Path(base_dir / "forbidden_link").symlink_to(forbidden_file)
-		res = test_client.get(url="/depot/symlink_test/forbidden_link")
-		assert res.status_code == 500
-		assert f"Access to &#x27;{forbidden_file}&#x27; denied" in res.content.decode("utf-8")
+		for path in (
+			"/depot/symlink_test/forbidden_link",
+			"/dav/depot/symlink_test/forbidden_link",
+		):
+			res = test_client.get(url=path)
+			assert res.status_code == 500
+			assert f"Access to &#x27;{path}&#x27; denied" in res.content.decode("utf-8")
 	finally:
 		if base_dir.exists():
 			shutil.rmtree(base_dir)

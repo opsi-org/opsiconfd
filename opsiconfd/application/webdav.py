@@ -94,7 +94,8 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 				file_path = alt_path
 
 		if not file_path.resolve().is_relative_to(root_path):
-			raise RuntimeError(f"Access to '{file_path}' denied")
+			_path = util.to_unicode_safe(environ.get("asgi.scope", {}).get("path") or path)
+			raise RuntimeError(f"Access to '{_path}' denied")
 
 		return util.to_unicode_safe(file_path.as_posix())
 

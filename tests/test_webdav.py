@@ -30,7 +30,7 @@ from pyzsync import (
 	read_zsync_file,
 )
 
-from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
+from opsiconfd.application.webdav import OpsiconfdFilesystemProvider, webdav_setup
 from opsiconfd.config import get_depotserver_id
 
 from .utils import (  # noqa: F401
@@ -188,7 +188,7 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 		("/filename.txt", "/filename.TXT", None),
 		("/outside.root", "../outside.root", RuntimeError),
 		("/tEsT/TesT2/fileNaME1.TXt", "/test/test2/filename1.txt", None),
-		("/Test/test/filename1.bin", "/test/test/filename1.bin", None),
+		("/Test/test/filename1.bin", "/test/teST/fileName1.bin", None),
 		("/tEßT/TäsT2/陰陽_Üß.TXt", "/tEßT/täsT2/陰陽_üß.txt", None),
 	),
 )
@@ -205,7 +205,7 @@ def test_webdav_ignore_case_download(
 	abs_dir = os.path.join(base_dir, directory)
 	abs_filename = os.path.join(abs_dir, filename)
 
-	prov = IgnoreCaseFilesystemProvider(base_dir)
+	prov = OpsiconfdFilesystemProvider(base_dir)
 
 	if directory:
 		os.makedirs(abs_dir)
@@ -258,6 +258,16 @@ def test_webdav_symlink(
 			res = test_client.get(url=path)
 			res.raise_for_status()
 			assert res.content == b"opsi"
+
+		forbidden_file = Path("/etc/shadow")
+		Path(base_dir / "forbidden_link").symlink_to(forbidden_file)
+		for path in (
+			"/depot/symlink_test/forbidden_link",
+			"/dav/depot/symlink_test/forbidden_link",
+		):
+			res = test_client.get(url=path)
+			assert res.status_code == 500
+			assert f"Access to &#x27;{path}&#x27; denied" in res.content.decode("utf-8")
 	finally:
 		if base_dir.exists():
 			shutil.rmtree(base_dir)

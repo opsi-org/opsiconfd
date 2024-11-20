@@ -14,17 +14,24 @@ from typing import Any
 from fastapi import Request
 
 from opsiconfd.config import config, get_configserver_id
+from opsiconfd.utils.modules import check_module
 
 
-def get_saml_settings(
-	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
-) -> dict[str, Any]:
+def check_if_saml_available() -> None:
+	if not check_module("sso"):
+		raise RuntimeError("Module 'sso' not available. Please check your opsi licenses.")
 	if not config.saml_idp_entity_id:
 		raise ValueError("saml-idp-entity-id not set in config")
 	if not config.saml_idp_sso_url:
 		raise ValueError("saml-idp-sso-url not set in config")
 	if not config.saml_idp_x509_cert:
 		raise ValueError("saml-idp-x509-cert not set in config")
+
+
+def get_saml_settings(
+	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
+) -> dict[str, Any]:
+	check_if_saml_available()
 
 	settings: dict[str, Any] = {
 		"strict": False,

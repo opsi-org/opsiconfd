@@ -1122,7 +1122,7 @@ def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
 			setup_server_cert()
 
 
-def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
+def test_setup_server_cert_custom_ca(tmp_path: Path) -> None:
 	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
 	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
 	ssl_server_cert = tmp_path / "opsi-server-cert.pem"
@@ -1136,7 +1136,7 @@ def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
 				"ssl_server_cert": str(ssl_server_cert),
 				"ssl_server_key": str(ssl_server_key),
 				"ssl_server_key_passphrase": "secret",
-				"ssl_server_cert_type": "unmanaged",
+				"ssl_server_cert_type": "custom-ca",
 			}
 		),
 		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
@@ -1165,7 +1165,7 @@ def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
 		store_local_server_cert(srv_crt)
 		with pytest.raises(
 			RuntimeError,
-			match=(r"Server cert '.*' will expire in 9 days\. The ssl-server-cert-type is 'unmanaged', please fix the problem manually\."),
+			match=(r"Server cert '.*' will expire in 9 days\. The ssl-server-cert-type is 'custom-ca', please fix the problem manually\."),
 		):
 			setup_server_cert()
 
@@ -1182,7 +1182,7 @@ def test_setup_server_cert_unmanaged(tmp_path: Path) -> None:
 			RuntimeError,
 			match=(
 				r"Failed to verify server cert with CA certs \(Failed to verify certificate, issuer certificate of certificate .* not found\)\. "
-				r"The ssl-server-cert-type is 'unmanaged', please fix the problem manually\."
+				r"The ssl-server-cert-type is 'custom-ca', please fix the problem manually\."
 			),
 		):
 			setup_server_cert()

@@ -34,7 +34,6 @@ from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.utils import lock_file
-
 from .utils import Singleton, is_manager, is_opsiconfd, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
 
 if TYPE_CHECKING:
@@ -443,6 +442,20 @@ class Config(metaclass=Singleton):
 				self._config.skip_setup.append("server_cert")
 		if not self._config.ssl_server_cert_sans:
 			self._config.ssl_server_cert_sans = []
+
+		if self._config.ssl_server_cert_type == "letsencrypt":
+			from opsiconfd.utils.modules import check_module
+			if not check_module("letsencrypt"):
+				raise RuntimeError(
+					"Module 'letsencrypt' not available. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
+				)
+		elif self._config.ssl_server_cert_type == "custom-ca":
+			from opsiconfd.utils.modules import check_module
+			if not check_module("custom_ca"):
+				raise RuntimeError(
+					"Module 'custom_ca' not available. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
+				)
+
 		if self._config.auth_allowed_groups:
 			for idx in range(len(self._config.auth_allowed_groups)):
 				if self._config.auth_allowed_groups[idx].startswith("{") and self._config.auth_allowed_groups[idx].endswith("}"):
@@ -978,14 +991,14 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-server-cert-type",
 			env_var="OPSICONFD_SSL_SERVER_CERT_TYPE",
-			choices=("opsi-ca", "letsencrypt", "unmanaged"),
+			choices=("opsi-ca", "letsencrypt", "custom-ca"),
 			default="opsi-ca",
 			help=self._help(
 				"expert",
 				"The type of the server certificate.\n"
 				"opsi-ca: Automatically managed and signed by the opsi CA\n"
 				"letsencrypt: Automatically managed Let's Encrypt certificate\n"
-				"unmanaged: Manually use a custom certificate.",
+				"custom-ca: Use custom certificates.",
 			),
 		)
 		self._parser.add(

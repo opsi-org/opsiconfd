@@ -67,8 +67,8 @@ if TYPE_CHECKING:
 # 1 log record ~= 550 bytes
 LOG_STREAM_MAX_RECORDS = 50000
 
-redis_log_handler = None
-redis_log_adapter_thread = None
+redis_log_handler: RedisLogHandler | None = None
+redis_log_adapter_thread: RedisLogAdapterThread | None = None
 
 # Set default log level to ERROR early
 root_logger = get_logger()
@@ -206,6 +206,12 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 
 
 class AsyncRedisLogAdapter:
+	_log_level_file: int
+	_log_file_template: str
+	_log_format_file: str
+	_max_log_file_size: int
+	_keep_rotated_log_files: int
+
 	def __init__(self, running_event: threading.Event | None = None, stderr_file: TextIO | None = None) -> None:
 		self._stderr_file = stderr_file
 		if not self._stderr_file:
@@ -262,6 +268,7 @@ class AsyncRedisLogAdapter:
 		if self._log_level_stderr == NONE:
 			self._stderr_handler = None
 			return
+
 		console_formatter: Formatter
 		if sys.stderr.isatty():
 			# colorize
@@ -270,6 +277,7 @@ class AsyncRedisLogAdapter:
 			console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
 		if not self._stderr_handler:
 			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file)
+		assert self._stderr_handler
 		self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
 		self._stderr_handler.formatter.secret_filter_enabled = False  # Secrets are filtered before records are written to redis
 		self._stderr_handler.add_filter(context_filter.filter)

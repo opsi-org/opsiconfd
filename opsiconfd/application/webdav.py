@@ -57,7 +57,7 @@ wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
 class OpsiconfdFilesystemProvider(FilesystemProvider):
-	def _loc_to_file_path(self, path: str, environ: dict[str, str] | None = None) -> str:
+	def _loc_to_file_path(self, path: str, environ: dict | None = None) -> str:
 		"""
 		Convert resource path to a unicode absolute file path.
 		Check if the path is within the root folder.
@@ -94,8 +94,8 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 				file_path = alt_path
 
 		if not file_path.resolve().is_relative_to(root_path):
-			_path = util.to_unicode_safe(environ.get("asgi.scope", {}).get("path") or path)
-			raise RuntimeError(f"Access to '{_path}' denied")
+			full_path = (environ.get("asgi.scope") or {}).get("path") if environ else path or path
+			raise RuntimeError(f"Access to '{util.to_unicode_safe(full_path)}' denied")
 
 		return util.to_unicode_safe(file_path.as_posix())
 

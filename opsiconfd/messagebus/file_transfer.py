@@ -24,7 +24,7 @@ from opsicommon.messagebus.message import (
 	FileTransferMessage,
 )
 
-from opsiconfd.config import get_depotserver_id
+from opsiconfd.config import LOG_DIR, get_depotserver_id
 from opsiconfd.logging import logger
 from opsiconfd.utils import asyncio_create_task
 
@@ -33,9 +33,9 @@ from .redis import ConsumerGroupMessageReader
 from .redis import send_message as redis_send_message
 
 filetransfer_request_reader = None
-FILE_DOWNLOAD_MAX_SIZE = 1024 * 1024 * 500  # 500 MB
+FILE_DOWNLOAD_MAX_SIZE = 500_000_000  # 500 MB
 FILE_DOWNLOAD_ALLOWED_PATHS = [
-	Path("/var/log/opsi"),
+	Path(LOG_DIR),
 ]
 
 
@@ -94,7 +94,7 @@ async def messagebus_filetransfer_start_request_worker() -> None:
 	async for redis_id, message, _context in filetransfer_request_reader.get_messages():
 		try:
 			if isinstance(message, (FileDownloadRequestMessage, FileDownloadAbortRequestMessage)):
-				await check_filetransfer_message(  # TODO: better name?
+				await check_filetransfer_message(
 					message=message,
 					send_message=redis_send_message,
 					sender=messagebus_worker_id,

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config
 from opsiconfd.redis import decode_redis_result, redis_client
 
@@ -33,45 +33,44 @@ class DeprecatedCallCheck(Check):
 		self.name = f"{self.name} {self.method.capitalize()}"
 		self.description = f"{self.description} for method {self.method!r}"
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="Deprecated Call",
 			check_status=CheckStatus.OK,
 		)
-		with exc_to_result(result):
-			backend = get_unprotected_backend()
-			redis_prefix_stats = config.redis_key("stats")
-			redis = redis_client(timeout=5)
+		backend = get_unprotected_backend()
+		redis_prefix_stats = config.redis_key("stats")
+		redis = redis_client(timeout=5)
 
-			calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:count"))
-			if not calls:
-				redis.srem(f"{redis_prefix_stats}:rpcs:deprecated:methods", self.method)
-				return result
-			interface = backend.get_method_interface(self.method)
-			applications = sorted(set(decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:clients"))))
-			last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:last_call"))
-			last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
-			last_call = last_call_dt.strftime("%Y-%m-%d %H:%M:%S")
-			message = f"Deprecated method {self.method!r} was called {calls} times.\n"
-			if interface and interface.drop_version:
-				message += f"The method will be dropped with opsiconfd version {interface.drop_version}.\n"
-			message += f"Last call was {last_call}\nThe method was called from the following applications:\n"
-			message += "\n".join([f"  - {app}" for app in applications])
+		calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:count"))
+		if not calls:
+			redis.srem(f"{redis_prefix_stats}:rpcs:deprecated:methods", self.method)
+			return result
+		interface = backend.get_method_interface(self.method)
+		applications = sorted(set(decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:clients"))))
+		last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{self.method}:last_call"))
+		last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
+		last_call = last_call_dt.strftime("%Y-%m-%d %H:%M:%S")
+		message = f"Deprecated method {self.method!r} was called {calls} times.\n"
+		if interface and interface.drop_version:
+			message += f"The method will be dropped with opsiconfd version {interface.drop_version}.\n"
+		message += f"Last call was {last_call}\nThe method was called from the following applications:\n"
+		message += "\n".join([f"  - {app}" for app in applications])
 
-			result = CheckResult(
-				check=self,
-				check_status=CheckStatus.WARNING,
-				message=message,
-				upgrade_issue=interface.drop_version if interface else None,
-				details={
-					"method": self.method,
-					"calls": calls,
-					"last_call": last_call,
-					"applications": list(applications),
-					"drop_version": interface.drop_version if interface else None,
-				},
-			)
+		result = CheckResult(
+			check=self,
+			check_status=CheckStatus.WARNING,
+			message=message,
+			upgrade_issue=interface.drop_version if interface else None,
+			details={
+				"method": self.method,
+				"calls": calls,
+				"last_call": last_call,
+				"applications": list(applications),
+				"drop_version": interface.drop_version if interface else None,
+			},
+		)
 
 		return result
 
@@ -90,7 +89,7 @@ class DeprecatedCallsCheck(Check):
 	"""
 	cache_partial_checks: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="No deprecated method calls found.",

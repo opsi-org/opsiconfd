@@ -17,7 +17,7 @@ from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd.backend.mysql import MAX_ALLOWED_PACKET, MySQLConnection
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.logging import logger
 
 
@@ -28,24 +28,23 @@ class MysqlConfigurationCheck(Check):
 	description: str = "Check MySQL configuration"
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="MySQL configuration is OK.",
 			check_status=CheckStatus.OK,
 		)
 
-		with exc_to_result(result):
-			mysql = MySQLConnection()
-			with mysql.connection():
-				with mysql.session() as session:
-					res = session.execute("SHOW VARIABLES LIKE 'max_allowed_packet'").fetchone()
-					max_allowed_packet = int(res[1]) if res else 0
-					if max_allowed_packet < MAX_ALLOWED_PACKET:
-						result.check_status = CheckStatus.ERROR
-						result.message = (
-							f"Configured max_allowed_packet={max_allowed_packet} is too small (should be at least {MAX_ALLOWED_PACKET})."
-						)
+		mysql = MySQLConnection()
+		with mysql.connection():
+			with mysql.session() as session:
+				res = session.execute("SHOW VARIABLES LIKE 'max_allowed_packet'").fetchone()
+				max_allowed_packet = int(res[1]) if res else 0
+				if max_allowed_packet < MAX_ALLOWED_PACKET:
+					result.check_status = CheckStatus.ERROR
+					result.message = (
+						f"Configured max_allowed_packet={max_allowed_packet} is too small (should be at least {MAX_ALLOWED_PACKET})."
+					)
 		return result
 
 
@@ -62,7 +61,7 @@ class MysqlCheck(Check):
 		If no connection can be established, this is an error.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="No MySQL issues found.",
@@ -99,7 +98,7 @@ class UniqueHardwareAddressesCheck(Check):
 		Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="All hardware addresses are unique.",

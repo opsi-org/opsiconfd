@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.redis import decode_redis_result, redis_client
 
 MEMORY_USAGE_WARN = 300_000_000
@@ -32,23 +32,22 @@ class RedisMemoryUsageCheck(Check):
 		Checks whether the Redis memory usage is not too high.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="Redis memory usage is OK.",
 			check_status=CheckStatus.OK,
 		)
-		with exc_to_result(result):
-			redis = redis_client(timeout=5, test_connection=True)
-			info = decode_redis_result(redis.execute_command("INFO"))
-			if info["used_memory"] >= MEMORY_USAGE_ERR:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"Redis memory usage is too high: {info['used_memory_human']}"
-			elif info["used_memory"] >= MEMORY_USAGE_WARN:
-				result.check_status = CheckStatus.WARNING
-				result.message = f"Redis memory usage is high: {info['used_memory_human']}"
-			else:
-				result.message = f"Redis memory usage is OK: {info['used_memory_human']}"
+		redis = redis_client(timeout=5, test_connection=True)
+		info = decode_redis_result(redis.execute_command("INFO"))
+		if info["used_memory"] >= MEMORY_USAGE_ERR:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Redis memory usage is too high: {info['used_memory_human']}"
+		elif info["used_memory"] >= MEMORY_USAGE_WARN:
+			result.check_status = CheckStatus.WARNING
+			result.message = f"Redis memory usage is high: {info['used_memory_human']}"
+		else:
+			result.message = f"Redis memory usage is OK: {info['used_memory_human']}"
 		return result
 
 
@@ -64,20 +63,19 @@ class RedisTimeseriesCheck(Check):
 		Checks whether the RedisTimeSeries module is loaded.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="RedisTimeSeries not loaded.",
 			check_status=CheckStatus.ERROR,
 		)
-		with exc_to_result(result):
-			redis = redis_client(timeout=5, test_connection=True)
-			redis_info = decode_redis_result(redis.execute_command("INFO"))
-			for module in redis_info.get("modules", []):
-				if module["name"] == "timeseries":
-					result.message = f"RedisTimeSeries version {module['ver']!r} is loaded."
-					result.check_status = CheckStatus.OK
-					result.details = {"version": module["ver"]}
+		redis = redis_client(timeout=5, test_connection=True)
+		redis_info = decode_redis_result(redis.execute_command("INFO"))
+		for module in redis_info.get("modules", []):
+			if module["name"] == "timeseries":
+				result.message = f"RedisTimeSeries version {module['ver']!r} is loaded."
+				result.check_status = CheckStatus.OK
+				result.details = {"version": module["ver"]}
 		return result
 
 
@@ -97,7 +95,7 @@ class RedisCheck(Check):
 	message: str = "No Redis issues found."
 	depot_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="Cannot connect to Redis:",

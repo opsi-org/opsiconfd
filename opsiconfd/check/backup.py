@@ -31,7 +31,7 @@ class BackupCheck(Check):
 	"""
 	partial_check: bool = False
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="Backup is up to date.",

@@ -14,6 +14,7 @@ from __future__ import annotations
 import socket
 from copy import deepcopy
 from ipaddress import ip_address
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import urlparse
 
@@ -26,7 +27,7 @@ from opsicommon.objects import Host, OpsiClient, OpsiConfigserver, OpsiDepotserv
 from opsicommon.types import forceHostId, forceObjectClass, forceObjectClassList
 
 from opsiconfd import contextvar_client_session
-from opsiconfd.config import config
+from opsiconfd.config import LOG_DIR, config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
 from opsiconfd.metrics.statistics import setup_metric_downsampling
@@ -207,6 +208,15 @@ class RPCHostMixin(Protocol):
 			for table in self._mysql.tables:
 				if table.startswith("HARDWARE_CONFIG_"):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+
+		for host_id in host_ids:
+			for log_type in ("bootimage", "clientconnect", "instlog", "opsiconfd", "userlogin"):
+				try:
+					log_files = (Path(LOG_DIR) / log_type).glob(f"{host_id}.log*")
+					for log_file in log_files:
+						log_file.unlink()
+				except Exception as err:
+					logger.error("Failed to delete log %r files for host %r: %s", log_type, host_id, err)
 
 		if not self.events_enabled:
 			return

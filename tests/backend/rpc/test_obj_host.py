@@ -12,6 +12,7 @@ test opsiconfd.backend.mysql
 import json
 from pathlib import Path
 from typing import Generator
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -794,6 +795,7 @@ def test_host_getIdents(
 
 
 def test_host_deleteObjects(
+	tmp_path: Path,
 	acl_file: Path,
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
@@ -828,75 +830,99 @@ def test_host_deleteObjects(
 		"groupId": "test-backend-rpc-host-group-1",
 		"objectId": "test-backend-rpc-host-2.opsi.test",
 	}
+	with patch("opsiconfd.backend.rpc.obj_host.LOG_DIR", tmp_path):
+		# Create clients
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
 
-	# Create clients
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
+		# Create some log files
+		log_files = []
+		for log_type in ("bootimage", "clientconnect", "instlog", "opsiconfd", "userlogin"):
+			for client_id in (client1["id"], client2["id"]):
+				for num in range(0, 3):
+					log_file = tmp_path / log_type / f"{client_id}.log{'.' + str(num) if num else ''}"
+					log_file.parent.mkdir(parents=True, exist_ok=True)
+					log_file.write_text("...", encoding="utf-8")
+					log_files.append(log_file)
 
-	# Create group
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "group_createObjects", "params": [[group1]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
+		# Create group
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "group_createObjects", "params": [[group1]]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
 
-	# Create ObjectToGroup
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "objectToGroup_createObjects", "params": [[object_to_group1, object_to_group2]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
+		# Create ObjectToGroup
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "objectToGroup_createObjects", "params": [[object_to_group1, object_to_group2]]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
 
-	# Test client permissions
-	test_client.reset_cookies()
-	test_client.auth = (client1["id"], client1["opsiHostKey"])
+		# Test client permissions
+		test_client.reset_cookies()
+		test_client.auth = (client1["id"], client1["opsiHostKey"])
 
-	# Should only delete client1
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
-	res = test_client.post("/rpc", json=rpc).json()
+		# Should only delete client1
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
+		res = test_client.post("/rpc", json=rpc).json()
 
-	# Get client idents
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["list", {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	assert res["result"] == [[client2["id"]]]
+		# Get client idents
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["list", {"id": [client1["id"], client2["id"]]}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		assert res["result"] == [[client2["id"]]]
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client2["id"]}]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
+		for log_file in log_files:
+			if client1["id"] in log_file.name:
+				assert not log_file.exists()
+			else:
+				assert log_file.exists()
 
-	# Delete clients
-	test_client.reset_cookies()
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client2["id"]}]]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
-	res = test_client.post("/rpc", json=rpc).json()
+		# Delete clients
+		test_client.reset_cookies()
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	# Get client idents
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["list", {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	result = res["result"]
-	assert len(result) == 0
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
+		res = test_client.post("/rpc", json=rpc).json()
 
-	# Get ObjectToGroup idents
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "objectToGroup_getIdents", "params": ["dict", {"objectId": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	result = res["result"]
-	assert len(result) == 0
+		# Get client idents
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["list", {"id": [client1["id"], client2["id"]]}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		result = res["result"]
+		assert len(result) == 0
 
-	# Create clients
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
+		for log_file in log_files:
+			assert not log_file.exists()
 
-	# Delete client1
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_delete", "params": [client1["id"]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
+		# Get ObjectToGroup idents
+		rpc = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": "objectToGroup_getIdents",
+			"params": ["dict", {"objectId": [client1["id"], client2["id"]]}],
+		}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		result = res["result"]
+		assert len(result) == 0
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": client1["id"]}]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	assert res["result"] == []
+		# Create clients
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+
+		# Delete client1
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_delete", "params": [client1["id"]]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+
+		rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": client1["id"]}]}
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
+		assert res["result"] == []
 
 
 def test_host_createOpsiClient(

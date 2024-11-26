@@ -89,7 +89,7 @@ class RPCHostMixin(Protocol):
 			if res:
 				raise ValueError(f"Hardware address {host.hardwareAddress!r} is already used by host {res[0]!r}")
 
-	def _host_check_unique_system_uuid(self: BackendProtocol, host: Host) -> None:
+	def _host_check_unique_system_uuids(self: BackendProtocol, host: Host) -> None:
 		if not self._mysql.unique_system_uuids or not host.systemUUID:
 			return
 
@@ -113,7 +113,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_insertObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
-		self._host_check_unique_system_uuid(host)
+		self._host_check_unique_system_uuids(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
@@ -128,7 +128,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_updateObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
-		self._host_check_unique_system_uuid(host)
+		self._host_check_unique_system_uuids(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
@@ -156,7 +156,7 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
-				self._host_check_unique_system_uuid(host)
+				self._host_check_unique_system_uuids(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
 		if not self.events_enabled:
 			return
@@ -177,7 +177,7 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
-				self._host_check_unique_system_uuid(host)
+				self._host_check_unique_system_uuids(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
 		if not self.events_enabled:
 			return

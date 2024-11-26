@@ -284,7 +284,7 @@ def test_get_columns() -> None:
 				assert info.select is None
 
 
-def test_config_unique_hardware_addresses(backend: UnprotectedBackend) -> None:
+def test_config_unique_hardware_addresses(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend._mysql.unique_hardware_addresses = True
 
 	with pytest.raises(ValueError):
@@ -303,7 +303,7 @@ def test_config_unique_hardware_addresses(backend: UnprotectedBackend) -> None:
 	backend.host_delete(id="test-client2.opsi.org")
 
 
-def test_config_unique_system_uuids(backend: UnprotectedBackend) -> None:
+def test_config_unique_system_uuids(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend._mysql.unique_system_uuids = True
 
 	with pytest.raises(ValueError):

@@ -90,7 +90,7 @@ class RPCHostMixin(Protocol):
 				raise ValueError(f"Hardware address {host.hardwareAddress!r} is already used by host {res[0]!r}")
 
 	def _host_check_unique_system_uuid(self: BackendProtocol, host: Host) -> None:
-		if not self._mysql.unique_system_uuid or not host.systemUUID:
+		if not self._mysql.unique_system_uuids or not host.systemUUID:
 			return
 
 		with self._mysql.session() as session:

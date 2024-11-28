@@ -20,36 +20,26 @@ from json import JSONDecodeError, dumps, loads
 from pathlib import Path
 from time import sleep
 from types import NoneType
-from typing import (
-	TYPE_CHECKING,
-	Any,
-	Callable,
-	Generator,
-	Literal,
-	Type,
-	overload,
-)
+from typing import (TYPE_CHECKING, Any, Callable, Generator, Literal, Type,
+                    overload)
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
 from opsicommon.exceptions import BackendPermissionDeniedError
 from opsicommon.logging import secret_filter
 from opsicommon.logging.constants import TRACE
-from opsicommon.objects import (
-	OBJECT_CLASSES,
-	BaseObject,
-	BaseObjectT,
-	get_ident_attributes,
-	get_object_type,
-	get_possible_class_attributes,
-)
+from opsicommon.objects import (OBJECT_CLASSES, BaseObject, BaseObjectT,
+                                get_ident_attributes, get_object_type,
+                                get_possible_class_attributes)
 from opsicommon.utils import compare_versions
 from sqlalchemy import create_engine  # type: ignore[import]
 from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.result import Result  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import DatabaseError, OperationalError  # type: ignore[import]
-from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
+from sqlalchemy.exc import (DatabaseError,  # type: ignore[import]
+                            OperationalError)
+from sqlalchemy.orm import (Session, scoped_session,  # type: ignore[import]
+                            sessionmaker)
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.config import config
@@ -163,7 +153,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 13
+	schema_version = 14
 
 	def __init__(self) -> None:
 		self.address = "localhost"

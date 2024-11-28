@@ -20,14 +20,11 @@ from sqlalchemy.exc import OperationalError  # type: ignore[import]
 from opsiconfd.logging import logger
 
 from .cleanup import (
-	remove_orphans_config_value,
-	remove_orphans_hardware_config,
-	remove_orphans_license_on_client_to_host,
-	remove_orphans_license_on_client_to_software_license_to_license_pool,
-	remove_orphans_product_id_to_license_pool,
-	remove_orphans_product_on_depot,
-	remove_orphans_product_property_value,
-)
+    remove_orphans_config_value, remove_orphans_hardware_config,
+    remove_orphans_license_on_client_to_host,
+    remove_orphans_license_on_client_to_software_license_to_license_pool,
+    remove_orphans_product_id_to_license_pool, remove_orphans_product_on_depot,
+    remove_orphans_product_property_value)
 
 if TYPE_CHECKING:
 	from . import MySQLConnection, Session
@@ -396,9 +393,8 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 
 
 def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, dict[str, str | bool | None]]]) -> None:
-	from opsiconfd.backend.rpc.obj_audit_hardware import (
-		get_audit_hardware_database_config,
-	)
+	from opsiconfd.backend.rpc.obj_audit_hardware import \
+	    get_audit_hardware_database_config
 
 	existing_tables = set(tables.keys())
 
@@ -780,8 +776,6 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
-
-		remove_index(session=session, database=mysql.database, table="HOST", index="systemUUID")
 
 		session.execute(
 			"""ALTER TABLE `CONFIG`
@@ -1256,6 +1250,10 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			index="index_host_lastSeen",
 			columns=["lastSeen"],
 		)
+
+		# schema_version 14
+
+		remove_index(session=session, database=mysql.database, table="HOST", index="systemUUID")
 
 		logger.info("All updates completed")
 

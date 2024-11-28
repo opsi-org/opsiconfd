@@ -195,15 +195,24 @@ async def saml_callback_login(request: Request) -> Response:
 			g.lower()
 			for g in auth.get_attribute("Role") or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role") or []
 		]
-
 		logger.info("SAML SSO successful for user %s with roles %s", username, roles)
-		is_admin = (opsi_config.get("groups", "admingroup") or "").lower() in roles
 
+		mappings = {}
+		for mapping in config.saml_role_group_mappings:
+			tmp = mapping.rsplit("=", 1)
+			if len(tmp) == 1:
+				logger.error("Failed to parse saml role group mapping: %r", mapping)
+				continue
+			mappings[tmp[0].strip()] = tmp[1].strip()
+		groups = set(mappings.get(role, role) for role in roles)
+		logger.info("SAML roles mapped to groups %s", groups)
+
+		is_admin = (opsi_config.get("groups", "admingroup") or "").lower() in groups
 		if not is_admin:
 			raise RuntimeError(f"Not an admin user {username!r}")
 
 		session.username = username
-		session.user_groups = set(roles)
+		session.user_groups = groups
 		session.is_admin = is_admin
 		session.authenticated = True
 		session.auth_methods = {AuthenticationMethod.SAML}

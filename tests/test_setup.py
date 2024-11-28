@@ -17,8 +17,11 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 from opsicommon import objects
 
+from opsiconfd.auth.saml import setup_saml
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import SKIP_SETUP_ACTIONS
 from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_systemd
@@ -174,3 +177,36 @@ def test_rename_server() -> None:
 	with get_config({"rename_server": old_server_id}):
 		opsiconfd_setup(explicit=True)
 		assert backend.host_getIdents(type="OpsiConfigserver")[0] == old_server_id
+
+
+def test_setup_saml(tmp_path: Path) -> None:
+	config_file = tmp_path / "opsiconfd.conf"
+
+	conf_data = "saml-sp-client-signature = false\n"
+	config_file.write_text(conf_data, encoding="utf-8")
+	with get_config(["--config-file", str(config_file)]):
+		setup_saml()
+	assert config_file.read_text(encoding="utf-8") == conf_data
+
+	conf_data = "saml-sp-client-signature = true\n"
+	config_file.write_text(conf_data, encoding="utf-8")
+	with get_config(["--config-file", str(config_file)]):
+		setup_saml()
+
+	conf: dict[str, str] = {}
+	for line in config_file.read_text(encoding="utf-8").split("\n"):
+		line = line.strip()
+		if line:
+			key_val = line.split("=", 1)
+			conf[key_val[0].strip()] = key_val[1].strip()
+	assert len(conf) == 3
+	assert conf["saml-sp-client-signature"] == "true"
+	assert conf["saml-sp-private-key"]
+	assert conf["saml-sp-x509-cert"]
+	cert = x509.load_pem_x509_certificate(
+		("-----BEGIN CERTIFICATE-----\n" + conf["saml-sp-x509-cert"] + "\n-----END CERTIFICATE-----\n").encode("utf-8")
+	)
+	key = serialization.load_pem_private_key(
+		("-----BEGIN PRIVATE KEY-----\n" + conf["saml-sp-private-key"] + "\n-----END PRIVATE KEY-----\n").encode("utf-8"), password=None
+	)
+	assert cert.public_key() == key.public_key()

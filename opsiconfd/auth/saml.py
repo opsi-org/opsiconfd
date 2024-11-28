@@ -9,11 +9,17 @@
 opsiconfd.auth.saml
 """
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509 import CertificateBuilder
 from fastapi import Request
 
 from opsiconfd.config import config, get_configserver_id
+from opsiconfd.ssl import as_pem
 from opsiconfd.utils.modules import check_module
 
 
@@ -69,6 +75,10 @@ def get_saml_settings(
 			"url": f"{config.external_url}{logout_callback_path}",
 			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
+	if config.saml_sp_client_signature:
+		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
+		settings["sp"]["privateKey"] = config.saml_sp_private_key
+
 	return settings
 
 
@@ -90,3 +100,29 @@ async def saml_auth_request_data(request: Request) -> dict[str, Any]:
 	if "RelayState" in form_data:
 		params["post_data"]["RelayState"] = form_data["RelayState"]
 	return params
+
+
+def setup_saml() -> None:
+	if not config.saml_sp_client_signature or (config.saml_sp_x509_cert and config.saml_sp_private_key):
+		return
+
+	common_name = get_configserver_id()
+	subject = x509.Name(
+		[
+			x509.NameAttribute(x509.NameOID.COMMON_NAME, common_name),
+		]
+	)
+	key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
+	builder = CertificateBuilder(
+		issuer_name=subject,
+		subject_name=subject,
+		public_key=key.public_key(),
+		serial_number=x509.random_serial_number(),
+		not_valid_before=datetime.now(tz=timezone.utc),
+		not_valid_after=datetime.now(tz=timezone.utc) + timedelta(days=3000),
+	)
+	cert = builder.sign(key, hashes.SHA256())
+	key_pem = "".join(line.strip() for line in as_pem(key).split("\n") if not line.startswith("-----"))
+	cert_pem = "".join(line.strip() for line in as_pem(cert).split("\n") if not line.startswith("-----"))
+	config.set_config_in_config_file("saml-sp-private-key", key_pem)
+	config.set_config_in_config_file("saml-sp-x509-cert", cert_pem)

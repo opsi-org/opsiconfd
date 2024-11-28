@@ -1024,6 +1024,7 @@ def test_saml_login(
 				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
 				"saml-idp-x509-cert": "==",
 				"saml-idp-sso-url": saml_idp_sso_url,
+				"saml-role-group-mappings": [" view-profile=map-view-profile  ", " offline_access =  group_offline_access"],
 			}
 		),
 	):
@@ -1062,10 +1063,10 @@ def test_saml_login(
 					assert session_data
 					assert session_data["username"] == "adminuser"
 					assert session_data["user_groups"] == {
-						"view-profile",
+						"map-view-profile",
 						"uma_authorization",
 						"opsiadmin",
-						"offline_access",
+						"group_offline_access",
 					}
 					assert session_data["authenticated"] is True
 					assert session_data["is_admin"] is True

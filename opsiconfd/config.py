@@ -452,6 +452,8 @@ class Config(metaclass=Singleton):
 						self._config.auth_allowed_groups[idx] = groupname
 		else:
 			self._config.auth_allowed_groups = []
+		if not self._config.saml_role_group_mappings:
+			self._config.saml_role_group_mappings = []
 		if not self._config.client_cert_auth:
 			self._config.client_cert_auth = []
 		if not self._config.disabled_features:
@@ -1159,6 +1161,43 @@ class Config(metaclass=Singleton):
 				"URL target of the IdP where the Logout Request Message will be sent.\n"
 				"Example:\nhttps://keycloak.my.corp/realms/master/protocol/saml\n",
 			),
+		)
+		self._parser.add(
+			"--saml-sp-client-signature",
+			env_var="OPSICONFD_SAML_SP_CLIENT_SIGNATURE",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"opsiconfd",
+				"Enable SAML 2.0 client signatures.",
+			),
+		)
+		self._parser.add(
+			"--saml-sp-x509-cert",
+			env_var="OPSICONFD_SAML_SP_X509_CERT",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"Public X.509 certificate of the SAML Service Provider (SP) as Base64 encoded string.",
+			),
+		)
+		self._parser.add(
+			"--saml-sp-private-key",
+			env_var="OPSICONFD_SAML_SP_PRIVATE_KEY",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"Private key of the SAML Service Provider (SP) as Base64 encoded string.",
+			),
+		)
+		self._parser.add(
+			"--saml-role-group-mappings",
+			nargs="+",
+			env_var="OPSICONFD_SAML_ROLE_GROUP_MAPPINGS",
+			default=[],
+			help=self._help("expert", "Map SAML roles to opsi groups (<role> = <group>)."),
 		)
 		self._parser.add(
 			"--client-block-time",

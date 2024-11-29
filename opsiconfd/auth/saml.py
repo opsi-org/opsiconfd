@@ -19,8 +19,11 @@ from cryptography.x509 import CertificateBuilder
 from fastapi import Request
 
 from opsiconfd.config import config, get_configserver_id
+from opsiconfd.logging import get_logger
 from opsiconfd.ssl import as_pem
 from opsiconfd.utils.modules import check_module
+
+logger = get_logger("opsiconfd.saml")
 
 
 def check_if_saml_available() -> None:
@@ -110,6 +113,7 @@ def setup_saml() -> None:
 	if not config.saml_sp_client_signature or (config.saml_sp_x509_cert and config.saml_sp_private_key):
 		return
 
+	logger.notice("Setting up SAML SP client signature")
 	common_name = get_configserver_id()
 	subject = x509.Name(
 		[

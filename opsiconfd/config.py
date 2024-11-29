@@ -537,7 +537,7 @@ class Config(metaclass=Singleton):
 					if isinstance(value, list):
 						value = [action.type(v) for v in value]
 					else:
-						value = action.type(value)
+						value = action.type(value) if action.type else str(value)
 				except ValueError as err:
 					raise ValueError(f"Option {option!r}: {err}") from err
 				options[option] = value

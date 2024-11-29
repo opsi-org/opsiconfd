@@ -278,7 +278,8 @@ class Backend(
 					f"def {method_name}(self, {arg_string}):\n"
 					'	with server_timing("jsonrpc_forward"):\n'
 					f'		return self._service_client.jsonrpc(method="{method_name}", params=[{call_string}])\n',
-					locals=loc,
+					None,
+					loc,
 				)
 				func = loc[method_name]
 				setattr(func, "rpc_interface", self._interface[method_name])

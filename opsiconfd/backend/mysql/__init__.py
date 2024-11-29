@@ -33,13 +33,13 @@ from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.result import Result  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import (
-	DatabaseError,  # type: ignore[import]
+from sqlalchemy.exc import (  # type: ignore[import]
+	DatabaseError,
 	OperationalError,
 )
-from sqlalchemy.orm import (
+from sqlalchemy.orm import (  # type: ignore[import]
 	Session,
-	scoped_session,  # type: ignore[import]
+	scoped_session,
 	sessionmaker,
 )
 

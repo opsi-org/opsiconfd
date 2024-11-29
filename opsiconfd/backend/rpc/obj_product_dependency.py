@@ -17,7 +17,7 @@ import tempfile
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import msgspec
 from opsicommon.exceptions import OpsiError
@@ -229,8 +229,8 @@ class RPCProductDependencyMixin(Protocol):
 		ignore_unavailable_products: bool = True,
 		debug_log: str | None = None,
 	) -> dict[str, list[ProductActionGroup]]:
-		product_cache: dict[tuple[str, str, str], Product] = {}
-		product_on_depot_cache: dict[tuple[str, str], ProductOnDepot] = {}
+		product_cache: dict[tuple[str, str, str], Product | None] = {}
+		product_on_depot_cache: dict[tuple[str, str], ProductOnDepot | None] = {}
 		product_on_client_cache: dict[tuple[str, str], ProductOnClient] = {}
 		product_dependency_cache: dict[tuple[str, str, str], list[ProductDependency]] = {}
 		product_on_clients_by_client_id: dict[str, list[ProductOnClient]] = defaultdict(list)
@@ -273,11 +273,13 @@ class RPCProductDependencyMixin(Protocol):
 					productVersion=product_version,
 					packageVersion=package_version,
 				)
-				product_cache[pkey] = objs[0] if objs else None
-			if not product_cache[pkey]:
+				product_cache[pkey] = cast(Product, objs[0]) if objs else None
+
+			product = product_cache[pkey]
+			if not product:
 				raise OpsiProductNotAvailableError(f"Product {product_id!r} (version: {product_version}-{package_version}) not found")
 
-			return product_cache[pkey]
+			return product
 
 		def get_product_on_depot(
 			depot_id: str,
@@ -288,18 +290,19 @@ class RPCProductDependencyMixin(Protocol):
 			pkey = (depot_id, product_id)
 			if pkey not in product_on_depot_cache:
 				objs = self.productOnDepot_getObjects(productId=product_id, depotId=depot_id)
-				product_on_depot_cache[pkey] = objs[0] if objs else None
+				product_on_depot_cache[pkey] = cast(ProductOnDepot, objs[0]) if objs else None
 
+			product_on_depot = product_on_depot_cache[pkey]
 			if (
-				not product_on_depot_cache[pkey]
-				or (product_version and product_on_depot_cache[pkey].productVersion != product_version)
-				or (package_version and product_on_depot_cache[pkey].packageVersion != package_version)
+				not product_on_depot
+				or (product_version and product_on_depot.productVersion != product_version)
+				or (package_version and product_on_depot.packageVersion != package_version)
 			):
 				raise OpsiProductNotAvailableOnDepotError(
 					f"Product {product_id!r} (version: {product_version}-{package_version}) not found on depot {depot_id}"
 				)
 
-			return product_on_depot_cache[pkey]
+			return product_on_depot
 
 		def get_product_dependencies(product_id: str, product_version: str, package_version: str) -> list[ProductDependency]:
 			pkey = (product_id, product_version, package_version)

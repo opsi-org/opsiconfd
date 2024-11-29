@@ -85,16 +85,18 @@ def test_check_run_as_user() -> None:
 		return group
 
 	with mock.patch("opsiconfd.check.config.os.getgrouplist", mock.PropertyMock(return_value=(101, 102, 103))):
-		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
-			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
+		with (
+			mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
+			mock.patch("opsiconfd.check.config.grp.getgrnam", mock_getgrnam),
 		):
 			result = check_manager.get("run_as_user").run(clear_cache=True)
 
 			pprint.pprint(result)
 			assert result.check_status == CheckStatus.OK
 
-		with mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)), mock.patch(
-			"opsiconfd.check.config.grp.getgrnam", mock_getgrnam
+		with (
+			mock.patch("opsiconfd.check.config.pwd.getpwnam", mock.PropertyMock(return_value=mock_user)),
+			mock.patch("opsiconfd.check.config.grp.getgrnam", mock_getgrnam),
 		):
 			mock_user.pw_dir = "/wrong/home"
 			result = check_manager.get("run_as_user").run(clear_cache=True)

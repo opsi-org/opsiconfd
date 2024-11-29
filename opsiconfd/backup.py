@@ -23,11 +23,7 @@ from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, app
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.backend.mysql.schema import (
-	create_database,
-	drop_database,
-	update_database,
-)
+from opsiconfd.backend.mysql.schema import create_database, drop_database, update_database
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
 from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import (
@@ -71,6 +67,9 @@ OBJECT_CLASSES = (
 	"SoftwareLicenseToLicensePool",
 	"LicenseOnClient",
 )
+
+
+BACKUP_TIME_TOLERANCE = round((config.max_backup_age * 0.10 + 1) * 60 * 60)  # 10% + 1h tolerance
 
 
 @contextmanager
@@ -264,7 +263,9 @@ def create_backup(
 			progress.update(file_task, total=1, completed=True)
 
 		redis = redis_client()
-		redis.set(f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60 * 60, value=now.timestamp())
+		redis.set(
+			f"{config.redis_key('stats')}:backup", ex=int(config.max_backup_age) * 60 * 60 + BACKUP_TIME_TOLERANCE, value=now.timestamp()
+		)
 
 		return data
 

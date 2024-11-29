@@ -148,7 +148,7 @@ def test_websocket(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  #
 	log = log_file.read_text(encoding="utf-8")
 	request = json.loads(log)
 	assert request["method"] == "GET"
-	assert request["headers"]["Connection"] == "upgrade"
+	assert request["headers"]["connection"] == "upgrade"
 	assert request["headers"]["Sec-WebSocket-Key"]
 	assert request["headers"]["Upgrade"] == "websocket"
 	assert request["headers"]["x-forwarded-host"] == "testserver"

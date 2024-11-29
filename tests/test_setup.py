@@ -89,6 +89,7 @@ def mock_all() -> Generator[dict, None, None]:
 		patch("opsiconfd.setup.setup_samba") as mock_setup_samba,
 		patch("opsiconfd.setup.setup_dhcpd") as mock_setup_dhcpd,
 		patch("opsiconfd.setup.setup_sudoers") as mock_setup_sudoers,
+		patch("opsiconfd.setup.setup_saml") as mock_setup_saml,
 	):
 		yield {
 			"setup_limits": mock_setup_limits,
@@ -105,6 +106,7 @@ def mock_all() -> Generator[dict, None, None]:
 			"setup_samba": mock_setup_samba,
 			"setup_dhcpd": mock_setup_dhcpd,
 			"setup_sudoers": mock_setup_sudoers,
+			"setup_saml": mock_setup_saml,
 		}
 
 

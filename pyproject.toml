@@ -4,14 +4,13 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "opsiconfd"
-version = "4.3.26.1"
+version = "4.3.26.2"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
 maintainers = [ "uib GmbH <info@uib.de>",]
 authors = [ "uib GmbH <info@uib.de>",]
 include = [ "run-opsiconfd", "opsiconfd_data/**/*",]
-
 [[tool.poetry.source]]
 name = "uibpypi"
 url = "https://pypi.uib.gmbh/simple"
@@ -84,6 +83,10 @@ acme = "^3.0"
 [tool.ruff.format]
 indent-style = "tab"
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
 [tool.poetry.group.dev.dependencies]
 bandit = "^1.7"
 dill = "^0.3"
@@ -106,7 +109,3 @@ types-redis = "^4.1"
 types-requests = "^2.27"
 wrapt = "^1.14"
 pytest-subprocess = "^1.5"
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"

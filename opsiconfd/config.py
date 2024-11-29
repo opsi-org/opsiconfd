@@ -87,23 +87,23 @@ MANAGER_THREAD_POOL_WORKERS = 8
 REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS = 4
 REDIS_CONECTION_TIMEOUT = 30
 SKIP_SETUP_ACTIONS = [
-	"limits",
-	"users",
-	"groups",
-	"grafana",
 	"backend",
-	"redis",
-	"ssl",
-	"server_cert",
-	"opsi_ca",
-	"systemd",
-	"files",
+	"dhcpd",
 	"file_permissions",
+	"files",
+	"grafana",
+	"groups",
+	"limits",
 	"log_files",
 	"metric_downsampling",
+	"opsi_ca",
+	"redis",
 	"samba",
-	"dhcpd",
+	"saml" "server_cert",
+	"ssl",
 	"sudoers",
+	"systemd",
+	"users",
 ]
 
 try:
@@ -781,7 +781,7 @@ class Config(metaclass=Singleton):
 				"<logger-regex>:<level>[,<logger-regex-2>:<level-2>]\n"
 				"Available opsiconfd related logger are:\n"
 				"opsiconfd, opsiconfd.general, opsiconfd.session, opsiconfd.headers, "
-				"opsiconfd.reverse_proxy, opsiconfd.messagebus, opsiconfd.metrics\n"
+				"opsiconfd.reverse_proxy, opsiconfd.messagebus, opsiconfd.metrics, opsiconfd.saml\n"
 				r'Example: --log-levels=".*:4,opsiconfd\.headers:8"',
 			),
 		)

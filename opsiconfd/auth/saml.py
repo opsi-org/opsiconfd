@@ -47,6 +47,7 @@ def get_saml_settings(
 			# Prevent sending RequestedAuthnContext in AuthnRequest to avoid error AADSTS75011
 			# See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
 			"requestedAuthnContext": False,
+			"authnRequestsSigned": False,
 		},
 		# Identity Provider
 		"idp": {
@@ -76,6 +77,9 @@ def get_saml_settings(
 			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
 	if config.saml_sp_client_signature:
+		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:
+			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
+		settings["security"]["authnRequestsSigned"] = True
 		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
 		settings["sp"]["privateKey"] = config.saml_sp_private_key
 
@@ -124,5 +128,4 @@ def setup_saml() -> None:
 	cert = builder.sign(key, hashes.SHA256())
 	key_pem = "".join(line.strip() for line in as_pem(key).split("\n") if not line.startswith("-----"))
 	cert_pem = "".join(line.strip() for line in as_pem(cert).split("\n") if not line.startswith("-----"))
-	config.set_config_in_config_file("saml-sp-private-key", key_pem)
-	config.set_config_in_config_file("saml-sp-x509-cert", cert_pem)
+	config.update_config({"saml_sp_x509_cert": cert_pem, "saml_sp_private_key": key_pem}, on_change="reload")

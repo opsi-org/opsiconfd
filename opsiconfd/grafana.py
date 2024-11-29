@@ -397,8 +397,7 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		secret_filter.add_secrets(password)
 		grafana_internal_url = f"{url.scheme}://opsiconfd:{password}@{url.hostname}:{url.port}{url.path}"
 		config.grafana_internal_url = grafana_internal_url
-		config.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
-		config.reload()
+		config.update_config({"grafana_internal_url": grafana_internal_url}, on_change="reload")
 	finally:
 		con.close()
 

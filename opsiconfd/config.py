@@ -1198,7 +1198,7 @@ class Config(metaclass=Singleton):
 			nargs="+",
 			env_var="OPSICONFD_SAML_ROLE_GROUP_MAPPINGS",
 			default=[],
-			help=self._help("expert", "Map SAML roles to opsi groups (<role> = <group>)."),
+			help=self._help("opsiconfd", "Map SAML roles to opsi groups (<role> = <group>)."),
 		)
 		self._parser.add(
 			"--client-block-time",

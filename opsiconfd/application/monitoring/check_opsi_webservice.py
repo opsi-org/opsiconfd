@@ -9,7 +9,7 @@
 monitoring
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import msgspec
 from fastapi.responses import JSONResponse
@@ -56,7 +56,7 @@ async def check_opsi_webservice(
 					method="accessControl_authenticated",
 					info=RequestInfo(
 						duration=0.00235,
-						date=datetime.utcnow(),
+						date=datetime.now(tz=timezone.utc),
 						client="127.0.0.1/test-client",
 					),
 				),

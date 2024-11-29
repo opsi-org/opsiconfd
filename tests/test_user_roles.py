@@ -9,7 +9,7 @@
 test user roles
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Generator
 
 import pytest_asyncio
@@ -244,7 +244,7 @@ def test_read_configs_for_user(backend: UnprotectedBackend) -> None:  # noqa: F8
 
 	result = backend.config_createObjects(test_configs)
 	print(result)
-	now = datetime.utcnow()
+	now = datetime.now(tz=timezone.utc)
 	time = now.strftime("%Y-%m-%d %H:%M:%S")
 	user = User(name="admin")
 	user.read_configs()
@@ -331,7 +331,7 @@ def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # noqa: F8
 
 	result = backend.config_updateObjects(test_configs)
 	print(result)
-	now = datetime.utcnow()
+	now = datetime.now(tz=timezone.utc)
 	time = now.strftime("%Y-%m-%d %H:%M:%S")
 	role = Role(name="admin")
 	role.read_configs()

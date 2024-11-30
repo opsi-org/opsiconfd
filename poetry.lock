@@ -1452,13 +1452,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "hypothesis"
-version = "6.121.1"
+version = "6.122.0"
 description = "A library for property-based testing"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "hypothesis-6.121.1-py3-none-any.whl", hash = "sha256:41127b2fd3a8d50c4abd33854cec5a4634deecd861bd2186cb21e78b9e5bdf09"},
-    {file = "hypothesis-6.121.1.tar.gz", hash = "sha256:24b935d75485678814ad595790ed13c4d667aca82823e595cff04ab7ec58eaf1"},
+    {file = "hypothesis-6.122.0-py3-none-any.whl", hash = "sha256:523451a187cb0e861074bc560c2d27382b7872c28b57c6e14e98bb2152fe3a0e"},
+    {file = "hypothesis-6.122.0.tar.gz", hash = "sha256:8f1675a62f70e2821b347f550e6d3b5478ec25470b6e0281c974b57ab53f5dc7"},
 ]
 
 [package.dependencies]
@@ -1466,10 +1466,10 @@ attrs = ">=22.2.0"
 sortedcontainers = ">=2.1.0,<3.0.0"
 
 [package.extras]
-all = ["black (>=19.10b0)", "click (>=7.0)", "crosshair-tool (>=0.0.77)", "django (>=4.2)", "dpcontracts (>=0.4)", "hypothesis-crosshair (>=0.0.18)", "lark (>=0.10.1)", "libcst (>=0.3.16)", "numpy (>=1.19.3)", "pandas (>=1.1)", "pytest (>=4.6)", "python-dateutil (>=1.4)", "pytz (>=2014.1)", "redis (>=3.0.0)", "rich (>=9.0.0)", "tzdata (>=2024.2)"]
+all = ["black (>=19.10b0)", "click (>=7.0)", "crosshair-tool (>=0.0.78)", "django (>=4.2)", "dpcontracts (>=0.4)", "hypothesis-crosshair (>=0.0.18)", "lark (>=0.10.1)", "libcst (>=0.3.16)", "numpy (>=1.19.3)", "pandas (>=1.1)", "pytest (>=4.6)", "python-dateutil (>=1.4)", "pytz (>=2014.1)", "redis (>=3.0.0)", "rich (>=9.0.0)", "tzdata (>=2024.2)"]
 cli = ["black (>=19.10b0)", "click (>=7.0)", "rich (>=9.0.0)"]
 codemods = ["libcst (>=0.3.16)"]
-crosshair = ["crosshair-tool (>=0.0.77)", "hypothesis-crosshair (>=0.0.18)"]
+crosshair = ["crosshair-tool (>=0.0.78)", "hypothesis-crosshair (>=0.0.18)"]
 dateutil = ["python-dateutil (>=1.4)"]
 django = ["django (>=4.2)"]
 dpcontracts = ["dpcontracts (>=0.4)"]
@@ -5252,4 +5252,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.12"
-content-hash = "7b0b7dec227d704d4a76e2f0338611e1e954d0c0c9c8daf4f2347dc5349e5ca6"
+content-hash = "fd36e8ff304e18dba6e9c43aa12772ef66cd1ca22724e80a51c6dc4bffc53b92"

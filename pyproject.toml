@@ -77,7 +77,6 @@ websockets = "^14.1"
 werkzeug = "^3.0"
 wsgidav = "^4.3"
 wsproto = "^1.2"
-yappi = "^1.4"
 acme = "^3.0"
 
 [tool.ruff.format]
@@ -86,6 +85,10 @@ indent-style = "tab"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.poetry.dependencies.yappi]
+platform = "amd64"
+version = ">=1.4"
 
 [tool.poetry.group.dev.dependencies]
 bandit = "^1.7"

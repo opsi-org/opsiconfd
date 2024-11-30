@@ -212,6 +212,7 @@ async def saml_callback_login(request: Request) -> Response:
 				saml_logger.error("Failed to parse saml role group mapping: %r", mapping)
 				continue
 			mappings[tmp[0].strip().lower()] = tmp[1].strip().lower()
+		saml_logger.debug("SAML role group mappings %s", mappings)
 		groups = set(mappings.get(role, role) for role in roles)
 		saml_logger.info("SAML roles mapped to groups %s", groups)
 

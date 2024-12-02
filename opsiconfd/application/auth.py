@@ -19,9 +19,6 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import]
 from opsicommon.logging.constants import TRACE
 from opsicommon.utils import unix_timestamp
-from pydantic import BaseModel
-from starlette.concurrency import run_in_threadpool
-
 from opsiconfd.auth import AuthenticationMethod
 from opsiconfd.auth.saml import get_saml_settings, saml_auth_request_data
 from opsiconfd.config import config, opsi_config
@@ -37,6 +34,8 @@ from opsiconfd.session import (
 	post_user_authenticate,
 	pre_authenticate,
 )
+from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 logger = get_logger()
 saml_logger = get_logger()
@@ -201,7 +200,10 @@ async def saml_callback_login(request: Request) -> Response:
 
 		roles = [
 			g.lower()
-			for g in auth.get_attribute("Role") or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role") or []
+			for g in auth.get_attribute("Role")
+			or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+			or auth.get_attribute("groupMembership")
+			or []
 		]
 		saml_logger.info("SAML SSO successful for user %s with roles %s", username, roles)
 

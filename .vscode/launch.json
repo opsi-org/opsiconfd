@@ -3,7 +3,7 @@
 	"configurations": [
 		{
 			"name": "opsiconfd default",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
@@ -18,7 +18,7 @@
 		},
 		{
 			"name": "opsiconfd",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
@@ -31,7 +31,7 @@
 		},
 		{
 			"name": "opsiconfd test",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
@@ -47,7 +47,7 @@
 		},
 		{
 			"name": "opsiconfd jemalloc",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
@@ -62,7 +62,7 @@
 		},
 		{
 			"name": "opsiconfd setup",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
@@ -78,7 +78,7 @@
 		},
 		{
 			"name": "opsiconfd health-check",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
@@ -92,7 +92,7 @@
 		},
 		{
 			"name": "health-check docs",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
@@ -104,7 +104,7 @@
 		},
 		{
 			"name": "Debug Unit Test",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"justMyCode": false,
 			"program": "${file}",
@@ -118,7 +118,7 @@
 		},
 		{
 			"name": "Python: Attach",
-			"type": "python",
+			"type": "debugpy",
 			"request": "attach",
 			"connect": {
 				"host": "localhost",

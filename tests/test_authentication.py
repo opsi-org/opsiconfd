@@ -921,6 +921,18 @@ def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout:
 		assert authenticated_result is True
 
 
+def test_saml_xmlsec() -> None:
+	# Assert that xmlsec is not producing segmentation fault
+	# https://github.com/SAML-Toolkits/python3-saml/issues/389
+	import xmlsec
+	from lxml.etree import Element
+
+	for _ in range(25):
+		elem = Element("root")
+		elem.attrib["ID"] = "ID"
+		xmlsec.tree.add_ids(elem, ["ID"])
+
+
 @pytest.mark.parametrize(
 	"expiration_seconds, redirect, expected_status_code, expected_text",
 	(

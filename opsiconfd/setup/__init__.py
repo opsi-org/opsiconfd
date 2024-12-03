@@ -43,6 +43,7 @@ from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, se
 from opsiconfd.ssl import fetch_server_cert, setup_ssl, store_local_server_cert, store_local_server_key
 from opsiconfd.utils import opsiconfd_running, restart_opsiconfd
 from opsiconfd.utils.user import user_set_credentials
+from opsiconfd.auth.saml import setup_saml
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -354,6 +355,12 @@ def setup(explicit: bool = True) -> None:
 			setup_sudoers()
 		except Exception as err:
 			logger.error("Failed to setup sudoers: %s", err, exc_info=True)
+
+	if "saml" not in config.skip_setup:
+		try:
+			setup_saml()
+		except Exception as err:
+			logger.error("Failed to setup saml: %s", err, exc_info=True)
 
 	if explicit and (register_depot or rename_server):
 		restart_opsiconfd_if_running()

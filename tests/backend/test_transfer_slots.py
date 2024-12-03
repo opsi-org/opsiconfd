@@ -292,7 +292,7 @@ def test_release_transfer_slot_with_slot_id(
 	rpc = {"id": 1, "method": "depot_acquireTransferSlot", "params": ["depot1.uib.test", "client1.uib.test", TEST_SLOT_ID]}
 	res = test_client.post("/rpc", json=rpc)
 	result = res.json()
-	print(result)
+
 	# Assert the result
 	assert result["result"].get("slot_id") == TEST_SLOT_ID
 	assert result["result"].get("depot_id") == "depot1.uib.test"
@@ -301,11 +301,10 @@ def test_release_transfer_slot_with_slot_id(
 
 	redis = redis_client()
 	redis_res = decode_redis_result(redis.keys())
-	print(redis_res)
 	redis_res = decode_redis_result(
 		redis.get(f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}")
 	)
-	print(redis_res)
+
 	assert redis_res == "client1.uib.test"
 	redis_res = decode_redis_result(
 		redis.ttl(f"{config.redis_key('slot')}:depot1.uib.test:{TransferSlotType.OPSICLIENTD_PRODUCT_SYNC}:client1.uib.test:{TEST_SLOT_ID}")
@@ -319,7 +318,6 @@ def test_release_transfer_slot_with_slot_id(
 	assert result["error"] is None
 
 	redis_res = decode_redis_result(redis.get(f"{config.redis_key('slot')}:depot1.uib.test:client1.uib.test:{TEST_SLOT_ID}"))
-	print(redis_res)
 	assert redis_res is None
 
 

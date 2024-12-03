@@ -27,7 +27,7 @@ from opsicommon.logging.constants import (
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.auth import read_acl_file
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import OPSICONFD_HOME, config, opsi_config
 from opsiconfd.logging import logger
 
@@ -43,17 +43,16 @@ Checks the home directory of the system user running opsiconfd.
 """
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK)
-		with exc_to_result(result):
-			user = pwd.getpwnam(config.run_as_user)
-			self.name = f"Home directory of user '{config.run_as_user}'"
-			result.message = f"Home directory of user '{config.run_as_user}' is {user.pw_dir}"
-			result.details = {"user": config.run_as_user, "home_directory": user.pw_dir}
-			if Path(user.pw_dir).resolve() != Path(OPSICONFD_HOME).resolve():
-				result.check_status = CheckStatus.WARNING
+		user = pwd.getpwnam(config.run_as_user)
+		self.name = f"Home directory of user '{config.run_as_user}'"
+		result.message = f"Home directory of user '{config.run_as_user}' is {user.pw_dir}"
+		result.details = {"user": config.run_as_user, "home_directory": user.pw_dir}
+		if Path(user.pw_dir).resolve() != Path(OPSICONFD_HOME).resolve():
+			result.check_status = CheckStatus.WARNING
 
-			return result
+		return result
 
 
 @dataclass()
@@ -73,30 +72,29 @@ Checks the group membership of the system user running opsiconfd.
 		self.id = f"{self.id}:{self.group}"
 		self.name = f"Group membership of user '{config.run_as_user}' in group '{self.group}'"
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK)
-		with exc_to_result(result):
-			user = pwd.getpwnam(config.run_as_user)
-			gids = os.getgrouplist(user.pw_name, user.pw_gid)
+		user = pwd.getpwnam(config.run_as_user)
+		gids = os.getgrouplist(user.pw_name, user.pw_gid)
 
-			result.details = {"user": config.run_as_user, "group": self.group, "primary": False}
-			result.message = f"User '{config.run_as_user}' is a member of group '{self.group}'"
+		result.details = {"user": config.run_as_user, "group": self.group, "primary": False}
+		result.message = f"User '{config.run_as_user}' is a member of group '{self.group}'"
 
-			try:
-				group = grp.getgrnam(self.group)
-				result.details["primary"] = group.gr_gid == user.pw_gid
-				if result.details["primary"]:
-					result.message += " (primary)"
-				if group.gr_gid not in gids:
-					result.check_status = CheckStatus.ERROR
-					result.message = f"User '{config.run_as_user}' is not a member of group '{self.group}'."
-				elif self.group == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
-					result.check_status = CheckStatus.WARNING
-					result.message = f"Group '{self.group}' is not the primary group of user '{config.run_as_user}'."
-			except KeyError:
-				logger.debug("Group not found: %s", self.group)
+		try:
+			group = grp.getgrnam(self.group)
+			result.details["primary"] = group.gr_gid == user.pw_gid
+			if result.details["primary"]:
+				result.message += " (primary)"
+			if group.gr_gid not in gids:
 				result.check_status = CheckStatus.ERROR
-				result.message = f"Group '{self.group}' not found."
+				result.message = f"User '{config.run_as_user}' is not a member of group '{self.group}'."
+			elif self.group == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Group '{self.group}' is not the primary group of user '{config.run_as_user}'."
+		except KeyError:
+			logger.debug("Group not found: %s", self.group)
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Group '{self.group}' not found."
 		return result
 
 
@@ -112,7 +110,7 @@ class RunAsUserCheck(Check):
 	"""
 	depot_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
@@ -137,20 +135,19 @@ class LogLevelCheck(Check):
 		self.id = f"opsiconfd_config:{self.attribute}"
 		self.name = f"Config {self.attribute}"
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK, message="Log level is suitable for productive use.")
-		with exc_to_result(result):
-			value = getattr(config, self.attribute.replace("-", "_"))
-			level_name = LEVEL_TO_NAME[OPSI_LEVEL_TO_LEVEL[value]]
-			result.message = f"Log level setting '{self.attribute}={level_name}' is suitable for productive use."
-			result.details = {"config": self.attribute, "value": value}
+		value = getattr(config, self.attribute.replace("-", "_"))
+		level_name = LEVEL_TO_NAME[OPSI_LEVEL_TO_LEVEL[value]]
+		result.message = f"Log level setting '{self.attribute}={level_name}' is suitable for productive use."
+		result.details = {"config": self.attribute, "value": value}
 
-			if value >= LOG_TRACE:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"Log level setting '{self.attribute}={level_name}' is much to high for productive use."
-			elif value >= LOG_DEBUG:
-				result.check_status = CheckStatus.WARNING
-				result.message = f"Log level setting '{self.attribute}={level_name}' is to high for productive use."
+		if value >= LOG_TRACE:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Log level setting '{self.attribute}={level_name}' is much to high for productive use."
+		elif value >= LOG_DEBUG:
+			result.check_status = CheckStatus.WARNING
+			result.message = f"Log level setting '{self.attribute}={level_name}' is to high for productive use."
 		return result
 
 
@@ -161,17 +158,16 @@ class DebugOptionsCheck(Check):
 	description: str = "Check debug options of opsiconfd"
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
 			message="No debug options are set.",
 			details={"config": "debug-options", "value": config.debug_options},
 		)
-		with exc_to_result(result):
-			if config.debug_options:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"The following debug options are set: {', '.join(config.debug_options)}."
+		if config.debug_options:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"The following debug options are set: {', '.join(config.debug_options)}."
 		return result
 
 
@@ -182,12 +178,11 @@ class ProfilerCheck(Check):
 	description: str = "Check profiler of opsiconfd"
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK, message="Profiler is not enabled.")
-		with exc_to_result(result):
-			if config.profiler:
-				result.check_status = CheckStatus.ERROR
-				result.message = "Profiler is enabled."
+		if config.profiler:
+			result.check_status = CheckStatus.ERROR
+			result.message = "Profiler is enabled."
 		return result
 
 
@@ -198,17 +193,16 @@ class AclSelfForAllCheck(Check):
 	description: str = "Check ACL self for all in opsiconfd"
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK, message="'self' is not allowed for '.*'.")
-		with exc_to_result(result):
-			fallback_acl = re.compile(".*")
-			for acl in read_acl_file(config.acl_file):
-				if not acl.method_re == fallback_acl:
-					continue
-				if acl.type == "self":
-					result.check_status = CheckStatus.ERROR
-					result.message = "'self' is allowed for '.*'."
-					break
+		fallback_acl = re.compile(".*")
+		for acl in read_acl_file(config.acl_file):
+			if not acl.method_re == fallback_acl:
+				continue
+			if acl.type == "self":
+				result.check_status = CheckStatus.ERROR
+				result.message = "'self' is allowed for '.*'."
+				break
 		return result
 
 
@@ -219,7 +213,7 @@ class OpsiconfdConfigRunAsUser(Check):
 	description: str = "Check system user running opsiconfd"
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
@@ -255,7 +249,7 @@ class OpsiconfdConfigCheck(Check):
 			* Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
@@ -280,26 +274,25 @@ class OpsiConfigValueCheck(Check):
 		self.id = f"opsi_config:{self.key}"
 		self.name = f"Config {self.key}"
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK)
-		with exc_to_result(result):
-			backend = get_unprotected_backend()
-			conf = backend.config_getObjects(id=key)
-			try:
-				if conf[0].defaultValues == self.default_value:
-					result.check_status = CheckStatus.OK
-					result.message = f"Configuration {key} is set to default."
-				else:
-					result.check_status = CheckStatus.WARNING
-					result.message = f"Configuration {key} is set to {conf[0].defaultValues} - default is {self.default_value}."
-					result.upgrade_issue = self.upgrade_issue
+		backend = get_unprotected_backend()
+		conf = backend.config_getObjects(id=key)
+		try:
+			if conf[0].defaultValues == self.default_value:
+				result.check_status = CheckStatus.OK
+				result.message = f"Configuration {key} is set to default."
+			else:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Configuration {key} is set to {conf[0].defaultValues} - default is {self.default_value}."
+				result.upgrade_issue = self.upgrade_issue
 
-				result.details["value"] = conf[0].defaultValues
-			except IndexError:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"Configuration {key} does not exist."
-				result.details["value"] = None
-				result.upgrade_issue = check_data["upgrade_issue"]
+			result.details["value"] = conf[0].defaultValues
+		except IndexError:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Configuration {key} does not exist."
+			result.details["value"] = None
+			result.upgrade_issue = check_data["upgrade_issue"]
 
 		return result
 
@@ -319,7 +312,7 @@ class OpsiConfigCheck(Check):
 		* `opsiclientd.global.verify_server_cert` must be activated.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,

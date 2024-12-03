@@ -379,7 +379,7 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		secret_filter.add_secrets(password)
 
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
-		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+		now = datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(
 			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) "
 			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -397,8 +397,7 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		secret_filter.add_secrets(password)
 		grafana_internal_url = f"{url.scheme}://opsiconfd:{password}@{url.hostname}:{url.port}{url.path}"
 		config.grafana_internal_url = grafana_internal_url
-		config.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
-		config.reload()
+		config.update_config({"grafana_internal_url": grafana_internal_url}, on_change="reload")
 	finally:
 		con.close()
 

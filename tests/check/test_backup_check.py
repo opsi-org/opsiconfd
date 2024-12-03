@@ -51,6 +51,11 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert result.check_status == CheckStatus.OK
 
 	redis = redis_client()
+	# set expiration time to 120 seconds so check status should be warning
+	redis.expire(config.redis_key("stats") + ":backup", 120)
+	result = check_manager.get("opsi_backup").run(clear_cache=True)
+	assert result.check_status == CheckStatus.WARNING
+
 	# remove backup key so check should fail again
 	redis.delete(config.redis_key("stats") + ":backup")
 

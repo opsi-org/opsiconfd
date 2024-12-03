@@ -23,7 +23,7 @@ class DepotPathCheck(Check):
 	depot: str = ""
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="The configured depot corresponds to the default.",
@@ -52,7 +52,7 @@ class WorkbenchPathCheck(Check):
 	depot: str = ""
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="The configured workbench corresponds to the default.",
@@ -81,7 +81,7 @@ class RepositoryPathCheck(Check):
 	depot: str = ""
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="The configured repository corresponds to the default.",
@@ -119,7 +119,7 @@ class DepotserverCheck(Check):
 	partial_check: bool = False
 	depot = ""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="No problems found with the depot servers.",

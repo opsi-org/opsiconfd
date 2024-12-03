@@ -87,23 +87,24 @@ MANAGER_THREAD_POOL_WORKERS = 8
 REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS = 4
 REDIS_CONECTION_TIMEOUT = 30
 SKIP_SETUP_ACTIONS = [
-	"limits",
-	"users",
-	"groups",
-	"grafana",
 	"backend",
-	"redis",
-	"ssl",
-	"server_cert",
-	"opsi_ca",
-	"systemd",
-	"files",
+	"dhcpd",
 	"file_permissions",
+	"files",
+	"grafana",
+	"groups",
+	"limits",
 	"log_files",
 	"metric_downsampling",
+	"opsi_ca",
+	"redis",
 	"samba",
-	"dhcpd",
+	"saml",
+	"server_cert",
+	"ssl",
 	"sudoers",
+	"systemd",
+	"users",
 ]
 
 try:
@@ -401,7 +402,9 @@ class Config(metaclass=Singleton):
 		else:
 			self._config.ssl_ca_permitted_domains = []
 
-		secret_filter.add_secrets(self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase)
+		secret_filter.add_secrets(
+			self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase, self._config.saml_sp_private_key
+		)
 
 		try:
 			if self._config.password:
@@ -443,6 +446,7 @@ class Config(metaclass=Singleton):
 				self._config.skip_setup.append("server_cert")
 		if not self._config.ssl_server_cert_sans:
 			self._config.ssl_server_cert_sans = []
+
 		if self._config.auth_allowed_groups:
 			for idx in range(len(self._config.auth_allowed_groups)):
 				if self._config.auth_allowed_groups[idx].startswith("{") and self._config.auth_allowed_groups[idx].endswith("}"):
@@ -451,6 +455,8 @@ class Config(metaclass=Singleton):
 						self._config.auth_allowed_groups[idx] = groupname
 		else:
 			self._config.auth_allowed_groups = []
+		if not self._config.saml_role_group_mappings:
+			self._config.saml_role_group_mappings = []
 		if not self._config.client_cert_auth:
 			self._config.client_cert_auth = []
 		if not self._config.disabled_features:
@@ -534,7 +540,7 @@ class Config(metaclass=Singleton):
 					if isinstance(value, list):
 						value = [action.type(v) for v in value]
 					else:
-						value = action.type(value)
+						value = action.type(value) if action.type else str(value)
 				except ValueError as err:
 					raise ValueError(f"Option {option!r}: {err}") from err
 				options[option] = value
@@ -778,7 +784,7 @@ class Config(metaclass=Singleton):
 				"<logger-regex>:<level>[,<logger-regex-2>:<level-2>]\n"
 				"Available opsiconfd related logger are:\n"
 				"opsiconfd, opsiconfd.general, opsiconfd.session, opsiconfd.headers, "
-				"opsiconfd.reverse_proxy, opsiconfd.messagebus, opsiconfd.metrics\n"
+				"opsiconfd.reverse_proxy, opsiconfd.messagebus, opsiconfd.metrics, opsiconfd.saml\n"
 				r'Example: --log-levels=".*:4,opsiconfd\.headers:8"',
 			),
 		)
@@ -978,14 +984,14 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-server-cert-type",
 			env_var="OPSICONFD_SSL_SERVER_CERT_TYPE",
-			choices=("opsi-ca", "letsencrypt", "unmanaged"),
+			choices=("opsi-ca", "letsencrypt", "custom-ca"),
 			default="opsi-ca",
 			help=self._help(
 				"expert",
 				"The type of the server certificate.\n"
 				"opsi-ca: Automatically managed and signed by the opsi CA\n"
 				"letsencrypt: Automatically managed Let's Encrypt certificate\n"
-				"unmanaged: Manually use a custom certificate.",
+				"custom-ca: Use custom certificates.",
 			),
 		)
 		self._parser.add(
@@ -1158,6 +1164,43 @@ class Config(metaclass=Singleton):
 				"URL target of the IdP where the Logout Request Message will be sent.\n"
 				"Example:\nhttps://keycloak.my.corp/realms/master/protocol/saml\n",
 			),
+		)
+		self._parser.add(
+			"--saml-sp-client-signature",
+			env_var="OPSICONFD_SAML_SP_CLIENT_SIGNATURE",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"opsiconfd",
+				"Enable SAML 2.0 client signatures.",
+			),
+		)
+		self._parser.add(
+			"--saml-sp-x509-cert",
+			env_var="OPSICONFD_SAML_SP_X509_CERT",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"Public X.509 certificate of the SAML Service Provider (SP) as Base64 encoded string.",
+			),
+		)
+		self._parser.add(
+			"--saml-sp-private-key",
+			env_var="OPSICONFD_SAML_SP_PRIVATE_KEY",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"Private key of the SAML Service Provider (SP) as Base64 encoded string.",
+			),
+		)
+		self._parser.add(
+			"--saml-role-group-mappings",
+			nargs="+",
+			env_var="OPSICONFD_SAML_ROLE_GROUP_MAPPINGS",
+			default=[],
+			help=self._help("opsiconfd", "Map SAML roles to opsi groups (<role> = <group>)."),
 		)
 		self._parser.add(
 			"--client-block-time",

@@ -37,9 +37,9 @@ class RPCLicensePoolMixin(Protocol):
 	) -> None:
 		query, data = self._mysql.insert_query(table="LICENSE_POOL", obj=license_pool, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:
-			with self._mysql.table_lock(
-				session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}
-			) if lock else nullcontext():
+			with (
+				self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}) if lock else nullcontext()
+			):
 				session.execute(
 					"DELETE FROM `PRODUCT_ID_TO_LICENSE_POOL` WHERE licensePoolId = :id",
 					params=data,

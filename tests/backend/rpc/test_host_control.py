@@ -75,8 +75,9 @@ async def test_hostControl_processActionRequests(
 	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2, product_on_depot3])
 	backend.productOnClient_createObjects([product_on_client1])
 
-	with mock.patch("opsiconfd.backend.rpc.host_control.RPCHostControlMixin._host_control_use_messagebus", True), mock.patch(
-		"opsiconfd.backend.rpc.host_control.RPCHostControlMixin._messagebus_rpc", mock_messagebus_rpc
+	with (
+		mock.patch("opsiconfd.backend.rpc.host_control.RPCHostControlMixin._host_control_use_messagebus", True),
+		mock.patch("opsiconfd.backend.rpc.host_control.RPCHostControlMixin._messagebus_rpc", mock_messagebus_rpc),
 	):
 		# Dependent product must be added
 		await backend.hostControl_processActionRequests(hostIds=[client_id], productIds=["prod1"])

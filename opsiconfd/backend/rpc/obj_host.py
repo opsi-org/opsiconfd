@@ -14,6 +14,7 @@ from __future__ import annotations
 import socket
 from copy import deepcopy
 from ipaddress import ip_address
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import urlparse
 
@@ -26,7 +27,7 @@ from opsicommon.objects import Host, OpsiClient, OpsiConfigserver, OpsiDepotserv
 from opsicommon.types import forceHostId, forceObjectClass, forceObjectClassList
 
 from opsiconfd import contextvar_client_session
-from opsiconfd.config import config
+from opsiconfd.config import LOG_DIR, config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
 from opsiconfd.metrics.statistics import setup_metric_downsampling
@@ -89,6 +90,22 @@ class RPCHostMixin(Protocol):
 			if res:
 				raise ValueError(f"Hardware address {host.hardwareAddress!r} is already used by host {res[0]!r}")
 
+	def _host_check_unique_system_uuids(self: BackendProtocol, host: Host) -> None:
+		if not self._mysql.unique_system_uuids or not host.systemUUID:
+			return
+
+		with self._mysql.session() as session:
+			res = session.execute(
+				"""
+				SELECT hostId FROM `HOST`
+				WHERE hostId != :hostId AND systemUUID = :systemUUID
+				LIMIT 1
+				""",
+				params={"hostId": host.id, "systemUUID": host.systemUUID},
+			).fetchone()
+			if res:
+				raise ValueError(f"System UUID {host.systemUUID!r} is already used by host {res[0]!r}")
+
 	def host_bulkInsertObjects(self: BackendProtocol, hosts: list[dict] | list[Host]) -> None:
 		self._mysql.bulk_insert_objects(table="HOST", objs=hosts)  # type: ignore[arg-type]
 
@@ -97,6 +114,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_insertObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
+		self._host_check_unique_system_uuids(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
@@ -111,6 +129,7 @@ class RPCHostMixin(Protocol):
 		ace = self._get_ace("host_updateObject")
 		host = forceObjectClass(host, Host)
 		self._host_check_duplicate_hardware_address(host)
+		self._host_check_unique_system_uuids(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
@@ -138,6 +157,7 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
+				self._host_check_unique_system_uuids(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
 		if not self.events_enabled:
 			return
@@ -158,6 +178,7 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
+				self._host_check_unique_system_uuids(host)
 				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
 		if not self.events_enabled:
 			return
@@ -207,6 +228,15 @@ class RPCHostMixin(Protocol):
 			for table in self._mysql.tables:
 				if table.startswith("HARDWARE_CONFIG_"):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+
+		for host_id in host_ids:
+			for log_type in ("bootimage", "clientconnect", "instlog", "opsiconfd", "userlogin"):
+				try:
+					log_files = (Path(LOG_DIR) / log_type).glob(f"{host_id}.log*")
+					for log_file in log_files:
+						log_file.unlink()
+				except Exception as err:
+					logger.error("Failed to delete log %r files for host %r: %s", log_type, host_id, err)
 
 		if not self.events_enabled:
 			return
@@ -558,9 +588,10 @@ class RPCHostMixin(Protocol):
 			return new_value
 
 		old_depot = deepcopy(depot)
-		if old_depot.hardwareAddress:
-			# Hardware address needs to be unique
+		if old_depot.hardwareAddress or old_depot.systemUUID:
+			# Hardware address and systemUUID needs to be unique
 			old_depot.hardwareAddress = None
+			old_depot.systemUUID = None
 			self.host_createObjects([old_depot])
 
 		logger.info("Updating depot and it's urls...")

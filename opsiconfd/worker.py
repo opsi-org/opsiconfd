@@ -330,7 +330,7 @@ class Worker(WorkerInfo, UvicornServer):
 		loop = asyncio.get_running_loop()
 		loop.set_debug("asyncio" in config.debug_options)
 		if not isinstance(loop, uvloop.Loop):
-			logger.error("uvloop is not used")
+			raise RuntimeError("uvloop is not used")
 
 		# Default for CapacityLimiter is 40
 		RunVar("_default_thread_limiter").set(CapacityLimiter(config.executor_workers))  # type: ignore[arg-type]

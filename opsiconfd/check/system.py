@@ -29,7 +29,7 @@ from requests.exceptions import ConnectTimeout
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.logging import logger
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_12/"
@@ -240,47 +240,44 @@ class SystemEOLCheck(Check):
 		limiting it's support on the product and/or version to shift focus on their newer products and/or version.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
 			message="All systems are up to date.",
 		)
-		with exc_to_result(result):
-			if is_ucs():
-				distro = "UCS"
-				version = subprocess.check_output(["ucr", "get", "version/version"], encoding="utf-8", timeout=10).strip()
-				version = (
-					version + "-" + subprocess.check_output(["ucr", "get", "version/patchlevel"], encoding="utf-8", timeout=10).strip()
-				)
-			else:
-				distro = linux_distro_id()
-				version = linux_distro_version_id()
-			if distro in ("rocky", "ol"):
-				version = version.split(".")[0]
-			if version_info := LINUX_DISTRO_EOL.get(distro):
-				if eol := version_info.get(version):
-					today = date.today()
-					diff = (today - eol).days
-					if diff < -90:
-						result.check_status = CheckStatus.OK
-						result.message = f"Version {version} of distribution {distro} is supported until {eol}."
-					elif 0 >= diff >= -90:
-						result.check_status = CheckStatus.WARNING
-						result.message = f"Version {version} of distribution {distro} is supported until {eol}."
-					else:
-						result.check_status = CheckStatus.ERROR
-						result.message = f"Support of version {version} of distribution {distro} ended on {eol}."
-						result.upgrade_issue = __version__
+		if is_ucs():
+			distro = "UCS"
+			version = subprocess.check_output(["ucr", "get", "version/version"], encoding="utf-8", timeout=10).strip()
+			version = version + "-" + subprocess.check_output(["ucr", "get", "version/patchlevel"], encoding="utf-8", timeout=10).strip()
+		else:
+			distro = linux_distro_id()
+			version = linux_distro_version_id()
+		if distro in ("rocky", "ol"):
+			version = version.split(".")[0]
+		if version_info := LINUX_DISTRO_EOL.get(distro):
+			if eol := version_info.get(version):
+				today = date.today()
+				diff = (today - eol).days
+				if diff < -90:
+					result.check_status = CheckStatus.OK
+					result.message = f"Version {version} of distribution {distro} is supported until {eol}."
+				elif 0 >= diff >= -90:
+					result.check_status = CheckStatus.WARNING
+					result.message = f"Version {version} of distribution {distro} is supported until {eol}."
 				else:
 					result.check_status = CheckStatus.ERROR
-					result.message = f"Version {version} of distribution {distro} is not supported."
+					result.message = f"Support of version {version} of distribution {distro} ended on {eol}."
 					result.upgrade_issue = __version__
-
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = f"Linux distribution {distro} is not supported."
+				result.message = f"Version {version} of distribution {distro} is not supported."
 				result.upgrade_issue = __version__
+
+		else:
+			result.check_status = CheckStatus.ERROR
+			result.message = f"Linux distribution {distro} is not supported."
+			result.upgrade_issue = __version__
 
 		return result
 
@@ -304,62 +301,63 @@ class SystemPackagesCheck(Check):
 		Older versions are considered a warning and if one of the packages is not installed, an error is issued.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
 			message="All packages are up to date.",
 		)
-		with exc_to_result(result):
-			opsipxeconfd_control_enabled = get_unprotected_backend()._opsipxeconfd_control_enabled
-			repo_versions = get_repo_versions()
-			installed_versions: dict[str, str] = {}
-			try:
-				installed_versions = get_installed_packages(repo_versions)
-			except RuntimeError as err:
-				error = f"Could not get package versions from system: {err}"
-				logger.error(error)
-				result.check_status = CheckStatus.ERROR
-				result.message = error
-				return result
+		opsipxeconfd_control_enabled = get_unprotected_backend()._opsipxeconfd_control_enabled
+		repo_versions = get_repo_versions()
+		installed_versions: dict[str, str] = {}
+		try:
+			installed_versions = get_installed_packages(repo_versions)
+		except RuntimeError as err:
+			error = f"Could not get package versions from system: {err}"
+			logger.error(error)
+			result.check_status = CheckStatus.ERROR
+			result.message = error
+			return result
 
-			logger.info("Installed packages: %s", installed_versions)
+		logger.info("Installed packages: %s", installed_versions)
 
-			not_installed = 0
-			outdated = 0
-			for package, available_version in repo_versions.items():
-				details = {
-					"package": package,
-					"available_version": available_version,
-					"version": installed_versions.get(package),
-					"outdated": False,
-				}
-				partial_result = CheckResult(check=self, details=details)
-				if not details["version"]:
-					if package == "opsipxeconfd" and not opsipxeconfd_control_enabled:
-						partial_result.check_status = CheckStatus.OK
-						partial_result.message = f"Package {package!r} is not installed and opsipxeconfd control is disabled."
-					else:
-						partial_result.check_status = CheckStatus.ERROR
-						partial_result.message = f"Package {package!r} is not installed."
-						partial_result.upgrade_issue = __version__
-					not_installed = not_installed + 1
-				elif compare_versions(available_version or "0", ">", details["version"]):  # type: ignore[arg-type]
-					outdated = outdated + 1
-					partial_result.check_status = CheckStatus.WARNING
-					partial_result.message = (
-						f"Package {package!r} is out of date. "
-						f"Installed version {details['version']!r} < available version {available_version!r}"
-					)
-					details["outdated"] = True
-				else:
+		not_installed = 0
+		outdated = 0
+		for package, available_version in repo_versions.items():
+			details = {
+				"package": package,
+				"available_version": available_version,
+				"version": installed_versions.get(package),
+				"outdated": False,
+			}
+			partial_result = CheckResult(check=self, details=details)
+			if not details["version"]:
+				if package == "opsipxeconfd" and not opsipxeconfd_control_enabled:
 					partial_result.check_status = CheckStatus.OK
-					partial_result.message = f"Package {package!r} is up to date. Installed version: {details['version']!r}"
-				result.add_partial_result(partial_result)
+					partial_result.message = f"Package {package!r} is not installed and opsipxeconfd control is disabled."
+				else:
+					partial_result.check_status = CheckStatus.ERROR
+					partial_result.message = f"Package {package!r} is not installed."
+					partial_result.upgrade_issue = __version__
+				not_installed = not_installed + 1
+			elif compare_versions(available_version or "0", ">", details["version"]):  # type: ignore[arg-type]
+				outdated = outdated + 1
+				partial_result.check_status = CheckStatus.WARNING
+				partial_result.message = (
+					f"Package {package!r} is out of date. "
+					f"Installed version {details['version']!r} < available version {available_version!r}"
+				)
+				details["outdated"] = True
+			else:
+				partial_result.check_status = CheckStatus.OK
+				partial_result.message = f"Package {package!r} is up to date. Installed version: {details['version']!r}"
+			result.add_partial_result(partial_result)
 
-			result.details = {"packages": len(repo_versions.keys()), "not_installed": not_installed, "outdated": outdated}
-			if not_installed > 0 or outdated > 0:
-				result.message = f"Out of {len(repo_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of date."
+		result.details = {"packages": len(repo_versions.keys()), "not_installed": not_installed, "outdated": outdated}
+		if not_installed > 0 or outdated > 0:
+			result.message = (
+				f"Out of {len(repo_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of date."
+			)
 
 		return result
 
@@ -377,28 +375,26 @@ class DiskCheck(Check):
 		self.id = f"disk_usage:{self.mountpoint}"
 		self.name = f"Disk usage on filesystem {self.mountpoint!r}"
 
-	def check(self) -> CheckResult:
-		print("Checking disk usage")
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
 			message="Sufficient free space on all file systems.",
 		)
-		with exc_to_result(result):
-			usage = psutil.disk_usage(self.mountpoint)
-			percent_free = usage.free * 100 / usage.total
-			free_gb = usage.free / 1_000_000_000
-			check_status = CheckStatus.OK
-			if free_gb < 7.5:
-				check_status = CheckStatus.ERROR
-			elif free_gb < 15:
-				check_status = CheckStatus.WARNING
+		usage = psutil.disk_usage(self.mountpoint)
+		percent_free = usage.free * 100 / usage.total
+		free_gb = usage.free / 1_000_000_000
+		check_status = CheckStatus.OK
+		if free_gb < 7.5:
+			check_status = CheckStatus.ERROR
+		elif free_gb < 15:
+			check_status = CheckStatus.WARNING
 
-			result.message = (
-				f"{'Sufficient' if check_status == CheckStatus.OK else 'Insufficient'}"
-				f" free space of {free_gb:0.2f} GB ({percent_free:0.2f} %) on {self.mountpoint!r}"
-			)
-			result.details = {"mountpoint": self.mountpoint, "total": usage.total, "used": usage.used, "free": usage.free}
+		result.message = (
+			f"{'Sufficient' if check_status == CheckStatus.OK else 'Insufficient'}"
+			f" free space of {free_gb:0.2f} GB ({percent_free:0.2f} %) on {self.mountpoint!r}"
+		)
+		result.details = {"mountpoint": self.mountpoint, "total": usage.total, "used": usage.used, "free": usage.free}
 
 		return result
 
@@ -420,16 +416,15 @@ class DiskUsageCheck(Check):
 		If there are less than 7.5 GiB, it is considered an error.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
 			message="Sufficient free space on all file systems.",
 		)
-		with exc_to_result(result):
-			mountpoints = get_disk_mountpoints()
-			for mountpoint in mountpoints:
-				self.add_partial_checks(DiskCheck(mountpoint=mountpoint))
+		mountpoints = get_disk_mountpoints()
+		for mountpoint in mountpoints:
+			self.add_partial_checks(DiskCheck(mountpoint=mountpoint))
 
 		return result
 
@@ -444,88 +439,87 @@ class SystemRepositoriesCheck(Check):
 		Check if the system repositories are compatible with opsi repositories.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
 			message="No issues found with the system repositories.",
 		)
-		with exc_to_result(result):
-			distro = linux_distro_id()
-			version = linux_distro_version_id()
-			if distro in ("debian", "ubuntu"):
-				cmd = ["apt-cache", "policy"]
-				try:
-					res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-				except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
-					result.check_status = CheckStatus.WARNING
-					result.message = f"Could not check system repositories: {err}"
-					return result
-				logger.debug("apt-cache policy: %s", res)
-				for line in res.split("\n"):
-					if any(
-						value in line
-						for value in (
-							"https://download.opensuse.org",
-							"http://download.opensuse.org",
-							"http://obs.uib.gmbh",
-							"https://obs.uib.gmbh",
-						)
-					):
-						name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
-						if name and name in line:
-							result.check_status = CheckStatus.OK
-							result.message = "No issues found with the system repositories."
-							break
-						else:
-							result.check_status = CheckStatus.ERROR
-							result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split()[1]}"
+		distro = linux_distro_id()
+		version = linux_distro_version_id()
+		if distro in ("debian", "ubuntu"):
+			cmd = ["apt-cache", "policy"]
+			try:
+				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Could not check system repositories: {err}"
+				return result
+			logger.debug("apt-cache policy: %s", res)
+			for line in res.split("\n"):
+				if any(
+					value in line
+					for value in (
+						"https://download.opensuse.org",
+						"http://download.opensuse.org",
+						"http://obs.uib.gmbh",
+						"https://obs.uib.gmbh",
+					)
+				):
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
+						result.check_status = CheckStatus.OK
+						result.message = "No issues found with the system repositories."
+						break
+					else:
+						result.check_status = CheckStatus.ERROR
+						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split()[1]}"
 
-			elif distro in ("almalinux", "centos", "rocky", "rhel", "ol"):
-				if distro in ("rocky", "ol"):
-					version = version.split(".")[0]
-				cmd = ["yum", "repolist"]
-				try:
-					res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-				except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
-					result.check_status = CheckStatus.WARNING
-					result.message = f"Could not check system repositories: {err}"
-					return result
-				logger.debug("yum repolist: %s", res)
-				for line in res.split("\n"):
-					if "opsi" in line:
-						name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
-						if name and name in line:
-							result.check_status = CheckStatus.OK
-							result.message = "No issues found with the system repositories."
-							break
-						else:
-							result.check_status = CheckStatus.ERROR
-							result.message = (
-								f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line}"
-							)
-			elif distro in ("opensuse-leap", "sles"):
-				cmd = ["zypper", "repos", "-E"]
-				try:
-					res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-				except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
-					result.check_status = CheckStatus.WARNING
-					result.message = f"Could not check system repositories: {err}"
-					return result
-				logger.debug("zypper repos: %s", res)
-				for line in res.split("\n"):
-					if "opsi" in line:
-						name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
-						if name and name in line:
-							result.check_status = CheckStatus.OK
-							result.message = "No issues found with the system repositories."
-							break
-						else:
-							result.check_status = CheckStatus.ERROR
-							result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split('|')[2].strip()}"
-			else:
-				result.check_status = CheckStatus.ERROR
-				result.message = "Could not determine system distribution."
+		elif distro in ("almalinux", "centos", "rocky", "rhel", "ol"):
+			if distro in ("rocky", "ol"):
+				version = version.split(".")[0]
+			cmd = ["yum", "repolist"]
+			try:
+				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Could not check system repositories: {err}"
+				return result
+			logger.debug("yum repolist: %s", res)
+			for line in res.split("\n"):
+				if "opsi" in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
+						result.check_status = CheckStatus.OK
+						result.message = "No issues found with the system repositories."
+						break
+					else:
+						result.check_status = CheckStatus.ERROR
+						result.message = (
+							f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line}"
+						)
+		elif distro in ("opensuse-leap", "sles"):
+			cmd = ["zypper", "repos", "-E"]
+			try:
+				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				result.check_status = CheckStatus.WARNING
+				result.message = f"Could not check system repositories: {err}"
+				return result
+			logger.debug("zypper repos: %s", res)
+			for line in res.split("\n"):
+				if "opsi" in line:
+					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					if name and name in line:
+						result.check_status = CheckStatus.OK
+						result.message = "No issues found with the system repositories."
+						break
+					else:
+						result.check_status = CheckStatus.ERROR
+						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split('|')[2].strip()}"
+		else:
+			result.check_status = CheckStatus.ERROR
+			result.message = "Could not determine system distribution."
 
 		return result
 

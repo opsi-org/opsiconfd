@@ -96,7 +96,7 @@ async def welcome_interface_index(request: Request) -> Response:
 @welcome_interface_router.post("/deactivate")
 async def welcome_interface_deactivate() -> None:
 	config.welcome_page = False
-	config.set_config_in_config_file("welcome-page", "false")
+	config.update_config({"welcome_page": "false"}, on_change="reload")
 
 
 @admin_interface_router.get("/")

@@ -19,7 +19,6 @@ import threading
 import time
 from io import UnsupportedOperation
 
-import uvloop
 from opsicommon.utils import patch_popen
 
 from opsiconfd import __version__
@@ -27,10 +26,10 @@ from opsiconfd.config import (
 	GC_THRESHOLDS,
 	REDIS_CONECTION_TIMEOUT,
 	config,
-	opsi_config,
 	configure_warnings,
 	get_depotserver_id,
 	get_server_role,
+	opsi_config,
 )
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.manager import Manager
@@ -124,10 +123,6 @@ def opsiconfd_main() -> None:
 			os.dup2(stdin.fileno(), sys.stdin.fileno())
 		except UnsupportedOperation as err:
 			logger.warning("Failed to redirect stdin: %s", err)
-
-		# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
-		# https://github.com/b2wdigital/aiologger/issues/38
-		uvloop.install()
 
 		manager = Manager()
 		manager.run()

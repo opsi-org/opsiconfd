@@ -11,6 +11,7 @@ health check backup
 
 from dataclasses import dataclass
 
+from opsiconfd.backup import BACKUP_TIME_TOLERANCE
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config
 from opsiconfd.redis import redis_client
@@ -20,7 +21,6 @@ __all__ = ["BackupCheck"]
 
 @dataclass()
 class BackupCheck(Check):
-	# TODO doc string?
 	id: str = "opsi_backup"
 	name: str = "OPSI Backup"
 	description: str = "Checks if the backup is up to date."
@@ -31,7 +31,7 @@ class BackupCheck(Check):
 	"""
 	partial_check: bool = False
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="Backup is up to date.",
@@ -40,10 +40,16 @@ class BackupCheck(Check):
 		)
 
 		redis = redis_client()
-		backup = redis.get(f"{config.redis_key('stats')}:backup")
-		if backup is None:
+		backup_age = redis.ttl(f"{config.redis_key('stats')}:backup")
+
+		if backup_age <= 0:
 			result.message = f"The last successful backup was created more than {config.max_backup_age} hours ago."
 			result.check_status = CheckStatus.ERROR
+			return result
+		if backup_age < BACKUP_TIME_TOLERANCE:
+			result.message = f"The last successful backup is approaching the maximum allowed age of {config.max_backup_age} hours."
+			result.check_status = CheckStatus.WARNING
+
 		return result
 
 

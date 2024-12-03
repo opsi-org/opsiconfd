@@ -25,12 +25,7 @@ from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlag
 from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.logging import LOG_TRACE, use_logging_config
 
-from opsiconfd import (
-	contextvar_client_session,
-	get_contextvars,
-	set_contextvars,
-	set_contextvars_from_contex,
-)
+from opsiconfd import contextvar_client_session, get_contextvars, set_contextvars, set_contextvars_from_contex
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession
 
@@ -1024,6 +1019,7 @@ def test_saml_login(
 				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
 				"saml-idp-x509-cert": "==",
 				"saml-idp-sso-url": saml_idp_sso_url,
+				"saml-role-group-mappings": [" view-profile=map-view-profile  ", " offline_access =  group_offline_access"],
 			}
 		),
 	):
@@ -1062,10 +1058,10 @@ def test_saml_login(
 					assert session_data
 					assert session_data["username"] == "adminuser"
 					assert session_data["user_groups"] == {
-						"view-profile",
+						"map-view-profile",
 						"uma_authorization",
 						"opsiadmin",
-						"offline_access",
+						"group_offline_access",
 					}
 					assert session_data["authenticated"] is True
 					assert session_data["is_admin"] is True
@@ -1075,3 +1071,121 @@ def test_saml_login(
 				# SAML SSO response already processed
 				assert res.status_code == 401
 				assert res.text == "Authentication failure"
+
+
+def test_saml_keycloak_group_membership(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	now = datetime.now(tz=timezone.utc)
+	not_before = now - timedelta(seconds=10)
+	not_on_or_after = now + timedelta(seconds=10)
+	not_before_str = not_before.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+	not_on_or_after_str = not_on_or_after.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+	saml_response = f"""<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+		xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" Destination="https://opsi.acme.corp:4447/auth/saml/callback/login" ID="ID_2289cf5d-f901-4222-a4a7-1f14887fb8af" InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" IssueInstant="{not_before_str}" Version="2.0">
+		<saml:Issuer>https://sso.acme.corp/auth/realms/CORP-REALM</saml:Issuer>
+		<dsig:Signature xmlns:dsig="http://www.w3.org/2000/09/xmldsig#">
+			<dsig:SignedInfo>
+				<dsig:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+				<dsig:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+
+			</dsig:SignedInfo>
+			<dsig:SignatureValue>==</dsig:SignatureValue>
+			<dsig:KeyInfo>
+				<dsig:X509Data>
+					<dsig:X509Certificate>==</dsig:X509Certificate>
+				</dsig:X509Data>
+			</dsig:KeyInfo>
+		</dsig:Signature>
+		<samlp:Status>
+			<samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success" />
+		</samlp:Status>
+		<saml:Assertion xmlns="urn:oasis:names:tc:SAML:2.0:assertion" ID="ID_d8e2bcf4-aff4-42a8-9284-9bda77887cbe" IssueInstant="{not_before_str}" Version="2.0">
+			<saml:Issuer>https://sso.acme.corp/auth/realms/CORP-REALM</saml:Issuer>
+			<saml:Subject>
+				<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified">user125343</saml:NameID>
+				<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+					<saml:SubjectConfirmationData InResponseTo="ONELOGIN_9c52a28bfda30cbb55f91e57bb3158ecd6caec5b" NotOnOrAfter="{not_on_or_after_str}" Recipient="https://opsi.acme.corp:4447/auth/saml/callback/login" />
+				</saml:SubjectConfirmation>
+			</saml:Subject>
+			<saml:Conditions NotBefore="{not_before_str}" NotOnOrAfter="{not_on_or_after_str}">
+				<saml:AudienceRestriction>
+					<saml:Audience>opsi.acme.corp</saml:Audience>
+				</saml:AudienceRestriction>
+			</saml:Conditions>
+			<saml:AuthnStatement AuthnInstant="{not_before_str}" SessionIndex="5804e342-7dee-4cdd-a0fe-8c087ec447df::44dd6da6-bce0-4b76-be42-3ced873ad01f" SessionNotOnOrAfter="{not_on_or_after_str}">
+				<saml:AuthnContext>
+					<saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:unspecified</saml:AuthnContextClassRef>
+				</saml:AuthnContext>
+			</saml:AuthnStatement>
+			<saml:AttributeStatement>
+				<saml:Attribute FriendlyName="Nachname" Name="sn" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+					<saml:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema"
+						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">Doe</saml:AttributeValue>
+				</saml:Attribute>
+				<saml:Attribute FriendlyName="Anzeigename" Name="displayName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+					<saml:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema"
+						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">Doe, John</saml:AttributeValue>
+				</saml:Attribute>
+				<saml:Attribute FriendlyName="Vorname" Name="givenName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+					<saml:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema"
+						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">John</saml:AttributeValue>
+				</saml:Attribute>
+				<saml:Attribute FriendlyName="Gruppenzugehoerigkeit" Name="groupMembership" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+					<saml:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema"
+						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">cn=opsi-admin,ou=abc,ou=PermissionGroups,ou=Services,o=acms,c=corp</saml:AttributeValue>
+					<saml:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema"
+						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">cn=keycloak-admin,ou=keycloak,ou=PermissionGroups,ou=Services,o=acms,c=corp</saml:AttributeValue>
+				</saml:Attribute>
+				<saml:Attribute FriendlyName="E-Mail-Adresse" Name="mail" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic">
+					<saml:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema"
+						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">John.Doe@acme.corp</saml:AttributeValue>
+				</saml:Attribute>
+			</saml:AttributeStatement>
+		</saml:Assertion>
+	</samlp:Response>
+	"""
+	redis = redis_client()
+	saml_idp_sso_url = "https://keycloak.opsi.test/realms/master/protocol/saml"
+	with (
+		patch("onelogin.saml2.utils.OneLogin_Saml2_Utils.validate_sign", lambda *args, **kwargs: True),
+		get_config(
+			{
+				"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
+				"saml-idp-x509-cert": "==",
+				"saml-idp-sso-url": saml_idp_sso_url,
+				"saml-role-group-mappings": ["CN=opsi-admin,OU=abc,OU=PermissionGroups,OU=Services,O=acms,C=corp =  opsiadmin"],
+			}
+		),
+	):
+		res = test_client.get("/auth/saml/login", follow_redirects=False)
+		assert res.status_code == 307
+		assert res.headers["location"].startswith(saml_idp_sso_url + "?")
+		cookie = list(test_client.cookies.jar)[0]
+		session_id = cookie.value
+		data: dict[str, str] = {
+			"SAMLResponse": b64encode(saml_response.encode()).decode(),
+			"RelayState": json.dumps({"session_id": session_id}),
+		}
+
+		redis_session_key = f"{config.redis_key('session')}:{session_id}"
+		session_data = OPSISession.deserialize(redis.hgetall(redis_session_key))
+		assert session_data
+		assert session_data["username"] == ""
+		assert session_data["authenticated"] is False
+		assert session_data["is_admin"] is False
+		assert not session_data["user_groups"]
+
+		res = test_client.post("/auth/saml/callback/login", data=data)
+
+		assert res.status_code == 200
+		assert "url=/admin" in res.text
+		session_data = OPSISession.deserialize(redis.hgetall(redis_session_key))
+		assert session_data
+		assert session_data["username"] == "user125343"
+		assert session_data["user_groups"] == {"cn=keycloak-admin,ou=keycloak,ou=permissiongroups,ou=services,o=acms,c=corp", "opsiadmin"}
+		assert session_data["authenticated"] is True
+		assert session_data["is_admin"] is True
+		assert session_data["auth_methods"] == {"saml"}

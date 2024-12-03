@@ -31,7 +31,7 @@ class OpsiUserExistCheck(Check):
 		self.name = f"OPSI User Exists: {self.user}"
 		self.description = f"Check if opsi user '{self.user}' exists."
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message=f"OPSI user '{self.user}' does exist.",
@@ -59,7 +59,7 @@ class OpsiUserUIDCheck(Check):
 		self.name = f"OPSI User UID: {self.user}"
 		self.description = f"Check if opsi user '{self.user}' UID is unique."
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message=f"Only one passwd entry for opsi user '{self.user}' found.",
@@ -111,7 +111,7 @@ class OpsiUsersCheck(Check):
 		Searches sssd, winbind, ldap in /etc/nsswitch.conf to determine the domain bind.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="No problems found with opsi users.",

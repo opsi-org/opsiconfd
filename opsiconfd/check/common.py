@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import copy
 import re
-from contextlib import contextmanager
 from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from textwrap import dedent
-from typing import Any, Generator, Iterator
+from typing import Any, Iterator
 
 from msgspec.msgpack import decode, encode
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
@@ -84,6 +83,25 @@ class Check:
 			self.partial_checks.append(check)
 
 	def check(self) -> CheckResult:
+		try:
+			return self._check()
+		except Exception as err:
+			result = CheckResult(
+				check=self,
+				message=str(err),
+				check_status=CheckStatus.ERROR,
+			)
+			if isinstance(err, (OperationalError, MySQLdbOperationalError)):
+				error_str = str(err).split("\n", 1)[0]
+				match = re.search(r"\((\d+),\s+(\S.*)\)", error_str)
+				if match:
+					error_str = match.group(1) + " - " + match.group(2).strip("'").replace("\\'", "'")
+				result.message = error_str
+			elif isinstance(err, RedisConnectionError):
+				result.message = f"Cannot connect to Redis: {err}"
+			return result
+
+	def _check(self) -> CheckResult:
 		return CheckResult(
 			check=self,
 			message="No check function defined",
@@ -95,14 +113,13 @@ class Check:
 		issue_counter = 0
 		if clear_cache:
 			check_cache_clear(self.id)
-		if self.cache:
+		elif self.cache:
 			result = self.check_cache_load()
 		if result is None:
 			result = self.check()
 
 		for partial_check in self.partial_checks:
 			partial_result = partial_check.run(clear_cache)
-
 			result.add_partial_result(partial_result)
 			if partial_result.check_status != CheckStatus.OK:
 				issue_counter += 1
@@ -238,25 +255,6 @@ class CheckResult:
 				)
 
 		return f"{self.check_status.return_code()} 'opsi: {self.check.name}' - {message if message else self.check_status.value.upper()}{details}"
-
-
-@contextmanager
-def exc_to_result(result: CheckResult) -> Generator[None, None, None]:
-	try:
-		yield
-	except (OperationalError, MySQLdbOperationalError) as err:
-		result.check_status = CheckStatus.ERROR
-		error_str = str(err).split("\n", 1)[0]
-		match = re.search(r"\((\d+),\s+(\S.*)\)", error_str)
-		if match:
-			error_str = match.group(1) + " - " + match.group(2).strip("'").replace("\\'", "'")
-		result.message = error_str
-	except RedisConnectionError as err:
-		result.check_status = CheckStatus.ERROR
-		result.message = f"Cannot connect to Redis: {err}"
-	except Exception as err:
-		result.check_status = CheckStatus.ERROR
-		result.message = str(err)
 
 
 def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:

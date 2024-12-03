@@ -348,7 +348,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					# Check for exact class (ConsumerGroupMessageReader is subclass of MessageReader)
 					r
 					for r in self._messagebus_reader
-					if type(r) == MessageReader
+					if type(r) is MessageReader
 				]
 				if msr:
 					await msr[0].add_channels(message_reader_channels)  # type: ignore[arg-type]

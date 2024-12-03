@@ -100,7 +100,6 @@ CREATE TABLE IF NOT EXISTS `HOST` (
 	`workbenchLocalUrl` varchar(128) DEFAULT NULL,
 	`workbenchRemoteUrl` varchar(255) DEFAULT NULL,
 	PRIMARY KEY (`hostId`),
-	UNIQUE KEY `systemUUID` (`systemUUID`),
 	KEY `index_host_type` (`type`),
 	KEY `index_host_lastSeen` (`lastSeen`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -397,9 +396,7 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 
 
 def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, dict[str, str | bool | None]]]) -> None:
-	from opsiconfd.backend.rpc.obj_audit_hardware import (
-		get_audit_hardware_database_config,
-	)
+	from opsiconfd.backend.rpc.obj_audit_hardware import get_audit_hardware_database_config
 
 	existing_tables = set(tables.keys())
 
@@ -781,33 +778,6 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		if "systemUUID" not in mysql.tables["HOST"]:
 			logger.info("Creating column 'systemUUID' on table HOST")
 			session.execute("ALTER TABLE `HOST` ADD `systemUUID` varchar(36) NULL DEFAULT NULL AFTER `oneTimePassword`")
-
-		def remove_duplicate_system_uuids(session: Session) -> None:
-			result = session.execute(
-				"""
-				UPDATE HOST AS h1
-				SET h1.systemUUID = NULL
-				WHERE h1.systemUUID IN (
-					SELECT * FROM (
-						SELECT h2.systemUUID FROM HOST AS h2
-						WHERE h2.systemUUID IS NOT NULL
-						GROUP BY h2.systemUUID
-						HAVING COUNT(h2.systemUUID) > 1
-					) as x
-				);
-				"""
-			)
-			if result.rowcount > 0:
-				logger.notice("Removed %d duplicate systemUUID from HOST", result.rowcount)
-
-		create_index(
-			session=session,
-			database=mysql.database,
-			table="HOST",
-			index="UNIQUE",
-			columns=["systemUUID"],
-			cleanup_function=remove_duplicate_system_uuids,
-		)
 
 		session.execute(
 			"""ALTER TABLE `CONFIG`
@@ -1282,6 +1252,10 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			index="index_host_lastSeen",
 			columns=["lastSeen"],
 		)
+
+		# schema_version 14
+
+		remove_index(session=session, database=mysql.database, table="HOST", index="systemUUID")
 
 		logger.info("All updates completed")
 

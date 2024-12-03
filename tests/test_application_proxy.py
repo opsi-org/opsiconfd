@@ -148,7 +148,7 @@ def test_websocket(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  #
 	log = log_file.read_text(encoding="utf-8")
 	request = json.loads(log)
 	assert request["method"] == "GET"
-	assert request["headers"]["Connection"] == "upgrade"
+	assert request["headers"]["connection"] == "upgrade"
 	assert request["headers"]["Sec-WebSocket-Key"]
 	assert request["headers"]["Upgrade"] == "websocket"
 	assert request["headers"]["x-forwarded-host"] == "testserver"
@@ -172,6 +172,7 @@ def test_grafana_reverse_proxy(test_client: OpsiconfdTestClient, config: Config)
 		assert client.cookies.get("grafana_session") is not None
 		assert client.cookies.get("grafana_session_expiry") is not None
 
+		print("requesting home dashboard")
 		res = client.get("/grafana/api/dashboards/home")
-
+		print(res)
 		assert res.status_code == 200

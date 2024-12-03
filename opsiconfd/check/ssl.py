@@ -15,7 +15,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager, exc_to_result
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config
 from opsiconfd.ssl import (
 	check_intermediate_ca,
@@ -45,7 +45,7 @@ class OpsiCaCert(Check):
 	"""
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="The opsi CA certificate is OK.",
@@ -86,21 +86,20 @@ class IntermediateCACheck(Check):
 	depot_check: bool = False
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
 			message="The opsi CA is not a intermediate CA.",
 		)
-		with exc_to_result(result):
-			ca_cert = load_opsi_ca_cert()
-			if ca_cert and not opsi_ca_is_self_signed():
-				result.message = "The opsi CA is a functional intermediate CA."
-				try:
-					check_intermediate_ca(ca_cert)
-				except Exception as err:
-					result.check_status = CheckStatus.ERROR
-					result.message = f"The opsi CA is an intermediate CA and a problem has been found: {err}"
+		ca_cert = load_opsi_ca_cert()
+		if ca_cert and not opsi_ca_is_self_signed():
+			result.message = "The opsi CA is a functional intermediate CA."
+			try:
+				check_intermediate_ca(ca_cert)
+			except Exception as err:
+				result.check_status = CheckStatus.ERROR
+				result.message = f"The opsi CA is an intermediate CA and a problem has been found: {err}"
 
 		return result
 
@@ -118,7 +117,7 @@ class OpsiCaKeyCheck(Check):
 	depot_check: bool = False
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
@@ -145,7 +144,7 @@ class ServerCertCheck(Check):
 	depot_check: bool = False
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
@@ -181,8 +180,7 @@ class ServerKeyCheck(Check):
 	"""
 	partial_check: bool = True
 
-	def check(self) -> CheckResult:
-		# print("ssl:server_key")
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
@@ -227,7 +225,7 @@ class SSLCheck(Check):
 		Checks the state of the opsi CA and the server certificate.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="No SSL issues found.",

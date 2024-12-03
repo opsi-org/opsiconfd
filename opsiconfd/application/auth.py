@@ -19,9 +19,6 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import]
 from opsicommon.logging.constants import TRACE
 from opsicommon.utils import unix_timestamp
-from pydantic import BaseModel
-from starlette.concurrency import run_in_threadpool
-
 from opsiconfd.auth import AuthenticationMethod
 from opsiconfd.auth.saml import get_saml_settings, saml_auth_request_data
 from opsiconfd.config import config, opsi_config
@@ -37,8 +34,11 @@ from opsiconfd.session import (
 	post_user_authenticate,
 	pre_authenticate,
 )
+from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 logger = get_logger()
+saml_logger = get_logger()
 auth_router = APIRouter()
 
 
@@ -127,6 +127,9 @@ async def saml_login(request: Request) -> RedirectResponse:
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 	# The value passed as return_to will be send as RelayState in the SAML request
 	redirect_url = auth.login(return_to=json.dumps(relay_state_data))
+	if saml_logger.isEnabledFor(TRACE):
+		saml_logger.trace(auth.get_last_request_xml())
+		saml_logger.trace(auth.get_last_response_xml())
 	return RedirectResponse(url=redirect_url)
 
 
@@ -135,6 +138,9 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	request_data = await saml_auth_request_data(request)
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 	redirect_url = auth.logout()
+	if saml_logger.isEnabledFor(TRACE):
+		saml_logger.trace(auth.get_last_request_xml())
+		saml_logger.trace(auth.get_last_response_xml())
 	return RedirectResponse(url=redirect_url)
 
 
@@ -159,8 +165,9 @@ async def saml_callback_login(request: Request) -> Response:
 
 		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 		await run_in_threadpool(auth.process_response)
-		if logger.isEnabledFor(TRACE):
-			logger.trace(auth.get_last_response_xml())
+		if saml_logger.isEnabledFor(TRACE):
+			saml_logger.trace(auth.get_last_request_xml())
+			saml_logger.trace(auth.get_last_response_xml())
 
 		errors = auth.get_errors()
 		if errors:
@@ -193,17 +200,30 @@ async def saml_callback_login(request: Request) -> Response:
 
 		roles = [
 			g.lower()
-			for g in auth.get_attribute("Role") or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role") or []
+			for g in auth.get_attribute("Role")
+			or auth.get_attribute("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+			or auth.get_attribute("groupMembership")
+			or []
 		]
+		saml_logger.info("SAML SSO successful for user %s with roles %s", username, roles)
 
-		logger.info("SAML SSO successful for user %s with roles %s", username, roles)
-		is_admin = (opsi_config.get("groups", "admingroup") or "").lower() in roles
+		mappings = {}
+		for mapping in config.saml_role_group_mappings:
+			tmp = mapping.rsplit("=", 1)
+			if len(tmp) == 1:
+				saml_logger.error("Failed to parse saml role group mapping: %r", mapping)
+				continue
+			mappings[tmp[0].strip().lower()] = tmp[1].strip().lower()
+		saml_logger.debug("SAML role group mappings %s", mappings)
+		groups = set(mappings.get(role, role) for role in roles)
+		saml_logger.info("SAML roles mapped to groups %s", groups)
 
+		is_admin = (opsi_config.get("groups", "admingroup") or "").lower() in groups
 		if not is_admin:
 			raise RuntimeError(f"Not an admin user {username!r}")
 
 		session.username = username
-		session.user_groups = set(roles)
+		session.user_groups = groups
 		session.is_admin = is_admin
 		session.authenticated = True
 		session.auth_methods = {AuthenticationMethod.SAML}
@@ -219,7 +239,7 @@ async def saml_callback_login(request: Request) -> Response:
 		)
 
 	except Exception as err:
-		logger.error("SAML login error: %s", err, exc_info=True)
+		saml_logger.error("SAML login error: %s", err, exc_info=True)
 		await _post_failed_authenticate(request.scope)
 		return PlainTextResponse("Authentication failure", status_code=status.HTTP_401_UNAUTHORIZED)
 
@@ -229,11 +249,14 @@ async def saml_callback_logout(request: Request) -> RedirectResponse:
 	request_data = await saml_auth_request_data(request)
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 	await run_in_threadpool(auth.process_slo)
+	if saml_logger.isEnabledFor(TRACE):
+		saml_logger.trace(auth.get_last_request_xml())
+		saml_logger.trace(auth.get_last_response_xml())
 	errors = auth.get_errors()
 	if errors:
-		logger.error("Failed to process SAML SLO response: %s %s", errors, auth.get_last_error_reason())
+		saml_logger.error("Failed to process SAML SLO response: %s %s", errors, auth.get_last_error_reason())
 	else:
-		logger.info("SAML SLO successful")
+		saml_logger.info("SAML SLO successful")
 
 	session: OPSISession | None = request.scope.get("session")
 	if session:

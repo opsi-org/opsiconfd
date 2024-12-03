@@ -12,9 +12,10 @@ config tests
 import os
 from argparse import ArgumentTypeError
 from pathlib import Path
+from threading import Thread
 from typing import Any, Type
 from unittest.mock import patch
-from threading import Thread
+
 import pytest
 
 from opsiconfd.config import ip_address, network_address, str2bool

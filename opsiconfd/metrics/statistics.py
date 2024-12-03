@@ -12,7 +12,10 @@ statistics
 import re
 import time
 
-import yappi  # type: ignore[import]
+try:
+	import yappi  # type: ignore[import]
+except ImportError:
+	yappi = None
 from fastapi import FastAPI
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
@@ -140,10 +143,14 @@ class StatisticsMiddleware:
 		self._write_callgrind_file = True
 
 		if self._profiler_enabled:
-			yappi.set_tag_callback(get_yappi_tag)
-			yappi.set_clock_type("wall")
-			# TODO: Schedule some kind of periodic profiler cleanup with clear_stats()
-			yappi.start()
+			if not yappi:
+				logger.error("yappi module not found, disabling profiler")
+				self._profiler_enabled = False
+			else:
+				yappi.set_tag_callback(get_yappi_tag)
+				yappi.set_clock_type("wall")
+				# TODO: Schedule some kind of periodic profiler cleanup with clear_stats()
+				yappi.start()
 
 	def yappi(self, scope: Scope) -> None:
 		# https://github.com/sumerc/yappi/blob/master/doc/api.md

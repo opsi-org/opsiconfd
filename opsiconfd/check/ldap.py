@@ -33,7 +33,7 @@ class LdapConnectionCheck(Check):
 		Checks whether opsi can connect to the configured LDAP server.
 	"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="LDAP authentication is not configured.",

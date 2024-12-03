@@ -10,6 +10,7 @@ webdav
 """
 
 import os
+from pathlib import Path
 
 import wsgidav.fs_dav_provider  # type: ignore[import]
 from fastapi import FastAPI
@@ -55,45 +56,48 @@ def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info:
 wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
-class IgnoreCaseFilesystemProvider(FilesystemProvider):
-	def _loc_to_file_path(self, path: str, environ: dict[str, str] | None = None) -> str:
-		"""Convert resource path to a unicode absolute file path.
-		Optional environ argument may be useful e.g. in relation to per-user
-		sub-folder chrooting inside root_folder_path.
+class OpsiconfdFilesystemProvider(FilesystemProvider):
+	def _loc_to_file_path(self, path: str, environ: dict | None = None) -> str:
 		"""
-		root_path = self.root_folder_path
-		assert root_path is not None
-		assert util.is_str(root_path)
+		Convert resource path to a unicode absolute file path.
+		Check if the path is within the root folder.
+		If file does not exist, try to find a case-insensitive match.
+		"""
+
+		assert util.is_str(self.root_folder_path)
 		assert util.is_str(path)
+		root_path = Path(self.root_folder_path)
+		file_path = root_path / path.strip("/")
 
-		path_parts = path.strip("/").split("/")
-		file_path = os.path.abspath(os.path.join(root_path, *path_parts))
-		if not os.path.exists(file_path):
-			cur_path = root_path
-			name_found = None
-			for part in path_parts:
-				cur_path = os.path.join(cur_path, part)
-				if not os.path.exists(cur_path):
-					part_lower = part.lower()
-					name_found = None
-					for name in os.listdir(os.path.dirname(cur_path)):
-						if name.lower() == part_lower:
-							name_found = name
-							break
-					if not name_found:
-						# Give up
+		if not file_path.exists():
+			alt_path = root_path
+			alt_found = False
+			for part in file_path.relative_to(root_path).parts:
+				test_path = alt_path / part
+				alt_found = test_path.exists()
+				if alt_found:
+					alt_path = test_path
+					continue
+
+				part_lower = part.lower()
+				for entry in alt_path.iterdir():
+					if entry.name.lower() == part_lower:
+						alt_found = True
+						alt_path = alt_path / entry.name
 						break
-					cur_path = os.path.join(os.path.dirname(cur_path), name_found)
-			if name_found and cur_path.lower() == file_path.lower():
-				file_path = cur_path
 
-		is_shadow, file_path = self._resolve_shadow_path(path, environ, file_path)
-		if not file_path.startswith(root_path) and not is_shadow:
-			raise RuntimeError(f"Security exception: tried to access file outside root: {file_path}")
+				if not alt_found:
+					# Give up
+					break
 
-		# Convert to unicode
-		file_path = util.to_unicode_safe(file_path)
-		return file_path
+			if alt_found:
+				file_path = alt_path
+
+		if not file_path.resolve().is_relative_to(root_path):
+			full_path = (environ.get("asgi.scope") or {}).get("path") if environ else path or path
+			raise RuntimeError(f"Access to '{util.to_unicode_safe(full_path)}' denied")
+
+		return util.to_unicode_safe(file_path.as_posix())
 
 
 class VirtualRootFilesystemCollection(DAVCollection):
@@ -221,7 +225,7 @@ def webdav_setup(app: FastAPI) -> None:
 
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()
-		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
+		prov_class = OpsiconfdFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
 		app_config["provider_mapping"]["/"] = prov_class(  # type: ignore[index]
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True}
@@ -232,7 +236,7 @@ def webdav_setup(app: FastAPI) -> None:
 	# Virtual filesystem /dav
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
-		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
+		prov_class = OpsiconfdFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
 		app_config["provider_mapping"][f"/{name}"] = prov_class(  # type: ignore[index]
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True}

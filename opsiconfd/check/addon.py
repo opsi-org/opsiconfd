@@ -26,7 +26,7 @@ class AddonCheck(Check):
 		Checks if there are any failed addons. If there are any failed addons, the check will return an error and list the failed addons.
 		"""
 
-	def check(self) -> CheckResult:
+	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			message="No errors found while loading addons.",

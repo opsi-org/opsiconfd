@@ -59,6 +59,7 @@ from opsiconfd.config import (
 from opsiconfd.letsencrypt import perform_certificate_signing_request
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
+from opsiconfd.utils.modules import check_module
 
 if TYPE_CHECKING:
 	from opsicommon.client.opsiservice import ServiceClient
@@ -823,6 +824,17 @@ def setup_server_cert(force_new: bool = False) -> bool:
 	if server_role not in ("configserver", "depotserver"):
 		raise ValueError(f"Invalid server role: {server_role}")
 
+	if config.ssl_server_cert_type == "letsencrypt":
+		if not check_module("letsencrypt"):
+			raise RuntimeError(
+				"Module 'letsencrypt' not available. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
+			)
+	elif config.ssl_server_cert_type == "custom-ca":
+		if not check_module("custom_ca"):
+			raise RuntimeError(
+				"Module 'custom_ca' not available. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
+			)
+
 	if config.ssl_server_key == config.ssl_server_cert:
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
 
@@ -941,8 +953,8 @@ def setup_server_cert(force_new: bool = False) -> bool:
 				create = True
 
 	if create:
-		if config.ssl_server_cert_type == "unmanaged":
-			raise RuntimeError(f"{crt_err}. The ssl-server-cert-type is 'unmanaged', please fix the problem manually.")
+		if config.ssl_server_cert_type == "custom-ca":
+			raise RuntimeError(f"{crt_err}. The ssl-server-cert-type is 'custom-ca', please fix the problem manually.")
 
 		logger.info("Creating new server cert")
 		(srv_crt, srv_key) = (None, None)

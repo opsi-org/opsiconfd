@@ -273,12 +273,15 @@ class Backend(
 
 				logger.trace("%s: arg string is: %s", method_name, arg_string)
 				logger.trace("%s: call string is: %s", method_name, call_string)
+				loc: dict[str, Any] = {}
 				exec(
 					f"def {method_name}(self, {arg_string}):\n"
 					'	with server_timing("jsonrpc_forward"):\n'
-					f'		return self._service_client.jsonrpc(method="{method_name}", params=[{call_string}])\n'
+					f'		return self._service_client.jsonrpc(method="{method_name}", params=[{call_string}])\n',
+					None,
+					loc,
 				)
-				func = eval(method_name)
+				func = loc[method_name]
 				setattr(func, "rpc_interface", self._interface[method_name])
 				setattr(self, method_name, MethodType(func, self))
 

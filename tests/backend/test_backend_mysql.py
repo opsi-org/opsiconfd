@@ -20,7 +20,7 @@ import pytest
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
-from tests.utils import backend, get_config  # noqa: F401
+from tests.utils import UnprotectedBackend, backend, get_config  # noqa: F401
 
 
 def test_config_backend_mysql_conf(tmp_path: Path) -> None:
@@ -282,3 +282,41 @@ def test_get_columns() -> None:
 					assert info.select == f"IF(`HOST`.`hostId`='{client_id}',`HOST`.`{info.column}`,NULL)"
 			else:
 				assert info.select is None
+
+
+def test_config_unique_hardware_addresses(backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend._mysql.unique_hardware_addresses = True
+
+	with pytest.raises(ValueError):
+		backend.host_createOpsiClient(id="test-client1.opsi.org", hardwareAddress="AA:FF:EE:00:00:01")
+		backend.host_createOpsiClient(id="test-client2.opsi.org", hardwareAddress="AA:FF:EE:00:00:01")
+
+	backend.host_delete(id="test-client1.opsi.org")
+	backend.host_delete(id="test-client2.opsi.org")
+
+	backend._mysql.unique_hardware_addresses = False
+
+	backend.host_createOpsiClient(id="test-client1.opsi.org", hardwareAddress="AA:FF:EE:00:00:01")
+	backend.host_createOpsiClient(id="test-client2.opsi.org", hardwareAddress="AA:FF:EE:00:00:01")
+
+	backend.host_delete(id="test-client1.opsi.org")
+	backend.host_delete(id="test-client2.opsi.org")
+
+
+def test_config_unique_system_uuids(backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend._mysql.unique_system_uuids = True
+
+	with pytest.raises(ValueError):
+		backend.host_createOpsiClient(id="test-client1.opsi.org", systemUUID="550e8400-e29b-11d4-a716-446655440000")
+		backend.host_createOpsiClient(id="test-client2.opsi.org", systemUUID="550e8400-e29b-11d4-a716-446655440000")
+
+	backend.host_delete(id="test-client1.opsi.org")
+	backend.host_delete(id="test-client2.opsi.org")
+
+	backend._mysql.unique_system_uuids = False
+
+	backend.host_createOpsiClient(id="test-client1.opsi.org", systemUUID="550e8400-e29b-11d4-a716-446655440000")
+	backend.host_createOpsiClient(id="test-client2.opsi.org", systemUUID="550e8400-e29b-11d4-a716-446655440000")
+
+	backend.host_delete(id="test-client1.opsi.org")
+	backend.host_delete(id="test-client2.opsi.org")

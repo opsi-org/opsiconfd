@@ -42,9 +42,10 @@ def test_ssh_commands_file(tmp_path: Path) -> None:
 		' "commands": ["whoami"], "menuText": "whoami custom", "id": "whoami_custom"}\n'
 		"\n"
 	)
-	with patch(
-		"opsiconfd.backend.rpc.ext_ssh_commands.RPCExtSSHCommandsMixin.ssh_commands_default_file", str(ssh_commands_default_file)
-	), patch("opsiconfd.backend.rpc.ext_ssh_commands.RPCExtSSHCommandsMixin.ssh_commands_custom_file", str(ssh_commands_custom_file)):
+	with (
+		patch("opsiconfd.backend.rpc.ext_ssh_commands.RPCExtSSHCommandsMixin.ssh_commands_default_file", str(ssh_commands_default_file)),
+		patch("opsiconfd.backend.rpc.ext_ssh_commands.RPCExtSSHCommandsMixin.ssh_commands_custom_file", str(ssh_commands_custom_file)),
+	):
 		backend = Backend()
 		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_default_file))  # type: ignore[misc]
 		assert len(cmd_list) == 2

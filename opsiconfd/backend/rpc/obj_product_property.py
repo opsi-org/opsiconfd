@@ -38,9 +38,9 @@ class RPCProductPropertyMixin(Protocol):
 	) -> None:
 		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:
-			with self._mysql.table_lock(
-				session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}
-			) if lock else nullcontext():
+			with (
+				self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}) if lock else nullcontext()
+			):
 				session.execute(
 					"""
 					DELETE FROM `PRODUCT_PROPERTY_VALUE`

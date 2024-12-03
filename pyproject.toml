@@ -34,7 +34,7 @@ target-version = "py311"
 opsiconfd = "opsiconfd.__main__:main"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.12"
+python = ">=3.11,<3.14"
 aiofiles = "^24.1"
 aiohttp = "^3.7"
 aiologger = "^0.7"

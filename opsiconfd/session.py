@@ -337,7 +337,7 @@ class SessionMiddleware:
 
 		elif isinstance(err, HTTPException):
 			status_code = err.status_code
-			headers = err.headers
+			headers = dict(err.headers) if err.headers else None
 			error = err.detail
 
 		else:

@@ -19,7 +19,9 @@ from unittest.mock import patch
 
 import pyotp
 import pytest
+import xmlsec  # type: ignore[import]
 from fastapi import status
+from lxml.etree import Element
 from opsicommon import objects
 from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
 from opsicommon.exceptions import OpsiServiceAuthenticationError
@@ -924,9 +926,6 @@ def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout:
 def test_saml_xmlsec() -> None:
 	# Assert that xmlsec is not producing segmentation fault
 	# https://github.com/SAML-Toolkits/python3-saml/issues/389
-	import xmlsec
-	from lxml.etree import Element
-
 	for _ in range(25):
 		elem = Element("root")
 		elem.attrib["ID"] = "ID"

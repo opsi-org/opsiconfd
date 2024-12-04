@@ -30,7 +30,9 @@ from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.logging import LOG_TRACE, use_logging_config
 
 from opsiconfd import contextvar_client_session, get_contextvars, set_contextvars, set_contextvars_from_contex
-from opsiconfd.auth.saml import get_sp_metadata_xml
+from opsiconfd.auth._pam import PAMAuthentication
+from opsiconfd.auth.ldap import LDAPAuthentication
+from opsiconfd.auth.saml import check_if_saml_available, get_sp_metadata_xml
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession
 
@@ -1261,3 +1263,34 @@ def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient) -> None:  # 
 				"""
 				).lstrip()
 			)
+
+
+def test_disabled_auth_methods(
+	tmp_path: Path,
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	with get_config({"disabled-auth-methods": ["pam"]}):
+		with pytest.raises(OpsiServiceAuthenticationError, match="PAM authentication is disabled"):
+			PAMAuthentication().authenticate("user", "pass")
+	with get_config({"disabled-auth-methods": ["ldap"]}):
+		with pytest.raises(OpsiServiceAuthenticationError, match="LDAP authentication is disabled"):
+			LDAPAuthentication("ldap://localhost").authenticate("user", "pass")
+	with get_config({"disabled-auth-methods": ["saml"]}):
+		with pytest.raises(OpsiServiceAuthenticationError, match="SAML authentication is disabled"):
+			check_if_saml_available()
+
+	passwd_file = tmp_path / "passwd"
+	with patch("opsiconfd.utils.user.get_passwd_file", return_value=passwd_file):
+		with get_config({"monitoring-user": "monitoring"}):
+			backend.user_setCredentials("monitoring", "monitoring-pwd")
+			assert "monitoring:" in passwd_file.read_text(encoding="utf-8")
+			test_client.auth = ("monitoring", "monitoring-pwd")
+			res = test_client.get("/auth/authenticated")
+			assert res.status_code == 200
+			assert res.text == "true"
+			test_client.reset_cookies()
+			with get_config({"disabled-auth-methods": ["opsi_passwd"]}):
+				res = test_client.get("/auth/authenticated")
+				assert res.status_code == 401
+				assert res.text == "Authentication error"

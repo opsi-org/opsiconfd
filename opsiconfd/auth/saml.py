@@ -19,6 +19,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import CertificateBuilder
 from fastapi import Request
+from opsicommon.exceptions import OpsiServiceAuthenticationError
 
 from opsiconfd.config import config, get_configserver_id
 from opsiconfd.logging import get_logger
@@ -31,6 +32,8 @@ logger = get_logger("opsiconfd.saml")
 def check_if_saml_available() -> None:
 	if not check_module("sso"):
 		raise RuntimeError("Module 'sso' not available. Please check your opsi licenses.")
+	if "saml" in config.disabled_auth_methods:
+		raise OpsiServiceAuthenticationError("SAML authentication is disabled")
 	if not config.saml_idp_entity_id:
 		raise ValueError("saml-idp-entity-id not set in config")
 	if not config.saml_idp_sso_url:

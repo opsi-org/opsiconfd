@@ -17,7 +17,7 @@ from opsicommon.utils import unix_timestamp
 from starlette.datastructures import Headers
 
 from opsiconfd.application import app
-from opsiconfd.auth import AuthenticationMethod
+from opsiconfd.auth.const import AuthenticationMethod
 from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession, SessionManager, SessionMiddleware
 from opsiconfd.utils import asyncio_create_task

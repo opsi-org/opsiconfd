@@ -1113,6 +1113,18 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--disabled-auth-methods",
+			env_var="OPSICONFD_DISABLED_AUTH_METHODS",
+			type=str_lower,
+			nargs="*",
+			default=[],
+			choices=("saml", "pam", "ldap", "opsi_passwd"),
+			help=self._help(
+				"opsiconfd",
+				"A list of authentication methods to disable.\n" "If the list is empty, all authentication methods are allowed.\n",
+			),
+		)
+		self._parser.add(
 			"--multi-factor-auth",
 			env_var="OPSICONFD_MULTI_FACTOR_AUTH",
 			default="inactive",

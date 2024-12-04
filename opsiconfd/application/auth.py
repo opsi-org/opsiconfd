@@ -22,7 +22,7 @@ from opsicommon.utils import unix_timestamp
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.auth import AuthenticationMethod
+from opsiconfd.auth.const import AuthenticationMethod
 from opsiconfd.auth.saml import get_saml_settings, get_sp_metadata_xml, saml_auth_request_data
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger

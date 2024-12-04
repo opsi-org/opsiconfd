@@ -12,6 +12,7 @@ utils user
 import os
 import pwd
 import re
+from functools import lru_cache
 from subprocess import run
 
 from opsicommon.exceptions import BackendMissingDataError
@@ -26,15 +27,14 @@ from opsiconfd.utils import get_opsi_config, is_local_user, lock_file
 from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
 from opsiconfd.utils.ucs import get_server_role
 
-OPSI_PASSWD_FILE = None
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 
 
+@lru_cache
 def get_passwd_file() -> str:
-	global OPSI_PASSWD_FILE
-	if not OPSI_PASSWD_FILE:
-		from opsiconfd.config import OPSI_PASSWD_FILE  # type: ignore[assignment]
-	return OPSI_PASSWD_FILE  # type: ignore[return-value]
+	from opsiconfd.config import OPSI_PASSWD_FILE
+
+	return OPSI_PASSWD_FILE
 
 
 def user_set_credentials(username: str, password: str) -> None:

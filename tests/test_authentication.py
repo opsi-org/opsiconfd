@@ -10,11 +10,13 @@ login tests
 """
 
 import json
+import re
 import threading
 import time
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from textwrap import dedent
 from unittest.mock import patch
 
 import pyotp
@@ -28,6 +30,7 @@ from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.logging import LOG_TRACE, use_logging_config
 
 from opsiconfd import contextvar_client_session, get_contextvars, set_contextvars, set_contextvars_from_contex
+from opsiconfd.auth.saml import get_sp_metadata_xml
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession
 
@@ -1200,3 +1203,61 @@ def test_saml_keycloak_group_membership(
 		assert session_data["authenticated"] is True
 		assert session_data["is_admin"] is True
 		assert session_data["auth_methods"] == {"saml"}
+
+
+def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	with (
+		patch("opsiconfd.auth.saml.get_sp_entity_id", return_value="sp-entity-id"),
+		patch("opsiconfd.auth.saml.get_sp_base_url", return_value="https://base-url:123"),
+	):
+		metadata = get_sp_metadata_xml()
+		metadata = re.sub(r'validUntil="20.*Z"', 'validUntil="2024-12-06T10:10:10Z"', metadata)
+		assert (
+			metadata
+			== dedent(
+				"""
+		<?xml version="1.0"?>
+		<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="2024-12-06T10:10:10Z" cacheDuration="PT604800S" entityID="sp-entity-id">
+			<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+				<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
+				<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://base-url:123/auth/saml/callback/login" index="1"/>
+			</md:SPSSODescriptor>
+		</md:EntityDescriptor>
+		"""
+			).lstrip()
+		)
+		with get_config({"saml-sp-client-signature": True, "saml-sp-x509-cert": "==cert==", "saml-idp-slo-url": "https://..."}):
+			res = test_client.get("/auth/saml/sp-meta.xml")
+			assert res.status_code == 200
+			assert res.headers["content-type"] == "application/xml"
+			metadata = res.text
+			metadata = re.sub(r'validUntil="20.*Z"', 'validUntil="2024-12-06T10:10:10Z"', metadata)
+			assert (
+				metadata
+				== dedent(
+					"""
+				<?xml version="1.0"?>
+				<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="2024-12-06T10:10:10Z" cacheDuration="PT604800S" entityID="sp-entity-id">
+					<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+						<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
+						<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://base-url:123/auth/saml/callback/login" index="1"/>
+						<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://base-url:123/auth/saml/callback/logout"/>
+						<md:KeyDescriptor use="signing">
+							<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+								<ds:X509Data>
+									<ds:X509Certificate>==cert==</ds:X509Certificate>
+								</ds:X509Data>
+							</ds:KeyInfo>
+						</md:KeyDescriptor>
+						<md:KeyDescriptor use="encryption">
+							<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+								<ds:X509Data>
+									<ds:X509Certificate>==cert==</ds:X509Certificate>
+								</ds:X509Data>
+							</ds:KeyInfo>
+						</md:KeyDescriptor>
+					</md:SPSSODescriptor>
+				</md:EntityDescriptor>
+				"""
+				).lstrip()
+			)

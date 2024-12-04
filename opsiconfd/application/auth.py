@@ -19,8 +19,11 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import]
 from opsicommon.logging.constants import TRACE
 from opsicommon.utils import unix_timestamp
+from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
+
 from opsiconfd.auth import AuthenticationMethod
-from opsiconfd.auth.saml import get_saml_settings, saml_auth_request_data
+from opsiconfd.auth.saml import get_saml_settings, get_sp_metadata_xml, saml_auth_request_data
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client
@@ -34,8 +37,6 @@ from opsiconfd.session import (
 	post_user_authenticate,
 	pre_authenticate,
 )
-from pydantic import BaseModel
-from starlette.concurrency import run_in_threadpool
 
 logger = get_logger()
 saml_logger = get_logger()
@@ -112,6 +113,11 @@ async def wait_authenticated(request: Request) -> RESTResponse:
 				return RESTResponse(True)
 			await asyncio.sleep(1)
 	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)
+
+
+@auth_router.get("/saml/sp-meta.xml")
+async def saml_sp_meta_xml() -> Response:
+	return Response(content=get_sp_metadata_xml(), media_type="application/xml")
 
 
 @auth_router.get("/saml/login")

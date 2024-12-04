@@ -9,7 +9,9 @@
 opsiconfd.auth.saml
 """
 
+import re
 from datetime import datetime, timedelta, timezone
+from textwrap import dedent, indent
 from typing import Any
 
 from cryptography import x509
@@ -35,6 +37,21 @@ def check_if_saml_available() -> None:
 		raise ValueError("saml-idp-sso-url not set in config")
 	if not config.saml_idp_x509_cert:
 		raise ValueError("saml-idp-x509-cert not set in config")
+
+
+def get_sp_entity_id() -> str:
+	return get_configserver_id()
+
+
+def get_sp_base_url() -> str:
+	return config.external_url
+
+
+def get_sp_url(path: str | None = None) -> str:
+	base_url = get_sp_base_url()
+	if not path:
+		return base_url
+	return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
 
 def get_saml_settings(
@@ -63,9 +80,9 @@ def get_saml_settings(
 		},
 		# Service Provider
 		"sp": {
-			"entityId": get_configserver_id(),
+			"entityId": get_sp_entity_id(),
 			"assertionConsumerService": {
-				"url": f"{config.external_url}{login_callback_path}",
+				"url": f"{get_sp_url(login_callback_path)}",
 				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 			},
 		},
@@ -76,7 +93,7 @@ def get_saml_settings(
 			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
 		settings["sp"]["singleLogoutService"] = {
-			"url": f"{config.external_url}{logout_callback_path}",
+			"url": f"{get_sp_url(logout_callback_path)}",
 			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
 	if config.saml_sp_client_signature:
@@ -109,12 +126,57 @@ async def saml_auth_request_data(request: Request) -> dict[str, Any]:
 	return params
 
 
+def get_sp_metadata_xml(
+	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
+) -> str:
+	now = datetime.now(tz=timezone.utc)
+	valid_until = now + timedelta(days=2)
+	valid_until_str = valid_until.strftime("%Y-%m-%dT%H:%M:%SZ")
+	slo = ""
+	if config.saml_idp_slo_url:
+		slo = f'<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="{get_sp_url(logout_callback_path)}"/>'
+	signing = ""
+	if config.saml_sp_client_signature:
+		signing = indent(
+			dedent(f"""
+		<md:KeyDescriptor use="signing">
+			<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+				<ds:X509Data>
+					<ds:X509Certificate>{config.saml_sp_x509_cert}</ds:X509Certificate>
+				</ds:X509Data>
+			</ds:KeyInfo>
+		</md:KeyDescriptor>
+		<md:KeyDescriptor use="encryption">
+			<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+				<ds:X509Data>
+					<ds:X509Certificate>{config.saml_sp_x509_cert}</ds:X509Certificate>
+				</ds:X509Data>
+			</ds:KeyInfo>
+		</md:KeyDescriptor>
+		"""),
+			"\t\t\t",
+		)
+
+	metadata = f"""
+	<?xml version="1.0"?>
+	<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="{valid_until_str}" cacheDuration="PT604800S" entityID="{get_sp_entity_id()}">
+		<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+			<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
+			<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="{get_sp_url(login_callback_path)}" index="1"/>
+			{slo}
+	{signing}
+		</md:SPSSODescriptor>
+	</md:EntityDescriptor>
+	"""
+	return re.sub(r"^\s*\n", "", dedent(metadata), flags=re.MULTILINE)
+
+
 def setup_saml() -> None:
 	if not config.saml_sp_client_signature or (config.saml_sp_x509_cert and config.saml_sp_private_key):
 		return
 
 	logger.notice("Setting up SAML SP client signature")
-	common_name = get_configserver_id()
+	common_name = get_sp_entity_id()
 	subject = x509.Name(
 		[
 			x509.NameAttribute(x509.NameOID.COMMON_NAME, common_name),

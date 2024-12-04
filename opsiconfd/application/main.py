@@ -284,6 +284,7 @@ def setup_app() -> None:
 		"/auth/logout",
 		"/auth/session_id",
 		"/auth/saml",
+		"/auth/saml/sp-meta.xml",
 		"/ssl/opsi-ca-cert.pem",
 		"/ssl/ca-certs.pem",
 		"/static",

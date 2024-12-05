@@ -33,6 +33,7 @@ from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, 
 from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.backend import get_service_client, get_unprotected_backend
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
+from opsiconfd.check.main import health_check
 from opsiconfd.config import MANAGER_THREAD_POOL_WORKERS, config, get_server_role
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
@@ -375,6 +376,9 @@ class Manager(metaclass=Singleton):
 		self._loop.run_until_complete(self.async_main())
 		pool_executer.shutdown()
 
+	async def run_health_check(self) -> None:
+		list(health_check())
+
 	async def check_server_cert(self) -> None:
 		if setup_ssl():
 			logger.notice("Server certificate changed, restarting all workers")
@@ -423,6 +427,8 @@ class Manager(metaclass=Singleton):
 					self._cleanup_file_storage_time = now
 				if now - self._redis_check_time > self._redis_check_interval:
 					await self.check_redis()
+				if now - self._worker_manager.startup_time > config.health_check_interval:
+					asyncio.ensure_future(self.run_health_check())
 				if self._is_config_server:
 					if now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:
 						await messagebus_cleanup(full=False)

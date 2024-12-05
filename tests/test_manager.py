@@ -24,7 +24,15 @@ import pytest
 from opsiconfd.manager import Manager, WorkerManager, WorkerState
 from opsiconfd.redis import redis_client
 
-from .utils import UnprotectedBackend, backend, clean_redis, get_config, reset_singleton  # noqa: F401
+from .utils import (  # noqa: F401
+	UnprotectedBackend,
+	backend,
+	clean_health_check_cache,
+	clean_redis,
+	get_config,
+	reset_singleton,
+	sync_clean_redis,
+)
 
 
 @contextmanager
@@ -97,6 +105,17 @@ def test_check_server_cert(cert_changed: bool) -> None:
 			with get_config({"ssl_server_cert_check_interval": 0.00001}):
 				time.sleep(2)
 				assert test_restarted == cert_changed
+
+
+def test_run_health_check(clean_health_check_cache: None) -> None:  # noqa: F811
+	with run_manager():
+		keys = redis_client().keys("*checkcache*")
+		assert not keys
+
+		with get_config({"health-check-interval": 0.00001}):
+			time.sleep(2)
+			keys = redis_client().keys("*checkcache*")
+			assert keys
 
 
 def test_worker_manager_and_workers() -> None:

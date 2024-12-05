@@ -11,15 +11,20 @@ opsiconfd.auth.saml
 
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from textwrap import dedent, indent
 from typing import Any
+from xml.etree import ElementTree
 
+import requests
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import CertificateBuilder
 from fastapi import Request
 from opsicommon.exceptions import OpsiServiceAuthenticationError
+from rich import print as rich_print
+from rich.prompt import Prompt
 
 from opsiconfd.config import config, get_configserver_id
 from opsiconfd.logging import get_logger
@@ -129,6 +134,53 @@ async def saml_auth_request_data(request: Request) -> dict[str, Any]:
 	return params
 
 
+def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
+	root = ElementTree.fromstring("<doc>" + metadata_xml + "</doc>")
+	search = "{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor"
+	entity_descriptor: ElementTree.Element | None
+	if root.tag == search:
+		entity_descriptor = root
+	else:
+		entity_descriptor = root.find(f".//{search}")
+	if entity_descriptor is None:
+		raise ValueError(f"{search} not found in metadata XML")
+	idp_entity_id = entity_descriptor.attrib.get("entityID")
+	if not idp_entity_id:
+		raise ValueError("entityID attribute not found in EntityDescriptor")
+
+	search = "{urn:oasis:names:tc:SAML:2.0:metadata}KeyDescriptor[@use='signing']"
+	node = entity_descriptor.find(f".//{search}")
+	if node is None:
+		raise ValueError(f"{search} not found in metadata XML")
+	idp_x509_cert_node = node.find(".//{http://www.w3.org/2000/09/xmldsig#}X509Certificate")
+	if idp_x509_cert_node is None or not idp_x509_cert_node.text:
+		raise ValueError("X509Certificate not found in KeyDescriptor")
+	idp_x509_cert = idp_x509_cert_node.text
+
+	search = "{urn:oasis:names:tc:SAML:2.0:metadata}SingleSignOnService[@Binding='urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST']"
+	node = entity_descriptor.find(f".//{search}")
+	if node is None:
+		raise ValueError(f"{search} not found in metadata XML")
+	idp_sso_url = node.attrib.get("Location")
+	if not idp_sso_url:
+		raise ValueError("Location attribute not found in SingleSignOnService")
+
+	search = "{urn:oasis:names:tc:SAML:2.0:metadata}SingleLogoutService[@Binding='urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect']"
+	node = entity_descriptor.find(f".//{search}")
+	idp_slo_url = None
+	if node is not None:
+		idp_slo_url = node.attrib.get("Location", "")
+
+	config.update_config(
+		{
+			"saml_idp_entity_id": idp_entity_id,
+			"saml_idp_sso_url": idp_sso_url,
+			"saml_idp_x509_cert": idp_x509_cert,
+			"saml_idp_slo_url": idp_slo_url,
+		}
+	)
+
+
 def get_sp_metadata_xml(
 	login_callback_path: str = "/auth/saml/callback/login", logout_callback_path: str = "/auth/saml/callback/logout"
 ) -> str:
@@ -174,10 +226,7 @@ def get_sp_metadata_xml(
 	return re.sub(r"^\s*\n", "", dedent(metadata), flags=re.MULTILINE)
 
 
-def setup_saml() -> None:
-	if not config.saml_sp_client_signature or (config.saml_sp_x509_cert and config.saml_sp_private_key):
-		return
-
+def generate_client_certificate() -> None:
 	logger.notice("Setting up SAML SP client signature")
 	common_name = get_sp_entity_id()
 	subject = x509.Name(
@@ -198,3 +247,39 @@ def setup_saml() -> None:
 	key_pem = "".join(line.strip() for line in as_pem(key).split("\n") if not line.startswith("-----"))
 	cert_pem = "".join(line.strip() for line in as_pem(cert).split("\n") if not line.startswith("-----"))
 	config.update_config({"saml_sp_x509_cert": cert_pem, "saml_sp_private_key": key_pem}, on_change="reload")
+
+
+def setup_saml() -> None:
+	if not config.saml_sp_client_signature or (config.saml_sp_x509_cert and config.saml_sp_private_key):
+		return
+
+	generate_client_certificate()
+
+
+def setup_saml_configuration(interactive: bool = True, unattended_configuration: dict[str, str] | None = None) -> None:
+	if unattended_configuration:
+		url = unattended_configuration.get("idp_metadata_url")
+		if not url:
+			raise ValueError("idp_metadata_url not set in unattended configuration")
+	else:
+		if not interactive:
+			raise ValueError("Interactive setup or unattended configuration required")
+		url = Prompt.ask("Enter SAML IdP XML metadata URL of filename").strip()
+
+	if url.startswith("http"):
+		rich_print(f"Fetching metadata from '{url}'")
+		metadata_xml = requests.get(url).text
+	else:
+		file = Path(url.removeprefix("file://"))
+		rich_print(f"Reading metadata from '{file}'")
+		metadata_xml = file.read_text(encoding="utf-8")
+
+	rich_print("Updating configuration")
+	update_config_from_idp_metadata_xml(metadata_xml)
+	config.update_config({"saml_sp_client_signature": True})
+	generate_client_certificate()
+	metadata_xml = get_sp_metadata_xml()
+
+	rich_print(
+		f"<!--\nopsiconfd SP XML metadata.\nThis data is also available at: {get_sp_url('/auth/saml/sp-meta.xml')}\n-->\n{metadata_xml}"
+	)

@@ -388,6 +388,9 @@ class Config(metaclass=Singleton):
 
 		self.jinja_templates_dir = os.path.join(self.static_dir, "templates")
 
+		if self._config.admin_password:
+			secret_filter.add_secrets(self._config.admin_password)
+
 		if not self._config.ssl_ca_key_passphrase:
 			# Use None if empty string
 			self._config.ssl_ca_key_passphrase = None
@@ -1699,7 +1702,22 @@ class Config(metaclass=Singleton):
 			)
 
 			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
-			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
+			self._parser.add(
+				"--configure-saml",
+				action="store_true",
+				help=self._help("setup", "Configure SAML authentication.\nPossible unattended config parameters are: idp_metadata_url."),
+			)
+			self._parser.add(
+				"--register-depot",
+				action="store_true",
+				help=self._help(
+					"setup",
+					"Register this server as a depotserver.\n"
+					"Possible unattended config parameters are: configserver, depot_id, description, username, password.\n",
+					"Instead of using username and password in the unattended config, you can use the --admin-user and --admin-password options.",
+					"For security reasons, these options should preferably be set via environment variables.",
+				),
+			)
 			self._parser.add(
 				"--unattended",
 				metavar="UNATTENDED_CONFIG",
@@ -1707,7 +1725,7 @@ class Config(metaclass=Singleton):
 				const=True,
 				type=str,
 				default=False,
-				help=self._help("setup", 'Pass unattended config for --register-depot  as \'{"key":"value"}\''),
+				help=self._help("setup", 'Pass unattended config for --register-depot or --configure-saml as \'{"key":"value"}\''),
 			)
 			self._parser.add(
 				"--set-depot-user-password",

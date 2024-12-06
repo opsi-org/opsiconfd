@@ -193,6 +193,19 @@ def sync_clean_redis() -> None:
 		redis.delete(key)
 
 
+def sync_clean_health_check_cache() -> None:
+	redis = redis_client()
+	for key in redis.scan_iter("*checkcache*", count=1000):
+		redis.delete(key)
+
+
+@pytest.fixture(autouse=False)
+def clean_health_check_cache() -> Generator[None, None, None]:
+	sync_clean_health_check_cache()
+	yield
+	sync_clean_health_check_cache()
+
+
 @pytest.fixture(autouse=True)
 def clean_redis() -> None:
 	sync_clean_redis()

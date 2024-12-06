@@ -299,6 +299,7 @@ class Manager(metaclass=Singleton):
 		self._force_stop = False
 		self._server_cert_check_time = time.time()
 		self._redis_check_time = time.time()
+		self._health_check_time = time.time()
 		self._redis_check_interval = 300
 		self._messagebus_cleanup_time = 0.0
 		self._messagebus_cleanup_interval = 180
@@ -427,8 +428,9 @@ class Manager(metaclass=Singleton):
 					self._cleanup_file_storage_time = now
 				if now - self._redis_check_time > self._redis_check_interval:
 					await self.check_redis()
-				if now - self._worker_manager.startup_time > config.health_check_interval:
+				if now - self._health_check_time > config.health_check_interval:
 					asyncio.ensure_future(self.run_health_check())
+					self._health_check_time = now
 				if self._is_config_server:
 					if now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:
 						await messagebus_cleanup(full=False)

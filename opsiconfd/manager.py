@@ -305,6 +305,7 @@ class Manager(metaclass=Singleton):
 		self._messagebus_cleanup_interval = 180
 		self._cleanup_file_storage_time = 0.0
 		self._cleanup_file_storage_interval = 3600
+		self._interval = 60
 		self._metrics_collector = ManagerMetricsCollector()
 		self._worker_manager = WorkerManager()
 		self._is_config_server = get_server_role() == "configserver"
@@ -438,7 +439,7 @@ class Manager(metaclass=Singleton):
 
 			except Exception as err:
 				logger.error(err, exc_info=True)
-			for _num in range(60):
+			for _num in range(self._interval):
 				if self._should_stop:
 					break
 				await asyncio.sleep(1)

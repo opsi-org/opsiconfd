@@ -31,12 +31,13 @@ from .utils import (  # noqa: F401
 	clean_redis,
 	get_config,
 	reset_singleton,
+	sync_clean_health_check_cache,
 	sync_clean_redis,
 )
 
 
 @contextmanager
-def run_manager() -> Generator[Manager, None, None]:
+def run_manager(interval: None | int = None) -> Generator[Manager, None, None]:
 	with (
 		patch("opsiconfd.manager.WorkerManager.run", lambda *args, **kwargs: None),
 		patch("opsiconfd.manager.init_logging", lambda *args, **kwargs: None),
@@ -45,6 +46,8 @@ def run_manager() -> Generator[Manager, None, None]:
 	):
 		reset_singleton(Manager)
 		man = Manager()
+		if interval is not None:
+			man._interval = interval
 		man.run()
 		try:
 			yield man
@@ -108,14 +111,20 @@ def test_check_server_cert(cert_changed: bool) -> None:
 
 
 def test_run_health_check(clean_health_check_cache: None) -> None:  # noqa: F811
-	with run_manager():
-		keys = redis_client().keys("*checkcache*")
-		assert not keys
+	for _ in range(3):
+		with run_manager(interval=2) as man, get_config({"health-check-interval": 1}):
+			keys = redis_client().keys("*checkcache*")
+			assert not keys
 
-		with get_config({"health-check-interval": 0.00001}):
+			time.sleep(3)
+			now = time.time()
+			assert now - man._health_check_time <= 3
 			time.sleep(2)
 			keys = redis_client().keys("*checkcache*")
 			assert keys
+
+		sync_clean_health_check_cache()
+		time.sleep(1)
 
 
 def test_worker_manager_and_workers() -> None:

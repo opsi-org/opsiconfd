@@ -1314,6 +1314,13 @@ class Config(metaclass=Singleton):
 			help=self._help(("opsiconfd", "health-check"), "Health-Check output format."),
 			choices=("cli", "checkmk", "json"),
 		)
+		self._parser.add(
+			"--health-check-interval",
+			env_var="OPSICONFD_HEALTH_CHECK_INTERVAL",
+			type=int,
+			default=86400,  # 24 hours
+			help=self._help(("opsiconfd", "health-check"), "The interval in seconds at which the health check is executed."),
+		)
 
 		self._parser.add(
 			"--mysql-internal-url",

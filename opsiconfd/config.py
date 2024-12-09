@@ -1720,8 +1720,8 @@ class Config(metaclass=Singleton):
 				help=self._help(
 					"setup",
 					"Register this server as a depotserver.\n"
-					"Possible unattended config parameters are: configserver, depot_id, description, username, password.\n",
-					"Instead of using username and password in the unattended config, you can use the --admin-user and --admin-password options.",
+					"Possible unattended config parameters are: configserver, depot_id, description, username, password.\n"
+					"Instead of using username and password in the unattended config, you can use the --admin-user and --admin-password options."
 					"For security reasons, these options should preferably be set via environment variables.",
 				),
 			)

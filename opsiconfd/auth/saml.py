@@ -108,6 +108,7 @@ def get_saml_settings(
 		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:
 			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
 		settings["security"]["authnRequestsSigned"] = True
+		settings["security"]["wantAssertionsSigned"] = True
 		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
 		settings["sp"]["privateKey"] = config.saml_sp_private_key
 
@@ -215,7 +216,7 @@ def get_sp_metadata_xml(
 	metadata = f"""
 	<?xml version="1.0"?>
 	<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="{valid_until_str}" cacheDuration="PT604800S" entityID="{get_sp_entity_id()}">
-		<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+		<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" WantAssertionsEncrypted="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
 			<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
 			<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="{get_sp_url(login_callback_path)}" index="1"/>
 			{slo}

@@ -329,7 +329,7 @@ def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient) -> None:  # 
 				"""
 		<?xml version="1.0"?>
 		<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="2024-12-06T10:10:10Z" cacheDuration="PT604800S" entityID="sp-entity-id">
-			<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+			<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" WantAssertionsEncrypted="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
 				<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
 				<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://base-url:123/auth/saml/callback/login" index="1"/>
 			</md:SPSSODescriptor>
@@ -349,7 +349,7 @@ def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient) -> None:  # 
 					"""
 				<?xml version="1.0"?>
 				<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="2024-12-06T10:10:10Z" cacheDuration="PT604800S" entityID="sp-entity-id">
-					<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+					<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" WantAssertionsEncrypted="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
 						<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
 						<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://base-url:123/auth/saml/callback/login" index="1"/>
 						<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://base-url:123/auth/saml/callback/logout"/>

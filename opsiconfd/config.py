@@ -1189,7 +1189,7 @@ class Config(metaclass=Singleton):
 			default=False,
 			help=self._help(
 				"opsiconfd",
-				"Enable SAML 2.0 client signatures.",
+				"Enable SAML 2.0 client signatures and decryption of assertions.",
 			),
 		)
 		self._parser.add(

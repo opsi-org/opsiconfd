@@ -136,7 +136,7 @@ async def saml_auth_request_data(request: Request) -> dict[str, Any]:
 
 
 def update_config_from_idp_metadata_xml(metadata_xml: str) -> None:
-	root = ElementTree.fromstring("<doc>" + metadata_xml + "</doc>")
+	root = ElementTree.fromstring(metadata_xml)
 	search = "{urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor"
 	entity_descriptor: ElementTree.Element | None
 	if root.tag == search:
@@ -216,9 +216,9 @@ def get_sp_metadata_xml(
 	metadata = f"""
 	<?xml version="1.0"?>
 	<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="{valid_until_str}" cacheDuration="PT604800S" entityID="{get_sp_entity_id()}">
-		<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" WantAssertionsEncrypted="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+		<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
 			<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
-			<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="{get_sp_url(login_callback_path)}" index="1"/>
+			<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="{get_sp_url(login_callback_path)}" index="0" isDefault="true"/>
 			{slo}
 	{signing}
 		</md:SPSSODescriptor>

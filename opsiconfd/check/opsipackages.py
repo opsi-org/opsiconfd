@@ -1,25 +1,18 @@
-# # -*- coding: utf-8 -*-
-
-# # opsiconfd is part of the desktop management solution opsi http://www.opsi.org
-# # Copyright (c) 2008-2024 uib GmbH <info@uib.de>
-# # All rights reserved.
-# # License: AGPL-3.0
-
-# """
-# health check
-# """
-
+# opsiconfd is part of the desktop management solution opsi http://www.opsi.org
+# Copyright (c) 2008-2024 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-import requests
 from opsicommon.package.repo_meta import RepoMetaPackageCollection
-from opsicommon.utils import compare_versions, prepare_proxy_environment
+from opsicommon.utils import compare_versions
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_requests_session
 
 OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
 OPSI_REPO_FILE = f"https://{OPSI_PACKAGES_HOST}/stable/packages.msgpack.zstd"
@@ -29,8 +22,7 @@ MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client
 
 def get_available_product_versions(product_ids: list[str]) -> dict:
 	available_packages = {}
-	session = prepare_proxy_environment(OPSI_PACKAGES_HOST)
-
+	session = get_requests_session(OPSI_PACKAGES_HOST)
 	res = session.get(OPSI_REPO_FILE, timeout=10, stream=True)
 	res.raise_for_status()
 
@@ -113,7 +105,7 @@ class OpsiProductsOnDepotsCheck(Check):
 		outdated = 0
 		try:
 			available_packages = get_available_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
-		except requests.RequestException as err:
+		except Exception as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 			return result
@@ -277,7 +269,7 @@ class OpsiProductsOnClientsCheck(Check):
 				available_products = backend.productOnDepot_getObjects(
 					depotId=depot.id, attributes=["productId", "productVersion", "packageVersion"]
 				)
-			except requests.RequestException as err:
+			except Exception as err:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Failed to get product info from depot '{depot.id}': {err}"
 				return result

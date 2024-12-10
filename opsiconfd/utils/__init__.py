@@ -39,9 +39,13 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
+import requests
 from opsicommon.logging.logging import OPSILogger
 from opsicommon.system.info import is_ucs
 from opsicommon.types import forceStringLower
+from opsicommon.utils import prepare_proxy_environment
+
+from opsiconfd import __version__
 
 logger: OPSILogger | None = None
 config = None
@@ -547,3 +551,10 @@ class DataclassCapableJSONEncoder(JSONEncoder):
 		if not isinstance(obj, type) and dataclasses.is_dataclass(obj):
 			return dataclasses.asdict(obj)
 		return super().default(obj)
+
+
+def get_requests_session(hostname: str) -> requests.Session:
+	session = prepare_proxy_environment(hostname)
+	session.verify = get_config().ssl_trusted_certs
+	session.headers.update({"User-Agent": f"opsiconfd {__version__}"})
+	return session

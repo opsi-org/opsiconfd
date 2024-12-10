@@ -14,9 +14,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from textwrap import dedent, indent
 from typing import Any
+from urllib.parse import urlparse
 from xml.etree import ElementTree
 
-import requests
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -29,6 +29,7 @@ from rich.prompt import Prompt
 from opsiconfd.config import config, get_configserver_id
 from opsiconfd.logging import get_logger
 from opsiconfd.ssl import as_pem
+from opsiconfd.utils import get_requests_session
 from opsiconfd.utils.modules import check_module
 
 logger = get_logger("opsiconfd.saml")
@@ -269,7 +270,7 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 
 	if url.startswith("http"):
 		rich_print(f"Fetching metadata from '{url}'")
-		metadata_xml = requests.get(url).text
+		metadata_xml = get_requests_session(urlparse(url).hostname or "").get(url, timeout=10).text
 	else:
 		file = Path(url.removeprefix("file://"))
 		rich_print(f"Reading metadata from '{file}'")

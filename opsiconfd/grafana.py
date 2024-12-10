@@ -20,6 +20,7 @@ import string
 import subprocess
 import time
 from contextlib import asynccontextmanager, contextmanager
+from ssl import create_default_context
 from typing import Any, AsyncGenerator, Generator
 from urllib.parse import quote, unquote, urlparse
 
@@ -31,7 +32,7 @@ from requests.auth import AuthBase, HTTPBasicAuth
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger, secret_filter
-from opsiconfd.utils import get_random_string
+from opsiconfd.utils import get_random_string, get_requests_session
 
 API_KEY_NAME = "opsiconfd"
 GRAFANA_CLI = "/usr/sbin/grafana-cli"
@@ -260,9 +261,8 @@ def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, Non
 			auth = HTTPBasicAuth(url.username, unquote(url.password))
 
 	try:
-		session = requests.Session()
+		session = get_requests_session(url.hostname)
 		session.auth = auth
-		session.verify = config.ssl_trusted_certs
 		if not config.grafana_verify_cert:
 			session.verify = False
 
@@ -286,7 +286,9 @@ async def async_grafana_session(
 			logger.debug("Using username %s and password grafana authorization", username)
 			auth = aiohttp.BasicAuth(username, password)
 
-	connector = aiohttp.TCPConnector(verify_ssl=config.grafana_verify_cert)
+	ssl_context = create_default_context()
+	ssl_context.load_verify_locations(config.ssl_trusted_certs)
+	connector = aiohttp.TCPConnector(ssl_context=ssl_context, verify_ssl=config.grafana_verify_cert)
 
 	url = urlparse(config.grafana_internal_url)
 	async with aiohttp.ClientSession(connector=connector, auth=auth, headers=headers) as session:

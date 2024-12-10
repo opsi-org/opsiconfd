@@ -14,6 +14,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import date
 from subprocess import CalledProcessError, run
+from urllib.parse import urlparse
 
 import psutil
 from opsicommon.system.info import (
@@ -23,7 +24,6 @@ from opsicommon.system.info import (
 	linux_distro_version_id,
 )
 from opsicommon.utils import compare_versions
-from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 
@@ -31,6 +31,7 @@ from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_requests_session
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_12/"
 CHECK_SYSTEM_PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
@@ -133,7 +134,7 @@ def get_repo_versions() -> dict[str, str | None]:
 	repo_versions: dict[str, str | None] = {}
 
 	try:
-		repo_data = get(url, timeout=10)
+		repo_data = get_requests_session(urlparse(url).hostname or "").get(url, timeout=10)
 	except (RequestConnectionError, ConnectTimeout) as err:
 		logger.error("Could not get package versions from repository")
 		logger.error(str(err))

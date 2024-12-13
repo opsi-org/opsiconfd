@@ -19,7 +19,7 @@ from opsiconfd.check.utils import get_enabled_hosts
 __all__ = ["LastSeenCheck"]
 
 
-MAX_DAYS = 30
+MAX_DAYS_INACTIVE = 30
 
 
 @dataclass()
@@ -30,9 +30,10 @@ class LastSeenCheck(Check):
 	documentation: str = f"""
 			## Check Last Seen
 
-			Checks if the clients have been seen recently. The clients are considered up to date if they have been seen less than {MAX_DAYS} days ago.
+			Checks if the clients have been seen recently. The clients are considered up to date if they have been seen less than {MAX_DAYS_INACTIVE} days ago.
 	"""
 	partial_check: bool = False
+	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -51,7 +52,7 @@ class LastSeenCheck(Check):
 		for client in clients:
 			if client.id not in enabled_hosts:
 				continue
-			if client.lastSeen and (now - datetime.strptime(client.lastSeen, "%Y-%m-%d %H:%M:%S")).days > MAX_DAYS:
+			if client.lastSeen and (now - datetime.strptime(client.lastSeen, "%Y-%m-%d %H:%M:%S")).days > MAX_DAYS_INACTIVE:
 				outdated_clients.add(client.id)
 
 		if outdated_clients:
@@ -62,5 +63,45 @@ class LastSeenCheck(Check):
 		return result
 
 
+@dataclass()
+class FailedClientsCheck(Check):
+	id: str = "opsi_failed_clients"
+	name: str = "OPSI failed Clients"
+	description: str = "Check if product installation failed on clients."
+	documentation: str = """
+			## Check Failed Clients
+
+		This check verifies if the product installation has failed on any clients.
+		It retrieves all clients and checks their 'actionResult' status.
+		If any client has a failed installation, the check will return an error status with a list of the failed client.
+	"""
+
+	def _check(self) -> CheckResult:
+		result = CheckResult(
+			check=self,
+			message="No clients have action results with the status failed.",
+			check_status=CheckStatus.OK,
+			details={},
+		)
+
+		backend = get_unprotected_backend()
+		clients = backend.host_getObjects(type="OpsiClient")
+		enabled_hosts = get_enabled_hosts()
+		failed_clients = set()
+		for client in clients:
+			if client.id not in enabled_hosts:
+				continue
+			if backend.productOnClient_getObjects(clientId=client.id, actionResult="failed"):
+				failed_clients.add(client.id)
+
+		if failed_clients:
+			result.message = "Some clients have action results with the status failed."
+			result.check_status = CheckStatus.ERROR
+			result.details = {"failed_clients": list(failed_clients)}
+
+		return result
+
+
 last_seen_check = LastSeenCheck()
-check_manager.register(last_seen_check)
+failed_clients_check = FailedClientsCheck()
+check_manager.register(last_seen_check, failed_clients_check)

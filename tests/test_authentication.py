@@ -219,7 +219,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 			resp = res.json()
 			assert "error" not in resp
 			assert resp["result"]
-			totp: pyotp.TOTP = pyotp.parse_uri(resp["result"])
+			totp: pyotp.TOTP = cast(pyotp.TOTP, pyotp.parse_uri(resp["result"]))
 
 			res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 			assert res.status_code == 401

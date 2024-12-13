@@ -248,6 +248,8 @@ class MySQLConnection:
 
 	def read_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
+		if not mysql_conf.exists():
+			return
 		loc: dict[str, Any] = {}
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)
 		self._parse_config(loc["config"])

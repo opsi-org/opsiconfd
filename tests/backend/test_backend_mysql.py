@@ -163,6 +163,17 @@ def test_update_config_file(tmp_path: Path) -> None:
 				"unique_hardware_addresses": False,
 			},
 		),
+		(
+			"mysql://u:p@localhost:3306/db?unique_system_uuids=false&unique_hardware_addresses=true",
+			{
+				"username": "u",
+				"database": "db",
+				"address": "localhost",
+				"password": "p",
+				"unique_system_uuids": False,
+				"unique_hardware_addresses": True,
+			},
+		),
 	),
 )
 def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expected_config: dict[str, Any]) -> None:
@@ -180,6 +191,11 @@ def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expe
 		)
 		config_file.write_text(config, encoding="utf-8")
 
+		con = MySQLConnection()
+		for key, value in expected_config.items():
+			assert getattr(con, key) == value
+
+		config_file.unlink()
 		con = MySQLConnection()
 		for key, value in expected_config.items():
 			assert getattr(con, key) == value

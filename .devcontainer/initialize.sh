@@ -9,7 +9,7 @@ echo "Writing env file: ${env_file}"
 
 if [ -e $env_file ]; then
 	set -o allexport
-	source $env_file
+	. $env_file
 	set +o allexport
 fi
 

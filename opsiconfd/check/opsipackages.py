@@ -259,6 +259,67 @@ class OpsiProductsOnClientsCheck(Check):
 		return result
 
 
+@dataclass()
+class OpsiLockedProductsDepotCheck(Check):
+	id: str = "locked_products_depot"
+	name: str = "Locked Products Depot"
+	description: str = "Check for locked products on depots"
+	documentation: str = """
+		## Locked products on depot
+
+		Checks if there are any locked products on this depot.
+	"""
+	partial_check: bool = True
+	depot_id: str = ""
+
+	def _check(self) -> CheckResult:
+		result = CheckResult(
+			check=self,
+			message=f"No locked products found on depot: '{self.depot_id}'.",
+			check_status=CheckStatus.OK,
+		)
+		backend = get_unprotected_backend()
+		locked_products = []
+
+		locked_products.extend(backend.productOnDepot_getObjects(depotId=self.depot_id, locked=True))
+		if locked_products:
+			result.message = f"Locked products found on depot: '{self.depot_id}'"
+			result.check_status = CheckStatus.WARNING
+			result.details = {"locked_products": [product.productId for product in locked_products]}
+		return result
+
+
+@dataclass()
+class OpsiLockedProductsCheck(Check):
+	id: str = "locked_products"
+	name: str = "Locked Products"
+	description: str = "Check for locked products"
+	documentation: str = """
+		## Locked products
+
+		Checks if there are locked products on any depot.
+	"""
+	cache_partial_checks: bool = True
+
+	def _check(self) -> CheckResult:
+		result = CheckResult(
+			check=self,
+			message="No locked products found.",
+			check_status=CheckStatus.OK,
+		)
+		backend = get_unprotected_backend()
+		enabled_hosts = get_enabled_hosts()
+		depots = backend.host_getObjects(attributes=["id"], type="OpsiDepotserver")
+		for depot in depots:
+			if depot.id not in enabled_hosts:
+				continue
+			check = OpsiLockedProductsDepotCheck(depot_id=depot.id)
+			self.add_partial_checks(check)
+
+		return result
+
+
 opsi_products_on_depots_check = OpsiProductsOnDepotsCheck()
 opsi_products_on_clients_check = OpsiProductsOnClientsCheck()
-check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check)
+opsi_locked_products_check = OpsiLockedProductsCheck()
+check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check, opsi_locked_products_check)

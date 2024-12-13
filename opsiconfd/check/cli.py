@@ -58,9 +58,8 @@ def console_print_message(check_result: CheckResult, console: Console, indent: i
 	message = "\n".join([f"{msg_ident if idx > 0 else ''}{line}" for idx, line in enumerate(check_result.message.split("\n"))])
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
 	if detailed and check_result.details:
-		console.print(Padding("Details:", (0, indent + 3)))
 		for key, value in check_result.details.items():
-			console.print(Padding(f"{key}: {value}", (0, indent + 6)))
+			console.print(Padding(f"{key}: {value}", (0, indent + 10)))
 
 
 def process_check_result(result: CheckResult, console: Console, check_version: str | None = None, detailed: bool = False) -> None:

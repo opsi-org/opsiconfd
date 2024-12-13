@@ -179,11 +179,7 @@ class CheckManager(metaclass=Singleton):
 			self._possible_checks[check.id] = check
 			if role == "depotserver" and not check.depot_check:
 				continue
-			if (
-				(config.checks and check.id not in config.checks)
-				or (config.skip_checks and check.id in config.skip_checks)
-				and config.list is False
-			):
+			if (config.checks and check.id not in config.checks) or (config.skip_checks and check.id in config.skip_checks):
 				continue
 			self._checks[check.id] = check
 

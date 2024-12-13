@@ -87,7 +87,7 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 
 	style = STYLES[status]
 	console.print(f"[{style}]●[/{style}] [b]{result.check.name}[/b]: [{style}]{status.upper()}[/{style}]")
-	console_print_message(result, console, 3)
+	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
 	if detailed and result.details:
 		for key, value in result.details.items():
 			console.print(Padding(f"{key}: {value}", (0, 5)))

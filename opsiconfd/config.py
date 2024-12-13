@@ -1135,6 +1135,13 @@ class Config(metaclass=Singleton):
 			choices=("inactive", "totp_optional", "totp_mandatory"),
 		)
 		self._parser.add(
+			"--totp-tolerance",
+			env_var="OPSICONFD_TOTP_TOLERANCE",
+			type=int,
+			default=0,
+			help=self._help("opsiconfd", 'The number of "past" and "future" passwords that are valid during TOTP validation.'),
+		)
+		self._parser.add(
 			"--client-cert-auth",
 			env_var="OPSICONFD_CLIENT_CERT_AUTH",
 			nargs="+",

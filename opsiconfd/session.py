@@ -1434,7 +1434,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		if not mfa_otp:
 			raise OpsiServiceAuthenticationError("MFA one-time password missing")
 		totp = pyotp.TOTP(users[0].otpSecret)
-		if not totp.verify(mfa_otp):
+		if not totp.verify(mfa_otp, valid_window=max(0, config.totp_tolerance)):
 			raise OpsiServiceAuthenticationError("Incorrect one-time password")
 		session.add_auth_methods(AuthenticationMethod.TOTP)
 		logger.info("OTP MFA successful")

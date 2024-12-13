@@ -11,7 +11,7 @@ login tests
 
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -200,41 +200,75 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		# Mandatory but no secret
 		assert "MFA OTP configuration error" in res.json()["message"]
 
-	with get_config({"multi_factor_auth": "totp_optional"}):
-		test_client.reset_cookies()
+	for time_window_offset in (-2, -1, 0, 1, 2):
+		with get_config({"multi_factor_auth": "totp_optional", "totp_tolerance": abs(time_window_offset)}):
+			test_client.reset_cookies()
 
-		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
-		assert res.status_code == 200
+			res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+			assert res.status_code == 200
+			test_client.post(url="/admin/unblock-all")
 
-		rpc = {
-			"jsonrpc": "2.0",
-			"id": 1,
-			"method": "user_updateMultiFactorAuth",
-			"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
-		}
-		res = test_client.post("/rpc", json=rpc)
-		assert res.status_code == 200
-		resp = res.json()
-		assert "error" not in resp
-		assert resp["result"]
-		totp = pyotp.parse_uri(resp["result"])
+			rpc = {
+				"jsonrpc": "2.0",
+				"id": 1,
+				"method": "user_updateMultiFactorAuth",
+				"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
+			}
+			res = test_client.post("/rpc", json=rpc)
+			assert res.status_code == 200
+			resp = res.json()
+			assert "error" not in resp
+			assert resp["result"]
+			totp: pyotp.TOTP = pyotp.parse_uri(resp["result"])
 
-		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
-		assert res.status_code == 401
-		assert "MFA one-time password missing" in res.json()["message"]
+			res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+			assert res.status_code == 401
+			assert "MFA one-time password missing" in res.json()["message"]
 
-		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": "123456"})
-		assert res.status_code == 401
-		assert "Incorrect one-time password" in res.json()["message"]
+			res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": "123456"})
+			assert res.status_code == 401
+			assert "Incorrect one-time password" in res.json()["message"]
 
-		res = test_client.post(
-			"/auth/login",
-			json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": totp.now()},  # type: ignore[attr-defined]
-		)
-		assert res.status_code == 200
-		# test session session.authenticated is true
-		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
-		assert "login?redirect" not in str(res.url)
+			now = datetime.now()
+			time_in_tolerance = now - timedelta(seconds=time_window_offset * 30)
+			time_out_of_tolerance = now - timedelta(seconds=(time_window_offset + (1 if time_window_offset >= 0 else -1)) * 30)
+			otp_in_tolerance = totp.generate_otp(totp.timecode(time_in_tolerance))
+			otp_out_of_tolerance = totp.generate_otp(totp.timecode(time_out_of_tolerance))
+
+			res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": otp_out_of_tolerance})
+			assert res.status_code == 401
+			assert "Incorrect one-time password" in res.json()["message"]
+
+			res = test_client.post(
+				"/auth/login",
+				json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": otp_in_tolerance},
+			)
+			assert res.status_code == 200
+			# Test session session.authenticated is true
+			res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
+			assert "login?redirect" not in str(res.url)
+
+			# Deactivate MFA again
+			rpc = {
+				"jsonrpc": "2.0",
+				"id": 1,
+				"method": "user_updateMultiFactorAuth",
+				"params": {"userId": ADMIN_USER, "type": "inactive"},
+			}
+			res = test_client.post("/rpc", json=rpc)
+			assert res.status_code == 200
+			resp = res.json()
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "user_updateMultiFactorAuth",
+		"params": {"userId": ADMIN_USER, "type": "totp", "returnType": "uri"},
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert res.status_code == 200
+	resp = res.json()
+	assert "error" not in resp
 
 	with get_config({"multi_factor_auth": "inactive"}):
 		test_client.reset_cookies()

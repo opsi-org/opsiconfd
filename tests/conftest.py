@@ -37,6 +37,7 @@ from opsiconfd.application.main import application_setup
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.schema import drop_database
 from opsiconfd.config import config as _config
+from opsiconfd.config import opsi_config
 from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
 from opsiconfd.setup import setup_backend, setup_mysql, setup_ssl
@@ -74,6 +75,7 @@ def pytest_sessionstart(session: Session) -> None:
 		return
 
 	Path("tests/data/opsi-config/opsi.conf").unlink(missing_ok=True)
+	opsi_config._upgrade_config = False
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
 

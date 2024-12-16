@@ -173,3 +173,4 @@ def test_check_locked_products(test_client: OpsiconfdTestClient) -> None:  # noq
 
 	result = check_manager.get("locked_products").run(clear_cache=True)
 	result.check_status == CheckStatus.ERROR
+	delete_mysql_data()

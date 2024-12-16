@@ -12,7 +12,7 @@ check tests
 from opsicommon.objects import ConfigState, LocalbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
 
 from opsiconfd.check.common import CheckStatus, check_manager
-from opsiconfd.check.opsipackages import opsi_products_on_clients_check, opsi_products_on_depots_check
+from opsiconfd.check.opsipackages import opsi_locked_products_check, opsi_products_on_clients_check, opsi_products_on_depots_check
 from opsiconfd.config import get_configserver_id
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -138,3 +138,38 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 			assert "is outdated" in partial_result.message
 			assert partial_result.upgrade_issue == "4.3"
 	assert found == 1
+
+
+def test_check_locked_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	_prepare_products(test_client=test_client)
+	check_manager.register(opsi_locked_products_check)
+	result = check_manager.get("locked_products").run(clear_cache=True)
+
+	result.check_status == CheckStatus.OK
+
+	# lock product on depot and check again. Should return ERROR
+	depot = OpsiDepotserver(id="test-check-depot-1.opsi.test")
+	product = LocalbootProduct(id="locked-product", productVersion="4.3.0.1", packageVersion="1")
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	product_on_depot = ProductOnDepot(
+		locked=True,
+		productId=product.id,
+		productType=product.getType(),
+		productVersion=product.productVersion,
+		packageVersion=product.packageVersion,
+		depotId=depot.id,
+	)
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[depot.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_createObjects", "params": [[product_on_depot.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	result = check_manager.get("locked_products").run(clear_cache=True)
+	result.check_status == CheckStatus.ERROR

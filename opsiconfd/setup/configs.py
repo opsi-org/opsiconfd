@@ -36,6 +36,26 @@ if TYPE_CHECKING:
 	from opsiconfd.backend import UnprotectedBackend
 
 
+CHECK_DEFAULT_IGNORE_PRODUCTS = [
+	"opsi-winst",
+	"opsi-auto-update",
+	"opsi-script",
+	"shutdownwanted",
+	"windows10-upgrade",
+	"activate-win",
+	"opsi-script-test",
+	"opsi-bootimage-local",
+	"opsi-uefi-netboot",
+	"opsi-wan-config-on",
+	"opsi-wan-config-off",
+	"opsi-winpe",
+	"win10-sysprep-app-update-blocker",
+	"windomain",
+	"hwaudit",
+	"swaudit",
+]
+
+
 def _get_windows_domain() -> str | None:
 	try:
 		# Could not fetch domain SID => exitcode 1
@@ -502,6 +522,21 @@ def setup_configs() -> None:
 					defaultValues=[""],
 					editable=True,
 					multiValue=False,
+				)
+			],
+		)
+
+	if "opsi.check.ignore_products" not in config_ids:
+		logger.info("Creating config 'opsi.check.ignore_products'")
+		backend.config_createObjects(
+			[
+				UnicodeConfig(
+					id="opsi.check.ignore_products",
+					description="Ignore products",
+					possibleValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
+					defaultValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
+					editable=True,
+					multiValue=True,
 				)
 			],
 		)

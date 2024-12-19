@@ -72,21 +72,22 @@ def test_health_check() -> None:
 	sync_clean_redis()
 	register_checks()
 	results = list(health_check())
-	assert len(results) == 20
+	assert len(results) == 23
 	for result in results:
 		print(result.check.id, result.check_status)
 		assert result.check_status
 
 
-# def test_checks_and_skip_checks() -> None:
-# 	register_checks()
-# 	with get_config({"checks": ["redis", "mysql", "ssl"]}):
-# 		list_of_checks = list(health_check())
-# 		assert len(list_of_checks) == 3
+def test_checks_and_skip_checks() -> None:
+	with get_config({"checks": ["redis", "mysql", "ssl"]}):
+		register_checks()
+		len(check_manager.check_ids) == 3
+		len(check_manager.possible_checks) == 20
 
-# 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
-# 		list_of_checks = list(health_check())
-# 		assert len(list_of_checks) == 17
+	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
+		register_checks()
+		len(check_manager.check_ids) == 20
+		len(check_manager.possible_checks) == 3
 
 
 def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

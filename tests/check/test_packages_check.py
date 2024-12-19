@@ -173,7 +173,7 @@ def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # n
 	result = check_manager.get("products_on_depots").run(clear_cache=True)
 	print(result)
 	assert result.check_status == CheckStatus.ERROR
-	assert "Out of 2 products on 2 depots checked, 2 mandatory products are not installed, 1 are out of date." in result.message
+	assert "Out of 3 products on 2 depots checked, 2 mandatory products are not installed, 1 are out of date." in result.message
 	assert result.upgrade_issue == "4.3"
 	found = 0
 	for partial_result in result.partial_results:

@@ -105,7 +105,7 @@ class Rights:
 				id=f"{self.config_prefix}.has_role",
 				multiValue=False,
 				editable=False,
-				defaultValues=[""],
+				defaultValues=[],
 				description="Which role should determine this users configuration.",
 			),
 			"modified": UnicodeConfig(
@@ -210,9 +210,15 @@ class Rights:
 
 	def create_configs(self) -> None:
 		for config_name, config in self.configs.items():
+			if config_name == "role":
+				config.possibleValues = self.get_roles()
 			if isinstance(getattr(self, config_name), list):
 				config.defaultValues = getattr(self, config_name)
 			else:
 				config.defaultValues = [getattr(self, config_name)]
 
 		self.backend.config_updateObjects(list(self.configs.values()))
+
+	def get_roles(self) -> list[str]:
+		roles = [r.id.split(".")[2].strip("{}") for r in self.backend.config_getObjects(configId="user.role.*")]
+		return roles

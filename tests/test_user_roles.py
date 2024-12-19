@@ -357,7 +357,7 @@ def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F81
 	configs = backend.config_getObjects(id="user.{admin}.*")
 
 	expected_configs = [
-		UnicodeConfig(id="user.{admin}.has_role", defaultValues=[""]),
+		UnicodeConfig(id="user.{admin}.has_role", defaultValues=[]),
 		BoolConfig(id="user.{admin}.privilege.host.all.registered_readonly", defaultValues=[False]),
 		BoolConfig(id="user.{admin}.privilege.host.createclient", defaultValues=[True]),
 		BoolConfig(id="user.{admin}.privilege.host.opsiserver.write", defaultValues=[True]),

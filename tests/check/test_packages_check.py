@@ -9,11 +9,20 @@
 check tests
 """
 
-from opsicommon.objects import ConfigState, LocalbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
+from opsicommon.objects import (
+	Config,
+	ConfigState,
+	LocalbootProduct,
+	OpsiClient,
+	OpsiDepotserver,
+	ProductOnClient,
+	ProductOnDepot,
+)
 
 from opsiconfd.check.common import CheckStatus, check_manager
 from opsiconfd.check.opsipackages import opsi_locked_products_check, opsi_products_on_clients_check, opsi_products_on_depots_check
 from opsiconfd.config import get_configserver_id
+from opsiconfd.setup.configs import CHECK_DEFAULT_IGNORE_PRODUCTS
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -33,6 +42,21 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	depot = OpsiDepotserver(id="test-check-depot-1.opsi.test")
 	client = OpsiClient(id="test-check-client-1.opsi.test")
 	client.setDefaults()
+	config_object = Config(id="clientconfig.depot.id", description="Depot server", possibleValues=[depot.id], defaultValues=[depot.id])
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client.id, values=[depot.id])
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_createObjects", "params": [[config_object.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[depot.to_hash(), client.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_createObjects", "params": [[config_state.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
 	product = LocalbootProduct(id="opsi-client-agent", productVersion="4.3.0.1", packageVersion="1")
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product.to_hash()]]}
 	res = test_client.post("/rpc", json=rpc).json()
@@ -41,6 +65,7 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product_server.to_hash()]]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
+
 	product_on_depot = ProductOnDepot(
 		productId=product.id,
 		productType=product.getType(),
@@ -67,15 +92,6 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		clientId=client.id,
 		installationStatus="installed",
 	)
-	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client.id, values=[depot.id])
-
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[depot.to_hash(), client.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "configState_createObjects", "params": [[config_state.to_hash()]]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_createObjects", "params": [[product_on_depot.to_hash()]]}
 	res = test_client.post("/rpc", json=rpc).json()
@@ -89,6 +105,67 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
+	windomain_product = LocalbootProduct(id="windomain", productVersion="4.3.9.1", packageVersion="1")
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[windomain_product.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	windomain_product_on_depot = ProductOnDepot(
+		productId=windomain_product.id,
+		productType=windomain_product.getType(),
+		productVersion=windomain_product.productVersion,
+		packageVersion=windomain_product.packageVersion,
+		depotId=depot.id,
+	)
+	windomain_product_server = LocalbootProduct(id="windomain", productVersion="4.3.5.1", packageVersion="1")
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[windomain_product_server.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	windomain_product_on_server = ProductOnDepot(
+		productId=windomain_product_server.id,
+		productType=windomain_product_server.getType(),
+		productVersion=windomain_product_server.productVersion,
+		packageVersion=windomain_product_server.packageVersion,
+		depotId=get_configserver_id(),
+	)
+
+	windomain_product = LocalbootProduct(id="windomain", productVersion="4.2.0.0", packageVersion="1")
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[windomain_product.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	windomain_product_on_client = ProductOnClient(
+		productId=windomain_product.id,
+		productVersion=windomain_product.productVersion,
+		packageVersion=windomain_product.packageVersion,
+		productType=windomain_product.getType(),
+		clientId=client.id,
+		installationStatus="installed",
+	)
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_createObjects", "params": [[windomain_product_on_depot.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_createObjects", "params": [[windomain_product_on_server.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_createObjects", "params": [[windomain_product_on_client.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	check_ignore_products = Config(
+		id="opsi.check.ignore_products",
+		description="Ignore products",
+		possibleValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
+		defaultValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
+		editable=True,
+		multiValue=True,
+	)
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_createObjects", "params": [[check_ignore_products.to_hash()]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
 
 def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	_prepare_products(test_client=test_client)
@@ -96,7 +173,7 @@ def test_check_product_on_depots(test_client: OpsiconfdTestClient) -> None:  # n
 	result = check_manager.get("products_on_depots").run(clear_cache=True)
 	print(result)
 	assert result.check_status == CheckStatus.ERROR
-	assert "Out of 2 products on 2 depots checked, 2 mandatory products are not installed, 1 are out of date." in result.message
+	assert "Out of 3 products on 2 depots checked, 2 mandatory products are not installed, 1 are out of date." in result.message
 	assert result.upgrade_issue == "4.3"
 	found = 0
 	for partial_result in result.partial_results:
@@ -125,6 +202,7 @@ def test_check_product_on_clients(test_client: OpsiconfdTestClient) -> None:  # 
 	check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check)
 	result = check_manager.get("products_on_clients").run(clear_cache=True)
 	# print(result)
+
 	assert result.check_status == CheckStatus.ERROR
 	assert "1 issue(s) found." in result.message
 	assert result.upgrade_issue == "4.3"

@@ -214,6 +214,11 @@ class OpsiProductsOnClientsCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		backend = get_unprotected_backend()
+		ignore_products = []
+		opsi_check_ignore_products = backend.config_getObjects(id="opsi.check.ignore_products")
+		if opsi_check_ignore_products:
+			ignore_products = opsi_check_ignore_products[0].defaultValues
+
 		now = datetime.now()
 		enabled_hosts = get_enabled_hosts()
 		depots = backend.host_getObjects(attributes=["id"], type="OpsiDepotserver")
@@ -231,6 +236,9 @@ class OpsiProductsOnClientsCheck(Check):
 			clients_on_depot = set()
 			for depot_client_hash in backend.configState_getClientToDepotserver(clientIds=client_ids, depotIds=[depot.id]):
 				clients_on_depot.add(depot_client_hash["clientId"])
+			if not clients_on_depot:
+				logger.debug("No clients on depot %s", depot.id)
+				continue
 			try:
 				available_products = backend.productOnDepot_getObjects(
 					depotId=depot.id, attributes=["productId", "productVersion", "packageVersion"]
@@ -241,21 +249,24 @@ class OpsiProductsOnClientsCheck(Check):
 				return result
 			for product in available_products:
 				product_id = product.productId
+				if product_id in ignore_products:
+					continue
 				available_version = f"{product.productVersion}-{product.packageVersion}"
 				for product_on_client in backend.productOnClient_getObjects(
 					attributes=["productVersion", "packageVersion"],
-					clientId=client_ids,
+					clientId=clients_on_depot,
 					productId=product_id,
 					installationStatus="installed",
+					productType="LocalbootProduct",
 				):
 					check = OpsiProductOnClientCheck(
 						client_id=product_on_client.clientId,
 						product_id=product_id,
 						available_version=available_version,
 					)
-					client_ids.remove(product_on_client.clientId)
-
 					self.add_partial_checks(check)
+			client_ids.remove(product_on_client.clientId)
+
 		return result
 
 

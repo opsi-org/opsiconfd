@@ -10,13 +10,17 @@ test opsiconfd.backend.rpc.obj_product_property_state
 """
 
 import pytest
+from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver, ProductPropertyState
 
+from opsiconfd.backend.auth import RPCACE
+from opsiconfd.config import get_configserver_id
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
 	clean_mysql,
 	clean_redis,
+	default_acl,
 	get_config,
 	test_client,
 )
@@ -24,196 +28,135 @@ from tests.utils import (  # noqa: F401
 from .test_obj_product_property import create_test_product_properties
 
 
-def create_test_client(test_client: OpsiconfdTestClient) -> dict:  # noqa: F811
-	client1 = {
-		"type": "OpsiClient",
-		"id": "test-backend-rpc-host-1.opsi.test",
-		"opsiHostKey": "4587dec5913c501a28560d576768924e",
-		"description": "description",
-		"notes": "notes",
-		"oneTimePassword": "secret",
-	}
-	# Create client 1
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc).json()
+def create_test_clients(test_client: OpsiconfdTestClient) -> tuple[OpsiClient, OpsiClient]:  # noqa: F811
+	client1 = OpsiClient(
+		id="test-backend-rpc-host-1.opsi.test",
+		opsiHostKey="11111111111111111111111111111111",
+	)
+	client2 = OpsiClient(
+		id="test-backend-rpc-host-2.opsi.test",
+		opsiHostKey="22222222222222222222222222222222",
+	)
+	res = test_client.jsonrpc20(method="host_createObjects", params=[[client1, client2]])
 	assert "error" not in res
+	return client1, client2
 
-	return client1
 
+def create_test_product_property_states(test_client: OpsiconfdTestClient) -> list[ProductPropertyState]:  # noqa: F811
+	product_property_bool, product_property_unicode = create_test_product_properties(test_client)
 
-def create_test_product_property_states(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811
-	product_property1, product_property2 = create_test_product_properties(test_client)
+	client1, client2 = create_test_clients(test_client)
 
-	client1 = create_test_client(test_client)
-
-	product_property_state1 = {
-		"productId": product_property1["productId"],
-		"propertyId": product_property1["propertyId"],
-		"objectId": client1["id"],
-		"values": [False],
-	}
-	product_property_state2 = {
-		"productId": product_property2["productId"],
-		"propertyId": product_property2["propertyId"],
-		"objectId": client1["id"],
-		"values": ["123", "bla", "test"],
-	}
-
-	# Create product property state 1
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productPropertyState_insertObject", "params": [product_property_state1]}
-	res = test_client.post("/rpc", json=rpc).json()
+	product_property_states = [
+		ProductPropertyState(
+			productId=product_property_bool["productId"],
+			propertyId=product_property_bool["propertyId"],
+			objectId=client1.id,
+			values=[False],
+		),
+		ProductPropertyState(
+			productId=product_property_unicode["productId"],
+			propertyId=product_property_unicode["propertyId"],
+			objectId=client1.id,
+			values=["123", "bla", "client1"],
+		),
+		ProductPropertyState(
+			productId=product_property_bool["productId"],
+			propertyId=product_property_bool["propertyId"],
+			objectId=client2.id,
+			values=[True],
+		),
+		ProductPropertyState(
+			productId=product_property_unicode["productId"],
+			propertyId=product_property_unicode["propertyId"],
+			objectId=client2.id,
+			values=["client2"],
+		),
+	]
+	res = test_client.jsonrpc20(
+		method="productPropertyState_createObjects",
+		params=[product_property_states],
+	)
 	assert "error" not in res
-
-	# Create product property state 2
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productPropertyState_insertObject", "params": [product_property_state2]}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	return (product_property_state1, product_property_state2)
-
-
-def check_products_property_states(
-	test_client: OpsiconfdTestClient,  # noqa: F811
-	product_property_states: list,
-) -> None:
-	for product_property_state in product_property_states:
-		rpc = {
-			"jsonrpc": "2.0",
-			"id": 1,
-			"method": "productPropertyState_getObjects",
-			"params": [[], {"productId": product_property_state["productId"]}],
-		}
-		res = test_client.post("/rpc", json=rpc).json()
-		assert "error" not in res
-		print(res)
-		pproperty_state = res["result"][0]
-		for attr, val in product_property_state.items():
-			assert pproperty_state[attr] == val
+	return product_property_states
 
 
 def test_product_property_state_insertObject(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	product_property_state1, product_property_state2 = create_test_product_property_states(test_client)
+	product_property_states = create_test_product_property_states(test_client)
 
-	check_products_property_states(test_client, [product_property_state1, product_property_state2])
+	product_property_states[1].values = ["new"]
+	res = test_client.jsonrpc20(method="productPropertyState_insertObject", params=[product_property_states[1]])
+	assert "error" not in res
+
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getObjects",
+		params=[
+			[],
+			{
+				"productId": product_property_states[1].productId,
+				"propertyId": product_property_states[1].propertyId,
+				"objectId": product_property_states[1].objectId,
+			},
+		],
+	)
+	assert "error" not in res
+	assert res["result"][0].values == ["new"]
 
 
-def test_product_property_createObjects(
+def test_product_property_state_createObjects(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	product_property1, product_property2 = create_test_product_properties(test_client)
-	client1 = create_test_client(test_client)
-
-	product_property_state1 = {
-		"productId": product_property1["productId"],
-		"propertyId": product_property1["propertyId"],
-		"objectId": client1["id"],
-		"values": [False],
-	}
-	product_property_state2 = {
-		"productId": product_property2["productId"],
-		"propertyId": product_property2["propertyId"],
-		"objectId": client1["id"],
-		"values": ["123", "bla", "test"],
-	}
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_createObjects",
-		"params": [[product_property_state1, product_property_state2]],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
+	product_property_states = create_test_product_property_states(test_client)
+	res = test_client.jsonrpc20(method="productPropertyState_getObjects")
 	assert "error" not in res
-
-	check_products_property_states(test_client, [product_property_state1, product_property_state2])
+	assert len(res["result"]) == len(product_property_states)
+	for product_property_state in product_property_states:
+		assert product_property_state in res["result"]
 
 
 def test_product_property_state_updateObject(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	product_property_state1, product_property_state2 = create_test_product_property_states(test_client)
+	product_property_states = create_test_product_property_states(test_client)
 
-	check_products_property_states(test_client, [product_property_state1, product_property_state2])
+	assert product_property_states[0].values == [False]
+	assert product_property_states[1].values == ["123", "bla", "client1"]
+	assert product_property_states[2].values == [True]
+	assert product_property_states[3].values == ["client2"]
 
-	# Update product property state 1
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_updateObject",
-		"params": [
-			{
-				"productId": product_property_state1["productId"],
-				"propertyId": product_property_state1["propertyId"],
-				"objectId": product_property_state1["objectId"],
-				"values": [True],
-			}
+	product_property_states[0].values = [True]
+	product_property_states[1].values = ["client1_new"]
+	product_property_states[2].values = [False]
+	product_property_states[3].values = ["client2_new"]
+
+	res = test_client.jsonrpc20(method="productPropertyState_updateObject", params=[product_property_states[0]])
+	assert "error" not in res
+	res = test_client.jsonrpc20(method="productPropertyState_updateObject", params=[product_property_states[1]])
+	assert "error" not in res
+	res = test_client.jsonrpc20(method="productPropertyState_updateObject", params=[product_property_states[2]])
+	assert "error" not in res
+	res = test_client.jsonrpc20(method="productPropertyState_updateObject", params=[product_property_states[3]])
+	assert "error" not in res
+
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getObjects",
+		params=[
+			[],
+			{},
 		],
-	}
-	print(rpc)
-	res = test_client.post("/rpc", json=rpc).json()
+	)
 	assert "error" not in res
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_getObjects",
-		"params": [[], {"propertyId": product_property_state1["propertyId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	print(res)
-	product_property = res["result"][0]
-	for attr, val in product_property_state1.items():
-		if attr == "values":
-			assert product_property[attr] == [True]
-		else:
-			assert product_property[attr] == val
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_updateObjects",
-		"params": [
-			[
-				{
-					"productId": product_property_state1["productId"],
-					"propertyId": product_property_state1["propertyId"],
-					"objectId": product_property_state1["objectId"],
-					"values": [False],
-				},
-				{
-					"productId": product_property_state2["productId"],
-					"propertyId": product_property_state2["propertyId"],
-					"objectId": product_property_state2["objectId"],
-					"values": ["test1", "test2"],
-				},
-			]
-		],
-	}
-	print(rpc)
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_getObjects",
-		"params": [[], {"propertyId": product_property_state2["propertyId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	print(res)
-	product_dependency = res["result"][0]
-	for attr, val in product_property_state2.items():
-		if attr == "values":
-			assert product_dependency[attr] == ["test1", "test2"]
-		else:
-			assert product_dependency[attr] == val
+	assert len(res["result"]) == 4
+	assert res["result"][0].values == [True]
+	res["result"][0].values = [True]
+	res["result"][1].values = ["client1_new"]
+	res["result"][2].values = [False]
+	res["result"][3].values = ["client2_new"]
 
 
 @pytest.mark.filterwarnings("ignore:.*calling deprecated method.*")
@@ -221,53 +164,31 @@ def test_product_property_state_getHashes(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	product_property_state1, product_property_state2 = create_test_product_property_states(test_client)
+	product_property_states = create_test_product_property_states(test_client)
 
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_getHashes",
-		"params": [[], {"propertyId": product_property_state1["propertyId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-	print(res)
-	poc = res["result"][0]
-	for attr, val in product_property_state1.items():
-		assert val == poc[attr]
+	res = test_client.jsonrpc20(method="productPropertyState_getHashes", params=[[], {"propertyId": product_property_states[0].propertyId}])
 
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_getHashes",
-		"params": [[], {"propertyId": product_property_state2["propertyId"]}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-	print(res)
 	poc = res["result"][0]
-	for attr, val in product_property_state2.items():
-		assert val == poc[attr]
+	for attr, val in product_property_states[0].to_hash().items():
+		if attr != "type":
+			assert val == getattr(poc, attr)
 
 
 def test_product_property_state_getIdents(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	product_property_state1, product_property_state2 = create_test_product_property_states(test_client)
+	product_property_states = create_test_product_property_states(test_client)
 
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_getIdents",
-		"params": [[], {"productId": "test-backend-rpc-product*"}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = test_client.jsonrpc20(method="productPropertyState_getIdents", params=[[], {"productId": "test-backend-rpc-product*"}])
 	assert "error" not in res
 
-	assert res["result"] == [
-		(f"{product_property_state1['productId']};" f"{product_property_state1['propertyId']};" f"{product_property_state1['objectId']}"),
-		(f"{product_property_state2['productId']};" f"{product_property_state2['propertyId']};" f"{product_property_state2['objectId']}"),
+	assert sorted(res["result"]) == [
+		(f"{product_property_states[0].productId};" f"{product_property_states[0].propertyId};" f"{product_property_states[0].objectId}"),
+		(f"{product_property_states[2].productId};" f"{product_property_states[2].propertyId};" f"{product_property_states[2].objectId}"),
+		(f"{product_property_states[1].productId};" f"{product_property_states[1].propertyId};" f"{product_property_states[1].objectId}"),
+		(f"{product_property_states[3].productId};" f"{product_property_states[3].propertyId};" f"{product_property_states[3].objectId}"),
 	]
 
 
@@ -275,44 +196,273 @@ def test_product_property_state_delete(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	product_property_state1, product_property_state2 = create_test_product_property_states(test_client)
+	product_property_states = create_test_product_property_states(test_client)
 
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productPropertyState_getObjects", "params": [[], {}]}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = test_client.jsonrpc20(method="productPropertyState_getObjects")
+	assert "error" not in res
+	assert len(res["result"]) == 4
+
+	res = test_client.jsonrpc20(
+		method="productPropertyState_delete",
+		params={
+			"productId": product_property_states[0].productId,
+			"propertyId": product_property_states[0].propertyId,
+			"objectId": product_property_states[0].objectId,
+		},
+	)
+	assert "error" not in res
+
+	res = test_client.jsonrpc20(method="productPropertyState_getObjects")
+	assert len(res["result"]) == 3
+
+	res = test_client.jsonrpc20(
+		method="productPropertyState_delete",
+		params={"productId": product_property_states[0].productId, "propertyId": product_property_states[0].propertyId, "objectId": None},
+	)
+	assert "error" not in res
+
+	res = test_client.jsonrpc20(method="productPropertyState_getObjects")
 	assert len(res["result"]) == 2
 
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_delete",
-		"params": [product_property_state1["productId"], product_property_state1["propertyId"], product_property_state1["objectId"]],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = test_client.jsonrpc20(
+		method="productPropertyState_delete",
+		params=[product_property_states[1].productId, product_property_states[1].propertyId, []],
+	)
 	assert "error" not in res
 
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_getObjects",
-		"params": [[], {}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert len(res["result"]) == 1
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_delete",
-		"params": [product_property_state2["productId"], product_property_state2["propertyId"], product_property_state2["objectId"]],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
-	assert "error" not in res
-
-	rpc = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "productPropertyState_getObjects",
-		"params": [[], {}],
-	}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = test_client.jsonrpc20(method="productPropertyState_getObjects")
 	assert len(res["result"]) == 0
+
+
+def test_product_property_state_getValues(default_acl: list[RPCACE], test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	depot_id = "test-backend-rpc-depot.opsi.test"
+	configserver_id = get_configserver_id()
+	product_property_bool, product_property_unicode = create_test_product_properties(test_client)
+	client1, client2 = create_test_clients(test_client)
+
+	depot = OpsiDepotserver(id=depot_id, opsiHostKey="7dec5913c501a28545860d576768924f")
+	res = test_client.jsonrpc20(method="host_createObjects", params=[[depot]])
+
+	product_property_states = [
+		ProductPropertyState(
+			productId=product_property_bool["productId"],
+			propertyId=product_property_bool["propertyId"],
+			objectId=depot_id,
+			values=[False],
+		),
+		ProductPropertyState(
+			productId=product_property_unicode["productId"],
+			propertyId=product_property_unicode["propertyId"],
+			objectId=depot_id,
+			values=["depot-default"],
+		),
+		ProductPropertyState(
+			productId=product_property_bool["productId"],
+			propertyId=product_property_bool["propertyId"],
+			objectId=configserver_id,
+			values=[True],
+		),
+		ProductPropertyState(
+			productId=product_property_unicode["productId"],
+			propertyId=product_property_unicode["propertyId"],
+			objectId=configserver_id,
+			values=["configserver-default"],
+		),
+	]
+	res = test_client.jsonrpc20(
+		method="productPropertyState_createObjects",
+		params=[product_property_states],
+	)
+	assert "error" not in res
+
+	# Assign client2 to depot
+	client_to_depot = ConfigState(
+		configId="clientconfig.depot.id",
+		objectId=client2.id,
+		values=[depot.id],
+	)
+	res = test_client.jsonrpc20(method="configState_insertObject", params=[client_to_depot])
+	assert "error" not in res
+
+	expected_defaults = {
+		configserver_id: {
+			product_property_bool["productId"]: {
+				product_property_bool["propertyId"]: [
+					True,
+				],
+			},
+			product_property_unicode["productId"]: {
+				product_property_unicode["propertyId"]: [
+					"configserver-default",
+				],
+			},
+		},
+		depot_id: {
+			product_property_bool["productId"]: {
+				product_property_bool["propertyId"]: [
+					False,
+				],
+			},
+			product_property_unicode["productId"]: {
+				product_property_unicode["propertyId"]: [
+					"depot-default",
+				],
+			},
+		},
+	}
+
+	# Get depot values
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getValues", params={"object_ids": [depot_id, configserver_id], "with_defaults": False}
+	)
+	assert "error" not in res
+	assert res["result"] == expected_defaults
+
+	# Test again with client permissions
+	for client in [client1, client2]:
+		test_client.reset_cookies()
+		test_client.auth = (client.id, client.opsiHostKey)
+		res = test_client.jsonrpc20(
+			method="productPropertyState_getValues", params={"object_ids": [depot_id, configserver_id], "with_defaults": False}
+		)
+		assert "error" not in res
+		# No permission to access depot values
+		assert res["result"] == {}
+
+	test_client.reset_cookies()
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	# Client specific values not set, with_defaults=False, should return empty dict
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getValues", params={"object_ids": [client1.id, client2.id], "with_defaults": False}
+	)
+	assert "error" not in res
+	assert res["result"] == {}
+
+	# Client specific values not set, with_defaults=True, should return values of assigned depot
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getValues", params={"object_ids": [client1.id, client2.id], "with_defaults": True}
+	)
+	assert "error" not in res
+	assert res["result"] == {
+		client1.id: expected_defaults[configserver_id],
+		client2.id: expected_defaults[depot_id],
+	}
+
+	# Test with empty filter
+	res = test_client.jsonrpc20(method="productPropertyState_getValues", params={"with_defaults": True})
+	assert "error" not in res
+	assert res["result"] == {
+		client1.id: expected_defaults[configserver_id],
+		client2.id: expected_defaults[depot_id],
+		depot_id: expected_defaults[depot_id],
+		configserver_id: expected_defaults[configserver_id],
+	}
+
+	# Test product_ids and property_ids filter
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getValues",
+		params={
+			"product_ids": product_property_unicode["productId"],
+			"property_ids": [product_property_unicode["propertyId"]],
+			"object_ids": [client1.id, client2.id, depot_id, configserver_id],
+			"with_defaults": True,
+		},
+	)
+	assert "error" not in res
+	expected_filtered_defaults = {
+		configserver_id: {product_property_unicode["productId"]: expected_defaults[configserver_id][product_property_unicode["productId"]]},
+		depot_id: {product_property_unicode["productId"]: expected_defaults[depot_id][product_property_unicode["productId"]]},
+	}
+	assert res["result"] == {
+		client1.id: expected_filtered_defaults[configserver_id],
+		client2.id: expected_filtered_defaults[depot_id],
+		depot_id: expected_filtered_defaults[depot_id],
+		configserver_id: expected_filtered_defaults[configserver_id],
+	}
+
+	# Test again with client permissions
+	for client in [client1, client2]:
+		test_client.reset_cookies()
+		test_client.auth = (client.id, client.opsiHostKey)
+		res = test_client.jsonrpc20(
+			method="productPropertyState_getValues",
+			params={"object_ids": [depot_id, configserver_id, client1.id, client2.id], "with_defaults": True},
+		)
+		assert "error" not in res
+		assert res["result"] == {client.id: expected_defaults[configserver_id] if client.id == client1.id else expected_defaults[depot_id]}
+
+	test_client.reset_cookies()
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	# Create some client-specific product property states
+	client_product_property_states = [
+		ProductPropertyState(
+			productId=product_property_bool["productId"],
+			propertyId=product_property_bool["propertyId"],
+			objectId=client1.id,
+			values=[True],
+		),
+		ProductPropertyState(
+			productId=product_property_unicode["productId"],
+			propertyId=product_property_unicode["propertyId"],
+			objectId=client2.id,
+			values=["client2"],
+		),
+	]
+	res = test_client.jsonrpc20(
+		method="productPropertyState_createObjects",
+		params=[client_product_property_states],
+	)
+	assert "error" not in res
+
+	# Client specific values set, with_defaults=False, should return client-specific values only
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getValues", params={"object_ids": [client1.id, client2.id], "with_defaults": False}
+	)
+	assert "error" not in res
+	assert res["result"] == {
+		client1.id: {product_property_bool["productId"]: {product_property_bool["propertyId"]: [True]}},
+		client2.id: {product_property_unicode["productId"]: {product_property_unicode["propertyId"]: ["client2"]}},
+	}
+
+	# Client specific values set, with_defaults=True, should return client-specific values where set, otherwise depot values
+	res = test_client.jsonrpc20(
+		method="productPropertyState_getValues", params={"object_ids": [client1.id, client2.id], "with_defaults": True}
+	)
+	assert "error" not in res
+	assert res["result"] == {
+		client1.id: {
+			product_property_bool["productId"]: {product_property_bool["propertyId"]: [True]},
+			product_property_unicode["productId"]: {product_property_unicode["propertyId"]: ["configserver-default"]},
+		},
+		client2.id: {
+			product_property_bool["productId"]: {product_property_bool["propertyId"]: [False]},
+			product_property_unicode["productId"]: {product_property_unicode["propertyId"]: ["client2"]},
+		},
+	}
+
+	# Test again with client permissions
+	for client in [client1, client2]:
+		test_client.reset_cookies()
+		test_client.auth = (client.id, client.opsiHostKey)
+		res = test_client.jsonrpc20(
+			method="productPropertyState_getValues",
+			params={"object_ids": [depot_id, configserver_id, client1.id, client2.id], "with_defaults": True},
+		)
+		assert "error" not in res
+		if client.id == client1.id:
+			assert res["result"] == {
+				client1.id: {
+					product_property_bool["productId"]: {product_property_bool["propertyId"]: [True]},
+					product_property_unicode["productId"]: {product_property_unicode["propertyId"]: ["configserver-default"]},
+				}
+			}
+		else:
+			assert res["result"] == {
+				client2.id: {
+					product_property_bool["productId"]: {product_property_bool["propertyId"]: [False]},
+					product_property_unicode["productId"]: {product_property_unicode["propertyId"]: ["client2"]},
+				}
+			}

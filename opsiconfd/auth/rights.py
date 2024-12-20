@@ -15,6 +15,10 @@ from enum import StrEnum
 from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBool
 
+from opsiconfd.logging import get_logger
+
+logger = get_logger("opsiconfd.user-roles")
+
 
 class Terminals(StrEnum):
 	CLIENTS = "Clients"
@@ -188,9 +192,12 @@ class Rights:
 		}
 
 	def read_configs(self) -> None:
+		logger.debug("Rights: Reading configs for '%s'", self.name)
 		current_configs = [
 			config for config in self.backend.config_getObjects(configId=f"{self.config_prefix}.*") if config.defaultValues != []
 		]
+		logger.trace("Configs before reading: %s", self.configs.items())
+		logger.trace("Current configs: %s", current_configs)
 		if not current_configs:
 			return
 		for config_name, config in self.configs.items():
@@ -207,9 +214,12 @@ class Rights:
 						setattr(self, config_name, current_config.defaultValues[0])
 					current_configs.remove(current_config)
 					break
+		logger.trace("Configs after reading: %s", self.configs.items())
 
 	def create_configs(self) -> None:
+		logger.debug("Rights: Create configs for '%s'", self.name)
 		for config_name, config in self.configs.items():
+			logger.trace("Creating config: %s", config)
 			if config_name == "role":
 				config.possibleValues = self.get_roles()
 			if isinstance(getattr(self, config_name), list):

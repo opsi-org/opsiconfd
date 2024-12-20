@@ -754,7 +754,7 @@ def test_host_getObjects_acl_file(
 
 
 def test_host_getObjects_default_acl(
-	default_acl: list[RPCACE],  # noqa: F811
+	default_acl: dict[str, list[RPCACE]],  # noqa: F811
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	_test_host_getObjects(test_client)

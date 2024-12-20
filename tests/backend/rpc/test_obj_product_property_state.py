@@ -234,7 +234,7 @@ def test_product_property_state_delete(
 	assert len(res["result"]) == 0
 
 
-def test_product_property_state_getValues(default_acl: list[RPCACE], test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_product_property_state_getValues(default_acl: dict[str, list[RPCACE]], test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	depot_id = "test-backend-rpc-depot.opsi.test"
 	configserver_id = get_configserver_id()
@@ -322,7 +322,7 @@ def test_product_property_state_getValues(default_acl: list[RPCACE], test_client
 	# Test again with client permissions
 	for client in [client1, client2]:
 		test_client.reset_cookies()
-		test_client.auth = (client.id, client.opsiHostKey)
+		test_client.auth = (client.id, client.opsiHostKey or "")
 		res = test_client.jsonrpc20(
 			method="productPropertyState_getValues", params={"object_ids": [depot_id, configserver_id], "with_defaults": False}
 		)
@@ -385,7 +385,7 @@ def test_product_property_state_getValues(default_acl: list[RPCACE], test_client
 	# Test again with client permissions
 	for client in [client1, client2]:
 		test_client.reset_cookies()
-		test_client.auth = (client.id, client.opsiHostKey)
+		test_client.auth = (client.id, client.opsiHostKey or "")
 		res = test_client.jsonrpc20(
 			method="productPropertyState_getValues",
 			params={"object_ids": [depot_id, configserver_id, client1.id, client2.id], "with_defaults": True},
@@ -446,7 +446,7 @@ def test_product_property_state_getValues(default_acl: list[RPCACE], test_client
 	# Test again with client permissions
 	for client in [client1, client2]:
 		test_client.reset_cookies()
-		test_client.auth = (client.id, client.opsiHostKey)
+		test_client.auth = (client.id, client.opsiHostKey or "")
 		res = test_client.jsonrpc20(
 			method="productPropertyState_getValues",
 			params={"object_ids": [depot_id, configserver_id, client1.id, client2.id], "with_defaults": True},

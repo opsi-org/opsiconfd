@@ -691,7 +691,7 @@ def cleanup_checks() -> None:
 
 
 @pytest.fixture()
-def default_acl() -> Generator[list[RPCACE], None, None]:
+def default_acl() -> Generator[dict[str, list[RPCACE]], None, None]:
 	protected_backend = ProtectedBackend()
 	try:
 		with get_config({"acl_file": "opsiconfd_data/etc/backendManager/acl.conf"}):

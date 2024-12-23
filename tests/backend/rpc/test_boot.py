@@ -92,9 +92,9 @@ def test_boot_getConfig(
 				boot_config = backend.boot_getConfig(**kwargs)
 
 				if bios_type == "UEFI64":
-					assert boot_config.pxe_boot_filename == bootimage_dir / "loader/shimx64.efi.signed"
+					assert boot_config.pxe_boot_filename == str(bootimage_dir / "loader/shimx64.efi.signed")
 				else:
-					assert boot_config.pxe_boot_filename == bootimage_dir / "loader/opsi-netboot.pxe"
+					assert boot_config.pxe_boot_filename == str(bootimage_dir / "loader/opsi-netboot.pxe")
 
 				assert boot_config.grub_config == "# grub config\n"
 

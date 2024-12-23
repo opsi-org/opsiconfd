@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
+from .boot import RPCBootMixin
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin
 from .driver import RPCDriverMixin
@@ -101,6 +102,7 @@ class BackendProtocol(
 	RPCDepotserverMixin,
 	RPCHostControlMixin,
 	RPCDriverMixin,
+	RPCBootMixin,
 	RPCDHCPDControlMixin,
 	RPCOpsiPXEConfdControlMixin,
 	RPCExtenderMixin,

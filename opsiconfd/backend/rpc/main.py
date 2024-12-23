@@ -45,6 +45,7 @@ from opsiconfd.worker import Worker
 
 from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
 from ..mysql import MySQLConnection
+from .boot import RPCBootMixin
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin
 from .driver import RPCDriverMixin
@@ -141,6 +142,7 @@ class Backend(
 	RPCExtOpsiMixin,
 	RPCDepotserverMixin,
 	RPCDriverMixin,
+	RPCBootMixin,
 	RPCHostControlMixin,
 	RPCDHCPDControlMixin,
 	RPCOpsiPXEConfdControlMixin,

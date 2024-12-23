@@ -22,6 +22,7 @@ from opsicommon.types import (
 	forceUnicodeList,
 )
 
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 
 from . import rpc_method
@@ -79,7 +80,7 @@ class RPCProductPropertyStateMixin(Protocol):
 				if configserver_id not in depot_ids:
 					depot_ids.append(configserver_id)
 				if depot_ids:
-					for pps in self.productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=depot_ids):
+					for pps in self._productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=depot_ids):
 						depot_values[pps.objectId][pps.productId][pps.propertyId] = pps.values
 
 				for host_id in self.host_getIdents(returnType="str", type="OpsiClient", id=client_ids):
@@ -88,7 +89,7 @@ class RPCProductPropertyStateMixin(Protocol):
 					if depot_id in depot_values:
 						res[host_id] = depot_values[depot_id].copy()
 
-		for pps in self.productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=object_ids):
+		for pps in self._productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=object_ids):
 			res[pps.objectId][pps.productId][pps.propertyId] = pps.values
 
 		return res
@@ -142,16 +143,23 @@ class RPCProductPropertyStateMixin(Protocol):
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=False, session=session
 				)
 
+	def _productPropertyState_getObjects(
+		self: BackendProtocol,
+		ace: list[RPCACE] | None = None,
+		attributes: list[str] | None = None,
+		**filter: Any,
+	) -> list[ProductPropertyState]:
+		return self._mysql.get_objects(
+			table="PRODUCT_PROPERTY_STATE", ace=ace or [], object_type=ProductPropertyState, attributes=attributes, filter=filter
+		)
+
 	@rpc_method(check_acl=False)
 	def productPropertyState_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
 	) -> list[ProductPropertyState]:
-		ace = self._get_ace("productPropertyState_getObjects")
-		return self._mysql.get_objects(
-			table="PRODUCT_PROPERTY_STATE", ace=ace, object_type=ProductPropertyState, attributes=attributes, filter=filter
-		)
+		return self._productPropertyState_getObjects(ace=self._get_ace("productPropertyState_getObjects"), attributes=attributes, **filter)
 
 	@rpc_method(deprecated=True, alternative_method="productPropertyState_getObjects", check_acl=False)
 	def productPropertyState_getHashes(

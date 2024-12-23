@@ -37,6 +37,7 @@ from opsicommon.objects import (
 	deserialize,
 )
 
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.rpc.main import ProtectedBackend
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from tests.utils import (  # noqa: F401
@@ -45,6 +46,7 @@ from tests.utils import (  # noqa: F401
 	OpsiconfdTestClient,
 	clean_mysql,
 	clean_redis,
+	default_acl,
 	get_config,
 	test_client,
 )
@@ -674,11 +676,8 @@ def test_host_updateObjects(
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
 
-def test_host_getObjects(
-	acl_file: Path,
-	test_client: OpsiconfdTestClient,  # noqa: F811
-) -> None:
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+def _test_host_getObjects(service_client: OpsiconfdTestClient) -> None:
+	service_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
@@ -707,12 +706,12 @@ def test_host_getObjects(
 
 	# Create hosts
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2, depot1]]}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = service_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
 	# Get host objects
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": []}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = service_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 	assert len(res["result"]) == 4
 	for host in res["result"]:
@@ -722,12 +721,12 @@ def test_host_getObjects(
 			assert host["inventoryNumber"]
 
 	# Test client permissions
-	test_client.reset_cookies()
-	test_client.auth = (client1["id"], client1["opsiHostKey"])
+	service_client.reset_cookies()
+	service_client.auth = (client1["id"], client1["opsiHostKey"])
 
 	# Get host objects
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": []}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = service_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 	assert len(res["result"]) == 4
 	for host in res["result"]:
@@ -741,10 +740,24 @@ def test_host_getObjects(
 			assert not host["inventoryNumber"]
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [[], {"opsiHostKey": client2["opsiHostKey"]}]}
-	res = test_client.post("/rpc", json=rpc).json()
+	res = service_client.post("/rpc", json=rpc).json()
 	assert "error" in res
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 	assert res["error"]["message"] == "Opsi service permission error: No permission for attribute opsiHostKey"
+
+
+def test_host_getObjects_acl_file(
+	acl_file: Path,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	_test_host_getObjects(test_client)
+
+
+def test_host_getObjects_default_acl(
+	default_acl: dict[str, list[RPCACE]],  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	_test_host_getObjects(test_client)
 
 
 def test_host_getIdents(

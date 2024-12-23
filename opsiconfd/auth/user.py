@@ -11,7 +11,7 @@ opsiconfd.auth.user
 
 from opsicommon.objects import UnicodeConfig
 
-from opsiconfd.auth.rights import Rights
+from opsiconfd.auth.rights import Rights, Terminals
 from opsiconfd.auth.role import Role
 
 
@@ -35,6 +35,7 @@ class User(Rights):
 		ssh_command: bool = True,
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
+		connect_terminal_forbidden: list[Terminals] | None = None,
 	):
 		self.name = name
 		self.config_prefix = f"user.{{{self.name}}}"
@@ -54,6 +55,7 @@ class User(Rights):
 			ssh_command,
 			ssh_menu_server_console,
 			ssh_server_configuration,
+			connect_terminal_forbidden,
 		)
 
 		# if a role is set, all values are set by the role
@@ -73,6 +75,7 @@ class User(Rights):
 			self.ssh_command = user_role.ssh_command
 			self.ssh_menu_server_console = user_role.ssh_menu_server_console
 			self.ssh_server_configuration = user_role.ssh_server_configuration
+			self.connect_terminal_forbidden = user_role.connect_terminal_forbidden
 			roles = {r.id.split(".")[2].strip("{}") for r in self.backend.config_getObjects(configId="user.role.*")}
 			self.configs["role"] = UnicodeConfig(
 				id=f"{self.config_prefix}.has_role",

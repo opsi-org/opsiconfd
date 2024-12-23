@@ -25,7 +25,8 @@
 		var availableModules = JSON.parse('{{available_modules|tojson}}');
 
 		function onLoad() {
-			if (localStorage.getItem("serverRole") == "configserver") {
+			const serverRole = localStorage.getItem("serverRole") || "configserver";
+			if (serverRole == "configserver") {
 				messagebusConnect();
 			}
 

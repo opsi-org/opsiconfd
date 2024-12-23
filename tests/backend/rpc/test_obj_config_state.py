@@ -181,6 +181,18 @@ def test_config_state_get_values(acl_file: Path, test_client: OpsiconfdTestClien
 	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == server_conf["values"]
 	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
 
+	# Test without filter
+	res = test_client.jsonrpc20(
+		method="configState_getValues",
+		params={"with_defaults": True},
+	)
+	print(res)
+	assert "error" not in res
+	assert res["result"][clients[0]["id"]]["test-backend-rpc-obj-config"] == server_conf["values"]
+	assert res["result"][clients[1]["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
+	assert res["result"][depot["id"]]["test-backend-rpc-obj-config"] == default_conf["defaultValues"]
+	assert res["result"][get_configserver_id()]["test-backend-rpc-obj-config"] == server_conf["values"]
+
 	# Test again with single object_id and client permissions
 	for permission in ("admin", "client"):
 		for client in clients:

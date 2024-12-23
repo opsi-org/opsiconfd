@@ -9,7 +9,7 @@
 opsiconfd.auth.role
 """
 
-from opsiconfd.auth.rights import Rights
+from opsiconfd.auth.rights import Rights, Terminals
 
 
 class Role(Rights):
@@ -29,6 +29,7 @@ class Role(Rights):
 		ssh_command: bool = True,
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
+		connect_terminal_forbidden: list[Terminals] | None = None,
 	):
 		self.name = name
 		self.config_prefix = f"user.role.{{{self.name}}}"
@@ -47,6 +48,7 @@ class Role(Rights):
 			ssh_command,
 			ssh_menu_server_console,
 			ssh_server_configuration,
+			connect_terminal_forbidden,
 		)
 
 		self.read_configs()

@@ -128,9 +128,9 @@ class RPCBootMixin(Protocol):
 
 		# Get GRUB config
 		if bios_type == "LEGACY":
-			boot_config.pxe_boot_filename = BOOTIMAGE_PATH / "loader/opsi-netboot.pxe"
+			boot_config.pxe_boot_filename = str(BOOTIMAGE_PATH / "loader/opsi-netboot.pxe")
 		else:
-			boot_config.pxe_boot_filename = BOOTIMAGE_PATH / "loader/shimx64.efi.signed"
+			boot_config.pxe_boot_filename = str(BOOTIMAGE_PATH / "loader/shimx64.efi.signed")
 
 		product_info = result[0]
 		pxe_config_template = product_info["pxeConfigTemplate"]

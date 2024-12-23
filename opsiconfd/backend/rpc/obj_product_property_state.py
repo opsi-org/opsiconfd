@@ -81,7 +81,7 @@ class RPCProductPropertyStateMixin(Protocol):
 					depot_ids.append(configserver_id)
 				if depot_ids:
 					for pps in self._productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=depot_ids):
-						depot_values[pps.objectId][pps.productId][pps.propertyId] = pps.values
+						depot_values[pps.objectId][pps.productId][pps.propertyId] = pps.values or []
 
 				for host_id in self.host_getIdents(returnType="str", type="OpsiClient", id=client_ids):
 					res[host_id] = {}
@@ -90,7 +90,7 @@ class RPCProductPropertyStateMixin(Protocol):
 						res[host_id] = depot_values[depot_id].copy()
 
 		for pps in self._productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=object_ids):
-			res[pps.objectId][pps.productId][pps.propertyId] = pps.values
+			res[pps.objectId][pps.productId][pps.propertyId] = pps.values or []
 
 		return res
 

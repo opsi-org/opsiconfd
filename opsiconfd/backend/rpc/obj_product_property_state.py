@@ -22,6 +22,9 @@ from opsicommon.types import (
 	forceUnicodeList,
 )
 
+from opsiconfd.backend.auth import RPCACE
+from opsiconfd.config import get_configserver_id
+
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -56,31 +59,38 @@ class RPCProductPropertyStateMixin(Protocol):
 	) -> dict[str, dict[str, dict[str, list[Any]]]]:
 		product_ids = forceUnicodeList(product_ids or [])
 		property_ids = forceUnicodeList(property_ids or [])
+		# object_ids can contain depot IDs!
 		object_ids = forceObjectIdList(object_ids or [])
+		if client_id := self._get_client_id():
+			object_ids = [client_id]
 
-		res: dict[str, dict[str, dict[str, list[Any]]]] = {}
+		res: dict[str, dict[str, dict[str, list[Any]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 		if with_defaults:
-			client_id_to_depot_id = {
-				ctd["clientId"]: ctd["depotId"] for ctd in self.configState_getClientToDepotserver(clientIds=object_ids, masterOnly=True)
-			}
-			depot_values: dict[str, dict[str, dict[str, list[Any]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-			depot_ids = list(set(client_id_to_depot_id.values()))
-			if depot_ids:
-				for pps in self.productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=depot_ids):
-					depot_values[pps.objectId][pps.productId][pps.propertyId] = pps.values
+			all_depot_ids = self.host_getIdents(returnType="str", type="OpsiDepotserver")
+			client_ids = [object_id for object_id in object_ids if object_id not in all_depot_ids]
+			configserver_id = get_configserver_id()
 
-			for host_id in self.host_getIdents(returnType="str", id=object_ids):
-				res[host_id] = {}
-				depot_id = client_id_to_depot_id.get(host_id)
-				if depot_id and depot_id in depot_values:
-					res[host_id] = depot_values[depot_id].copy()
+			if not object_ids or client_ids:
+				client_id_to_depot_id = {
+					ctd.objectId: (ctd.values or [None])[0]
+					for ctd in self._configState_getObjects(objectId=client_ids, configId="clientconfig.depot.id")
+				}
+				depot_values: dict[str, dict[str, dict[str, list[Any]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+				depot_ids = list(set(client_id_to_depot_id.values()))
+				if configserver_id not in depot_ids:
+					depot_ids.append(configserver_id)
+				if depot_ids:
+					for pps in self._productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=depot_ids):
+						depot_values[pps.objectId][pps.productId][pps.propertyId] = pps.values or []
 
-		for pps in self.productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=object_ids):
-			if pps.objectId not in res:
-				res[pps.objectId] = {}
-			if pps.productId not in res[pps.objectId]:
-				res[pps.objectId][pps.productId] = {}
-			res[pps.objectId][pps.productId][pps.propertyId] = pps.values
+				for host_id in self.host_getIdents(returnType="str", type="OpsiClient", id=client_ids):
+					res[host_id] = {}
+					depot_id = client_id_to_depot_id.get(host_id) or configserver_id
+					if depot_id in depot_values:
+						res[host_id] = depot_values[depot_id].copy()
+
+		for pps in self._productPropertyState_getObjects(productId=product_ids, propertyId=property_ids, objectId=object_ids):
+			res[pps.objectId][pps.productId][pps.propertyId] = pps.values or []
 
 		return res
 
@@ -133,16 +143,23 @@ class RPCProductPropertyStateMixin(Protocol):
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=False, session=session
 				)
 
+	def _productPropertyState_getObjects(
+		self: BackendProtocol,
+		ace: list[RPCACE] | None = None,
+		attributes: list[str] | None = None,
+		**filter: Any,
+	) -> list[ProductPropertyState]:
+		return self._mysql.get_objects(
+			table="PRODUCT_PROPERTY_STATE", ace=ace or [], object_type=ProductPropertyState, attributes=attributes, filter=filter
+		)
+
 	@rpc_method(check_acl=False)
 	def productPropertyState_getObjects(
 		self: BackendProtocol,
 		attributes: list[str] | None = None,
 		**filter: Any,
 	) -> list[ProductPropertyState]:
-		ace = self._get_ace("productPropertyState_getObjects")
-		return self._mysql.get_objects(
-			table="PRODUCT_PROPERTY_STATE", ace=ace, object_type=ProductPropertyState, attributes=attributes, filter=filter
-		)
+		return self._productPropertyState_getObjects(ace=self._get_ace("productPropertyState_getObjects"), attributes=attributes, **filter)
 
 	@rpc_method(deprecated=True, alternative_method="productPropertyState_getObjects", check_acl=False)
 	def productPropertyState_getHashes(

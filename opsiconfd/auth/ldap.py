@@ -16,12 +16,14 @@ from typing import Literal
 import ldap3
 from ldap3.core.exceptions import LDAPObjectClassError
 from ldap3.utils.uri import parse_uri
-from opsicommon.exceptions import BackendAuthenticationError
+from opsicommon.exceptions import OpsiServiceAuthenticationError
 
 from opsiconfd.utils import ldap3_uri_to_str
 
+from ..config import config
 from ..logging import logger
-from . import AuthenticationMethod, AuthenticationModule
+from .const import AuthenticationMethod
+from .module import AuthenticationModule
 
 
 class LDAPAuthentication(AuthenticationModule):
@@ -52,6 +54,7 @@ class LDAPAuthentication(AuthenticationModule):
 		        >>> open_ldap_auth = LDAPAuthentication("ldap://ldap.company.de/dc=company,dc=de", "uid={username},dc=Users,{base}")
 		"""
 		super().__init__()
+
 		self._ldap_url = ldap_url
 		self._uri = parse_uri(self._ldap_url)  # type: ignore[no-untyped-call]
 		self._group_filter = group_filter or None
@@ -84,8 +87,11 @@ class LDAPAuthentication(AuthenticationModule):
 		"""
 		Authenticate a user by LDAP bind
 
-		:raises BackendAuthenticationError: If authentication fails.
+		:raises OpsiServiceAuthenticationError: If authentication fails.
 		"""
+		if "ldap" in config.disabled_auth_methods:
+			raise OpsiServiceAuthenticationError("LDAP authentication is disabled")
+
 		self._ldap = None
 		try:
 			if "{base}" in self._bind_user and not self._uri["base"]:
@@ -101,7 +107,7 @@ class LDAPAuthentication(AuthenticationModule):
 			# self._ldap.extend.standard.who_am_i()
 		except Exception as err:
 			logger.info("LDAP authentication failed for user '%s'", username, exc_info=True)
-			raise BackendAuthenticationError(f"LDAP authentication failed for user '{username}': {err}") from err
+			raise OpsiServiceAuthenticationError(f"LDAP authentication failed for user '{username}': {err}") from err
 
 	def get_groupnames(self, username: str) -> set[str]:
 		groupnames = set()

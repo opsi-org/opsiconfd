@@ -1154,7 +1154,7 @@ function getMessagebusChannelInfo() {
 
 
 function messagebusConnect() {
-	const serverRole = localStorage.getItem("serverRole");
+	const serverRole = localStorage.getItem("serverRole") || "configserver";
 	if (serverRole != "configserver") {
 		showNotifcation(`Messagebus unavailable on ${serverRole}`, "messagebus", "error", 10);
 		return;

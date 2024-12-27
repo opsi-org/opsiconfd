@@ -17,12 +17,14 @@ from grp import getgrgid
 from os import getgrouplist
 from threading import Lock
 
-from pam import PamAuthenticator  # type: ignore[import]
-from opsicommon.exceptions import BackendAuthenticationError
+from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.system.info import linux_distro_id_like_contains
+from pam import PamAuthenticator  # type: ignore[import]
 
+from ..config import config
 from ..logging import logger
-from . import AuthenticationModule, AuthenticationMethod
+from .const import AuthenticationMethod
+from .module import AuthenticationModule
 
 
 class PAMAuthentication(AuthenticationModule):
@@ -56,8 +58,11 @@ class PAMAuthentication(AuthenticationModule):
 
 		:param service: The PAM service to use. Leave None for autodetection.
 		:type service: str
-		:raises BackendAuthenticationError: If authentication fails.
+		:raises OpsiServiceAuthenticationError: If authentication fails.
 		"""
+		if "pam" in config.disabled_auth_methods:
+			raise OpsiServiceAuthenticationError("PAM authentication is disabled")
+
 		logger.confidential("Trying to authenticate user %s with password %s by PAM", username, password)
 		logger.debug("Attempting PAM authentication as user %s (service=%s)...", username, self._pam_service)
 
@@ -69,7 +74,7 @@ class PAMAuthentication(AuthenticationModule):
 
 			logger.trace("PAM authentication successful.")
 		except Exception as err:
-			raise BackendAuthenticationError(f"PAM authentication failed for user '{username}': {err}") from err
+			raise OpsiServiceAuthenticationError(f"PAM authentication failed for user '{username}': {err}") from err
 
 	def get_groupnames(self, username: str) -> set[str]:
 		"""

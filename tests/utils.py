@@ -40,8 +40,9 @@ from starlette.types import Receive, Scope, Send
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.backend.rpc.main import UnprotectedBackend
+from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 from opsiconfd.backend.rpc.obj_audit_hardware import get_audit_hardware_database_config
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.common import check_manager
@@ -191,6 +192,19 @@ def sync_clean_redis() -> None:
 	redis = redis_client()
 	for key in redis.scan_iter(f"{_config.redis_key()}:*", count=1000):
 		redis.delete(key)
+
+
+def sync_clean_health_check_cache() -> None:
+	redis = redis_client()
+	for key in redis.scan_iter("*checkcache*", count=1000):
+		redis.delete(key)
+
+
+@pytest.fixture(autouse=False)
+def clean_health_check_cache() -> Generator[None, None, None]:
+	sync_clean_health_check_cache()
+	yield
+	sync_clean_health_check_cache()
 
 
 @pytest.fixture(autouse=True)
@@ -674,3 +688,15 @@ def cache_clear() -> None:
 def cleanup_checks() -> None:
 	check_cache_clear("all")
 	check_manager.remove_check(check_id="all")
+
+
+@pytest.fixture()
+def default_acl() -> Generator[dict[str, list[RPCACE]], None, None]:
+	protected_backend = ProtectedBackend()
+	try:
+		with get_config({"acl_file": "opsiconfd_data/etc/backendManager/acl.conf"}):
+			protected_backend._read_acl_file()
+		yield protected_backend._acl
+	finally:
+		# Restore original ACL
+		protected_backend._read_acl_file()

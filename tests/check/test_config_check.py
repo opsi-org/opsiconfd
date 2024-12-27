@@ -15,6 +15,7 @@ from unittest import mock
 
 import opsiconfd.check.config  # noqa: F401
 from opsiconfd.check.common import CheckStatus, check_manager
+from opsiconfd.check.config import opsi_config_check, opsiconfd_config_check, run_as_user_check  # noqa: F401
 from opsiconfd.config import OPSICONFD_HOME, opsi_config
 from tests.test_addon_manager import cleanup  # noqa: F401
 from tests.utils import (  # noqa: F401
@@ -34,6 +35,7 @@ def test_check_opsiconfd_config(tmp_path: Path) -> None:
 	acl_file = tmp_path / "acl.conf"
 	acl_file.write_text(ACL_CONF_41, encoding="utf-8")
 	with get_config({"log_level_stderr": 9, "debug_options": ["rpc-log", "asyncio"], "acl_file": str(acl_file)}):
+		check_manager.register(opsiconfd_config_check)
 		result = check_manager.get("opsiconfd_config").run(clear_cache=True)
 		# print(result)
 		ids_found = 0
@@ -62,6 +64,8 @@ def test_check_opsiconfd_config(tmp_path: Path) -> None:
 
 
 def test_check_run_as_user() -> None:
+	check_manager.register(run_as_user_check)
+
 	class MockUser:
 		pw_name = "opsiconfd"
 		pw_gid = 103
@@ -125,6 +129,7 @@ def test_check_run_as_user() -> None:
 
 
 def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	check_manager.register(opsi_config_check)
 	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [True]]}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200

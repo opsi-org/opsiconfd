@@ -179,11 +179,7 @@ class CheckManager(metaclass=Singleton):
 			self._possible_checks[check.id] = check
 			if role == "depotserver" and not check.depot_check:
 				continue
-			if (
-				(config.checks and check.id not in config.checks)
-				or (config.skip_checks and check.id in config.skip_checks)
-				and config.list is False
-			):
+			if (config.checks and check.id not in config.checks) or (config.skip_checks and check.id in config.skip_checks):
 				continue
 			self._checks[check.id] = check
 
@@ -255,6 +251,29 @@ class CheckResult:
 				)
 
 		return f"{self.check_status.return_code()} 'opsi: {self.check.name}' - {message if message else self.check_status.value.upper()}{details}"
+
+	def to_nagios(self) -> str:
+		if not check_module("monitoring"):
+			return "You need to enable the monitoring module to use checkmk output. Please check your opsi licenses."
+		newline = "\\n"
+		message = self.message.replace("\n", " ")
+		details = ""
+		if self.details:
+			details = "{newline} {details}".format(
+				newline=newline, details=newline.join(f"{key}: {value}" for key, value in self.details.items())
+			)
+		for partial_result in self.partial_results:
+			details += "{newline} '{name}': {message}".format(
+				newline=newline, name=partial_result.check.name, message=partial_result.message.replace("\n", newline)
+			)
+			if partial_result.details:
+				details += "{newline} {details}".format(
+					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
+				)
+
+		if self.check_status == CheckStatus.ERROR:
+			return f"CRITICAL: {self.check.name}: {message if message else self.check_status.value.upper()}{details}"
+		return f"{self.check_status.value.upper()}: {self.check.name}: {message if message else self.check_status.value.upper()}{details}"
 
 
 def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:

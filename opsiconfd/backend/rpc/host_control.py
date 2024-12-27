@@ -94,6 +94,7 @@ class RpcThread(KillableThread):
 			address=f"https://{self.address}:{opsiclientd_port}/opsiclientd",
 			username=str(username),
 			password=str(password),
+			verify="accept_all",
 			connect_timeout=max(host_rpc_timeout, 0),
 			jsonrpc_create_methods=False,
 			jsonrpc_create_objects=True,

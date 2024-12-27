@@ -388,6 +388,9 @@ class Config(metaclass=Singleton):
 
 		self.jinja_templates_dir = os.path.join(self.static_dir, "templates")
 
+		if self._config.admin_password:
+			secret_filter.add_secrets(self._config.admin_password)
+
 		if not self._config.ssl_ca_key_passphrase:
 			# Use None if empty string
 			self._config.ssl_ca_key_passphrase = None
@@ -1113,11 +1116,30 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--disabled-auth-methods",
+			env_var="OPSICONFD_DISABLED_AUTH_METHODS",
+			type=str_lower,
+			nargs="*",
+			default=[],
+			choices=("saml", "pam", "ldap", "opsi_passwd"),
+			help=self._help(
+				"opsiconfd",
+				"A list of authentication methods to disable.\n" "If the list is empty, all authentication methods are allowed.\n",
+			),
+		)
+		self._parser.add(
 			"--multi-factor-auth",
 			env_var="OPSICONFD_MULTI_FACTOR_AUTH",
 			default="inactive",
 			help=self._help("opsiconfd", "The multi factor authentication mode to use."),
 			choices=("inactive", "totp_optional", "totp_mandatory"),
+		)
+		self._parser.add(
+			"--totp-tolerance",
+			env_var="OPSICONFD_TOTP_TOLERANCE",
+			type=int,
+			default=0,
+			help=self._help("opsiconfd", 'The number of "past" and "future" passwords that are valid during TOTP validation.'),
 		)
 		self._parser.add(
 			"--client-cert-auth",
@@ -1174,7 +1196,7 @@ class Config(metaclass=Singleton):
 			default=False,
 			help=self._help(
 				"opsiconfd",
-				"Enable SAML 2.0 client signatures.",
+				"Enable SAML 2.0 client signatures and decryption of assertions.",
 			),
 		)
 		self._parser.add(
@@ -1297,7 +1319,14 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_HEALTH_CHECK_FORMAT",
 			default="cli",
 			help=self._help(("opsiconfd", "health-check"), "Health-Check output format."),
-			choices=("cli", "checkmk", "json"),
+			choices=("cli", "checkmk", "nagios", "json"),
+		)
+		self._parser.add(
+			"--health-check-interval",
+			env_var="OPSICONFD_HEALTH_CHECK_INTERVAL",
+			type=int,
+			default=86400,  # 24 hours
+			help=self._help(("opsiconfd", "health-check"), "The interval in seconds at which the health check is executed."),
 		)
 
 		self._parser.add(
@@ -1687,7 +1716,22 @@ class Config(metaclass=Singleton):
 			)
 
 			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
-			self._parser.add("--register-depot", action="store_true", help=self._help("setup", "Register this server as a depotserver."))
+			self._parser.add(
+				"--configure-saml",
+				action="store_true",
+				help=self._help("setup", "Configure SAML authentication.\nPossible unattended config parameters are: idp_metadata_url."),
+			)
+			self._parser.add(
+				"--register-depot",
+				action="store_true",
+				help=self._help(
+					"setup",
+					"Register this server as a depotserver.\n"
+					"Possible unattended config parameters are: configserver, depot_id, description, username, password.\n"
+					"Instead of using username and password in the unattended config, you can use the --admin-user and --admin-password options."
+					"For security reasons, these options should preferably be set via environment variables.",
+				),
+			)
 			self._parser.add(
 				"--unattended",
 				metavar="UNATTENDED_CONFIG",
@@ -1695,7 +1739,7 @@ class Config(metaclass=Singleton):
 				const=True,
 				type=str,
 				default=False,
-				help=self._help("setup", 'Pass unattended config for --register-depot  as \'{"key":"value"}\''),
+				help=self._help("setup", 'Pass unattended config for --register-depot or --configure-saml as \'{"key":"value"}\''),
 			)
 			self._parser.add(
 				"--set-depot-user-password",

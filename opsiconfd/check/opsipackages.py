@@ -1,25 +1,19 @@
-# # -*- coding: utf-8 -*-
-
-# # opsiconfd is part of the desktop management solution opsi http://www.opsi.org
-# # Copyright (c) 2008-2024 uib GmbH <info@uib.de>
-# # All rights reserved.
-# # License: AGPL-3.0
-
-# """
-# health check
-# """
-
+# opsiconfd is part of the desktop management solution opsi http://www.opsi.org
+# Copyright (c) 2008-2024 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
-import requests
 from opsicommon.package.repo_meta import RepoMetaPackageCollection
-from opsicommon.utils import compare_versions, prepare_proxy_environment
+from opsicommon.utils import compare_versions
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
+from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.logging import logger
+from opsiconfd.utils import get_requests_session
 
 OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
 OPSI_REPO_FILE = f"https://{OPSI_PACKAGES_HOST}/stable/packages.msgpack.zstd"
@@ -29,8 +23,7 @@ MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client
 
 def get_available_product_versions(product_ids: list[str]) -> dict:
 	available_packages = {}
-	session = prepare_proxy_environment(OPSI_PACKAGES_HOST)
-
+	session = get_requests_session(OPSI_PACKAGES_HOST)
 	res = session.get(OPSI_REPO_FILE, timeout=10, stream=True)
 	res.raise_for_status()
 
@@ -43,41 +36,6 @@ def get_available_product_versions(product_ids: list[str]) -> dict:
 			available_packages[product_id] = "0.0"
 
 	return available_packages
-
-
-def get_enabled_hosts() -> list[str]:
-	backend = get_unprotected_backend()
-	config_states = backend.configState_getValues(["opsi.check.enabled", "opsi.check.downtime.start", "opsi.check.downtime.end"])
-	all_hosts = set(config_states)
-	downtime_hosts = set()
-	now = datetime.now().astimezone()
-	server_timezone = now.tzinfo
-	for host in all_hosts:
-		downtime_end_str = (config_states[host].get("opsi.check.downtime.end") or [""])[0]
-		if not downtime_end_str:
-			continue
-		try:
-			downtime_end = datetime.fromisoformat(downtime_end_str)
-			if downtime_end.tzinfo is None:
-				downtime_end = downtime_end.replace(tzinfo=server_timezone)
-		except ValueError:
-			logger.warning("Invalid downtime end time for host %s: %s", host, downtime_end_str)
-			continue
-
-		downtime_start = datetime(year=2024, month=1, day=1, tzinfo=timezone.utc)
-		downtime_start_str = (config_states[host].get("opsi.check.downtime.start") or [""])[0]
-		if downtime_start_str:
-			try:
-				downtime_start = datetime.fromisoformat(downtime_start_str)
-				if downtime_start.tzinfo is None:
-					downtime_start = downtime_start.replace(tzinfo=server_timezone)
-			except ValueError:
-				logger.warning("Invalid downtime start time for host %s: %s", host, downtime_start_str)
-
-		if downtime_start < now and downtime_end > now:
-			downtime_hosts.add(host)
-
-	return [host for host in all_hosts - downtime_hosts if (config_states[host].get("opsi.check.enabled") or [True])[0]]
 
 
 @dataclass()
@@ -113,7 +71,7 @@ class OpsiProductsOnDepotsCheck(Check):
 		outdated = 0
 		try:
 			available_packages = get_available_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
-		except requests.RequestException as err:
+		except Exception as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 			return result
@@ -256,6 +214,11 @@ class OpsiProductsOnClientsCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		backend = get_unprotected_backend()
+		ignore_products = []
+		opsi_check_ignore_products = backend.config_getObjects(id="opsi.check.ignore_products")
+		if opsi_check_ignore_products:
+			ignore_products = opsi_check_ignore_products[0].defaultValues
+
 		now = datetime.now()
 		enabled_hosts = get_enabled_hosts()
 		depots = backend.host_getObjects(attributes=["id"], type="OpsiDepotserver")
@@ -273,34 +236,101 @@ class OpsiProductsOnClientsCheck(Check):
 			clients_on_depot = set()
 			for depot_client_hash in backend.configState_getClientToDepotserver(clientIds=client_ids, depotIds=[depot.id]):
 				clients_on_depot.add(depot_client_hash["clientId"])
+			if not clients_on_depot:
+				logger.debug("No clients on depot %s", depot.id)
+				continue
 			try:
 				available_products = backend.productOnDepot_getObjects(
 					depotId=depot.id, attributes=["productId", "productVersion", "packageVersion"]
 				)
-			except requests.RequestException as err:
+			except Exception as err:
 				result.check_status = CheckStatus.ERROR
 				result.message = f"Failed to get product info from depot '{depot.id}': {err}"
 				return result
 			for product in available_products:
 				product_id = product.productId
+				if product_id in ignore_products:
+					continue
 				available_version = f"{product.productVersion}-{product.packageVersion}"
 				for product_on_client in backend.productOnClient_getObjects(
 					attributes=["productVersion", "packageVersion"],
-					clientId=client_ids,
+					clientId=clients_on_depot,
 					productId=product_id,
 					installationStatus="installed",
+					productType="LocalbootProduct",
 				):
 					check = OpsiProductOnClientCheck(
 						client_id=product_on_client.clientId,
 						product_id=product_id,
 						available_version=available_version,
 					)
-					client_ids.remove(product_on_client.clientId)
-
 					self.add_partial_checks(check)
+			client_ids.remove(product_on_client.clientId)
+
+		return result
+
+
+@dataclass()
+class OpsiLockedProductsDepotCheck(Check):
+	id: str = "locked_products_depot"
+	name: str = "Locked Products Depot"
+	description: str = "Check for locked products on depots"
+	documentation: str = """
+		## Locked products on depot
+
+		Checks if there are any locked products on this depot.
+	"""
+	partial_check: bool = True
+	depot_id: str = ""
+
+	def _check(self) -> CheckResult:
+		result = CheckResult(
+			check=self,
+			message=f"No locked products found on depot: '{self.depot_id}'.",
+			check_status=CheckStatus.OK,
+		)
+		backend = get_unprotected_backend()
+		locked_products = []
+
+		locked_products.extend(backend.productOnDepot_getObjects(depotId=self.depot_id, locked=True))
+		if locked_products:
+			result.message = f"Locked products found on depot: '{self.depot_id}'"
+			result.check_status = CheckStatus.WARNING
+			result.details = {"locked_products": [product.productId for product in locked_products]}
+		return result
+
+
+@dataclass()
+class OpsiLockedProductsCheck(Check):
+	id: str = "locked_products"
+	name: str = "Locked Products"
+	description: str = "Check for locked products"
+	documentation: str = """
+		## Locked products
+
+		Checks if there are locked products on any depot.
+	"""
+	cache_partial_checks: bool = True
+
+	def _check(self) -> CheckResult:
+		result = CheckResult(
+			check=self,
+			message="No locked products found.",
+			check_status=CheckStatus.OK,
+		)
+		backend = get_unprotected_backend()
+		enabled_hosts = get_enabled_hosts()
+		depots = backend.host_getObjects(attributes=["id"], type="OpsiDepotserver")
+		for depot in depots:
+			if depot.id not in enabled_hosts:
+				continue
+			check = OpsiLockedProductsDepotCheck(depot_id=depot.id)
+			self.add_partial_checks(check)
+
 		return result
 
 
 opsi_products_on_depots_check = OpsiProductsOnDepotsCheck()
 opsi_products_on_clients_check = OpsiProductsOnClientsCheck()
-check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check)
+opsi_locked_products_check = OpsiLockedProductsCheck()
+check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check, opsi_locked_products_check)

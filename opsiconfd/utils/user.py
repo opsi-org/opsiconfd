@@ -12,6 +12,8 @@ utils user
 import os
 import pwd
 import re
+from functools import lru_cache
+from pathlib import Path
 from subprocess import run
 
 from opsicommon.exceptions import BackendMissingDataError
@@ -26,15 +28,14 @@ from opsiconfd.utils import get_opsi_config, is_local_user, lock_file
 from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
 from opsiconfd.utils.ucs import get_server_role
 
-OPSI_PASSWD_FILE = None
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 
 
-def get_passwd_file() -> str:
-	global OPSI_PASSWD_FILE
-	if not OPSI_PASSWD_FILE:
-		from opsiconfd.config import OPSI_PASSWD_FILE  # type: ignore[assignment]
-	return OPSI_PASSWD_FILE  # type: ignore[return-value]
+@lru_cache
+def get_passwd_file() -> Path:
+	from opsiconfd.config import OPSI_PASSWD_FILE
+
+	return Path(OPSI_PASSWD_FILE)
 
 
 def user_set_credentials(username: str, password: str) -> None:
@@ -60,7 +61,8 @@ def user_set_credentials(username: str, password: str) -> None:
 
 	encoded_password = blowfish_encrypt(depot.opsiHostKey, password)
 
-	with open(get_passwd_file(), "a+", encoding="utf-8") as file:
+	passwd_file = get_passwd_file()
+	with open(passwd_file, "a+", encoding="utf-8") as file:
 		with lock_file(file):
 			file.seek(0)
 			lines = []
@@ -80,7 +82,7 @@ def user_set_credentials(username: str, password: str) -> None:
 			file.truncate()
 			file.write("\n".join(lines) + "\n")
 
-	set_rights(get_passwd_file())
+	set_rights(passwd_file)
 
 	if username != get_opsi_config().get("depot_user", "username"):
 		return
@@ -191,8 +193,9 @@ def user_get_credentials(username: str | None = None, hostId: str | None = None)
 
 	result = {"password": "", "rsaPrivateKey": ""}
 
-	if os.path.exists(get_passwd_file()):
-		with open(get_passwd_file(), "r", encoding="utf-8") as file:
+	passwd_file = get_passwd_file()
+	if passwd_file.exists():
+		with open(passwd_file, "r", encoding="utf-8") as file:
 			with lock_file(file):
 				for line in file.readlines():
 					match = PASSWD_LINE_REGEX.search(line)
@@ -201,7 +204,7 @@ def user_get_credentials(username: str | None = None, hostId: str | None = None)
 						break
 
 	if not result["password"]:
-		raise BackendMissingDataError(f"Username '{username}' not found in '{get_passwd_file()}'")
+		raise BackendMissingDataError(f"Username '{username}' not found in '{passwd_file}'")
 
 	depot = backend.host_getObjects(id=backend._depot_id)
 	if not depot:

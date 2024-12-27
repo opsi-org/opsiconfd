@@ -66,7 +66,7 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 
 		assert util.is_str(self.root_folder_path)
 		assert util.is_str(path)
-		root_path = Path(self.root_folder_path)
+		root_path = Path(self.root_folder_path).resolve()
 		file_path = root_path / path.strip("/")
 
 		if not file_path.exists():

@@ -25,6 +25,7 @@ from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
+from opsiconfd.auth.saml import setup_saml, setup_saml_configuration
 from opsiconfd.backend import new_service_client
 from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
@@ -43,7 +44,6 @@ from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, se
 from opsiconfd.ssl import fetch_server_cert, setup_ssl, store_local_server_cert, store_local_server_key
 from opsiconfd.utils import opsiconfd_running, restart_opsiconfd
 from opsiconfd.utils.user import user_set_credentials
-from opsiconfd.auth.saml import setup_saml
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -80,7 +80,8 @@ def setup_redis() -> None:
 			delete_recursively(key)
 
 
-def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
+def setup_depotserver(interactive: bool = True, unattended_configuration: dict[str, str] | None = None) -> bool:
+	unattended_configuration = unattended_configuration or {}
 	with ServiceClient(
 		opsi_config.get("service", "url"),
 		verify="accept_all",
@@ -91,11 +92,13 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 		while True:
 			try:
 				if not unattended_configuration:
+					if not interactive:
+						raise ValueError("Interactive setup or unattended configuration required")
 					if not Confirm.ask("Do you want to register this server as a depotserver?"):
 						return False
 				else:
 					rich_print(f"Registering server as depotserver with unattended configuration '{unattended_configuration}'")
-					key_list = ["configserver", "username", "password", "depot_id", "description"]
+					key_list = ["configserver", "depot_id", "description", "username", "password"]
 					for key in key_list:
 						if key not in unattended_configuration:
 							raise ValueError(f"Missing unattended configuration '{key}' in {unattended_configuration}")
@@ -105,12 +108,13 @@ def setup_depotserver(unattended_configuration: dict | None = None) -> bool:
 				if hostname in ("127.0.0.1", "::1", "localhost"):
 					hostname = ""
 				if unattended_configuration:
-					inp = unattended_configuration["configserver"]
+					server_address = unattended_configuration["configserver"]
 				else:
-					inp = Prompt.ask("Enter opsi server address or service url", default=hostname, show_default=True)
-				if not inp:
-					raise ValueError(f"Invalid address {inp!r}")
-				service.set_addresses(inp)
+					server_address = Prompt.ask("Enter opsi server address or service url", default=hostname or "", show_default=True)
+				if not server_address:
+					raise ValueError(f"Invalid address {server_address!r}")
+				service.set_addresses(server_address)
+
 				if unattended_configuration:
 					service.username = unattended_configuration["username"]
 					service.password = unattended_configuration["password"]
@@ -208,6 +212,13 @@ def setup(explicit: bool = True) -> None:
 	interactive = (not getattr(config, "non_interactive", False)) and sys.stdout.isatty() and explicit
 	new_server_id = None
 	rename_server = getattr(config, "rename_server", False)
+	configure_saml = getattr(config, "configure_saml", False)
+	unattended_configuration = None
+	unattended_str = getattr(config, "unattended", None)
+	if unattended_str:
+		rich_print("Processing unattended configuration")
+		unattended_configuration = json.loads(unattended_str)
+
 	if rename_server:
 		if "backend" in config.skip_setup:
 			config.skip_setup.remove("backend")
@@ -216,14 +227,17 @@ def setup(explicit: bool = True) -> None:
 		else:
 			new_server_id = opsi_config.get("host", "id")
 
-	if register_depot:
-		unattended_configuration = None
-		unattended_str = getattr(config, "unattended", None)
-		if unattended_str:
-			rich_print("[b]unattended is set[/b]")
-			unattended_configuration = json.loads(unattended_str)
+	if configure_saml:
+		setup_saml_configuration(interactive, unattended_configuration)
+		return
 
-		if not setup_depotserver(unattended_configuration):
+	if register_depot:
+		unattended_configuration = unattended_configuration or {}
+		if config.admin_user:
+			unattended_configuration["username"] = config.admin_user
+		if config.admin_password:
+			unattended_configuration["password"] = config.admin_password
+		if not setup_depotserver(interactive, unattended_configuration):
 			return
 
 	if set_depot_user_password:

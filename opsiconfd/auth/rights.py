@@ -10,9 +10,16 @@ opsiconfd.auth.rights
 """
 
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBool
+
+
+class Terminals(StrEnum):
+	CLIENTS = "Clients"
+	CONFIGSERVER = "ConfigServer"
+	DEPOTS = "Depots"
 
 
 class Rights:
@@ -32,6 +39,7 @@ class Rights:
 	ssh_command: bool = True
 	ssh_menu_server_console: bool = True
 	ssh_server_configuration: bool = True
+	connect_terminal_forbidden: list[Terminals] | None = None
 	configs: dict[str, UnicodeConfig | BoolConfig] = {}
 	config_prefix: str = "user"
 
@@ -63,6 +71,7 @@ class Rights:
 		ssh_command: bool = True,
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
+		connect_terminal_forbidden: list[Terminals] | None = None,
 	):
 		self.name = name
 		self.read_only = read_only
@@ -78,6 +87,7 @@ class Rights:
 		self.ssh_command = ssh_command
 		self.ssh_menu_server_console = ssh_menu_server_console
 		self.ssh_server_configuration = ssh_server_configuration
+		self.connect_terminal_forbidden = connect_terminal_forbidden
 
 		now = datetime.now(tz=timezone.utc)
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -88,6 +98,7 @@ class Rights:
 		depots = [depot.id for depot in self.backend.host_getObjects(type="OpsiDepotserver")]
 		product_groups = [group.id for group in self.backend.group_getObjects(type="ProductGroup")]
 		host_groups = [group.id for group in self.backend.group_getObjects(type="HostGroup")]
+		forbidden_terminals = [terminal.value for terminal in Terminals]
 
 		self.configs = {
 			"role": UnicodeConfig(
@@ -165,6 +176,14 @@ class Rights:
 				description="The primary value setting is an empty selection list, but all existing items as option.",
 				defaultValues=[],
 				possibleValues=product_groups,
+			),
+			"connect_terminal_forbidden": UnicodeConfig(
+				id=f"{self.config_prefix}.connect.terminal.forbidden",
+				multiValue=True,
+				editable=False,
+				description="Forbidden terminals for this role.",
+				defaultValues=[],
+				possibleValues=forbidden_terminals,
 			),
 		}
 

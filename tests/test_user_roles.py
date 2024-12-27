@@ -379,6 +379,14 @@ def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F81
 			possibleValues=["product1", "product2"],
 			defaultValues=[],
 		),
+		UnicodeConfig(
+			id="user.role.{admin}.connect.terminal.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden terminals for this role.",
+			defaultValues=[],
+			possibleValues=["Clients", "Depots", "ConfigServers"],
+		),
 	]
 
 	assert len(configs) == len(expected_configs) + 1  # dont check modified
@@ -421,6 +429,14 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 			possibleValues=["product1", "product2"],
 			defaultValues=[],
 		),
+		UnicodeConfig(
+			id="user.role.{admin}.connect.terminal.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden terminals for this role.",
+			defaultValues=[],
+			possibleValues=["Clients", "Depots", "ConfigServers"],
+		),
 	]
 
 	assert len(configs) == len(expected_configs) + 1  # dont check modified
@@ -454,6 +470,14 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 			id="user.role.{admin}.privilege.product.groupaccess.productgroups",
 			possibleValues=["product1", "product2"],
 			defaultValues=[],
+		),
+		UnicodeConfig(
+			id="user.role.{admin}.connect.terminal.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden terminals for this role.",
+			defaultValues=[],
+			possibleValues=["Clients", "Depots", "ConfigServers"],
 		),
 	]
 

@@ -51,12 +51,15 @@ def print_health_check_manual(console: Console) -> None:
 		console.print(Markdown(check.documentation.replace("\t", "")))
 
 
-def console_print_message(check_result: CheckResult, console: Console, indent: int = 0) -> None:
+def console_print_message(check_result: CheckResult, console: Console, indent: int = 0, detailed: bool = False) -> None:
 	style = STYLES[check_result.check_status]
 	status = check_result.check_status.upper()
 	msg_ident = " " * (len(status) + 3)
 	message = "\n".join([f"{msg_ident if idx > 0 else ''}{line}" for idx, line in enumerate(check_result.message.split("\n"))])
 	console.print(Padding(f"[{style}]{status}[/{style}] - {message}", (0, indent)))
+	if detailed and check_result.details:
+		for key, value in check_result.details.items():
+			console.print(Padding(f"{key}: {value}", (0, indent + 10)))
 
 
 def process_check_result(result: CheckResult, console: Console, check_version: str | None = None, detailed: bool = False) -> None:
@@ -84,6 +87,9 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 	style = STYLES[status]
 	console.print(f"[{style}]●[/{style}] [b]{result.check.name}[/b]: [{style}]{status.upper()}[/{style}]")
 	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
+	if detailed and result.details:
+		for key, value in result.details.items():
+			console.print(Padding(f"{key}: {value}", (0, 5)))
 
 	if status == CheckStatus.OK and not detailed:
 		console.print("")
@@ -91,7 +97,7 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 	if partial_results:
 		console.print("")
 	for partial_result in partial_results:
-		console_print_message(partial_result, console, 3)
+		console_print_message(partial_result, console, 3, detailed)
 	console.print("")
 
 
@@ -118,6 +124,11 @@ def console_health_check() -> int:
 		for result in health_check():
 			summary[result.check_status] += 1
 			print(result.to_checkmk())
+		return overall_check_status(summary).return_code()
+	elif config.format == "nagios":
+		for check_result in health_check():
+			summary[check_result.check_status] += 1
+			print(check_result.to_nagios())
 		return overall_check_status(summary).return_code()
 
 	console = Console(log_time=False)

@@ -56,7 +56,7 @@ def depotserver_setup(tmp_path: Path) -> Generator[Config, None, None]:
 			"description": "pytest depotserver",
 		}
 		try:
-			setup_depotserver(unattended_configuration)
+			setup_depotserver(False, unattended_configuration)
 			reinit_backend()
 			yield conf
 		finally:

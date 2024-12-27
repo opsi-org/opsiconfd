@@ -49,9 +49,10 @@ from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import MaintenanceState
 from opsiconfd.application import app as opsiconfd_app
-from opsiconfd.auth import AuthenticationMethod, AuthenticationModule
 from opsiconfd.auth._pam import PAMAuthentication
+from opsiconfd.auth.const import AuthenticationMethod
 from opsiconfd.auth.ldap import LDAPAuthentication
+from opsiconfd.auth.module import AuthenticationModule
 from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
@@ -337,7 +338,7 @@ class SessionMiddleware:
 
 		elif isinstance(err, HTTPException):
 			status_code = err.status_code
-			headers = err.headers
+			headers = dict(err.headers) if err.headers else None
 			error = err.detail
 
 		else:
@@ -1265,6 +1266,9 @@ async def authenticate_host(scope: Scope) -> None:
 
 
 async def authenticate_user_passwd(scope: Scope) -> None:
+	if "opsi_passwd" in config.disabled_auth_methods:
+		raise OpsiServiceAuthenticationError("opsi passwd authentication is disabled")
+
 	session: OPSISession = scope["session"]
 	credentials = await run_in_threadpool(user_get_credentials, session.username)
 	if credentials and session.password == credentials.get("password"):
@@ -1430,7 +1434,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		if not mfa_otp:
 			raise OpsiServiceAuthenticationError("MFA one-time password missing")
 		totp = pyotp.TOTP(users[0].otpSecret)
-		if not totp.verify(mfa_otp):
+		if not totp.verify(mfa_otp, valid_window=max(0, config.totp_tolerance)):
 			raise OpsiServiceAuthenticationError("Incorrect one-time password")
 		session.add_auth_methods(AuthenticationMethod.TOTP)
 		logger.info("OTP MFA successful")

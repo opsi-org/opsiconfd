@@ -9,14 +9,17 @@
 opsiconfd - addon manager
 """
 
+from __future__ import annotations
+
 import importlib
 import os
 import sys
 from functools import lru_cache
-from importlib._bootstrap import BuiltinImporter, ModuleSpec  # type: ignore[import]
+from importlib._bootstrap import BuiltinImporter
 from os import listdir
 from os.path import abspath, exists, isdir, join
 from pathlib import Path
+from typing import TYPE_CHECKING, Sequence
 from urllib.parse import quote, unquote
 
 from opsiconfd.addon.addon import Addon
@@ -26,10 +29,14 @@ from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
 from opsiconfd.utils import Singleton
 
+if TYPE_CHECKING:
+	from importlib._bootstrap import ModuleSpec
+	from types import ModuleType
+
 
 class AddonImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls: type, fullname: str, path: str | None = None, target: str | None = None) -> ModuleSpec | None:
+	def find_spec(cls: type, fullname: str, path: Sequence[str] | None = None, target: ModuleType | None = None) -> ModuleSpec | None:
 		if not fullname.startswith("opsiconfd.addon"):
 			return None
 		addon_path = unquote(fullname.split("_", 1)[1])

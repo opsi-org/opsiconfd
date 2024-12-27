@@ -1,4 +1,4 @@
-FROM docker.uib.gmbh/opsi/dev/pybuilder:deb10-py3.11
+FROM docker.uib.gmbh/opsi/dev/pybuilder:deb10-py3.13
 
 ARG DEV_USER
 ARG DEV_UID
@@ -8,7 +8,7 @@ ENV LC_ALL="en_US.UTF-8" \
 	LANGUAGE="en_US:en" \
 	DEV_USER=${DEV_USER} \
 	DEV_UID=${DEV_UID} \
-	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_9.0/
+	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_10/
 
 RUN apt-get update \
 	&& apt-get --yes dist-upgrade\

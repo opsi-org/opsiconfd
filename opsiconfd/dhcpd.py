@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from socket import AF_INET
 from subprocess import CalledProcessError, run
 from time import sleep, time
 from typing import Generator, Literal
@@ -36,7 +37,7 @@ from opsicommon.utils import ip_address_in_network
 from opsiconfd.backend.rpc import read_backend_config_file
 from opsiconfd.config import OPSICONFD_DIR, config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_ip_addresses, lock_file
+from opsiconfd.utils import get_primary_ip_interface, lock_file
 
 
 @contextmanager
@@ -690,14 +691,7 @@ def setup_dhcpd() -> None:
 	if not dhcpd_control_config.enabled:
 		return
 
-	local_addr = None
-	for addr in get_ip_addresses():
-		if addr["family"] == "ipv4" and addr["interface"] != "lo":
-			local_addr = addr
-
-	if not local_addr:
-		raise RuntimeError("Failed to get local ip address")
-
+	local_iface = get_primary_ip_interface(AF_INET)
 	dhcpd_control_config.dhcpd_config_file.parse()
 	global_block = dhcpd_control_config.dhcpd_config_file.get_global_block()
 
@@ -715,7 +709,7 @@ def setup_dhcpd() -> None:
 				start_line=-1,
 				parent_block=global_block,
 				type="subnet",
-				settings=["subnet", local_addr["network"].split("/")[0], "netmask", local_addr["netmask"]],
+				settings=["subnet", local_iface.network.network_address.exploded, "netmask", local_iface.network.netmask.exploded],
 			)
 		)
 		conf_changed = True
@@ -733,8 +727,8 @@ def setup_dhcpd() -> None:
 			params = group.get_parameters_hash(inherit="global")
 
 			if not params.get("next-server"):
-				group.add_component(DHCPDConfParameter(start_line=-1, parent_block=group, key="next-server", value=local_addr["address"]))
-				logger.info("next-server set to %s", local_addr["address"])
+				group.add_component(DHCPDConfParameter(start_line=-1, parent_block=group, key="next-server", value=local_iface.ip.exploded))
+				logger.info("next-server set to %s", local_iface.ip.exploded)
 				conf_changed = True
 
 			if_found = False
@@ -812,11 +806,7 @@ class DHCPDControlConfig:
 
 @lru_cache
 def get_dhcpd_control_config() -> DHCPDControlConfig:
-	local_addr = None
-	for addr in get_ip_addresses():
-		if addr["family"] == "ipv4" and addr["interface"] != "lo":
-			local_addr = addr
-	next_server = local_addr["address"] if local_addr else "127.0.0.1"
+	next_server = get_primary_ip_interface(AF_INET).ip.exploded
 
 	db_config = DHCPDControlConfig(
 		enabled=False,

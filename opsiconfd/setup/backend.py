@@ -14,6 +14,7 @@ import re
 import string
 import time
 from pathlib import Path
+from socket import AF_INET, AF_INET6
 
 import OPSI.Backend.File  # type: ignore[import-untyped]
 from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import-untyped]
@@ -43,29 +44,33 @@ from opsiconfd.config import (
 from opsiconfd.exception import ConfigurationError
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.ssl import fetch_server_cert, store_local_server_cert, store_local_server_key
-from opsiconfd.utils import get_ip_addresses, get_random_string
+from opsiconfd.utils import get_primary_ip_interface, get_random_string
 
 
 def setup_mysql_user(root_mysql: MySQLConnection, mysql: MySQLConnection) -> None:
-	address = mysql.address = root_mysql.address
+	mysql_address = mysql.address = root_mysql.address
 	mysql.database = root_mysql.database
 	mysql.password = "opsi" if config._pytest else get_random_string(16, alphabet=string.ascii_letters + string.digits)
 	secret_filter.add_secrets(mysql.password)
-	if address.startswith("/"):  # Unix socket
-		address = "localhost"
+	user_address = (
+		"localhost"
+		if mysql_address in ("localhost", "127.0.0.1", "::1") or mysql_address.startswith("/")  # Unix socket
+		else get_primary_ip_interface((AF_INET, AF_INET6)).ip.exploded
+	)
+
 	logger.info("Creating MySQL user %r and granting all rights on %r", mysql.username, mysql.database)
 	with root_mysql.session() as session:
-		session.execute(f"CREATE USER IF NOT EXISTS '{mysql.username}'@'{address}'")
+		session.execute(f"CREATE USER IF NOT EXISTS '{mysql.username}'@'{user_address}'")
 		try:
-			session.execute(f"ALTER USER '{mysql.username}'@'{address}' IDENTIFIED WITH mysql_native_password BY '{mysql.password}'")
+			session.execute(f"ALTER USER '{mysql.username}'@'{user_address}' IDENTIFIED WITH mysql_native_password BY '{mysql.password}'")
 		except Exception as err:
 			logger.debug(err)
 			try:
-				session.execute(f"ALTER USER '{mysql.username}'@'{address}' IDENTIFIED BY '{mysql.password}'")
+				session.execute(f"ALTER USER '{mysql.username}'@'{user_address}' IDENTIFIED BY '{mysql.password}'")
 			except Exception as err2:
 				logger.debug(err2)
-				session.execute(f"SET PASSWORD FOR '{mysql.username}'@'{address}' = PASSWORD('{mysql.password}')")
-		session.execute(f"GRANT ALL ON {mysql.database}.* TO '{mysql.username}'@'{address}'")
+				session.execute(f"SET PASSWORD FOR '{mysql.username}'@'{user_address}' = PASSWORD('{mysql.password}')")
+		session.execute(f"GRANT ALL ON {mysql.database}.* TO '{mysql.username}'@'{user_address}'")
 		session.execute("FLUSH PRIVILEGES")
 		logger.notice("MySQL user %r created and privileges set", mysql.username)
 
@@ -259,15 +264,8 @@ def setup_backend_configserver(new_server_id: str | None = None) -> None:
 		if not conf_servers:
 			logger.notice("Creating config server %r", configserver_id)
 
-			ip_address = None
-			network_address = None
-			for addr in get_ip_addresses():
-				if addr["interface"] == "lo":
-					continue
-				if not ip_address or addr["family"] == "ipv4":
-					# Prefer IPv4
-					ip_address = addr["address"]
-					network_address = addr["network"]
+			# Prefer IPv4
+			iface = get_primary_ip_interface((AF_INET, AF_INET6))
 
 			conf_servers = [
 				OpsiConfigserver(
@@ -283,9 +281,9 @@ def setup_backend_configserver(new_server_id: str | None = None) -> None:
 					description=None,
 					notes=None,
 					hardwareAddress=None,
-					ipAddress=ip_address,
+					ipAddress=iface.ip.exploded,
 					inventoryNumber=None,
-					networkAddress=network_address,
+					networkAddress=iface.network.exploded,
 					maxBandwidth=0,
 					isMasterDepot=True,
 					masterDepotId=None,

@@ -10,28 +10,63 @@ test_utiles
 """
 
 from contextlib import nullcontext
-from ipaddress import IPv4Address, IPv4Network
 from pathlib import Path
+from socket import AF_INET, AF_INET6
 
 import pytest
 
-from opsiconfd.utils import NameService, get_file_md5sum, get_ip_addresses, get_user_passwd_details
+from opsiconfd.utils import (
+	NameService,
+	get_file_md5sum,
+	get_ip_interfaces,
+	get_primary_ip_interface,
+	get_user_passwd_details,
+)
 from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
 
-def test_get_ip_addresses() -> None:
-	addresses = list(get_ip_addresses())
-	assert addresses
-	lo4 = [addr for addr in addresses if addr["address"] == "127.0.0.1"][0]
-	assert lo4["family"] == "ipv4"
-	assert lo4["interface"] == "lo"
-	assert lo4["address"] == "127.0.0.1"
-	assert lo4["network"] == "127.0.0.0/8"
-	assert lo4["netmask"] == "255.0.0.0"
-	assert lo4["prefixlen"] == 8
-	assert lo4["ip_address"] == IPv4Address("127.0.0.1")
-	assert lo4["ip_network"] == IPv4Network("127.0.0.0/8")
-	assert lo4["ip_netmask"] == IPv4Address("255.0.0.0")
+@pytest.mark.parametrize("family", (None, AF_INET, AF_INET6, [AF_INET, AF_INET6]))
+def test_get_ip_interfaces(family: int | list[int] | None) -> None:
+	interfaces = list(get_ip_interfaces(family))
+	assert interfaces
+	for iface in interfaces:
+		assert iface.name
+		assert iface.ip
+		if family == AF_INET:
+			assert iface.ip.version == 4
+		elif family == AF_INET6:
+			assert iface.ip.version == 6
+		if iface.name == "lo":
+			assert iface.ip.is_loopback
+			if family == AF_INET:
+				assert iface.ip.exploded == "127.0.0.1"
+				assert iface.netmask.exploded == "255.0.0.0"
+				assert iface.network.exploded == "127.0.0.0/8"
+				assert iface.network.prefixlen == 8
+				assert iface.network.network_address.exploded == "127.0.0.0"
+				assert iface.network.netmask.exploded == "255.0.0.0"
+			elif family == AF_INET6:
+				assert iface.ip.compressed == "::1"
+				assert iface.netmask.compressed == "ffff:ffff::"
+				assert iface.network.compressed == "::/32"
+				assert iface.network.prefixlen == 32
+				assert iface.network.network_address.compressed == "::"
+				assert iface.network.netmask.compressed == "ffff:ffff::"
+
+
+def test_get_primary_ip_interface() -> None:
+	iface = get_primary_ip_interface(AF_INET)
+	assert iface
+	assert iface.ip.version == 4
+	assert not iface.ip.is_loopback
+
+	try:
+		iface = get_primary_ip_interface(AF_INET6)
+		assert iface
+		assert iface.ip.version == 6
+		assert not iface.ip.is_loopback
+	except RuntimeError as err:
+		assert "No primary IPv6 interface found" in str(err)
 
 
 @pytest.mark.parametrize(

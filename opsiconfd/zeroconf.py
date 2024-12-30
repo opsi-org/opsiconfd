@@ -19,7 +19,7 @@ from aiozeroconf import ServiceInfo, Zeroconf  # type: ignore[import]
 from opsiconfd import __version__
 from opsiconfd.config import FQDN, config, get_server_role
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_ip_addresses
+from opsiconfd.utils import get_primary_ip_interface
 
 _zeroconf = None
 _info = None
@@ -56,30 +56,27 @@ async def register_opsi_services() -> None:
 	address = None
 	address6 = None
 	try:
-		address = socket.getaddrinfo(FQDN, None, socket.AF_INET)[0][-1][0]
+		address = ipaddress.ip_address(socket.getaddrinfo(FQDN, None, socket.AF_INET)[0][-1][0])
 	except socket.error as err:
-		logger.warning("Failed to get ipv4 address for '%s': %s", FQDN, err)
-		for addr in get_ip_addresses():
-			if addr["family"] == "ipv4" and not addr["ip_address"].is_loopback:
-				address = str(addr["ip_address"])
-				break
+		logger.warning("Failed to get IPv4 address for '%s': %s", FQDN, err)
+		address == get_primary_ip_interface(socket.AF_INET).ip
 
 	try:
-		address6 = socket.getaddrinfo(FQDN, None, socket.AF_INET6)[0][-1][0]
+		address6 = ipaddress.ip_address(socket.getaddrinfo(FQDN, None, socket.AF_INET6)[0][-1][0])
 	except socket.error as err:
-		logger.debug("Failed to get ipv6 address for '%s': %s", FQDN, err)
-		for addr in get_ip_addresses():
-			if addr["family"] == "ipv6" and not addr["ip_address"].is_loopback and not addr["ip_address"].is_link_local:
-				address6 = str(addr["ip_address"])
-				break
+		logger.debug("Failed to get IPv6 address for '%s': %s", FQDN, err)
+		try:
+			address6 = get_primary_ip_interface(socket.AF_INET6).ip
+		except RuntimeError as err:
+			logger.debug("Failed to get primary IPv6 interface: %s", err)
 
-	logger.info("Using the following ip addresses for zeroconf: ipv4=%s, ipv6=%s", address, address6)
+	logger.info("Using the following ip addresses for zeroconf: IPv4=%s, IPv6=%s", address, address6)
 
 	_info = ServiceInfo(
 		"_opsics._tcp.local.",
 		"opsi config service._opsics._tcp.local.",
-		address=ipaddress.ip_address(address).packed if address else None,
-		address6=ipaddress.ip_address(address6).packed if address6 else None,
+		address=address.packed if address else None,
+		address6=address6.packed if address6 else None,
 		port=config.port,
 		weight=0,
 		priority=0,

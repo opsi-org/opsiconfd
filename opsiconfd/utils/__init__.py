@@ -29,13 +29,13 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from hashlib import md5
-from ipaddress import IPv4Network, IPv6Address, ip_address, ip_interface
+from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address, ip_interface
 from json import JSONEncoder
 from logging import INFO  # type: ignore[import]
 from pathlib import Path
 from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, TextIO
+from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Iterable, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -205,43 +205,59 @@ def normalize_ip_address(address: str, exploded: bool = False) -> str:
 	return ipa.compressed
 
 
-def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
-	for interface, snics in psutil.net_if_addrs().items():
+class NamedIPv4Interface(IPv4Interface):
+	def __init__(self, name: str, address: str) -> None:
+		super().__init__(address)
+		self.name = name
+
+	def __str__(self):
+		return f"{super().__str__()} ({self.name})"
+
+
+class NamedIPv6Interface(IPv6Interface):
+	def __init__(self, name: str, address: str) -> None:
+		super().__init__(address)
+		self.name = name
+
+	def __str__(self):
+		return f"{super().__str__()} ({self.name})"
+
+
+def get_ip_interfaces(family: int | Iterable[int] | None = None) -> Generator[NamedIPv4Interface | NamedIPv6Interface, None, None]:
+	if not family:
+		family = [AF_INET, AF_INET6]
+	elif isinstance(family, int):
+		family = [family]
+
+	for interface_name, snics in psutil.net_if_addrs().items():
 		for snic in snics:
-			family = None
-			if snic.family == AF_INET:
-				family = "ipv4"
-			elif snic.family == AF_INET6:
-				family = "ipv6"
-			else:
-				continue
+			# Interfaces will be yielded in the order of the family list
+			for fam in family:
+				if snic.family != fam:
+					continue
+				try:
+					if snic.family == AF_INET6:
+						prefixlen = ip_address(snic.netmask).exploded.count("f")
+						yield NamedIPv6Interface(interface_name, f"{snic.address.split('%')[0]}/{prefixlen}")
+					else:
+						prefixlen = IPv4Network(f"0.0.0.0/{snic.netmask}").prefixlen
+						yield NamedIPv4Interface(interface_name, f"{snic.address}/{prefixlen}")
+				except ValueError:
+					get_logger().warning("Invalid IP interface: %s/%s", snic.address, snic.netmask)
 
-			if not snic.netmask:
-				continue
 
-			try:
-				prefixlen = 0
-				if family == "ipv6":
-					prefixlen = ip_address(snic.netmask).exploded.count("f")
-				else:
-					prefixlen = IPv4Network(f"0.0.0.0/{snic.netmask}").prefixlen
-				ipi = f"{snic.address.split('%')[0]}/{prefixlen}"
-				iface = ip_interface(ipi)
-			except ValueError:
-				if logger:
-					logger.warning("Unrecognised ip interface: %s/%s", snic.address, snic.netmask)
-				continue
-			yield {
-				"family": family,
-				"interface": interface,
-				"ip_address": iface.ip,
-				"ip_network": iface.network,
-				"ip_netmask": iface.netmask,
-				"address": iface.ip.exploded,
-				"network": iface.network.exploded,
-				"netmask": iface.netmask.exploded,
-				"prefixlen": prefixlen,
-			}
+def get_primary_ip_interface(family: int | Iterable[int] | None = None) -> NamedIPv4Interface | NamedIPv6Interface:
+	if not family:
+		family = [AF_INET, AF_INET6]
+	elif isinstance(family, int):
+		family = [family]
+
+	for iface in get_ip_interfaces(family):
+		if not iface.ip.is_loopback:
+			return iface
+
+	family_name = ["IPv4" if f == AF_INET else "IPv6" for f in family]
+	raise RuntimeError(f"No primary {'/'.join(family_name)} interface found")
 
 
 def get_random_string(length: int, *, alphabet: str | None = None, mandatory_alphabet: str | None = None) -> str:

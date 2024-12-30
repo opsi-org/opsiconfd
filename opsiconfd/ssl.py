@@ -58,7 +58,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.letsencrypt import perform_certificate_signing_request
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_ip_addresses
+from opsiconfd.utils import get_ip_interfaces
 from opsiconfd.utils.modules import check_module
 
 if TYPE_CHECKING:
@@ -73,14 +73,12 @@ def get_ips(public_only: bool = False) -> set[str]:
 	If public_only is True, only public IP addresses are returned.
 	"""
 	ips = {ip_address("127.0.0.1"), ip_address("::1")}
-	for addr in get_ip_addresses():
-		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
-			if addr["address"].startswith("fe80"):
-				continue
-			try:
-				ips.add(ip_address(addr["address"]))
-			except ValueError as err:
-				logger.warning(err)
+
+	for iface in get_ip_interfaces():
+		if iface.ip.is_link_local:
+			continue
+		ips.add(iface.ip)
+
 	for san in config.ssl_server_cert_sans:
 		try:
 			ips.add(ip_address(san))

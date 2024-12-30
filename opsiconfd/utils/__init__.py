@@ -29,7 +29,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from hashlib import md5
-from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address, ip_interface
+from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address
 from json import JSONEncoder
 from logging import INFO  # type: ignore[import]
 from pathlib import Path
@@ -210,7 +210,7 @@ class NamedIPv4Interface(IPv4Interface):
 		super().__init__(address)
 		self.name = name
 
-	def __str__(self):
+	def __str__(self) -> str:
 		return f"{super().__str__()} ({self.name})"
 
 
@@ -219,7 +219,7 @@ class NamedIPv6Interface(IPv6Interface):
 		super().__init__(address)
 		self.name = name
 
-	def __str__(self):
+	def __str__(self) -> str:
 		return f"{super().__str__()} ({self.name})"
 
 
@@ -233,7 +233,7 @@ def get_ip_interfaces(family: int | Iterable[int] | None = None) -> Generator[Na
 		for snic in snics:
 			# Interfaces will be yielded in the order of the family list
 			for fam in family:
-				if snic.family != fam:
+				if snic.family != fam or not snic.netmask:
 					continue
 				try:
 					if snic.family == AF_INET6:

@@ -15,7 +15,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.engine.result import Result  # type: ignore[import]
 
-from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.mysql import MySQLConnection, MySQLSession
 from opsiconfd.setup.backend import setup_mysql_user
 from opsiconfd.utils import get_primary_ip_interface
 
@@ -31,7 +31,7 @@ def test_setup_mysql_user(mysql_address: str) -> None:
 	mysql.username = "test_user"
 	statements = []
 
-	def execute(self, statement: str, params: Any | None = None) -> Result:
+	def execute(self: MySQLSession, statement: str, params: Any | None = None) -> Result:
 		nonlocal statements
 		statements.append(statement)
 		if "ALTER USER" in statement:

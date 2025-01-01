@@ -108,6 +108,8 @@ async def admin_interface_index(request: Request) -> Response:
 		username = session.username
 	interface = backend.get_interface()
 	for method in interface:
+		if method["annotations"]:
+			method["annotations"] = {k: v.replace("'", "\\u0027").replace('"', "\\u0022") for k, v in method["annotations"].items()}
 		if method["doc"]:
 			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])
 			method["doc"] = method["doc"].replace("\n", "<br />").replace("\t", "&nbsp;&nbsp;&nbsp;").replace('"', "\\u0022")

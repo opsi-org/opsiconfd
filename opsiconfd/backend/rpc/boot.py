@@ -40,8 +40,9 @@ class BootConfig:
 class RPCBootMixin(Protocol):
 	def _get_default_boot_config(
 		self: BackendProtocol,
-		ip_version: Literal["IPv4", "IPv6"] | None = None,
-		bios_type: Literal["UEFI32", "UEFI64", "LEGACY"] | None = None,
+		ip_version: int | None = None,
+		architecture: Literal["x86", "x64", "arm", "arm64"] | None = None,
+		bios_type: Literal["UEFI", "BIOS"] | None = None,
 		protocol: Literal["TFTP", "HTTP"] | None = None,
 	) -> BootConfig:
 		return BootConfig(pxe_boot_server=None, pxe_boot_filename=None, grub_config=None, linux_bootimage_kernel_params=None)
@@ -49,8 +50,9 @@ class RPCBootMixin(Protocol):
 	@rpc_method
 	def boot_getConfig(
 		self: BackendProtocol,
-		ip_version: Literal["IPv4", "IPv6"] | None = None,
-		bios_type: Literal["UEFI32", "UEFI64", "LEGACY"] | None = None,
+		ip_version: int | None = None,
+		architecture: Literal["x86", "x64", "arm", "arm64"] | None = None,
+		bios_type: Literal["UEFI", "BIOS"] | None = None,
 		protocol: Literal["TFTP", "HTTP"] | None = None,
 		client_id: str | None = None,
 		system_uuid: str | None = None,
@@ -127,10 +129,10 @@ class RPCBootMixin(Protocol):
 		boot_config = BootConfig()
 
 		# Get GRUB config
-		if bios_type == "LEGACY":
-			boot_config.pxe_boot_filename = str(BOOTIMAGE_PATH / "loader/opsi-netboot.pxe")
-		else:
+		if bios_type == "UEFI":
 			boot_config.pxe_boot_filename = str(BOOTIMAGE_PATH / "loader/shimx64.efi.signed")
+		else:
+			boot_config.pxe_boot_filename = str(BOOTIMAGE_PATH / "loader/opsi-netboot.pxe")
 
 		product_info = result[0]
 		pxe_config_template = product_info["pxeConfigTemplate"]

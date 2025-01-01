@@ -81,17 +81,18 @@ def test_boot_getConfig(
 		assert boot_config.linux_bootimage_kernel_params is None
 
 		backend.productOnClient_createObjects([product_on_client])
-		for bios_type in ["UEFI64", "LEGACY"]:
+		for bios_type in ["UEFI", "BIOS"]:
 			for kwargs in (
 				{"client_id": client_id},
 				{"system_uuid": client.systemUUID},
 				{"hardware_address": client.hardwareAddress},
 			):
 				kwargs["bios_type"] = bios_type
+				kwargs["architecture"] = "x64" if bios_type == "UEFI" else "x86"
 
 				boot_config = backend.boot_getConfig(**kwargs)
 
-				if bios_type == "UEFI64":
+				if bios_type == "UEFI":
 					assert boot_config.pxe_boot_filename == str(bootimage_dir / "loader/shimx64.efi.signed")
 				else:
 					assert boot_config.pxe_boot_filename == str(bootimage_dir / "loader/opsi-netboot.pxe")

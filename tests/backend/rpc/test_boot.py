@@ -77,7 +77,7 @@ def test_boot_getConfig(
 		patch("opsiconfd.backend.rpc.boot.DEPOT_DIR", str(depot_dir)),
 		patch("opsiconfd.backend.rpc.boot.BOOTIMAGE_PATH", bootimage_dir),
 	):
-		boot_config = backend.boot_getConfig(client_id=client_id)
+		boot_config = backend.onfig(client_id=client_id)
 		assert boot_config.linux_bootimage_kernel_params is None
 
 		backend.productOnClient_createObjects([product_on_client])

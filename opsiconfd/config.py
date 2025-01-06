@@ -20,6 +20,7 @@ import sys
 import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Literal, TextIO
 from urllib.parse import unquote, urlparse
 
@@ -29,6 +30,7 @@ import DNS  # type: ignore[import]
 import psutil
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
+from opsicommon.ssl.linux import get_system_ca_cert_info
 from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
@@ -920,10 +922,14 @@ class Config(metaclass=Singleton):
 			default=4447,
 			help=self._help("opsiconfd", "The port where opsiconfd will listen for https requests."),
 		)
+
+		ca_cert_path = get_system_ca_cert_info().ca_cert_path
+		if not ca_cert_path.exists():
+			ca_cert_path = Path(certifi.where())
 		self._parser.add(
 			"--ssl-trusted-certs",
 			env_var="OPSICONFD_SSL_TRUSTED_CERTS",
-			default=certifi.where(),
+			default=str(ca_cert_path),
 			help=self._help("opsiconfd", "Path to the database of trusted certificates"),
 		)
 		# Cipher Strings from https://www.openssl.org/docs/man1.1.1/man1/ciphers.html

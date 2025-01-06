@@ -76,7 +76,6 @@ websockets = "^14.1"
 werkzeug = "^3.0"
 wsgidav = "^4.3"
 wsproto = "^1.2"
-
 [[tool.poetry.dependencies.lxml]]
 markers = "platform_machine == 'x86_64'"
 file = "binary-wheels/lxml-5.3.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"

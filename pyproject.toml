@@ -76,6 +76,17 @@ websockets = "^14.1"
 werkzeug = "^3.0"
 wsgidav = "^4.3"
 wsproto = "^1.2"
+lxml = [
+	{platform = "amd64", file = "binary-wheels/lxml-5.3.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"},
+	{platform = "arm64", file = "binary-wheels/lxml-5.3.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"}
+]
+xmlsec = [
+	{platform = "amd64", file = "binary-wheels/xmlsec-1.3.15.dev19+g1104b4c-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"},
+	{platform = "arm64", file = "binary-wheels/xmlsec-1.3.15.dev19+g1104b4c-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"}
+]
+yappi = [
+	{platform = "amd64", version = ">=1.4"}
+]
 
 [tool.ruff.format]
 indent-style = "tab"
@@ -83,16 +94,6 @@ indent-style = "tab"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-
-[tool.poetry.dependencies.lxml]
-file = "binary-wheels/lxml-5.3.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-
-[tool.poetry.dependencies.xmlsec]
-file = "binary-wheels/xmlsec-1.3.15.dev19+g1104b4c-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-
-[tool.poetry.dependencies.yappi]
-platform = "amd64"
-version = ">=1.4"
 
 [tool.poetry.group.dev.dependencies]
 bandit = "^1.7"

@@ -493,7 +493,7 @@ def test_check_system_distro_eol() -> None:
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
 			mock_distro_version.return_value = "20.04"
 			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
-			assert result.check_status == CheckStatus.OK
+			assert result.check_status == CheckStatus.WARNING
 			assert result.message == "Version 20.04 of distribution ubuntu is supported until 2025-04-01."
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
 			mock_distro_version.return_value = "18.04"

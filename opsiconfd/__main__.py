@@ -15,11 +15,12 @@ from multiprocessing import freeze_support
 
 freeze_support()
 
-if __name__ == "__main__":
-	from opsiconfd.main import main
+
+def main() -> None:
+	from opsiconfd.main import main as opsiconfd_main
 
 	try:
-		main()
+		opsiconfd_main()
 	except SystemExit as err:
 		sys.exit(err.code)
 	except KeyboardInterrupt:
@@ -30,3 +31,7 @@ if __name__ == "__main__":
 		# Failed to execute script '__main__'
 		traceback.print_exc()
 		sys.exit(1)
+
+
+if __name__ == "__main__":
+	main()

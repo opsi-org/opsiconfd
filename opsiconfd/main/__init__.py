@@ -9,8 +9,6 @@
 opsiconfd main
 """
 
-from multiprocessing import freeze_support
-
 from opsicommon import __version__ as python_opsi_common_version
 
 from opsiconfd import __version__
@@ -74,5 +72,4 @@ def main() -> None:
 
 	from opsiconfd.main.opsiconfd import opsiconfd_main
 
-	freeze_support()
 	return opsiconfd_main()

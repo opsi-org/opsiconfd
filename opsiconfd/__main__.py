@@ -11,8 +11,12 @@ opsiconfd.__main__
 
 import sys
 import traceback
+from multiprocessing import freeze_support
 
 from opsiconfd.main import main
+
+freeze_support()
+
 
 if __name__ == "__main__":
 	try:

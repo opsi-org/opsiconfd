@@ -13,6 +13,9 @@ from opsicommon.objects import UnicodeConfig
 
 from opsiconfd.auth.rights import Rights, Terminals
 from opsiconfd.auth.role import Role
+from opsiconfd.logging import get_logger
+
+logger = get_logger("opsiconfd.user-roles")
 
 
 class User(Rights):
@@ -60,6 +63,7 @@ class User(Rights):
 
 		# if a role is set, all values are set by the role
 		if role:
+			logger.debug(f"Creating user {name} with role {role}")
 			user_role = Role(name=role)
 			self.role = role
 			self.read_only = user_role.read_only
@@ -85,16 +89,18 @@ class User(Rights):
 				possibleValues=list(roles),
 				description="Which role should determine this users configuration.",
 			)
-
 		else:
+			logger.debug(f"Creating user {name}")
 			self.read_configs()
-
+			if self.role:
+				logger.debug(f"User {name} has role {self.role}")
 		self.create_configs()
 
 
 def create_user_roles(name: str, groups: set) -> None:
 	from opsiconfd.backend import get_unprotected_backend
 
+	logger.debug(f"Creating user {name} with groups {groups}")
 	backend = get_unprotected_backend()
 
 	user_register = backend.config_getObjects(configId="user.{}.register")
@@ -107,6 +113,7 @@ def create_user_roles(name: str, groups: set) -> None:
 		for group in groups:
 			if group in groups_to_import[0].defaultValues:
 				# use first match as role and skip other groups
+				logger.debug(f"Use group {group} as role for user {name}.")
 				role = str(group)
 				break
 

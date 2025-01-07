@@ -31,13 +31,9 @@ transifex:
         - de
         - fr
 
-pyinstaller-poetry:
+pyinstaller:
   one_file: no
   strip: yes
-  extra_args:
-    # Do not use contents-directory for now
-    - "--contents-directory"
-    - "."
   hidden_imports:
     all:
       - ipaddress
@@ -62,7 +58,7 @@ pyinstaller-poetry:
     - websockets
     - wsproto
   scripts:
-    - script: run-opsiconfd
+    - script: opsiconfd/__main__.py
       binaries:
         - opsiconfd
   data_files:
@@ -111,23 +107,23 @@ package:
       mkdir -p ${DST}/rootfs-amd64/usr/lib
       mkdir -p ${DST}/rootfs-amd64/etc/opsi
       cp -a ${pyi_src}/opsiconfd-amd64 ${DST}/rootfs-amd64/usr/lib/opsiconfd
-      cp -a ${pyi_src}/opsiconfd-amd64/opsiconfd_data/etc/* ${DST}/rootfs-amd64/etc/opsi/
+      cp -a ${pyi_src}/opsiconfd-amd64/_internal/opsiconfd_data/etc/* ${DST}/rootfs-amd64/etc/opsi/
     fi;
     if [ -d ${pyi_src}/opsiconfd-arm64 ]; then
       mkdir -p ${DST}/rootfs-arm64/usr/lib
       mkdir -p ${DST}/rootfs-arm64/etc/opsi
       cp -a ${pyi_src}/opsiconfd-arm64 ${DST}/rootfs-arm64/usr/lib/opsiconfd
-      cp -a ${pyi_src}/opsiconfd-arm64/opsiconfd_data/etc/* ${DST}/rootfs-arm64/etc/opsi/
+      cp -a ${pyi_src}/opsiconfd-arm64/_internal/opsiconfd_data/etc/* ${DST}/rootfs-arm64/etc/opsi/
     fi;
     echo "#!/bin/sh"                                  > ${DST}/rootfs/usr/bin/opsiconfd
     echo "exec /usr/lib/opsiconfd/opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd
     chmod 755 ${DST}/rootfs/usr/bin/opsiconfd
-    install -m 755 ${SRC}/opsiconfd_data/opsiconfd-pre-start ${DST}/rootfs/usr/lib/opsiconfd/
-    cp -a ${SRC}/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
-    cp -a ${SRC}/opsiconfd_data/etc/* ${DST}/rootfs/etc/opsi/
-    cp -a ${SRC}/opsiconfd_data/usr/lib/* ${DST}/rootfs/usr/lib/opsiconfd/
-    cp -a ${SRC}/opsiconfd_data/usr/share/* ${DST}/rootfs/usr/share/opsiconfd/
-    cp -a ${SRC}/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
+    install -m 755 ${SRC}/_internal/opsiconfd_data/opsiconfd-pre-start ${DST}/rootfs/usr/lib/opsiconfd/
+    cp -a ${SRC}/_internal/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
+    cp -a ${SRC}/_internal/opsiconfd_data/etc/* ${DST}/rootfs/etc/opsi/
+    cp -a ${SRC}/_internal/opsiconfd_data/usr/lib/* ${DST}/rootfs/usr/lib/opsiconfd/
+    cp -a ${SRC}/_internal/opsiconfd_data/usr/share/* ${DST}/rootfs/usr/share/opsiconfd/
+    cp -a ${SRC}/_internal/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
 
 
   postinst_script: |

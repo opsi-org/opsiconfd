@@ -12,13 +12,14 @@ test opsiconfd.backend.rpc.ext_dynamic_depot
 from opsicommon.logging import LOG_DEBUG, get_logger, use_logging_config
 from opsicommon.objects import OpsiClient, OpsiDepotserver, UnicodeConfig
 
-from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
+from tests.utils import OpsiconfdTestClient, UnprotectedBackend, backend, clean_mysql, test_client  # noqa: F401
 
 logger = get_logger()
 
 
 async def test_algorithms(
 	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	client = OpsiClient(id="client1.opsi.test")
 	depot1 = OpsiDepotserver(
@@ -44,7 +45,7 @@ async def test_algorithms(
 		depotWebdavUrl="https://localhost:4447/depot",
 	)
 	depot5 = OpsiDepotserver(
-		id="depot4.opsi.test",
+		id="depot5.opsi.test",
 		networkAddress=None,
 		depotWebdavUrl="https://unavail:4447/depot",
 	)
@@ -64,43 +65,56 @@ async def test_algorithms(
 		editable=False,
 		multiValue=False,
 	)
+	backend.host_createObjects([client, depot1, depot2, depot4, depot5])
+	test_client.auth = (client.id, client.opsiHostKey)
+
+	def get_code(_backend) -> str:
+		if _backend == backend:
+			return _backend.getDepotSelectionAlgorithm()
+		res = test_client.jsonrpc20("getDepotSelectionAlgorithm")
+		assert "error" not in res
+		return res["result"]
 
 	selection_mode_config.defaultValues = ["master_and_latency"]
 	backend.config_createObjects([selection_mode_config])
-	code = backend.getDepotSelectionAlgorithm()
-	current_locals = locals()
-	exec(code, None, current_locals)
-	selectDepot = current_locals["selectDepot"]
-	with use_logging_config(stderr_level=LOG_DEBUG):
-		selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
-	assert selectedDepot in [depot1, depot2]
+	for _backend in backend, test_client:
+		code = get_code(_backend)
+		current_locals = locals()
+		exec(code, None, current_locals)
+		selectDepot = current_locals["selectDepot"]
+		with use_logging_config(stderr_level=LOG_DEBUG):
+			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
+		assert selectedDepot in [depot1, depot2]
 
 	selection_mode_config.defaultValues = ["latency"]
 	backend.config_createObjects([selection_mode_config])
-	code = backend.getDepotSelectionAlgorithm()
-	current_locals = locals()
-	exec(code, None, current_locals)
-	selectDepot = current_locals["selectDepot"]
-	with use_logging_config(stderr_level=LOG_DEBUG):
-		selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
-	assert selectedDepot in [depot1, depot2, depot4]
+	for _backend in backend, test_client:
+		code = get_code(_backend)
+		current_locals = locals()
+		exec(code, None, current_locals)
+		selectDepot = current_locals["selectDepot"]
+		with use_logging_config(stderr_level=LOG_DEBUG):
+			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
+		assert selectedDepot in [depot1, depot2, depot4]
 
 	selection_mode_config.defaultValues = ["network_address"]
 	backend.config_createObjects([selection_mode_config])
-	code = backend.getDepotSelectionAlgorithm()
-	current_locals = locals()
-	exec(code, None, current_locals)
-	selectDepot = current_locals["selectDepot"]
-	with use_logging_config(stderr_level=LOG_DEBUG):
-		selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
-	assert selectedDepot == depot4
+	for _backend in backend, test_client:
+		code = get_code(_backend)
+		current_locals = locals()
+		exec(code, None, current_locals)
+		selectDepot = current_locals["selectDepot"]
+		with use_logging_config(stderr_level=LOG_DEBUG):
+			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
+		assert selectedDepot == depot4
 
 	selection_mode_config.defaultValues = ["random"]
 	backend.config_createObjects([selection_mode_config])
-	code = backend.getDepotSelectionAlgorithm()
-	current_locals = locals()
-	exec(code, None, current_locals)
-	selectDepot = current_locals["selectDepot"]
-	with use_logging_config(stderr_level=LOG_DEBUG):
-		selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
-	assert selectedDepot in [depot1, depot2, depot3, depot4, depot5]
+	for _backend in backend, test_client:
+		code = get_code(_backend)
+		current_locals = locals()
+		exec(code, None, current_locals)
+		selectDepot = current_locals["selectDepot"]
+		with use_logging_config(stderr_level=LOG_DEBUG):
+			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
+		assert selectedDepot in [depot1, depot2, depot3, depot4, depot5]

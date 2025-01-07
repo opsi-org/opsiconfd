@@ -125,6 +125,7 @@ package:
 
     # Remove obsolete files
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
+    [ -e /usr/lib/opsiconfd/_tcl_data ] && rm -r /usr/lib/opsiconfd/_tcl_data || true
     rm /etc/rc*/*opsiconfd 2>/dev/null || true
     [ -e /etc/init.d/opsiconfd ] && rm /etc/init.d/opsiconfd
     [ -e /etc/opsi/systemdTemplates ] && rm -r /etc/opsi/systemdTemplates

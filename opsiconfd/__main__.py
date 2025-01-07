@@ -9,7 +9,21 @@
 opsiconfd.__main__
 """
 
+import sys
+import traceback
+
 from opsiconfd.main import main
 
 if __name__ == "__main__":
-	main()
+	try:
+		main()
+	except SystemExit as err:
+		sys.exit(err.code)
+	except KeyboardInterrupt:
+		print("Interrupted", file=sys.stderr)
+		sys.exit(1)
+	except Exception:  # pylint: disable=broad-except
+		# Do not let pyinstaller handle exceptions and print:
+		# Failed to execute script '__main__'
+		traceback.print_exc()
+		sys.exit(1)

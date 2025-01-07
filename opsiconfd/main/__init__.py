@@ -9,8 +9,6 @@
 opsiconfd main
 """
 
-import sys
-import traceback
 from multiprocessing import freeze_support
 
 from opsicommon import __version__ as python_opsi_common_version
@@ -78,18 +76,3 @@ def main() -> None:
 
 	freeze_support()
 	return opsiconfd_main()
-
-
-if __name__ == "__main__":
-	try:
-		main()
-	except SystemExit as err:
-		sys.exit(err.code)
-	except KeyboardInterrupt:
-		print("Interrupted", file=sys.stderr)
-		sys.exit(1)
-	except Exception:  # pylint: disable=broad-except
-		# Do not let pyinstaller handle exceptions and print:
-		# "Failed to execute script run-opsiconfd"
-		traceback.print_exc()
-		sys.exit(1)

@@ -66,10 +66,11 @@ async def test_algorithms(
 		multiValue=False,
 	)
 	backend.host_createObjects([client, depot1, depot2, depot4, depot5])
+	assert client.opsiHostKey
 	test_client.auth = (client.id, client.opsiHostKey)
 
-	def get_code(_backend) -> str:
-		if _backend == backend:
+	def get_code(_backend: UnprotectedBackend | OpsiconfdTestClient) -> str:
+		if isinstance(_backend, UnprotectedBackend):
 			return _backend.getDepotSelectionAlgorithm()
 		res = test_client.jsonrpc20("getDepotSelectionAlgorithm")
 		assert "error" not in res

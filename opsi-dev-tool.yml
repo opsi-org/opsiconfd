@@ -66,12 +66,12 @@ pyinstaller:
       dst: opsiconfd_data
   dirname: opsiconfd
   after_script: |
-    rm -r dist/opsiconfd/tk dist/opsiconfd/tcl
-    mkdir dist/opsiconfd/tk dist/opsiconfd/tcl
-    find dist/opsiconfd -iname "*.c" -delete
-    find dist/opsiconfd -iname "*.h" -delete
-    find dist/opsiconfd -iname "*.so" -exec chmod -x "{}" \;
-    find dist/opsiconfd -iname "*.so.*" -exec chmod -x "{}" \;
+    rm -r dist/opsiconfd/_internal/tk dist/opsiconfd/_internal/tcl
+    mkdir dist/opsiconfd/_internal/tk dist/opsiconfd/_internal/tcl
+    find dist/opsiconfd/_internal -iname "*.c" -delete
+    find dist/opsiconfd/_internal -iname "*.h" -delete
+    find dist/opsiconfd/_internal -iname "*.so" -exec chmod -x "{}" \;
+    find dist/opsiconfd/_internal -iname "*.so.*" -exec chmod -x "{}" \;
 
 package:
   name: opsiconfd
@@ -85,8 +85,6 @@ package:
     - opsi-server-full (<< 4.3)
     - opsi-server-expert (<< 4.3)
   source_script: |
-    pyi_src="${SRC}"
-    if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi
     mkdir -p ${DST}/rootfs/etc/opsi
     mkdir -p ${DST}/rootfs/usr/bin
     mkdir -p ${DST}/rootfs/usr/lib/opsiconfd
@@ -103,28 +101,24 @@ package:
     mkdir -p ${DST}/rootfs/var/log/opsi/userlogin
 
     mkdir -p ${DST}/systemd_units
-    if [ -d ${pyi_src}/opsiconfd-amd64 ]; then
-      mkdir -p ${DST}/rootfs-amd64/usr/lib
-      mkdir -p ${DST}/rootfs-amd64/etc/opsi
-      cp -a ${pyi_src}/opsiconfd-amd64 ${DST}/rootfs-amd64/usr/lib/opsiconfd
-      cp -a ${pyi_src}/opsiconfd-amd64/_internal/opsiconfd_data/etc/* ${DST}/rootfs-amd64/etc/opsi/
-    fi;
-    if [ -d ${pyi_src}/opsiconfd-arm64 ]; then
-      mkdir -p ${DST}/rootfs-arm64/usr/lib
-      mkdir -p ${DST}/rootfs-arm64/etc/opsi
-      cp -a ${pyi_src}/opsiconfd-arm64 ${DST}/rootfs-arm64/usr/lib/opsiconfd
-      cp -a ${pyi_src}/opsiconfd-arm64/_internal/opsiconfd_data/etc/* ${DST}/rootfs-arm64/etc/opsi/
-    fi;
+
     echo "#!/bin/sh"                                  > ${DST}/rootfs/usr/bin/opsiconfd
     echo "exec /usr/lib/opsiconfd/opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd
     chmod 755 ${DST}/rootfs/usr/bin/opsiconfd
-    install -m 755 ${SRC}/_internal/opsiconfd_data/opsiconfd-pre-start ${DST}/rootfs/usr/lib/opsiconfd/
-    cp -a ${SRC}/_internal/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
-    cp -a ${SRC}/_internal/opsiconfd_data/etc/* ${DST}/rootfs/etc/opsi/
-    cp -a ${SRC}/_internal/opsiconfd_data/usr/lib/* ${DST}/rootfs/usr/lib/opsiconfd/
-    cp -a ${SRC}/_internal/opsiconfd_data/usr/share/* ${DST}/rootfs/usr/share/opsiconfd/
-    cp -a ${SRC}/_internal/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
 
+    for arch in amd64 arm64; do
+      arch_src="${SRC}/opsiconfd-${arch}"
+      arch_dst="${DST}/rootfs-${arch}"
+      mkdir -p "${arch_dst}/usr/lib"
+      mkdir -p "${arch_dst}/etc/opsi"
+      cp -a "${arch_src}" "${arch_dst}/usr/lib/opsiconfd"
+      install -m 755 "${arch_src}/_internal/opsiconfd_data/linux/opsiconfd-pre-start" "${arch_dst}/usr/lib/opsiconfd/"
+      cp -a "${arch_src}/_internal/opsiconfd_data/static" ${DST}/rootfs/usr/share/opsiconfd/
+      cp -a "${arch_src}/_internal/opsiconfd_data/etc/"* ${DST}/rootfs/etc/opsi/
+      cp -a "${arch_src}/_internal/opsiconfd_data/usr/lib/"* ${DST}/rootfs/usr/lib/opsiconfd/
+      cp -a "${arch_src}/_internal/opsiconfd_data/usr/share/"* ${DST}/rootfs/usr/share/opsiconfd/
+      cp -a "${arch_src}/_internal/opsiconfd_data/opsiconfd.service" ${DST}/systemd_units/
+    done
 
   postinst_script: |
     /usr/lib/opsiconfd/opsiconfd-pre-start

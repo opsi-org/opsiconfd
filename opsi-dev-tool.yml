@@ -112,7 +112,7 @@ package:
       mkdir -p "${arch_dst}/usr/lib"
       mkdir -p "${arch_dst}/etc/opsi"
       cp -a "${arch_src}" "${arch_dst}/usr/lib/opsiconfd"
-      install -m 755 "${arch_src}/_internal/opsiconfd_data/linux/opsiconfd-pre-start" "${arch_dst}/usr/lib/opsiconfd/"
+      install -m 755 "${arch_src}/_internal/opsiconfd_data/opsiconfd-pre-start" "${arch_dst}/usr/lib/opsiconfd/"
       cp -a "${arch_src}/_internal/opsiconfd_data/static" ${DST}/rootfs/usr/share/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/etc/"* ${DST}/rootfs/etc/opsi/
       cp -a "${arch_src}/_internal/opsiconfd_data/usr/lib/"* ${DST}/rootfs/usr/lib/opsiconfd/

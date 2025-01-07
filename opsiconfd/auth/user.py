@@ -15,7 +15,7 @@ from opsiconfd.auth.rights import Rights, Terminals
 from opsiconfd.auth.role import Role
 from opsiconfd.logging import get_logger
 
-logger = get_logger("opsiconfd.user-roles")
+logger = get_logger("opsiconfd.user_roles")
 
 
 class User(Rights):

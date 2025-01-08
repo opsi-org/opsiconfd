@@ -126,7 +126,7 @@ package:
     # Remove obsolete files
     cd /usr/lib/opsiconfd
     for file in /usr/lib/opsiconfd/*; do
-      [[ $file = */(addons|_internal|opsiconfd|opsiconfd-pre-start) ]] || rm -r $file || true
+      [[ $file = */(addons|_internal|opsiconfd|opsiconfd-pre-start) ]] || rm -r "$file" || true
     done
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
     rm /etc/rc*/*opsiconfd 2>/dev/null || true

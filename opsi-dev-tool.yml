@@ -125,12 +125,12 @@ package:
 
     # Remove obsolete files
     cd /usr/lib/opsiconfd
-    for f in /usr/lib/opsiconfd/*; do
-      [[ $f = */_internal ]] || \
-      [[ $f = */addons ]] || \
-      [[ $f = */opsiconfd ]] || \
-      [[ $f = */opsiconfd-pre-start ]] || \
-        rm -r "$f" || true
+    for file in /usr/lib/opsiconfd/*; do
+      [[ $file = */_internal ]] || \
+      [[ $file = */addons ]] || \
+      [[ $file = */opsiconfd ]] || \
+      [[ $file = */opsiconfd-pre-start ]] || \
+        rm -r "$file" || true
     done
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
     rm /etc/rc*/*opsiconfd 2>/dev/null || true

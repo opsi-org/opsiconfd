@@ -124,22 +124,24 @@ package:
     /usr/lib/opsiconfd/opsiconfd-pre-start
 
     # Remove obsolete files
+    cd /usr/lib/opsiconfd
+    for file in /usr/lib/opsiconfd/*; do
+      [[ $file = */(addons|_internal|opsiconfd|opsiconfd-pre-start) ]] || rm -r $file || true
+    done
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
-    [ -e /usr/lib/opsiconfd/_tcl_data ] && rm -r /usr/lib/opsiconfd/_tcl_data || true
     rm /etc/rc*/*opsiconfd 2>/dev/null || true
     [ -e /etc/init.d/opsiconfd ] && rm /etc/init.d/opsiconfd
     [ -e /etc/opsi/systemdTemplates ] && rm -r /etc/opsi/systemdTemplates
     [ -e /etc/systemd/system/opsiconfd.service.simple ] && rm /etc/systemd/system/opsiconfd.service.simple
     [ -e /etc/systemd/system/opsiconfd.service ] && rm /etc/systemd/system/opsiconfd.service
+    [ -e /etc/opsi/version ] && rm /etc/opsi/version
+
     systemctl daemon-reload || true
 
     [ -e /var/lib/opsi ] || mkdir -p /var/lib/opsi
     [ -e /etc/dhcpd.conf ] && sed -i s'#"dhcpdConfigFile".*#"dhcpdConfigFile":         "/etc/dhcpd.conf",#' /etc/opsi/backends/dhcpd.conf
     [ -e /etc/dhcpd.conf ] && sed -i s'#linux/pxelinux.0#opsi/pxelinux.0#' /etc/opsi/backends/dhcpd.conf
     [ -e /var/lib/opsi/server_commands_custom.conf ] || touch /var/lib/opsi/server_commands_custom.conf
-
-    # Removing files dating before opsi 4.1
-    [ -e /etc/opsi/version ] && rm /etc/opsi/version
 
     # Setup opsiconfd
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

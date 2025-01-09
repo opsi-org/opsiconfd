@@ -270,7 +270,7 @@ class RPCHostControlMixin(Protocol):
 				coros.append(send_message(jsonrpc_request))
 			await asyncio.gather(*coros)
 
-			logger.debug("Waiting for JSONRPCResponseMessages (timeout=%r)")
+			logger.debug("Waiting for JSONRPCResponseMessages (timeout=%r)", timeout)
 			async for _redis_msg_id, message, _context in message_reader.get_messages(timeout=timeout):
 				if not isinstance(message, JSONRPCResponseMessage) or not message.rpc_id:
 					continue
@@ -285,7 +285,7 @@ class RPCHostControlMixin(Protocol):
 				if not rpc_id_to_client_id:
 					break
 
-		error = {"result": None, "error": f"Timed out after {timeout:0.2f} seconds  while waiting for response"}
+		error = {"result": None, "error": f"Timed out after {timeout:0.2f} seconds while waiting for response"}
 		for client_id in rpc_id_to_client_id.values():
 			result[client_id] = error
 

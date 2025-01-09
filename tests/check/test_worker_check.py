@@ -15,7 +15,7 @@ from datetime import datetime
 
 from opsicommon.objects import OpsiClient
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.worker import opsi_worker_capacity
+from opsiconfd.check.worker import opsi_worker_capacity, CLIENT_NUMBER_ERROR, CLIENT_NUMBER_WARNING
 from opsiconfd.check.common import CheckStatus, check_manager
 
 from tests.utils import (  # noqa: F401
@@ -47,25 +47,25 @@ def _delete_clients() -> None:  # noqa: F811
 
 
 def test_worker_capacity_check() -> None:  # noqa: F811
-	_prepare_client(number=1001)
+	_prepare_client(number=CLIENT_NUMBER_ERROR + 1)
 	check_manager.register(opsi_worker_capacity)
 	result = check_manager.get("opsi_worker_capacity").run(clear_cache=True)
 	assert result.check_status == CheckStatus.ERROR
 	_delete_clients()
 
-	_prepare_client(number=601)
+	_prepare_client(number=CLIENT_NUMBER_WARNING + 1)
 	check_manager.register(opsi_worker_capacity)
 	result = check_manager.get("opsi_worker_capacity").run(clear_cache=True)
 	assert result.check_status == CheckStatus.WARNING
 	_delete_clients()
 
-	_prepare_client(number=600)
+	_prepare_client(number=CLIENT_NUMBER_WARNING)
 	check_manager.register(opsi_worker_capacity)
 	result = check_manager.get("opsi_worker_capacity").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK
 	_delete_clients()
 
-	_prepare_client(number=599)
+	_prepare_client(number=CLIENT_NUMBER_WARNING - 1)
 	check_manager.register(opsi_worker_capacity)
 	result = check_manager.get("opsi_worker_capacity").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK

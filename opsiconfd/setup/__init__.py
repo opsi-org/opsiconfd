@@ -311,8 +311,9 @@ def setup(explicit: bool = True) -> None:
 	if explicit and "systemd" not in config.skip_setup:
 		setup_systemd()
 
-	if config.run_as_user != "root" and config.port < 1024:
-		set_unprivileged_port_start(config.port)
+	if config.run_as_user != "root" and (config.port < 1024 or config.ssl_server_cert_type == "letsencrypt"):
+		# Let's Encrypt HTTP-01 challenge server requires access to port 80
+		set_unprivileged_port_start(min(config.port, 80))
 
 	if "files" not in config.skip_setup:
 		setup_files()

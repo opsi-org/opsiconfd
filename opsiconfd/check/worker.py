@@ -14,9 +14,6 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config
 
-
-
-
 MAX_DAYS_INACTIVE = 30
 
 @dataclass()

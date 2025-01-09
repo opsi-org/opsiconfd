@@ -5,6 +5,12 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+
+"""
+worker check tests
+"""
+
+
 from datetime import datetime
 
 from opsicommon.objects import OpsiClient
@@ -13,24 +19,14 @@ from opsiconfd.check.worker import opsi_worker_capacity
 from opsiconfd.check.common import CheckStatus, check_manager
 
 from tests.utils import (  # noqa: F401
-	ADMIN_PASS,
-	ADMIN_USER,
-	OpsiconfdTestClient,
 	cache_clear,
 	clean_mysql,
 	clean_redis,
 	cleanup_checks,
-	test_client,
 )
 
 
-"""
-worker check tests
-"""
-
 def _prepare_client(number: int = 100) -> OpsiClient:  # noqa: F811
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-
 	clients = []
 	now = datetime.now()
 

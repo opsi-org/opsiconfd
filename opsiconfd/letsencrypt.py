@@ -146,9 +146,9 @@ def _http_01_challenge_server(
 	http_01_resources: set[standalone.HTTP01RequestHandler.HTTP01Resource],
 ) -> Generator[standalone.HTTP01DualNetworkedServers, None, None]:
 	"""Manage webserver start and shutdown."""
+	logger.info("Starting HTTP-01 challenge server on port 80")
+	servers = standalone.HTTP01DualNetworkedServers(server_address=("", 80), resources=http_01_resources)
 	try:
-		logger.info("Starting HTTP-01 challenge server on port 80")
-		servers = standalone.HTTP01DualNetworkedServers(server_address=("", 80), resources=http_01_resources)
 		servers.serve_forever()
 		yield servers
 	finally:

@@ -7,7 +7,7 @@
 
 from datetime import datetime
 
-from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
+from opsicommon.objects import OpsiClient
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.worker import opsi_worker_capacity
 from opsiconfd.check.common import CheckStatus, check_manager

@@ -647,7 +647,7 @@ class OPSISession:
 				session_lifetime = int(x_opsi_session_lifetime)
 				if 0 < session_lifetime <= 3600 * 24:
 					if self.max_age != session_lifetime:
-						logger.info("Accepting session lifetime %d from client", session_lifetime)
+						logger.debug("Accepting session lifetime %d from client", session_lifetime)
 						self.max_age = session_lifetime
 				else:
 					logger.warning("Not accepting session lifetime %d from client", session_lifetime)

@@ -38,9 +38,9 @@ class WorkerCapacityCheck(Check):
 		now = datetime.now()
 		worker_count = config.workers
 		backend = get_unprotected_backend()
-		clients = backend.host_getObjects(type="OpsiClient", lastSeen=f">{now - timedelta(days=MAX_DAYS_INACTIVE)}")
+		client_ids = backend.host_getIdents(returnType="str", type="OpsiClient", lastSeen=f">{now - timedelta(days=MAX_DAYS_INACTIVE)}")
 
-		active_clients = len(clients)
+		active_clients = len(client_ids)
 		result = CheckResult(
 			check=self,
 			message=f"There are enough workers ({worker_count}) for the currently active clients ({active_clients}).",

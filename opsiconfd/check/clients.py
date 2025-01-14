@@ -43,16 +43,10 @@ class LastSeenCheck(Check):
 			details={},
 		)
 
-		outdated_clients = set()
 		backend = get_unprotected_backend()
 		now = datetime.now()
-		clients = backend.host_getObjects(type="OpsiClient", lastSeen=f"<{now - timedelta(days=MAX_DAYS_INACTIVE)}")
-		enabled_hosts = get_enabled_hosts()
-
-		for client in clients:
-			if client.id not in enabled_hosts:
-				continue
-			outdated_clients.add(client.id)
+		client_ids = backend.host_getIdents(returnType="str", type="OpsiClient", lastSeen=f"<{now - timedelta(days=MAX_DAYS_INACTIVE)}")
+		outdated_clients = set(client_ids).intersection(set(get_enabled_hosts()))
 
 		if outdated_clients:
 			result.message = "Some clients have not been seen recently."

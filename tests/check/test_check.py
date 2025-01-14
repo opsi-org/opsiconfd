@@ -65,7 +65,7 @@ def test_health_check() -> None:
 	sync_clean_redis()
 	register_checks()
 	results = list(health_check())
-	assert len(results) == 23
+	assert len(results) == 24
 	for result in results:
 		print(result.check.id, result.check_status)
 		assert result.check_status
@@ -75,11 +75,11 @@ def test_checks_and_skip_checks() -> None:
 	with get_config({"checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
 		len(check_manager.check_ids) == 3
-		len(check_manager.possible_checks) == 20
+		len(check_manager.possible_checks) == 21
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
-		len(check_manager.check_ids) == 20
+		len(check_manager.check_ids) == 21
 		len(check_manager.possible_checks) == 3
 
 

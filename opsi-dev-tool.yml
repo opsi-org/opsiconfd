@@ -108,6 +108,10 @@ package:
 
     for arch in amd64 arm64; do
       arch_src="${SRC}/opsiconfd-${arch}"
+      if [ ! -d "$arch_src" ]; then
+        echo "Skipping $arch. No directory $arch_src found."
+        continue
+      fi
       arch_dst="${DST}/rootfs-${arch}"
       mkdir -p "${arch_dst}/usr/lib"
       mkdir -p "${arch_dst}/etc/opsi"

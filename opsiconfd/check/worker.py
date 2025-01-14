@@ -8,8 +8,9 @@
 # """
 # health check worker
 # """
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config
@@ -17,6 +18,7 @@ from opsiconfd.config import config
 MAX_DAYS_INACTIVE = 30
 CLIENT_NUMBER_WARNING = 600
 CLIENT_NUMBER_ERROR = 1000
+
 
 @dataclass()
 class WorkerCapacityCheck(Check):
@@ -36,10 +38,7 @@ class WorkerCapacityCheck(Check):
 		now = datetime.now()
 		worker_count = config.workers
 		backend = get_unprotected_backend()
-		clients = backend.host_getObjects(type="OpsiClient")
-		for client in clients:
-			if client.lastSeen and (now - datetime.strptime(client.lastSeen, "%Y-%m-%d %H:%M:%S")).days > MAX_DAYS_INACTIVE:
-				clients.remove(client)
+		clients = backend.host_getObjects(type="OpsiClient", lastSeen=f">{now - timedelta(days=MAX_DAYS_INACTIVE)}")
 
 		active_clients = len(clients)
 		result = CheckResult(
@@ -58,8 +57,8 @@ class WorkerCapacityCheck(Check):
 			result.message = f"There are not enough workers ({worker_count}) for the currently active clients ({active_clients})."
 			result.check_status = CheckStatus.ERROR
 
-
 		return result
+
 
 opsi_worker_capacity = WorkerCapacityCheck()
 check_manager.register(opsi_worker_capacity)

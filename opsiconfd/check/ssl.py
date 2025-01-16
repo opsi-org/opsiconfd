@@ -141,7 +141,6 @@ class ServerCertCheck(Check):
 		## Server certificate
 		Checks the state of the server certificate.
 	"""
-	depot_check: bool = False
 	partial_check: bool = True
 
 	def _check(self) -> CheckResult:

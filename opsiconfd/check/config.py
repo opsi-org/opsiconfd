@@ -268,6 +268,7 @@ class OpsiConfigValueCheck(Check):
 	default_value: Any = None
 	upgrade_issue: str = ""
 	partial_check: bool = True
+	depot_check: bool = False
 
 	def __post_init__(self) -> None:
 		super().__post_init__()
@@ -311,6 +312,7 @@ class OpsiConfigCheck(Check):
 
 		* `opsiclientd.global.verify_server_cert` must be activated.
 	"""
+	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

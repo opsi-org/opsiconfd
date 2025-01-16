@@ -25,6 +25,7 @@ class AddonCheck(Check):
 
 		Checks if there are any failed addons. If there are any failed addons, the check will return an error and list the failed addons.
 		"""
+	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

@@ -75,6 +75,7 @@ class FailedClientsCheck(Check):
 		It retrieves all clients and checks their 'actionResult' status.
 		If any client has a failed installation, the check will return an error status with a list of the failed client.
 	"""
+	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

@@ -26,6 +26,7 @@ class DeprecatedCallCheck(Check):
 	description: str = "Deprecated Check"
 	partial_check: bool = True
 	method: str = "method"
+	depot_check: bool = False
 
 	def __post_init__(self) -> None:
 		super().__post_init__()
@@ -88,6 +89,7 @@ class DeprecatedCallsCheck(Check):
 		The message also states which client agent called the API method.
 	"""
 	cache_partial_checks: bool = True
+	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

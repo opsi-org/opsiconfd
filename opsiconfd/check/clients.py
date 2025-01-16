@@ -10,7 +10,7 @@ health check backup
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
@@ -43,17 +43,10 @@ class LastSeenCheck(Check):
 			details={},
 		)
 
-		outdated_clients = set()
-
 		backend = get_unprotected_backend()
-		clients = backend.host_getObjects(type="OpsiClient")
-		enabled_hosts = get_enabled_hosts()
 		now = datetime.now()
-		for client in clients:
-			if client.id not in enabled_hosts:
-				continue
-			if client.lastSeen and (now - datetime.strptime(client.lastSeen, "%Y-%m-%d %H:%M:%S")).days > MAX_DAYS_INACTIVE:
-				outdated_clients.add(client.id)
+		client_ids = backend.host_getIdents(returnType="str", type="OpsiClient", lastSeen=f"<{now - timedelta(days=MAX_DAYS_INACTIVE)}")
+		outdated_clients = set(client_ids).intersection(set(get_enabled_hosts()))
 
 		if outdated_clients:
 			result.message = "Some clients have not been seen recently."

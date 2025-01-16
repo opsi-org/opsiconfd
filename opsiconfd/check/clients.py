@@ -33,7 +33,6 @@ class LastSeenCheck(Check):
 			Checks if the clients have been seen recently. The clients are considered up to date if they have been seen less than {MAX_DAYS_INACTIVE} days ago.
 	"""
 	partial_check: bool = False
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -75,7 +74,6 @@ class FailedClientsCheck(Check):
 		It retrieves all clients and checks their 'actionResult' status.
 		If any client has a failed installation, the check will return an error status with a list of the failed client.
 	"""
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

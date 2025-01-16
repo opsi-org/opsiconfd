@@ -240,6 +240,7 @@ class SystemEOLCheck(Check):
 		'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
 		limiting it's support on the product and/or version to shift focus on their newer products and/or version.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -301,6 +302,7 @@ class SystemPackagesCheck(Check):
 		(https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_12/).
 		Older versions are considered a warning and if one of the packages is not installed, an error is issued.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -370,6 +372,7 @@ class DiskCheck(Check):
 	description: str = "Check disk usage"
 	partial_check: bool = True
 	mountpoint: str = ""
+	depot_check: bool = True
 
 	def __post_init__(self) -> None:
 		super().__post_init__()
@@ -416,6 +419,7 @@ class DiskUsageCheck(Check):
 		If there is less than 15 GiB free, a warning is given.
 		If there are less than 7.5 GiB, it is considered an error.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -439,6 +443,7 @@ class SystemRepositoriesCheck(Check):
 		## System repositories
 		Check if the system repositories are compatible with opsi repositories.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

@@ -55,7 +55,6 @@ class OpsiProductsOnDepotsCheck(Check):
 		Here, an outdated package is considered a warning and an uninstalled package is considered an error.
 	"""
 	cache_partial_checks: bool = True
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -162,7 +161,6 @@ class OpsiProductOnClientCheck(Check):
 	product_id: str = ""
 	available_version: str = ""
 	partial_check: bool = True
-	depot_check: bool = False
 
 	def __post_init__(self) -> None:
 		super().__post_init__()
@@ -207,7 +205,6 @@ class OpsiProductsOnClientsCheck(Check):
 		Checks whether newer versions of the products installed on the client are available in the depot.
 		If an older version is installed, the Health Check issues a warning.
 	"""
-	depot_check: bool = False
 	cache_partial_checks: bool = True
 
 	def _check(self) -> CheckResult:
@@ -285,7 +282,6 @@ class OpsiLockedProductsDepotCheck(Check):
 	"""
 	partial_check: bool = True
 	depot_id: str = ""
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -315,7 +311,6 @@ class OpsiLockedProductsCheck(Check):
 		Checks if there are locked products on any depot.
 	"""
 	cache_partial_checks: bool = True
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

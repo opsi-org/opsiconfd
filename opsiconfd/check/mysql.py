@@ -27,7 +27,6 @@ class MysqlConfigurationCheck(Check):
 	name: str = "MySQL Configuration"
 	description: str = "Check MySQL configuration"
 	partial_check: bool = True
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -61,7 +60,6 @@ class MysqlCheck(Check):
 		The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
 		If no connection can be established, this is an error.
 	"""
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -99,7 +97,6 @@ class UniqueHardwareAddressesCheck(Check):
 
 		Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
 	"""
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

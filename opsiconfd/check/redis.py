@@ -31,6 +31,7 @@ class RedisMemoryUsageCheck(Check):
 
 		Checks whether the Redis memory usage is not too high.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -62,6 +63,7 @@ class RedisTimeseriesCheck(Check):
 
 		Checks whether the RedisTimeSeries module is loaded.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

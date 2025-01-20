@@ -33,7 +33,6 @@ class LastSeenCheck(Check):
 			Checks if the clients have been seen recently. The clients are considered up to date if they have been seen less than {MAX_DAYS_INACTIVE} days ago.
 	"""
 	partial_check: bool = False
-	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

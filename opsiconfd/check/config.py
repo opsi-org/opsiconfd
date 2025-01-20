@@ -42,6 +42,7 @@ class HomeDirectoryCheck(Check):
 Checks the home directory of the system user running opsiconfd.
 """
 	partial_check: bool = True
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK)
@@ -66,6 +67,7 @@ Checks the group membership of the system user running opsiconfd.
 """
 	partial_check: bool = True
 	group: str = opsi_config.get("groups", "fileadmingroup")
+	depot_check: bool = True
 
 	def __post_init__(self) -> None:
 		super().__post_init__()
@@ -129,6 +131,7 @@ class LogLevelCheck(Check):
 	description: str = "Check log level of opsiconfd"
 	partial_check: bool = True
 	attribute: str = "log-level"
+	depot_check: bool = True
 
 	def __post_init__(self) -> None:
 		super().__post_init__()
@@ -157,6 +160,7 @@ class DebugOptionsCheck(Check):
 	name: str = "Debug Options"
 	description: str = "Check debug options of opsiconfd"
 	partial_check: bool = True
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -177,6 +181,7 @@ class ProfilerCheck(Check):
 	name: str = "Profiler"
 	description: str = "Check profiler of opsiconfd"
 	partial_check: bool = True
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK, message="Profiler is not enabled.")
@@ -212,6 +217,7 @@ class OpsiconfdConfigRunAsUser(Check):
 	name: str = "Run As User"
 	description: str = "Check system user running opsiconfd"
 	partial_check: bool = True
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -248,6 +254,7 @@ class OpsiconfdConfigCheck(Check):
 		* `acl-self-for-all`
 			* Enabling `self` for `.*` results in an error, as some objects do not have an attribute corresponding to a client.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

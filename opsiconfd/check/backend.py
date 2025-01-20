@@ -115,7 +115,6 @@ class DepotserverCheck(Check):
 		The opsi repository, workbench and depot must be located under /var/lib/opsi/.
 		If this is not the case, an error will be reported.
 		"""
-	depot_check: bool = False
 	partial_check: bool = False
 	depot = ""
 
@@ -143,6 +142,4 @@ class DepotserverCheck(Check):
 
 
 depot_server_check = DepotserverCheck()
-
-
 check_manager.register(depot_server_check)

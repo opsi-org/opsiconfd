@@ -23,6 +23,7 @@ class OpsiUserExistCheck(Check):
 	name: str = "OPSI User Exists"
 	description: str = "Check if opsi user exists."
 	partial_check: bool = True
+	depot_check: bool = True
 	user: str = ""
 
 	def __post_init__(self) -> None:
@@ -51,6 +52,7 @@ class OpsiUserUIDCheck(Check):
 	name: str = "OPSI User UID"
 	description: str = "Check if opsi user UID is unique."
 	partial_check: bool = True
+	depot_check: bool = True
 	user: str = ""
 
 	def __post_init__(self) -> None:
@@ -110,6 +112,7 @@ class OpsiUsersCheck(Check):
 		If the system is part of a domain, it checks if the users are domain users.
 		Searches sssd, winbind, ldap in /etc/nsswitch.conf to determine the domain bind.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

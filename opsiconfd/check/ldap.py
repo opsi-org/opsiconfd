@@ -26,7 +26,6 @@ class LdapConnectionCheck(Check):
 	id: str = "ldap_connection"
 	name: str = "LDAP Connection"
 	description: str = "Checks whether opsi can connect to the configured LDAP server."
-	depot_check: bool = False
 	documentation: str = """
 		## Check LDAP Connection
 

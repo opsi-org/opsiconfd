@@ -83,7 +83,6 @@ class IntermediateCACheck(Check):
 		## Intermediate CA
 		Checks if the opsi CA is an intermediate CA.
 	"""
-	depot_check: bool = False
 	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -114,7 +113,6 @@ class OpsiCaKeyCheck(Check):
 
 		Checks the state of the opsi CA key.
 	"""
-	depot_check: bool = False
 	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -141,8 +139,8 @@ class ServerCertCheck(Check):
 		## Server certificate
 		Checks the state of the server certificate.
 	"""
-	depot_check: bool = False
 	partial_check: bool = True
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -179,6 +177,7 @@ class ServerKeyCheck(Check):
 		Checks the state of the server key.
 	"""
 	partial_check: bool = True
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -224,6 +223,7 @@ class SSLCheck(Check):
 		## SSL
 		Checks the state of the opsi CA and the server certificate.
 	"""
+	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

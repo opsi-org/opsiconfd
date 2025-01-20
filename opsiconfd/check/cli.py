@@ -81,7 +81,7 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 		else:
 			status = CheckStatus.OK
 			message = "No upgrade issues"
-			if status == CheckStatus.OK and not detailed:
+			if not detailed:
 				return
 
 	style = STYLES[status]
@@ -91,7 +91,7 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 		for key, value in result.details.items():
 			console.print(Padding(f"{key}: {value}", (0, 5)))
 
-	if status == CheckStatus.OK and not detailed:
+	if not detailed:
 		console.print("")
 		return
 	if partial_results:

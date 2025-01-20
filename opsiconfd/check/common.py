@@ -54,7 +54,7 @@ class Check:
 	name: str = ""
 	description: str = ""
 	documentation: str = ""
-	depot_check: bool = True
+	depot_check: bool = False
 	cache: bool = True
 	cache_expiration: int = CACHE_EXPIRATION
 	partial_checks: list[Check] = field(default_factory=list)

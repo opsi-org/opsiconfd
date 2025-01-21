@@ -49,7 +49,6 @@ RUN chmod +x /entrypoint.sh /healthcheck.sh \
 		uid=1000 \
 		&& if [ -n "$DEV_UID" ]; then uid=$DEV_UID; fi \
 		&& useradd --uid $uid --create-home -s /bin/zsh ${DEV_USER} \
-		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
 		&& cp -a /root/.zshrc /root/.oh-my-zsh /root/.p10k.zsh  /root/.zsh_history /home/${DEV_USER}/ \
 		&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER} \
 		&& chmod -R g-rww,o-rww /home/${DEV_USER}/.oh-my-zsh \
@@ -58,7 +57,6 @@ RUN chmod +x /entrypoint.sh /healthcheck.sh \
 		&& adduser ${DEV_USER} opsiadmin \
 		&& adduser ${DEV_USER} sudo \
 		&& adduser ${DEV_USER} shadow \
-		#&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
 		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
 		&& chown -R $DEV_USER /workspace \
 	; fi

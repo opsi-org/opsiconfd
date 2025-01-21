@@ -69,7 +69,7 @@ def backup_main() -> None:
 			compression = None
 			if suffixes and suffixes[-1] in ("lz4", "gz"):
 				compression = suffixes.pop()
-			elif suffixes[-1] not in ("msgpack", "json"):
+			elif suffixes and suffixes[-1] not in ("msgpack", "json"):
 				raise ValueError(f"Invalid compression {suffixes[-1]!r}, valid compressions are 'lz4' and 'gz'")
 
 			encoding = ""

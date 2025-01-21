@@ -376,44 +376,51 @@ class RPCDepotserverMixin(Protocol):
 		Acquires a transfer slot for the specified depot and slot ID.
 
 		Args:
-		        self (BackendProtocol): The backend protocol object.
-		        depot (str): The depot for which to acquire the transfer slot.
-		        host (str): The host for which to acquire the transfer slot
-		        slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
-		        slot_type (TransferSlotType, optional): The type of slot to acquire. Defaults to "opsiclientd_product_sync".
+		    self (BackendProtocol): The backend protocol object.
+		    depot (str): The depot for which to acquire the transfer slot.
+		    host (str): The host for which to acquire the transfer slot
+		    slot_id (str | None, optional): The ID of the slot to acquire. Defaults to None.
+		    slot_type (TransferSlotType, optional): The type of slot to acquire. Defaults to "opsiclientd_product_sync".
 
 		Returns:
-		        TransferSlot: The acquired transfer slot.
+		    TransferSlot: The acquired transfer slot.
 
 		Raises:
-		        BackendPermissionDeniedError: If access is denied.
+		    BackendPermissionDeniedError: If access is denied.
 		"""
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 
 		slot_type = TransferSlotType(slot_type)
-		with redis_lock(f"transfer-slot-{slot_type}", acquire_timeout=10.0, lock_timeout=30.0):
-			slot = TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type, retry_after=None)
-			if slot_id:
+		try:
+			with redis_lock(f"transfer-slot-{slot_type}", acquire_timeout=10.0, lock_timeout=30.0):
+				slot = TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type, retry_after=None)
+				if slot_id:
+					redis = redis_client()
+					res = decode_redis_result(redis.get(slot.redis_key))
+					if res:
+						# Slot already acquired, reusing it
+						redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
+						return slot
+
+				max_slots = self.get_max_transfer_slots(slot_type, [depot])[depot]
+
 				redis = redis_client()
-				res = decode_redis_result(redis.get(slot.redis_key))
-				if res:
+				# TODO: Do not scan to get the number of slots, use a counter
+				depot_slots = len(
+					list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*", count=1000)))
+				)
+				if depot_slots < max_slots:
+					# Slot available, acquiring it
 					redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
 					return slot
+		except TimeoutError as err:
+			logger.info(err)
 
-			max_slots = self.get_max_transfer_slots(slot_type, [depot])[depot]
-
-			redis = redis_client()
-			depot_slots = len(
-				list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*", count=1000)))
-			)
-			if depot_slots >= max_slots:
-				retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
-				return TransferSlot(retry_after=retry_after)
-
-			redis.set(slot.redis_key, host, ex=TRANSFER_SLOT_RETENTION_TIME)
-			return slot
+		# No slot available or lock timeout, returning a retry_after value
+		retry_after = random.randint(TRANSFER_SLOT_RETENTION_TIME, TRANSFER_SLOT_RETENTION_TIME * 2)
+		return TransferSlot(retry_after=retry_after)
 
 	@rpc_method(check_acl=False)
 	def depot_releaseTransferSlot(
@@ -427,24 +434,24 @@ class RPCDepotserverMixin(Protocol):
 		Release a transfer slot for the specified depot, client and slot ID.
 
 		Args:
-		        self (BackendProtocol): The backend protocol object.
-		        depot (str): The depot for which to release the transfer slot.
-		        host (str): The host for which to release the transfer slot.
-		        slot_id (str): The ID of the slot to release.
-		        slot_type (TransferSlotType, optional): The type of slot to acquire. Defaults to "opsiclientd_product_sync".
+		    self (BackendProtocol): The backend protocol object.
+		    depot (str): The depot for which to release the transfer slot.
+		    host (str): The host for which to release the transfer slot.
+		    slot_id (str): The ID of the slot to release.
+		    slot_type (TransferSlotType, optional): The type of slot to acquire. Defaults to "opsiclientd_product_sync".
 
 		Returns:
-		        None
+		    None
 
 		Raises:
-		        BackendPermissionDeniedError: If access is denied.
+		    BackendPermissionDeniedError: If access is denied.
 		"""
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 
 		slot_type = TransferSlotType(slot_type)
-		with redis_lock(f"transfer-slot-{slot_type}", acquire_timeout=10.0, lock_timeout=30.0):
+		with redis_lock(f"transfer-slot-{slot_type}", acquire_timeout=30.0, lock_timeout=60.0):
 			redis_client().unlink(TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type).redis_key)
 
 	@rpc_method
@@ -453,10 +460,10 @@ class RPCDepotserverMixin(Protocol):
 		List all reserved TransferSlots of depot.
 
 		Args:
-		        self (BackendProtocol): The backend protocol object.
-		        depot (str): The depot for which to get the transfer slot info.
+		    self (BackendProtocol): The backend protocol object.
+		    depot (str): The depot for which to get the transfer slot info.
 		Returns:
-		        list[TransferSlot]
+		    list[TransferSlot]
 		"""
 
 		slots = []

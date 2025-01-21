@@ -47,7 +47,7 @@ RUN chmod +x /entrypoint.sh /healthcheck.sh \
 	&& adduser adminuser opsiadmin \
 	&& if [ -n "$DEV_USER" ]; then \
 		uid=1000 \
-		&& if [ -n "$DEV_USER" ]; then uid=$DEV_UID; fi \
+		&& if [ -n "$DEV_UID" ]; then uid=$DEV_UID; fi \
 		&& useradd --uid $uid --create-home -s /bin/zsh ${DEV_USER} \
 		&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
 		&& cp -a /root/.zshrc /root/.oh-my-zsh /root/.p10k.zsh  /root/.zsh_history /home/${DEV_USER}/ \

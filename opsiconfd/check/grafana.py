@@ -31,9 +31,6 @@ class GrafanaHealth(Check):
 	"""
 
 	def _check(self) -> CheckResult:
-		print("Checking Grafana health")
-		print(config.grafana_internal_url)
-
 		result = CheckResult(
 			check=self,
 			message="Grafana server is accessible.",

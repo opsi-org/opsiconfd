@@ -10,7 +10,7 @@
 # """
 
 from dataclasses import dataclass
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from opsicommon.utils import compare_versions
 
@@ -40,7 +40,7 @@ class GrafanaHealth(Check):
 			check_status=CheckStatus.OK,
 		)
 
-		session = get_requests_session("localhost")
+		session = get_requests_session(urlparse(config.grafana_internal_url).hostname)
 		res = session.get(urljoin(config.grafana_internal_url, "/api/health"), timeout=10, stream=True)
 
 		if res.status_code != 200:

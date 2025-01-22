@@ -395,9 +395,9 @@ class RPCDepotserverMixin(Protocol):
 		slot_type = TransferSlotType(slot_type)
 		try:
 			with redis_lock(f"transfer-slot-{slot_type}", acquire_timeout=10.0, lock_timeout=30.0):
+				redis = redis_client()
 				slot = TransferSlot(depot_id=depot, host_id=host, slot_id=slot_id, slot_type=slot_type, retry_after=None)
 				if slot_id:
-					redis = redis_client()
 					res = decode_redis_result(redis.get(slot.redis_key))
 					if res:
 						# Slot already acquired, reusing it
@@ -405,11 +405,12 @@ class RPCDepotserverMixin(Protocol):
 						return slot
 
 				max_slots = self.get_max_transfer_slots(slot_type, [depot])[depot]
-
-				redis = redis_client()
-				# TODO: Do not scan to get the number of slots, use a counter
-				depot_slots = len(
-					list(decode_redis_result(redis.scan_iter(match=f"{config.redis_key('slot')}:{depot}:{slot_type}:*", count=1000)))
+				depot_slots = int(
+					redis.eval(
+						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
+						0,
+						f'{config.redis_key('slot')}:{depot}:{slot_type}:*',
+					)
 				)
 				if depot_slots < max_slots:
 					# Slot available, acquiring it

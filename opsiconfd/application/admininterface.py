@@ -328,7 +328,9 @@ async def get_depot_list() -> RESTResponse:
 				"description": depot.description,
 				"opsiHostKey": depot.opsiHostKey,
 				"max_product_sync_transfer_slots": max_slots.get(depot.id, 0),
-				"used_product_sync_transfer_slots": len(list(redis.scan_iter(f"{slot_key}:{depot.id}:*", count=1000))),
+				"used_product_sync_transfer_slots": int(
+					redis.eval("return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]", 0, f"{slot_key}:{depot.id}:*")
+				),
 			}
 			for depot in depots
 			# if d.getType() != "OpsiConfigserver"

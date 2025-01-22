@@ -72,11 +72,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 
 
 async def get_session_count(redis: StrictRedis) -> int:
-	count = 0
-	session_keys = redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)
-	async for _session in session_keys:
-		count += 1
-	return count
+	return int(redis.eval("return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]", 0, f"{config.redis_key('session')}:*"))
 
 
 async def get_thread_count(redis: StrictRedis) -> float:

@@ -406,7 +406,7 @@ class RPCDepotserverMixin(Protocol):
 
 				max_slots = self.get_max_transfer_slots(slot_type, [depot])[depot]
 				depot_slots = int(
-					redis.eval(
+					redis.eval(  # type: ignore[no-untyped-call]
 						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
 						0,
 						f'{config.redis_key('slot')}:{depot}:{slot_type}:*',

@@ -42,7 +42,7 @@ class GrafanaHealth(Check):
 
 		if res.status_code != 200:
 			result.check_status = CheckStatus.ERROR
-			result.message = f"Cannot conncet to grafana server. Status code: {res.status_code}"
+			result.message = f"Cannot connect to grafana server, status code: {res.status_code}"
 
 		res_data = res.json()
 		if res_data.get("database") != "ok":

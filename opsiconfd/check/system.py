@@ -222,7 +222,7 @@ def get_disk_mountpoints() -> set:
 	return check_mountpoints
 
 
-def get_matching_version_info(version_info: dict[str, Any], version: str) -> Any:
+def get_matching_version_info(version_info: dict[str, Any] | None, version: str | None) -> Any:
 	if not version_info or not version:
 		return None
 

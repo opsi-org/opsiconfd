@@ -14,6 +14,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import date
 from subprocess import CalledProcessError, run
+from typing import Any
 from urllib.parse import urlparse
 
 import psutil
@@ -221,6 +222,21 @@ def get_disk_mountpoints() -> set:
 	return check_mountpoints
 
 
+def get_matching_version_info(version_info: dict[str, Any], version: str) -> Any:
+	if not version_info or not version:
+		return None
+
+	version_parts = version.split(".")
+	for version in version_info:
+		parts = version.split(".")
+		if parts[0] == version_parts[0]:
+			if len(version_parts) > 1 and len(parts) > 1:
+				if parts[1] != version_parts[1]:
+					continue
+			return version_info[version]
+	return None
+
+
 @dataclass()
 class SystemEOLCheck(Check):
 	id: str = "linux_distro_eol"
@@ -258,7 +274,7 @@ class SystemEOLCheck(Check):
 		if distro in ("rocky", "ol"):
 			version = version.split(".")[0]
 		if version_info := LINUX_DISTRO_EOL.get(distro):
-			if eol := version_info.get(version):
+			if eol := get_matching_version_info(version_info, version):
 				today = date.today()
 				diff = (today - eol).days
 				if diff < -90:
@@ -472,7 +488,8 @@ class SystemRepositoriesCheck(Check):
 						"https://obs.uib.gmbh",
 					)
 				):
-					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					version_info = LINUX_DISTRO_REPO_NAMES.get(distro)
+					name = get_matching_version_info(version_info, version)
 					if name and name in line:
 						result.check_status = CheckStatus.OK
 						result.message = "No issues found with the system repositories."
@@ -494,7 +511,8 @@ class SystemRepositoriesCheck(Check):
 			logger.debug("yum repolist: %s", res)
 			for line in res.split("\n"):
 				if "opsi" in line:
-					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					version_info = LINUX_DISTRO_REPO_NAMES.get(distro)
+					name = get_matching_version_info(version_info, version)
 					if name and name in line:
 						result.check_status = CheckStatus.OK
 						result.message = "No issues found with the system repositories."
@@ -515,7 +533,8 @@ class SystemRepositoriesCheck(Check):
 			logger.debug("zypper repos: %s", res)
 			for line in res.split("\n"):
 				if "opsi" in line:
-					name = LINUX_DISTRO_REPO_NAMES.get(distro, {}).get(version)
+					version_info = LINUX_DISTRO_REPO_NAMES.get(distro)
+					name = get_matching_version_info(version_info, version)
 					if name and name in line:
 						result.check_status = CheckStatus.OK
 						result.message = "No issues found with the system repositories."

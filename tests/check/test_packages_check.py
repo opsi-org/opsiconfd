@@ -61,7 +61,8 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product.to_hash()]]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-	product_server = LocalbootProduct(id="opsi-client-agent", productVersion="4.3.5.1", packageVersion="1")
+
+	product_server = LocalbootProduct(id="opsi-client-agent", productVersion="4.3.6.1", packageVersion="1")
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_createObjects", "params": [[product_server.to_hash()]]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res

@@ -114,6 +114,7 @@ class OpsiCaKeyCheck(Check):
 		Checks the state of the opsi CA key.
 	"""
 	partial_check: bool = True
+	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

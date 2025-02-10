@@ -12,14 +12,8 @@ utils licence
 from functools import lru_cache
 
 from opsiconfd.backend import get_protected_backend
-from opsiconfd.logging import logger
 
 
 @lru_cache()
-def check_module(module: str) -> bool:
-	try:
-		get_protected_backend()._check_module(module)
-		return True
-	except Exception as err:
-		logger.debug(err)
-	return False
+def module_available(*module: str) -> bool:
+	return get_protected_backend()._module_available(*module)

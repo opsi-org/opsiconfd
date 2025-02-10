@@ -14,11 +14,11 @@ from dataclasses import dataclass
 
 import ldap3  # type: ignore[import]
 
-from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import ldap3_uri_to_str
+from opsiconfd.utils.modules import module_available
 
 
 @dataclass()
@@ -41,7 +41,7 @@ class LdapConnectionCheck(Check):
 		ldap_conf = opsi_config.get("ldap_auth")
 		if ldap_conf["ldap_url"]:
 			logger.debug("Using LDAP auth with config: %s", ldap_conf)
-			if "directory-connector" in get_unprotected_backend().available_modules:
+			if module_available("directory-connector", "basic", "professional", "enterprise"):
 				ldap_connection = None
 				try:
 					result.message = "The connection to the LDAP server does work."

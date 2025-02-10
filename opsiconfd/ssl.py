@@ -59,7 +59,7 @@ from opsiconfd.config import (
 from opsiconfd.letsencrypt import perform_certificate_signing_request
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_interfaces
-from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.modules import module_available
 
 if TYPE_CHECKING:
 	from opsicommon.client.opsiservice import ServiceClient
@@ -823,14 +823,14 @@ def setup_server_cert(force_new: bool = False) -> bool:
 		raise ValueError(f"Invalid server role: {server_role}")
 
 	if config.ssl_server_cert_type == "letsencrypt":
-		if not check_module("letsencrypt"):
+		if not module_available("letsencrypt", "enterprise"):
 			raise RuntimeError(
-				"Module 'letsencrypt' not available. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
+				"Let's Encrypt module not licensed. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
 			)
 	elif config.ssl_server_cert_type == "custom-ca":
-		if not check_module("custom_ca"):
+		if not module_available("custom_ca", "enterprise"):
 			raise RuntimeError(
-				"Module 'custom_ca' not available. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
+				"Custom CA module not licensed. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
 			)
 
 	if config.ssl_server_key == config.ssl_server_cert:

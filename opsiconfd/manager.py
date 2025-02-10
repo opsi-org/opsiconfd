@@ -31,7 +31,7 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
 from opsiconfd.application.filetransfer import cleanup_file_storage
-from opsiconfd.backend import get_service_client, get_unprotected_backend
+from opsiconfd.backend import get_service_client
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
 from opsiconfd.check.main import health_check
 from opsiconfd.config import MANAGER_THREAD_POOL_WORKERS, config, get_server_role
@@ -41,6 +41,7 @@ from opsiconfd.metrics.collector import ManagerMetricsCollector
 from opsiconfd.redis import async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_ssl
 from opsiconfd.utils import Singleton, asyncio_create_task, log_config
+from opsiconfd.utils.modules import module_available
 from opsiconfd.worker import Worker, WorkerInfo, WorkerState
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
 
@@ -81,9 +82,9 @@ class WorkerManager:
 		if config.workers == 1:
 			return
 
-		if "scalability1" not in get_unprotected_backend().available_modules:
+		if not module_available("scalability1", "enterprise"):
 			config.workers = 1
-			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)
+			logger.error("Scalability module not licensed, limiting to %d workers.", config.workers)
 
 	def get_workers(self) -> list[Worker]:
 		return [w for w in self.workers.values() if isinstance(w, Worker)]

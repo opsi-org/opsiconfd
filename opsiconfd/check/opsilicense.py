@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config, opsi_config
+from opsiconfd.utils.modules import module_available
 
 
 @dataclass()
@@ -75,13 +76,11 @@ class OpsiLicensesMissingCustomCA(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.ssl_server_cert_type == "custom-ca":
-			backend = get_unprotected_backend()
-			licensing_info = backend.backend_getLicensingInfo()
-			if "custom_ca" in licensing_info["available_modules"]:
-				result.message = "ssl-server-cert-type is set to 'custom-ca' in configuration and module 'custom_ca' is available."
+			if module_available("custom_ca", "enterprise"):
+				result.message = "ssl-server-cert-type is set to 'custom-ca' in configuration and Custom CA module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = "ssl-server-cert-type is set to 'custom-ca' in configuration but module 'custom_ca' is not available."
+				result.message = "ssl-server-cert-type is set to 'custom-ca' in configuration but Custom CA module is not licensed."
 		return result
 
 
@@ -99,13 +98,11 @@ class OpsiLicensesMissingLetsEncrypt(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.ssl_server_cert_type == "letsencrypt":
-			backend = get_unprotected_backend()
-			licensing_info = backend.backend_getLicensingInfo()
-			if "letsencrypt" in licensing_info["available_modules"]:
-				result.message = "ssl-server-cert-type is set to 'letsencrypt' in configuration and module 'letsencrypt' is available."
+			if module_available("letsencrypt", "enterprise"):
+				result.message = "ssl-server-cert-type is set to 'letsencrypt' in configuration and Let's Encrypt module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = "ssl-server-cert-type is set to 'letsencrypt' in configuration but module 'letsencrypt' is not available."
+				result.message = "ssl-server-cert-type is set to 'letsencrypt' in configuration but Let's Encrypt module is not licensed."
 		return result
 
 
@@ -123,13 +120,11 @@ class OpsiLicensesMissingSSO(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.saml_idp_entity_id:
-			backend = get_unprotected_backend()
-			licensing_info = backend.backend_getLicensingInfo()
-			if "sso" in licensing_info["available_modules"]:
-				result.message = "saml-idp-entity-id is set in configuration and module 'sso' is available."
+			if module_available("sso", "enterprise"):
+				result.message = "saml-idp-entity-id is set in configuration and Single Sign On module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = "saml-idp-entity-id is set in configuration but module 'sso' is not available."
+				result.message = "saml-idp-entity-id is set in configuration but mSingle Sign On module is not licensed."
 		return result
 
 
@@ -147,16 +142,12 @@ class OpsiLicensesMissingScalability(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.workers > 1:
-			backend = get_unprotected_backend()
-			licensing_info = backend.backend_getLicensingInfo()
-			if "scalability1" in licensing_info["available_modules"]:
-				result.message = (
-					f"The number of workers is set to {config.workers} in configuration and module 'scalability1' is available."
-				)
+			if module_available("scalability1", "enterprise"):
+				result.message = f"The number of workers is set to {config.workers} in configuration and Scalability module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
 				result.message = (
-					f"The number of workers is set to {config.workers} in configuration but module 'scalability1' is not available."
+					f"The number of workers is set to {config.workers} in configuration but Scalability module is not licensed."
 				)
 		return result
 
@@ -175,13 +166,11 @@ class OpsiLicensesMissingDirectoryConnector(Check):
 			check_status=CheckStatus.OK,
 		)
 		if opsi_config.get("ldap_auth", "ldap_url"):
-			backend = get_unprotected_backend()
-			licensing_info = backend.backend_getLicensingInfo()
-			if "directory-connector" in licensing_info["available_modules"]:
-				result.message = "ldap_auth is configured in opsi.conf and module 'directory-connector' is available."
+			if module_available("directory-connector", "basic", "professional", "enterprise"):
+				result.message = "ldap_auth is configured in opsi.conf and Directory Connector module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = "ldap_auth is configured in opsi.conf but module 'directory-connector' is not available."
+				result.message = "ldap_auth is configured in opsi.conf but Directory Connector module is not licensed."
 
 		return result
 

@@ -29,7 +29,7 @@ from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.redis import redis_client
 from opsiconfd.utils import Singleton
-from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.modules import module_available
 
 CACHE_EXPIRATION = 24 * 3600  # In seconds
 
@@ -232,8 +232,8 @@ class CheckResult:
 				self.upgrade_issue = partial_result.upgrade_issue
 
 	def to_checkmk(self) -> str:
-		if not check_module("monitoring"):
-			return "You need to enable the monitoring module to use checkmk output. Please check your opsi licenses."
+		if not module_available("monitoring", "basic", "professional", "enterprise"):
+			return "Monitoring module not licensed, Checkmk output not available. Please check your opsi licenses."
 		newline = "\\n"
 		message = self.message.replace("\n", " ")
 		details = ""
@@ -253,8 +253,8 @@ class CheckResult:
 		return f"{self.check_status.return_code()} 'opsi: {self.check.name}' - {message if message else self.check_status.value.upper()}{details}"
 
 	def to_nagios(self) -> str:
-		if not check_module("monitoring"):
-			return "You need to enable the monitoring module to use checkmk output. Please check your opsi licenses."
+		if not module_available("monitoring", "basic", "professional", "enterprise"):
+			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
 		newline = "\\n"
 		message = self.message.replace("\n", " ")
 		details = ""

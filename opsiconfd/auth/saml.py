@@ -30,14 +30,14 @@ from opsiconfd.config import config, get_configserver_id
 from opsiconfd.logging import get_logger
 from opsiconfd.ssl import as_pem
 from opsiconfd.utils import get_requests_session
-from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.modules import module_available
 
 logger = get_logger("opsiconfd.saml")
 
 
 def check_if_saml_available() -> None:
-	if not check_module("sso"):
-		raise RuntimeError("Module 'sso' not available. Please check your opsi licenses.")
+	if not module_available("sso", "enterprise"):
+		raise RuntimeError("Single Sign On module not licensed. Please check your opsi licenses.")
 	if "saml" in config.disabled_auth_methods:
 		raise OpsiServiceAuthenticationError("SAML authentication is disabled")
 	if not config.saml_idp_entity_id:

@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
-from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.modules import module_available
 
 from .check_client_status import check_client_status
 from .check_depot_sync_status import check_depot_sync_status
@@ -30,8 +30,8 @@ monitoring_router = APIRouter()
 
 
 def monitoring_setup(app: FastAPI) -> None:
-	if not check_module("monitoring"):
-		logger.info("Monitoring module not available, skipping setup monitoring router.")
+	if not module_available("monitoring", "basic", "professional"):
+		logger.info("Monitoring module not licensed, skipping monitoring router setup")
 		return
 	app.include_router(monitoring_router, prefix="/monitoring")
 

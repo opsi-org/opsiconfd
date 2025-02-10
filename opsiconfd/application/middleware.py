@@ -25,7 +25,7 @@ from opsiconfd import __version__, contextvar_client_address, contextvar_request
 from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import get_logger, logger
 from opsiconfd.utils import normalize_ip_address
-from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.modules import module_available
 from opsiconfd.worker import Worker
 
 PATH_MAPPINGS = {
@@ -67,7 +67,7 @@ class BaseMiddleware:
 
 	def _generate_default_headers(self) -> None:
 		auth_methods = ["password"]
-		if config.saml_idp_sso_url and check_module("sso"):
+		if config.saml_idp_sso_url and module_available("sso", "enterprise"):
 			auth_methods.append("saml")
 
 		self.default_headers = (

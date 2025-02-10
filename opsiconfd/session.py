@@ -17,7 +17,6 @@ import re
 import time
 import uuid
 from collections import namedtuple
-from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
@@ -59,11 +58,11 @@ from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task
-from opsiconfd.utils.modules import check_module
+from opsiconfd.utils.modules import module_available
 from opsiconfd.utils.user import user_get_credentials
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.main import Backend
+	pass
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -1125,10 +1124,10 @@ def get_auth_module() -> AuthenticationModule:
 			ldap_conf = opsi_config.get("ldap_auth")
 			if ldap_conf["ldap_url"]:
 				logger.debug("Using LDAP auth with config: %s", ldap_conf)
-				if "directory-connector" in get_unprotected_backend().available_modules:
+				if module_available("directory-connector", "basic", "professional", "enterprise"):
 					auth_module = LDAPAuthentication(**ldap_conf)
 				else:
-					logger.error("Disabling LDAP authentication: directory-connector module not available")
+					logger.error("Directory Connector module not licensed, LDAP authentication not available")
 		except Exception as err:
 			logger.debug(err)
 
@@ -1146,16 +1145,6 @@ def get_peer_cert_common_name(scope: Scope) -> str | None:
 		if value[0][0] == "commonName":
 			return value[0][1]
 	return None
-
-
-@lru_cache(maxsize=1)
-def vpn_module_available(backend: Backend) -> bool:
-	try:
-		backend._check_module("vpn")
-		return True
-	except Exception as err:
-		logger.debug(err)
-	return False
 
 
 async def authenticate_host(scope: Scope) -> None:
@@ -1217,14 +1206,14 @@ async def authenticate_host(scope: Scope) -> None:
 	if ("depot" in config.client_cert_auth and host.getType() in ("OpsiConfigserver", "OpsiDepotserver")) or (
 		"client" in config.client_cert_auth and host.getType() == "OpsiClient"
 	):
-		if vpn_module_available(backend):
+		if module_available("vpn", "professional", "enterprise"):
 			if not peer_cert_cn:
 				raise OpsiServiceAuthenticationError(f"Client certificate missing for host '{host.id}'")
 			if peer_cert_cn != host.id:
 				raise OpsiServiceAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
 			session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 		else:
-			logger.error("VPN module not available, client certificate authentication disabled")
+			logger.error("WAN/VPN module not licensed, client certificate authentication disabled")
 
 	if host.opsiHostKey and session.password == host.opsiHostKey:
 		session.add_auth_methods(AuthenticationMethod.HOST_KEY)
@@ -1390,8 +1379,8 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 
 	if session.username == config.monitoring_user:
 		# Monitoring user
-		if not check_module("monitoring"):
-			raise OpsiServicePermissionError("Monitoring module not available. Please check your opsi licenses.")
+		if not module_available("monitoring"):
+			raise OpsiServicePermissionError("Monitoring not licensed")
 		await authenticate_user_passwd(scope=scope)
 		await post_authenticate(scope)
 		return

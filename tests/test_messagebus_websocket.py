@@ -548,7 +548,7 @@ def test_messagebus_message_type_access(
 ) -> None:
 	configserver_id = get_configserver_id()
 
-	available_modules_with_vpn = backend.available_modules
+	available_modules_with_vpn = backend._available_modules
 	if "vpn" not in available_modules_with_vpn:
 		available_modules_with_vpn.append("vpn")
 	available_modules_without_vpn = available_modules_with_vpn.copy()

@@ -175,7 +175,8 @@ class Backend(
 		self._opsi_host_key: str | None = None
 		self._interface: dict[str, MethodInterface] = {}
 		self._interface_list: list[dict[str, Any]] = []
-		self.available_modules: list[str] = []
+		self._customer_id: str | None = None
+		self._available_modules: list[str] = []
 		self._messagebus_user_id = None
 		try:
 			self._messagebus_user_id = get_user_id_for_service_worker(Worker.get_instance().id)
@@ -186,7 +187,9 @@ class Backend(
 			self._config_server_init()
 		else:
 			self._depot_server_init()
-		self.available_modules = self.backend_getLicensingInfo()["available_modules"]  # type: ignore[misc]
+		licensing_info = self.backend_getLicensingInfo(licenses=True)
+		self._customer_id = licensing_info["licenses"][0]["customer_id"] if licensing_info["licenses"] else None
+		self._available_modules = licensing_info["available_modules"]  # type: ignore[misc]
 
 		for base in Backend.__bases__:
 			logger.debug("Init %s", base)
@@ -328,12 +331,18 @@ class Backend(
 	def _get_client_id(self) -> str | None:
 		return None
 
-	def _check_module(self, module: str) -> None:
+	def _module_available(self, *module: str) -> bool:
+		return any(m in self._available_modules for m in module)
+
+	def _assert_module(self, *module: str) -> None:
 		if app.app_state.type == "maintenance":
 			# Do not check in maintenance mode (backup / restore)
 			return
-		if module not in self.available_modules:
-			raise BackendModuleDisabledError(f"Module {module!r} not available")
+		if not self._module_available(*module):
+			raise BackendModuleDisabledError(
+				f"This feature is not available, one of the following modules must be licensed: {module!r}."
+				"Please check your opsi licenses."
+			)
 
 	def _get_responsible_depot_id(self, client_id: str) -> str | None:
 		"""This method returns the depot a client is assigned to."""

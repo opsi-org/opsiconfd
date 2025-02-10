@@ -128,7 +128,7 @@ async def admin_interface_index(request: Request) -> Response:
 		"node_name": config.node_name,
 		"username": username,
 		"interface": interface,
-		"available_modules": backend.available_modules,
+		"available_modules": backend._available_modules,
 		"ca_infos": ca_infos,
 		"cert_info": cert_info,
 		"num_servers": get_num_servers(),

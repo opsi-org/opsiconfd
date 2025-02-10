@@ -55,15 +55,77 @@ def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
 			)
 		)
 	backend.host_createObjects([client1, client2])
+
+	# Test AuditSoftware
 	backend.auditSoftware_createObjects(audit_softwares)
-	assert len(backend.auditSoftware_getObjects(version="1.2.3")) == len(audit_softwares) / 2
+	auditSoftwares = backend.auditSoftware_getObjects(version="1.2.3")
+	for auditSoftware in auditSoftwares:
+		assert isinstance(auditSoftware, AuditSoftware)
+	assert len(auditSoftwares) == len(audit_softwares) / 2
 	assert len(backend.auditSoftware_getObjects(name="package1", version="1.2.3")) == 1
+
+	auditSoftwareIdents = backend.auditSoftware_getIdents(returnType="dict", version="1.2.3")
+	assert len(auditSoftwareIdents) == len(audit_softwares) / 2
+	for auditSoftwareIdent in auditSoftwareIdents:
+		assert isinstance(auditSoftwareIdent, dict)
+		assert auditSoftwareIdent["version"] == "1.2.3"
+
+	backend.auditSoftware_delete(name="package1", version="1.2.3", subVersion=None, language=None, architecture=None)
+	assert not backend.auditSoftware_getIdents(returnType="str", name="package1", version="1.2.3")
+
+	auditSoftwares = backend.auditSoftware_getObjects(version="1.2.4")
+	backend.auditSoftware_deleteObjects(auditSoftwares)
+	auditSoftwares = backend.auditSoftware_getObjects()
+	for auditSoftware in auditSoftwares:
+		assert isinstance(auditSoftware, AuditSoftware)
+		assert auditSoftware.version == "1.2.3"
+		auditSoftware.installSize = 12345678
+
+	backend.auditSoftware_updateObjects(auditSoftwares)
+	auditSoftwares = backend.auditSoftware_getObjects()
+	for auditSoftware in auditSoftwares:
+		assert auditSoftware.version == "1.2.3"
+		assert auditSoftware.installSize == 12345678
+
+	backend.auditSoftware_createObjects(audit_softwares)
+	assert len(backend.auditSoftware_getObjects()) == len(audit_softwares)
+
+	# Test AuditSoftwareOnClient
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
-	assert len(backend.auditSoftwareOnClient_getObjects(version="1.2.3")) == len(audit_software_on_clients) / 2
+	auditSoftwareOnClients = backend.auditSoftwareOnClient_getObjects(version="1.2.3")
+	assert len(auditSoftwareOnClients) == len(audit_software_on_clients) / 2
+	for auditSoftwareOnClient in auditSoftwareOnClients:
+		assert isinstance(auditSoftwareOnClient, AuditSoftwareOnClient)
+
 	assert len(backend.auditSoftwareOnClient_getObjects(version="1.2.4", name="package0")) == 2
-	assert len(backend.auditSoftwareOnClient_getObjects(name="package0")) == 2
+
+	auditSoftwareOnClients = backend.auditSoftwareOnClient_getObjects(name="package0")
+	assert len(auditSoftwareOnClients) == 2
+	for auditSoftwareOnClient in auditSoftwareOnClients:
+		assert auditSoftwareOnClient.name == "package0"
+		auditSoftwareOnClient.usageFrequency = 123
+
+	backend.auditSoftwareOnClient_updateObjects(auditSoftwareOnClients)
+
+	auditSoftwareOnClients = backend.auditSoftwareOnClient_getObjects(name="package0")
+	assert len(auditSoftwareOnClients) == 2
+	for auditSoftwareOnClient in auditSoftwareOnClients:
+		assert auditSoftwareOnClient.name == "package0"
+		auditSoftwareOnClient.usageFrequency == 123
+
+	backend.auditSoftwareOnClient_deleteObjects(auditSoftwareOnClients[0])
+	auditSoftwareOnClients = backend.auditSoftwareOnClient_getObjects(name="package0")
+	assert len(auditSoftwareOnClients) == 1
+	backend.auditSoftwareOnClient_updateObjects(auditSoftwareOnClients)
+	auditSoftwareOnClients = backend.auditSoftwareOnClient_getObjects(name="package0")
+	assert len(auditSoftwareOnClients) == 1
+
+	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+
 	backend.auditSoftwareOnClient_setObsolete(client1.id)
 	assert len(backend.auditSoftwareOnClient_getObjects()) == len(audit_software_on_clients) / 2
+
 	backend.auditSoftwareOnClient_setObsolete([client1.id, client2.id])
 	assert len(backend.auditSoftwareOnClient_getObjects()) == 0
+
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)

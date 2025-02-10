@@ -49,7 +49,6 @@ CREATE TABLE IF NOT EXISTS `CONFIG_STATE` (
 	`objectId` varchar(255) NOT NULL,
 	`values` text,
 	PRIMARY KEY (`configId`,`objectId`),
-	KEY `index_config_state_configId` (`configId`),
 	KEY `index_config_state_objectId` (`objectId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -59,7 +58,6 @@ CREATE TABLE IF NOT EXISTS `CONFIG_VALUE` (
 	`value` text,
 	`isDefault` tinyint(1) DEFAULT NULL,
 	PRIMARY KEY (`config_value_id`),
-	KEY `configId` (`configId`),
 	FOREIGN KEY (`configId`)
 		REFERENCES `CONFIG` (`configId`)
 		ON DELETE CASCADE ON UPDATE CASCADE
@@ -130,7 +128,6 @@ CREATE TABLE IF NOT EXISTS `OBJECT_TO_GROUP` (
 	`groupId` varchar(255) NOT NULL,
 	`objectId` varchar(255) NOT NULL,
 	PRIMARY KEY (`groupType`,`groupId`,`objectId`),
-	KEY `groupType` (`groupType`,`groupId`),
 	KEY `index_object_to_group_objectId` (`objectId`),
 	FOREIGN KEY (`groupType`, `groupId`)
 		REFERENCES `GROUP` (`type`, `groupId`)
@@ -164,8 +161,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT` (
 	`pxeConfigTemplate` varchar(50) DEFAULT NULL,
 	`changelog` text,
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`),
-	KEY `index_product_type` (`type`),
-	KEY `index_productId` (`productId`)
+	KEY `index_product_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `PRODUCT_DEPENDENCY` (
@@ -208,8 +204,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
 	`packageVersion` varchar(16) DEFAULT NULL,
 	`modificationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (`productId`,`productType`,`clientId`),
-	UNIQUE KEY `productId-clientId` (`productId`,`clientId`),
-	KEY `FK_PRODUCT_ON_CLIENT_HOST` (`clientId`),
+	UNIQUE KEY `index_product_on_client_pcid` (`productId`,`clientId`),
 	FOREIGN KEY (`clientId`)
 		REFERENCES `HOST` (`hostId`)
 		ON DELETE CASCADE ON UPDATE CASCADE
@@ -222,10 +217,8 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	`depotId` varchar(255) NOT NULL,
 	`productType` varchar(16) NOT NULL,
 	`locked` tinyint(1) NOT NULL DEFAULT '0',
-	PRIMARY KEY (`productId`,`productType`,`productVersion`,`packageVersion`,`depotId`),
-	UNIQUE KEY `productId-depotId` (`productId`,`depotId`),
-	KEY `productId-productVersion-packageVersion` (`productId`,`productVersion`,`packageVersion`),
-	KEY `depotId` (`depotId`),
+	PRIMARY KEY (`productId`, `productType`, `productVersion`, `packageVersion`, `depotId`),
+	UNIQUE KEY `index_product_on_depot_pdid` (`productId`, `depotId`),
 	KEY `index_product_on_depot_productType` (`productType`),
 	FOREIGN KEY (`depotId`)
 		REFERENCES `HOST` (`hostId`)
@@ -244,7 +237,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY` (
 	`description` text,
 	`multiValue` tinyint(1) NOT NULL DEFAULT '0',
 	`editable` tinyint(1) NOT NULL DEFAULT '1',
-	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`,`propertyId`),
+	PRIMARY KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`),
 	KEY `index_product_property_type` (`type`),
 	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`)
 		REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
@@ -269,13 +262,13 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_VALUE` (
 	`value` text,
 	`isDefault` tinyint(1) DEFAULT NULL,
 	PRIMARY KEY (`product_property_id`),
-	KEY `index_product_property_value` (`productId`,`productVersion`,`packageVersion`,`propertyId`),
 	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 		REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE` (
+	`software_id` INTEGER NOT NULL AUTO_INCREMENT,
 	`name` varchar(100) NOT NULL,
 	`version` varchar(100) NOT NULL,
 	`subVersion` varchar(100) NOT NULL,
@@ -284,20 +277,15 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE` (
 	`windowsSoftwareId` varchar(100) DEFAULT NULL,
 	`windowsDisplayName` varchar(100) DEFAULT NULL,
 	`windowsDisplayVersion` varchar(100) DEFAULT NULL,
-	`type` varchar(30) NOT NULL,
 	`installSize` bigint(20) DEFAULT NULL,
-	PRIMARY KEY (`name`,`version`,`subVersion`,`language`,`architecture`),
-	KEY `index_software_windowsSoftwareId` (`windowsSoftwareId`),
-	KEY `index_software_type` (`type`)
+	PRIMARY KEY (`software_id`),
+	UNIQUE KEY `index_software_nvsla` (`name`,`version`,`subVersion`,`language`,`architecture`),
+	KEY `index_software_windowsSoftwareId` (`windowsSoftwareId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
+	`software_id` INTEGER NOT NULL,
 	`clientId` varchar(255) NOT NULL,
-	`name` varchar(100) NOT NULL,
-	`version` varchar(100) NOT NULL,
-	`subVersion` varchar(100) NOT NULL,
-	`language` varchar(10) NOT NULL,
-	`architecture` varchar(3) NOT NULL,
 	`uninstallString` varchar(200) DEFAULT NULL,
 	`binaryName` varchar(100) DEFAULT NULL,
 	`firstseen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -306,14 +294,12 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
 	`usageFrequency` int(11) NOT NULL DEFAULT '-1',
 	`lastUsed` timestamp NULL DEFAULT NULL,
 	`licenseKey` varchar(1024) DEFAULT NULL,
-	PRIMARY KEY (`clientId`,`name`,`version`,`subVersion`,`language`,`architecture`),
-	KEY `index_software_config_clientId` (`clientId`),
-	KEY `index_software_config_nvsla` (`name`,`version`,`subVersion`,`language`,`architecture`),
+	PRIMARY KEY (`software_id`, `clientId`),
+	FOREIGN KEY (`software_id`)
+		REFERENCES `SOFTWARE` (`software_id`)
+		ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY (`clientId`)
 		REFERENCES `HOST` (`hostId`)
-		ON DELETE CASCADE ON UPDATE CASCADE,
-	FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`)
-		REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`)
 		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -325,9 +311,7 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE` (
 	`maxInstallations` int(11) NOT NULL DEFAULT '1',
 	`expirationDate` timestamp NULL DEFAULT NULL,
 	PRIMARY KEY (`softwareLicenseId`),
-	KEY `licenseContractId` (`licenseContractId`),
 	KEY `index_software_license_type` (`type`),
-	KEY `index_software_license_boundToHost` (`boundToHost`),
 	FOREIGN KEY (`licenseContractId`)
 		REFERENCES `LICENSE_CONTRACT` (`licenseContractId`),
 	FOREIGN KEY (`boundToHost`)
@@ -340,7 +324,6 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE_TO_LICENSE_POOL` (
 	`licensePoolId` varchar(100) NOT NULL,
 	`licenseKey` varchar(1024) DEFAULT NULL,
 	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`),
-	KEY `licensePoolId` (`licensePoolId`),
 	FOREIGN KEY (`softwareLicenseId`)
 		REFERENCES `SOFTWARE_LICENSE` (`softwareLicenseId`),
 	FOREIGN KEY (`licensePoolId`)
@@ -370,8 +353,6 @@ CREATE TABLE IF NOT EXISTS `LICENSE_ON_CLIENT` (
 	`licenseKey` varchar(1024) DEFAULT NULL,
 	`notes` varchar(8192) DEFAULT NULL,
 	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`,`clientId`),
-	KEY `softwareLicenseId` (`softwareLicenseId`,`licensePoolId`),
-	KEY `index_license_on_client_clientId` (`clientId`),
 	FOREIGN KEY (`softwareLicenseId`, `licensePoolId`)
 		REFERENCES `SOFTWARE_LICENSE_TO_LICENSE_POOL` (`softwareLicenseId`, `licensePoolId`),
 	FOREIGN KEY (`clientId`)
@@ -387,7 +368,6 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 	`language` varchar(10) NOT NULL,
 	`architecture` varchar(3) NOT NULL,
 	PRIMARY KEY (`licensePoolId`,`name`,`version`,`subVersion`,`language`,`architecture`),
-	KEY `licensePoolId` (`licensePoolId`),
 	FOREIGN KEY (`licensePoolId`)
 		REFERENCES `LICENSE_POOL` (`licensePoolId`)
 		ON DELETE CASCADE ON UPDATE CASCADE
@@ -518,7 +498,14 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 
 
 def create_index(
-	session: Session, database: str, table: str, index: str, columns: list[str], cleanup_function: Callable | None = None
+	*,
+	session: Session,
+	database: str,
+	table: str,
+	index: str,
+	columns: list[str],
+	unique: bool = False,
+	cleanup_function: Callable | None = None,
 ) -> None:
 	logger.debug("Create index: table=%r, index=%r, columns=%r", table, index, columns)
 	correct_indexes = []
@@ -561,19 +548,19 @@ def create_index(
 	if index == "PRIMARY":
 		logger.info("Setting new PRIMARY KEY on table %r %r", table, key)
 		session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
-	elif index == "UNIQUE":
-		logger.info("Setting new UNIQUE KEY on table %r %r", table, key)
-		session.execute(f"ALTER TABLE `{table}` ADD UNIQUE KEY ({key})")
+	elif unique:
+		logger.info("Setting new UNIQUE KEY %r on table %r %r", index, table, key)
+		session.execute(f"ALTER TABLE `{table}` ADD UNIQUE KEY `{index}` ({key})")
 	else:
 		logger.info("Setting new index %r on table %r %r", index, table, key)
-		session.execute(f"CREATE INDEX `{index}` on `{table}` ({key})")
+		session.execute(f"CREATE INDEX `{index}` ON `{table}` ({key})")
 
 
-def remove_index(session: Session, database: str, table: str, index: str) -> None:
-	indexes = get_indexes(session=session, database=database, table=table)
-	if index in indexes:
-		logger.info("Removing index %r on table %r", index, table)
-		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
+def remove_index(*, session: Session, database: str, table: str, index: str | None = None, index_fields: list[str] | None = None) -> None:
+	for name, fields in get_indexes(session=session, database=database, table=table).items():
+		if (index and index == name) or (index_fields and sorted(index_fields) == sorted(fields)):
+			logger.info("Removing index %r on table %r", name, table)
+			session.execute(f"ALTER TABLE `{table}` DROP INDEX `{name}`")
 
 
 UpdateRules = Literal["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"]
@@ -583,6 +570,7 @@ UpdateRules = Literal["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"]
 class OpsiForeignKey:
 	table: str
 	ref_table: str
+	name: str | None = None
 	f_keys: list[str] = field(default_factory=list)
 	ref_keys: list[str] = field(default_factory=list)
 	update_rule: UpdateRules = "CASCADE"
@@ -596,33 +584,62 @@ class OpsiForeignKey:
 			raise ValueError("delete_rule is not a valid delete rule.")
 
 
+def get_foreign_keys(session: Session, database: str, table: str) -> list[OpsiForeignKey]:
+	foreign_keys = []
+	for row in session.execute(
+		"""
+		SELECT
+			`t1`.`REFERENCED_TABLE_NAME`,
+			`t1`.`CONSTRAINT_NAME`,
+			GROUP_CONCAT(`t1`.`COLUMN_NAME`) AS COLUMN_NAMES,
+			GROUP_CONCAT(`t1`.`REFERENCED_COLUMN_NAME`) AS REFERENCED_COLUMN_NAMES,
+			`t2`.`UPDATE_RULE`,
+			`t2`.`DELETE_RULE`
+		FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
+		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+		WHERE `t1`.`TABLE_SCHEMA` LIKE :database AND `t1`.`TABLE_NAME` LIKE :table
+		GROUP BY `CONSTRAINT_NAME`
+		""",
+		params={"database": database, "table": table},
+	).fetchall():
+		foreign_keys.append(
+			OpsiForeignKey(
+				table=table,
+				ref_table=row[0],
+				name=row[1],
+				f_keys=(row[2] or "").split(","),
+				ref_keys=(row[3] or "").split(","),
+				update_rule=row[4],
+				delete_rule=row[5],
+			)
+		)
+	return foreign_keys
+
+
+def remove_foreign_key(session: Session, foreign_key: OpsiForeignKey) -> None:
+	logger.info("Removing foreign key to %s on table %s", foreign_key.ref_table, foreign_key.table)
+	session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY {foreign_key.name}")
+
+
 def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable | None = None) -> None:
 	keys = ",".join([f"`{k}`" for k in foreign_key.f_keys])
 	if foreign_key.ref_keys:
 		refs = ",".join([f"`{k}`" for k in foreign_key.ref_keys])
 	else:
 		refs = keys
-	res = session.execute(
-		"""
-		SELECT `t1`.`CONSTRAINT_NAME`, GROUP_CONCAT(`t1`.`COLUMN_NAME`) AS COLUMN_NAMES, `t2`.`UPDATE_RULE`, `t2`.`DELETE_RULE`
-		FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-		WHERE `t1`.`TABLE_SCHEMA` LIKE :database AND `t1`.`TABLE_NAME` LIKE :table
-		AND `t1`.`REFERENCED_TABLE_NAME` LIKE :ref_table
-		GROUP BY `CONSTRAINT_NAME`
-		""",
-		params={"database": database, "table": foreign_key.table, "ref_table": foreign_key.ref_table},
-	).fetchone()
+	cur_foreign_keys = [
+		k for k in get_foreign_keys(session=session, database=database, table=foreign_key.table) if k.ref_table == foreign_key.ref_table
+	]
+	cur_foreign_key = cur_foreign_keys[0] if cur_foreign_keys else None
 	if (
-		not res
-		or sorted((res[1] or "").split(",")) != sorted(foreign_key.f_keys)
-		or res[2] != foreign_key.update_rule
-		or res[3] != foreign_key.delete_rule
+		not cur_foreign_key
+		or sorted(cur_foreign_key.f_keys) != sorted(foreign_key.f_keys)
+		or cur_foreign_key.update_rule != foreign_key.update_rule
+		or cur_foreign_key.delete_rule != foreign_key.delete_rule
 	):
-		if res:
-			logger.info("Removing foreign key to %s on table %s", foreign_key.ref_table, foreign_key.table)
-			session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY {res[0]}")
+		if cur_foreign_key:
+			remove_foreign_key(session=session, foreign_key=cur_foreign_key)
 		if cleanup_function:
 			cleanup_function(session=session)
 		logger.info(
@@ -741,14 +758,6 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			columns=["productId"],
 		)
 
-		create_index(
-			session=session,
-			database=mysql.database,
-			table="PRODUCT",
-			index="index_productId",
-			columns=["productId"],
-		)
-
 		logger.info("Running opsi 4.2 updates")
 
 		if mysql.tables["HOST"]["ipAddress"]["type"] != "varchar(255)":
@@ -841,7 +850,8 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			session=session,
 			database=mysql.database,
 			table="PRODUCT_ON_CLIENT",
-			index="UNIQUE",
+			index="index_product_on_client_pcid",
+			unique=True,
 			columns=["productId", "clientId"],
 		)
 		create_foreign_key(
@@ -857,7 +867,14 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			index="PRIMARY",
 			columns=["productId", "productType", "productVersion", "packageVersion", "depotId"],
 		)
-		create_index(session=session, database=mysql.database, table="PRODUCT_ON_DEPOT", index="UNIQUE", columns=["productId", "depotId"])
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_ON_DEPOT",
+			index="index_product_on_depot_pdid",
+			unique=True,
+			columns=["productId", "depotId"],
+		)
 
 		create_foreign_key(
 			session=session,
@@ -1048,7 +1065,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			columns=["productId", "propertyId", "objectId"],
 		)
 
-		if "config_id" in mysql.tables["SOFTWARE_CONFIG"]:
+		if "config_id" in mysql.tables["SOFTWARE_CONFIG"] and "name" in mysql.tables["SOFTWARE_CONFIG"]:
 			logger.info("Removing duplicates from table SOFTWARE_CONFIG")
 			duplicates = []
 			for row in session.execute(
@@ -1069,48 +1086,48 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			logger.info("Dropping column 'config_id' from table SOFTWARE_CONFIG")
 			session.execute("ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `config_id`")
 
-		create_index(
-			session=session,
-			database=mysql.database,
-			table="SOFTWARE_CONFIG",
-			index="PRIMARY",
-			columns=["clientId", "name", "version", "subVersion", "language", "architecture"],
-		)
-
-		def cleanup_software_config(session: Session) -> None:
-			result = session.execute(
-				"""
-				SELECT c.name, c.version, c.subVersion, c.`language`, c.architecture
-				FROM SOFTWARE_CONFIG AS c
-				LEFT JOIN SOFTWARE AS s ON
-					s.name = c.name AND s.version = c.version AND s.subVersion = c.subVersion AND
-					s.`language` = c.`language` AND	s.architecture = c.architecture
-				LEFT JOIN HOST AS h ON h.hostId = c.clientId
-				WHERE s.name IS NULL OR h.hostId IS NULL
-				"""
-			).fetchall()
-			if result:
-				logger.info("Removing orphan entries from SOFTWARE_CONFIG")
-				for row in result:
-					session.execute(
-						"""
-						DELETE FROM SOFTWARE_CONFIG
-						WHERE name = :name AND version = :version AND subVersion = :subVersion
-							AND `language` = :language AND architecture = :architecture
-						""",
-						params=dict(row),
-					)
-
-		create_foreign_key(
-			session=session,
-			database=mysql.database,
-			foreign_key=OpsiForeignKey(
+			create_index(
+				session=session,
+				database=mysql.database,
 				table="SOFTWARE_CONFIG",
-				ref_table="SOFTWARE",
-				f_keys=["name", "version", "subVersion", "language", "architecture"],
-			),
-			cleanup_function=cleanup_software_config,
-		)
+				index="PRIMARY",
+				columns=["clientId", "name", "version", "subVersion", "language", "architecture"],
+			)
+
+			def cleanup_software_config(session: Session) -> None:
+				result = session.execute(
+					"""
+					SELECT c.name, c.version, c.subVersion, c.`language`, c.architecture
+					FROM SOFTWARE_CONFIG AS c
+					LEFT JOIN SOFTWARE AS s ON
+						s.name = c.name AND s.version = c.version AND s.subVersion = c.subVersion AND
+						s.`language` = c.`language` AND	s.architecture = c.architecture
+					LEFT JOIN HOST AS h ON h.hostId = c.clientId
+					WHERE s.name IS NULL OR h.hostId IS NULL
+					"""
+				).fetchall()
+				if result:
+					logger.info("Removing orphan entries from SOFTWARE_CONFIG")
+					for row in result:
+						session.execute(
+							"""
+							DELETE FROM SOFTWARE_CONFIG
+							WHERE name = :name AND version = :version AND subVersion = :subVersion
+								AND `language` = :language AND architecture = :architecture
+							""",
+							params=dict(row),
+						)
+
+			create_foreign_key(
+				session=session,
+				database=mysql.database,
+				foreign_key=OpsiForeignKey(
+					table="SOFTWARE_CONFIG",
+					ref_table="SOFTWARE",
+					f_keys=["name", "version", "subVersion", "language", "architecture"],
+				),
+				cleanup_function=cleanup_software_config,
+			)
 
 		create_foreign_key(
 			session=session,
@@ -1121,7 +1138,6 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				ref_table="HOST",
 				ref_keys=["hostId"],
 			),
-			cleanup_function=cleanup_software_config,
 		)
 
 		create_foreign_key(
@@ -1254,8 +1270,100 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		)
 
 		# schema_version 14
+		remove_index(session=session, database=mysql.database, table="HOST", index_fields=["systemUUID"])
 
-		remove_index(session=session, database=mysql.database, table="HOST", index="systemUUID")
+		# schema_version 15
+		if "software_id" not in mysql.tables["SOFTWARE"]:
+			logger.info("Adding column 'software_id' on table SOFTWARE.")
+
+			for foreign_key in get_foreign_keys(session=session, database=mysql.database, table="SOFTWARE_CONFIG"):
+				if foreign_key.ref_table == "SOFTWARE":
+					remove_foreign_key(session=session, foreign_key=foreign_key)
+
+			remove_index(
+				session=session,
+				database=mysql.database,
+				table="SOFTWARE_CONFIG",
+				index_fields=["architecture", "language", "name", "subVersion", "version"],
+			)
+			remove_index(session=session, database=mysql.database, table="SOFTWARE", index="PRIMARY")
+			session.execute("ALTER TABLE `SOFTWARE` ADD `software_id` INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
+
+			create_index(
+				session=session,
+				database=mysql.database,
+				table="SOFTWARE",
+				index="index_software_nvsla",
+				unique=True,
+				columns=["name", "version", "subVersion", "language", "architecture"],
+			)
+
+		if "software_id" not in mysql.tables["SOFTWARE_CONFIG"]:
+			logger.info("Adding column 'software_id' on table SOFTWARE_CONFIG.")
+
+			session.execute("ALTER TABLE `SOFTWARE_CONFIG` ADD `software_id` INTEGER NOT NULL FIRST")
+
+			logger.info("Setting software_id on SOFTWARE_CONFIG")
+			session.execute(
+				"""
+				UPDATE
+					SOFTWARE_CONFIG AS c
+				JOIN
+					SOFTWARE AS s
+				ON
+					s.`name` = c.`name` AND
+					s.`version` = c.`version` AND
+					s.`subVersion` = c.`subVersion` AND
+					s.`language` = c.`language` AND
+					s.`architecture` = c.`architecture`
+				SET
+					c.software_id = s.software_id
+				"""
+			)
+
+			for foreign_key in get_foreign_keys(session=session, database=mysql.database, table="SOFTWARE_CONFIG"):
+				if foreign_key.ref_table == "HOST":
+					remove_foreign_key(session=session, foreign_key=foreign_key)
+
+			remove_index(session=session, database=mysql.database, table="SOFTWARE_CONFIG", index="PRIMARY")
+			create_index(
+				session=session,
+				database=mysql.database,
+				table="SOFTWARE_CONFIG",
+				index="PRIMARY",
+				columns=["software_id", "clientId"],
+			)
+
+			create_foreign_key(
+				session=session,
+				database=mysql.database,
+				foreign_key=OpsiForeignKey(table="SOFTWARE_CONFIG", ref_table="SOFTWARE", f_keys=["software_id"]),
+			)
+			create_foreign_key(
+				session=session,
+				database=mysql.database,
+				foreign_key=OpsiForeignKey(
+					table="SOFTWARE_CONFIG",
+					f_keys=["clientId"],
+					ref_table="HOST",
+					ref_keys=["hostId"],
+				),
+			)
+
+			for column in ("name", "version", "subVersion", "language", "architecture"):
+				if column in mysql.tables["SOFTWARE_CONFIG"]:
+					logger.info("Dropping column %r from table SOFTWARE_CONFIG", column)
+					session.execute(f"ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `{column}`")
+
+		if "type" in mysql.tables["SOFTWARE"]:
+			logger.info("Dropping column 'type' from table SOFTWARE")
+			remove_index(session=session, database=mysql.database, table="SOFTWARE", index_fields=["type"])
+			session.execute("ALTER TABLE `SOFTWARE` DROP COLUMN `type`")
+
+		# Primary / Foreign key is sufficient
+		remove_index(session=session, database=mysql.database, table="CONFIG_STATE", index_fields=["configId"])
+		remove_index(session=session, database=mysql.database, table="PRODUCT", index_fields=["productId"])
+		remove_index(session=session, database=mysql.database, table="AUDIT_SOFTWARE_TO_LICENSE_POOL", index_fields=["licensePoolId"])
 
 		logger.info("All updates completed")
 

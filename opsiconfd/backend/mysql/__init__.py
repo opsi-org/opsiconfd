@@ -64,11 +64,22 @@ class ColumnInfo:
 	select: str | None
 
 
+@contextmanager
+def query_log_level(level: str) -> Generator[None, None, None]:
+	current = MySQLSession.query_log
+	MySQLSession.query_log = getattr(logger, level)
+	try:
+		yield
+	finally:
+		MySQLSession.query_log = current
+
+
 class MySQLSession(Session):
 	retry_on_server_has_gone_away = 3
 	retry_on_deadlock = 3
 	retry_on_concurrent_ddl = 10
 	retry_on_lock_wait_timeout = 10
+	query_log: Callable | None = None
 
 	def execute(self, statement: str, params: Any | None = None) -> Result:
 		attempt = 0
@@ -76,6 +87,8 @@ class MySQLSession(Session):
 		with server_timing("database") as timing:
 			while True:
 				attempt += 1
+				if self.query_log:
+					self.query_log("query: %s\nparams: %s\nattempt: %d", statement, params, attempt)
 				try:
 					result = super().execute(statement=statement, params=params)
 					logger.trace(
@@ -155,7 +168,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 14
+	schema_version = 15
 
 	def __init__(self) -> None:
 		self.address = "localhost"
@@ -947,6 +960,7 @@ class MySQLConnection:
 				cols.append(f"`{col}`")
 				vals.append(f":{col}")
 				updates.append(f"`{col}` = :{col}")
+				where.append(f"`{col}` = :{col}")
 				data[col] = val
 
 		if not updates:

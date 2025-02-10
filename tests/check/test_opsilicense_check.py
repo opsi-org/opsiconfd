@@ -13,7 +13,6 @@ from unittest import mock
 
 import pytest
 
-from opsiconfd.backend import reinit_backend
 from opsiconfd.backend.rpc.main import Backend
 from opsiconfd.check.common import check_manager
 from opsiconfd.check.opsilicense import opsi_licenses_check
@@ -95,14 +94,12 @@ def test_check_licenses() -> None:  # noqa: F811
 def test_check_licenses_missing(
 	missing_module_ids: list[str], opsi_config: list[dict[str, str]], opsiconfd_config: dict[str, str], expected_status: str
 ) -> None:  # noqa: F811
-	reinit_backend()
 	check_manager.register(opsi_licenses_check)
 
-	def mock_update_licensing_info(self: Backend) -> None:
-		licensing_info = self.backend_getLicensingInfo(licenses=True)
-		self._available_modules = [m for m in licensing_info["available_modules"] if m not in missing_module_ids]
+	def mock_module_available(self: Backend, *module: str) -> bool:
+		return not any(m in missing_module_ids for m in module)
 
-	with mock.patch("opsiconfd.backend.rpc.main.Backend._update_licensing_info", mock_update_licensing_info):
+	with mock.patch("opsiconfd.backend.rpc.main.Backend._module_available", mock_module_available):
 		with get_opsi_config(opsi_config), get_config(opsiconfd_config):
 			result = check_manager.get("opsi_licenses").run(clear_cache=True)
 			partial_result = [r for r in result.partial_results if r.check.id == f"opsi_licenses:missing:{missing_module_ids[0]}"][0]

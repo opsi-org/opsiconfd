@@ -52,7 +52,6 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, get_configserver_id, get_server_role
 from opsiconfd.logging import get_logger
 from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
-from opsiconfd.utils.modules import module_available
 from opsiconfd.worker import Worker
 
 if TYPE_CHECKING:
@@ -98,7 +97,7 @@ def _check_message_type_access(message_type: str, is_admin: bool, is_service_cha
 			# Terminal connection to client
 			if "messagebus_terminal_client" in config.disabled_features:
 				return False
-			if not module_available("vpn", "professional", "enterprise"):
+			if not backend._module_available("vpn", "professional", "enterprise"):
 				return False
 	elif message_type == MessageType.PROCESS_START_REQUEST:
 		if not is_admin:
@@ -109,7 +108,7 @@ def _check_message_type_access(message_type: str, is_admin: bool, is_service_cha
 			# Start process on client
 			if "messagebus_execute_process_client" in config.disabled_features:
 				return False
-			if not module_available("vpn", "professional", "enterprise"):
+			if not backend._module_available("vpn", "professional", "enterprise"):
 				return False
 	elif message_type == MessageType.JSONRPC_REQUEST:
 		if not is_admin and not is_service_channel:

@@ -49,7 +49,7 @@ from opsicommon.messagebus.message import (
 )
 from opsicommon.objects import OpsiClient, UnicodeConfig
 
-from opsiconfd.backend.rpc.protocol import BackendProtocol
+from opsiconfd.backend.rpc.main import Backend
 from opsiconfd.config import get_configserver_id
 from opsiconfd.messagebus.websocket import _check_message_type_access
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, redis_client
@@ -559,11 +559,11 @@ def test_messagebus_message_type_access(
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
-	def mock_update_licensing_info_with_vpn(self: BackendProtocol) -> None:
+	def mock_update_licensing_info_with_vpn(self: Backend) -> None:
 		self._available_modules = available_modules_with_vpn
 		self._module_available.cache_clear()
 
-	def mock_update_licensing_info_without_vpn(self: BackendProtocol) -> None:
+	def mock_update_licensing_info_without_vpn(self: Backend) -> None:
 		self._available_modules = available_modules_without_vpn
 		self._module_available.cache_clear()
 

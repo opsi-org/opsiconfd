@@ -14,7 +14,7 @@ from unittest import mock
 import pytest
 
 from opsiconfd.backend import reinit_backend
-from opsiconfd.backend.rpc.protocol import BackendProtocol
+from opsiconfd.backend.rpc.main import Backend
 from opsiconfd.check.common import check_manager
 from opsiconfd.check.opsilicense import opsi_licenses_check
 from tests.utils import cleanup_checks, get_config, get_opsi_config  # noqa: F401
@@ -98,7 +98,7 @@ def test_check_licenses_missing(
 	reinit_backend()
 	check_manager.register(opsi_licenses_check)
 
-	def mock_update_licensing_info(self: BackendProtocol) -> None:
+	def mock_update_licensing_info(self: Backend) -> None:
 		licensing_info = self.backend_getLicensingInfo(licenses=True)
 		self._available_modules = [m for m in licensing_info["available_modules"] if m not in missing_module_ids]
 

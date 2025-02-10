@@ -12,6 +12,7 @@ opsiconfd backend interface
 from __future__ import annotations
 
 from contextlib import contextmanager
+from functools import lru_cache
 from inspect import getmembers, ismethod
 from types import MethodType
 from typing import Any, Generator
@@ -190,6 +191,7 @@ class Backend(
 		licensing_info = self.backend_getLicensingInfo(licenses=True)
 		self._customer_id = licensing_info["licenses"][0]["customer_id"] if licensing_info["licenses"] else None
 		self._available_modules = licensing_info["available_modules"]  # type: ignore[misc]
+		self._module_available.cache_clear()
 
 		for base in Backend.__bases__:
 			logger.debug("Init %s", base)
@@ -331,6 +333,7 @@ class Backend(
 	def _get_client_id(self) -> str | None:
 		return None
 
+	@lru_cache()
 	def _module_available(self, *module: str) -> bool:
 		return any(m in self._available_modules for m in module)
 

@@ -10,7 +10,6 @@
 worker check tests
 """
 
-
 from datetime import datetime
 
 from opsicommon.objects import OpsiClient
@@ -39,6 +38,7 @@ def _prepare_client(number: int = 100) -> OpsiClient:  # noqa: F811
 	backend = get_unprotected_backend()
 	backend.host_createObjects(clients)
 	return client
+
 
 def _delete_clients() -> None:  # noqa: F811
 	backend = get_unprotected_backend()

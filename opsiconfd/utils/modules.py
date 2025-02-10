@@ -9,11 +9,8 @@
 utils licence
 """
 
-from functools import lru_cache
-
 from opsiconfd.backend import get_protected_backend
 
 
-@lru_cache()
 def module_available(*module: str) -> bool:
 	return get_protected_backend()._module_available(*module)

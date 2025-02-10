@@ -12,6 +12,7 @@ opsiconfd.backend.rpc
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from threading import Lock
 from typing import TYPE_CHECKING
 
@@ -24,45 +25,32 @@ if TYPE_CHECKING:
 	from opsiconfd.backend.mysql import MySQLConnection
 	from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 
-protected_backend = None
-unprotected_backend = None
 service_clients: dict[str, ServiceClient] = {}
 service_clients_lock = Lock()
 
 
 def reinit_backend() -> None:
 	stop_service_clients()
-	global protected_backend
-	global unprotected_backend
-	if protected_backend:
-		protected_backend.reset_singleton()
-		protected_backend = None
-	if unprotected_backend:
-		unprotected_backend.reset_singleton()
-		unprotected_backend = None
+	get_protected_backend.cache_clear()
+	get_unprotected_backend.cache_clear()
 
 
+@lru_cache
 def get_protected_backend() -> ProtectedBackend:
-	global protected_backend
-	if not protected_backend:
-		from opsiconfd.backend.rpc.main import (
-			ProtectedBackend,
-		)
+	from opsiconfd.backend.rpc.main import ProtectedBackend
 
-		protected_backend = ProtectedBackend()
-	return protected_backend
+	protected_backend = ProtectedBackend()
+	protected_backend.reset_singleton()
+	return ProtectedBackend()
 
 
+@lru_cache
 def get_unprotected_backend() -> UnprotectedBackend:
-	global unprotected_backend
+	from opsiconfd.backend.rpc.main import UnprotectedBackend
 
-	if not unprotected_backend:
-		from opsiconfd.backend.rpc.main import (
-			UnprotectedBackend,
-		)
-
-		unprotected_backend = UnprotectedBackend()
-	return unprotected_backend
+	unprotected_backend = UnprotectedBackend()
+	unprotected_backend.reset_singleton()
+	return UnprotectedBackend()
 
 
 def get_mysql() -> MySQLConnection:

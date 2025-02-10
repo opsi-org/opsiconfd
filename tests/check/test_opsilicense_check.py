@@ -9,13 +9,11 @@
 check tests
 """
 
-from typing import Any
 from unittest import mock
 
 import pytest
 
 from opsiconfd.backend import reinit_backend
-from opsiconfd.backend.rpc.general import RPCGeneralMixin
 from opsiconfd.backend.rpc.protocol import BackendProtocol
 from opsiconfd.check.common import check_manager
 from opsiconfd.check.opsilicense import opsi_licenses_check
@@ -100,16 +98,11 @@ def test_check_licenses_missing(
 	reinit_backend()
 	check_manager.register(opsi_licenses_check)
 
-	orig_backend_getLicensingInfo = RPCGeneralMixin.backend_getLicensingInfo
+	def mock_update_licensing_info(self: BackendProtocol) -> None:
+		licensing_info = self.backend_getLicensingInfo(licenses=True)
+		self._available_modules = [m for m in licensing_info["available_modules"] if m not in missing_module_ids]
 
-	def mock_licensing_info(
-		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
-	) -> dict[str, Any]:
-		res = orig_backend_getLicensingInfo(self, licenses=licenses, legacy_modules=legacy_modules, dates=dates, allow_cache=allow_cache)
-		res["available_modules"] = [m for m in res["available_modules"] if m not in missing_module_ids]
-		return res
-
-	with mock.patch("opsiconfd.backend.rpc.general.RPCGeneralMixin.backend_getLicensingInfo", mock_licensing_info):
+	with mock.patch("opsiconfd.backend.rpc.main.Backend._update_licensing_info", mock_update_licensing_info):
 		with get_opsi_config(opsi_config), get_config(opsiconfd_config):
 			result = check_manager.get("opsi_licenses").run(clear_cache=True)
 			partial_result = [r for r in result.partial_results if r.check.id == f"opsi_licenses:missing:{missing_module_ids[0]}"][0]

@@ -188,10 +188,8 @@ class Backend(
 			self._config_server_init()
 		else:
 			self._depot_server_init()
-		licensing_info = self.backend_getLicensingInfo(licenses=True)
-		self._customer_id = licensing_info["licenses"][0]["customer_id"] if licensing_info["licenses"] else None
-		self._available_modules = licensing_info["available_modules"]  # type: ignore[misc]
-		self._module_available.cache_clear()
+
+		self._update_licensing_info()
 
 		for base in Backend.__bases__:
 			logger.debug("Init %s", base)
@@ -205,6 +203,12 @@ class Backend(
 		return f"{self.__class__.__name__}({id(self)})"
 
 	__repr__ = __str__
+
+	def _update_licensing_info(self) -> None:
+		licensing_info = self.backend_getLicensingInfo(licenses=True)
+		self._customer_id = licensing_info["licenses"][0]["customer_id"] if licensing_info["licenses"] else None
+		self._available_modules = licensing_info["available_modules"]  # type: ignore[misc]
+		self._module_available.cache_clear()
 
 	def _config_server_init(self) -> None:
 		self._mysql.connect()

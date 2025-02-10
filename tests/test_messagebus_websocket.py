@@ -49,6 +49,7 @@ from opsicommon.messagebus.message import (
 )
 from opsicommon.objects import OpsiClient, UnicodeConfig
 
+from opsiconfd.backend.rpc.protocol import BackendProtocol
 from opsiconfd.config import get_configserver_id
 from opsiconfd.messagebus.websocket import _check_message_type_access
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, redis_client
@@ -558,6 +559,14 @@ def test_messagebus_message_type_access(
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
+	def mock_update_licensing_info_with_vpn(self: BackendProtocol) -> None:
+		self._available_modules = available_modules_with_vpn
+		self._module_available.cache_clear()
+
+	def mock_update_licensing_info_without_vpn(self: BackendProtocol) -> None:
+		self._available_modules = available_modules_without_vpn
+		self._module_available.cache_clear()
+
 	for user, password in ((ADMIN_USER, ADMIN_PASS), (opsi_client.id, opsi_client.opsiHostKey)):
 		test_client.reset_cookies()
 		test_client.auth = (user, password)
@@ -571,7 +580,7 @@ def test_messagebus_message_type_access(
 					assert any(msg["type"] == "channel_subscription_event" for msg in list(reader.get_messages()))  # type: ignore[call-overload]
 
 					_check_message_type_access.cache_clear()
-					with patch("opsiconfd.backend.unprotected_backend.available_modules", available_modules_with_vpn):
+					with patch("opsiconfd.backend.rpc.main.Backend._update_licensing_info", mock_update_licensing_info_with_vpn):
 						for host_id in (opsi_client.id, "test-client2.opsi.org"):
 							# Executing processes on clients must be allowed for admins and denied for non admins
 							websocket.send_bytes(
@@ -594,7 +603,7 @@ def test_messagebus_message_type_access(
 									assert responses[0].error.message == f"Read access to channel 'host:{host_id}' denied"
 
 					_check_message_type_access.cache_clear()
-					with patch("opsiconfd.backend.unprotected_backend.available_modules", available_modules_with_vpn):
+					with patch("opsiconfd.backend.rpc.main.Backend._update_licensing_info", mock_update_licensing_info_with_vpn):
 						# Requesting Files must be allowed for admins and denied for non admins
 						websocket.send_bytes(
 							FileDownloadRequestMessage(
@@ -616,7 +625,7 @@ def test_messagebus_message_type_access(
 							)
 
 					_check_message_type_access.cache_clear()
-					with patch("opsiconfd.backend.unprotected_backend.available_modules", available_modules_without_vpn):
+					with patch("opsiconfd.backend.rpc.main.Backend._update_licensing_info", mock_update_licensing_info_without_vpn):
 						# Not checking against the actual value here, as we might use a license file for testing
 
 						# Executing processes on depot must be allowed

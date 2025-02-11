@@ -40,7 +40,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self: BackendProtocol,
 		softwareLicense: dict | SoftwareLicense,
 	) -> None:
-		self._assert_module("license_management", "basic", "professional", "enterprise")
+		self._assert_module("license_management")
 		ace = self._get_ace("softwareLicense_insertObject")
 		self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=True)
 
@@ -57,7 +57,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self: BackendProtocol,
 		softwareLicenses: list[dict] | list[SoftwareLicense] | dict | SoftwareLicense,
 	) -> None:
-		self._assert_module("license_management", "basic", "professional", "enterprise")
+		self._assert_module("license_management")
 		ace = self._get_ace("softwareLicense_createObjects")
 		with self._mysql.session() as session:
 			for softwareLicense in forceList(softwareLicenses):

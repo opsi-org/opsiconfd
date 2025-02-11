@@ -192,6 +192,7 @@ class Backend(
 		licensing_info = self.backend_getLicensingInfo(licenses=True)
 		self._customer_id = licensing_info["licenses"][0]["customer_id"] if licensing_info["licenses"] else None
 		self._available_modules = licensing_info["available_modules"]  # type: ignore[misc]
+
 		self._module_available.cache_clear()
 
 		for base in Backend.__bases__:
@@ -335,17 +336,16 @@ class Backend(
 		return None
 
 	@lru_cache()
-	def _module_available(self, *module: str) -> bool:
-		return any(m in self._available_modules for m in module)
+	def _module_available(self, module: str) -> bool:
+		return module in self._available_modules
 
-	def _assert_module(self, *module: str) -> None:
+	def _assert_module(self, module: str) -> None:
 		if app.app_state.type == "maintenance":
 			# Do not check in maintenance mode (backup / restore)
 			return
-		if not self._module_available(*module):
+		if not self._module_available(module):
 			raise BackendModuleDisabledError(
-				f"This feature is not available, one of the following modules must be licensed: {', '.join(module)}."
-				" Please check your opsi licenses."
+				f"This feature is not available, the module {module!r} must be licensed. Please check your opsi licenses."
 			)
 
 	def _get_responsible_depot_id(self, client_id: str) -> str | None:

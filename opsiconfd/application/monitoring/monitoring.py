@@ -30,7 +30,7 @@ monitoring_router = APIRouter()
 
 
 def monitoring_setup(app: FastAPI) -> None:
-	if not module_available("monitoring", "basic", "professional"):
+	if not module_available("monitoring"):
 		logger.info("Monitoring module not licensed, skipping monitoring router setup")
 		return
 	app.include_router(monitoring_router, prefix="/monitoring")

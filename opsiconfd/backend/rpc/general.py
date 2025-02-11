@@ -31,6 +31,7 @@ from opsicommon.license import (
 	OPSI_LICENSE_CLIENT_NUMBER_UNLIMITED,
 	OPSI_LICENSE_DATE_UNLIMITED,
 	OPSI_LICENSE_STATE_VALID,
+	OPSI_MODULE_BUNDLES,
 	OPSI_MODULE_IDS,
 	OPSI_OBSOLETE_MODULE_IDS,
 	OpsiLicensePool,
@@ -378,11 +379,19 @@ class RPCGeneralMixin(Protocol):
 			client_limit_warning_days = 30
 
 		modules = pool.get_modules()
+
+		available_modules = {module_id for module_id, info in modules.items() if info["available"]}
+		for available_module in available_modules.copy():
+			if bundle_modules := OPSI_MODULE_BUNDLES.get(available_module):
+				available_modules.update(bundle_modules)
+		if "vpn" in available_modules:
+			available_modules.add("2fa")
+
 		info: dict[str, Any] = {
 			"client_numbers": pool.client_numbers,
 			"known_modules": OPSI_MODULE_IDS,
 			"obsolete_modules": OPSI_OBSOLETE_MODULE_IDS,
-			"available_modules": [module_id for module_id, info in modules.items() if info["available"]],
+			"available_modules": list(available_modules),
 			"modules": modules,
 			"licenses_checksum": pool.get_licenses_checksum(),
 			"config": {

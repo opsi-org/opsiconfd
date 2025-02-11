@@ -118,7 +118,7 @@ class RPCUserMixin(Protocol):
 		except IndexError:
 			raise BackendMissingDataError(f"User {userId!r} not found") from None
 		if type == "totp":
-			self._assert_module("vpn", "professional", "enterprise")
+			self._assert_module("2fa")
 			user.mfaState = "totp_active"
 			user.otpSecret = pyotp.random_base32()
 			uri = pyotp.TOTP(user.otpSecret).provisioning_uri(name=f"{userId}@{get_configserver_id()}", issuer_name="opsi")

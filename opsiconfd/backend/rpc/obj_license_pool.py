@@ -58,7 +58,7 @@ class RPCLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licensePool_insertObject(self: BackendProtocol, licensePool: dict | LicensePool) -> None:
-		self._assert_module("license_management", "basic", "professional", "enterprise")
+		self._assert_module("license_management")
 		ace = self._get_ace("licensePool_insertObject")
 		licensePool = forceObjectClass(licensePool, LicensePool)
 		self._license_pool_insert_object(license_pool=licensePool, ace=ace, create=True, set_null=True)
@@ -70,7 +70,7 @@ class RPCLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licensePool_createObjects(self: BackendProtocol, licensePools: list[dict] | list[LicensePool] | dict | LicensePool) -> None:
-		self._assert_module("license_management", "basic", "professional", "enterprise")
+		self._assert_module("license_management")
 		ace = self._get_ace("licensePool_createObjects")
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}):

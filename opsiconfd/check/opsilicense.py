@@ -76,7 +76,7 @@ class OpsiLicensesMissingCustomCA(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.ssl_server_cert_type == "custom-ca":
-			if module_available("custom_ca", "enterprise"):
+			if module_available("custom_ca"):
 				result.message = "ssl-server-cert-type is set to 'custom-ca' in configuration and Custom CA module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
@@ -98,7 +98,7 @@ class OpsiLicensesMissingLetsEncrypt(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.ssl_server_cert_type == "letsencrypt":
-			if module_available("letsencrypt", "enterprise"):
+			if module_available("letsencrypt"):
 				result.message = "ssl-server-cert-type is set to 'letsencrypt' in configuration and Let's Encrypt module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
@@ -120,11 +120,11 @@ class OpsiLicensesMissingSSO(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.saml_idp_entity_id:
-			if module_available("sso", "enterprise"):
+			if module_available("sso"):
 				result.message = "saml-idp-entity-id is set in configuration and Single Sign On module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = "saml-idp-entity-id is set in configuration but mSingle Sign On module is not licensed."
+				result.message = "saml-idp-entity-id is set in configuration but Single Sign On module is not licensed."
 		return result
 
 
@@ -142,7 +142,7 @@ class OpsiLicensesMissingScalability(Check):
 			check_status=CheckStatus.OK,
 		)
 		if config.workers > 1:
-			if module_available("scalability1", "enterprise"):
+			if module_available("scalability1"):
 				result.message = f"The number of workers is set to {config.workers} in configuration and Scalability module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
@@ -166,7 +166,7 @@ class OpsiLicensesMissingDirectoryConnector(Check):
 			check_status=CheckStatus.OK,
 		)
 		if opsi_config.get("ldap_auth", "ldap_url"):
-			if module_available("directory-connector", "basic", "professional", "enterprise"):
+			if module_available("directory-connector"):
 				result.message = "ldap_auth is configured in opsi.conf and Directory Connector module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR

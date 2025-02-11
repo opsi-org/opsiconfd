@@ -232,7 +232,7 @@ class CheckResult:
 				self.upgrade_issue = partial_result.upgrade_issue
 
 	def to_checkmk(self) -> str:
-		if not module_available("monitoring", "basic", "professional", "enterprise"):
+		if not module_available("monitoring"):
 			return "Monitoring module not licensed, Checkmk output not available. Please check your opsi licenses."
 		newline = "\\n"
 		message = self.message.replace("\n", " ")
@@ -253,7 +253,7 @@ class CheckResult:
 		return f"{self.check_status.return_code()} 'opsi: {self.check.name}' - {message if message else self.check_status.value.upper()}{details}"
 
 	def to_nagios(self) -> str:
-		if not module_available("monitoring", "basic", "professional", "enterprise"):
+		if not module_available("monitoring"):
 			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
 		newline = "\\n"
 		message = self.message.replace("\n", " ")

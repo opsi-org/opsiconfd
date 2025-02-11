@@ -1124,7 +1124,7 @@ def get_auth_module() -> AuthenticationModule:
 			ldap_conf = opsi_config.get("ldap_auth")
 			if ldap_conf["ldap_url"]:
 				logger.debug("Using LDAP auth with config: %s", ldap_conf)
-				if module_available("directory-connector", "basic", "professional", "enterprise"):
+				if module_available("directory-connector"):
 					auth_module = LDAPAuthentication(**ldap_conf)
 				else:
 					logger.error("Directory Connector module not licensed, LDAP authentication not available")
@@ -1206,7 +1206,7 @@ async def authenticate_host(scope: Scope) -> None:
 	if ("depot" in config.client_cert_auth and host.getType() in ("OpsiConfigserver", "OpsiDepotserver")) or (
 		"client" in config.client_cert_auth and host.getType() == "OpsiClient"
 	):
-		if module_available("vpn", "professional", "enterprise"):
+		if module_available("2fa"):
 			if not peer_cert_cn:
 				raise OpsiServiceAuthenticationError(f"Client certificate missing for host '{host.id}'")
 			if peer_cert_cn != host.id:

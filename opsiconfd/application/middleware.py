@@ -67,7 +67,7 @@ class BaseMiddleware:
 
 	def _generate_default_headers(self) -> None:
 		auth_methods = ["password"]
-		if config.saml_idp_sso_url and module_available("sso", "enterprise"):
+		if config.saml_idp_sso_url and module_available("sso"):
 			auth_methods.append("saml")
 
 		self.default_headers = (

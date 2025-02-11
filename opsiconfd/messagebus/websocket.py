@@ -97,7 +97,7 @@ def _check_message_type_access(message_type: str, is_admin: bool, is_service_cha
 			# Terminal connection to client
 			if "messagebus_terminal_client" in config.disabled_features:
 				return False
-			if not backend._module_available("vpn", "professional", "enterprise"):
+			if not backend._module_available("vpn"):
 				return False
 	elif message_type == MessageType.PROCESS_START_REQUEST:
 		if not is_admin:
@@ -108,7 +108,7 @@ def _check_message_type_access(message_type: str, is_admin: bool, is_service_cha
 			# Start process on client
 			if "messagebus_execute_process_client" in config.disabled_features:
 				return False
-			if not backend._module_available("vpn", "professional", "enterprise"):
+			if not backend._module_available("vpn"):
 				return False
 	elif message_type == MessageType.JSONRPC_REQUEST:
 		if not is_admin and not is_service_channel:

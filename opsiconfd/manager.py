@@ -82,7 +82,7 @@ class WorkerManager:
 		if config.workers == 1:
 			return
 
-		if not module_available("scalability1", "enterprise"):
+		if not module_available("scalability1"):
 			config.workers = 1
 			logger.error("Scalability module not licensed, limiting to %d workers.", config.workers)
 

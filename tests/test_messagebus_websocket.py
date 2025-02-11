@@ -553,11 +553,11 @@ def test_messagebus_message_type_access(
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
-	def mock_vpn_module_available(self: Backend, *module: str) -> bool:
+	def mock_vpn_module_available(self: Backend, module: str) -> bool:
 		return True
 
-	def mock_vpn_module_not_available(self: Backend, *module: str) -> bool:
-		return "vpn" not in module
+	def mock_vpn_module_not_available(self: Backend, module: str) -> bool:
+		return module != "vpn"
 
 	for user, password in ((ADMIN_USER, ADMIN_PASS), (opsi_client.id, opsi_client.opsiHostKey)):
 		test_client.reset_cookies()

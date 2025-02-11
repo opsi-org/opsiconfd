@@ -212,8 +212,7 @@ class RPCConfigMixin(Protocol):
 		user_message: str | None = None,
 		user_message_valid_until: int | None = None,
 	) -> None:
-		if self._customer_id != "CAS10359":
-			self._assert_module("enterprise")
+		self._assert_module("message_of_the_day")
 
 		configs = []
 		if device_message is not None:

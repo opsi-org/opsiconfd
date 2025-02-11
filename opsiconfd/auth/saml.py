@@ -36,7 +36,7 @@ logger = get_logger("opsiconfd.saml")
 
 
 def check_if_saml_available() -> None:
-	if not module_available("sso", "enterprise"):
+	if not module_available("sso"):
 		raise RuntimeError("Single Sign On module not licensed. Please check your opsi licenses.")
 	if "saml" in config.disabled_auth_methods:
 		raise OpsiServiceAuthenticationError("SAML authentication is disabled")

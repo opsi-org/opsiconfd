@@ -27,64 +27,64 @@ def test_check_licenses() -> None:  # noqa: F811
 
 
 @pytest.mark.parametrize(
-	"missing_module_ids, opsi_config, opsiconfd_config, expected_status",
+	"missing_module_id, opsi_config, opsiconfd_config, expected_status",
 	(
 		(
-			["custom_ca", "enterprise"],
+			"custom_ca",
 			[],
 			{"ssl_server_cert_type": "opsi-ca"},
 			"ok",
 		),
 		(
-			["letsencrypt", "enterprise"],
+			"letsencrypt",
 			[],
 			{"ssl_server_cert_type": "opsi-ca"},
 			"ok",
 		),
 		(
-			["custom_ca", "enterprise"],
+			"custom_ca",
 			[],
 			{"ssl_server_cert_type": "custom-ca"},
 			"error",
 		),
 		(
-			["letsencrypt", "enterprise"],
+			"letsencrypt",
 			[],
 			{"ssl_server_cert_type": "letsencrypt"},
 			"error",
 		),
 		(
-			["sso", "enterprise"],
+			"sso",
 			[],
 			{"saml-idp-entity-id": ""},
 			"ok",
 		),
 		(
-			["sso", "enterprise"],
+			"sso",
 			[],
 			{"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master"},
 			"error",
 		),
 		(
-			["scalability1", "enterprise"],
+			"scalability1",
 			[],
 			{"workers": 1},
 			"ok",
 		),
 		(
-			["scalability1", "enterprise"],
+			"scalability1",
 			[],
 			{"workers": 2},
 			"error",
 		),
 		(
-			["directory-connector", "basic", "professional", "enterprise"],
+			"directory-connector",
 			[{"category": "ldap_auth", "config": "ldap_url", "value": ""}],
 			{},
 			"ok",
 		),
 		(
-			["directory-connector", "basic", "professional", "enterprise"],
+			"directory-connector",
 			[{"category": "ldap_auth", "config": "ldap_url", "value": "ldaps:///ldap"}],
 			{},
 			"error",
@@ -92,20 +92,20 @@ def test_check_licenses() -> None:  # noqa: F811
 	),
 )
 def test_check_licenses_missing(
-	missing_module_ids: list[str], opsi_config: list[dict[str, str]], opsiconfd_config: dict[str, str], expected_status: str
+	missing_module_id: str, opsi_config: list[dict[str, str]], opsiconfd_config: dict[str, str], expected_status: str
 ) -> None:  # noqa: F811
 	check_manager.register(opsi_licenses_check)
 
-	def mock_module_available(self: Backend, *module: str) -> bool:
-		return not any(m in missing_module_ids for m in module)
+	def mock_module_available(self: Backend, module: str) -> bool:
+		return module != missing_module_id
 
 	with mock.patch("opsiconfd.backend.rpc.main.Backend._module_available", mock_module_available):
 		with get_opsi_config(opsi_config), get_config(opsiconfd_config):
 			result = check_manager.get("opsi_licenses").run(clear_cache=True)
-			partial_result = [r for r in result.partial_results if r.check.id == f"opsi_licenses:missing:{missing_module_ids[0]}"][0]
+			partial_result = [r for r in result.partial_results if r.check.id == f"opsi_licenses:missing:{missing_module_id}"][0]
 			assert result.check_status == expected_status
 			assert partial_result.check_status == expected_status
 			if expected_status == "error":
 				assert "module is not licensed" in partial_result.message
 			else:
-				partial_result.message == f"Module '{missing_module_ids[0]}' is not needed."
+				partial_result.message == f"Module '{missing_module_id}' is not needed."

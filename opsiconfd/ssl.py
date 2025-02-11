@@ -823,12 +823,12 @@ def setup_server_cert(force_new: bool = False) -> bool:
 		raise ValueError(f"Invalid server role: {server_role}")
 
 	if config.ssl_server_cert_type == "letsencrypt":
-		if not module_available("letsencrypt", "enterprise"):
+		if not module_available("letsencrypt"):
 			raise RuntimeError(
 				"Let's Encrypt module not licensed. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
 			)
 	elif config.ssl_server_cert_type == "custom-ca":
-		if not module_available("custom_ca", "enterprise"):
+		if not module_available("custom_ca"):
 			raise RuntimeError(
 				"Custom CA module not licensed. Please check your opsi licenses or set config ssl-server-cert-type to 'opsi-ca'."
 			)

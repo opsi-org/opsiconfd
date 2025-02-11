@@ -41,7 +41,7 @@ class LdapConnectionCheck(Check):
 		ldap_conf = opsi_config.get("ldap_auth")
 		if ldap_conf["ldap_url"]:
 			logger.debug("Using LDAP auth with config: %s", ldap_conf)
-			if module_available("directory-connector", "basic", "professional", "enterprise"):
+			if module_available("directory-connector"):
 				ldap_connection = None
 				try:
 					result.message = "The connection to the LDAP server does work."

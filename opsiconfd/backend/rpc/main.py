@@ -176,7 +176,6 @@ class Backend(
 		self._opsi_host_key: str | None = None
 		self._interface: dict[str, MethodInterface] = {}
 		self._interface_list: list[dict[str, Any]] = []
-		self._customer_id: str | None = None
 		self._available_modules: list[str] = []
 		self._messagebus_user_id = None
 		try:
@@ -190,7 +189,6 @@ class Backend(
 			self._depot_server_init()
 
 		licensing_info = self.backend_getLicensingInfo(licenses=True)
-		self._customer_id = licensing_info["licenses"][0]["customer_id"] if licensing_info["licenses"] else None
 		self._available_modules = licensing_info["available_modules"]  # type: ignore[misc]
 
 		self._module_available.cache_clear()

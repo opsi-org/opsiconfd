@@ -28,7 +28,7 @@ class RPCLicenseContractMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licenseContract_insertObject(self: BackendProtocol, licenseContract: dict | LicenseContract) -> None:
-		self._assert_module("license_management", "basic", "professional", "enterprise")
+		self._assert_module("license_management")
 		ace = self._get_ace("licenseContract_insertObject")
 		self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=True)
 
@@ -41,7 +41,7 @@ class RPCLicenseContractMixin(Protocol):
 	def licenseContract_createObjects(
 		self: BackendProtocol, licenseContracts: list[dict] | list[LicenseContract] | dict | LicenseContract
 	) -> None:
-		self._assert_module("license_management", "basic", "professional", "enterprise")
+		self._assert_module("license_management")
 		ace = self._get_ace("licenseContract_createObjects")
 		with self._mysql.session() as session:
 			for licenseContract in forceList(licenseContracts):

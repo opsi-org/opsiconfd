@@ -3245,15 +3245,15 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.25.2"
+version = "4.3.25.4"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.14"
 groups = ["main"]
 markers = "sys_platform == \"darwin\" or sys_platform == \"linux\" or sys_platform != \"darwin\" and sys_platform != \"linux\""
 files = [
-    {file = "python_opsi_common-4.3.25.2-py3-none-any.whl", hash = "sha256:1838c4068b621d406a1b0b7aa8590ce18376dc6244733a510e5193651ce514d0"},
-    {file = "python_opsi_common-4.3.25.2.tar.gz", hash = "sha256:47a8e7bb98ea7f1984d22c1989f8afb4883b0e684c0582bb6385950c7621c681"},
+    {file = "python_opsi_common-4.3.25.4-py3-none-any.whl", hash = "sha256:7126e10f9f0663f3ba3afb717c186a0179f59c466dbb99e2ffecc599d3bebdcb"},
+    {file = "python_opsi_common-4.3.25.4.tar.gz", hash = "sha256:b1bdb69df822b92ba50f25345413b05ef2cb2019c3f10780a6cd77316969d4a0"},
 ]
 
 [package.dependencies]

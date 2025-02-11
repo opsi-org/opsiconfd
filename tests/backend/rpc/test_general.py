@@ -12,13 +12,13 @@ test opsiconfd.backend.rpc.general
 import os
 import pwd
 import shutil
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from unittest.mock import patch
 
 import pytest
-from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicensePool, get_default_opsi_license_pool
+from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicense, OpsiLicensePool, generate_key_pair, get_default_opsi_license_pool
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
 from opsiconfd.utils.cryptography import blowfish_encrypt
@@ -288,6 +288,89 @@ def test_log_read(
 		assert backend.log_read(logType=log_type, objectId=client.id, maxSize=9) == "line1\n"
 
 
+def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
+	private_key, public_key = generate_key_pair(return_pem=False)
+	pool = OpsiLicensePool()
+
+	def mock_get_default_opsi_license_pool(*args: Any, **kwargs: Any) -> OpsiLicensePool:
+		return pool
+
+	with (
+		patch("opsiconfd.backend.rpc.general.get_default_opsi_license_pool", mock_get_default_opsi_license_pool),
+		patch("opsicommon.license.get_signature_public_key_schema_version_2", lambda: public_key),
+	):
+		lic1 = OpsiLicense(
+			id="0ca84826-8f54-4bda-a476-0ee66a6f6dec",
+			type="standard",
+			schema_version=2,
+			opsi_version="4.2",
+			customer_id="C123",
+			customer_name="Test Holding",
+			customer_address="Test Street 1",
+			module_id="professional",
+			client_number=1000,
+			issued_at=date.today(),
+			valid_from=date.today(),
+			valid_until=date.today(),
+		)
+		lic1.sign(private_key)
+		lic2 = OpsiLicense(
+			id="25bf7156-98b0-4b00-9042-781a6c799c17",
+			type="standard",
+			schema_version=2,
+			opsi_version="4.2",
+			customer_id="C123",
+			customer_name="Test Holding",
+			customer_address="Test Street 1",
+			module_id="2fa",
+			client_number=1000,
+			issued_at=date.today(),
+			valid_from=date.today(),
+			valid_until=date.today(),
+		)
+		lic2.sign(private_key)
+		lic3 = OpsiLicense(
+			id="512d2fb0-d3cd-4934-a21a-7af785170e98",
+			type="standard",
+			schema_version=2,
+			opsi_version="4.2",
+			customer_id="C123",
+			customer_name="Test Holding",
+			customer_address="Test Street 1",
+			module_id="sso",
+			client_number=1000,
+			issued_at=date.today(),
+			valid_from=date.today(),
+			valid_until=date.today(),
+		)
+		lic3.sign(private_key)
+
+		pool.add_license(lic1, lic2, lic3)
+		lic_info = backend.backend_getLicensingInfo(allow_cache=False)
+
+		assert sorted(lic_info["available_modules"]) == [
+			"2fa",
+			"directory-connector",
+			"dynamic_depot",
+			"install_by_shutdown",
+			"license_management",
+			"linux_agent",
+			"local_imaging",
+			"monitoring",
+			"mysql_backend",
+			"professional",
+			"roaming_profiles",
+			"sso",
+			"swondemand",
+			"treeview",
+			"uefi",
+			"userroles",
+			"vista",
+			"vpn",
+			"wim-capture",
+		]
+
+
 def test_backend_getLicensingInfo(
 	backend: UnprotectedBackend,  # noqa: F811
 	tmp_path: Path,
@@ -295,32 +378,22 @@ def test_backend_getLicensingInfo(
 	modules_file = tmp_path / "modules"
 	pool = get_default_opsi_license_pool()
 
-	def mock_get_default_opsi_license_pool(
-		license_file_path: str | None = None,
-		modules_file_path: str | None = None,
-		client_info: dict | Callable | None = None,
-		client_limit_warning_percent: int | None = 95,
-		client_limit_warning_absolute: int | None = 5,
-	) -> OpsiLicensePool:
-		return pool
+	lic_info = backend.backend_getLicensingInfo(licenses=True, legacy_modules=True, dates=True, allow_cache=False)
+	assert lic_info["client_numbers"]
+	assert lic_info["known_modules"]
+	assert lic_info["obsolete_modules"]
+	assert lic_info["available_modules"]
 
-	with patch("opsicommon.license.get_default_opsi_license_pool", mock_get_default_opsi_license_pool):
-		lic_info = backend.backend_getLicensingInfo(licenses=True, legacy_modules=True, dates=True, allow_cache=False)
-		assert lic_info["client_numbers"]
-		assert lic_info["known_modules"]
-		assert lic_info["obsolete_modules"]
-		assert lic_info["available_modules"]
+	pool.modules_file_path = str(modules_file)
 
-		pool.modules_file_path = str(modules_file)
+	backend.backend_getLicensingInfo(allow_cache=False)
 
-		backend.backend_getLicensingInfo(allow_cache=False)
+	modules_file.touch()
+	backend.backend_getLicensingInfo(allow_cache=False)
 
-		modules_file.touch()
-		backend.backend_getLicensingInfo(allow_cache=False)
-
-		modules_file.unlink()
-		modules_file.mkdir()
-		backend.backend_getLicensingInfo(allow_cache=False)
+	modules_file.unlink()
+	modules_file.mkdir()
+	backend.backend_getLicensingInfo(allow_cache=False)
 
 
 @pytest.mark.parametrize(

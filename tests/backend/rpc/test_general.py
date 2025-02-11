@@ -324,13 +324,28 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			customer_name="Test Holding",
 			customer_address="Test Street 1",
 			module_id="2fa",
-			client_number=1000,
+			client_number=500,
 			issued_at=today_str,
 			valid_from=today_str,
 			valid_until=today_str,
 		)
 		lic2.sign(private_key)
 		lic3 = OpsiLicense(
+			id="8fc14d30-374c-498f-958e-ff3750ca11c7",
+			type="standard",
+			schema_version=2,
+			opsi_version="4.2",
+			customer_id="C123",
+			customer_name="Test Holding",
+			customer_address="Test Street 1",
+			module_id="linux_agent",
+			client_number=1500,
+			issued_at=today_str,
+			valid_from=today_str,
+			valid_until=today_str,
+		)
+		lic3.sign(private_key)
+		lic4 = OpsiLicense(
 			id="512d2fb0-d3cd-4934-a21a-7af785170e98",
 			type="standard",
 			schema_version=2,
@@ -339,37 +354,44 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			customer_name="Test Holding",
 			customer_address="Test Street 1",
 			module_id="sso",
-			client_number=1000,
+			client_number=100,
 			issued_at=today_str,
 			valid_from=today_str,
 			valid_until=today_str,
 		)
-		lic3.sign(private_key)
+		lic4.sign(private_key)
 
-		pool.add_license(lic1, lic2, lic3)
+		pool.add_license(lic1, lic2, lic3, lic4)
 		lic_info = backend.backend_getLicensingInfo(allow_cache=False)
 
-		assert sorted(lic_info["available_modules"]) == [
-			"2fa",
-			"directory-connector",
-			"dynamic_depot",
-			"install_by_shutdown",
-			"license_management",
-			"linux_agent",
-			"local_imaging",
-			"monitoring",
-			"mysql_backend",
-			"professional",
-			"roaming_profiles",
-			"sso",
-			"swondemand",
-			"treeview",
-			"uefi",
-			"userroles",
-			"vista",
-			"vpn",
-			"wim-capture",
-		]
+		expected_modules = {
+			"2fa": 1000,
+			"directory-connector": 1000,
+			"dynamic_depot": 999999999,
+			"install_by_shutdown": 999999999,
+			"license_management": 1000,
+			"linux_agent": 1500,
+			"local_imaging": 1000,
+			"monitoring": 1000,
+			"mysql_backend": 999999999,
+			"professional": 1000,
+			"roaming_profiles": 999999999,
+			"sso": 100,
+			"swondemand": 999999999,
+			"treeview": 999999999,
+			"uefi": 999999999,
+			"userroles": 1000,
+			"vista": 999999999,
+			"vpn": 1000,
+			"wim-capture": 1000,
+		}
+
+		assert sorted(lic_info["available_modules"]) == list(expected_modules)
+		for module, info in lic_info["modules"].items():
+			client_number = expected_modules.get(module, 0)
+			assert info["client_number"] == client_number
+			if client_number > 0:
+				assert info["available"] is True
 
 
 def test_backend_getLicensingInfo(

@@ -103,7 +103,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		self: BackendProtocol, auditSoftwareOnClients: list[dict] | list[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
 	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_updateObjects")
-		self._audit_software_on_client_insert(audit_software_on_clients=auditSoftwareOnClients, ace=ace, create=False, set_null=False)
+		self._audit_software_on_client_insert(audit_software_on_clients=auditSoftwareOnClients, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_getObjects(

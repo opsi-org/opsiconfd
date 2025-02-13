@@ -1375,7 +1375,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				session=session,
 				database=mysql.database,
 				foreign_key=OpsiForeignKey(table=table, ref_table="HOST", f_keys=["hostId"]),
-				cleanup_function=lambda _session: remove_orphans_hardware_config(mysql, _session),
+				cleanup_function=lambda session: remove_orphans_hardware_config(mysql, session),
 			)
 
 		logger.info("All updates completed")

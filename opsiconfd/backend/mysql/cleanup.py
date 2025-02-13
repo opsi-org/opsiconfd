@@ -214,9 +214,9 @@ def remove_orphans_hardware_config(mysql: MySQLConnection, session: Session) -> 
 		result = session.execute(
 			f"""
 			DELETE hc.* FROM {hc_table} AS hc
-			LEFT JOIN {hd_table} AS hd
-			ON hc.hardware_id = hd.hardware_id
-			WHERE hd.hardware_id IS NULL
+			LEFT JOIN {hd_table} AS hd ON hc.hardware_id = hd.hardware_id
+			LEFT JOIN HOST AS h ON hc.hostId = h.hostId
+			WHERE hd.hardware_id IS NULL OR h.hostId IS NULL
 			"""
 		)
 		if result.rowcount > 0:

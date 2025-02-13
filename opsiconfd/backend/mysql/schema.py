@@ -438,6 +438,8 @@ def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, d
 		if not hardware_config_table_exists:
 			hardware_config_table += "PRIMARY KEY (`config_id`),\n"
 			hardware_config_table += f"FOREIGN KEY (`hardware_id`) REFERENCES `{hardware_device_table_name}` (`hardware_id`) "
+			hardware_config_table += "ON DELETE CASCADE ON UPDATE CASCADE,\n"
+			hardware_config_table += "FOREIGN KEY (`hostId`) REFERENCES `HOST` (`hostId`) "
 			hardware_config_table += "ON DELETE CASCADE ON UPDATE CASCADE\n"
 
 		# Remove leading and trailing whitespace
@@ -1364,6 +1366,17 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		remove_index(session=session, database=mysql.database, table="CONFIG_STATE", index_fields=["configId"])
 		remove_index(session=session, database=mysql.database, table="PRODUCT", index_fields=["productId"])
 		remove_index(session=session, database=mysql.database, table="AUDIT_SOFTWARE_TO_LICENSE_POOL", index_fields=["licensePoolId"])
+
+		# schema_version 16
+		for table in mysql.tables:
+			if not table.startswith("HARDWARE_CONFIG_"):
+				continue
+			create_foreign_key(
+				session=session,
+				database=mysql.database,
+				foreign_key=OpsiForeignKey(table=table, ref_table="HOST", f_keys=["hostId"]),
+				cleanup_function=lambda _session: remove_orphans_hardware_config(mysql, _session),
+			)
 
 		logger.info("All updates completed")
 

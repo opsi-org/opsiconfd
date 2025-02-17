@@ -108,6 +108,7 @@ class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_createObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_createObjects")
+
 		configStates = forceObjectClassList(configStates, ConfigState)
 		newConfigStates = [configState for configState in configStates if configState.values != [None]]
 		if len(newConfigStates) != len(configStates):
@@ -115,10 +116,11 @@ class RPCConfigStateMixin(Protocol):
 		configStates = newConfigStates
 		if not configStates:
 			return
+
 		with self._mysql.session() as session:
 			for config_state in configStates:
-				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
+
 		if not self.events_enabled:
 			return
 		for configState in configStates:
@@ -129,6 +131,7 @@ class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_updateObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObjects")
+
 		configStates = forceObjectClassList(configStates, ConfigState)
 		newConfigStates = [configState for configState in configStates if configState.values != [None]]
 		if len(newConfigStates) != len(configStates):
@@ -136,10 +139,11 @@ class RPCConfigStateMixin(Protocol):
 		configStates = newConfigStates
 		if not configStates:
 			return
+
 		with self._mysql.session() as session:
 			for config_state in configStates:
-				config_state = forceObjectClass(config_state, ConfigState)
 				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False, session=session)
+
 		if not self.events_enabled:
 			return
 		for configState in configStates:

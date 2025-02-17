@@ -42,6 +42,16 @@ def remove_config_state_null_values(session: Session) -> None:
 		logger.notice("Removed %d entries from CONFIG_STATE with values [null]", result.rowcount)
 
 
+def remove_product_property_state_null_values(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE FROM PRODUCT_PROPERTY_STATE WHERE `values` = "[null]"
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d entries from PRODUCT_PROPERTY_STATE with values [null]", result.rowcount)
+
+
 def remove_orphans_config_value(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -383,6 +393,7 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_software_config(session)
 		remove_config_state_null_values(session)
 		convert_config_objects(session)
+		remove_product_property_state_null_values(session)
 		convert_product_property_objects(session)
 		add_missing_version_info_to_product_on_client(session)
 		remove_orphans_clientconfig_depot_id(session)

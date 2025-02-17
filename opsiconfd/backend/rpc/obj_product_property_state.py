@@ -16,14 +16,15 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ProductPropertyState
 from opsicommon.types import (
-	forceList,
 	forceObjectClass,
+	forceObjectClassList,
 	forceObjectIdList,
 	forceUnicodeList,
 )
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
+from opsiconfd.logging import logger
 
 from . import rpc_method
 
@@ -123,9 +124,21 @@ class RPCProductPropertyStateMixin(Protocol):
 		self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		ace = self._get_ace("productPropertyState_createObjects")
+
+		productPropertyStates = forceObjectClassList(productPropertyStates, ProductPropertyState)
+		newProductPropertyStates = [
+			productPropertyState for productPropertyState in productPropertyStates if productPropertyState.values != [None]
+		]
+		if len(newProductPropertyStates) != len(productPropertyStates):
+			logger.warning(
+				"Removed %d [null] values from productPropertyStates", len(productPropertyStates) - len(newProductPropertyStates)
+			)
+		productPropertyStates = newProductPropertyStates
+		if not productPropertyStates:
+			return
+
 		with self._mysql.session() as session:
-			for product_property_state in forceList(productPropertyStates):
-				product_property_state = forceObjectClass(product_property_state, ProductPropertyState)
+			for product_property_state in productPropertyStates:
 				self._mysql.insert_object(
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=True, session=session
 				)
@@ -136,9 +149,21 @@ class RPCProductPropertyStateMixin(Protocol):
 		productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState,
 	) -> None:
 		ace = self._get_ace("productPropertyState_updateObjects")
+
+		productPropertyStates = forceObjectClassList(productPropertyStates, ProductPropertyState)
+		newProductPropertyStates = [
+			productPropertyState for productPropertyState in productPropertyStates if productPropertyState.values != [None]
+		]
+		if len(newProductPropertyStates) != len(productPropertyStates):
+			logger.warning(
+				"Removed %d [null] values from productPropertyStates", len(productPropertyStates) - len(newProductPropertyStates)
+			)
+		productPropertyStates = newProductPropertyStates
+		if not productPropertyStates:
+			return
+
 		with self._mysql.session() as session:
-			for product_property_state in forceList(productPropertyStates):
-				product_property_state = forceObjectClass(product_property_state, ProductPropertyState)
+			for product_property_state in productPropertyStates:
 				self._mysql.insert_object(
 					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=False, session=session
 				)

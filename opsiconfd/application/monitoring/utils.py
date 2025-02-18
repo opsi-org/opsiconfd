@@ -73,7 +73,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 
 async def get_session_count(redis: StrictRedis) -> int:
 	return int(
-		redis.eval(  # type: ignore[no-untyped-call]
+		await redis.eval(  # type: ignore[no-untyped-call]
 			"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
 			0,
 			f"{config.redis_key('session')}:*",

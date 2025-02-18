@@ -299,7 +299,7 @@ class RPCHostControlMixin(Protocol):
 		for client_id in rpc_id_to_client_id.values():
 			result[client_id] = error
 
-		logger.tarce("Returning result: %r", result)
+		logger.trace("Returning result: %r", result)
 		return result
 
 	def _opsiclientd_rpc(

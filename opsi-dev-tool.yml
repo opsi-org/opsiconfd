@@ -66,8 +66,6 @@ pyinstaller:
       dst: opsiconfd_data
   dirname: opsiconfd
   after_script: |
-    rm -r dist/opsiconfd/_internal/tk dist/opsiconfd/_internal/tcl
-    mkdir dist/opsiconfd/_internal/tk dist/opsiconfd/_internal/tcl
     find dist/opsiconfd/_internal -iname "*.c" -delete
     find dist/opsiconfd/_internal -iname "*.h" -delete
     find dist/opsiconfd/_internal -iname "*.so" -exec chmod -x "{}" \;

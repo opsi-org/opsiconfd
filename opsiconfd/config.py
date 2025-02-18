@@ -790,7 +790,7 @@ class Config(metaclass=Singleton):
 				"Available opsiconfd related logger are:\n"
 				"opsiconfd, opsiconfd.general, opsiconfd.session, opsiconfd.headers, opsiconfd.host_control, "
 				"opsiconfd.reverse_proxy, opsiconfd.messagebus, opsiconfd.metrics, opsiconfd.saml\n"
-				r'Example: --log-levels=".*:4,opsiconfd\.headers:8"',
+				r'Example: --log-levels="opsi.*:4,opsiconfd\.headers:8"',
 			),
 		)
 		self._parser.add(

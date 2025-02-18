@@ -299,6 +299,7 @@ class RPCHostControlMixin(Protocol):
 
 		error = {"result": None, "error": f"Timed out after {timeout:0.2f} seconds while waiting for response"}
 		for client_id in rpc_id_to_client_id.values():
+			logger.info("RPC to client %r timed out after %0.2f seconds while waiting for response", client_id, timeout)
 			result[client_id] = error
 
 		logger.trace("Returning result: %r", result)

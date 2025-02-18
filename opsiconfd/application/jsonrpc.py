@@ -286,7 +286,7 @@ async def store_rpc_info(
 		"worker": worker.worker_num,
 	}
 	logger.notice(
-		"JSONRPC request: method=%s, num_params=%d, duration=%0.0fms, error=%s, num_results=%d, worker=%d",
+		"JSONRPC request completed: method=%s, num_params=%d, duration=%0.0fms, error=%s, num_results=%d, worker=%d",
 		data["method"],
 		data["num_params"],
 		request.info.duration * 1000,
@@ -440,7 +440,12 @@ async def process_rpcs(
 		response: JSONRPC20Response | JSONRPC20ErrorResponse | JSONRPCResponse | JSONRPCErrorResponse
 		with server_timing("rpc_processing") as svt:
 			try:
-				logger.debug("Processing request from %s for %s", request.info.client, request.method)
+				logger.info(
+					"JSONRPC request processing: method=%s, client=%s, worker=%d",
+					request.method,
+					request.info.client,
+					worker.worker_num,
+				)
 				response = await process_rpc(request, backend)
 			except Exception as err:
 				logger.error(err, exc_info=True)

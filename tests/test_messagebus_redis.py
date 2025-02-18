@@ -43,18 +43,43 @@ async def test_message_reader_redis_connection() -> None:
 	connections = get_redis_connections()
 	channel = "host:test-channel"
 
-	async def reader_task(reader: MessageReader) -> None:
-		async for redis_id, message, context in reader.get_messages():
+	messages_read = []
+
+	async def reader_task(reader: MessageReader, timeout: float = 0.0) -> None:
+		nonlocal messages_read
+		async for redis_id, message, context in reader.get_messages(timeout):
 			print(redis_id, message, context)
+			messages_read.append((redis_id, message, context))
 
 	reader = MessageReader()
 	await reader.set_channels(channels={channel: ">"})
-	asyncio.create_task(reader_task(reader))
-	await send_message(
-		Message(id="00000000-0000-4000-8000-000000000001", type="test", sender="*", channel=channel), context=b"context_data1"
-	)
+	task = asyncio.create_task(reader_task(reader, timeout=5.0))
+	message = Message(id="00000000-0000-4000-8000-000000000001", type="test", sender="*", channel=channel)
+	context = b"context_data1"
+	await send_message(message=message, context=context)
 	await asyncio.sleep(2)
-	await reader.stop(wait=True)
+
+	assert len(messages_read) == 1
+	msg = messages_read[0][1]
+	assert isinstance(msg, Message)
+	assert msg.id == "00000000-0000-4000-8000-000000000001"
+	assert messages_read[0][2] == context
+	# get_messages should block until new message is available
+	assert not task.done()
+
+	await asyncio.sleep(6)
+	# The reader should now be timed out
+	assert task.done()
+	assert len(messages_read) == 1
+
+	# Start a new reader
+	reader = MessageReader()
+	await reader.set_channels(channels={channel: "$"})
+	task = asyncio.create_task(reader_task(reader, timeout=3.0))
+	await asyncio.sleep(4)
+	# The reader should now be timed out without receiving any messages
+	assert task.done()
+	assert len(messages_read) == 1
 
 	# All redis connections should be closed
 	assert connections == get_redis_connections()

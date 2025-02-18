@@ -233,8 +233,18 @@ class RPCHostControlMixin(Protocol):
 		result: dict[str, dict[str, Any]] = {}
 
 		not_connected_client_ids = list(set(client_ids).difference(set(connected_client_ids)))
+		logger.trace(
+			"Messagebus RPC: method=%r, messagebus_only: %r, host_control_use_messagebus: %r, timeout: %r, client_ids: %r, connected_client_ids: %r",
+			method,
+			messagebus_only,
+			self._host_control_use_messagebus,
+			timeout,
+			client_ids,
+			connected_client_ids,
+		)
 		if not_connected_client_ids:
 			if not messagebus_only and self._host_control_use_messagebus == "hybrid":
+				logger.info("Running opsiclientd rpc for %d not connected clients", len(not_connected_client_ids))
 				result = await run_in_threadpool(
 					self._opsiclientd_rpc, host_ids=not_connected_client_ids, method=method, params=params, timeout=int(timeout)
 				)
@@ -250,6 +260,7 @@ class RPCHostControlMixin(Protocol):
 		messagebus_user_id = get_user_id_for_service_worker(Worker.get_instance().id)
 		rpc_id_to_client_id = {}
 		async with session_channel(owner_id=messagebus_user_id, purpose="messagebus_rpc") as channel:
+			logger.debug("Starting message reader")
 			# ID "$" means: Only read new messages added after reader is started.
 			message_reader = MessageReader(name=f"messagebus_rpc/{channel}")
 			await message_reader.set_channels({channel: "$"})
@@ -272,14 +283,13 @@ class RPCHostControlMixin(Protocol):
 
 			logger.debug("Waiting for JSONRPCResponseMessages (timeout=%r)", timeout)
 			async for _redis_msg_id, message, _context in message_reader.get_messages(timeout=timeout):
+				logger.debug("Processing message: %r", message)
 				if not isinstance(message, JSONRPCResponseMessage) or not message.rpc_id:
 					continue
 
 				client_id = rpc_id_to_client_id.pop(message.rpc_id, "")
 				if not client_id:
 					continue
-
-				logger.debug("Got response: %s", message)
 
 				result[client_id] = {"result": message.result, "error": message.error}
 				if not rpc_id_to_client_id:
@@ -289,6 +299,7 @@ class RPCHostControlMixin(Protocol):
 		for client_id in rpc_id_to_client_id.values():
 			result[client_id] = error
 
+		logger.tarce("Returning result: %r", result)
 		return result
 
 	def _opsiclientd_rpc(

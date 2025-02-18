@@ -73,13 +73,6 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 			await async_delete_recursively(f"{channel_prefix}{obj}")
 		await async_delete_recursively(f"{channel_prefix}session")
 
-	# async for key_b in redis.scan_iter(f"{channel_prefix}service:*", count=1000):
-	# 	key = key_b.decode("utf-8")
-	# 	stream = await redis.xinfo_stream(name=key, full=True)
-	# 	for group in stream["groups"]:
-	# 		for consumer in group["consumers"]:
-	# 			print(consumer)
-
 	depot_ids = []
 	client_ids = []
 	host_channels = []
@@ -327,7 +320,7 @@ class MessageReader:
 
 	_info_suffix = CHANNEL_INFO_SUFFIX
 	_count_readers = True
-	_xread_block_time = 3600_000
+	_xread_timeout = 3600.0  # In seconds
 	_xread_count = 25
 
 	def __init__(self, name: str | None = None) -> None:
@@ -427,16 +420,18 @@ class MessageReader:
 			logger.debug("Cancelling get_stream_entries")
 			self._get_stream_entries_task.cancel()
 
-	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
+	async def _get_stream_entries(self, redis: StrictRedis, timeout: float | None = None) -> dict:
+		if timeout is None:
+			timeout = self._xread_timeout
 		if logger.isEnabledFor(DEBUG):
-			logger.debug("%r is reading %d streams", self, len(self._streams))
+			logger.debug("%r is reading %d streams with timeout %r", self, len(self._streams), timeout)
 			if logger.isEnabledFor(TRACE):
 				logger.trace("Streams: %s", list(self._streams))
 
 		self._get_stream_entries_task = create_task(
 			redis.xread(
 				streams=self._streams,
-				block=self._xread_block_time,
+				block=int(timeout * 1000),
 				count=self._xread_count,
 			)
 		)
@@ -457,27 +452,25 @@ class MessageReader:
 			_logger.debug("%s: getting messages", self)
 
 			redis = await async_redis_client()
-			start_ts = timestamp()
-			end_ts = 0
-			if timeout:
-				end_ts = start_ts + round(timeout * 1000)
-
+			last_message_ts = timestamp()
 			while not self._should_stop:
 				try:
 					if not self._streams:
 						await sleep(0.1)
-					stream_entries = await self._get_stream_entries(redis)
+					stream_entries = await self._get_stream_entries(redis, timeout)
 					_logger.trace("%r message data from redis: %r", self, stream_entries)
 
 					now_ts = timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
 						if self._should_stop:
 							break
-						if end_ts and now_ts > end_ts:
-							_logger.debug("Reader timed out after %0.2f seconds", (now_ts - end_ts) / 1000)
+						diff = (now_ts - last_message_ts) / 1000
+						if timeout and diff >= timeout:
+							_logger.debug("Reader timed out after %0.2f seconds", diff)
 							break
 						continue
 
+					last_message_ts = now_ts
 					for stream_key, messages in stream_entries:
 						next_redis_msg_id = ""
 						for message in messages:
@@ -624,7 +617,9 @@ class ConsumerGroupMessageReader(MessageReader):
 			if stream_key not in stream_keys:
 				del self._streams[stream_key]
 
-	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
+	async def _get_stream_entries(self, redis: StrictRedis, timeout: float | None = None) -> dict:
+		if timeout is None:
+			timeout = self._xread_timeout
 		if logger.isEnabledFor(DEBUG):
 			logger.debug("ConsumerGroupMessageReader %r is reading %d streams", self.name, len(self._streams))
 			if logger.isEnabledFor(TRACE):
@@ -635,7 +630,7 @@ class ConsumerGroupMessageReader(MessageReader):
 				self._consumer_group,
 				self._consumer_name,
 				streams=self._streams,
-				block=self._xread_block_time,
+				block=int(timeout * 1000),
 				count=self._xread_count,
 			)
 		)

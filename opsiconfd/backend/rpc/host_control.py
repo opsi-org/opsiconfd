@@ -52,7 +52,7 @@ from opsicommon.types import (
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.config import config, get_server_role
-from opsiconfd.logging import logger
+from opsiconfd.logging import get_logger
 from opsiconfd.messagebus import get_user_id_for_host, get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import (
 	MessageReader,
@@ -66,6 +66,8 @@ from . import read_backend_config_file, rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
+
+logger = get_logger("opsiconfd.host_control")
 
 
 class RpcThread(KillableThread):

@@ -788,7 +788,7 @@ class Config(metaclass=Singleton):
 				"Set the log levels of individual loggers.\n"
 				"<logger-regex>:<level>[,<logger-regex-2>:<level-2>]\n"
 				"Available opsiconfd related logger are:\n"
-				"opsiconfd, opsiconfd.general, opsiconfd.session, opsiconfd.headers, "
+				"opsiconfd, opsiconfd.general, opsiconfd.session, opsiconfd.headers, opsiconfd.host_control, "
 				"opsiconfd.reverse_proxy, opsiconfd.messagebus, opsiconfd.metrics, opsiconfd.saml\n"
 				r'Example: --log-levels=".*:4,opsiconfd\.headers:8"',
 			),

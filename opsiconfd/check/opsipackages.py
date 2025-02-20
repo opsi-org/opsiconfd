@@ -265,7 +265,7 @@ class OpsiProductsOnClientsCheck(Check):
 						available_version=available_version,
 					)
 					self.add_partial_checks(check)
-			client_ids.remove(product_on_client.clientId)
+					client_ids.remove(product_on_client.clientId)
 
 		return result
 

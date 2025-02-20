@@ -45,6 +45,7 @@ from opsiconfd.application import AppState
 from opsiconfd.application.filetransfer import delete_file, prepare_file
 from opsiconfd.backup import create_backup, restore_backup
 from opsiconfd.check.main import CheckResult, health_check
+from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.config import (
 	FILE_TRANSFER_STORAGE_DIR,
 	FQDN,
@@ -165,6 +166,11 @@ class RPCGeneralMixin(Protocol):
 	def service_healthCheck(self: BackendProtocol, clear_cache: bool = False) -> list[CheckResult]:
 		self._check_role("admin")
 		return list(health_check(clear_cache))
+
+	@rpc_method
+	def service_getHostsWithActiveHealthCheck(self: BackendProtocol) -> list[str]:
+		self._check_role("admin")
+		return get_enabled_hosts()
 
 	@rpc_method
 	async def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:

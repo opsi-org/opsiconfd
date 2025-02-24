@@ -507,3 +507,24 @@ def test_service_getConfig_updateConfig(
 			assert restart_opsiconfd_if_running_called is True
 		elif on_change == "reload":
 			assert reload_opsiconfd_if_running_called is True
+
+
+def test_service_healthCheck(backend: UnprotectedBackend) -> None:  # noqa: F811
+	health_check = backend.service_healthCheck()
+	for check in health_check:
+		if check.check == "mysql":
+			assert check.check_status == "ok"
+
+
+def test_service_getHostsWithActiveHealthCheck(backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend.host_createOpsiClient("test-backend-rpc-general-1.opsi.org")
+	hosts = backend.service_getHostsWithActiveHealthCheck()
+	all_hosts = backend.host_getIdents()
+	assert len(hosts) == len(all_hosts)
+
+	backend.configState_create(objectId="test-backend-rpc-general-1.opsi.org", configId="opsi.check.enabled", values=[False])
+	hosts = backend.service_getHostsWithActiveHealthCheck()
+	assert len(hosts) == len(all_hosts) - 1
+
+	backend.configState_delete(objectId="test-backend-rpc-general-1.opsi.org", configId="opsi.check.enabled")
+	backend.host_delete("test-backend-rpc-general-1.opsi.org")

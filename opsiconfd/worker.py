@@ -105,7 +105,7 @@ def get_uvicorn_config() -> Config:
 		options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
 		options["ssl_certfile"] = config.ssl_server_cert
 		options["ssl_ciphers"] = config.ssl_ciphers
-		if not opsi_ca_is_self_signed():
+		if config.ssl_server_cert_type in ("letsencrypt", "custom-ca") or not opsi_ca_is_self_signed():
 			# Only send the ca cert if it is not self-signed otherwise it can lead to SSL error:
 			# self signed certificate in certificate chain
 			options["ssl_ca_certs"] = config.ssl_ca_cert

@@ -19,6 +19,7 @@ from uuid import UUID
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.exceptions import OpsiServiceConnectionError
+from opsicommon.logging import secret_filter
 from opsicommon.objects import OpsiDepotserver
 from opsicommon.types import forceHostId
 from rich import print as rich_print
@@ -97,11 +98,14 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 					if not Confirm.ask("Do you want to register this server as a depotserver?"):
 						return False
 				else:
-					rich_print(f"Registering server as depotserver with unattended configuration '{unattended_configuration}'")
+					conf = unattended_configuration.copy()
+					if "password" in conf:
+						conf["password"] = "***secret***"
+					rich_print(f"Registering server as depotserver with unattended configuration '{conf}'")
 					key_list = ["configserver", "depot_id", "description", "username", "password"]
 					for key in key_list:
 						if key not in unattended_configuration:
-							raise ValueError(f"Missing unattended configuration '{key}' in {unattended_configuration}")
+							raise ValueError(f"Missing unattended configuration '{key}' in {conf}")
 
 				url = urlparse(service.base_url)
 				hostname = url.hostname
@@ -237,6 +241,8 @@ def setup(explicit: bool = True) -> None:
 			unattended_configuration["username"] = config.admin_user
 		if config.admin_password:
 			unattended_configuration["password"] = config.admin_password
+		if "password" in unattended_configuration:
+			secret_filter.add_secrets(unattended_configuration["password"])
 		if not setup_depotserver(interactive, unattended_configuration):
 			return
 

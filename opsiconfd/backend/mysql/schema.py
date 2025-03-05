@@ -492,7 +492,7 @@ def get_indexes(session: Session, database: str, table: str) -> dict[str, list[s
 	indexes = {}
 	for res in session.execute(
 		"SELECT INDEX_NAME, GROUP_CONCAT(`COLUMN_NAME` ORDER BY `SEQ_IN_INDEX` ASC) FROM `INFORMATION_SCHEMA`.`STATISTICS`"
-		" WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = :table GROUP BY `INDEX_NAME`",
+		" WHERE `TABLE_SCHEMA` LIKE :database AND `TABLE_NAME` LIKE :table GROUP BY `INDEX_NAME`",
 		params={"database": database, "table": table},
 	).fetchall():
 		indexes[res[0]] = res[1].split(",")
@@ -696,7 +696,7 @@ def drop_database(mysql: MySQLConnection) -> None:
 		# Kill all connections to the database to remove all locks
 		our_id = session.connection().connection.thread_id()
 		for row in session.execute(
-			"SELECT `ID` FROM `INFORMATION_SCHEMA`.`PROCESSLIST` WHERE `DB` = :database",
+			"SELECT `ID` FROM `INFORMATION_SCHEMA`.`PROCESSLIST` WHERE `DB` LIKE :database",
 			params={"database": mysql.database},
 		).fetchall():
 			row_dict = dict(row)
@@ -769,7 +769,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		logger.info("Running opsi 4.3 updates")
 
 		for row in session.execute(
-			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM `INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
+			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM `INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` LIKE :database",
 			params={"database": mysql.database},
 		).fetchall():
 			row_dict = dict(row)

@@ -579,6 +579,8 @@ class OpsiForeignKey:
 	delete_rule: UpdateRules = "CASCADE"
 
 	def __post_init__(self) -> None:
+		self.table = self.table.upper()
+		self.ref_table = self.ref_table.upper()
 		possible_rules: tuple[UpdateRules, ...] = ("RESTRICT", "CASCADE", "NO ACTION", "SET NULL")
 		if self.update_rule not in possible_rules:
 			raise ValueError("update_rule is not a valid update rule.")

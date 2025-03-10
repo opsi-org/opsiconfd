@@ -47,7 +47,6 @@ from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client, pool_disconnect_connections
-from opsiconfd.ssl import opsi_ca_is_self_signed
 from opsiconfd.utils import asyncio_create_task
 from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
 
@@ -105,10 +104,7 @@ def get_uvicorn_config() -> Config:
 		options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
 		options["ssl_certfile"] = config.ssl_server_cert
 		options["ssl_ciphers"] = config.ssl_ciphers
-		if config.ssl_server_cert_type in ("letsencrypt", "custom-ca") or not opsi_ca_is_self_signed():
-			# Only send the ca cert if it is not self-signed otherwise it can lead to SSL error:
-			# self signed certificate in certificate chain
-			options["ssl_ca_certs"] = config.ssl_ca_cert
+		options["ssl_ca_certs"] = config.ssl_ca_cert
 
 	if config.client_cert_auth:
 		if config.websocket_protocol != "wsproto_opsiconfd":

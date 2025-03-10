@@ -28,6 +28,7 @@ from uuid import uuid4
 
 import msgpack  # type: ignore[import]
 import pytest
+from anyio import EndOfStream
 from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from httpx._models import Cookies
@@ -510,7 +511,10 @@ class WebSocketMessageReader(Thread):
 	def run(self) -> None:
 		while not self.should_stop:
 			self.running.set()
-			data = self.websocket.receive()
+			try:
+				data = self.websocket.receive()
+			except EndOfStream:
+				break
 			if self.should_stop:
 				break
 			if not data:
@@ -529,12 +533,11 @@ class WebSocketMessageReader(Thread):
 				logger.debug("WebSocketMessageReader received message (size: %d, raw: %s, qsize: %d)", len(raw), raw, self.messages.qsize())
 				if self.print_raw_data:
 					print(
-						f"WebSocketMessageReader received message (size: {len(raw)}, raw: {raw[:self.print_raw_data]}...), qsize: {self.messages.qsize()}"
+						f"WebSocketMessageReader received message (size: {len(raw)}, raw: {raw[: self.print_raw_data]}...), qsize: {self.messages.qsize()}"
 					)
 
 	def stop(self) -> None:
 		self.should_stop = True
-		self.websocket.send_bytes(b"")
 		self.join(3)
 
 	def purge_messages(self) -> None:

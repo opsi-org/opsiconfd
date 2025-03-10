@@ -917,38 +917,36 @@ def test_messagebus_events(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 				with create_client_via_jsonrpc(client, "", host_id=host_id, host_key=host_key):
 					client.reset_cookies()
 					client.auth = (host_id, host_key)
-					test_sess = client.websocket_connect("/messagebus/v1")
-					# Do not use context manager here, because __exit__ will shut down the whole application
-					test_sess.__enter__()
-					sleep(1)
-					test_sess.close()
+					with client.websocket_connect("/messagebus/v1") as client_websocket:
+						client_websocket.receive_bytes()
+						client_websocket.close()
 
-				reader.wait_for_message(count=2)
-				messages = list(reader.get_messages())
+						reader.wait_for_message(count=2)
+						messages = list(reader.get_messages())
 
-				assert messages[0]["type"] == "event"
-				assert messages[0]["channel"] == "event:host_connected"
-				assert messages[0]["event"] == "host_connected"
-				assert messages[0]["data"]["host"]["id"] == "msgbus-test-client.opsi.test"
+						assert messages[0]["type"] == "event"
+						assert messages[0]["channel"] == "event:host_connected"
+						assert messages[0]["event"] == "host_connected"
+						assert messages[0]["data"]["host"]["id"] == "msgbus-test-client.opsi.test"
 
-				assert messages[1]["type"] == "event"
-				assert messages[1]["channel"] == "event:host_disconnected"
-				assert messages[1]["event"] == "host_disconnected"
-				assert messages[1]["data"]["host"]["id"] == "msgbus-test-client.opsi.test"
+						assert messages[1]["type"] == "event"
+						assert messages[1]["channel"] == "event:host_disconnected"
+						assert messages[1]["event"] == "host_disconnected"
+						assert messages[1]["data"]["host"]["id"] == "msgbus-test-client.opsi.test"
 
-				client.auth = (ADMIN_USER, ADMIN_PASS)
-				client.reset_cookies()
-				conf = UnicodeConfig("test.config")
-				result = client.jsonrpc20(method="config_createObjects", params=[conf.to_hash()])
-				assert "error" not in result
-				assert result["result"] is None
+						client.auth = (ADMIN_USER, ADMIN_PASS)
+						client.reset_cookies()
+						conf = UnicodeConfig("test.config")
+						result = client.jsonrpc20(method="config_createObjects", params=[conf.to_hash()])
+						assert "error" not in result
+						assert result["result"] is None
 
-				reader.wait_for_message(count=1)
-				msg = next(reader.get_messages())
-				assert msg["type"] == "event"
-				assert msg["channel"] == "event:config_created"
-				assert msg["event"] == "config_created"
-				assert msg["data"] == {"id": "test.config"}
+						reader.wait_for_message(count=1)
+						msg = next(reader.get_messages())
+						assert msg["type"] == "event"
+						assert msg["channel"] == "event:config_created"
+						assert msg["event"] == "config_created"
+						assert msg["data"] == {"id": "test.config"}
 
 
 async def test_messagebus_close_on_session_deleted(

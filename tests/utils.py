@@ -534,7 +534,7 @@ class WebSocketMessageReader(Thread):
 
 	def stop(self) -> None:
 		self.should_stop = True
-		self.websocket._send_queue.put({})
+		self.websocket.send_bytes(b"")
 		self.join(3)
 
 	def purge_messages(self) -> None:

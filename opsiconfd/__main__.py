@@ -9,11 +9,16 @@
 opsiconfd.__main__
 """
 
+import os
 import sys
 import traceback
 from multiprocessing import freeze_support
 
 freeze_support()
+
+package_base = os.path.dirname(__file__)
+if package_base in sys.path:
+	sys.path.remove(package_base)
 
 
 def main() -> None:

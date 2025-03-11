@@ -55,21 +55,23 @@ test:lint-and-test:
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 120
 
+    - $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs
+
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run ruff check opsiconfd tests perftest
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run mypy opsiconfd tests perftest
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run ruff check opsiconfd tests perftest
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run mypy opsiconfd tests perftest
 
     - echo -e "${TXT_HEAD}Run pytest${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests
 
     - echo -e "${TXT_HEAD}Run perftests${TXT_CLEAR}"
-    - $DOCKER_COMPOSE exec opsiserver43-dev poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
     - sleep 10
 
     - echo -e "${TXT_HEAD}Run opsiconfd-perftest${TXT_CLEAR}"
     # Average request time has to be faster than 10 ms
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 --bencher-results bencher-results.json || (
+      $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json --max-errors 0 --max-avg-seconds-per-request 0.01 --bencher-results bencher-results.json || (
         echo -e "${TXT_ERROR}opsiconfd-perftest.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -77,7 +79,7 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Run opsiconfd-backend-perftest${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
+      $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
         echo -e "${TXT_ERROR}opsiconfd-backend-perftest.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -85,13 +87,13 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Run file-download memory test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
+      $DOCKER_COMPOSE exec opsiserver43-dev uv run python ./perftest/file-download.py --clients=5 --file-size=500 --min-download-time=20 --memory-usage-limit 20 || (
         echo -e "${TXT_ERROR}file-download.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
       )
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
+      $DOCKER_COMPOSE exec opsiserver43-dev uv run python ./perftest/file-download.py --clients=10 --file-size=200 --min-download-time=20 --memory-usage-limit 20 --range-requests || (
         echo -e "${TXT_ERROR}file-download.py failed (range-requests)${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -99,7 +101,7 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Run messagebus websocket load test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/messagebus-clients.py --clients 1000 --event-interval 30 --start-gap 20 || (
+      $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/messagebus-clients.py --clients 1000 --event-interval 30 --start-gap 20 || (
         echo -e "${TXT_ERROR}messagebus-clients.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -107,7 +109,7 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Run opsiconfd get-config duration test${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev poetry run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 1.0 -i 6 poetry run opsiconfd get-config || (
+      $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 1.0 -i 6 uv run opsiconfd get-config || (
         echo -e "${TXT_ERROR}bencher-command.py failed${TXT_CLEAR}"
         exit 1
       )
@@ -130,11 +132,14 @@ build:linux-pyinstaller:
   tags:
     - linux-docker-x64-hetzner
   script:
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - export UV_PYTHON="3.13"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - opsi-dev-cli self upgrade
-    - poetry install
-    - poetry run opsi-dev-cli -l debug pyinstaller build
+    - rm -rf .venv
+    - uv sync --frozen
+    - uv run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64
     # Check if binary is working
@@ -150,11 +155,14 @@ build:arm64-pyinstaller:
   tags:
     - linux-arm64
   script:
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - export UV_PYTHON="3.13"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - opsi-dev-cli self upgrade
-    - poetry install
-    - poetry run opsi-dev-cli -l debug pyinstaller build
+    - rm -rf .venv
+    - uv sync --frozen
+    - uv run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-arm64
     # Check if binary is working

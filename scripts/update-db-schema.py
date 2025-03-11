@@ -6,7 +6,7 @@
 # License: AGPL-3.0
 
 """
-poetry run python scripts/update-db-schema.py
+uv run scripts/update-db-schema.py
 """
 
 from pathlib import Path

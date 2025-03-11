@@ -28,7 +28,7 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.
 
 ## Run Tests
-* Select "Run Tests" on the Status Bar, use the Test Explorer or run `poetry run pytest --cov-append --cov opsiconfd --cov-report term --cov-report xml -vv tests` in a terminal
+* Select "Run Tests" on the Status Bar, use the Test Explorer or run `uv run pytest --cov-append --cov opsiconfd --cov-report term --cov-report xml -vv tests` in a terminal
 
 
 # Performance
@@ -42,7 +42,7 @@ Thus, long runinng JSON-RPC requests could block other requests.
 
 ### valgrind
 ```
-PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsymutil=yes --leak-check=full --show-leak-kinds=all --log-file=/tmp/valgrind-out poetry run opsiconfd --workers=1 --log-level-stderr=5
+PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsymutil=yes --leak-check=full --show-leak-kinds=all --log-file=/tmp/valgrind-out uv run opsiconfd --workers=1 --log-level-stderr=5
 ```
 * PYTHONMALLOC=debug
 * PYTHONMALLOC=malloc_debug

@@ -556,13 +556,21 @@ class RPCHostControlMixin(Protocol):
 	async def hostControl_processActionRequests(
 		self: BackendProtocol, hostIds: list[str] | None = None, productIds: list[str] | None = None, visibility: str | None = None
 	) -> dict[str, dict[str, Any]]:
+		"""
+		Process action requests for products on clients.
+
+		:param hostIds: List of client IDs to process action requests for. All clients if not set.
+		:param productIds: List of product IDs to process action requests for. All products if not set.
+		:param visibility: Visibility of the action requests (visible / hidden). Client default if not set.
+		:return: Dictionary containing the result of the RPC-calls.
+		"""
 		visibility = visibility or None
 		if visibility not in (None, "visible", "hidden"):
 			raise ValueError(f"Invalid visibility {visibility!r}, must be 'visible' or 'hidden' if set")
 
 		client_ids = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not client_ids:
-			raise BackendMissingDataError("No matching host ids found")
+			raise BackendMissingDataError("No matching host IDs found")
 
 		params: list[list[str] | str | None] = [None, visibility] if visibility else []
 		if not productIds:

@@ -6,7 +6,7 @@
 # License: AGPL-3.0
 
 """
-poetry run python scripts/clean-redis.py
+uv run scripts/clean-redis.py
 """
 
 import os

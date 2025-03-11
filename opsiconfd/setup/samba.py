@@ -11,19 +11,18 @@ opsiconfd.setup.samba
 
 import os
 import re
-from functools import lru_cache
-from subprocess import CalledProcessError, run
 import subprocess
+from functools import lru_cache
 from pathlib import Path
+from subprocess import CalledProcessError, run
 
 from configupdater import ConfigUpdater
 from opsicommon.system.info import is_ucs
 
-from opsiconfd.config import SMB_CONF, FQDN, opsi_config, config, str2bool
+from opsiconfd.config import FQDN, SMB_CONF, config, opsi_config, str2bool
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_ucs_user_details
 from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
-
 
 SHARES = {
 	"opsi_depot": {

@@ -18,9 +18,11 @@ import os
 import random
 import re
 import secrets
+import shlex
 import signal
 import string
 import subprocess
+import sysconfig
 import threading
 import time
 import zlib
@@ -31,7 +33,7 @@ from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from hashlib import md5
 from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address
 from json import JSONEncoder
-from logging import INFO  # type: ignore[import]
+from logging import DEBUG, INFO  # type: ignore[import]
 from pathlib import Path
 from pprint import pformat
 from socket import AF_INET, AF_INET6
@@ -91,6 +93,16 @@ class Singleton(type):
 def log_config(log_level: int = INFO) -> None:
 	conf = "{\n " + pformat(get_config().items(), width=200).strip("{}") + "\n}\n"
 	get_logger().log(log_level, "Config: %s", conf)
+
+
+def log_python_config(log_level: int = DEBUG) -> None:
+	_logger = get_logger()
+	config_vars = sysconfig.get_config_vars()
+	py_core_cflags = shlex.split(config_vars["PY_CORE_CFLAGS"])
+	py_conf = {"CONFIG_ARGS": shlex.split(config_vars["CONFIG_ARGS"]), "PY_CORE_CFLAGS": py_core_cflags}
+	conf = "{\n " + pformat(py_conf, width=200).strip("{}") + "\n}\n"
+	_logger.log(log_level, "Python config: %s", conf)
+	_logger.log(log_level, "JIT enabled: %s", "-D_Py_JIT" in py_core_cflags)
 
 
 def running_in_docker() -> bool:

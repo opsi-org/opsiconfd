@@ -36,7 +36,7 @@ from opsiconfd.manager import Manager
 from opsiconfd.patch import apply_patches
 from opsiconfd.redis import delete_locks, redis_client
 from opsiconfd.setup import setup
-from opsiconfd.utils import get_manager_pid, log_config
+from opsiconfd.utils import get_manager_pid, log_config, log_python_config
 
 patch_popen()
 configure_warnings()
@@ -97,6 +97,7 @@ def opsiconfd_main() -> None:
 
 		logger.essential("Opsiconfd version %r starting on %r as %r", __version__, get_depotserver_id(), get_server_role())
 		log_config()
+		log_python_config(90)
 
 		setup(explicit=bool(config.setup))
 

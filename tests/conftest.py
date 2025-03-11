@@ -16,21 +16,18 @@ import sys
 import threading
 import time
 import traceback
-import warnings
 from pathlib import Path
 from tempfile import mkdtemp
 from types import FrameType
 from typing import Any, Callable, Coroutine, Generator
 from unittest.mock import patch
 
-import urllib3
-from _pytest.config import Config
 from _pytest.logging import LogCaptureHandler
 from _pytest.main import Session
 from _pytest.nodes import Item
 from opsicommon.logging import logging_config
 from pluggy._result import Result
-from pytest import fixture, hookimpl, skip
+from pytest import hookimpl, skip
 
 from opsiconfd.application import app
 from opsiconfd.application.main import application_setup
@@ -192,13 +189,3 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 			raise RuntimeError(f"Left over threads after test: {left_over_threads}")
 		time.sleep(1)
 	return outcome
-
-
-@hookimpl()
-def pytest_configure(config: Config) -> None:
-	config.addinivalue_line("markers", "grafana_is_local: mark test to run only if a local grafana instance is running on the local host")
-
-
-@fixture(autouse=True)
-def disable_insecure_request_warning() -> None:
-	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)

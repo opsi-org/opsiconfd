@@ -79,7 +79,7 @@ def test_check_product_status_none(
 		}
 	)
 
-	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data, timeout=5.0)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -93,7 +93,7 @@ def test_check_product_status_none(
 			False,
 			{
 				"message": (
-					f"WARNING: \nResult for Depot: '{get_depotserver_id()}':\n" "For product 'pytest-prod-1' action set on 1 clients!\n"
+					f"WARNING: \nResult for Depot: '{get_depotserver_id()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
 				),
 				"state": 1,
 			},
@@ -104,9 +104,7 @@ def test_check_product_status_none(
 			False,
 			{
 				"message": (
-					"CRITICAL: \n"
-					f"Result for Depot: '{get_depotserver_id()}':\n"
-					"For product 'pytest-prod-2' problems found on 2 clients!\n"
+					f"CRITICAL: \nResult for Depot: '{get_depotserver_id()}':\nFor product 'pytest-prod-2' problems found on 2 clients!\n"
 				),
 				"state": 2,
 			},
@@ -164,7 +162,7 @@ def test_check_product_status_not_none(
 			},
 		}
 	)
-	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data, timeout=5.0)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -248,7 +246,7 @@ def test_check_product_status_groupids(
 			},
 		}
 	)
-	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data, timeout=5.0)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -279,7 +277,7 @@ def test_check_product_status_groupids(
 		(
 			"pytest-prod-3",
 			{
-				"message": ("OK: 1 ProductStates for product: 'pytest-prod-3' found; " "checking for Version: '1.0' and Package: '1'"),
+				"message": ("OK: 1 ProductStates for product: 'pytest-prod-3' found; checking for Version: '1.0' and Package: '1'"),
 				"state": 0,
 			},
 		),
@@ -306,7 +304,7 @@ def test_check_product_status_short(
 		}
 	)
 
-	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data, timeout=5.0)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -355,8 +353,7 @@ def test_check_product_status_short(
 			None,
 			{
 				"message": (
-					"WARNING: opsi-client pytest-client-1.uib.local has been seen today. "
-					"Actions set for products: 'pytest-prod-1 (setup)'."
+					"WARNING: opsi-client pytest-client-1.uib.local has been seen today. Actions set for products: 'pytest-prod-1 (setup)'."
 				),
 				"state": 1,
 			},
@@ -366,8 +363,7 @@ def test_check_product_status_short(
 			None,
 			{
 				"message": (
-					"CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. "
-					"Products: 'pytest-prod-2' are in failed state. "
+					"CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. Products: 'pytest-prod-2' are in failed state. "
 				),
 				"state": 2,
 			},
@@ -377,7 +373,7 @@ def test_check_product_status_short(
 			None,
 			{
 				"message": (
-					"OK: opsi-client pytest-client-3.uib.local has been seen today. " "No failed products and no actions set for client"
+					"OK: opsi-client pytest-client-3.uib.local has been seen today. No failed products and no actions set for client"
 				),
 				"state": 0,
 			},
@@ -392,7 +388,7 @@ def test_check_product_status_short(
 			["pytest-prod-1"],
 			{
 				"message": (
-					"OK: opsi-client pytest-client-1.uib.local has been seen today. " "No failed products and no actions set for client"
+					"OK: opsi-client pytest-client-1.uib.local has been seen today. No failed products and no actions set for client"
 				),
 				"state": 0,
 			},
@@ -402,7 +398,7 @@ def test_check_product_status_short(
 			["pytest-prod-2"],
 			{
 				"message": (
-					"OK: opsi-client pytest-client-2.uib.local has been seen today. " "No failed products and no actions set for client"
+					"OK: opsi-client pytest-client-2.uib.local has been seen today. No failed products and no actions set for client"
 				),
 				"state": 0,
 			},
@@ -432,7 +428,7 @@ def test_check_client_status(
 		}
 	)
 
-	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data, timeout=5.0)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -571,7 +567,7 @@ def test_check_depot_sync_status(
 		}
 	)
 
-	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data, timeout=5.0)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -625,11 +621,11 @@ async def test_check_opsi_webservice_cpu(
 		timestamp += 1
 		for worker in workers:
 			await redis.execute_command(  # type: ignore[no-untyped-call]
-				f"TS.ADD {config.redis_key('stats')}:worker:avg_cpu_percent:{worker} {timestamp*1000} {cpu_value} ON_DUPLICATE LAST"
+				f"TS.ADD {config.redis_key('stats')}:worker:avg_cpu_percent:{worker} {timestamp * 1000} {cpu_value} ON_DUPLICATE LAST"
 			)
 
 	await asyncio.sleep(1)
 
-	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data, timeout=5.0)
+	request = test_client.post(f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), content=data)
 	assert request.status_code == 200
 	assert request.json() == expected_result

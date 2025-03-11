@@ -6,7 +6,7 @@
 		{
 			"label": "DB load sql file",
 			"type": "shell",
-			"command": "cat ${input:sql-file} | sed 's/${input:sql-old-hostname}/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE",
+			"command": "cat ${input:sql-file} | sed 's/${input:sql-old-hostname}/'$OPSI_HOSTNAME'/g' | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
@@ -16,7 +16,7 @@
 		{
 			"label": "Redis clean",
 			"type": "shell",
-			"command": "poetry run python ${workspaceFolder}/scripts/clean-redis.py",
+			"command": "uv run ${workspaceFolder}/scripts/clean-redis.py",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
@@ -36,7 +36,7 @@
 		{
 			"label": "PyInstaller build",
 			"type": "shell",
-			"command": "sudo poetry run opsi-dev-cli -l debug pyinstaller build --skip-transifex",
+			"command": "sudo uv run opsi-dev-cli -l debug pyinstaller build --skip-transifex",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"

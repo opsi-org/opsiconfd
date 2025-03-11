@@ -55,13 +55,13 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 	stat $state_file || true
 
 	if [ "$state" = "ready" ]; then
-		echo "* opsiconfd poetry venv is ready"
+		echo "* opsiconfd venv is ready"
 		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 	elif [ "$state" = "setup" ]; then
 		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
-		echo "* Waiting until opsiconfd poetry venv is set up"
+		echo "* Waiting until opsiconfd venv is set up"
 		start_time=$(date +%s)
 		i=1
 		while [ "$i" -le 60 ]; do
@@ -78,14 +78,13 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 			echo "timed out waiting for venv after ${diff} seconds"
 		fi
 	else
-		echo "* Setup opsiconfd poetry venv"
+		echo "* Setup opsiconfd venv"
 		echo -n "setup" > $state_file
 		sleep 2
 		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 		cd $OPSICONFD_BASE_DIR
-		poetry lock --no-update
-		poetry install --no-interaction --no-ansi
+		uv sync --frozen
 		[ -n "$DEV_USER" ] && chown -R $DEV_USER $OPSICONFD_BASE_DIR
 		echo -n "ready" > $state_file
 		echo "venv created"
@@ -93,5 +92,7 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 fi
 
 touch /run/.docker-healthy
+
 # Run CMD
+echo "Running: $@"
 exec "$@"

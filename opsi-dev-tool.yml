@@ -11,9 +11,9 @@ git:
   hooks:
     pre-push: |
       echo "Running ruff..."
-      poetry run ruff check opsiconfd tests perftest
+      uv run ruff check opsiconfd tests perftest
       echo "Running mypy..."
-      poetry run mypy opsiconfd tests perftest
+      uv run mypy opsiconfd tests perftest
 
 transifex:
   upload_resources:
@@ -34,20 +34,17 @@ transifex:
 pyinstaller:
   one_file: no
   strip: yes
+  # TODO: opsi-dev-cli 1.30.0 supports collect_all
+  extra_args:
+    - --collect-all
+    - opsiconfd_data
   hidden_imports:
     all:
       - ipaddress
       - colorsys
-      # UserWarning: You do not have a working installation of the service_identity module: 'No module named 'service_identity''.
-      # Please install it from <https://pypi.python.org/pypi/service_identity> and make sure all of its dependencies are satisfied.
-      # Without the service_identity module, Twisted can perform only rudimentary TLS client hostname verification.
-      # Many valid certificate/hostname mappings may be rejected.
-      - service_identity
       - OPSI.Util.WIM
-      - opsiconfd.application.utils
-      - opsiconfd.rest
-      - opsiconfd.utils.fastapi
   collect_submodules:
+    - opsiconfd
     - pydantic_core
     - pydantic
     - uvicorn
@@ -58,12 +55,9 @@ pyinstaller:
     - websockets
     - wsproto
   scripts:
-    - script: opsiconfd/__main__.py
+    - script: run-opsiconfd
       binaries:
         - opsiconfd
-  data_files:
-    - src: opsiconfd_data/**/*
-      dst: opsiconfd_data
   dirname: opsiconfd
   after_script: |
     find dist/opsiconfd/_internal -iname "*.c" -delete

@@ -250,6 +250,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 				"Config file and environment var syntax allows: option=value, flag=true, list-option=[a,b,c].\n"
 				"\n"
 			)
+
 		return text
 
 	def _format_usage(
@@ -295,7 +296,11 @@ class Config(metaclass=Singleton):
 		if self._initialized:
 			return
 		self._initialized = True
-		self._pytest = "pytest" in sys.argv[0] or "pytest" in sys.argv
+
+		proc_name = os.path.basename(sys.argv[0])
+		self._pytest = proc_name == "pytest" or "pytest" in sys.argv
+		self._pyinstaller_scan = proc_name == "_child.py"
+
 		self._args: list[str] = []
 		self._ex_help = False
 		self._parser: configargparse.ArgParser | None = None
@@ -634,7 +639,7 @@ class Config(metaclass=Singleton):
 		return data
 
 	def _config_file_contents(self) -> str:
-		with open(self._config.config_file, "a+", encoding="utf-8") as file:
+		with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
 			with lock_file(file):
 				conf = self._parse_config_file(file)
 				masked_config_file_arguments: tuple[str, ...] = tuple()
@@ -1130,7 +1135,7 @@ class Config(metaclass=Singleton):
 			choices=("saml", "pam", "ldap", "opsi_passwd"),
 			help=self._help(
 				"opsiconfd",
-				"A list of authentication methods to disable.\n" "If the list is empty, all authentication methods are allowed.\n",
+				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed.\n",
 			),
 		)
 		self._parser.add(
@@ -1289,7 +1294,7 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				("opsiconfd", "setup"),
-				"A list of setup tasks to skip " f"(tasks: {','.join(['all'] + SKIP_SETUP_ACTIONS)}).",
+				f"A list of setup tasks to skip (tasks: {','.join(['all'] + SKIP_SETUP_ACTIONS)}).",
 			),
 			choices=["all"] + SKIP_SETUP_ACTIONS,
 		)
@@ -1665,7 +1670,7 @@ class Config(metaclass=Singleton):
 			),
 		)
 
-		if self._pytest:
+		if self._pytest or self._pyinstaller_scan:
 			self._parser.add("args", nargs="*")
 			return
 

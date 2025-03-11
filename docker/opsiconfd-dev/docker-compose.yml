@@ -96,7 +96,7 @@ services:
     env_file:
       - .env
       - opsiserver43-cs.env
-    command: poetry run opsiconfd
+    command: uv run opsiconfd
 
   mysql-cs:
     image: mariadb:10.7

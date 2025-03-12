@@ -23,6 +23,7 @@ import shlex
 import signal
 import string
 import subprocess
+import sys
 import sysconfig
 import threading
 import time
@@ -98,8 +99,8 @@ def get_python_info() -> dict[str, Any]:
 	config_vars = sysconfig.get_config_vars()
 	py_core_cflags = shlex.split(config_vars["PY_CORE_CFLAGS"])
 	return {
-		"py_version": config_vars["py_version"],
-		"BUILD_GNU_TYPE": config_vars["BUILD_GNU_TYPE"],
+		"version": sys.version,
+		"MULTIARCH": config_vars["MULTIARCH"],
 		"CONFIG_ARGS": shlex.split(config_vars["CONFIG_ARGS"]),
 		"PY_CORE_CFLAGS": py_core_cflags,
 		"jit_enabled": "-D_Py_JIT" in py_core_cflags,

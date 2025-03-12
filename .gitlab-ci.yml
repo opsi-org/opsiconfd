@@ -55,7 +55,7 @@ test:lint-and-test:
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 120
 
-    - sleep 3
+    - for i in 1 2 3 4 5 6 7 8 9; do sleep 1; $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs && break; done
     - $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs
 
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"

@@ -11,6 +11,7 @@ opsiconfd main
 
 import gc
 import getpass
+import json
 import os
 import pwd
 import signal
@@ -36,13 +37,17 @@ from opsiconfd.manager import Manager
 from opsiconfd.patch import apply_patches
 from opsiconfd.redis import delete_locks, redis_client
 from opsiconfd.setup import setup
-from opsiconfd.utils import get_manager_pid, log_config, log_python_config
+from opsiconfd.utils import get_manager_pid, get_python_info, log_config, log_python_info
 
 patch_popen()
 configure_warnings()
 
 
 def opsiconfd_main() -> None:
+	if config.python_info:
+		print(json.dumps(get_python_info(), indent=2))
+		return
+
 	manager_pid = get_manager_pid(ignore_self=True)
 	if config.action == "start" and manager_pid and config.check_running:
 		raise RuntimeError(f"Opsiconfd manager process already running (pid {manager_pid})")
@@ -97,7 +102,7 @@ def opsiconfd_main() -> None:
 
 		logger.essential("Opsiconfd version %r starting on %r as %r", __version__, get_depotserver_id(), get_server_role())
 		log_config()
-		log_python_config(90)
+		log_python_info()
 
 		setup(explicit=bool(config.setup))
 

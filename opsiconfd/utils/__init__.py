@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import gzip
+import json
 import os
 import random
 import re
@@ -91,18 +92,23 @@ class Singleton(type):
 
 
 def log_config(log_level: int = INFO) -> None:
-	conf = "{\n " + pformat(get_config().items(), width=200).strip("{}") + "\n}\n"
-	get_logger().log(log_level, "Config: %s", conf)
+	get_logger().log(log_level, "Config: %s", json.dumps(get_config().items(), indent=2))
 
 
-def log_python_config(log_level: int = DEBUG) -> None:
-	_logger = get_logger()
+def get_python_info() -> dict[str, Any]:
 	config_vars = sysconfig.get_config_vars()
 	py_core_cflags = shlex.split(config_vars["PY_CORE_CFLAGS"])
-	py_conf = {"CONFIG_ARGS": shlex.split(config_vars["CONFIG_ARGS"]), "PY_CORE_CFLAGS": py_core_cflags}
-	conf = "{\n " + pformat(py_conf, width=200).strip("{}") + "\n}\n"
-	_logger.log(log_level, "Python config: %s", conf)
-	_logger.log(log_level, "JIT enabled: %s", "-D_Py_JIT" in py_core_cflags)
+	return {
+		"py_version": config_vars["py_version"],
+		"BUILD_GNU_TYPE": config_vars["BUILD_GNU_TYPE"],
+		"CONFIG_ARGS": shlex.split(config_vars["CONFIG_ARGS"]),
+		"PY_CORE_CFLAGS": py_core_cflags,
+		"jit_enabled": "-D_Py_JIT" in py_core_cflags,
+	}
+
+
+def log_python_info(log_level: int = DEBUG) -> None:
+	get_logger().log(log_level, "Python info: %s", json.dumps(get_python_info(), indent=2))
 
 
 def running_in_docker() -> bool:

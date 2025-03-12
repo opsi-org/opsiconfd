@@ -676,6 +676,7 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Path to config file."),
 		)
 		self._parser.add("--version", action="store_true", help=self._help("opsiconfd", "Show version info and exit."))
+		self._parser.add("--python-info", action="store_true", help=self._help("opsiconfd", "Show python info and exit."))
 		self._parser.add("--setup", action="store_true", help=self._help("opsiconfd", "Run full setup tasks on start."))
 		self._parser.add(
 			"--run-as-user",

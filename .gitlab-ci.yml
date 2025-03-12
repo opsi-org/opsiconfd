@@ -138,6 +138,7 @@ build:linux-pyinstaller:
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - opsi-dev-cli self upgrade
     - rm -rf .venv
+    - uv self update
     - uv sync --frozen
     - uv run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src
@@ -161,6 +162,7 @@ build:arm64-pyinstaller:
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - opsi-dev-cli self upgrade
     - rm -rf .venv
+    - uv self update
     - uv sync --frozen
     - uv run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src

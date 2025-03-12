@@ -33,7 +33,8 @@ RUN apt-get update \
 	&& git clone https://github.com/zsh-users/zsh-syntax-highlighting.git /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting \
 	&& git clone --depth=1 https://github.com/romkatv/powerlevel10k.git /root/.oh-my-zsh/custom/themes/powerlevel10k \
 	&& usermod -s /bin/zsh root \
-	&& sed -i 's#secure_path=.*#secure_path=/root/.local/bin:/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin#' /etc/sudoers
+	&& sed -i 's#secure_path=.*#secure_path=/root/.local/bin:/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin#' /etc/sudoers \
+	&& uv self update
 
 COPY files/ /
 

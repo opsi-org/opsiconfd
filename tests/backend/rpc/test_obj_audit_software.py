@@ -9,6 +9,9 @@
 test opsiconfd.backend.rpc.test_obj_audit_software
 """
 
+import json
+from pathlib import Path
+
 from opsicommon.objects import AuditSoftware, AuditSoftwareOnClient, OpsiClient
 
 from tests.utils import UnprotectedBackend, backend, clean_mysql, clean_redis  # noqa: F401
@@ -128,3 +131,30 @@ def test_audit_software(backend: UnprotectedBackend) -> None:  # noqa: F811
 	assert len(backend.auditSoftwareOnClient_getObjects()) == 0
 
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+
+
+def test_audit_software_from_data(backend: UnprotectedBackend) -> None:  # noqa: F811
+	client1 = OpsiClient(id="test-audit-software-data.opsi.test")
+	audit_softwares = json.loads(Path("tests/data/swaudit/audit-software.json").read_text())
+	audit_software_on_clients = json.loads(
+		Path("tests/data/swaudit/audit-software-on-client.json").read_text().replace("{{host_id}}", client1.id)
+	)
+
+	backend.host_createObjects([client1])
+	backend.auditSoftware_createObjects(audit_softwares)
+	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+
+	assert len(backend.auditSoftware_getObjects()) == 603
+	assert len(backend.auditSoftwareOnClient_getObjects()) == 603
+
+	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+	assert len(backend.auditSoftware_getObjects()) == 603
+	assert len(backend.auditSoftwareOnClient_getObjects()) == 603
+
+	backend.auditSoftwareOnClient_setObsolete(client1.id)
+	assert len(backend.auditSoftware_getObjects()) == 603
+	assert len(backend.auditSoftwareOnClient_getObjects()) == 0
+
+	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+	assert len(backend.auditSoftware_getObjects()) == 603
+	assert len(backend.auditSoftwareOnClient_getObjects()) == 603

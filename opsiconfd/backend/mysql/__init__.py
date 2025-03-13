@@ -168,7 +168,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 16
+	schema_version = 17
 
 	def __init__(self) -> None:
 		self.address = "localhost"
@@ -376,8 +376,7 @@ class MySQLConnection:
 					min_version = "10.1"
 				if compare_versions(match.group(1), "<", min_version):
 					error = (
-						f"{server_type} server version '{version_string}' to old."
-						" Supported versions are MariaDB >= 10.1 and MySQL >= 5.6.5"
+						f"{server_type} server version '{version_string}' to old. Supported versions are MariaDB >= 10.1 and MySQL >= 5.6.5"
 					)
 					logger.error(error)
 					raise RuntimeError(error)
@@ -821,7 +820,7 @@ class MySQLConnection:
 		query = (
 			"SELECT "
 			f"{', '.join(aggs) + ', ' if aggs else ''}"
-			f"""{', '.join([f"{c.select} AS `{a}`" for a, c in columns.items() if c.select])}"""
+			f"""{", ".join([f"{c.select} AS `{a}`" for a, c in columns.items() if c.select])}"""
 			f" {table}"
 		)
 		where, params = self.get_where(columns=columns, ace=ace, filter=filter)

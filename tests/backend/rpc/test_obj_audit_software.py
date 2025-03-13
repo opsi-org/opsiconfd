@@ -144,17 +144,19 @@ def test_audit_software_from_data(backend: UnprotectedBackend) -> None:  # noqa:
 	backend.auditSoftware_createObjects(audit_softwares)
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
 
-	assert len(backend.auditSoftware_getObjects()) == 603
-	assert len(backend.auditSoftwareOnClient_getObjects()) == 603
+	assert len(backend.auditSoftware_getObjects()) == 604
+	assert len(backend.auditSoftwareOnClient_getObjects()) == 604
 
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
-	assert len(backend.auditSoftware_getObjects()) == 603
-	assert len(backend.auditSoftwareOnClient_getObjects()) == 603
+	assert len(backend.auditSoftware_getObjects()) == 604
+	assert len(backend.auditSoftwareOnClient_getObjects()) == 604
 
 	backend.auditSoftwareOnClient_setObsolete(client1.id)
-	assert len(backend.auditSoftware_getObjects()) == 603
+	assert len(backend.auditSoftware_getObjects()) == 604
 	assert len(backend.auditSoftwareOnClient_getObjects()) == 0
 
 	backend.auditSoftwareOnClient_createObjects(audit_software_on_clients)
-	assert len(backend.auditSoftware_getObjects()) == 603
-	assert len(backend.auditSoftwareOnClient_getObjects()) == 603
+	assert len(backend.auditSoftware_getObjects()) == 604
+	assert len(backend.auditSoftwareOnClient_getObjects()) == 604
+
+	assert len(backend.auditSoftwareOnClient_getObjects(isOperatingSystem=True)) == 1

@@ -3,6 +3,18 @@
 		"architecture": "x64",
 		"binaryName": "",
 		"clientId": "{{host_id}}",
+		"language": "de",
+		"licenseKey": "",
+		"name": "Windows 10 Pro",
+		"subVersion": "19045.5608",
+		"type": "AuditSoftwareOnClient",
+		"uninstallString": "",
+		"version": "22H2"
+	},
+	{
+		"architecture": "x64",
+		"binaryName": "",
+		"clientId": "{{host_id}}",
 		"language": "",
 		"licenseKey": "",
 		"name": "AddressBook",

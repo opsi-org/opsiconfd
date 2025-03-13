@@ -278,9 +278,11 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE` (
 	`windowsDisplayName` varchar(100) DEFAULT NULL,
 	`windowsDisplayVersion` varchar(100) DEFAULT NULL,
 	`installSize` bigint(20) DEFAULT NULL,
+	`isOperatingSystem` tinyint(1) DEFAULT 0,
 	PRIMARY KEY (`software_id`),
 	UNIQUE KEY `index_software_nvsla` (`name`,`version`,`subVersion`,`language`,`architecture`),
-	KEY `index_software_windowsSoftwareId` (`windowsSoftwareId`)
+	KEY `index_software_windowsSoftwareId` (`windowsSoftwareId`),
+	KEY `index_software_isOperatingSystem` (`isOperatingSystem`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
@@ -417,20 +419,20 @@ def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, d
 						hardware_device_table += f"CHANGE `{value}` `{value}` {value_info['Type']} NULL,\n"
 					else:
 						# Column does not exist => add
-						hardware_device_table += f'ADD `{value}` {value_info["Type"]} NULL,\n'
+						hardware_device_table += f"ADD `{value}` {value_info['Type']} NULL,\n"
 				else:
-					hardware_device_table += f'`{value}` {value_info["Type"]} NULL,\n'
+					hardware_device_table += f"`{value}` {value_info['Type']} NULL,\n"
 				hardware_device_values_processed += 1
 			elif value_info["Scope"] == "i":
 				if hardware_config_table_exists:
 					if value in tables[hardware_config_table_name]:
 						# Column exists => change
-						hardware_config_table += f'CHANGE `{value}` `{value}` {value_info["Type"]} NULL,\n'
+						hardware_config_table += f"CHANGE `{value}` `{value}` {value_info['Type']} NULL,\n"
 					else:
 						# Column does not exist => add
-						hardware_config_table += f'ADD `{value}` {value_info["Type"]} NULL,\n'
+						hardware_config_table += f"ADD `{value}` {value_info['Type']} NULL,\n"
 				else:
-					hardware_config_table += f'`{value}` {value_info["Type"]} NULL,\n'
+					hardware_config_table += f"`{value}` {value_info['Type']} NULL,\n"
 				hardware_config_values_processed += 1
 
 		if not hardware_device_table_exists:
@@ -1378,6 +1380,18 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				database=mysql.database,
 				foreign_key=OpsiForeignKey(table=table, ref_table="HOST", f_keys=["hostId"]),
 				cleanup_function=lambda session: remove_orphans_hardware_config(mysql, session),
+			)
+
+		# schema_version 17
+		if "isOperatingSystem" not in mysql.tables["SOFTWARE"]:
+			logger.info("Adding column 'isOperatingSystem' on table SOFTWARE.")
+			session.execute("ALTER TABLE `SOFTWARE` ADD `isOperatingSystem` tinyint(1) DEFAULT 0")
+			create_index(
+				session=session,
+				database=mysql.database,
+				table="SOFTWARE",
+				index="index_software_isOperatingSystem",
+				columns=["isOperatingSystem"],
 			)
 
 		logger.info("All updates completed")

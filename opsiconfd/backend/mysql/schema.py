@@ -1295,14 +1295,14 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			remove_index(session=session, database=mysql.database, table="SOFTWARE", index="PRIMARY")
 			session.execute("ALTER TABLE `SOFTWARE` ADD `software_id` INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
 
-			create_index(
-				session=session,
-				database=mysql.database,
-				table="SOFTWARE",
-				index="index_software_nvsla",
-				unique=True,
-				columns=["name", "version", "subVersion", "language", "architecture"],
-			)
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="SOFTWARE",
+			index="index_software_nvsla",
+			unique=True,
+			columns=["name", "version", "subVersion", "language", "architecture"],
+		)
 
 		if "software_id" not in mysql.tables["SOFTWARE_CONFIG"]:
 			logger.info("Adding column 'software_id' on table SOFTWARE_CONFIG.")
@@ -1332,34 +1332,35 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 					remove_foreign_key(session=session, foreign_key=foreign_key)
 
 			remove_index(session=session, database=mysql.database, table="SOFTWARE_CONFIG", index="PRIMARY")
-			create_index(
-				session=session,
-				database=mysql.database,
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="SOFTWARE_CONFIG",
+			index="PRIMARY",
+			columns=["software_id", "clientId"],
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(table="SOFTWARE_CONFIG", ref_table="SOFTWARE", f_keys=["software_id"]),
+		)
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
 				table="SOFTWARE_CONFIG",
-				index="PRIMARY",
-				columns=["software_id", "clientId"],
-			)
+				f_keys=["clientId"],
+				ref_table="HOST",
+				ref_keys=["hostId"],
+			),
+		)
 
-			create_foreign_key(
-				session=session,
-				database=mysql.database,
-				foreign_key=OpsiForeignKey(table="SOFTWARE_CONFIG", ref_table="SOFTWARE", f_keys=["software_id"]),
-			)
-			create_foreign_key(
-				session=session,
-				database=mysql.database,
-				foreign_key=OpsiForeignKey(
-					table="SOFTWARE_CONFIG",
-					f_keys=["clientId"],
-					ref_table="HOST",
-					ref_keys=["hostId"],
-				),
-			)
-
-			for column in ("name", "version", "subVersion", "language", "architecture"):
-				if column in mysql.tables["SOFTWARE_CONFIG"]:
-					logger.info("Dropping column %r from table SOFTWARE_CONFIG", column)
-					session.execute(f"ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `{column}`")
+		for column in ("name", "version", "subVersion", "language", "architecture"):
+			if column in mysql.tables["SOFTWARE_CONFIG"]:
+				logger.info("Dropping column %r from table SOFTWARE_CONFIG", column)
+				session.execute(f"ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `{column}`")
 
 		if "type" in mysql.tables["SOFTWARE"]:
 			logger.info("Dropping column 'type' from table SOFTWARE")

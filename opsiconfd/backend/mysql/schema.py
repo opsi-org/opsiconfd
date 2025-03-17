@@ -273,7 +273,7 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE` (
 	`version` varchar(100) NOT NULL,
 	`subVersion` varchar(100) NOT NULL,
 	`language` varchar(10) NOT NULL,
-	`architecture` varchar(3) NOT NULL,
+	`architecture` varchar(5) NOT NULL,
 	`windowsSoftwareId` varchar(100) DEFAULT NULL,
 	`windowsDisplayName` varchar(100) DEFAULT NULL,
 	`windowsDisplayVersion` varchar(100) DEFAULT NULL,
@@ -368,7 +368,7 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 	`version` varchar(100) NOT NULL,
 	`subVersion` varchar(100) NOT NULL,
 	`language` varchar(10) NOT NULL,
-	`architecture` varchar(3) NOT NULL,
+	`architecture` varchar(5) NOT NULL,
 	PRIMARY KEY (`licensePoolId`,`name`,`version`,`subVersion`,`language`,`architecture`),
 	FOREIGN KEY (`licensePoolId`)
 		REFERENCES `LICENSE_POOL` (`licensePoolId`)
@@ -1393,6 +1393,9 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				index="index_software_isOperatingSystem",
 				columns=["isOperatingSystem"],
 			)
+
+		for table in ("SOFTWARE", "AUDIT_SOFTWARE_TO_LICENSE_POOL"):
+			session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `architecture` VARCHAR(5) NOT NULL")
 
 		logger.info("All updates completed")
 

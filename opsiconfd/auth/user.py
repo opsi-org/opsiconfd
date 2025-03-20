@@ -64,9 +64,6 @@ class User(Rights):
 		)
 
 		self.read_configs()
-		# if self.role:
-		# 	logger.debug(f"User {name} has role {self.role}. Using role configuration.")
-		# 	role = self.role
 
 		# if a role is set, all values are set by the role
 		if role:

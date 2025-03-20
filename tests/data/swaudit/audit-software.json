@@ -1,5 +1,18 @@
 [
 	{
+		"windowsSoftwareId": "",
+		"installSize": -1,
+		"version": "22H2",
+		"windowsDisplayVersion": "",
+		"subVersion": "19045.5608",
+		"type": "AuditSoftware",
+		"name": "Windows 10 Pro",
+		"language": "de",
+		"architecture": "x64",
+		"windowsDisplayName": "Windows 10 Pro",
+		"isOperatingSystem": true
+	},
+	{
 		"windowsSoftwareId": "AddressBook",
 		"installSize": -1,
 		"version": "",

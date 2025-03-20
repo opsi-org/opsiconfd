@@ -273,14 +273,16 @@ CREATE TABLE IF NOT EXISTS `SOFTWARE` (
 	`version` varchar(100) NOT NULL,
 	`subVersion` varchar(100) NOT NULL,
 	`language` varchar(10) NOT NULL,
-	`architecture` varchar(3) NOT NULL,
+	`architecture` varchar(5) NOT NULL,
 	`windowsSoftwareId` varchar(100) DEFAULT NULL,
 	`windowsDisplayName` varchar(100) DEFAULT NULL,
 	`windowsDisplayVersion` varchar(100) DEFAULT NULL,
 	`installSize` bigint(20) DEFAULT NULL,
+	`isOperatingSystem` tinyint(1) DEFAULT 0,
 	PRIMARY KEY (`software_id`),
 	UNIQUE KEY `index_software_nvsla` (`name`,`version`,`subVersion`,`language`,`architecture`),
-	KEY `index_software_windowsSoftwareId` (`windowsSoftwareId`)
+	KEY `index_software_windowsSoftwareId` (`windowsSoftwareId`),
+	KEY `index_software_isOperatingSystem` (`isOperatingSystem`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
@@ -366,7 +368,7 @@ CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
 	`version` varchar(100) NOT NULL,
 	`subVersion` varchar(100) NOT NULL,
 	`language` varchar(10) NOT NULL,
-	`architecture` varchar(3) NOT NULL,
+	`architecture` varchar(5) NOT NULL,
 	PRIMARY KEY (`licensePoolId`,`name`,`version`,`subVersion`,`language`,`architecture`),
 	FOREIGN KEY (`licensePoolId`)
 		REFERENCES `LICENSE_POOL` (`licensePoolId`)
@@ -417,20 +419,20 @@ def create_audit_hardware_tables(session: Session, tables: dict[str, dict[str, d
 						hardware_device_table += f"CHANGE `{value}` `{value}` {value_info['Type']} NULL,\n"
 					else:
 						# Column does not exist => add
-						hardware_device_table += f'ADD `{value}` {value_info["Type"]} NULL,\n'
+						hardware_device_table += f"ADD `{value}` {value_info['Type']} NULL,\n"
 				else:
-					hardware_device_table += f'`{value}` {value_info["Type"]} NULL,\n'
+					hardware_device_table += f"`{value}` {value_info['Type']} NULL,\n"
 				hardware_device_values_processed += 1
 			elif value_info["Scope"] == "i":
 				if hardware_config_table_exists:
 					if value in tables[hardware_config_table_name]:
 						# Column exists => change
-						hardware_config_table += f'CHANGE `{value}` `{value}` {value_info["Type"]} NULL,\n'
+						hardware_config_table += f"CHANGE `{value}` `{value}` {value_info['Type']} NULL,\n"
 					else:
 						# Column does not exist => add
-						hardware_config_table += f'ADD `{value}` {value_info["Type"]} NULL,\n'
+						hardware_config_table += f"ADD `{value}` {value_info['Type']} NULL,\n"
 				else:
-					hardware_config_table += f'`{value}` {value_info["Type"]} NULL,\n'
+					hardware_config_table += f"`{value}` {value_info['Type']} NULL,\n"
 				hardware_config_values_processed += 1
 
 		if not hardware_device_table_exists:
@@ -1293,14 +1295,14 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			remove_index(session=session, database=mysql.database, table="SOFTWARE", index="PRIMARY")
 			session.execute("ALTER TABLE `SOFTWARE` ADD `software_id` INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST")
 
-			create_index(
-				session=session,
-				database=mysql.database,
-				table="SOFTWARE",
-				index="index_software_nvsla",
-				unique=True,
-				columns=["name", "version", "subVersion", "language", "architecture"],
-			)
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="SOFTWARE",
+			index="index_software_nvsla",
+			unique=True,
+			columns=["name", "version", "subVersion", "language", "architecture"],
+		)
 
 		if "software_id" not in mysql.tables["SOFTWARE_CONFIG"]:
 			logger.info("Adding column 'software_id' on table SOFTWARE_CONFIG.")
@@ -1330,34 +1332,35 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 					remove_foreign_key(session=session, foreign_key=foreign_key)
 
 			remove_index(session=session, database=mysql.database, table="SOFTWARE_CONFIG", index="PRIMARY")
-			create_index(
-				session=session,
-				database=mysql.database,
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="SOFTWARE_CONFIG",
+			index="PRIMARY",
+			columns=["software_id", "clientId"],
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(table="SOFTWARE_CONFIG", ref_table="SOFTWARE", f_keys=["software_id"]),
+		)
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
 				table="SOFTWARE_CONFIG",
-				index="PRIMARY",
-				columns=["software_id", "clientId"],
-			)
+				f_keys=["clientId"],
+				ref_table="HOST",
+				ref_keys=["hostId"],
+			),
+		)
 
-			create_foreign_key(
-				session=session,
-				database=mysql.database,
-				foreign_key=OpsiForeignKey(table="SOFTWARE_CONFIG", ref_table="SOFTWARE", f_keys=["software_id"]),
-			)
-			create_foreign_key(
-				session=session,
-				database=mysql.database,
-				foreign_key=OpsiForeignKey(
-					table="SOFTWARE_CONFIG",
-					f_keys=["clientId"],
-					ref_table="HOST",
-					ref_keys=["hostId"],
-				),
-			)
-
-			for column in ("name", "version", "subVersion", "language", "architecture"):
-				if column in mysql.tables["SOFTWARE_CONFIG"]:
-					logger.info("Dropping column %r from table SOFTWARE_CONFIG", column)
-					session.execute(f"ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `{column}`")
+		for column in ("name", "version", "subVersion", "language", "architecture"):
+			if column in mysql.tables["SOFTWARE_CONFIG"]:
+				logger.info("Dropping column %r from table SOFTWARE_CONFIG", column)
+				session.execute(f"ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `{column}`")
 
 		if "type" in mysql.tables["SOFTWARE"]:
 			logger.info("Dropping column 'type' from table SOFTWARE")
@@ -1379,6 +1382,21 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				foreign_key=OpsiForeignKey(table=table, ref_table="HOST", f_keys=["hostId"]),
 				cleanup_function=lambda session: remove_orphans_hardware_config(mysql, session),
 			)
+
+		# schema_version 17
+		if "isOperatingSystem" not in mysql.tables["SOFTWARE"]:
+			logger.info("Adding column 'isOperatingSystem' on table SOFTWARE.")
+			session.execute("ALTER TABLE `SOFTWARE` ADD `isOperatingSystem` tinyint(1) DEFAULT 0")
+			create_index(
+				session=session,
+				database=mysql.database,
+				table="SOFTWARE",
+				index="index_software_isOperatingSystem",
+				columns=["isOperatingSystem"],
+			)
+
+		for table in ("SOFTWARE", "AUDIT_SOFTWARE_TO_LICENSE_POOL"):
+			session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `architecture` VARCHAR(5) NOT NULL")
 
 		logger.info("All updates completed")
 

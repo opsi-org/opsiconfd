@@ -16,13 +16,24 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicense, OpsiLicensePool, generate_key_pair, get_default_opsi_license_pool
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
 from opsiconfd.utils.cryptography import blowfish_encrypt
-from tests.utils import Config, UnprotectedBackend, backend, clean_mysql, get_config  # noqa: F401
+from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	Config,
+	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
+	clean_mysql,
+	get_config,
+	test_client,
+)
 
 
 @pytest.mark.parametrize(
@@ -528,3 +539,45 @@ def test_service_getHostsWithActiveHealthCheck(backend: UnprotectedBackend) -> N
 
 	backend.configState_delete(objectId="test-backend-rpc-general-1.opsi.org", configId="opsi.check.enabled")
 	backend.host_delete("test-backend-rpc-general-1.opsi.org")
+
+
+@pytest.mark.parametrize(
+	"password, return_type",
+	(
+		("secret", "backup_dir"),
+		(None, "data"),
+		(None, "file_id"),
+	),
+)
+def test_service_createBackup(test_client: OpsiconfdTestClient, tmp_path: Path, password: str | None, return_type: str) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with (
+		patch("opsiconfd.backend.rpc.general.BACKUP_DIR", str(tmp_path)),
+		patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)),
+	):
+		response = test_client.jsonrpc20(
+			"service_createBackup",
+			params={
+				"config_files": False,
+				"redis_data": False,
+				"maintenance_mode": False,
+				"password": password,
+				"return_type": return_type,
+			},
+		)
+		assert "error" not in response
+		if return_type == "backup_dir":
+			dirname, filename = response["result"].rsplit("/", 1)
+			assert dirname == str(tmp_path)
+			assert (tmp_path / filename).exists()
+			parts = filename.split(".")
+			assert parts[0].startswith("opsiconfd-backup")
+			assert parts[1] == "msgpack"
+			assert parts[2] == "lz4"
+			if password:
+				assert parts[3] == "aes"
+		elif return_type == "file_id":
+			file_id = UUID(response["result"])
+			assert (tmp_path / str(file_id)).exists()
+		elif return_type == "data":
+			assert response["result"]["meta"]["type"] == "opsiconfd_backup"

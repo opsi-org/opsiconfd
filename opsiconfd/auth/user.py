@@ -111,8 +111,11 @@ def create_user_roles(name: str, groups: set = set()) -> None:
 	user_register = backend.config_getObjects(configId="user.{}.register")
 	if not user_register or not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
 		return
-
-	role = backend.config_getObjects(configId="user.{{{}}}.has_role".format(name))[0].defaultValues[0]
+	role = None
+	try:
+		role = backend.config_getObjects(configId="user.{{{}}}.has_role".format(name))[0].defaultValues[0]
+	except IndexError:
+		logger.debug(f"No role configured for user {name}")
 	logger.debug(f"Configured role for user {name}: {role}")
 	groups_to_import = backend.config_getObjects(configId="opsi.roles")
 	if groups_to_import and not role:

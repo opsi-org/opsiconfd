@@ -59,7 +59,7 @@ def test_check_opsiconfd_config(tmp_path: Path) -> None:
 			elif partial_result.check.id == "opsiconfd_config:acl_self_for_all":
 				ids_found += 1
 				assert partial_result.check_status == CheckStatus.ERROR
-				assert partial_result.message == "'self' is allowed for '.*'."
+				assert partial_result.message == "'self' is not allowed for '.*'."
 		assert ids_found == 3
 
 

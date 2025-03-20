@@ -56,8 +56,12 @@ test:lint-and-test:
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 120
 
     - for i in 1 2 3 4 5 6 7 8 9; do sleep 1; $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs && break; done
-    - $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs
-
+    - |
+      $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs || (
+        echo -e "${TXT_ERROR}Could not ping opsiserver43-cs${TXT_CLEAR}"
+        $DOCKER_COMPOSE ps -a
+        exit 1
+      )
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run ruff check opsiconfd tests perftest
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run mypy opsiconfd tests perftest

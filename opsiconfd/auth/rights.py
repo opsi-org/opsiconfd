@@ -26,6 +26,11 @@ class Terminals(StrEnum):
 	DEPOTS = "Depots"
 
 
+class MessageTypes(StrEnum):
+	Device = "Device"
+	User = "User"
+
+
 class Rights:
 	name: str
 	role: str = ""
@@ -44,6 +49,7 @@ class Rights:
 	ssh_menu_server_console: bool = True
 	ssh_server_configuration: bool = True
 	connect_terminal_forbidden: list[Terminals] | None = None
+	message_of_the_day_forbidden: list[MessageTypes] | None = None
 	configs: dict[str, UnicodeConfig | BoolConfig] = {}
 	config_prefix: str = "user"
 
@@ -76,6 +82,7 @@ class Rights:
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
 		connect_terminal_forbidden: list[Terminals] | None = None,
+		message_of_the_day_forbidden: list[MessageTypes] | None = None,
 	):
 		self.name = name
 		self.read_only = read_only
@@ -92,6 +99,7 @@ class Rights:
 		self.ssh_menu_server_console = ssh_menu_server_console
 		self.ssh_server_configuration = ssh_server_configuration
 		self.connect_terminal_forbidden = connect_terminal_forbidden
+		self.message_of_the_day_forbidden = message_of_the_day_forbidden
 
 		now = datetime.now(tz=timezone.utc)
 		self.modified = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -103,13 +111,14 @@ class Rights:
 		product_groups = [group.id for group in self.backend.group_getObjects(type="ProductGroup")]
 		host_groups = [group.id for group in self.backend.group_getObjects(type="HostGroup")]
 		forbidden_terminals = [terminal.value for terminal in Terminals]
+		forbidden_message_types = [message_type.value for message_type in MessageTypes]
 
 		self.configs = {
 			"role": UnicodeConfig(
 				id=f"{self.config_prefix}.has_role",
 				multiValue=False,
 				editable=False,
-				defaultValues=[],
+				defaultValues=[""],
 				description="Which role should determine this users configuration.",
 			),
 			"modified": UnicodeConfig(
@@ -189,6 +198,14 @@ class Rights:
 				defaultValues=[],
 				possibleValues=forbidden_terminals,
 			),
+			"message_of_the_day_forbidden": UnicodeConfig(
+				id=f"{self.config_prefix}.message_of_the_day.forbidden",
+				multiValue=True,
+				editable=False,
+				description="Forbidden message types for this role.",
+				defaultValues=[],
+				possibleValues=forbidden_message_types,
+			),
 		}
 
 	def read_configs(self) -> None:
@@ -231,4 +248,5 @@ class Rights:
 
 	def get_roles(self) -> list[str]:
 		roles = [r.id.split(".")[2].strip("{}") for r in self.backend.config_getObjects(configId="user.role.*")]
+		roles.append("")
 		return roles

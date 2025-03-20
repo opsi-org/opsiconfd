@@ -11,7 +11,7 @@ opsiconfd.auth.user
 
 from opsicommon.objects import UnicodeConfig
 
-from opsiconfd.auth.rights import Rights, Terminals
+from opsiconfd.auth.rights import MessageTypes, Rights, Terminals
 from opsiconfd.auth.role import Role
 from opsiconfd.logging import get_logger
 
@@ -39,6 +39,7 @@ class User(Rights):
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
 		connect_terminal_forbidden: list[Terminals] | None = None,
+		message_of_the_day_forbidden: list[MessageTypes] | None = None,
 	):
 		self.name = name
 		self.config_prefix = f"user.{{{self.name}}}"
@@ -59,7 +60,10 @@ class User(Rights):
 			ssh_menu_server_console,
 			ssh_server_configuration,
 			connect_terminal_forbidden,
+			message_of_the_day_forbidden,
 		)
+
+		self.read_configs()
 
 		# if a role is set, all values are set by the role
 		if role:
@@ -80,6 +84,7 @@ class User(Rights):
 			self.ssh_menu_server_console = user_role.ssh_menu_server_console
 			self.ssh_server_configuration = user_role.ssh_server_configuration
 			self.connect_terminal_forbidden = user_role.connect_terminal_forbidden
+			self.message_of_the_day_forbidden = user_role.message_of_the_day_forbidden
 			roles = {r.id.split(".")[2].strip("{}") for r in self.backend.config_getObjects(configId="user.role.*")}
 			self.configs["role"] = UnicodeConfig(
 				id=f"{self.config_prefix}.has_role",
@@ -97,7 +102,7 @@ class User(Rights):
 		self.create_configs()
 
 
-def create_user_roles(name: str, groups: set) -> None:
+def create_user_roles(name: str, groups: set = set()) -> None:
 	from opsiconfd.backend import get_unprotected_backend
 
 	logger.debug(f"Creating user {name} with groups {groups}")
@@ -106,11 +111,18 @@ def create_user_roles(name: str, groups: set) -> None:
 	user_register = backend.config_getObjects(configId="user.{}.register")
 	if not user_register or not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
 		return
-
 	role = ""
+	try:
+		role = backend.config_getObjects(configId="user.{{{}}}.has_role".format(name))[0].defaultValues[0]
+	except IndexError:
+		logger.debug(f"No role configured for user {name}")
+	logger.debug(f"Configured role for user {name}: {role}")
 	groups_to_import = backend.config_getObjects(configId="opsi.roles")
-	if groups_to_import:
+	if groups_to_import and not role:
+		logger.debug(f"Importing groups for user {name}")
+		logger.debug(f"Groups to import: {groups_to_import}")
 		for group in groups:
+			logger.debug(f"Checking group {group}")
 			if group in groups_to_import[0].defaultValues:
 				# use first match as role and skip other groups
 				logger.debug(f"Use group {group} as role for user {name}.")
@@ -118,3 +130,14 @@ def create_user_roles(name: str, groups: set) -> None:
 				break
 
 	User(name=name, role=role)
+
+
+def get_users() -> set[str]:
+	from opsiconfd.backend import get_unprotected_backend
+
+	backend = get_unprotected_backend()
+	user_configs = backend.config_getObjects(configId="user.{*")
+	users = set()
+	for config in user_configs:
+		users.add(config.id.split(".")[1].strip("{}"))
+	return users

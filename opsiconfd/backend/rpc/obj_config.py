@@ -18,6 +18,8 @@ from opsicommon.objects import BoolConfig, Config, UnicodeConfig
 from opsicommon.types import forceObjectClass, forceObjectClassList
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd.auth.role import Role
+from opsiconfd.auth.user import create_user_roles, get_users
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
 
@@ -289,3 +291,10 @@ class RPCConfigMixin(Protocol):
 					messagebus_only=True,
 				)
 				logger.debug("messageOfTheDayUpdated result: %s", result)
+
+	@rpc_method(check_acl=False)
+	def config_createRole(self: BackendProtocol, name: str) -> None:
+		Role(name=name)
+		users = get_users()
+		for user in users:
+			create_user_roles(user)

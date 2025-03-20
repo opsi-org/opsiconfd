@@ -9,7 +9,7 @@
 opsiconfd.auth.role
 """
 
-from opsiconfd.auth.rights import Rights, Terminals
+from opsiconfd.auth.rights import MessageTypes, Rights, Terminals
 from opsiconfd.logging import get_logger
 
 logger = get_logger("opsiconfd.user-roles")
@@ -33,6 +33,7 @@ class Role(Rights):
 		ssh_menu_server_console: bool = True,
 		ssh_server_configuration: bool = True,
 		connect_terminal_forbidden: list[Terminals] | None = None,
+		message_of_the_day_forbidden: list[MessageTypes] | None = None,
 	):
 		logger.debug(f"Creating role {name}")
 		self.name = name
@@ -53,6 +54,7 @@ class Role(Rights):
 			ssh_menu_server_console,
 			ssh_server_configuration,
 			connect_terminal_forbidden,
+			message_of_the_day_forbidden,
 		)
 
 		self.read_configs()

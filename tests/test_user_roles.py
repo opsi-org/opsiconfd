@@ -240,6 +240,22 @@ def test_read_configs_for_user(backend: UnprotectedBackend) -> None:  # noqa: F8
 			possibleValues=["product1", "product2"],
 			defaultValues=["product1", "product2"],
 		),
+		UnicodeConfig(
+			id="user.{admin}.connect.terminal.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden terminals for this role.",
+			defaultValues=[],
+			possibleValues=["Clients", "Depots", "ConfigServers"],
+		),
+		UnicodeConfig(
+			id="user.{admin}.message_of_the_day.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden message types for this role.",
+			defaultValues=[],
+			possibleValues=["Device", "User"],
+		),
 	]
 
 	result = backend.config_createObjects(test_configs)
@@ -327,6 +343,22 @@ def test_read_configs_for_role(backend: UnprotectedBackend) -> None:  # noqa: F8
 			possibleValues=["product1", "product2"],
 			defaultValues=["product1", "product2"],
 		),
+		UnicodeConfig(
+			id="user.{admin}.connect.terminal.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden terminals for this role.",
+			defaultValues=[],
+			possibleValues=["Clients", "Depots", "ConfigServers"],
+		),
+		UnicodeConfig(
+			id="user.{admin}.message_of_the_day.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden message types for this role.",
+			defaultValues=[],
+			possibleValues=["Device", "User"],
+		),
 	]
 
 	result = backend.config_updateObjects(test_configs)
@@ -357,7 +389,7 @@ def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F81
 	configs = backend.config_getObjects(id="user.{admin}.*")
 
 	expected_configs = [
-		UnicodeConfig(id="user.{admin}.has_role", defaultValues=[]),
+		UnicodeConfig(id="user.{admin}.has_role", defaultValues=[""]),
 		BoolConfig(id="user.{admin}.privilege.host.all.registered_readonly", defaultValues=[False]),
 		BoolConfig(id="user.{admin}.privilege.host.createclient", defaultValues=[True]),
 		BoolConfig(id="user.{admin}.privilege.host.opsiserver.write", defaultValues=[True]),
@@ -380,12 +412,20 @@ def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F81
 			defaultValues=[],
 		),
 		UnicodeConfig(
-			id="user.role.{admin}.connect.terminal.forbidden",
+			id="user.{admin}.connect.terminal.forbidden",
 			multiValue=True,
 			editable=False,
 			description="Forbidden terminals for this role.",
 			defaultValues=[],
 			possibleValues=["Clients", "Depots", "ConfigServers"],
+		),
+		UnicodeConfig(
+			id="user.{admin}.message_of_the_day.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden message types for this role.",
+			defaultValues=[],
+			possibleValues=["Device", "User"],
 		),
 	]
 
@@ -430,12 +470,20 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 			defaultValues=[],
 		),
 		UnicodeConfig(
-			id="user.role.{admin}.connect.terminal.forbidden",
+			id="user.{admin}.connect.terminal.forbidden",
 			multiValue=True,
 			editable=False,
 			description="Forbidden terminals for this role.",
 			defaultValues=[],
 			possibleValues=["Clients", "Depots", "ConfigServers"],
+		),
+		UnicodeConfig(
+			id="user.{admin}.message_of_the_day.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden message types for this role.",
+			defaultValues=[],
+			possibleValues=["Device", "User"],
 		),
 	]
 
@@ -478,6 +526,14 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 			description="Forbidden terminals for this role.",
 			defaultValues=[],
 			possibleValues=["Clients", "Depots", "ConfigServers"],
+		),
+		UnicodeConfig(
+			id="user.role.{admin}.message_of_the_day.forbidden",
+			multiValue=True,
+			editable=False,
+			description="Forbidden message types for this role.",
+			defaultValues=[],
+			possibleValues=["Device", "User"],
 		),
 	]
 

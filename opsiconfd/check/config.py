@@ -18,12 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from opsicommon.logging.constants import (
-	LEVEL_TO_NAME,
-	LOG_DEBUG,
-	LOG_TRACE,
-	OPSI_LEVEL_TO_LEVEL,
-)
+from opsicommon.logging.constants import LEVEL_TO_NAME, LOG_DEBUG, LOG_TRACE, OPSI_LEVEL_TO_LEVEL
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.auth import read_acl_file
@@ -199,14 +194,14 @@ class AclSelfForAllCheck(Check):
 	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
-		result = CheckResult(check=self, check_status=CheckStatus.OK, message="'self' is not allowed for '.*'.")
+		result = CheckResult(check=self, check_status=CheckStatus.OK, message="No issues found with ACL.")
 		fallback_acl = re.compile(".*")
 		for acl in read_acl_file(config.acl_file):
 			if not acl.method_re == fallback_acl:
 				continue
 			if acl.type == "self":
 				result.check_status = CheckStatus.ERROR
-				result.message = "'self' is allowed for '.*'."
+				result.message = "'self' is not allowed for '.*'."
 				break
 		return result
 

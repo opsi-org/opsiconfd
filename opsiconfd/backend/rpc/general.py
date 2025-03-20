@@ -47,6 +47,7 @@ from opsiconfd.backup import create_backup, restore_backup
 from opsiconfd.check.main import CheckResult, health_check
 from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.config import (
+	BACKUP_DIR,
 	FILE_TRANSFER_STORAGE_DIR,
 	FQDN,
 	LOG_DIR,
@@ -193,7 +194,7 @@ class RPCGeneralMixin(Protocol):
 		redis_data: Backup redis data?
 		maintenance_mode: Run backup in maintenance mode?
 		password: Password for backup encryption (optional).
-		return_type: file_id or data.
+		return_type: file_id, backup_dir or data.
 		"""
 		self._check_role("admin")
 		session = contextvar_client_session.get()
@@ -204,14 +205,15 @@ class RPCGeneralMixin(Protocol):
 		file_encoding = "msgpack"
 		file_compression = "lz4"
 		backup_file = None
-		if return_type == "file_id":
+		if return_type in ("file_id", "backup_dir"):
 			now = datetime.now().strftime("%Y%m%d-%H%M%S")
-			file_meta = prepare_file(
-				filename=f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}{'.aes' if password else ''}",
-				content_type="binary/octet-stream",
-			)
-			file_id = file_meta.file_id
-			backup_file = file_meta.file_path
+			filename = f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}{'.aes' if password else ''}"
+			if return_type == "file_id":
+				file_meta = prepare_file(filename=filename, content_type="binary/octet-stream")
+				file_id = file_meta.file_id
+				backup_file = file_meta.file_path
+			else:
+				backup_file = Path(BACKUP_DIR) / filename
 
 		data = create_backup(
 			config_files=config_files,
@@ -225,6 +227,8 @@ class RPCGeneralMixin(Protocol):
 		)
 		if file_id:
 			return file_id
+		if return_type == "backup_dir":
+			return str(backup_file)
 		return data
 
 	@rpc_method
@@ -490,7 +494,7 @@ class RPCGeneralMixin(Protocol):
 					for num in range(config.keep_rotated_logs, 0, -1):
 						src_file_path = log_file
 						if num > 1:
-							src_file_path = log_file.with_name(f"{log_file.name}.{num-1}")
+							src_file_path = log_file.with_name(f"{log_file.name}.{num - 1}")
 						if not src_file_path.exists():
 							continue
 						dst_file_path = log_file.with_name(f"{log_file.name}.{num}")

@@ -111,7 +111,7 @@ def create_user_roles(name: str, groups: set = set()) -> None:
 	user_register = backend.config_getObjects(configId="user.{}.register")
 	if not user_register or not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
 		return
-	role = None
+	role = ""
 	try:
 		role = backend.config_getObjects(configId="user.{{{}}}.has_role".format(name))[0].defaultValues[0]
 	except IndexError:

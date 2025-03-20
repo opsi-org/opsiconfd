@@ -94,5 +94,9 @@ fi
 touch /run/.docker-healthy
 
 # Run CMD
-echo "Running: $@"
-exec "$@"
+echo "* Running: $@"
+set +e
+$@
+exit_code=$?
+echo "Exit code: $exit_code"
+exit $exit_code

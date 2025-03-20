@@ -99,6 +99,8 @@ class Check:
 				result.message = error_str
 			elif isinstance(err, RedisConnectionError):
 				result.message = f"Cannot connect to Redis: {err}"
+
+			logger.error("Error during check %s: %s", self.id, err)
 			return result
 
 	def _check(self) -> CheckResult:

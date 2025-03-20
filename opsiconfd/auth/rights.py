@@ -118,7 +118,7 @@ class Rights:
 				id=f"{self.config_prefix}.has_role",
 				multiValue=False,
 				editable=False,
-				defaultValues=[],
+				defaultValues=[""],
 				description="Which role should determine this users configuration.",
 			),
 			"modified": UnicodeConfig(

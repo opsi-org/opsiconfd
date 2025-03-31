@@ -53,8 +53,7 @@ def set_failed_auth_and_blocked(conf: Config, ip_address: str) -> None:
 		f"ts.create {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} RETENTION 86400000 LABELS client_addr {ip_address}"
 	)
 	redis.execute_command(
-		f"ts.add {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} "
-		f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
+		f"ts.add {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} * 11 RETENTION 86400000 LABELS client_addr {ip_address}"
 	)
 	redis.set(f"{conf.redis_key('stats')}:client:blocked:{ip_address_redis}", 1)
 

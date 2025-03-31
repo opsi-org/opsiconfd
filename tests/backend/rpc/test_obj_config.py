@@ -206,7 +206,7 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 		configs.extend(
 			[
 				UnicodeConfig(
-					id=f"test-backend-rpc-obj-config-{idx*2}",
+					id=f"test-backend-rpc-obj-config-{idx * 2}",
 					possibleValues=[
 						"clientName",
 						"clientDescription",
@@ -227,7 +227,7 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 					defaultValues=["clientConnected", "clientDescription", "clientIPAddress", "clientLastSeen", "clientName"],
 					multiValue=True,
 				),
-				BoolConfig(id=f"test-backend-rpc-obj-config-{idx*2+1}", description="test bool config", defaultValues=[True]),
+				BoolConfig(id=f"test-backend-rpc-obj-config-{idx * 2 + 1}", description="test bool config", defaultValues=[True]),
 			]
 		)
 

@@ -185,10 +185,10 @@ def test_product_property_state_getIdents(
 	assert "error" not in res
 
 	assert sorted(res["result"]) == [
-		(f"{product_property_states[0].productId};" f"{product_property_states[0].propertyId};" f"{product_property_states[0].objectId}"),
-		(f"{product_property_states[2].productId};" f"{product_property_states[2].propertyId};" f"{product_property_states[2].objectId}"),
-		(f"{product_property_states[1].productId};" f"{product_property_states[1].propertyId};" f"{product_property_states[1].objectId}"),
-		(f"{product_property_states[3].productId};" f"{product_property_states[3].propertyId};" f"{product_property_states[3].objectId}"),
+		(f"{product_property_states[0].productId};{product_property_states[0].propertyId};{product_property_states[0].objectId}"),
+		(f"{product_property_states[2].productId};{product_property_states[2].propertyId};{product_property_states[2].objectId}"),
+		(f"{product_property_states[1].productId};{product_property_states[1].propertyId};{product_property_states[1].objectId}"),
+		(f"{product_property_states[3].productId};{product_property_states[3].propertyId};{product_property_states[3].objectId}"),
 	]
 
 

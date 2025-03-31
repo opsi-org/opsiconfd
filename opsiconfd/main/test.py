@@ -98,10 +98,7 @@ def test_ldap_auth() -> None:
 		bind_user = (Prompt.ask("  Enter bind user template", default=bind_user or None) or "").strip()
 
 		console.print(
-			"[b]- Group filter (optional)[/b]\n"
-			"  The filter which is used when searching groups.\n"
-			"  Examples:\n"
-			"    (objectclass=group)",
+			"[b]- Group filter (optional)[/b]\n  The filter which is used when searching groups.\n  Examples:\n    (objectclass=group)",
 			highlight=False,
 		)
 		group_filter = (Prompt.ask("  Enter group filter (optional)") or "").strip()

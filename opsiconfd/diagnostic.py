@@ -155,8 +155,8 @@ def get_memory_info() -> dict[str, Any]:
 	return {
 		"total": total,
 		"available": available,
-		"total_human": f"{round(total / (2 ** 30), 2)}GiB",
-		"available_human": f"{round(available / (2 ** 30), 2)}GiB",
+		"total_human": f"{round(total / (2**30), 2)}GiB",
+		"available_human": f"{round(available / (2**30), 2)}GiB",
 		"used_percent": memory.percent,
 	}
 

@@ -429,7 +429,7 @@ class Worker(WorkerInfo, UvicornServer):
 		scope = connection.scope
 		if connection.scope:
 			method = str(scope.get("method"))
-			info = f'{info} - {method + " " if method else ""}{scope.get("path", "")}'
+			info = f"{info} - {method + ' ' if method else ''}{scope.get('path', '')}"
 		return f"{connection.__class__.__name__}({info})"
 
 	async def shutdown(self, sockets: list[socket.socket] | None = None) -> None:

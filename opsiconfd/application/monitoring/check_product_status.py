@@ -105,7 +105,7 @@ def check_product_status(
 				if state != State.CRITICAL:
 					state = State.WARNING
 
-				action_request_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({ poc.actionRequest})")
+				action_request_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({poc.actionRequest})")
 
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
 				if state != State.CRITICAL:

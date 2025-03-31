@@ -170,7 +170,7 @@ async def test_message_reader_user_channel(config: Config) -> None:  # noqa: F81
 		for idx, received in enumerate(reader.received):
 			assert received[1].type == "test"
 			assert received[1].id == f"00000000-0000-4000-8000-00000000000{idx + 1}"
-			assert received[2] == f"context_data{idx+1}".encode("utf-8")
+			assert received[2] == f"context_data{idx + 1}".encode("utf-8")
 
 	# We did not ACK any message, so last-delivered-id has to be None
 	last_id = await redis.hget(f"{config.redis_key('messagebus')}:channels:{channel}:info", "last-delivered-id")
@@ -197,7 +197,7 @@ async def test_message_reader_user_channel(config: Config) -> None:  # noqa: F81
 	for idx, received in enumerate(reader1.received):
 		assert received[1].type == "test"
 		assert received[1].id == f"00000000-0000-4000-8000-00000000000{idx + 1}"
-		assert received[2] == f"context_data{idx+1}".encode("utf-8")
+		assert received[2] == f"context_data{idx + 1}".encode("utf-8")
 		# ACK message
 		await reader1.ack_message(channel, received[0])
 	last_acked_redis_id = reader1.received[5][0]

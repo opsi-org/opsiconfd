@@ -212,7 +212,9 @@ def create_link_header(total: int, commons: dict[str, Any], url: URL) -> dict:
 				if param.startswith("pageNumber"):
 					continue
 				link += param + "&"
-			headers["Link"] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+			headers["Link"] = (
+				f'<{link}pageNumber={page_number + 1}>; rel="next", <{link}pageNumber={math.ceil(total / per_page)}>; rel="last"'
+			)
 	return headers
 
 

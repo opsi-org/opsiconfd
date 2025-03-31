@@ -280,7 +280,7 @@ def setup_ucs_samba_share(
 		"--set",
 		f"sambaName={name}",
 		"--set",
-		f'sambaInvalidUsers={invalid_users or ""}',
+		f"sambaInvalidUsers={invalid_users or ''}",
 		"--set",
 		"sambaBrowseable=1",
 		"--set",

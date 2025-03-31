@@ -67,14 +67,14 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 		f".*                 : sys_user({ADMIN_USER})\n"
 	)
 	_acl_file.write_text(data=data, encoding="utf-8")
-	backend = ProtectedBackend()
+	_backend = ProtectedBackend()
 	try:
 		with get_config({"acl_file": str(_acl_file)}):
-			backend._read_acl_file()
+			_backend._read_acl_file()
 		yield _acl_file
 	finally:
 		# Restore original ACL
-		backend._read_acl_file()
+		_backend._read_acl_file()
 
 
 def test_auto_fill_depotserver_url() -> None:

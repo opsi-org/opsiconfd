@@ -544,7 +544,7 @@ def test_max_auth_failures(
 			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*", count=1000):
 				cmd = (
 					f"ts.range {key.decode()} "
-					f"{(now-(conf.auth_failures_interval*1000))} {now} aggregation count {(conf.auth_failures_interval*1000)}"
+					f"{(now - (conf.auth_failures_interval * 1000))} {now} aggregation count {(conf.auth_failures_interval * 1000)}"
 				)
 				num_failed_auth = redis.execute_command(cmd)
 				num_failed_auth = int(num_failed_auth[-1][1]) if num_failed_auth else -1

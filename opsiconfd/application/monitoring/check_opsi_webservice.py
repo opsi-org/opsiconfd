@@ -75,10 +75,10 @@ async def check_opsi_webservice(
 			error_rate = error_count / rpc_num * 100 if rpc_num > 0 else 0.0
 
 		if error_rate > error_thresholds.get("critical", 0):
-			message.append(f'RPC errors over {error_thresholds.get("critical")}%')
+			message.append(f"RPC errors over {error_thresholds.get('critical')}%")
 			state = State.CRITICAL
 		elif error_rate > error_thresholds.get("warning", 0):
-			message.append(f'RPC errors over {error_thresholds.get("warning")}%')
+			message.append(f"RPC errors over {error_thresholds.get('warning')}%")
 			state = State.WARNING
 
 		workers = await get_workers(redis)
@@ -95,11 +95,11 @@ async def check_opsi_webservice(
 
 		if cpu_avg > cpu_thresholds.get("critical", 0):
 			state = State.CRITICAL
-			message.append(f'CPU-Usage over {cpu_thresholds.get("critical")}%')
+			message.append(f"CPU-Usage over {cpu_thresholds.get('critical')}%")
 		elif cpu_avg > cpu_thresholds.get("warning", 0):
 			if state != State.CRITICAL:
 				state = State.WARNING
-			message.append(f'CPU-Usage over {cpu_thresholds.get("warning")}%')
+			message.append(f"CPU-Usage over {cpu_thresholds.get('warning')}%")
 
 		if state == State.OK:
 			message.append("Opsi Webservice has no Problem.")

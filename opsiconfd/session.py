@@ -1488,7 +1488,7 @@ async def check_blocked(ip_address: str) -> None:
 	now = int(unix_timestamp(millis=True))
 	cmd = (
 		f"ts.range {config.redis_key('stats')}:client:failed_auth:{ip_key} "
-		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
+		f"{(now - (config.auth_failures_interval * 1000))} {now} aggregation count {(config.auth_failures_interval * 1000)}"
 	)
 	logger.debug(cmd)
 	try:

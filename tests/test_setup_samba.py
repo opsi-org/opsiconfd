@@ -55,7 +55,7 @@ EXPECTED_CONF = f"""
    comment = opsi workbench
    path = /var/lib/opsi/workbench
    writeable = yes
-   invalid users = root {opsi_config.get('depot_user', 'username')}
+   invalid users = root {opsi_config.get("depot_user", "username")}
    create mask = 0660
    directory mask = 0770
    acl allow execute always = true
@@ -66,7 +66,7 @@ EXPECTED_CONF = f"""
    path = /var/lib/opsi/repository
    follow symlinks = yes
    writeable = no
-   invalid users = root {opsi_config.get('depot_user', 'username')}
+   invalid users = root {opsi_config.get("depot_user", "username")}
 
 [opsi_logs]
    available = yes
@@ -74,7 +74,7 @@ EXPECTED_CONF = f"""
    path = /var/log/opsi
    follow symlinks = yes
    writeable = no
-   invalid users = root {opsi_config.get('depot_user', 'username')}
+   invalid users = root {opsi_config.get("depot_user", "username")}
 """
 
 

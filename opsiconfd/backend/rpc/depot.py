@@ -409,7 +409,7 @@ class RPCDepotserverMixin(Protocol):
 					redis.eval(  # type: ignore[no-untyped-call]
 						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
 						0,
-						f'{config.redis_key('slot')}:{depot}:{slot_type}:*',
+						f"{config.redis_key('slot')}:{depot}:{slot_type}:*",
 					)
 				)
 				if depot_slots < max_slots:

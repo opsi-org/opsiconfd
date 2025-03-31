@@ -238,7 +238,7 @@ async def saml_callback_login(request: Request) -> Response:
 		await post_authenticate(request.scope)
 		if redirect == "close_window":
 			return HTMLResponse(
-				"<html><body><p>The login was successful, you can close this window.</p>" "<script>window.close();</script></body></html>",
+				"<html><body><p>The login was successful, you can close this window.</p><script>window.close();</script></body></html>",
 			)
 		return HTMLResponse(
 			f'<html><head><meta http-equiv="refresh" content="0; url={redirect}"><head></html>',

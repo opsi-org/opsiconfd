@@ -9,6 +9,7 @@
 test opsiconfd.backend.mysql
 """
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Generator
@@ -33,17 +34,19 @@ from opsicommon.objects import (
 	ProductPropertyState,
 	RetailSoftwareLicense,
 	SoftwareLicenseToLicensePool,
+	UnicodeConfig,
 	UnicodeProductProperty,
 	deserialize,
 )
 
 from opsiconfd.backend.auth import RPCACE
-from opsiconfd.backend.rpc.main import ProtectedBackend
+from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	backend,
 	clean_mysql,
 	clean_redis,
 	default_acl,
@@ -257,7 +260,7 @@ def test_host_updateObject_systemUUID(
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
-		"" "description": "description",
+		"description": "description",
 		"notes": "notes",
 		"oneTimePassword": "secret",
 		"systemUUID": "9f3f1c96-1821-413c-b850-0507a17c7e47",
@@ -1298,3 +1301,125 @@ def test_rename_client(test_client: OpsiconfdTestClient, clean_mysql: Generator)
 	result = test_client.jsonrpc20(method="softwareLicense_getObjects", params=[])["result"]
 	assert len(result) == 1
 	assert result[0].boundToHost == new_client_id
+
+
+def test_host_getClients(backend: UnprotectedBackend) -> None:  # noqa: F811
+	loop = asyncio.new_event_loop()
+	asyncio.set_event_loop(loop)
+
+	client1 = OpsiClient(id="test-host-getClients-client1.opsi.test")
+	client2 = OpsiClient(id="test-host-getClients-client2.opsi.test")
+	depot = OpsiDepotserver(id="test-host-getClients-depot.opsi.test")
+
+	configs = [
+		UnicodeConfig(id="clientconfig.depot.id"),
+		BoolConfig(id="clientconfig.smart_cache", defaultValues=[False]),
+		BoolConfig(id="opsi.check.enabled", defaultValues=[False]),
+		BoolConfig(id="opsiclientd.event_gui_startup.active", defaultValues=[True]),
+		BoolConfig(id="opsiclientd.event_gui_startup{user_logged_in}.active", defaultValues=[True]),
+		BoolConfig(id="opsiclientd.event_timer.active", defaultValues=[False]),
+		BoolConfig(id="opsiclientd.event_on_shutdown.active", defaultValues=[False]),
+		UnicodeConfig(id="clientconfig.uefinetbootlabel"),
+	]
+
+	backend.host_createObjects([client1, client2])
+	backend.host_createObjects([depot])
+	backend.config_createObjects(configs)
+
+	# Test default values
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert len(client_by_id) == 2
+	for client in client_by_id.values():
+		assert client.smart_cache is False
+		assert client.monitoring is False
+		assert client.wan_vpn is False
+		assert client.install_on_shutdown is False
+		assert client.uefi_boot is False
+
+	# Test depot inheritance
+	config_states = [
+		ConfigState(configId="clientconfig.depot.id", objectId=client2.id, values=[depot.id]),
+		ConfigState(configId="clientconfig.smart_cache", objectId=depot.id, values=[True]),
+	]
+	backend.configState_createObjects(config_states)
+
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].smart_cache is False
+	assert client_by_id[client2.id].smart_cache is True
+
+	# Test wan_vpn
+	config_states = [
+		ConfigState(configId="opsiclientd.event_gui_startup.active", objectId=client1.id, values=[True]),
+		ConfigState(configId="opsiclientd.event_gui_startup{user_logged_in}.active", objectId=client1.id, values=[True]),
+		ConfigState(configId="opsiclientd.event_timer.active", objectId=client1.id, values=[True]),
+	]
+	backend.configState_createObjects(config_states)
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].wan_vpn is False
+	assert client_by_id[client2.id].wan_vpn is False
+
+	config_states = [
+		ConfigState(configId="opsiclientd.event_gui_startup.active", objectId=client1.id, values=[False]),
+		ConfigState(configId="opsiclientd.event_gui_startup{user_logged_in}.active", objectId=client1.id, values=[False]),
+		ConfigState(configId="opsiclientd.event_timer.active", objectId=client1.id, values=[True]),
+	]
+	backend.configState_createObjects(config_states)
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].wan_vpn is True
+	assert client_by_id[client1.id].smart_cache is False
+	assert client_by_id[client2.id].wan_vpn is False
+	assert client_by_id[client2.id].smart_cache is True
+
+	# Only smart_cache or wan_vpn can be active at the same time, smart_cache has higher priority
+	config_states = [ConfigState(configId="clientconfig.smart_cache", objectId=client1.id, values=[True])]
+	backend.configState_createObjects(config_states)
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].wan_vpn is False
+	assert client_by_id[client1.id].smart_cache is True
+	assert client_by_id[client2.id].wan_vpn is False
+	assert client_by_id[client2.id].smart_cache is True
+
+	# Test uefi_boot
+	config_states = [ConfigState(configId="clientconfig.uefinetbootlabel", objectId=client1.id, values=["uefi-boot-label"])]
+	backend.configState_createObjects(config_states)
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].uefi_boot is True
+	assert client_by_id[client2.id].uefi_boot is False
+
+	# Test install_on_shutdown
+	config_states = [ConfigState(configId="opsiclientd.event_on_shutdown.active", objectId=client1.id, values=[True])]
+	backend.configState_createObjects(config_states)
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].install_on_shutdown is True
+	assert client_by_id[client2.id].install_on_shutdown is False
+
+	# Test monitoring
+	config_states = [ConfigState(configId="opsi.check.enabled", objectId=client1.id, values=[True])]
+	backend.configState_createObjects(config_states)
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].monitoring is True
+	assert client_by_id[client2.id].monitoring is False
+
+	# Test operating_system
+	audit_software = AuditSoftware(
+		name="Debian 12",
+		version="12.0",
+		subVersion="",
+		language="en",
+		architecture="x64",
+		isOperatingSystem=True,
+	)
+	audit_software_on_client = AuditSoftwareOnClient(
+		name="Debian 12",
+		version="12.0",
+		subVersion="",
+		language="en",
+		architecture="x64",
+		clientId=client1.id,
+	)
+	backend.auditSoftware_createObjects([audit_software])
+	backend.auditSoftwareOnClient_createObjects([audit_software_on_client])
+
+	client_by_id = {client.id: client for client in backend.host_getClients()}
+	assert client_by_id[client1.id].operating_system == "Debian 12"
+	assert client_by_id[client2.id].operating_system is None

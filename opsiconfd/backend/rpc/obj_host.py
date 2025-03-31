@@ -11,8 +11,10 @@ opsiconfd.backend.rpc.host
 
 from __future__ import annotations
 
+import asyncio
 import socket
 from copy import deepcopy
+from dataclasses import dataclass
 from ipaddress import ip_address
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
@@ -71,6 +73,30 @@ def auto_fill_depotserver_urls(depot: OpsiDepotserver) -> bool:
 		depot.setWorkbenchRemoteUrl(f"smb://{address}/opsi_workbench")
 		changed = True
 	return changed
+
+
+@dataclass
+class OpsiClientExtended:
+	id: str
+	opsiHostKey: str | None = None
+	description: str | None = None
+	notes: str | None = None
+	hardwareAddress: str | None = None
+	ipAddress: str | None = None
+	inventoryNumber: str | None = None
+	oneTimePassword: str | None = None
+	created: str | None = None
+	lastSeen: str | None = None
+	systemUUID: str | None = None
+	device_vendor: str | None = None
+	device_model: str | None = None
+	operating_system: str | None = None
+	connected: bool = False
+	monitoring: bool = False
+	wan_vpn: bool = False
+	smart_cache: bool = False
+	install_on_shutdown: bool = False
+	uefi_boot: bool = False
 
 
 class RPCHostMixin(Protocol):
@@ -639,3 +665,84 @@ class RPCHostMixin(Protocol):
 		return [h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="depot")] + [
 			h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="client")
 		]
+
+	@rpc_method(check_acl=False)
+	def host_getClients(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[OpsiClientExtended]:
+		clients: dict[str, OpsiClientExtended] = {}
+		client: OpsiClient
+		for client in self.host_getObjects(type="OpsiClient", attributes=attributes, **filter):
+			kwargs = client.to_hash()
+			del kwargs["type"]
+			clients[client.id] = OpsiClientExtended(**kwargs)
+		if not clients:
+			return []
+
+		loop_created = False
+		try:
+			loop = asyncio.get_running_loop()
+		except RuntimeError:
+			loop = asyncio.new_event_loop()
+			loop_created = True
+
+		for client_id in loop.run_until_complete(self.host_getMessagebusConnectedIds(hostIds=list(clients))) or []:
+			clients[client_id].connected = True
+
+		if loop_created:
+			loop.close()
+
+		client_config = self.configState_getValues(
+			config_ids=[
+				"clientconfig.smart_cache",
+				"opsi.check.enabled",
+				"opsiclientd.event_gui_startup.active",
+				"opsiclientd.event_gui_startup{user_logged_in}.active",
+				"opsiclientd.event_timer.active",
+				"opsiclientd.event_on_shutdown.active",
+				"clientconfig.uefinetbootlabel",
+			],
+			object_ids=list(clients),
+			with_defaults=True,
+		)
+		for client_id, config_states in client_config.items():
+			if config_states.get("opsi.check.enabled") == [True]:
+				clients[client_id].monitoring = True
+			if (
+				config_states.get("opsiclientd.event_gui_startup.active") == [False]
+				and config_states.get("opsiclientd.event_gui_startup{user_logged_in}.active") == [False]
+				and config_states.get("opsiclientd.event_timer.active") == [True]
+			):
+				clients[client_id].wan_vpn = True
+			if config_states.get("opsiclientd.event_on_shutdown.active") == [True]:
+				clients[client_id].install_on_shutdown = True
+			label = config_states.get("clientconfig.uefinetbootlabel")
+			if label and label[0]:
+				clients[client_id].uefi_boot = True
+			if config_states.get("clientconfig.smart_cache") == [True]:
+				clients[client_id].smart_cache = True
+				clients[client_id].wan_vpn = False
+
+		with self._mysql.session() as session:
+			for row in session.execute(
+				"""
+				SELECT hdcc.hostId, hdcs.vendor, hdcs.model
+				FROM HARDWARE_DEVICE_COMPUTER_SYSTEM AS hdcs
+				JOIN HARDWARE_CONFIG_COMPUTER_SYSTEM AS hdcc ON hdcs.hardware_id = hdcc.hardware_id
+				WHERE hdcc.hostId in :client_ids
+				""",
+				params={"client_ids": list(clients)},
+			).fetchall():
+				clients[row[0]].device_vendor = row[1]
+				clients[row[0]].device_model = row[2]
+
+			for row in session.execute(
+				"""
+				SELECT sc.clientId, s.name
+				FROM SOFTWARE_CONFIG AS sc
+				JOIN SOFTWARE AS s ON s.software_id = sc.software_id
+				WHERE s.isOperatingSystem = 1 and sc.clientId in :client_ids
+				""",
+				params={"client_ids": list(clients)},
+			).fetchall():
+				clients[row[0]].operating_system = row[1]
+
+		return list(clients.values())

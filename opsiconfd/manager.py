@@ -65,16 +65,19 @@ class WorkerManager:
 		self.startup_completed = Event()
 
 	def restart_workers(self, wait: bool = False) -> None:
-		pids = [w.pid for w in self.workers.values()]
+		old_pids = {w.pid for w in self.workers.values()}
+		logger.info("Restarting all workers (PIDs: %s)", old_pids)
 		self.should_restart_workers = True
 		if wait:
+			logger.info("Waiting for all workers to restart")
+			start_time = time.time()
 			while True:
-				restarted = True
-				for worker in self.workers.values():
-					if worker.pid in pids:
-						restarted = False
-						break
-				if restarted:
+				new_pids = {w.pid for w in self.workers.values()}
+				if not new_pids.intersection(old_pids):
+					logger.info("All workers restarted (new PIDs: %s)", new_pids)
+					return
+				if time.time() - start_time > 120:
+					logger.error("Timeout while waiting for workers to restart, old PIDs: %s, new PIDs: %s", old_pids, new_pids)
 					break
 				time.sleep(0.5)
 
@@ -131,10 +134,13 @@ class WorkerManager:
 			self.stop(force=True)
 
 		while not self.should_stop.is_set():
+			should_restart_workers = self.should_restart_workers
+			self.should_restart_workers = False
 			auto_restart = []
 			with self.worker_update_lock:
 				for worker in self.get_workers():
-					if self.should_restart_workers:
+					if should_restart_workers:
+						logger.info("All workers should be restarted, marking for restart: %s", worker)
 						auto_restart.append(worker)
 					elif worker.process and worker.process.is_alive():
 						# Worker is running
@@ -175,7 +181,6 @@ class WorkerManager:
 				self.restart_worker(worker)
 				self.should_stop.wait(self.worker_restart_gap)
 
-			self.should_restart_workers = False
 			self.should_stop.wait(self.worker_check_interval)
 
 		while self.workers:
@@ -261,6 +266,8 @@ class WorkerManager:
 			logger.notice("Restarting %s", worker)
 			if worker.process and worker.process.is_alive():
 				self.stop_worker(worker, wait=True, remove_worker=False)
+			if worker.process and worker.process.is_alive():
+				self.stop_worker(worker, force=True, wait=True, remove_worker=False)
 			self.start_worker(worker)
 
 	def adjust_worker_count(self) -> None:

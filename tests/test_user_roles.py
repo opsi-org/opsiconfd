@@ -12,7 +12,7 @@ test user roles
 from datetime import datetime, timezone
 from typing import Generator
 
-import pytest_asyncio
+import pytest
 from opsicommon.objects import BoolConfig, HostGroup, OpsiDepotserver, ProductGroup, UnicodeConfig
 from sqlalchemy.orm import Session  # type: ignore
 
@@ -24,8 +24,8 @@ from opsiconfd.backend.rpc.main import UnprotectedBackend
 from .utils import backend  # noqa: F401
 
 
-@pytest_asyncio.fixture(autouse=True)
-def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator:  # noqa: F811
+@pytest.fixture(autouse=True)
+def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator[None, None, None]:  # noqa: F811
 	mysql = MySQLConnection()
 	with mysql.connection():
 		with mysql.session() as session:

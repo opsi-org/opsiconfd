@@ -21,7 +21,7 @@ def get_enabled_hosts() -> list[str]:
 	server_timezone = now.tzinfo
 	for host in all_hosts:
 		downtime_end_str = (config_states[host].get("opsi.check.downtime.end") or [""])[0]
-		if not downtime_end_str:
+		if downtime_end_str in (None, "", "None"):
 			continue
 		try:
 			downtime_end = datetime.fromisoformat(downtime_end_str)
@@ -33,7 +33,7 @@ def get_enabled_hosts() -> list[str]:
 
 		downtime_start = datetime(year=2024, month=1, day=1, tzinfo=timezone.utc)
 		downtime_start_str = (config_states[host].get("opsi.check.downtime.start") or [""])[0]
-		if downtime_start_str:
+		if downtime_start_str not in (None, "", "None"):
 			try:
 				downtime_start = datetime.fromisoformat(downtime_start_str)
 				if downtime_start.tzinfo is None:

@@ -64,6 +64,16 @@ def remove_orphans_config_value(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from CONFIG_VALUE", result.rowcount)
 
 
+def remove_config_value_none_values(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE FROM CONFIG_VALUE WHERE `value` = "None"
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice('Removed %d entries from CONFIG_VALUE with values "None"', result.rowcount)
+
+
 def remove_orphans_product_property_value(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -378,6 +388,7 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		cleanup_groups(session)
 		cleanup_users(session)
 		remove_orphans_config_value(session)
+		remove_config_value_none_values(session)
 		remove_orphans_config_state(session)
 		remove_orphans_product_property_value(session)
 		remove_orphans_product_property_state(session)

@@ -344,6 +344,7 @@ class Config(metaclass=Singleton):
 					"setup",
 					"backup",
 					"backup-info",
+					"backup-extract",
 					"restore",
 					"get-config",
 					"set-config",
@@ -1692,6 +1693,7 @@ class Config(metaclass=Singleton):
 					"diagnostic-data",
 					"backup",
 					"backup-info",
+					"backup-extract",
 					"restore",
 					"get-config",
 					"set-config",
@@ -1714,6 +1716,7 @@ class Config(metaclass=Singleton):
 					"diagnostic-data: Collect diagnostic data.\n"
 					"backup:          Run backup.\n"
 					"backup-info:     Show backup info.\n"
+					"backup-extract:  Extract backup contents to directory.\n"
 					"restore:         Restore backup.\n"
 					"get-config:      Show opsiconfd config.\n"
 					"set-config:      Modify opsiconfd config.\n"
@@ -1806,23 +1809,25 @@ class Config(metaclass=Singleton):
 				),
 			)
 
-		if self._sub_command in ("backup", "backup-info", "restore"):
+		if self._sub_command in ("backup", "backup-info", "backup-extract", "restore"):
 			self._parser.add(
 				"--password",
 				nargs="?",
 				default=False,
 				help=self._help(
-					("backup", "restore"),
+					("backup", "backup-info", "backup-extract", "restore"),
 					"Password for backup encryption and decryption. "
 					"If the argument is given without a value, the user will be prompted for a password.",
 				),
 			)
 
-		if self._sub_command in ("diagnostic-data", "backup", "restore"):
+		if self._sub_command in ("diagnostic-data", "backup", "backup-extract", "restore"):
 			self._parser.add(
 				"--quiet",
 				action="store_true",
-				help=self._help(("diagnostic-data", "backup", "restore"), "Do not show output or progress except errors."),
+				help=self._help(
+					("diagnostic-data", "backup", "backup-extract", "restore"), "Do not show output or progress except errors."
+				),
 			)
 
 		if self._sub_command == "backup":
@@ -1870,6 +1875,23 @@ class Config(metaclass=Singleton):
 				"backup_file",
 				metavar="BACKUP_FILE",
 				help=self._help("backup-info", "The BACKUP_FILE for which the information is to be displayed."),
+			)
+
+		if self._sub_command == "backup-extract":
+			self._parser.add(
+				"backup_file",
+				metavar="BACKUP_FILE",
+				help=self._help("backup-extract", "The BACKUP_FILE to extract contents from."),
+			)
+			self._parser.add(
+				"extract_dir",
+				metavar="EXTRACT_DIR",
+				help=self._help("backup-extract", "The directory to extract backup contents to."),
+			)
+			self._parser.add(
+				"--overwrite",
+				action="store_true",
+				help=self._help("backup-extract", "Overwrite existing files in extract directory."),
 			)
 
 		if self._sub_command == "restore":

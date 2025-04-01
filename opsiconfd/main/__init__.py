@@ -65,6 +65,11 @@ def main() -> None:
 
 		return restore_main()
 
+	if opsiconfd_config.action == "backup-extract":
+		from opsiconfd.main.backup import backup_extract_main
+
+		return backup_extract_main()
+
 	if opsiconfd_config.action == "test":
 		from opsiconfd.main.test import test_main
 

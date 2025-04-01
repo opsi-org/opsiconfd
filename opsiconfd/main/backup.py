@@ -10,6 +10,9 @@ opsiconfd backup.main
 """
 
 import asyncio
+import base64
+import json
+import shutil
 import sys
 import threading
 from datetime import datetime
@@ -235,5 +238,102 @@ def restore_main() -> None:
 		console.quiet = False
 		baf = f" from '{str(backup_file)}'" if backup_file else ""
 		console.print(f"[bold red]Failed to restore backup{baf}: {err}[/bold red]")
+		sys.exit(1)
+	sys.exit(0)
+
+
+def backup_extract_main() -> None:
+	console = Console(quiet=config.quiet)
+	backup_file = None
+	try:
+		if config.password is None:
+			# Argument --pasword given without value
+			if config.quiet:
+				raise RuntimeError("Interactive password prompt not available in quiet mode")
+			get_password_interative(console)
+
+		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
+			init_logging(log_mode="rich", console=progress.console)
+			backup_file = Path(config.backup_file)
+			if not backup_file.exists():
+				raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
+
+			extract_dir = Path(config.extract_dir)
+			if not extract_dir.is_absolute():
+				extract_dir = Path.cwd() / extract_dir
+
+			if extract_dir.exists():
+				if not config.overwrite:
+					raise FileExistsError(f"Extract directory '{str(extract_dir)}' already exists, use --overwrite to replace.")
+				shutil.rmtree(extract_dir)
+
+			progress.console.print(f"Extracting backup [bold]{backup_file.name}[/bold] to [bold]{extract_dir}[/bold]")
+
+			# Read backup data
+			data = read_backup_file_data(backup_file=backup_file, progress=progress, password=config.password)
+			if data.get("meta", {}).get("type") != "opsiconfd_backup":
+				raise ValueError("Not an opsiconfd backup")
+
+			# Create extract directory
+			extract_dir.mkdir(parents=True, exist_ok=True)
+
+			# Extract meta data
+			restore_task = progress.add_task("Extracting meta data", total=1, refresh_per_second=2)
+			meta_file = extract_dir / "meta.json"
+			meta_file.write_text(json.dumps(data["meta"], indent=2), encoding="utf-8")
+			progress.console.print(f"Extracted meta data to {meta_file}")
+			progress.advance(restore_task)
+
+			# Extract database objects
+			restore_task = progress.add_task("Extracting database objects", total=len(data["objects"]), refresh_per_second=2)
+			objects_dir = extract_dir / "objects"
+			objects_dir.mkdir(exist_ok=True)
+			for obj_type, objects in data["objects"].items():
+				obj_file = objects_dir / f"{obj_type}.json"
+				obj_file.write_text(json.dumps(objects, indent=2), encoding="utf-8")
+				progress.console.print(f"Extracted {len(objects)} {obj_type} objects to {obj_file}")
+				progress.advance(restore_task)
+
+			# Extract config files
+			restore_task = progress.add_task("Extracting config files", total=len(data["config_files"]), refresh_per_second=2)
+			if data.get("config_files"):
+				config_dir = extract_dir / "config_files"
+				config_dir.mkdir(exist_ok=True)
+				for file_data in data["config_files"].values():
+					# Strip leading slash to make path relative
+					rel_path = file_data["path"].lstrip("/")
+					file_path = config_dir / rel_path
+					file_path.parent.mkdir(parents=True, exist_ok=True)
+					file_path.write_text(file_data["content"] or "", encoding="utf-8")
+					progress.console.print(f"Extracted config file {file_data['path']} to {file_path}")
+					progress.advance(restore_task)
+
+			# Extract Redis data
+			dumped_keys = data.get("redis", {}).get("dumped_keys")
+			if dumped_keys:
+				restore_task = progress.add_task("Extracting Redis data", total=len(dumped_keys), refresh_per_second=2)
+				redis_dir = extract_dir / "redis"
+				redis_dir.mkdir(exist_ok=True)
+
+				# Convert binary data to base64 for JSON serialization
+				for idx in range(len(dumped_keys)):
+					dumped_keys[idx]["value"] = base64.b64encode(dumped_keys[idx]["value"]).decode("utf-8")
+					progress.advance(restore_task)
+				redis_file = redis_dir / "dumped_keys.json"
+				redis_file.write_text(json.dumps(dumped_keys, indent=2), encoding="utf-8")
+				progress.console.print(f"Extracted Redis data to {redis_file}")
+
+			progress.console.print(f"Backup contents successfully extracted to '{str(extract_dir)}'")
+
+	except KeyboardInterrupt:
+		logger.error("Backup extract interrupted")
+		console.quiet = False
+		console.print("[bold red]Backup extract interrupted[/bold red]")
+		sys.exit(2)
+	except Exception as err:
+		logger.error(err, exc_info=True)
+		console.quiet = False
+		baf = f" from '{str(backup_file)}'" if backup_file else ""
+		console.print(f"[bold red]Failed to extract backup{baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)

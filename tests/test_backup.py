@@ -10,6 +10,8 @@ test backup
 """
 
 import asyncio
+import base64
+import json
 import pprint
 from copy import deepcopy
 from os.path import abspath
@@ -22,7 +24,7 @@ import pytest
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backup import create_backup, restore_backup
-from opsiconfd.main.backup import backup_main
+from opsiconfd.main.backup import backup_extract_main, backup_main
 
 from .test_application import (  # noqa: F401
 	AppStateReaderThread,
@@ -212,6 +214,73 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 			host["description"] = "x" * 1000
 
 		restore_backup(backup2)
+
+	finally:
+		app.set_app_state(NormalState())
+		app.stop_app_state_manager_task()
+		thread.join(5)
+
+
+def test_backup_extract(
+	config: Config,  # noqa: F811
+	app_state_reader: AppStateReaderThread,  # noqa: F811
+	tmp_path: Path,
+) -> None:
+	initalized_event = Event()
+	thread = Thread(
+		target=asyncio.run,
+		args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState(), initalized_event=initalized_event)],
+		daemon=True,
+	)
+	thread.start()
+	try:
+		print("initalized_event =", initalized_event.wait(10))
+
+		# Create a test backup
+		backup_file = tmp_path / "test_backup.msgpack.lz4"
+		backup = create_backup(backup_file=backup_file)
+
+		# Test extraction
+		extract_dir = tmp_path / "extracted"
+		with get_config(
+			{"backup_file": str(backup_file), "extract_dir": str(extract_dir), "overwrite": True, "quiet": True, "password": False}
+		):
+			with pytest.raises(SystemExit, match="0"):
+				backup_extract_main()
+
+		# Verify extracted files
+		assert (extract_dir / "meta.json").exists()
+		assert (extract_dir / "objects").exists()
+		assert (extract_dir / "config_files").exists()
+		assert (extract_dir / "redis").exists()
+
+		# Verify meta data
+		meta_data = json.loads((extract_dir / "meta.json").read_text(encoding="utf-8"))
+		assert meta_data["type"] == "opsiconfd_backup"
+		assert meta_data["version"] == "1"
+
+		# Verify database objects
+		objects_dir = extract_dir / "objects"
+		assert (objects_dir / "Host.json").exists()
+		host_objects = json.loads((objects_dir / "Host.json").read_text(encoding="utf-8"))
+		assert len(host_objects) > 0
+
+		# Verify config files
+		config_dir = extract_dir / "config_files"
+		assert (config_dir / "workspace/tests/data/default-opsiconfd.conf").exists()
+		config_content = (config_dir / "workspace/tests/data/default-opsiconfd.conf").read_text(encoding="utf-8")
+		assert config_content == backup["config_files"]["opsiconfd_conf"]["content"]
+
+		# Verify Redis data
+		redis_dir = extract_dir / "redis"
+		assert (redis_dir / "dumped_keys.json").exists()
+		redis_data = json.loads((redis_dir / "dumped_keys.json").read_text(encoding="utf-8"))
+		assert len(redis_data) > 0
+		for key_data in redis_data:
+			assert key_data["name"]
+			assert key_data["value"]
+			assert "expires" in key_data
+			assert base64.b64decode(key_data["value"])
 
 	finally:
 		app.set_app_state(NormalState())

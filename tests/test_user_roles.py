@@ -56,7 +56,6 @@ def clean_configs_and_objects(backend: UnprotectedBackend) -> Generator[None, No
 			HostGroup(id="group4"),
 		]
 	)
-	print("clean up defore")
 	yield
 	backend.config_delete(id="user.*")
 	with mysql.connection():

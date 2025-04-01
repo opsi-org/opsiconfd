@@ -99,4 +99,11 @@ set +e
 $@
 exit_code=$?
 echo "Exit code: $exit_code"
+if [ "$exit_code" = 139 ]; then
+	echo "Exit code: 139, trying again in 3 seconds"
+	sleep 3
+	$@
+	exit_code=$?
+	echo "Exit code: $exit_code"
+fi
 exit $exit_code

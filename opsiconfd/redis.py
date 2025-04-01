@@ -22,7 +22,7 @@ from functools import lru_cache
 from typing import Any, AsyncGenerator, Callable, Generator, Iterable, Literal
 from uuid import uuid4
 
-from opsicommon.utils import compare_versions
+from opsicommon.utils import compare_versions, unix_timestamp
 from redis import BusyLoadingError, Connection, ConnectionPool, Redis, ResponseError, WatchError
 from redis import ConnectionError as RedisConnectionError
 from redis.asyncio import Connection as AsyncConnection
@@ -223,14 +223,15 @@ def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[
 		if exclude_key:
 			continue
 
-		now = int(time.time() * 1000)
 		value = client.dump(key)
+		if not isinstance(value, bytes):
+			raise ValueError(f"Invalid value type '{type(value)}' of key '{key}' (value={value!r})")
+
 		pttl = client.pttl(key)
 		expires = None
 		if pttl >= 0:
-			expires = now + pttl
-		if not isinstance(value, bytes):
-			raise ValueError(f"Invalid value type '{type(value)}' of key '{key}' (value={value!r})")
+			expires = int(unix_timestamp(millis=True)) + pttl
+
 		yield DumpedKey(key, value, expires)
 
 

@@ -1621,7 +1621,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--http-security-headers",
-			env_var="HTTP_SECURITY_HEADERS",
+			env_var="OPSICONFD_HTTP_SECURITY_HEADERS",
 			type=str2bool,
 			nargs="?",
 			const=True,
@@ -1629,6 +1629,15 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"opsiconfd",
 				"If enabled, opsiconfd will send security headers in http responses.",
+			),
+		)
+		self._parser.add(
+			"--cors-origin",
+			env_var="OPSICONFD_CORS_ORIGIN",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				"Access-Control-Allow-Origin header value. If not set, will be automatically determined.",
 			),
 		)
 		self._parser.add(

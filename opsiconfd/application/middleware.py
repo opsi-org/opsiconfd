@@ -144,18 +144,20 @@ class BaseMiddleware:
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				host = scope["request_headers"].get("host", "localhost:4447").split(":")[0]
-				origin_scheme = "https"
-				origin_port = 4447
-				try:
-					origin = urlparse(scope["request_headers"]["origin"])
-					origin_scheme = origin.scheme
-					origin_port = int(origin.port)
-				except Exception:
-					pass
-
 				headers = MutableHeaders(scope=message)
-				headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
+				if config.cors_origin:
+					headers.append("Access-Control-Allow-Origin", config.cors_origin)
+				else:
+					host = scope["request_headers"].get("host", "localhost:4447").split(":")[0]
+					origin_scheme = "https"
+					origin_port = 4447
+					try:
+						origin = urlparse(scope["request_headers"]["origin"])
+						origin_scheme = origin.scheme
+						origin_port = int(origin.port)
+					except Exception:
+						pass
+					headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
 				headers.append("Access-Control-Allow-Methods", "*")
 				headers.append(
 					"Access-Control-Allow-Headers",

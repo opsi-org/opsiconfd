@@ -229,7 +229,8 @@ def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[
 		expires = None
 		if pttl >= 0:
 			expires = now + pttl
-		assert isinstance(value, bytes)
+		if not isinstance(value, bytes):
+			raise ValueError(f"Invalid value type '{type(value)}' of key '{key}' (value={value!r})")
 		yield DumpedKey(key, value, expires)
 
 

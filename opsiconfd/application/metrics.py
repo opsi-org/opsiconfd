@@ -19,6 +19,7 @@ from opsicommon.utils import unix_timestamp
 from pydantic import BaseModel, ConfigDict, Field
 from redis import ResponseError as RedisResponseError
 
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.grafana import (
 	GRAFANA_DASHBOARD_TEMPLATE,
@@ -26,7 +27,7 @@ from opsiconfd.grafana import (
 	async_grafana_admin_session,
 )
 from opsiconfd.logging import logger
-from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric, WorkerMetric
+from opsiconfd.metrics.registry import AggregationType, DepotMetric, MetricsRegistry, NodeMetric, WorkerMetric
 from opsiconfd.metrics.statistics import get_time_bucket_duration
 from opsiconfd.redis import async_redis_client, ip_address_from_redis_key
 
@@ -57,6 +58,10 @@ async def get_nodes() -> set[str]:
 	return {str(worker["node_name"]) for worker in await get_workers()}
 
 
+async def get_depot_ids() -> set[str]:
+	return set(await get_unprotected_backend().async_call(method="host_getIdents", returnType="str", type="OpsiDepotserver"))
+
+
 async def get_clients(metric_id: str) -> list[dict[str, str]]:
 	redis = await async_redis_client()
 	clients = []
@@ -76,6 +81,7 @@ async def grafana_index() -> None:
 async def grafana_dashboard_config() -> dict[str, Any]:
 	workers = await get_workers()
 	nodes = await get_nodes()
+	depot_ids = await get_depot_ids()
 
 	dashboard = copy.deepcopy(GRAFANA_DASHBOARD_TEMPLATE)
 	panels = []
@@ -97,7 +103,22 @@ async def grafana_dashboard_config() -> dict[str, Any]:
 				)
 		elif isinstance(metric, NodeMetric):
 			for idx, node_name in enumerate(nodes):
-				panel["targets"].append({"refId": chr(65 + idx), "target": metric.get_name(node_name=node_name), "type": "timeserie"})
+				panel["targets"].append(
+					{
+						"refId": chr(65 + idx),
+						"target": metric.get_name(node_name=node_name),
+						"type": "timeserie",
+					}
+				)
+		elif isinstance(metric, DepotMetric):
+			for idx, depot_id in enumerate(depot_ids):
+				panel["targets"].append(
+					{
+						"refId": chr(65 + idx),
+						"target": metric.get_name(depot_id=depot_id),
+						"type": "timeserie",
+					}
+				)
 
 		panels.append(panel)
 		pos_x += panel["gridPos"]["w"]
@@ -133,6 +154,7 @@ async def create_grafana_datasource() -> None:
 async def grafana_search() -> list[str]:
 	workers = await get_workers()
 	nodes = await get_nodes()
+	depot_ids = await get_depot_ids()
 
 	names = []
 	for metric in MetricsRegistry().get_metrics():
@@ -140,6 +162,8 @@ async def grafana_search() -> list[str]:
 			names += [metric.get_name(**worker) for worker in workers]
 		elif isinstance(metric, NodeMetric):
 			names += [metric.get_name(node_name=node_name) for node_name in nodes]
+		elif isinstance(metric, DepotMetric):
+			names += [metric.get_name(depot_id=depot_id) for depot_id in depot_ids]
 		else:
 			names.append(metric.get_name())
 	return sorted(names)
@@ -214,7 +238,7 @@ async def grafana_query(
 			# Requested time range is bigger than the metric retention time
 			# Get the best matching downsampling rule
 			# downsampling: [<ts_key_extension>, <retention_time_in_ms>, <aggregation>]
-			# e.g. ["minute", 24 * 3600 * 1000, "avg"]
+			# e.g. ["minute", 24 * 3600 * 1000, AggregationType.AVG]
 			if metric.id not in sorted_downsampling:
 				sorted_downsampling[metric.id] = sorted(metric.downsampling, key=lambda dsr: dsr[1])
 			for ds_rule in sorted_downsampling[metric.id]:
@@ -250,7 +274,7 @@ async def grafana_query(
 			rows = []
 
 		res = {"target": target.target, "datapoints": []}
-		if metric.time_related and metric.aggregation == "sum":
+		if metric.time_related and metric.aggregation == AggregationType.SUM:
 			# Time series data is stored aggregated in 5 second intervals
 			res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
 		else:

@@ -9,12 +9,13 @@
 statistic tests
 """
 
+import asyncio
 from asyncio import sleep
 
 import pytest
 
-from opsiconfd.metrics.collector import WorkerMetricsCollector
-from opsiconfd.metrics.registry import MetricsRegistry, WorkerMetric
+from opsiconfd.metrics.collector import DepotMetricsCollector, WorkerMetricsCollector
+from opsiconfd.metrics.registry import AggregationType, DepotMetric, MetricsRegistry, WorkerMetric, ZeroIfMissingType
 from opsiconfd.worker import Worker
 
 from .utils import (  # noqa: F401
@@ -39,7 +40,15 @@ def fixture_metrics_registry() -> MetricsRegistry:
 			name="opsiconfd pytest metric",
 			retention=24 * 3600 * 1000,
 			grafana_config=None,
-		)
+		),
+		DepotMetric(
+			id="depot:avg_product_data_transfer_slots",
+			name="Number of used product data transfer slots for depot {depot_id}",
+			retention=2 * 3600 * 1000,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
+			grafana_config=None,
+		),
 	)
 	return MetricsRegistry()
 
@@ -53,20 +62,20 @@ async def test_metrics_collector_add_value() -> None:
 	metric1 = WorkerMetric(
 		id="metric1",
 		name="metric 1",
-		aggregation="sum",
-		zero_if_missing=None,
+		aggregation=AggregationType.SUM,
+		zero_if_missing=ZeroIfMissingType.NONE,
 	)
 	metric2 = WorkerMetric(
 		id="metric2",
 		name="metric 2",
-		aggregation="sum",
-		zero_if_missing="one",
+		aggregation=AggregationType.SUM,
+		zero_if_missing=ZeroIfMissingType.ONE,
 	)
 	metric3 = WorkerMetric(
 		id="metric3",
 		name="metric 3",
-		aggregation="avg",
-		zero_if_missing="continuous",
+		aggregation=AggregationType.AVG,
+		zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 	)
 	metrics_registry = MetricsRegistry()
 	metrics_registry._metrics_by_id = {}
@@ -101,8 +110,8 @@ async def test_metrics_collector_add_value() -> None:
 		metric_id = parts[1].split(":")[2]
 		metric_ids.append(metric_id)
 		if metric_id == "metric3":
-			# avg
-			assert parts[3] == "1.0"
+			# avg - should be 1.0 since we added two values of 1
+			assert float(parts[3]) == 1.0
 		else:
 			# sum
 			assert parts[3] == "2"
@@ -233,3 +242,40 @@ def test_metric_by_redis_key_error(config: Config, metrics_registry: MetricsRegi
 
 	assert excinfo.type is ValueError
 	assert str(excinfo.value) == f"Metric with redis key '{config.redis_key('stats')}:opsiconfd:notinredis:metric' not found"
+
+
+def test_depot_metrics_collector(config: Config, metrics_registry: MetricsRegistry) -> None:  # noqa: F811
+	depot_id = "test-depot"
+	metrics_collector = DepotMetricsCollector(depot_id)
+
+	# Test initialization
+	assert metrics_collector._depot_id == depot_id
+	assert metrics_collector._labels == {"depot_id": depot_id}
+	assert metrics_collector._interval == 60  # 60 seconds interval
+
+	# Test adding values
+	cmds: list[str] = []
+
+	async def _test_add_values() -> None:
+		await metrics_collector.add_value("depot:avg_product_data_transfer_slots", 5)
+		await asyncio.sleep(1)
+		await metrics_collector.add_value("depot:avg_product_data_transfer_slots", 3)
+
+		async def _execute_redis_command(*cmd: str) -> None:
+			nonlocal cmds
+			cmds.extend(cmd)
+
+		metrics_collector._execute_redis_command = _execute_redis_command  # type: ignore[assignment]
+		await metrics_collector._write_values_to_redis()
+
+	# Run the async test
+	asyncio.run(_test_add_values())
+
+	# Verify Redis commands
+	assert len(cmds) == 1
+	cmd = cmds[0].split()
+	assert cmd[0] == "TS.ADD"
+	assert cmd[1] == "pytest:stats:depot:avg_product_data_transfer_slots:test-depot"
+	assert cmd[3] == "4.0"  # avg 5, 3 = 4
+	assert cmd[9] == "depot_id"
+	assert cmd[10] == "test-depot"

@@ -87,6 +87,7 @@ def setup_metric_downsampling() -> None:
 
 			for rule in metric.downsampling:
 				retention, retention_time, aggregation = rule
+				aggregation_str = aggregation.value.lower()
 				time_bucket = get_time_bucket_duration(retention)
 				key = f"{orig_key}:{retention}"
 				if is_worker_metric:
@@ -105,14 +106,14 @@ def setup_metric_downsampling() -> None:
 				create = True
 				cur_rule = existing_rules.get(key)
 				if cur_rule:
-					if time_bucket == cur_rule.get("time_bucket") and aggregation.lower() == cur_rule["aggregation"].lower():
+					if time_bucket == cur_rule.get("time_bucket") and aggregation_str == cur_rule["aggregation"].lower():
 						create = False
 					else:
 						cmd = f"TS.DELETERULE {orig_key} {key}"
 						client.execute_command(cmd)
 
 				if create:
-					cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation} {time_bucket}"
+					cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation_str} {time_bucket}"
 					logger.debug("Redis cmd: %s", cmd)
 					client.execute_command(cmd)
 

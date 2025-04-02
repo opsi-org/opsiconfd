@@ -337,7 +337,6 @@ async def get_depot_list() -> RESTResponse:
 				),
 			}
 			for depot in depots
-			# if d.getType() != "OpsiConfigserver"
 		],
 		key=itemgetter("id"),
 	)

@@ -12,11 +12,23 @@ metrics
 from __future__ import annotations
 
 import re
+from enum import Enum
 from typing import Any, Generator, List, Type
 
 from opsiconfd.config import config
 from opsiconfd.grafana import GrafanaPanelConfig
 from opsiconfd.utils import Singleton
+
+
+class AggregationType(Enum):
+	SUM = "sum"
+	AVG = "avg"
+
+
+class ZeroIfMissingType(Enum):
+	NONE = None
+	ONE = "one"
+	CONTINUOUS = "continuous"
 
 
 class Metric:
@@ -27,9 +39,9 @@ class Metric:
 		self,
 		id: str,
 		name: str,
-		aggregation: str = "avg",
+		aggregation: AggregationType = AggregationType.AVG,
 		retention: int = 0,
-		zero_if_missing: str | None = None,
+		zero_if_missing: ZeroIfMissingType = ZeroIfMissingType.NONE,
 		time_related: bool = False,
 		grafana_config: GrafanaPanelConfig | None = None,
 		downsampling: List | None = None,
@@ -44,25 +56,24 @@ class Metric:
 		:param retention: Redis retention period (maximum age for samples compared to last event time) in milliseconds.
 		:type retention: int
 		:param aggregation: Aggregation to use before adding values to the time series database (`sum` or `avg`).
-		:type aggregation: str
+		:type aggregation: AggregationType
 		:param zero_if_missing:
 			Behaviour if no values exist in a measuring interval. `one`, `continuous` or None. \
 			Zero values are sometime helpful because gaps between values get connected \
 			by a straight line in diagrams. But zero values need storage space.
 			`one` should be used with aggregation `avg` and `continuous` with `sum`.
-		:type zero_if_missing: str
+		:type zero_if_missing: ZeroIfMissingType
 		:param time_related: If the metric is time related, like requests per second.
 		:type time_related: bool
 		:param subject: A GrafanaPanelConfig object.
 		:type subject: GrafanaPanelConfig
 		:param downsampling: Downsampling rules as list of [<ts_key_extension>, <retention_time_in_ms>, <aggregation>] pairs.
+			Defaults to standard downsampling rules if None.
 		:type downsampling: List
 		"""
 		if self._initialized:
 			return
 		self._initialized = True
-		assert aggregation in ("sum", "avg")
-		assert zero_if_missing in (None, "one", "continuous")
 		self.id = id
 		self.name = name
 		self.aggregation = aggregation
@@ -70,7 +81,11 @@ class Metric:
 		self.zero_if_missing = zero_if_missing
 		self.time_related = time_related
 		self.grafana_config = grafana_config
-		self.downsampling = downsampling
+		self.downsampling = downsampling or [
+			["minute", 24 * 3600 * 1000, AggregationType.AVG],
+			["hour", 60 * 24 * 3600 * 1000, AggregationType.AVG],
+			["day", 4 * 365 * 24 * 3600 * 1000, AggregationType.AVG],
+		]
 
 		self.set_redis_prefix(f"{config.redis_key('stats')}:{id}")
 
@@ -121,235 +136,162 @@ class WorkerMetric(Metric):
 	vars = ["node_name", "worker_num"]
 
 
+class DepotMetric(Metric):
+	vars = ["depot_id"]
+
+
 def _get_metrics() -> tuple[Metric, ...]:
 	return (
 		NodeMetric(
 			id="node:avg_load",
 			name="Average system load on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing=None,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
 			grafana_config=GrafanaPanelConfig(title="System load", unit="short", decimals=2, stack=False),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		NodeMetric(
 			id="node:sum_network_bits_sent",
 			name="Average network bits sent on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="sum",
-			zero_if_missing="continuous",
+			aggregation=AggregationType.SUM,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="Network bits sent/s", unit="bps", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		NodeMetric(
 			id="node:sum_network_bits_received",
 			name="Average network bits received on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="sum",
-			zero_if_missing="continuous",
+			aggregation=AggregationType.SUM,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="Network bits received/s", unit="bps", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:sum_jsonrpc_requests",
 			name="Incoming JSONRPC requests by worker {worker_num} on {node_name}",
 			retention=24 * 3600 * 1000,
-			aggregation="sum",
-			zero_if_missing="continuous",
+			aggregation=AggregationType.SUM,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="JSONRPC Requests", unit="short", decimals=0, stack=True, yaxis_min=0),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:sum_jsonrpc_number",
 			name="Average RPCs processed by worker {worker_num} on {node_name}",
 			retention=24 * 3600 * 1000,
-			aggregation="sum",
-			zero_if_missing="continuous",
+			aggregation=AggregationType.SUM,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", unit="short", decimals=0, stack=True, yaxis_min=0),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_jsonrpc_duration",
 			name="Average duration of RPCs processed by worker {worker_num} on {node_name}",
 			retention=24 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing="one",
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.ONE,
 			grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", unit="s", decimals=0),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_mem_allocated",
 			name="Average memory usage of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing=None,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
 			grafana_config=GrafanaPanelConfig(title="Worker memory usage", unit="decbytes", decimals=2, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_cpu_percent",
 			name="Average CPU usage of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing=None,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
 			grafana_config=GrafanaPanelConfig(title="Worker CPU usage", unit="percent", decimals=1, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_thread_number",
 			name="Average threads of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing=None,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
 			grafana_config=GrafanaPanelConfig(title="Worker threads", unit="short", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_filehandle_number",
 			name="Average filehandles of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing=None,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
 			grafana_config=GrafanaPanelConfig(title="Worker filehandles", unit="short", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_connection_number",
 			name="Average connections of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing=None,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
 			grafana_config=GrafanaPanelConfig(title="Worker connections", unit="short", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:sum_http_request_number",
 			name="Average HTTP requests of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="sum",
-			zero_if_missing="continuous",
+			aggregation=AggregationType.SUM,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="HTTP requests/s", unit="short", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_http_request_bytes",
 			name="Average HTTP request size of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing="one",
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.ONE,
 			grafana_config=GrafanaPanelConfig(title="HTTP request size", unit="decbytes", stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_http_response_bytes",
 			name="Average HTTP response size of worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing="one",
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.ONE,
 			grafana_config=GrafanaPanelConfig(title="HTTP response size", unit="decbytes", stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:avg_http_request_duration",
 			name="Average duration of HTTP requests processed by worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="avg",
-			zero_if_missing="one",
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.ONE,
 			grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", unit="s", decimals=0),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:sum_messagebus_messages_sent",
 			name="Average messagebus messages sent by worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="sum",
-			zero_if_missing="continuous",
+			aggregation=AggregationType.SUM,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="Messagebus messages sent/s", unit="short", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
 		),
 		WorkerMetric(
 			id="worker:sum_messagebus_messages_received",
 			name="Average messagebus messages received by worker {worker_num} on {node_name}",
 			retention=2 * 3600 * 1000,
-			aggregation="sum",
-			zero_if_missing="continuous",
+			aggregation=AggregationType.SUM,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="Messagebus messages received/s", unit="short", decimals=0, stack=True),
-			downsampling=[
-				["minute", 24 * 3600 * 1000, "avg"],
-				["hour", 60 * 24 * 3600 * 1000, "avg"],
-				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-			],
+		),
+		DepotMetric(
+			id="depot:avg_product_data_transfer_slots",
+			name="Number of used product data transfer slots for depot {depot_id}",
+			retention=2 * 3600 * 1000,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
+			grafana_config=GrafanaPanelConfig(title="Product data transfer slots", unit="short", decimals=0, stack=True),
 		),
 	)
 

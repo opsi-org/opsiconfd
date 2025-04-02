@@ -4,6 +4,11 @@ echo "* Running as $(whoami)"
 
 cd /workspace
 
+EDITOR="code"
+if which cursor > /dev/null 2>&1; then
+	EDITOR="cursor"
+fi
+
 update-alternatives --set editor /usr/bin/vim.basic
 
 mkdir -p /var/log/opsi
@@ -33,7 +38,7 @@ if [ -n "$DEV_USER" ]; then
 
 	echo "* Git config"
 	chown -R $DEV_USER /workspace
-	su - $DEV_USER -c 'git config --global core.editor "code --wait"'
+	su - $DEV_USER -c "git config --global --replace-all core.editor \"${EDITOR} --wait\""
 fi
 
 OPSICONFD_BASE_DIR=/workspace

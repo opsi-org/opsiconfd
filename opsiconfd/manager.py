@@ -31,13 +31,13 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
 from opsiconfd.application.filetransfer import cleanup_file_storage
-from opsiconfd.backend import get_service_client
+from opsiconfd.backend import get_service_client, get_unprotected_backend
 from opsiconfd.backend.rpc.cache import rpc_cache_clear
 from opsiconfd.check.main import health_check
 from opsiconfd.config import MANAGER_THREAD_POOL_WORKERS, config, get_server_role
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
-from opsiconfd.metrics.collector import ManagerMetricsCollector
+from opsiconfd.metrics.collector import DepotMetricsCollector, MetricsCollector, NodeMetricsCollector
 from opsiconfd.redis import async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_ssl
 from opsiconfd.utils import Singleton, asyncio_create_task, log_config
@@ -314,9 +314,14 @@ class Manager(metaclass=Singleton):
 		self._cleanup_file_storage_time = 0.0
 		self._cleanup_file_storage_interval = 3600
 		self._interval = 60
-		self._metrics_collector = ManagerMetricsCollector()
-		self._worker_manager = WorkerManager()
 		self._is_config_server = get_server_role() == "configserver"
+		self._worker_manager = WorkerManager()
+
+		self._metrics_collectors: list[MetricsCollector] = [NodeMetricsCollector()]
+		if self._is_config_server:
+			for depot in get_unprotected_backend().host_getObjects(type="OpsiDepotserver"):
+				self._metrics_collectors.append(DepotMetricsCollector(depot.id))
+
 		self._service_client: ServiceClient | None = None
 		if not self._is_config_server:
 			self._service_client = get_service_client("manager")
@@ -329,7 +334,8 @@ class Manager(metaclass=Singleton):
 		self._should_stop = True
 		self._force_stop = force
 		logger.notice("Manager stopping force=%s", self._force_stop)
-		self._metrics_collector.stop()
+		for metrics_collector in self._metrics_collectors:
+			metrics_collector.stop()
 		self._worker_manager.stop(self._force_stop)
 		if self._service_client:
 			self._service_client.disconnect()
@@ -408,7 +414,8 @@ class Manager(metaclass=Singleton):
 
 	async def async_main(self) -> None:
 		# Start MetricsCollector
-		asyncio_create_task(self._metrics_collector.main_loop(), self._loop)
+		for metrics_collector in self._metrics_collectors:
+			asyncio_create_task(metrics_collector.main_loop(), self._loop)
 
 		if self._is_config_server:
 			# TODO: Multiple managers on different nodes

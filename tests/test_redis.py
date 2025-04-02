@@ -19,8 +19,8 @@ from unittest.mock import patch
 
 import pytest
 
-from opsiconfd.metrics.collector import ManagerMetricsCollector
-from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric
+from opsiconfd.metrics.collector import NodeMetricsCollector
+from opsiconfd.metrics.registry import AggregationType, MetricsRegistry, NodeMetric
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
 	AsyncRedis,
@@ -254,7 +254,10 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 		name="opsiconfd pytest metric",
 		retention=24 * 3600 * 1000,
 		grafana_config=None,
-		downsampling=[["minute", 2 * 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"]],  # keep minutes longer
+		downsampling=[
+			["minute", 2 * 24 * 3600 * 1000, AggregationType.AVG],
+			["hour", 60 * 24 * 3600 * 1000, AggregationType.AVG],
+		],  # keep minutes longer
 	)
 	metric.set_redis_prefix(f"{base_key}:stats")
 	metrics_registry = MetricsRegistry()
@@ -267,7 +270,7 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 		# Return unix timestamp (UTC) in millis
 		return current_timestamp
 
-	collector = ManagerMetricsCollector()
+	collector = NodeMetricsCollector()
 	with patch("opsiconfd.metrics.collector.unix_timestamp", mock_unix_timestamp):
 		now_ts = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 		num_values = 7200

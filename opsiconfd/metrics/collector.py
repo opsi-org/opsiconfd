@@ -21,7 +21,7 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
-from opsiconfd.metrics.registry import Metric, MetricsRegistry, NodeMetric, WorkerMetric
+from opsiconfd.metrics.registry import AggregationType, DepotMetric, Metric, MetricsRegistry, NodeMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.redis import async_redis_client
 
 if TYPE_CHECKING:
@@ -57,9 +57,7 @@ class MetricsCollector:
 		logger.trace("add_value metric_id=%r, value=%r, timestamp=%r", metric_id, value, timestamp)
 
 		async with self._values_lock:
-			if timestamp not in self._values[metric_id]:
-				self._values[metric_id][timestamp] = 0
-			self._values[metric_id][timestamp] += value
+			self._values[metric_id][timestamp] = value
 
 	async def _write_values_to_redis(self) -> None:
 		timestamp = int(unix_timestamp(millis=True))
@@ -77,15 +75,15 @@ class MetricsCollector:
 			count = len(vals)
 
 			if count == 0:
-				if not metric.zero_if_missing:
+				if metric.zero_if_missing == ZeroIfMissingType.NONE:
 					continue
-				if metric.zero_if_missing == "one":
+				if metric.zero_if_missing == ZeroIfMissingType.ONE:
 					if metric_id in self._missing_metric_ids:
 						# Marked as missing, a zero was inserted before, nothing to do
 						continue
 					# Mark as missing and insert one zero
 					self._missing_metric_ids.append(metric_id)
-				# If zero_if_missing == continuous always insert a zero
+				# If zero_if_missing == ZeroIfMissingType.CONTINUOUS always insert a zero
 			else:
 				if metric_id in self._missing_metric_ids:
 					# Marked as missing, insert a zero before adding new values
@@ -94,7 +92,7 @@ class MetricsCollector:
 					cmds.append(self._redis_ts_cmd(metric, "ADD", 0, last_timestamp, **self._labels))
 					self._missing_metric_ids.remove(metric_id)
 
-			if metric.aggregation == "avg" and count > 0:
+			if metric.aggregation == AggregationType.AVG and count > 0:
 				value /= count
 
 			cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **self._labels)
@@ -174,11 +172,12 @@ class MetricsCollector:
 			return await pipe.execute()  # type: ignore[attr-defined]
 
 
-class ManagerMetricsCollector(MetricsCollector):
+class NodeMetricsCollector(MetricsCollector):
 	_metric_type = NodeMetric
 
 	def __init__(self) -> None:
 		super().__init__()
+
 		self._labels = {"node_name": config.node_name}
 		self._net_interface = "lo"
 		for iface in psutil.net_if_addrs():
@@ -200,6 +199,26 @@ class ManagerMetricsCollector(MetricsCollector):
 			self._last_bytes_recv = stats.bytes_recv
 		else:
 			logger.warning("No network stats for interface %r", self._net_interface)
+
+
+class DepotMetricsCollector(MetricsCollector):
+	_metric_type = DepotMetric
+
+	def __init__(self, depot_id: str) -> None:
+		super().__init__()
+		self._interval = 60
+		self._depot_id = depot_id
+		self._labels = {"depot_id": depot_id}
+
+	async def _fetch_values(self) -> None:
+		redis = await async_redis_client()
+		slot_key = config.redis_key("slot")
+		used_slots = await redis.eval(  # type: ignore[no-untyped-call]
+			"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
+			0,
+			f"{slot_key}:{self._depot_id}:*",
+		)
+		await self.add_value("depot:avg_product_data_transfer_slots", used_slots)
 
 
 statistics: MessagebusWebsocketStatistics | None = None

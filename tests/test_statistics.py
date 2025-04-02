@@ -251,7 +251,7 @@ def test_depot_metrics_collector(config: Config, metrics_registry: MetricsRegist
 	# Test initialization
 	assert metrics_collector._depot_id == depot_id
 	assert metrics_collector._labels == {"depot_id": depot_id}
-	assert metrics_collector._interval == 60  # 60 seconds interval
+	assert metrics_collector._interval == 30  # 30 seconds interval
 
 	# Test adding values
 	cmds: list[str] = []

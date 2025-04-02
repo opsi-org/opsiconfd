@@ -1,6 +1,6 @@
 [project]
 name = "opsiconfd"
-version = "4.3.31.5"
+version = "4.3.31.6"
 description = "opsi configuration service"
 readme = "README.md"
 requires-python = ">=3.11"

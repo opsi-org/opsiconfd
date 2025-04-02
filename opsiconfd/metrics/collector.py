@@ -206,7 +206,7 @@ class DepotMetricsCollector(MetricsCollector):
 
 	def __init__(self, depot_id: str) -> None:
 		super().__init__()
-		self._interval = 60
+		self._interval = 30
 		self._depot_id = depot_id
 		self._labels = {"depot_id": depot_id}
 

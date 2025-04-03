@@ -37,7 +37,7 @@ def test_setup_limits() -> None:
 	resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, max(hard_limit, soft_limit)))
 	setup_limits()
 	(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-	assert soft_limit == 10000
+	assert soft_limit == 20000
 
 
 def test_setup_file_permissions() -> None:

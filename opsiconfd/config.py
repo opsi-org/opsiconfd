@@ -1520,6 +1520,16 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--rlimit-nofile",
+			env_var="OPSICONFD_RLIMIT_NOFILE",
+			type=int,
+			default=20000,
+			help=self._help(
+				"expert",
+				"Set process RLIMIT_NOFILE (soft and hard).",
+			),
+		)
+		self._parser.add(
 			"--log-slow-async-callbacks",
 			env_var="OPSICONFD_LOG_SLOW_ASYNC_CALLBACKS",
 			type=float,

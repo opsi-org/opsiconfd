@@ -37,19 +37,21 @@ from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
 
 def setup_limits() -> None:
 	logger.info("Setup system limits")
-	# The hard limit is the maximum value that is allowed for the soft limit. Any changes to the hard limit require root access.
+	# The hard limit is the maximum value that is allowed for the soft limit.
+	# Any changes to the hard limit require root access.
 	# The soft limit is the value that Linux uses to limit the system resources for running processes.
-	# The soft limit cannot be greater than the hard limit.
+	rlimit_nofile = int(config.rlimit_nofile)
 	(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-	if 0 < soft_limit < 10000:
+	logger.debug("Current RLIMIT_NOFILE (soft/hard): %d/%d", soft_limit, hard_limit)
+	if soft_limit < rlimit_nofile or hard_limit < rlimit_nofile:
 		try:
-			# ulimit -n 10000
-			soft_limit = 10000
-			resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, max(hard_limit, soft_limit)))
+			hard_limit = max(hard_limit, rlimit_nofile)
+			logger.info("Setting RLIMIT_NOFILE to (soft/hard): %d/%d", rlimit_nofile, hard_limit)
+			resource.setrlimit(resource.RLIMIT_NOFILE, (rlimit_nofile, hard_limit))
 			(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
 		except Exception as err:
 			logger.warning("Failed to set RLIMIT_NOFILE: %s", err)
-	logger.info("Maximum number of open file descriptors: %s", soft_limit)
+	logger.info("Current RLIMIT_NOFILE (soft/hard): %d/%d", soft_limit, hard_limit)
 
 	if not running_in_docker():
 		try:

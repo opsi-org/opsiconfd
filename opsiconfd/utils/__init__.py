@@ -92,7 +92,7 @@ class Singleton(type):
 
 
 def log_config(log_level: int = INFO) -> None:
-	get_logger().log(log_level, "Config: %s", json.dumps(get_config().items(), indent=2))
+	get_logger().log(log_level, "Config: %s", json.dumps(get_config().items(), indent=2, sort_keys=True))
 
 
 def get_python_info() -> dict[str, Any]:

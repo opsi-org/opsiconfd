@@ -82,7 +82,7 @@ class RPCLicenseOnClientMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def licenseOnClient_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[LicenseOnClient]:
 		ace = self._get_ace("licenseOnClient_getObjects")
-		return self._licenseOnClient_getObjects(ace=ace, attributes=attributes, filter=filter)
+		return self._licenseOnClient_getObjects(ace=ace, attributes=attributes, **filter)
 
 	@rpc_method(deprecated=True, alternative_method="licenseOnClient_getObjects", check_acl=False)
 	def licenseOnClient_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:

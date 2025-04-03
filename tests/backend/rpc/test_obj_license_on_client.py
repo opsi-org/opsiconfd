@@ -26,7 +26,7 @@ from opsicommon.objects import (
 	VolumeSoftwareLicense,
 )
 
-from tests.utils import UnprotectedBackend, backend, clean_mysql, clean_redis  # noqa: F401
+from tests.utils import OpsiconfdTestClient, UnprotectedBackend, backend, clean_mysql, clean_redis, test_client  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -35,6 +35,7 @@ from tests.utils import UnprotectedBackend, backend, clean_mysql, clean_redis  #
 )
 def test_licenseOnClient_getOrCreateObject(
 	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
 	license_type: type[SoftwareLicense],
 ) -> None:
 	max_installations = 1 if license_type is OEMSoftwareLicense else 3
@@ -87,12 +88,15 @@ def test_licenseOnClient_getOrCreateObject(
 	backend.auditSoftware_createObjects([audit_software1])
 	backend.auditSoftwareToLicensePool_createObjects([audit_software_to_license_pool1])
 
+	assert client2.id and client2.opsiHostKey
+	test_client.auth = (client2.id, client2.opsiHostKey)
+
 	for _ in range(2):
 		# Acquire license and reacquire it
 		clients = (client1, client2, client3) if max_installations == 3 else (client1,)
 		for client in clients:
 			for arg in "licensePoolId", "productId", "windowsSoftwareId":
-				kwargs = {"clientId": client.id}
+				kwargs: dict[str, str | None] = {"clientId": client.id}
 				if arg == "licensePoolId":
 					kwargs[arg] = pool1.id
 				elif arg == "productId":
@@ -112,33 +116,47 @@ def test_licenseOnClient_getOrCreateObject(
 		license_on_client = LicenseOnClient(
 			softwareLicenseId=license1.id, licensePoolId=pool1.id, clientId=client4.id, licenseKey=lic2pool.licenseKey
 		)
-		if with_license_on_client:
-			backend.licenseOnClient_createObjects([license_on_client])
-		else:
-			backend.licenseOnClient_deleteObjects([license_on_client])
 
-		for product in (product1, product2):
-			for arg in "licensePoolId", "productId", "windowsSoftwareId":
-				kwargs = {"clientId": client4.id}
-				if arg == "licensePoolId":
-					kwargs[arg] = pool1.id
-				elif arg == "productId":
-					kwargs[arg] = product.id
-				elif arg == "windowsSoftwareId":
-					assert audit_software1.windowsSoftwareId
-					kwargs[arg] = audit_software1.windowsSoftwareId
+		for jsonrpc in (False, True):
+			for product in (product1, product2):
+				for unused_param in None, "":
+					for arg in "licensePoolId", "productId", "windowsSoftwareId":
+						kwargs = {
+							"clientId": client4.id,
+							"licensePoolId": unused_param,
+							"productId": unused_param,
+							"windowsSoftwareId": unused_param,
+						}
+						if arg == "licensePoolId":
+							kwargs[arg] = pool1.id
+						elif arg == "productId":
+							kwargs[arg] = product.id
+						elif arg == "windowsSoftwareId":
+							assert audit_software1.windowsSoftwareId
+							kwargs[arg] = audit_software1.windowsSoftwareId
 
-				if with_license_on_client:
-					# Acquire license for client4 which will succeed because licenseOnClient is already present
-					# although the number of licences is over the limit
-					license_on_client = backend.licenseOnClient_getOrCreateObject(**kwargs)
-				else:
-					# Acquire license for client4 which will fail
-					with pytest.raises(
-						LicenseMissingError,
-						match=(
-							r"License missing error: No license available for pool 'test-pool-1' and client 'test-client-4.opsi.org',"
-							r" or all remaining licenses are bound to a different host."
-						),
-					):
-						backend.licenseOnClient_getOrCreateObject(**kwargs)
+						if with_license_on_client:
+							backend.licenseOnClient_createObjects([license_on_client])
+							# Acquire license for client4 which will succeed because licenseOnClient is already present
+							# although the number of licences is over the limit
+							if jsonrpc:
+								res = test_client.jsonrpc20("licenseOnClient_getOrCreateObject", params=kwargs)
+								assert "error" not in res
+							else:
+								license_on_client = backend.licenseOnClient_getOrCreateObject(**kwargs)
+						else:
+							backend.licenseOnClient_deleteObjects([license_on_client])
+							# Acquire license for client4 which will fail
+							expected_error = (
+								r"License missing error: No license available for pool 'test-pool-1' and client 'test-client-4.opsi.org',"
+								r" or all remaining licenses are bound to a different host."
+							)
+							if jsonrpc:
+								res = test_client.jsonrpc20("licenseOnClient_getOrCreateObject", params=kwargs)
+								assert res["error"]["message"] == expected_error
+							else:
+								with pytest.raises(
+									LicenseMissingError,
+									match=expected_error,
+								):
+									backend.licenseOnClient_getOrCreateObject(**kwargs)

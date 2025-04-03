@@ -22,6 +22,8 @@ from opsicommon.objects import (
 )
 from opsicommon.types import forceList
 
+from opsiconfd.backend.auth import RPCACE
+
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -77,6 +79,16 @@ class RPCSoftwareLicenseMixin(Protocol):
 					table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=False, session=session
 				)
 
+	def _softwareLicense_getObjects(
+		self: BackendProtocol,
+		ace: list[RPCACE] | None = None,
+		attributes: list[str] | None = None,
+		**filter: Any,
+	) -> list[SoftwareLicense]:
+		return self._mysql.get_objects(
+			table="SOFTWARE_LICENSE", ace=ace or [], object_type=SoftwareLicense, attributes=attributes, filter=filter
+		)
+
 	@rpc_method(check_acl=False)
 	def softwareLicense_getObjects(
 		self: BackendProtocol,
@@ -84,7 +96,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		**filter: Any,
 	) -> list[SoftwareLicense]:
 		ace = self._get_ace("softwareLicense_getObjects")
-		return self._mysql.get_objects(table="SOFTWARE_LICENSE", ace=ace, object_type=SoftwareLicense, attributes=attributes, filter=filter)
+		return self._softwareLicense_getObjects(ace=ace, attributes=attributes, **filter)
 
 	@rpc_method(deprecated=True, alternative_method="softwareLicense_getObjects", check_acl=False)
 	def softwareLicense_getHashes(

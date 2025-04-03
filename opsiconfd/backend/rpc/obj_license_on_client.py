@@ -27,6 +27,7 @@ from opsicommon.types import (
 	forceUnicode,
 )
 
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -71,18 +72,33 @@ class RPCLicenseOnClientMixin(Protocol):
 					table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=False, session=session
 				)
 
+	def _licenseOnClient_getObjects(
+		self: BackendProtocol, ace: list[RPCACE] | None = None, attributes: list[str] | None = None, **filter: Any
+	) -> list[LicenseOnClient]:
+		return self._mysql.get_objects(
+			table="LICENSE_ON_CLIENT", ace=ace or [], object_type=LicenseOnClient, attributes=attributes, filter=filter
+		)
+
 	@rpc_method(check_acl=False)
 	def licenseOnClient_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[LicenseOnClient]:
 		ace = self._get_ace("licenseOnClient_getObjects")
-		return self._mysql.get_objects(
-			table="LICENSE_ON_CLIENT", ace=ace, object_type=LicenseOnClient, attributes=attributes, filter=filter
-		)
+		return self._licenseOnClient_getObjects(ace=ace, attributes=attributes, filter=filter)
 
 	@rpc_method(deprecated=True, alternative_method="licenseOnClient_getObjects", check_acl=False)
 	def licenseOnClient_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, ace=ace, return_type="dict", attributes=attributes, filter=filter
+		)
+
+	def _licenseOnClient_getIdents(
+		self: BackendProtocol,
+		ace: list[RPCACE] | None = None,
+		returnType: IdentType = "str",
+		**filter: Any,
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
+		return self._mysql.get_idents(
+			table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, ace=ace or [], ident_type=returnType, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
@@ -92,7 +108,7 @@ class RPCLicenseOnClientMixin(Protocol):
 		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("licenseOnClient_getObjects")
-		return self._mysql.get_idents(table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, ace=ace, ident_type=returnType, filter=filter)
+		return self._licenseOnClient_getIdents(ace=ace, returnType=returnType, **filter)
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_deleteObjects(
@@ -189,7 +205,7 @@ class RPCLicenseOnClientMixin(Protocol):
 
 		# Test if a license is already used by the host
 		license_on_client = None
-		license_on_clients = self.licenseOnClient_getObjects(licensePoolId=licensePoolId, clientId=clientId)
+		license_on_clients = self._licenseOnClient_getObjects(licensePoolId=licensePoolId, clientId=clientId)
 		if license_on_clients:
 			logger.info(
 				"Using already assigned license '%s' for client '%s', license pool '%s'",
@@ -223,10 +239,11 @@ class RPCLicenseOnClientMixin(Protocol):
 		software_license_id = ""
 		license_key = ""
 
-		license_on_clients = self.licenseOnClient_getObjects(licensePoolId=license_pool_id, clientId=client_id)
+		license_on_clients = self._licenseOnClient_getObjects(licensePoolId=license_pool_id, clientId=client_id)
 		if license_on_clients:
 			# Already registered
-			return (license_on_clients[0].getSoftwareLicenseId(), license_on_clients[0].getLicenseKey())
+			assert license_on_clients[0].softwareLicenseId and license_on_clients[0].licenseKey
+			return (license_on_clients[0].softwareLicenseId, license_on_clients[0].licenseKey)
 
 		software_license_to_license_pools = self.softwareLicenseToLicensePool_getObjects(licensePoolId=license_pool_id)
 		if not software_license_to_license_pools:
@@ -236,21 +253,21 @@ class RPCLicenseOnClientMixin(Protocol):
 			softwareLicenseToLicensePool.softwareLicenseId for softwareLicenseToLicensePool in software_license_to_license_pools
 		]
 
-		software_licenses_bound_to_host = self.softwareLicense_getObjects(id=software_license_ids, boundToHost=client_id)
+		software_licenses_bound_to_host = self._softwareLicense_getObjects(id=software_license_ids, boundToHost=client_id)
 		if software_licenses_bound_to_host:
 			logger.info("Using license bound to host: %s", software_licenses_bound_to_host[0])
 			software_license_id = software_licenses_bound_to_host[0].getId()
 		else:
 			# Search an available license
-			for software_license in self.softwareLicense_getObjects(id=software_license_ids, boundToHost=[None, ""]):
-				logger.debug("Checking license '%s', maxInstallations %d", software_license.getId(), software_license.getMaxInstallations())
-				if software_license.getMaxInstallations() == 0:
+			for software_license in self._softwareLicense_getObjects(id=software_license_ids, boundToHost=[None, ""]):
+				logger.debug("Checking license '%s', maxInstallations %d", software_license.getId(), software_license.maxInstallations)
+				if software_license.maxInstallations == 0:
 					# 0 = infinite
 					software_license_id = software_license.getId()
 					break
-				installations = len(self.licenseOnClient_getIdents(softwareLicenseId=software_license.getId()))
+				installations = len(self._licenseOnClient_getIdents(softwareLicenseId=software_license.getId()))
 				logger.debug("Installations registered: %d", installations)
-				if installations < software_license.getMaxInstallations():
+				if software_license.maxInstallations and installations < software_license.maxInstallations:
 					software_license_id = software_license.getId()
 					break
 

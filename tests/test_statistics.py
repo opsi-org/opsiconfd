@@ -13,16 +13,22 @@ import asyncio
 from asyncio import sleep
 
 import pytest
+from opsicommon.objects import OpsiClient, OpsiDepotserver
 
 from opsiconfd.metrics.collector import DepotMetricsCollector, WorkerMetricsCollector
 from opsiconfd.metrics.registry import AggregationType, DepotMetric, MetricsRegistry, WorkerMetric, ZeroIfMissingType
 from opsiconfd.worker import Worker
 
 from .utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
 	Config,
+	OpsiconfdTestClient,
+	clean_mysql,
 	clean_redis,
 	config,
 	reset_singleton,
+	test_client,
 )
 
 
@@ -244,28 +250,35 @@ def test_metric_by_redis_key_error(config: Config, metrics_registry: MetricsRegi
 	assert str(excinfo.value) == f"Metric with redis key '{config.redis_key('stats')}:opsiconfd:notinredis:metric' not found"
 
 
-def test_depot_metrics_collector(config: Config, metrics_registry: MetricsRegistry) -> None:  # noqa: F811
-	depot_id = "test-depot"
-	metrics_collector = DepotMetricsCollector(depot_id)
+def test_depot_metrics_collector(config: Config, test_client: OpsiconfdTestClient, metrics_registry: MetricsRegistry) -> None:  # noqa: F811
+	test_client.auth = (ADMIN_PASS, ADMIN_USER)
+	client1 = OpsiClient(id="test-client-1.opsi.org")
+	client2 = OpsiClient(id="test-client-2.opsi.org")
+	client3 = OpsiClient(id="test-client-3.opsi.org")
+	depot1 = OpsiDepotserver(id="test-depot-1.opsi.org")
+
+	test_client.jsonrpc20("host_createObjects", [[client1, client2, client3, depot1]])
+
+	metrics_collector = DepotMetricsCollector(depot1.id)
 
 	# Test initialization
-	assert metrics_collector._depot_id == depot_id
-	assert metrics_collector._labels == {"depot_id": depot_id}
+	assert metrics_collector._depot_id == depot1.id
+	assert metrics_collector._labels == {"depot_id": depot1.id}
 	assert metrics_collector._interval == 30  # 30 seconds interval
 
 	# Test adding values
 	cmds: list[str] = []
 
+	async def _execute_redis_command(*cmd: str) -> None:
+		nonlocal cmds
+		cmds.extend(cmd)
+
+	metrics_collector._execute_redis_command = _execute_redis_command  # type: ignore[assignment]
+
 	async def _test_add_values() -> None:
 		await metrics_collector.add_value("depot:avg_product_data_transfer_slots", 5)
 		await asyncio.sleep(1)
 		await metrics_collector.add_value("depot:avg_product_data_transfer_slots", 3)
-
-		async def _execute_redis_command(*cmd: str) -> None:
-			nonlocal cmds
-			cmds.extend(cmd)
-
-		metrics_collector._execute_redis_command = _execute_redis_command  # type: ignore[assignment]
 		await metrics_collector._write_values_to_redis()
 
 	# Run the async test
@@ -275,7 +288,43 @@ def test_depot_metrics_collector(config: Config, metrics_registry: MetricsRegist
 	assert len(cmds) == 1
 	cmd = cmds[0].split()
 	assert cmd[0] == "TS.ADD"
-	assert cmd[1] == "pytest:stats:depot:avg_product_data_transfer_slots:test-depot"
+	assert cmd[1] == "pytest:stats:depot:avg_product_data_transfer_slots:test-depot-1.opsi.org"
 	assert cmd[3] == "4.0"  # avg 5, 3 = 4
 	assert cmd[9] == "depot_id"
-	assert cmd[10] == "test-depot"
+	assert cmd[10] == "test-depot-1.opsi.org"
+
+	slots = {}
+	for client in [client1, client2, client3]:
+		slots[client.id] = test_client.jsonrpc20(
+			"depot_acquireTransferSlot", {"depot": depot1.id, "host": client.id, "slot_type": "opsiclientd_product_sync"}
+		)["result"]
+
+	async def _add_values() -> None:
+		await metrics_collector._fetch_values()
+		await metrics_collector._write_values_to_redis()
+
+	asyncio.run(_add_values())
+
+	assert len(cmds) == 2
+	cmd = cmds[1].split()
+	assert cmd[0] == "TS.ADD"
+	assert cmd[1] == "pytest:stats:depot:avg_product_data_transfer_slots:test-depot-1.opsi.org"
+	assert cmd[3] == "3.0"
+	assert cmd[9] == "depot_id"
+	assert cmd[10] == "test-depot-1.opsi.org"
+
+	for client in [client1, client2, client3]:
+		test_client.jsonrpc20(
+			"depot_releaseTransferSlot",
+			{"depot": depot1.id, "host": client.id, "slot_id": slots[client.id]["slot_id"], "slot_type": "opsiclientd_product_sync"},
+		)
+
+	asyncio.run(_add_values())
+
+	assert len(cmds) == 3
+	cmd = cmds[2].split()
+	assert cmd[0] == "TS.ADD"
+	assert cmd[1] == "pytest:stats:depot:avg_product_data_transfer_slots:test-depot-1.opsi.org"
+	assert cmd[3] == "0.0"
+	assert cmd[9] == "depot_id"
+	assert cmd[10] == "test-depot-1.opsi.org"

@@ -795,28 +795,28 @@ class RPCHostMixin(Protocol):
 
 		config_states: list[ConfigState] = []
 		for client in opsi_clients_extended:
+			if client.smart_cache:
+				client.wan_vpn = False
+			elif client.wan_vpn:
+				client.smart_cache = False
+
 			# Monitoring config
 			if client.monitoring is not None:
 				config_states.append(ConfigState(configId="opsi.check.enabled", objectId=client.id, values=[client.monitoring]))
 
 			# WAN/VPN and Smart Cache configs
 			if client.smart_cache is not None:
-				config_states.append(ConfigState(configId="clientconfig.smart_cache", objectId=client.id, values=[True]))
-				# WAN/VPN settings are disabled when smart_cache is active
-				config_states.extend(
-					[
-						ConfigState(configId="opsiclientd.event_gui_startup.active", objectId=client.id, values=[True]),
-						ConfigState(configId="opsiclientd.event_gui_startup{user_logged_in}.active", objectId=client.id, values=[True]),
-						ConfigState(configId="opsiclientd.event_timer.active", objectId=client.id, values=[False]),
-					]
-				)
-			elif client.wan_vpn is not None:
+				config_states.append(ConfigState(configId="clientconfig.smart_cache", objectId=client.id, values=[client.smart_cache]))
+
+			if client.wan_vpn is not None:
 				# Set WAN/VPN specific configs
 				config_states.extend(
 					[
-						ConfigState(configId="opsiclientd.event_gui_startup.active", objectId=client.id, values=[False]),
-						ConfigState(configId="opsiclientd.event_gui_startup{user_logged_in}.active", objectId=client.id, values=[False]),
-						ConfigState(configId="opsiclientd.event_timer.active", objectId=client.id, values=[True]),
+						ConfigState(configId="opsiclientd.event_gui_startup.active", objectId=client.id, values=[not client.wan_vpn]),
+						ConfigState(
+							configId="opsiclientd.event_gui_startup{user_logged_in}.active", objectId=client.id, values=[not client.wan_vpn]
+						),
+						ConfigState(configId="opsiclientd.event_timer.active", objectId=client.id, values=[client.wan_vpn]),
 					]
 				)
 

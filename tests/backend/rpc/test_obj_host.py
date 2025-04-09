@@ -1474,8 +1474,34 @@ def test_host_updateClients(backend: UnprotectedBackend) -> None:  # noqa: F811
 	config_values = {cs.configId: cs.values[0] for cs in config_states}
 
 	assert config_values["opsi.check.enabled"] is False
-	assert "clientconfig.smart_cache" not in config_values  # smart_cache is None
+	assert config_values["clientconfig.smart_cache"] is False
 	assert config_values["opsiclientd.event_gui_startup.active"] is False
 	assert config_values["opsiclientd.event_gui_startup{user_logged_in}.active"] is False
 	assert config_values["opsiclientd.event_timer.active"] is True
 	assert config_values["opsiclientd.event_on_shutdown.active"] is False
+
+	# smart_cache has higher priority
+	client2["wan_vpn"] = True
+	client2["smart_cache"] = True
+	backend.host_updateClients(client2)
+	config_states = backend.configState_getObjects(objectId=client2["id"])
+	config_values = {cs.configId: cs.values[0] for cs in config_states}
+
+	assert config_values["clientconfig.smart_cache"] is True
+	assert config_values["opsiclientd.event_gui_startup.active"] is True
+	assert config_values["opsiclientd.event_gui_startup{user_logged_in}.active"] is True
+	assert config_values["opsiclientd.event_timer.active"] is False
+	client = backend.host_getClients(id=client2["id"])[0]
+	assert client.smart_cache is True
+	assert client.wan_vpn is False
+
+	# Switch to wan_vpn
+	backend.host_updateClients(
+		{
+			"id": client2["id"],
+			"wan_vpn": True,
+		}
+	)
+	client = backend.host_getClients(id=client2["id"])[0]
+	assert client.wan_vpn is True
+	assert client.smart_cache is False

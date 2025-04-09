@@ -1241,7 +1241,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.31.8"
+version = "4.3.31.9"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },
@@ -2595,7 +2595,7 @@ name = "wmi"
 version = "1.5.1"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
-    { name = "pywin32" },
+    { name = "pywin32", marker = "sys_platform != 'darwin' and sys_platform != 'linux'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d4/66/6364deb0a03415f96c66803d8c4379f808f2401da3bdb183348487b10510/WMI-1.5.1.tar.gz", hash = "sha256:b6a6be5711b1b6c8d55bda7a8befd75c48c12b770b9d227d31c1737dbf0d40a6", size = 26254 }
 wheels = [

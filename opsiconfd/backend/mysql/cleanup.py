@@ -255,6 +255,18 @@ def remove_orphans_software_config(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from SOFTWARE_CONFIG")
 
 
+def remove_orphans_software(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE s.* FROM SOFTWARE AS s
+		LEFT JOIN SOFTWARE_CONFIG AS sc ON sc.software_id = s.software_id
+		WHERE  sc.software_id IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from SOFTWARE")
+
+
 def convert_config_objects(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -399,9 +411,10 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_windows_software_id_to_product(session)
 		remove_orphans_license_on_client_to_host(session)
 		remove_orphans_product_id_to_license_pool(session)
-		remove_orphans_hardware_device(mysql, session)
 		remove_orphans_hardware_config(mysql, session)
+		remove_orphans_hardware_device(mysql, session)
 		remove_orphans_software_config(session)
+		remove_orphans_software(session)
 		remove_config_state_null_values(session)
 		convert_config_objects(session)
 		remove_product_property_state_null_values(session)

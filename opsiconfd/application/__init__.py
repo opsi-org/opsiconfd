@@ -143,7 +143,6 @@ async def lifespan(opsiconfd_app: OpsiconfdApp) -> AsyncGenerator[None, None]:
 		await async_application_shutdown()
 	except Exception as error:
 		logger.critical("Error during application shutdown: %s", error, exc_info=True)
-	opsiconfd_app.set_app_state(ShutdownState(), wait_accomplished=None)
 
 
 class OpsiconfdApp(FastAPI):

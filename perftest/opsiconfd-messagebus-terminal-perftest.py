@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
 # Copyright (c) 2008-2025 uib GmbH <info@uib.de>
 # All rights reserved.

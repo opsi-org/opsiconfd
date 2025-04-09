@@ -1,8 +1,8 @@
 project:
   licenses:
-    - license: AGPL-3.0
+    - license: AGPL-3.0-only
       header: |
-        opsiconfd is part of the desktop management solution opsi http://www.opsi.org
+        opsiconfd is part of the device management solution opsi http://www.opsi.org
         Copyright (c) 2008-{year} uib GmbH <info@uib.de>
         All rights reserved.
         License: {license}

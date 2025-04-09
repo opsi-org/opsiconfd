@@ -1423,3 +1423,61 @@ def test_host_getClients(backend: UnprotectedBackend) -> None:  # noqa: F811
 	client_by_id = {client.id: client for client in backend.host_getClients()}
 	assert client_by_id[client1.id].operating_system == "Debian 12"
 	assert client_by_id[client2.id].operating_system is None
+
+
+def test_host_updateClients(backend: UnprotectedBackend) -> None:  # noqa: F811
+	# Prepare test data
+	client1 = {
+		"id": "test-client1.opsi.test",
+		"opsiHostKey": "4587c951bf924ae3b83f9d89819b9299",
+		"description": "Test Client 1",
+		"notes": "Test notes",
+		"hardwareAddress": "00:11:22:33:44:55",
+		"ipAddress": "192.168.1.100",
+		"monitoring": None,
+		"smart_cache": True,
+		"wan_vpn": False,
+		"install_on_shutdown": True,
+	}
+
+	client2 = {
+		"id": "test-client2.opsi.test",
+		"opsiHostKey": "9875d456ef982ac1b94f7d45612c4321",
+		"description": "Test Client 2",
+		"hardwareAddress": "00:11:22:33:44:66",
+		"monitoring": False,
+		"wan_vpn": True,
+		"smart_cache": None,
+		"install_on_shutdown": False,
+	}
+
+	# Update clients
+	backend.host_updateClients([client1, client2])
+
+	# Verify host objects were updated
+	clients = backend.host_getObjects(type="OpsiClient")
+	assert len(clients) == 2
+	assert any(c.id == client1["id"] for c in clients)
+	assert any(c.id == client2["id"] for c in clients)
+
+	# Verify config states for client1
+	config_states = backend.configState_getObjects(objectId=client1["id"])
+	config_values = {cs.configId: cs.values[0] for cs in config_states}
+
+	assert "opsi.check.enabled" not in config_values  # monitoring is None
+	assert config_values["clientconfig.smart_cache"] is True
+	assert config_values["opsiclientd.event_gui_startup.active"] is True
+	assert config_values["opsiclientd.event_gui_startup{user_logged_in}.active"] is True
+	assert config_values["opsiclientd.event_timer.active"] is False
+	assert config_values["opsiclientd.event_on_shutdown.active"] is True
+
+	# Verify config states for client2
+	config_states = backend.configState_getObjects(objectId=client2["id"])
+	config_values = {cs.configId: cs.values[0] for cs in config_states}
+
+	assert config_values["opsi.check.enabled"] is False
+	assert "clientconfig.smart_cache" not in config_values  # smart_cache is None
+	assert config_values["opsiclientd.event_gui_startup.active"] is False
+	assert config_values["opsiclientd.event_gui_startup{user_logged_in}.active"] is False
+	assert config_values["opsiclientd.event_timer.active"] is True
+	assert config_values["opsiclientd.event_on_shutdown.active"] is False

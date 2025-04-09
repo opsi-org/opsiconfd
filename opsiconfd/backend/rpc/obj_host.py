@@ -25,10 +25,11 @@ from opsicommon.exceptions import (
 	BackendMissingDataError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.objects import Host, OpsiClient, OpsiConfigserver, OpsiDepotserver
-from opsicommon.types import forceHostId, forceObjectClass, forceObjectClassList
+from opsicommon.objects import ConfigState, Host, OpsiClient, OpsiConfigserver, OpsiDepotserver
+from opsicommon.types import forceHostId, forceList, forceObjectClass, forceObjectClassList
 
 from opsiconfd import contextvar_client_session
+from opsiconfd.backend.rpc import rpc_method
 from opsiconfd.config import LOG_DIR, config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
@@ -42,10 +43,8 @@ from opsiconfd.ssl import (
 	load_opsi_ca_key,
 )
 
-from . import rpc_method
-
 if TYPE_CHECKING:
-	from .protocol import BackendProtocol, IdentType
+	from opsiconfd.backend.rpc.protocol import BackendProtocol, IdentType
 
 
 def auto_fill_depotserver_urls(depot: OpsiDepotserver) -> bool:
@@ -97,6 +96,41 @@ class OpsiClientExtended:
 	smart_cache: bool = False
 	install_on_shutdown: bool = False
 	uefi_boot: bool = False
+
+
+@dataclass
+class OpsiClientExtendedUpdate:
+	id: str
+	opsiHostKey: str | None = None
+	description: str | None = None
+	notes: str | None = None
+	hardwareAddress: str | None = None
+	ipAddress: str | None = None
+	inventoryNumber: str | None = None
+	oneTimePassword: str | None = None
+	created: str | None = None
+	lastSeen: str | None = None
+	systemUUID: str | None = None
+	monitoring: bool = False
+	wan_vpn: bool = False
+	smart_cache: bool = False
+	install_on_shutdown: bool = False
+
+	def to_opsi_client(self) -> OpsiClient:
+		"""Convert to OpsiClient object."""
+		return OpsiClient(
+			id=self.id,
+			opsiHostKey=self.opsiHostKey,
+			description=self.description,
+			notes=self.notes,
+			hardwareAddress=self.hardwareAddress,
+			ipAddress=self.ipAddress,
+			inventoryNumber=self.inventoryNumber,
+			oneTimePassword=self.oneTimePassword,
+			created=self.created,
+			lastSeen=self.lastSeen,
+			systemUUID=self.systemUUID,
+		)
 
 
 class RPCHostMixin(Protocol):
@@ -746,3 +780,53 @@ class RPCHostMixin(Protocol):
 				clients[row[0]].operating_system = row[1]
 
 		return list(clients.values())
+
+	@rpc_method(check_acl=False)
+	def host_updateClients(
+		self: BackendProtocol, clients: list[dict] | list[OpsiClientExtendedUpdate] | dict | OpsiClientExtendedUpdate
+	) -> None:
+		opsi_clients: list[OpsiClient] = []
+		opsi_clients_extended: list[OpsiClientExtendedUpdate] = []
+		for client in forceList(clients):
+			if isinstance(client, dict):
+				client = OpsiClientExtendedUpdate(**client)
+			opsi_clients_extended.append(client)
+			opsi_clients.append(client.to_opsi_client())
+
+		self.host_updateObjects(opsi_clients)
+
+		config_states: list[ConfigState] = []
+		for client in opsi_clients_extended:
+			# Monitoring config
+			if client.monitoring is not None:
+				config_states.append(ConfigState(configId="opsi.check.enabled", objectId=client.id, values=[client.monitoring]))
+
+			# WAN/VPN and Smart Cache configs
+			if client.smart_cache is not None:
+				config_states.append(ConfigState(configId="clientconfig.smart_cache", objectId=client.id, values=[True]))
+				# WAN/VPN settings are disabled when smart_cache is active
+				config_states.extend(
+					[
+						ConfigState(configId="opsiclientd.event_gui_startup.active", objectId=client.id, values=[True]),
+						ConfigState(configId="opsiclientd.event_gui_startup{user_logged_in}.active", objectId=client.id, values=[True]),
+						ConfigState(configId="opsiclientd.event_timer.active", objectId=client.id, values=[False]),
+					]
+				)
+			elif client.wan_vpn is not None:
+				# Set WAN/VPN specific configs
+				config_states.extend(
+					[
+						ConfigState(configId="opsiclientd.event_gui_startup.active", objectId=client.id, values=[False]),
+						ConfigState(configId="opsiclientd.event_gui_startup{user_logged_in}.active", objectId=client.id, values=[False]),
+						ConfigState(configId="opsiclientd.event_timer.active", objectId=client.id, values=[True]),
+					]
+				)
+
+			# Install on shutdown config
+			if client.install_on_shutdown is not None:
+				config_states.append(
+					ConfigState(configId="opsiclientd.event_on_shutdown.active", objectId=client.id, values=[client.install_on_shutdown])
+				)
+
+		if config_states:
+			self.configState_createObjects(config_states)

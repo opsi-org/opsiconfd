@@ -93,7 +93,7 @@ def test_auditHardware_create_get_delete(
 	hwaudit = hwaudit.replace("{{host_id}}", "")
 	audit_hardware_on_hosts = json.loads(hwaudit)
 	audit_hardwares = list({AuditHardware.fromHash(ahoh) for ahoh in audit_hardware_on_hosts})
-	assert len(audit_hardwares) == 44
+	assert len(audit_hardwares) == 46
 
 	by_hardware_class = defaultdict(list)
 	for ahoh in audit_hardwares:

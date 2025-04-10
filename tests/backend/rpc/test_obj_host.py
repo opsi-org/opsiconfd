@@ -16,6 +16,7 @@ from uuid import uuid4
 
 import pytest
 from opsicommon.objects import (
+	AuditHardware,
 	AuditSoftware,
 	AuditSoftwareOnClient,
 	BoolConfig,
@@ -1402,7 +1403,7 @@ def test_host_getClients(backend: UnprotectedBackend) -> None:  # noqa: F811
 	audit_software = AuditSoftware(
 		name="Debian 12",
 		version="12.0",
-		subVersion="",
+		subVersion="lin:",
 		language="en",
 		architecture="x64",
 		isOperatingSystem=True,
@@ -1410,7 +1411,7 @@ def test_host_getClients(backend: UnprotectedBackend) -> None:  # noqa: F811
 	audit_software_on_client = AuditSoftwareOnClient(
 		name="Debian 12",
 		version="12.0",
-		subVersion="",
+		subVersion="lin:",
 		language="en",
 		architecture="x64",
 		clientId=client1.id,
@@ -1418,9 +1419,26 @@ def test_host_getClients(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.auditSoftware_createObjects([audit_software])
 	backend.auditSoftwareOnClient_createObjects([audit_software_on_client])
 
+	hwaudit = Path("tests/data/hwaudit/hwaudit.json").read_text(encoding="utf-8")
+	hwaudit = hwaudit.replace("{{host_id}}", client2.id)
+	audit_hardware_on_hosts = json.loads(hwaudit)
+	audit_hardwares = list({AuditHardware.fromHash(ahoh) for ahoh in audit_hardware_on_hosts})
+
+	backend.auditHardware_createObjects(audit_hardwares)
+	backend.auditHardwareOnHost_createObjects(audit_hardware_on_hosts)
+
 	client_by_id = {client.id: client for client in backend.host_getClients()}
 	assert client_by_id[client1.id].operating_system == "Debian 12"
+	assert client_by_id[client1.id].operating_system_type == "linux"
+	assert client_by_id[client1.id].device_type is None
+	assert client_by_id[client1.id].device_vendor is None
+	assert client_by_id[client1.id].device_model is None
+
 	assert client_by_id[client2.id].operating_system is None
+	assert client_by_id[client2.id].operating_system_type is None
+	assert client_by_id[client2.id].device_type == "virtual_machine"
+	assert client_by_id[client2.id].device_vendor == "QEMU"
+	assert client_by_id[client2.id].device_model == "Standard PC (i440FX + PIIX, 1996)"
 
 
 def test_host_updateClients(backend: UnprotectedBackend) -> None:  # noqa: F811

@@ -20,13 +20,12 @@ from opsicommon.objects import (
 )
 from opsicommon.types import forceList
 
+from opsiconfd.backend.auth import RPCACE, RPCACE_ALLOW_ALL
+from opsiconfd.backend.rpc import rpc_method
 from opsiconfd.logging import logger
 
-from ..auth import RPCACE, RPCACE_ALLOW_ALL
-from . import rpc_method
-
 if TYPE_CHECKING:
-	from .protocol import BackendProtocol, IdentType
+	from opsiconfd.backend.rpc.protocol import BackendProtocol, IdentType
 
 
 class RPCAuditHardwareOnHostMixin(Protocol):

@@ -15,7 +15,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from ipaddress import ip_address
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 from urllib.parse import urlparse
 
 from opsicommon.exceptions import (
@@ -72,6 +72,11 @@ def auto_fill_depotserver_urls(depot: OpsiDepotserver) -> bool:
 	return changed
 
 
+OPERATING_SYSTEM_TYPE = Literal["windows", "linux", "macos"]
+DEVICE_TYPE = Literal["desktop", "notebook", "convertible", "server", "virtual_machine", "other"]
+ARCHITECURE = Literal["x86", "x64", "arm64"]
+
+
 @dataclass
 class OpsiClientExtended:
 	id: str
@@ -85,8 +90,12 @@ class OpsiClientExtended:
 	created: str | None = None
 	lastSeen: str | None = None
 	systemUUID: str | None = None
+	device_type: DEVICE_TYPE | None = None
+	# device_architecture: ARCHITECURE | None = None  # TODO: hwaudit
 	device_vendor: str | None = None
 	device_model: str | None = None
+	operating_system_type: OPERATING_SYSTEM_TYPE | None = None
+	operating_system_architecture: ARCHITECURE | None = None
 	operating_system: str | None = None
 	connected: bool = False
 	monitoring: bool = False
@@ -756,19 +765,40 @@ class RPCHostMixin(Protocol):
 		with self._mysql.session() as session:
 			for row in session.execute(
 				"""
-				SELECT hdcc.hostId, hdcs.vendor, hdcs.model
-				FROM HARDWARE_DEVICE_COMPUTER_SYSTEM AS hdcs
-				JOIN HARDWARE_CONFIG_COMPUTER_SYSTEM AS hdcc ON hdcs.hardware_id = hdcc.hardware_id
-				WHERE hdcc.hostId in :client_ids
+				SELECT hccs.hostId, hdcs.vendor, hdcs.model, hdc.chassisType
+				FROM HARDWARE_CONFIG_COMPUTER_SYSTEM AS hccs
+				JOIN HARDWARE_DEVICE_COMPUTER_SYSTEM AS hdcs ON hdcs.hardware_id = hccs.hardware_id
+				LEFT JOIN HARDWARE_CONFIG_CHASSIS AS hcc ON hcc.hostId = hccs.hostId
+				LEFT JOIN HARDWARE_DEVICE_CHASSIS AS hdc ON hdc.hardware_id = hcc.hardware_id
+				WHERE hccs.hostId in :client_ids
 				""",
 				params={"client_ids": list(clients)},
 			).fetchall():
-				clients[row[0]].device_vendor = row[1]
-				clients[row[0]].device_model = row[2]
+				clients[row[0]].device_vendor = device_vendor = row[1]
+				clients[row[0]].device_model = device_model = row[2]
+
+				device_type = (row[3] or "").lower().replace(" ", "").replace("-", "")
+				if device_type in ("", "other"):
+					device_type = "other"
+					dvl = device_vendor.lower()
+					dml = device_model.lower()
+					if "virtual" in dml or dml in ("bochs",) or "virtual" in dvl or dvl in ("qemu",):
+						device_type = "virtual_machine"
+				elif device_type in ("desktop", "mini", "minipc", "tower", "minitower"):
+					device_type = "desktop"
+				elif device_type in ("notebook", "laptop"):
+					device_type = "notebook"
+				elif device_type in ("convertible",):
+					device_type = "convertible"
+				elif device_type in ("server",):
+					device_type = "server"
+				else:
+					device_type = "other"
+				clients[row[0]].device_type = cast(DEVICE_TYPE, device_type)
 
 			for row in session.execute(
 				"""
-				SELECT sc.clientId, s.name
+				SELECT sc.clientId, s.name, s.subVersion, s.architecture
 				FROM SOFTWARE_CONFIG AS sc
 				JOIN SOFTWARE AS s ON s.software_id = sc.software_id
 				WHERE s.isOperatingSystem = 1 and sc.clientId in :client_ids
@@ -776,6 +806,8 @@ class RPCHostMixin(Protocol):
 				params={"client_ids": list(clients)},
 			).fetchall():
 				clients[row[0]].operating_system = row[1]
+				clients[row[0]].operating_system_type = "linux" if row[2] == "lin:" else "macos" if row[2] == "mac:" else "windows"
+				clients[row[0]].operating_system_architecture = cast(ARCHITECURE, row[3]) if row[3] else None
 
 		return list(clients.values())
 

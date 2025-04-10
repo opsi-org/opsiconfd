@@ -780,8 +780,8 @@ class RPCHostMixin(Protocol):
 				device_type = (row[3] or "").lower().replace(" ", "").replace("-", "")
 				if device_type in ("", "other"):
 					device_type = "other"
-					dvl = device_vendor.lower()
-					dml = device_model.lower()
+					dvl = (device_vendor or "").lower()
+					dml = (device_model or "").lower()
 					if "virtual" in dml or dml in ("bochs",) or "virtual" in dvl or dvl in ("qemu",):
 						device_type = "virtual_machine"
 				elif device_type in ("desktop", "mini", "minipc", "tower", "minitower"):

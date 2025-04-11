@@ -315,7 +315,11 @@ def backup_extract_main() -> None:
 
 				# Convert binary data to base64 for JSON serialization
 				for idx in range(len(dumped_keys)):
-					dumped_keys[idx]["value"] = base64.b64encode(dumped_keys[idx]["value"]).decode("utf-8")
+					dumped_keys[idx]["value"] = base64.b64encode(
+						dumped_keys[idx]["value"]
+						if isinstance(dumped_keys[idx]["value"], bytes)
+						else dumped_keys[idx]["value"].encode("utf-8")
+					).decode("utf-8")
 					progress.advance(restore_task)
 				redis_file = redis_dir / "dumped_keys.json"
 				redis_file.write_text(json.dumps(dumped_keys, indent=2), encoding="utf-8")

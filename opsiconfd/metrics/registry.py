@@ -288,7 +288,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			name="Number of used product data transfer slots for depot {depot_id}",
 			retention=2 * 3600 * 1000,
 			aggregation=AggregationType.AVG,
-			zero_if_missing=ZeroIfMissingType.NONE,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			grafana_config=GrafanaPanelConfig(title="Product data transfer slots", unit="short", decimals=0, stack=True),
 		),
 	)

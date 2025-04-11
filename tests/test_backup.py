@@ -150,13 +150,15 @@ def test_create_backup(
 	try:
 		print("initalized_event =", initalized_event.wait(10))
 
-		backup = create_backup()
+		with get_config({"add_config_files": []}):
+			backup = create_backup()
 		assert backup["meta"]["version"] == "1"
 		assert len(backup["objects"]["Host"]) > 0
 		assert backup["config_files"]["opsiconfd_conf"]["path"] == abspath(config.config_file)
 		assert backup["config_files"]["opsiconfd_conf"]["content"]
 
-		backup = create_backup(config_files=False)
+		with get_config({"add_config_files": []}):
+			backup = create_backup(config_files=False)
 		assert not backup["config_files"]
 	finally:
 		app.set_app_state(NormalState())
@@ -194,13 +196,15 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 			databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
 			assert database in databases
 
-		backup = create_backup(config_files=False, redis_data=False)
+		with get_config({"add_config_files": []}):
+			backup = create_backup(config_files=False, redis_data=False)
 
 		with mysql.session() as session:
 			session.execute(f"DROP DATABASE {database}")
 
 		restore_backup(deepcopy(backup))
-		backup2 = create_backup(config_files=False, redis_data=False)
+		with get_config({"add_config_files": []}):
+			backup2 = create_backup(config_files=False, redis_data=False)
 
 		assert sorted(list(backup["objects"])) == sorted(list(backup["objects"]))
 		for object_type in backup["objects"]:
@@ -236,7 +240,8 @@ def test_backup_extract(
 
 		# Create a test backup
 		backup_file = tmp_path / "test_backup.msgpack.lz4"
-		backup = create_backup(backup_file=backup_file)
+		with get_config({"add_config_files": []}):
+			backup = create_backup(backup_file=backup_file)
 
 		# Test extraction
 		extract_dir = tmp_path / "extracted"

@@ -1689,6 +1689,17 @@ class Config(metaclass=Singleton):
 			),
 		)
 
+		self._parser.add(
+			"--add-config-files",
+			env_var="OPSICONFD_ADD_CONFIG_FILES",
+			nargs="+",
+			default=[],
+			help=self._help(
+				"backup",
+				"Add additional config files to backup. If a directory is specified, all files in this directory are added recursively.",
+			),
+		)
+
 		if self._pytest or self._pyinstaller_scan:
 			self._parser.add("args", nargs="*")
 			return
@@ -1857,15 +1868,6 @@ class Config(metaclass=Singleton):
 				"--no-config-files",
 				action="store_true",
 				help=self._help("backup", "Do not add config files to backup."),
-			)
-			self._parser.add(
-				"--add-config-files",
-				nargs="+",
-				default=[],
-				help=self._help(
-					"backup",
-					"Add additional config files to backup. If a directory is specified, all files in this directory are added recursively.",
-				),
 			)
 			self._parser.add(
 				"--no-redis-data",

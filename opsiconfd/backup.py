@@ -126,6 +126,20 @@ def get_config_files() -> dict[str, Path]:
 	for license_file in license_dir.glob("*.opsilic"):
 		config_files[f"opsilic_{license_file.with_suffix('').name}"] = license_file
 
+	if config.add_config_files:
+		for config_file in config.add_config_files:
+			config_file = Path(config_file)
+			if not config_file.exists():
+				raise FileNotFoundError(f"Additional config file '{config_file}' not found")
+			if config_file.is_dir():
+				# Find all files in the directory
+				for file in config_file.glob("**"):
+					if file.is_file():
+						config_files[f"additional_{file.name}"] = file
+			else:
+				# Add the file directly
+				config_files[f"additional_{config_file.name}"] = config_file
+
 	return config_files
 
 

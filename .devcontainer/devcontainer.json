@@ -27,7 +27,7 @@
 					},
 					"editor.defaultFormatter": "charliermarsh.ruff"
 				},
-				"python.defaultInterpreterPath": ".venv/bin/python",
+				"python.defaultInterpreterPath": ".venv/bin/python3",
 				"python.languageServer": "Pylance",
 				"python.terminal.activateEnvironment": false,
 				"python.testing.unittestEnabled": false,

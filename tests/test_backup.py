@@ -21,7 +21,7 @@ import pytest
 
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.backup import create_backup, restore_backup
+from opsiconfd.backup import create_backup, get_config_files, restore_backup
 from opsiconfd.main.backup import backup_extract_main, backup_main
 
 from .test_application import (  # noqa: F401
@@ -284,3 +284,56 @@ def test_backup_extract(
 		app.set_app_state(NormalState())
 		app.stop_app_state_manager_task()
 		thread.join(5)
+
+
+@pytest.mark.parametrize(
+	"add_config_files",
+	(
+		["extra_configs"],
+		["extra_configs/config1.conf"],
+		["extra_configs", "extra_configs2"],
+		[],
+		None,
+	),
+)
+def test_get_config_files(config: Config, tmp_path: Path, add_config_files: list[str] | None) -> None:  # noqa: F811
+	add_config_files_path = add_config_files
+	if add_config_files_path:
+		add_config_files_path = [str(tmp_path / name) for name in add_config_files_path]
+
+	extra_config_dir = tmp_path / "extra_configs"
+	extra_config_subdir = extra_config_dir / "subdir"
+	extra_config_dir2 = tmp_path / "extra_configs2"
+
+	extra_config_subdir.mkdir(parents=True)
+	extra_config_dir2.mkdir(parents=True)
+
+	extra_file1 = extra_config_dir / "config1.conf"
+	extra_file1.write_text("config1 content")
+	extra_file2 = extra_config_subdir / ".config2"
+	extra_file2.write_text("config2 content")
+	extra_file3 = extra_config_dir2 / "config3.txt"
+	extra_file3.write_text("config3 content")
+
+	with get_config({"add_config_files": add_config_files_path}):
+		config_files = get_config_files()
+
+		if not add_config_files:
+			for name in config_files:
+				assert not name.startswith("additional_")
+			return
+
+		if add_config_files == ["extra_configs/config1.conf"]:
+			assert config_files["additional_config1.conf"] == extra_file1
+			assert "additional_.config2" not in config_files
+			assert "additional_config3.txt" not in config_files
+			return
+
+		if "extra_configs" in add_config_files:
+			assert config_files["additional_config1.conf"] == extra_file1
+			assert config_files["additional_.config2"] == extra_file2
+
+		if "extra_configs2" in add_config_files:
+			assert config_files["additional_config3.txt"] == extra_file3
+		else:
+			assert "additional_config3.txt" not in config_files

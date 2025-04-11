@@ -1859,6 +1859,15 @@ class Config(metaclass=Singleton):
 				help=self._help("backup", "Do not add config files to backup."),
 			)
 			self._parser.add(
+				"--add-config-files",
+				nargs="+",
+				default=[],
+				help=self._help(
+					"backup",
+					"Add additional config files to backup. If a directory is specified, all files in this directory are added recursively.",
+				),
+			)
+			self._parser.add(
 				"--no-redis-data",
 				action="store_true",
 				help=self._help("backup", "Do not add redis data to backup."),

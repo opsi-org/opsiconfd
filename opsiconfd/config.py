@@ -25,7 +25,6 @@ from urllib.parse import unquote, urlparse
 import certifi
 import configargparse  # type: ignore[import]
 import DNS  # type: ignore[import]
-import psutil
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.ssl.linux import get_system_ca_cert_info
@@ -33,9 +32,7 @@ from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
-from opsiconfd.utils import lock_file
-
-from .utils import Singleton, is_opsiconfd, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
+from opsiconfd.utils import Singleton, lock_file, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
 
 if TYPE_CHECKING:
 	from fastapi.templating import Jinja2Templates
@@ -329,7 +326,6 @@ class Config(metaclass=Singleton):
 			assert self._parser
 			# type: ignore[union-attr]
 			conf, _unknown = self._parser.parse_known_args(self._args, ignore_help_args=True, config_file_contents="")
-			action = conf.action
 			self._config.config_file = conf.config_file
 			self._ex_help = conf.ex_help
 			if self._ex_help and "--help" not in self._args:
@@ -352,6 +348,7 @@ class Config(metaclass=Singleton):
 				)
 				else None
 			)
+			action = conf.action
 			if self._sub_command:
 				self._args.remove(self._sub_command)
 		except BaseException:
@@ -378,14 +375,14 @@ class Config(metaclass=Singleton):
 		if not self._parser:
 			raise RuntimeError("Parser not initialized")
 		env_vars = {} if ignore_env else os.environ
-		if is_opsiconfd(psutil.Process(os.getpid())):
-			self._parser.exit_on_error = True
-			self._config = self._parser.parse_args(self._args, config_file_contents=self._config_file_contents(), env_vars=env_vars)
-		else:
+		if self._pytest or self._pyinstaller_scan:
 			self._parser.exit_on_error = False
 			self._config, _unknown = self._parser.parse_known_args(
 				self._args, config_file_contents=self._config_file_contents(), env_vars=env_vars
 			)
+		else:
+			self._parser.exit_on_error = True
+			self._config = self._parser.parse_args(self._args, config_file_contents=self._config_file_contents(), env_vars=env_vars)
 		self._post_process_config()
 
 	def _post_process_config(self) -> None:

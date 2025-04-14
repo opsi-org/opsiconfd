@@ -274,27 +274,38 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 
 async def get_websocket_connected_users(
 	user_ids: list[str] | None = None, user_type: Literal["client", "depot", "user"] | None = None
-) -> AsyncGenerator[str, None]:
+) -> list[str]:
 	redis = await async_redis_client()
 
-	state_keys = []
-	if user_type and user_ids:
-		state_keys = [f"{config.redis_key('messagebus')}:connections:{user_type}s:{i}" for i in user_ids]
-	else:
-		search_base = f"{config.redis_key('messagebus')}:connections"
-		if user_type:
-			search_base = f"{search_base}:{user_type}s"
-		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{search_base}:*", count=1000)]
-
-	for state_key in state_keys:
-		try:
-			user_id = state_key.rsplit(":", 1)[-1]
-			if user_ids and user_id not in user_ids:
-				continue
-			if int(await redis.hget(state_key, "websocket_count") or 0) > 0:
-				yield user_id
-		except Exception as err:
-			logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)
+	base_key = f"{config.redis_key('messagebus')}:connections:{user_type + 's' if user_type else '*'}"
+	search_key = [f"{base_key}:{user_id}" for user_id in user_ids] if user_ids else [f"{base_key}:*"]
+	lua_script = """
+		local user_ids = {};
+		for i = 1, #ARGV do
+			local search_base = ARGV[i];
+			local keys = {search_base};
+			if string.match(search_base, "*") then
+				local table = redis.pcall('SCAN', 0, 'MATCH', search_base, 'COUNT', 1000000);
+				keys = table[2];
+			end;
+			for j = 1, #keys do
+				local count = tonumber(redis.pcall('HGET', keys[j], 'websocket_count'));
+				if (count ~= nil and count > 0) then
+					local user_id = string.match(keys[j], ":([^:]+)$")
+					user_ids[#user_ids + 1] = user_id;
+				end;
+			end;
+		end;
+		return user_ids;
+	"""
+	res: list[bytes] = await redis.eval(  # type: ignore[no-untyped-call]
+		lua_script,
+		0,
+		*search_key,
+	)
+	if not res:
+		return []
+	return sorted(r.decode("utf-8") for r in res)
 
 
 class MessageReader:

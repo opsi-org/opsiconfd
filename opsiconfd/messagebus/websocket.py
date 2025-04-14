@@ -482,7 +482,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			self._messagebus_user_id = get_user_id_for_host(session.host_id)
 			if not session.host_id == configserver_id:
 				user_type: Literal["client", "depot"] = "client" if session.host_type == "OpsiClient" else "depot"
-				connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type)])
+				connected = bool(await get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type))
 				if not connected:
 					event.event = "host_connected"
 					event.channel = "event:host_connected"
@@ -493,7 +493,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		elif session.username and session.is_admin:
 			self._messagebus_user_id = get_user_id_for_user(session.username)
 
-			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.username], user_type="user")])
+			connected = bool(await get_websocket_connected_users(user_ids=[session.username], user_type="user"))
 			if not connected:
 				event.event = "user_connected"
 				event.channel = "event:user_connected"
@@ -535,7 +535,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 		if session.host_id:
 			user_type: Literal["client", "depot"] = "client" if session.host_type == "OpsiClient" else "depot"
-			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type)])
+			connected = bool(await get_websocket_connected_users(user_ids=[session.host_id], user_type=user_type))
 			if not connected:
 				event.event = "host_disconnected"
 				event.channel = "event:host_disconnected"
@@ -544,7 +544,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					"id": session.host_id,
 				}
 		elif session.username:
-			connected = bool([u async for u in get_websocket_connected_users(user_ids=[session.username], user_type="user")])
+			connected = bool(await get_websocket_connected_users(user_ids=[session.username], user_type="user"))
 			if not connected:
 				event.event = "user_disconnected"
 				event.channel = "event:user_disconnected"

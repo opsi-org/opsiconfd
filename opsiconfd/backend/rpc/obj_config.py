@@ -273,7 +273,7 @@ class RPCConfigMixin(Protocol):
 					],
 				)
 			}
-			client_ids = [client_id async for client_id in get_websocket_connected_users(user_type="client")]
+			client_ids = await get_websocket_connected_users(user_type="client")
 			logger.info("Sending messageOfTheDayUpdated to %d messagebus connected clients", len(client_ids))
 			if client_ids:
 				result = await self._messagebus_rpc(

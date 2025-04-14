@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from threading import Thread
 from time import sleep
-from typing import Any, AsyncGenerator, Generator
+from typing import Any, Generator
 from unittest.mock import patch
 
 import pytest
@@ -274,8 +274,8 @@ async def test_config_updateMessageOfTheDay(backend: UnprotectedBackend) -> None
 		rpcs.append((client_ids, method, params, timeout, messagebus_only))
 		return {}
 
-	async def get_websocket_connected_users(*args: Any, **kwargs: Any) -> AsyncGenerator[str, None]:
-		yield "client1.opsi.org"
+	async def get_websocket_connected_users(*args: Any, **kwargs: Any) -> list[str]:
+		return ["client1.opsi.org"]
 
 	assert (
 		len(

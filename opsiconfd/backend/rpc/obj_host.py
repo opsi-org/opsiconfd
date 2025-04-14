@@ -703,9 +703,9 @@ class RPCHostMixin(Protocol):
 		Return a list of host IDs connected to the messagebus.
 		The hostId parameter can be used to limit the list to the IDs passed.
 		"""
-		return [h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="depot")] + [
-			h async for h in get_websocket_connected_users(user_ids=hostIds, user_type="client")
-		]
+		return await get_websocket_connected_users(user_ids=hostIds, user_type="depot") + await get_websocket_connected_users(
+			user_ids=hostIds, user_type="client"
+		)
 
 	@rpc_method(check_acl=False)
 	def host_getClients(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[OpsiClientExtended]:

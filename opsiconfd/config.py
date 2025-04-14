@@ -35,7 +35,7 @@ from packaging.version import Version
 
 from opsiconfd.utils import lock_file
 
-from .utils import Singleton, is_manager, is_opsiconfd, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
+from .utils import Singleton, is_opsiconfd, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
 
 if TYPE_CHECKING:
 	from fastapi.templating import Jinja2Templates
@@ -322,12 +322,14 @@ class Config(metaclass=Singleton):
 	def _set_args(self, args: list[str] | None = None) -> None:
 		self._args = sys.argv[1:] if args is None else args
 
+		action: str | None = None
 		try:
 			# Pre-parse command line / env to get sub_command and ex-help (may fail)
 			self._init_parser()
 			assert self._parser
 			# type: ignore[union-attr]
 			conf, _unknown = self._parser.parse_known_args(self._args, ignore_help_args=True, config_file_contents="")
+			action = conf.action
 			self._config.config_file = conf.config_file
 			self._ex_help = conf.ex_help
 			if self._ex_help and "--help" not in self._args:
@@ -357,7 +359,7 @@ class Config(metaclass=Singleton):
 
 		self._init_parser()
 
-		if is_manager(psutil.Process(os.getpid())):
+		if not action or action in ("start", "setup"):
 			self._update_config_file()
 
 		self._parse_args()

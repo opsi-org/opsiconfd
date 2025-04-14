@@ -32,7 +32,6 @@ from opsiconfd.config import (
 )
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.manager import Manager
-from opsiconfd.patch import apply_patches
 from opsiconfd.redis import delete_locks, redis_client
 from opsiconfd.setup import setup
 from opsiconfd.utils import get_manager_pid, get_python_info, log_config, log_python_info
@@ -73,8 +72,6 @@ def opsiconfd_main() -> None:
 			print("No running opsiconfd manager process found", file=sys.stderr)
 			sys.exit(1)
 		return
-
-	apply_patches()
 
 	logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
 	gc.set_threshold(*GC_THRESHOLDS)

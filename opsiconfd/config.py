@@ -356,7 +356,7 @@ class Config(metaclass=Singleton):
 
 		self._init_parser()
 
-		if not action or action in ("start", "setup"):
+		if action in ("start", "setup"):
 			self._update_config_file()
 
 		self._parse_args()

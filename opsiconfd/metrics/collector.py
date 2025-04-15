@@ -194,9 +194,8 @@ class NodeMetricsCollector(MetricsCollector):
 		try:
 			self._mysql = MySQLConnection()
 			self._mysql.connect(read_tables=False)
-
 		except Exception as err:
-			logger.debug("Error connecting to MySQL: %s", err)
+			logger.debug("Failed to connect to MySQL: %s", err)
 			self._mysql = None
 		return None
 

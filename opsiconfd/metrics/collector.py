@@ -185,7 +185,7 @@ class NodeMetricsCollector(MetricsCollector):
 				break
 		self._last_bytes_sent = 0
 		self._last_bytes_recv = 0
-		self._last_redis_cpu_time = 0.0  # CPU time sys + user, expressed in seconds, as reported by the getrusage() call
+		self._last_redis_cpu_time: float | None = None  # CPU time sys + user, expressed in seconds, as reported by the getrusage() call
 		self._mysql: MySQLConnection | None = None
 
 	def _get_mysql_connection(self) -> MySQLConnection | None:
@@ -223,9 +223,12 @@ class NodeMetricsCollector(MetricsCollector):
 		redis = await async_redis_client()
 		cpu_info = await redis.info("cpu")
 		redis_cpu_time = cpu_info["used_cpu_sys"] + cpu_info["used_cpu_user"]
-		redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time if self._last_redis_cpu_time else 0.0
+		redis_cpu_time_diff: float | None = None
+		if self._last_redis_cpu_time is not None:
+			redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time
 		self._last_redis_cpu_time = redis_cpu_time
-		await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
+		if redis_cpu_time_diff is not None:
+			await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
 
 		num_processes = await run_in_threadpool(self._get_running_mysql_processes)
 		await self.add_value("node:avg_mysql_processes", num_processes)

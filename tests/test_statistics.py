@@ -13,7 +13,7 @@ from asyncio import sleep
 import pytest
 from opsicommon.objects import OpsiClient, OpsiDepotserver
 
-from opsiconfd.metrics.collector import DepotMetricsCollector, WorkerMetricsCollector
+from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
 from opsiconfd.metrics.registry import AggregationType, DepotMetric, MetricsRegistry, WorkerMetric, ZeroIfMissingType
 from opsiconfd.worker import Worker
 
@@ -326,3 +326,21 @@ def test_depot_metrics_collector(config: Config, test_client: OpsiconfdTestClien
 	assert cmd[3] == "0.0"
 	assert cmd[9] == "depot_id"
 	assert cmd[10] == "test-depot-1.opsi.org"
+
+
+def test_node_metrics_collector() -> None:
+	metrics_collector = NodeMetricsCollector()
+
+	asyncio.run(metrics_collector._fetch_values())
+	assert list(metrics_collector._values["node:avg_load"].values())[0]
+	assert not metrics_collector._values["node:sum_network_bits_sent"]
+	assert not metrics_collector._values["node:sum_network_bits_received"]
+	assert not metrics_collector._values["node:avg_redis_cpu_time"]
+	assert metrics_collector._values["node:avg_mysql_processes"]
+
+	asyncio.run(metrics_collector._fetch_values())
+	assert list(metrics_collector._values["node:avg_load"].values())[0]
+	assert list(metrics_collector._values["node:sum_network_bits_sent"].values())[0]
+	assert list(metrics_collector._values["node:sum_network_bits_received"].values())[0]
+	assert list(metrics_collector._values["node:avg_redis_cpu_time"].values())[0]
+	assert metrics_collector._values["node:avg_mysql_processes"]

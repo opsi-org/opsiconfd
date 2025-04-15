@@ -17,6 +17,7 @@ from opsicommon.utils import unix_timestamp
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
 from opsiconfd.metrics.registry import AggregationType, DepotMetric, Metric, MetricsRegistry, NodeMetric, WorkerMetric, ZeroIfMissingType
@@ -185,7 +186,27 @@ class NodeMetricsCollector(MetricsCollector):
 		self._last_bytes_sent = 0
 		self._last_bytes_recv = 0
 		self._last_redis_cpu_time = 0.0  # CPU time sys + user, expressed in seconds, as reported by the getrusage() call
+		self._mysql: MySQLConnection | None = None
 
+	def _get_mysql_connection(self) -> MySQLConnection | None:
+		if self._mysql:
+			return self._mysql
+		try:
+			self._mysql = MySQLConnection()
+			self._mysql.connect(read_tables=False)
+
+		except Exception as err:
+			logger.debug("Error connecting to MySQL: %s", err)
+			self._mysql = None
+		return None
+
+	def _get_running_mysql_processes(self) -> int:
+		mysql = self._get_mysql_connection()
+		if not mysql:
+			return 0
+		with mysql.session() as session:
+			res = session.execute("SELECT COUNT(*) INFO FROM information_schema.processlist WHERE Command != 'Sleep'").fetchone()
+			return res[0] if res else 0
 
 	async def _fetch_values(self) -> None:
 		await self.add_value("node:avg_load", psutil.getloadavg()[0])
@@ -206,6 +227,9 @@ class NodeMetricsCollector(MetricsCollector):
 		redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time if self._last_redis_cpu_time else 0.0
 		self._last_redis_cpu_time = redis_cpu_time
 		await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
+
+		num_processes = await run_in_threadpool(self._get_running_mysql_processes)
+		await self.add_value("node:avg_mysql_processes", num_processes)
 
 
 class DepotMetricsCollector(MetricsCollector):

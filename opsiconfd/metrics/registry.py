@@ -164,7 +164,7 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation=AggregationType.SUM,
 			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 			time_related=True,
-			grafana_config=GrafanaPanelConfig(title="Network bits received/s", unit="bps", decimals=0, stack=True),
+			grafana_config=GrafanaPanelConfig(title="Network bits received/s", unit="bps", decimals=0, stack=False),
 		),
 		NodeMetric(
 			id="node:avg_redis_cpu_time",
@@ -173,6 +173,14 @@ def _get_metrics() -> tuple[Metric, ...]:
 			aggregation=AggregationType.AVG,
 			zero_if_missing=ZeroIfMissingType.NONE,
 			grafana_config=GrafanaPanelConfig(title="Redis CPU", unit="short", decimals=2, stack=False),
+		),
+		NodeMetric(
+			id="node:avg_mysql_processes",
+			name="Average running MySQL processes for {node_name}",
+			retention=2 * 3600 * 1000,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.CONTINUOUS,
+			grafana_config=GrafanaPanelConfig(title="MySQL processes", unit="short", decimals=0, stack=False),
 		),
 		WorkerMetric(
 			id="worker:sum_jsonrpc_requests",

@@ -184,6 +184,8 @@ class NodeMetricsCollector(MetricsCollector):
 				break
 		self._last_bytes_sent = 0
 		self._last_bytes_recv = 0
+		self._last_redis_cpu_time = 0.0  # CPU time sys + user, expressed in seconds, as reported by the getrusage() call
+
 
 	async def _fetch_values(self) -> None:
 		await self.add_value("node:avg_load", psutil.getloadavg()[0])
@@ -197,6 +199,13 @@ class NodeMetricsCollector(MetricsCollector):
 			self._last_bytes_recv = stats.bytes_recv
 		else:
 			logger.warning("No network stats for interface %r", self._net_interface)
+
+		redis = await async_redis_client()
+		cpu_info = await redis.info("cpu")
+		redis_cpu_time = cpu_info["used_cpu_sys"] + cpu_info["used_cpu_user"]
+		redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time if self._last_redis_cpu_time else 0.0
+		self._last_redis_cpu_time = redis_cpu_time
+		await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
 
 
 class DepotMetricsCollector(MetricsCollector):

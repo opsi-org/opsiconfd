@@ -166,6 +166,14 @@ def _get_metrics() -> tuple[Metric, ...]:
 			time_related=True,
 			grafana_config=GrafanaPanelConfig(title="Network bits received/s", unit="bps", decimals=0, stack=True),
 		),
+		NodeMetric(
+			id="node:avg_redis_cpu_time",
+			name="Average Redis CPU time for {node_name}",
+			retention=2 * 3600 * 1000,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
+			grafana_config=GrafanaPanelConfig(title="Redis CPU", unit="short", decimals=2, stack=False),
+		),
 		WorkerMetric(
 			id="worker:sum_jsonrpc_requests",
 			name="Incoming JSONRPC requests by worker {worker_num} on {node_name}",

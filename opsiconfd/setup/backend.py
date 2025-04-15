@@ -155,6 +155,8 @@ def setup_mysql(interactive: bool = False, explicit: bool = False, force: bool =
 	setup_mysql_connection(interactive=interactive, force=force)
 
 	mysql = MySQLConnection()
+	mysql.upgrade_config_file()
+
 	if interactive and force:
 		rich_print(f"[b]Creating MySQL database {mysql.database!r} on {mysql.address!r}[/b]")
 	try:

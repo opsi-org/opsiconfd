@@ -9,6 +9,7 @@ opsiconfd.backend.mysql
 
 from __future__ import annotations
 
+import math
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -180,8 +181,13 @@ class MySQLConnection:
 		self._ssl_key = None
 		self._ssl_cert = None
 		self._ssl_check_hostname = False
-		self._connection_pool_size = 20
-		self._connection_pool_max_overflow = 10
+
+		# These values are used to configure the connection pool.
+		# When the number of checked-out connections reaches pool_size,
+		# additional connections will be returned up max_overflow.
+		# The pool_size is shared among the workers.
+		self._connection_pool_size = 100
+		self._connection_pool_max_overflow = 0
 		self._connection_pool_timeout = 30
 		self._connection_pool_recycling = -1
 
@@ -265,6 +271,35 @@ class MySQLConnection:
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)
 		self._parse_config(loc["config"])
 
+	def upgrade_config_file(self) -> None:
+		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
+		num_config_regex = re.compile(r'^(\s*)"([^"]+)"(\s*:\s*)(\d+)')
+		lines = mysql_conf.read_text(encoding="utf-8").split("\n")
+		new_lines = []
+		changed = False
+		for line in lines:
+			new_lines.append(line)
+			match = num_config_regex.search(line)
+			if match:
+				option = match.group(2)
+				if option in ("connectionPoolSize", "connectionPoolMaxOverflow"):
+					# Previously, the config file used the number of connections per worker
+					# Convert camelCase to snake_case without leading underscore
+					snake_option = re.sub(r"(?<!^)(?=[A-Z])", "_", option).lower()
+					value = int(match.group(4))
+					# Add a comment explaining the change
+					new_lines[-1] = (
+						f"{match.group(1)}# {option} was automatically converted to {snake_option}, which is now per server instead of per worker."
+					)
+					# Comment out the old line
+					new_lines.append(f'{match.group(1)}# "{option}"{match.group(3)}{value},')
+					# Add the new converted line
+					new_lines.append(f'{match.group(1)}"{snake_option}"{match.group(3)}{value * config.workers},')
+					changed = True
+		if changed:
+			mysql_conf.write_text("\n".join(new_lines), encoding="utf-8")
+			logger.notice("Updated '%s' to use connection pool size per server instead of per worker.", mysql_conf)
+
 	def update_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
 		config_regex = re.compile(r'^(\s*)"([^"]+)"(\s*:\s*)\S.*$')
@@ -290,11 +325,14 @@ class MySQLConnection:
 			ssl_args["check_hostname"] = True
 		logger.debug("Using ssl_args: %r", ssl_args)
 
+		worker_pool_size = math.ceil(self._connection_pool_size / config.workers)
+		worker_pool_max_overflow = math.ceil(self._connection_pool_max_overflow / config.workers)
+		logger.info("Setting connection pool size to %d/%d", worker_pool_size, worker_pool_max_overflow)
 		self._engine = create_engine(
 			uri,
 			pool_pre_ping=True,  # auto reconnect
-			pool_size=self._connection_pool_size,
-			max_overflow=self._connection_pool_max_overflow,
+			pool_size=worker_pool_size,
+			max_overflow=worker_pool_max_overflow,
 			pool_timeout=self._connection_pool_timeout,
 			pool_recycle=self._connection_pool_recycling,
 			connect_args={"ssl": ssl_args},

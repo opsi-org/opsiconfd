@@ -81,6 +81,78 @@ def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 			assert getattr(con, key) == value
 
 
+def test_upgrade_config_file(tmp_path: Path) -> None:
+	config_file = tmp_path / "mysql.conf"
+	workers = 4
+	with get_config({"backend_config_dir": str(tmp_path), "workers": workers}):
+		# Test upgrading old config
+		config = textwrap.dedent(
+			"""
+			# -*- coding: utf-8 -*-
+
+			module = 'MySQL'
+			config = {
+				"username" : "user",
+				"database" : "db",
+				"address" : "addr",
+				"password" : "pw",
+				"connectionPoolSize": 10,
+				"connectionPoolMaxOverflow" : 20,
+			}
+			"""
+		)
+		config_file.write_text(config, encoding="utf-8")
+
+		mysql = MySQLConnection()
+		mysql.upgrade_config_file()
+
+		new_config = config_file.read_text(encoding="utf-8")
+		expected_config = textwrap.dedent(
+			"""
+			# -*- coding: utf-8 -*-
+
+			module = 'MySQL'
+			config = {
+				"username" : "user",
+				"database" : "db",
+				"address" : "addr",
+				"password" : "pw",
+				# connectionPoolSize was automatically converted to connection_pool_size, which is now per server instead of per worker.
+				# "connectionPoolSize": 10,
+				"connection_pool_size": 40,
+				# connectionPoolMaxOverflow was automatically converted to connection_pool_max_overflow, which is now per server instead of per worker.
+				# "connectionPoolMaxOverflow" : 20,
+				"connection_pool_max_overflow" : 80,
+			}
+			"""
+		)
+		assert new_config == expected_config
+
+		# Test already upgraded config (should not change)
+		mysql = MySQLConnection()
+		mysql.upgrade_config_file()
+		assert config_file.read_text(encoding="utf-8") == expected_config
+
+		# Test config without pool size options (should not change)
+		config = textwrap.dedent(
+			"""
+			# -*- coding: utf-8 -*-
+
+			module = 'MySQL'
+			config = {
+				"username" : "user",
+				"database" : "db",
+				"address" : "addr",
+				"password" : "pw",
+			}
+			"""
+		)
+		config_file.write_text(config, encoding="utf-8")
+		mysql = MySQLConnection()
+		mysql.upgrade_config_file()
+		assert config_file.read_text(encoding="utf-8") == config
+
+
 def test_update_config_file(tmp_path: Path) -> None:
 	config_file = tmp_path / "mysql.conf"
 	with get_config({"backend_config_dir": str(tmp_path)}):
@@ -147,7 +219,7 @@ def test_update_config_file(tmp_path: Path) -> None:
 		),
 		(
 			"mysql://u:p@localhost:3306/db?databaseCharset=charset"
-			"&connectionPoolMaxOverflow=11&connectionPoolTimeout=12&connectionPoolSize=13&unique_hardware_addresses=0",
+			"&connection_pool_max_overflow=11&connectionPoolTimeout=12&connection_pool_size=13&unique_hardware_addresses=0",
 			{
 				"username": "u",
 				"database": "db",

@@ -39,20 +39,10 @@ from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates
-from opsiconfd.grafana import (
-	GRAFANA_DASHBOARD_UID,
-	async_grafana_session,
-	create_dashboard_user,
-)
+from opsiconfd.grafana import GRAFANA_DASHBOARD_UID, async_grafana_session, create_dashboard_user
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import CHANNEL_INFO_SUFFIX, get_websocket_connected_users
-from opsiconfd.redis import (
-	async_redis_client,
-	decode_redis_result,
-	ip_address_from_redis_key,
-	ip_address_to_redis_key,
-	redis_client,
-)
+from opsiconfd.redis import async_redis_client, decode_redis_result, ip_address_from_redis_key, ip_address_to_redis_key, redis_client
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
@@ -328,7 +318,7 @@ async def get_depot_list() -> RESTResponse:
 				"max_product_sync_transfer_slots": max_slots.get(depot.id, 0),
 				"used_product_sync_transfer_slots": int(
 					redis.eval(  # type: ignore[no-untyped-call]
-						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
+						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1])[2]",
 						0,
 						f"{slot_key}:{depot.id}:*",
 					)

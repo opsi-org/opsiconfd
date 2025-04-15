@@ -34,38 +34,16 @@ from opsicommon.exceptions import (
 	BackendUnaccomplishableError,
 )
 from opsicommon.logging import log_context
-from opsicommon.objects import (
-	Product,
-	ProductOnDepot,
-	ProductProperty,
-	ProductPropertyState,
-)
+from opsicommon.objects import Product, ProductOnDepot, ProductProperty, ProductPropertyState
 from opsicommon.package import OpsiPackage
-from opsicommon.package.associated_files import (
-	create_package_content_file,
-	create_package_md5_file,
-	create_package_zsync_file,
-)
+from opsicommon.package.associated_files import create_package_content_file, create_package_md5_file, create_package_zsync_file
 from opsicommon.server.rights import set_rights
-from opsicommon.types import (
-	forceBool,
-	forceDict,
-	forceFilename,
-	forceHostId,
-	forceUnicodeLower,
-)
+from opsicommon.types import forceBool, forceDict, forceFilename, forceHostId, forceUnicodeLower
 from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
 
 from opsiconfd import __version__, contextvar_client_session
-from opsiconfd.config import (
-	BOOT_DIR,
-	DEPOT_DIR,
-	PACKAGE_SCRIPT_TIMEOUT,
-	WORKBENCH_DIR,
-	config,
-	opsi_config,
-)
+from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
@@ -405,7 +383,7 @@ class RPCDepotserverMixin(Protocol):
 				max_slots = self.get_max_transfer_slots(slot_type, [depot])[depot]
 				depot_slots = int(
 					redis.eval(  # type: ignore[no-untyped-call]
-						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
+						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1])[2]",
 						0,
 						f"{config.redis_key('slot')}:{depot}:{slot_type}:*",
 					)

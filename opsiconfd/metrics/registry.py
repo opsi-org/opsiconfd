@@ -175,6 +175,14 @@ def _get_metrics() -> tuple[Metric, ...]:
 			grafana_config=GrafanaPanelConfig(title="Redis CPU", unit="short", decimals=2, stack=False),
 		),
 		NodeMetric(
+			id="node:avg_redis_memory_used",
+			name="Average Redis memory usage for {node_name}",
+			retention=2 * 3600 * 1000,
+			aggregation=AggregationType.AVG,
+			zero_if_missing=ZeroIfMissingType.NONE,
+			grafana_config=GrafanaPanelConfig(title="Redis memory usage", unit="decbytes", decimals=2, stack=False),
+		),
+		NodeMetric(
 			id="node:avg_mysql_processes",
 			name="Average running MySQL processes for {node_name}",
 			retention=2 * 3600 * 1000,

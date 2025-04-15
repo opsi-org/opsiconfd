@@ -72,7 +72,7 @@ async def test_get_nodes(config: Config) -> None:  # noqa: F811
 
 async def test_grafana_dashboard_config() -> None:
 	conf = await grafana_dashboard_config()
-	assert len(conf["panels"]) == 20
+	assert len(conf["panels"]) == 21
 
 
 async def test_grafana_search(config: Config) -> None:  # noqa: F811

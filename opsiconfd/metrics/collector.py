@@ -230,6 +230,9 @@ class NodeMetricsCollector(MetricsCollector):
 		if redis_cpu_time_diff is not None:
 			await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
 
+		memory_info = await redis.info("memory")
+		await self.add_value("node:avg_redis_memory_used", memory_info["used_memory"])
+
 		num_processes = await run_in_threadpool(self._get_running_mysql_processes)
 		await self.add_value("node:avg_mysql_processes", num_processes)
 

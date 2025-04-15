@@ -336,6 +336,7 @@ def test_node_metrics_collector() -> None:
 	assert not metrics_collector._values["node:sum_network_bits_sent"]
 	assert not metrics_collector._values["node:sum_network_bits_received"]
 	assert not metrics_collector._values["node:avg_redis_cpu_time"]
+	assert list(metrics_collector._values["node:avg_redis_memory_used"].values())[0]
 	assert metrics_collector._values["node:avg_mysql_processes"]
 
 	asyncio.run(metrics_collector._fetch_values())
@@ -343,4 +344,5 @@ def test_node_metrics_collector() -> None:
 	assert list(metrics_collector._values["node:sum_network_bits_sent"].values())[0]
 	assert list(metrics_collector._values["node:sum_network_bits_received"].values())[0]
 	assert list(metrics_collector._values["node:avg_redis_cpu_time"].values())[0]
+	assert list(metrics_collector._values["node:avg_redis_memory_used"].values())[0]
 	assert metrics_collector._values["node:avg_mysql_processes"]

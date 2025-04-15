@@ -247,7 +247,7 @@ class DepotMetricsCollector(MetricsCollector):
 		redis = await async_redis_client()
 		slot_key = config.redis_key("slot")
 		used_slots = await redis.eval(  # type: ignore[no-untyped-call]
-			"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], COUNT, 1000000)[2]",
+			"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
 			0,
 			f"{slot_key}:{self._depot_id}:*",
 		)

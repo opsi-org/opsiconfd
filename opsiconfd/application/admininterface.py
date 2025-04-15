@@ -156,9 +156,9 @@ async def set_app_state(request: Request) -> RESTResponse:
 @admin_interface_router.get("/messagebus-connected-clients")
 @rest_api
 async def get_messagebus_connected_clients() -> RESTResponse:
-	depot_ids = [u async for u in get_websocket_connected_users(user_type="depot")]
-	client_ids = [u async for u in get_websocket_connected_users(user_type="client")]
-	user_ids = [u async for u in get_websocket_connected_users(user_type="user")]
+	depot_ids = await get_websocket_connected_users(user_type="depot")
+	client_ids = await get_websocket_connected_users(user_type="client")
+	user_ids = await get_websocket_connected_users(user_type="user")
 	return RESTResponse(data={"depot_ids": depot_ids, "client_ids": client_ids, "user_ids": user_ids})
 
 

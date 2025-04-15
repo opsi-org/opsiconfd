@@ -24,9 +24,12 @@ from opsiconfd.messagebus.redis import (
 	MessageReader,
 	cleanup_channels,
 	create_session_channel,
+	get_websocket_connected_users,
 	send_message,
+	update_websocket_count,
 )
 from opsiconfd.redis import async_redis_client, get_redis_connections
+from opsiconfd.session import OPSISession
 
 from .utils import (  # noqa: F401
 	Config,
@@ -543,3 +546,48 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 
 	await cleanup_channels(full=True)
 	assert await redis.exists(f"{messagbus_prefix}:channels:session:{session1_id}") == 0
+
+
+async def test_get_websocket_connected_users() -> None:
+	session1 = OPSISession("172.16.1.1")
+	session1.host_type = "OpsiDepotserver"
+	session1.host_id = "depot1.opsi.test"
+	session2 = OPSISession("172.16.1.2")
+	session2.host_type = "OpsiDepotserver"
+	session2.host_id = "depot2.opsi.test"
+	session3 = OPSISession("172.16.1.3")
+	session3.host_type = "OpsiClient"
+	session3.host_id = "client3.opsi.test"
+	session4 = OPSISession("172.16.1.4")
+	session4.host_type = "OpsiClient"
+	session4.host_id = "client4.opsi.test"
+	session5 = OPSISession("172.16.1.5")
+	session5.host_type = "OpsiClient"
+	session5.host_id = "client5.opsi.test"
+
+	await update_websocket_count(session1, 1)
+	await update_websocket_count(session2, 2)
+	await update_websocket_count(session3, 3)
+	await update_websocket_count(session4, 4)
+	await update_websocket_count(session5, 0)
+
+	assert await get_websocket_connected_users() == [
+		"client3.opsi.test",
+		"client4.opsi.test",
+		"depot1.opsi.test",
+		"depot2.opsi.test",
+	]
+	assert await get_websocket_connected_users(user_ids=["depot1.opsi.test", "client3.opsi.test"]) == [
+		"client3.opsi.test",
+		"depot1.opsi.test",
+	]
+	assert await get_websocket_connected_users(user_ids=["client3.opsi.test"], user_type="client") == [
+		"client3.opsi.test",
+	]
+	assert await get_websocket_connected_users(user_ids=["depot1.opsi.test", "client3.opsi.test"], user_type="client") == [
+		"client3.opsi.test"
+	]
+	assert await get_websocket_connected_users(user_type="depot") == [
+		"depot1.opsi.test",
+		"depot2.opsi.test",
+	]

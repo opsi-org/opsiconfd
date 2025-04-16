@@ -266,6 +266,10 @@ class MySQLConnection:
 
 	def upgrade_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
+		if not mysql_conf.exists():
+			logger.info("MySQL config file '%s' does not exist, skipping upgrade", mysql_conf)
+			return
+
 		num_config_regex = re.compile(r'^(\s*)"([^"]+)"(\s*:\s*)(\d+)')
 		lines = mysql_conf.read_text(encoding="utf-8").split("\n")
 		new_lines = []
@@ -295,10 +299,6 @@ class MySQLConnection:
 
 	def update_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
-		if not mysql_conf.exists():
-			logger.info("MySQL config file '%s' does not exist, skipping update", mysql_conf)
-			return
-
 		config_regex = re.compile(r'^(\s*)"([^"]+)"(\s*:\s*)\S.*$')
 		lines = mysql_conf.read_text(encoding="utf-8").split("\n")
 		for idx, line in enumerate(lines):

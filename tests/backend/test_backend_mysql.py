@@ -152,6 +152,12 @@ def test_upgrade_config_file(tmp_path: Path) -> None:
 		mysql.upgrade_config_file()
 		assert config_file.read_text(encoding="utf-8") == config
 
+		# Assert upgrade_config_file does not fail if config file does not exist
+		config_file.unlink()
+		mysql = MySQLConnection()
+		mysql.upgrade_config_file()
+		assert not config_file.exists()
+
 
 def test_update_config_file(tmp_path: Path) -> None:
 	config_file = tmp_path / "mysql.conf"

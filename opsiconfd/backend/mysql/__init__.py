@@ -32,15 +32,8 @@ from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.result import Result  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import (  # type: ignore[import]
-	DatabaseError,
-	OperationalError,
-)
-from sqlalchemy.orm import (  # type: ignore[import]
-	Session,
-	scoped_session,
-	sessionmaker,
-)
+from sqlalchemy.exc import DatabaseError, OperationalError  # type: ignore[import]
+from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.config import config
@@ -302,6 +295,10 @@ class MySQLConnection:
 
 	def update_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
+		if not mysql_conf.exists():
+			logger.info("MySQL config file '%s' does not exist, skipping update", mysql_conf)
+			return
+
 		config_regex = re.compile(r'^(\s*)"([^"]+)"(\s*:\s*)\S.*$')
 		lines = mysql_conf.read_text(encoding="utf-8").split("\n")
 		for idx, line in enumerate(lines):

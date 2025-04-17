@@ -38,7 +38,11 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * Check queries `MONITOR`
 
 ## Memory usage / profiling
-* https://bugs.python.org/issue41699
+### py-spy
+To analyze high CPU usage of opsiconfd processes py-spy can be very helpful.
+```shell
+py-spy top --full-filenames --pid <pid-of-opsiconfd-worker-or-manager>
+```
 
 ### valgrind
 ```

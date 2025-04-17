@@ -16,7 +16,7 @@ from opsiconfd.logging import logger
 from opsiconfd.redis import delete_recursively
 
 
-def check_cache_clear(cache_id: str | None = None) -> Any:
+def check_cache_clear(cache_id: str = "all") -> Any:
 	try:
 		logger.debug("Clearing check cache: %s", cache_id)
 		redis_key = "opsiconfd:checkcache"

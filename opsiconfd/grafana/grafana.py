@@ -250,7 +250,7 @@ async def async_grafana_session(
 
 	ssl_context = create_default_context()
 	ssl_context.load_verify_locations(config.ssl_trusted_certs)
-	connector = aiohttp.TCPConnector(ssl_context=ssl_context, verify_ssl=config.grafana_verify_cert)
+	connector = aiohttp.TCPConnector(ssl=ssl_context, verify_ssl=config.grafana_verify_cert)
 
 	url = urlparse(config.grafana_internal_url)
 	async with aiohttp.ClientSession(connector=connector, auth=auth, headers=headers) as session:

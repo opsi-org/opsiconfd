@@ -293,7 +293,7 @@ class Config(metaclass=Singleton):
 		self._initialized = True
 
 		proc_name = os.path.basename(sys.argv[0])
-		self._pytest = proc_name == "pytest" or "pytest" in sys.argv
+		self._pytest = proc_name == "pytest" or "pytest" in sys.argv or "vscode_pytest" in sys.argv
 		self._pyinstaller_scan = proc_name == "_child.py"
 
 		self._args: list[str] = []

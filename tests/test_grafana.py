@@ -18,7 +18,7 @@ from unittest.mock import patch
 import pytest
 from opsicommon.testing.helpers import HTTPTestServerRequestHandler, http_test_server
 
-from opsiconfd.grafana import async_grafana_admin_session, create_dashboard_user, grafana_admin_session, set_grafana_root_url
+from opsiconfd.grafana.grafana import async_grafana_admin_session, create_dashboard_user, grafana_admin_session, set_grafana_root_url
 
 from .utils import get_config
 
@@ -36,7 +36,7 @@ def test_set_grafana_root_url(tmp_path: Path, filename: str) -> None:
 	grafana_ini = tmp_path / "grafana.ini"
 	grafana_ini_orig = Path(filename)
 	shutil.copy(grafana_ini_orig, grafana_ini)
-	with patch("opsiconfd.grafana.GRAFANA_INI", str(grafana_ini)):
+	with patch("opsiconfd.grafana.grafana.GRAFANA_INI", str(grafana_ini)):
 		time.sleep(1)
 		mtime = grafana_ini.stat().st_mtime
 		set_grafana_root_url()

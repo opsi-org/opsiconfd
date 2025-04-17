@@ -52,6 +52,9 @@ class MetricsCollector:
 		pass
 
 	async def add_value(self, metric_id: str, value: float, timestamp: int | None = None) -> None:
+		if metric_id not in self._metrics:
+			return
+
 		timestamp = timestamp or int(unix_timestamp(millis=True))
 
 		logger.trace("add_value metric_id=%r, value=%r, timestamp=%r", metric_id, value, timestamp)
@@ -209,33 +212,39 @@ class NodeMetricsCollector(MetricsCollector):
 			return res[0] if res else 0
 
 	async def _fetch_values(self) -> None:
-		await self.add_value("node:avg_load", psutil.getloadavg()[0])
-		stats = (await run_in_threadpool(psutil.net_io_counters, pernic=True, nowrap=True)).get(self._net_interface)
-		if stats:
-			if self._last_bytes_sent:
-				await self.add_value("node:sum_network_bits_sent", (stats.bytes_sent - self._last_bytes_sent) * 8)
-			if self._last_bytes_recv:
-				await self.add_value("node:sum_network_bits_received", (stats.bytes_recv - self._last_bytes_recv) * 8)
-			self._last_bytes_sent = stats.bytes_sent
-			self._last_bytes_recv = stats.bytes_recv
-		else:
-			logger.warning("No network stats for interface %r", self._net_interface)
+		if "node:avg_load" in self._metrics:
+			await self.add_value("node:avg_load", psutil.getloadavg()[0])
 
-		redis = await async_redis_client()
-		cpu_info = await redis.info("cpu")
-		redis_cpu_time = cpu_info["used_cpu_sys"] + cpu_info["used_cpu_user"]
-		redis_cpu_time_diff: float | None = None
-		if self._last_redis_cpu_time is not None:
-			redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time
-		self._last_redis_cpu_time = redis_cpu_time
-		if redis_cpu_time_diff is not None:
-			await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
+		if "node:sum_network_bits_sent" in self._metrics or "node:sum_network_bits_received" in self._metrics:
+			stats = (await run_in_threadpool(psutil.net_io_counters, pernic=True, nowrap=True)).get(self._net_interface)
+			if stats:
+				if self._last_bytes_sent:
+					await self.add_value("node:sum_network_bits_sent", (stats.bytes_sent - self._last_bytes_sent) * 8)
+				if self._last_bytes_recv:
+					await self.add_value("node:sum_network_bits_received", (stats.bytes_recv - self._last_bytes_recv) * 8)
+				self._last_bytes_sent = stats.bytes_sent
+				self._last_bytes_recv = stats.bytes_recv
+			else:
+				logger.warning("No network stats for interface %r", self._net_interface)
 
-		memory_info = await redis.info("memory")
-		await self.add_value("node:avg_redis_memory_used", memory_info["used_memory"])
+		if "node:avg_redis_cpu_time" in self._metrics:
+			redis = await async_redis_client()
+			cpu_info = await redis.info("cpu")
+			redis_cpu_time = cpu_info["used_cpu_sys"] + cpu_info["used_cpu_user"]
+			redis_cpu_time_diff: float | None = None
+			if self._last_redis_cpu_time is not None:
+				redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time
+			self._last_redis_cpu_time = redis_cpu_time
+			if redis_cpu_time_diff is not None:
+				await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
 
-		num_processes = await run_in_threadpool(self._get_running_mysql_processes)
-		await self.add_value("node:avg_mysql_processes", num_processes)
+		if "node:avg_redis_memory_used" in self._metrics:
+			memory_info = await redis.info("memory")
+			await self.add_value("node:avg_redis_memory_used", memory_info["used_memory"])
+
+		if "node:avg_mysql_processes" in self._metrics:
+			num_processes = await run_in_threadpool(self._get_running_mysql_processes)
+			await self.add_value("node:avg_mysql_processes", num_processes)
 
 
 class DepotMetricsCollector(MetricsCollector):
@@ -248,14 +257,15 @@ class DepotMetricsCollector(MetricsCollector):
 		self._labels = {"depot_id": depot_id}
 
 	async def _fetch_values(self) -> None:
-		redis = await async_redis_client()
-		slot_key = config.redis_key("slot")
-		used_slots = await redis.eval(  # type: ignore[no-untyped-call]
-			"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
-			0,
-			f"{slot_key}:{self._depot_id}:*",
-		)
-		await self.add_value("depot:avg_product_data_transfer_slots", used_slots)
+		if "depot:avg_product_data_transfer_slots" in self._metrics:
+			redis = await async_redis_client()
+			slot_key = config.redis_key("slot")
+			used_slots = await redis.eval(  # type: ignore[no-untyped-call]
+				"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
+				0,
+				f"{slot_key}:{self._depot_id}:*",
+			)
+			await self.add_value("depot:avg_product_data_transfer_slots", used_slots)
 
 
 statistics: MessagebusWebsocketStatistics | None = None
@@ -297,12 +307,14 @@ class WorkerMetricsCollector(MetricsCollector):
 
 		assert statistics
 
-		value = statistics.messages_sent - self._last_messagebus_messages_sent
-		if value:
-			await self.add_value("worker:sum_messagebus_messages_sent", value)
-			self._last_messagebus_messages_sent = statistics.messages_sent
+		if "worker:sum_messagebus_messages_sent" in self._metrics:
+			value = statistics.messages_sent - self._last_messagebus_messages_sent
+			if value:
+				await self.add_value("worker:sum_messagebus_messages_sent", value)
+				self._last_messagebus_messages_sent = statistics.messages_sent
 
-		value = statistics.messages_received - self._last_messagebus_messages_received
-		if value:
-			await self.add_value("worker:sum_messagebus_messages_received", value)
-			self._last_messagebus_messages_received = statistics.messages_received
+		if "worker:sum_messagebus_messages_received" in self._metrics:
+			value = statistics.messages_received - self._last_messagebus_messages_received
+			if value:
+				await self.add_value("worker:sum_messagebus_messages_received", value)
+				self._last_messagebus_messages_received = statistics.messages_received

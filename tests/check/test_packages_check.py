@@ -12,9 +12,8 @@ from opsicommon.objects import (Config, ConfigState, LocalbootProduct,
                                 ProductOnDepot)
 
 from opsiconfd.check.common import CheckStatus, check_manager
-from opsiconfd.check.opsipackages import (opsi_locked_products_check,
-                                          opsi_products_on_clients_check,
-                                          opsi_products_on_depots_check)
+from opsiconfd.check.opsipackages import opsi_locked_products_check
+
 from opsiconfd.config import get_configserver_id
 from opsiconfd.setup.configs import CHECK_DEFAULT_IGNORE_PRODUCTS
 from tests.utils import (ADMIN_PASS, ADMIN_USER,  # noqa: F401

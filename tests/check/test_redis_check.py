@@ -14,10 +14,11 @@ from rich.console import Console
 
 from opsiconfd.check.cli import process_check_result
 from opsiconfd.check.common import check_manager
-from opsiconfd.check.redis import RedisCheck
+from opsiconfd.check.redis import RedisCheck, RedisConnectionSettingsCheck
 from tests.utils import (  # noqa: F401
 	captured_function_output,
 	cleanup_checks,  # noqa: F401
+	get_config,
 )
 from tests.utils import (
 	config as test_config,  # noqa: F401
@@ -71,3 +72,27 @@ def test_check_redis_memory_error() -> None:
 		result = check_manager.get("redis").run(clear_cache=True)
 		captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 		assert "ERROR - Redis memory usage is too high" in captured_output
+
+
+def test_check_redis_connection_settings() -> None:
+	with (
+		mock.patch("opsiconfd.check.common.Check.check_cache_load", return_value=None),
+		mock.patch("opsiconfd.check.common.Check.check_cache_store", return_value=None),
+	):
+		# Test unix socket
+		with get_config({"redis_internal_url": "unix:///tmp/redis.sock"}):
+			result = RedisConnectionSettingsCheck().run()
+			assert "connection is using a Unix socket" in result.message
+			assert result.check_status == "ok"
+
+		# Test localhost TCP/IP
+		with get_config({"redis_internal_url": "redis://localhost:6379/0"}):
+			result = RedisConnectionSettingsCheck().run()
+			assert "connection is using a TCP/IP socket" in result.message
+			assert result.check_status == "warning"
+
+		# Test non-localhost TCP/IP
+		with get_config({"redis_internal_url": "redis://192.168.1.1:6379/0"}):
+			result = RedisConnectionSettingsCheck().run()
+			assert "Redis configuration settings are optimal" in result.message
+			assert result.check_status == "ok"

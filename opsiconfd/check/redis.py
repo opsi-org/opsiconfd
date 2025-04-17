@@ -4,14 +4,47 @@
 # License: AGPL-3.0-only
 
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
+from opsiconfd.config import config
 from opsiconfd.redis import decode_redis_result, redis_client
 
 MEMORY_USAGE_WARN = 300_000_000
 MEMORY_USAGE_ERR = 500_000_000
+
+
+@dataclass()
+class RedisConnectionSettingsCheck(Check):
+	id: str = "redis:connection_settings"
+	name: str = "Redis connection settings"
+	description: str = "Verify that the Redis connection settings are configured optimally."
+	partial_check: bool = True
+	documentation: str = """
+		## Redis connection settings
+
+		Verify that the Redis connection settings are configured optimally.
+	"""
+	depot_check: bool = False
+
+	def _check(self) -> CheckResult:
+		result = CheckResult(
+			check=self,
+			message="Redis configuration settings are optimal.",
+			check_status=CheckStatus.OK,
+		)
+		url = urlparse(config.redis_internal_url)
+		if url.scheme == "unix":
+			result.message = "Redis configuration settings are optimal, connection is using a Unix socket."
+		elif url.hostname in ("localhost", "ip6-localhost", "ip6-loopback", "127.0.0.1", "::1"):
+			result.message = (
+				"Redis server is running on localhost, but connection is using a TCP/IP socket."
+				"Consider using a Unix socket for significant better performance."
+			)
+			result.check_status = CheckStatus.WARNING
+		return result
 
 
 @dataclass()

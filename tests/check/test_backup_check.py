@@ -40,9 +40,10 @@ def test_check_backup(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert result.check_status == CheckStatus.ERROR
 
 	# create a backup
-	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False]}
+	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False, None, "data"]}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
+	assert not res.json().get("error")
 
 	# backup check should pass. A backup was created.
 	result = check_manager.get("opsi_backup").run(clear_cache=True)

@@ -351,9 +351,10 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		assert result.check_status == CheckStatus.ERROR
 
 	# Create a backup
-	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False]}
+	rpc = {"id": 1, "method": "service_createBackup", "params": [False, False, False, None, "data"]}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	assert res.status_code == 200
+	assert not res.json().get("error")
 
 	# Redis and mysql check should fail. Backup cache should be reset after calling create backup.
 	result = check_manager.get("redis").run()

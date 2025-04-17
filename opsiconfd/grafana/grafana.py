@@ -7,8 +7,9 @@
 grafana
 """
 
+from __future__ import annotations
+
 import codecs
-import copy
 import datetime
 import hashlib
 import os
@@ -19,7 +20,7 @@ import subprocess
 import time
 from contextlib import asynccontextmanager, contextmanager
 from ssl import create_default_context
-from typing import Any, AsyncGenerator, Generator
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator
 from urllib.parse import quote, unquote, urlparse
 
 import aiohttp
@@ -31,6 +32,9 @@ from requests.auth import AuthBase, HTTPBasicAuth
 from opsiconfd.config import config
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_random_string, get_requests_session
+
+if TYPE_CHECKING:
+	pass
 
 API_KEY_NAME = "opsiconfd"
 GRAFANA_CLI = "/usr/sbin/grafana-cli"
@@ -182,46 +186,6 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 	"type": "heatmap",
 	"tooltipDecimals": 0,
 }
-
-
-class GrafanaPanelConfig:
-	def __init__(
-		self,
-		type: str = "timeseries",
-		title: str = "",
-		unit: str | None = None,
-		decimals: int = 0,
-		stack: bool = False,
-		yaxis_min: int | str = "auto",
-	) -> None:
-		self.type = type
-		self.title = title
-		self.unit = unit or "short"
-		self.decimals = decimals
-		self.stack = stack
-		self._template = {}
-		self.yaxis_min = yaxis_min
-		if self.type == "timeseries":
-			self._template = GRAFANA_TIMESERIES_PANEL_TEMPLATE
-		elif self.type == "heatmap":
-			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE  # type: ignore[assignment]
-
-	def get_panel(self, panel_id: int = 1, pos_x: int = 0, pos_y: int = 0) -> dict[str, Any]:
-		panel = copy.deepcopy(self._template)
-		panel["id"] = panel_id
-		panel["gridPos"]["x"] = pos_x  # type: ignore[index]
-		panel["gridPos"]["y"] = pos_y  # type: ignore[index]
-		panel["title"] = self.title
-		if self.type == "timeseries":
-			if self.stack:
-				panel["fieldConfig"]["defaults"]["custom"]["stacking"]["mode"] = "normal"  # type: ignore[index]
-			panel["fieldConfig"]["defaults"]["decimals"] = self.decimals  # type: ignore[index]
-			panel["fieldConfig"]["defaults"]["unit"] = self.unit  # type: ignore[index]
-		elif self.type == "heatmap":
-			panel["options"]["yAxis"]["format"] = self.unit  # type: ignore[index]
-		if self.yaxis_min != "auto":
-			panel["fieldConfig"]["defaults"]["min"] = self.yaxis_min  # type: ignore[index]
-		return panel
 
 
 def grafana_is_local() -> bool:

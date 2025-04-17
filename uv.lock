@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.11"
 resolution-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'darwin'",
@@ -871,6 +872,7 @@ requires-dist = [
     { name = "html5lib", marker = "extra == 'html5'" },
     { name = "lxml-html-clean", marker = "extra == 'html-clean'" },
 ]
+provides-extras = ["cssselect", "html5", "html-clean", "htmlsoup", "source"]
 
 [[package]]
 name = "lxml"
@@ -893,6 +895,7 @@ requires-dist = [
     { name = "html5lib", marker = "extra == 'html5'" },
     { name = "lxml-html-clean", marker = "extra == 'html-clean'" },
 ]
+provides-extras = ["cssselect", "html5", "html-clean", "htmlsoup", "source"]
 
 [[package]]
 name = "lxml-stubs"
@@ -1247,7 +1250,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.31.22"
+version = "4.3.31.23"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },

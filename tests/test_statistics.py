@@ -14,7 +14,8 @@ import pytest
 from opsicommon.objects import OpsiClient, OpsiDepotserver
 
 from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
-from opsiconfd.metrics.registry import AggregationType, DepotMetric, MetricsRegistry, WorkerMetric, ZeroIfMissingType
+from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, WorkerMetric, ZeroIfMissingType
+from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.worker import Worker
 
 from .utils import (  # noqa: F401
@@ -25,6 +26,7 @@ from .utils import (  # noqa: F401
 	clean_mysql,
 	clean_redis,
 	config,
+	get_config,
 	reset_singleton,
 	test_client,
 )
@@ -346,3 +348,21 @@ def test_node_metrics_collector() -> None:
 	assert list(metrics_collector._values["node:avg_redis_cpu_time"].values())[0]
 	assert list(metrics_collector._values["node:avg_redis_memory_used"].values())[0]
 	assert metrics_collector._values["node:avg_mysql_processes"]
+
+
+def test_disable_metrics() -> None:
+	reset_singleton(MetricsRegistry)
+	metrics_registry = MetricsRegistry()
+	assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS)
+
+	with get_config({"disabled_metrics": []}):
+		reset_singleton(MetricsRegistry)
+		metrics_registry = MetricsRegistry()
+		assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS)
+
+	with get_config({"disabled_metrics": [ALL_METRICS[0].id]}):
+		reset_singleton(MetricsRegistry)
+		metrics_registry = MetricsRegistry()
+		assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS[1:])
+
+	reset_singleton(MetricsRegistry)

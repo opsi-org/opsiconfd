@@ -20,7 +20,8 @@ from starlette.concurrency import run_in_threadpool
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
-from opsiconfd.metrics.registry import AggregationType, DepotMetric, Metric, MetricsRegistry, NodeMetric, WorkerMetric, ZeroIfMissingType
+from opsiconfd.metrics.metric import AggregationType, DepotMetric, Metric, NodeMetric, WorkerMetric, ZeroIfMissingType
+from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.redis import async_redis_client
 
 if TYPE_CHECKING:

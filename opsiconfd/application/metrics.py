@@ -7,10 +7,12 @@
 metrics
 """
 
+from __future__ import annotations
+
 import copy
 from datetime import datetime
 from operator import itemgetter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, FastAPI
 from opsicommon.utils import unix_timestamp
@@ -19,15 +21,21 @@ from redis import ResponseError as RedisResponseError
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config
-from opsiconfd.grafana import (
+from opsiconfd.grafana.grafana import (
 	GRAFANA_DASHBOARD_TEMPLATE,
 	GRAFANA_DATASOURCE_TEMPLATE,
+	GRAFANA_HEATMAP_PANEL_TEMPLATE,
+	GRAFANA_TIMESERIES_PANEL_TEMPLATE,
 	async_grafana_admin_session,
 )
 from opsiconfd.logging import logger
-from opsiconfd.metrics.registry import AggregationType, DepotMetric, MetricsRegistry, NodeMetric, WorkerMetric
+from opsiconfd.metrics.metric import AggregationType, DepotMetric, NodeMetric, WorkerMetric
+from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import get_time_bucket_duration
 from opsiconfd.redis import async_redis_client, ip_address_from_redis_key
+
+if TYPE_CHECKING:
+	from opsiconfd.grafana.panel_config import GrafanaPanelConfig
 
 # / should return 200 ok. Used for "Test connection" on the datasource config page.
 # /search used by the find metric options on the query tab in panels.
@@ -76,6 +84,29 @@ async def grafana_index() -> None:
 	return None
 
 
+def get_panel(panel_config: GrafanaPanelConfig, panel_id: int = 1, pos_x: int = 0, pos_y: int = 0) -> dict[str, Any]:
+	template = {}
+	if panel_config.type == "timeseries":
+		template = GRAFANA_TIMESERIES_PANEL_TEMPLATE
+	elif panel_config.type == "heatmap":
+		template = GRAFANA_HEATMAP_PANEL_TEMPLATE
+	panel = copy.deepcopy(template)
+	panel["id"] = panel_id
+	panel["gridPos"]["x"] = pos_x  # type: ignore[index]
+	panel["gridPos"]["y"] = pos_y  # type: ignore[index]
+	panel["title"] = panel_config.title
+	if panel_config.type == "timeseries":
+		if panel_config.stack:
+			panel["fieldConfig"]["defaults"]["custom"]["stacking"]["mode"] = "normal"  # type: ignore[index]
+		panel["fieldConfig"]["defaults"]["decimals"] = panel_config.decimals  # type: ignore[index]
+		panel["fieldConfig"]["defaults"]["unit"] = panel_config.unit  # type: ignore[index]
+	elif panel_config.type == "heatmap":
+		panel["options"]["yAxis"]["format"] = panel_config.unit  # type: ignore[index]
+	if panel_config.yaxis_min != "auto":
+		panel["fieldConfig"]["defaults"]["min"] = panel_config.yaxis_min  # type: ignore[index]
+	return panel
+
+
 async def grafana_dashboard_config() -> dict[str, Any]:
 	workers = await get_workers()
 	nodes = await get_nodes()
@@ -89,7 +120,7 @@ async def grafana_dashboard_config() -> dict[str, Any]:
 		if not metric.grafana_config:
 			continue
 		panel_id += 1
-		panel = metric.grafana_config.get_panel(panel_id=panel_id, pos_x=pos_x, pos_y=pos_y)
+		panel = get_panel(metric.grafana_config, panel_id=panel_id, pos_x=pos_x, pos_y=pos_y)
 		if isinstance(metric, WorkerMetric):
 			for idx, worker in enumerate(workers):
 				panel["targets"].append(

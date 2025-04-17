@@ -18,7 +18,8 @@ from unittest.mock import patch
 import pytest
 
 from opsiconfd.metrics.collector import NodeMetricsCollector
-from opsiconfd.metrics.registry import AggregationType, MetricsRegistry, NodeMetric
+from opsiconfd.metrics.metric import AggregationType, NodeMetric
+from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
 	AsyncRedis,
@@ -257,7 +258,7 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 			["hour", 60 * 24 * 3600 * 1000, AggregationType.AVG],
 		],  # keep minutes longer
 	)
-	metric.set_redis_prefix(f"{base_key}:stats")
+	metric.redis_key_prefix = f"{base_key}:stats"
 	metrics_registry = MetricsRegistry()
 	metrics_registry.register(metric)
 	setup_metric_downsampling()

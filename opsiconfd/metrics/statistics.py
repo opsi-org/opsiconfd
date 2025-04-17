@@ -22,7 +22,8 @@ from starlette.types import Message, Receive, Scope, Send
 from opsiconfd import contextvar_request_id, contextvar_server_timing
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.metrics.registry import MetricsRegistry, NodeMetric, WorkerMetric
+from opsiconfd.metrics.metric import NodeMetric, WorkerMetric
+from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.redis import redis_client
 from opsiconfd.worker import Worker
 

@@ -10,7 +10,8 @@ from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
+from opsiconfd.check.common import (Check, CheckResult, CheckStatus,
+                                    check_manager)
 from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_requests_session
@@ -330,8 +331,8 @@ class OpsiLockedProductsCheck(Check):
 
 		return result
 
-
-opsi_products_on_depots_check = OpsiProductsOnDepotsCheck()
-opsi_products_on_clients_check = OpsiProductsOnClientsCheck()
+# TODO: The checks are currently deactivated due to performance problems
+# opsi_products_on_depots_check = OpsiProductsOnDepotsCheck()
+# opsi_products_on_clients_check = OpsiProductsOnClientsCheck()
 opsi_locked_products_check = OpsiLockedProductsCheck()
-check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check, opsi_locked_products_check)
+check_manager.register(opsi_locked_products_check)

@@ -30,7 +30,7 @@ from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
 from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.exception import ConfigurationError
-from opsiconfd.grafana import setup_grafana
+from opsiconfd.grafana.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import delete_recursively, redis_client

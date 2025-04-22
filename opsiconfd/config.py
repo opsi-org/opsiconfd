@@ -32,6 +32,7 @@ from opsicommon.system.network import get_fqdn
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
+from opsiconfd.metrics.metric import ALL_METRICS
 from opsiconfd.utils import Singleton, lock_file, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
 
 if TYPE_CHECKING:
@@ -1273,6 +1274,18 @@ class Config(metaclass=Singleton):
 				"opsiconfd",
 				"Collect metrics and write them to redis.",
 			),
+		)
+		metric_ids = [m.id for m in ALL_METRICS]
+		self._parser.add(
+			"--disabled-metrics",
+			nargs="+",
+			env_var="OPSICONFD_DISABLED_METRICS",
+			default=None,
+			help=self._help(
+				"opsiconfd",
+				f"A list of metrics to disable (metrics: {','.join(metric_ids)}.",
+			),
+			choices=metric_ids,
 		)
 		self._parser.add(
 			"--check-running",

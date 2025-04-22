@@ -39,7 +39,7 @@ from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates
-from opsiconfd.grafana import GRAFANA_DASHBOARD_UID, async_grafana_session, create_dashboard_user
+from opsiconfd.grafana.grafana import GRAFANA_DASHBOARD_UID, async_grafana_session, create_dashboard_user
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import CHANNEL_INFO_SUFFIX, get_websocket_connected_users
 from opsiconfd.redis import async_redis_client, decode_redis_result, ip_address_from_redis_key, ip_address_to_redis_key, redis_client

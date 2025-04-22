@@ -19,14 +19,15 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.cli import console_health_check
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
-from opsiconfd.check.main import (
-	health_check,
-)
+from opsiconfd.check.common import (Check, CheckResult, CheckStatus,
+                                    check_manager)
+from opsiconfd.check.main import health_check
 from opsiconfd.check.opsipackages import get_enabled_hosts
 from opsiconfd.check.register import register_checks
 from opsiconfd.config import get_configserver_id
-from tests.utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, clean_mysql, get_config, sync_clean_redis, test_client  # noqa: F401
+from tests.utils import (ADMIN_PASS, ADMIN_USER,  # noqa: F401
+                         OpsiconfdTestClient, clean_mysql, get_config,
+                         sync_clean_redis, test_client)
 
 DEPRECATED_METHOD = "getClientIds_list"
 
@@ -63,7 +64,7 @@ def test_health_check() -> None:
 	sync_clean_redis()
 	register_checks()
 	results = list(health_check())
-	assert len(results) == 25
+	assert len(results) == 23
 	for result in results:
 		print(result.check.id, result.check_status)
 		assert result.check_status
@@ -73,11 +74,11 @@ def test_checks_and_skip_checks() -> None:
 	with get_config({"checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
 		len(check_manager.check_ids) == 3
-		len(check_manager.possible_checks) == 22
+		len(check_manager.possible_checks) == 20
 
 	with get_config({"skip_checks": ["redis", "mysql", "ssl"]}):
 		register_checks()
-		len(check_manager.check_ids) == 22
+		len(check_manager.check_ids) == 20
 		len(check_manager.possible_checks) == 3
 
 

@@ -36,6 +36,8 @@ from opsiconfd.config import MANAGER_THREAD_POOL_WORKERS, config, get_server_rol
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import DepotMetricsCollector, MetricsCollector, NodeMetricsCollector
+from opsiconfd.metrics.metric import DepotMetric
+from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.redis import async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_ssl
 from opsiconfd.utils import Singleton, asyncio_create_task, log_config
@@ -316,7 +318,9 @@ class Manager(metaclass=Singleton):
 		self._worker_manager = WorkerManager()
 
 		self._metrics_collectors: list[MetricsCollector] = [NodeMetricsCollector()]
-		if self._is_config_server:
+		# Collect depot metrics only on config server
+		# Do not create DepotMetricsCollectors if all DepotMetrics are disabled
+		if self._is_config_server and MetricsRegistry().get_metrics(DepotMetric):
 			for depot_id in get_unprotected_backend().host_getIdents(returnType="str", type="OpsiDepotserver"):
 				self._metrics_collectors.append(DepotMetricsCollector(depot_id))
 

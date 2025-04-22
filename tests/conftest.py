@@ -33,7 +33,7 @@ from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.schema import drop_database
 from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config
-from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
+from opsiconfd.grafana.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
 from opsiconfd.setup import setup_backend, setup_mysql, setup_ssl
 from opsiconfd.worker import Worker

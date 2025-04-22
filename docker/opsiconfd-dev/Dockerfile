@@ -8,7 +8,7 @@ ENV LC_ALL="en_US.UTF-8" \
 	LANGUAGE="en_US:en" \
 	DEV_USER=${DEV_USER} \
 	DEV_UID=${DEV_UID} \
-	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/experimental/Debian_10/
+	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_10/
 
 RUN mkdir -p /usr/local/share/keyrings \
 	&& REPO_KEY=/usr/local/share/keyrings/opsi-obs.gpg \

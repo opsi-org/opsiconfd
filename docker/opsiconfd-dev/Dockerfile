@@ -26,6 +26,7 @@ RUN mkdir -p /usr/local/share/keyrings \
 		mariadb-client \
 		librsync1 \
 		netcat \
+		clang \
 	&& apt-get --yes install opsi-utils \
 	&& sed -i 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
 	&& locale-gen \

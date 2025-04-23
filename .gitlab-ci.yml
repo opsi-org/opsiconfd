@@ -141,6 +141,8 @@ build:linux-pyinstaller:
     - export UV_PYTHON="3.13"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
+    - apt update
+    - apt-get --yes install clang
     - opsi-dev-cli self upgrade
     - rm -rf .venv
     - uv self update

@@ -10,7 +10,11 @@ ENV LC_ALL="en_US.UTF-8" \
 	DEV_UID=${DEV_UID} \
 	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/development/Debian_10/
 
-RUN apt-get update \
+RUN mkdir -p /usr/local/share/keyrings \
+	&& REPO_KEY=/usr/local/share/keyrings/opsi-obs.gpg \
+	&& curl -fsSL $OPSI_REPO/Release.key | gpg --dearmor | tee $REPO_KEY > /dev/null\
+	&& echo "deb [signed-by=$REPO_KEY] $OPSI_REPO/ /" | tee /etc/apt/sources.list.d/opsi.list \
+	&& apt-get update \
 	&& apt-get --yes dist-upgrade\
 	&& apt-get --yes install \
 		sudo \
@@ -22,9 +26,7 @@ RUN apt-get update \
 		mariadb-client \
 		librsync1 \
 		netcat \
-	&& mkdir -p /usr/local/share/keyrings \
-	&& wget -q -O - ${OPSI_REPO}Release.key | gpg --dearmor > /usr/local/share/keyrings/opsi-obs.gpg \
-	&& echo "deb [signed-by=/usr/local/share/keyrings/opsi.gpg] ${OPSI_REPO} /" > /etc/apt/sources.list.d/opsi.list \
+		clang \
 	&& apt-get --yes install opsi-utils \
 	&& sed -i 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
 	&& locale-gen \

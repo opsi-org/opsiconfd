@@ -16,7 +16,7 @@ from opsiconfd.logging import init_logging, logger
 
 def get_config_main() -> None:
 	init_logging(log_mode="local")
-	print(json.dumps(config.items(), indent=2))
+	print(json.dumps(config.items(), indent=2, sort_keys=True))
 
 
 def set_config_main() -> None:

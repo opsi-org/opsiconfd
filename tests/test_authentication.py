@@ -411,6 +411,10 @@ def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 	test_client.reset_cookies()
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["10.0.0.0/8"]}):
+		res = test_client.get("/login")
+		assert res.status_code == 403
+		assert res.text == "No permissions to access login from '1.2.3.4'"
+
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
 		assert res.text == f"Admin user '{ADMIN_USER}' is not allowed to connect from '1.2.3.4'"

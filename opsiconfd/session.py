@@ -315,12 +315,15 @@ class SessionMiddleware:
 					log = logger.debug
 			log(err)
 
-			status_code = status.HTTP_401_UNAUTHORIZED
+			status_code = err.status_code or status.HTTP_401_UNAUTHORIZED
 			if connection.headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
 				headers = AUTH_HEADERS
-			error = "Authentication error"
-			if isinstance(err, OpsiServicePermissionError):
-				error = "Permission denied"
+
+			error = err.message
+			if not error:
+				error = "Authentication error"
+				if isinstance(err, OpsiServicePermissionError):
+					error = "Permission denied"
 
 		elif isinstance(err, ConnectionRefusedError):
 			error = str(err)
@@ -1453,15 +1456,11 @@ async def check_admin_networks(session: OPSISession) -> None:
 	if not session.is_admin or not config.admin_networks:
 		return
 
-	is_admin_network = False
-	for network in config.admin_networks:
-		if ip_address_in_network(session.client_addr, network):
-			is_admin_network = True
-			session.add_auth_methods(AuthenticationMethod.ADMIN_NETWORKS)
-			break
+	if any(ip_address_in_network(session.client_addr, network) for network in config.admin_networks):
+		session.add_auth_methods(AuthenticationMethod.ADMIN_NETWORKS)
+		return
 
-	if not is_admin_network:
-		raise ConnectionRefusedError(f"Admin user '{session.username}' is not allowed to connect from '{session.client_addr}'")
+	raise ConnectionRefusedError(f"Admin user '{session.username}' is not allowed to connect from '{session.client_addr}'")
 
 
 async def check_blocked(ip_address: str) -> None:

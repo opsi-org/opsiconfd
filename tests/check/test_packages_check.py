@@ -7,19 +7,24 @@
 check tests
 """
 
-from opsicommon.objects import (Config, ConfigState, LocalbootProduct,
-                                OpsiClient, OpsiDepotserver, ProductOnClient,
-                                ProductOnDepot)
+from opsicommon.objects import Config, ConfigState, LocalbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
 
 from opsiconfd.check.common import CheckStatus, check_manager
 from opsiconfd.check.opsipackages import opsi_locked_products_check
 
 from opsiconfd.config import get_configserver_id
 from opsiconfd.setup.configs import CHECK_DEFAULT_IGNORE_PRODUCTS
-from tests.utils import (ADMIN_PASS, ADMIN_USER,  # noqa: F401
-                         OpsiconfdTestClient, cache_clear, clean_mysql,
-                         clean_redis, cleanup_checks, delete_mysql_data,
-                         test_client)
+from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	cache_clear,
+	clean_mysql,
+	clean_redis,
+	cleanup_checks,
+	delete_mysql_data,
+	test_client,
+)
 
 
 def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -202,7 +207,7 @@ def _prepare_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 # 			assert partial_result.check_status == CheckStatus.ERROR
 # 			assert "is outdated" in partial_result.message
 # 			assert partial_result.upgrade_issue == "4.3"
-	# assert found == 1
+# assert found == 1
 
 
 def test_check_locked_products(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

@@ -19,15 +19,20 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.cli import console_health_check
-from opsiconfd.check.common import (Check, CheckResult, CheckStatus,
-                                    check_manager)
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.check.main import health_check
 from opsiconfd.check.opsipackages import get_enabled_hosts
 from opsiconfd.check.register import register_checks
 from opsiconfd.config import get_configserver_id
-from tests.utils import (ADMIN_PASS, ADMIN_USER,  # noqa: F401
-                         OpsiconfdTestClient, clean_mysql, get_config,
-                         sync_clean_redis, test_client)
+from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	clean_mysql,
+	get_config,
+	sync_clean_redis,
+	test_client,
+)
 
 DEPRECATED_METHOD = "getClientIds_list"
 

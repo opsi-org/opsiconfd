@@ -20,7 +20,7 @@ from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
-
+from starlette.status import HTTP_403_FORBIDDEN
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import app
 from opsiconfd.application.admininterface import admin_interface_setup
@@ -53,6 +53,11 @@ from opsiconfd.session import SessionMiddleware, session_manager
 from opsiconfd.ssl import get_ca_certs_as_pem, get_opsi_ca_cert_as_pem
 from opsiconfd.utils import asyncio_create_task
 
+from opsicommon.utils import ip_address_in_network
+
+
+from opsicommon.exceptions import OpsiServicePermissionError
+
 
 @app.get("/")
 async def index() -> RedirectResponse:
@@ -75,6 +80,12 @@ async def index_head() -> Response:
 @app.get("/login")
 @app.post("/login")
 async def login_index(request: Request) -> Response:
+	if not request.client:
+		raise OpsiServicePermissionError("No permissions to access login", status_code=HTTP_403_FORBIDDEN)
+
+	if config.admin_networks and not any(ip_address_in_network(request.client.host, network) for network in config.admin_networks):
+		raise OpsiServicePermissionError(f"No permissions to access login from '{request.client.host}'", status_code=HTTP_403_FORBIDDEN)
+
 	context = {"request": request, "multi_factor_auth": config.multi_factor_auth, "saml_login_enabled": bool(config.saml_idp_sso_url)}
 	return jinja_templates().TemplateResponse(request=request, name="login.html", context=context)
 

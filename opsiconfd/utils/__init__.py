@@ -37,7 +37,6 @@ from logging import DEBUG, INFO  # type: ignore[import]
 from pathlib import Path
 from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Iterable, TextIO
-import shlex
 
 import lz4.frame  # type: ignore[import]
 import psutil

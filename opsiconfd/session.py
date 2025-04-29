@@ -1461,17 +1461,7 @@ async def check_admin_networks(session: OPSISession) -> None:
 			break
 
 	if not is_admin_network:
-		logger.warning(
-			"User '%s' from '%s' not in admin network '%s'",
-			session.username,
-			session.client_addr,
-			config.admin_networks,
-		)
-		session.is_admin = False
-		admin_group = opsi_config.get("groups", "admingroup")
-		if admin_group in session.user_groups:
-			# Remove admin group from groups because acl.conf currently does not support is_admin
-			session.user_groups.remove(admin_group)
+		raise ConnectionRefusedError(f"Admin user '{session.username}' is not allowed to connect from '{session.client_addr}'")
 
 
 async def check_blocked(ip_address: str) -> None:

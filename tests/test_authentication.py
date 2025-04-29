@@ -396,9 +396,11 @@ def test_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
+	test_client.reset_cookies()
 	with get_config({"networks": ["10.0.0.0/8"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
+		assert res.text == "Host '1.2.3.4' is not allowed to connect"
 
 
 def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -407,9 +409,11 @@ def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
-	with get_config({"networks": ["10.0.0.0/8"], "admin_networks": ["0.0.0.0/0"]}):
+	test_client.reset_cookies()
+	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["10.0.0.0/8"]}):
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
+		assert res.text == f"Admin user '{ADMIN_USER}' is not allowed to connect from '1.2.3.4'"
 
 
 def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

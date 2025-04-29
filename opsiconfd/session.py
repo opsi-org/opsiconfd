@@ -319,11 +319,9 @@ class SessionMiddleware:
 			if connection.headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
 				headers = AUTH_HEADERS
 
-			error = err.message
-			if not error:
-				error = "Authentication error"
-				if isinstance(err, OpsiServicePermissionError):
-					error = "Permission denied"
+			error = "Authentication error"
+			if isinstance(err, OpsiServicePermissionError):
+				error = "Permission denied"
 
 		elif isinstance(err, ConnectionRefusedError):
 			error = str(err)

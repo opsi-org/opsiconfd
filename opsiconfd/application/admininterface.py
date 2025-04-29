@@ -46,7 +46,7 @@ from opsiconfd.redis import async_redis_client, decode_redis_result, ip_address_
 from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
-from opsiconfd.utils import get_manager_pid
+from opsiconfd.utils import get_manager_process
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -211,7 +211,7 @@ async def get_messagebus_channel_info(request: Request) -> RESTResponse:
 @admin_interface_router.post("/reload")
 @rest_api
 async def reload() -> RESTResponse:
-	manager_pid = get_manager_pid()
+	manager_pid = get_manager_process()[0]
 	if not manager_pid:
 		raise RuntimeError("Manager pid not found")
 	os.kill(manager_pid, signal.SIGHUP)
@@ -402,7 +402,7 @@ def _install_addon(data: bytes) -> None:
 	if not addon_installed:
 		raise RuntimeError("Invalid addon")
 
-	manager_pid = get_manager_pid()
+	manager_pid = get_manager_process()[0]
 	if manager_pid:
 		os.kill(manager_pid, signal.SIGHUP)
 

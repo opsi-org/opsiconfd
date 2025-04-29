@@ -37,6 +37,7 @@ from logging import DEBUG, INFO  # type: ignore[import]
 from pathlib import Path
 from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Iterable, TextIO
+import shlex
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -137,10 +138,11 @@ def is_manager(proc: psutil.Process) -> bool:
 	return manager
 
 
-def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> int | None:
+def get_manager_process(ignore_self: bool = False, ignore_parents: bool = False) -> tuple[int | None, str | None]:
 	container_procs = ("containerd-shim", "lxc-start")
 
 	manager_pid = None
+	manager_cmd = None
 	ignore_pids = []
 	if ignore_self:
 		our_pid = os.getpid()
@@ -166,8 +168,9 @@ def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> 
 		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
 			# Do not return, prefer higher pids
 			manager_pid = proc.pid
+			manager_cmd = shlex.join(proc.cmdline())
 
-	return manager_pid
+	return manager_pid, manager_cmd
 
 
 def systemd_running() -> bool:
@@ -205,7 +208,7 @@ def restart_opsiconfd_if_running() -> None:
 
 def reload_opsiconfd_if_running() -> None:
 	get_logger().info("Reloading opsiconfd")
-	manager_pid = get_manager_pid(ignore_self=True)
+	manager_pid = get_manager_process(ignore_self=True)[0]
 	if not manager_pid:
 		get_logger().info("opsiconfd not running")
 		return

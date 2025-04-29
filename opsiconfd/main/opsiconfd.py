@@ -34,7 +34,7 @@ from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.manager import Manager
 from opsiconfd.redis import delete_locks, redis_client
 from opsiconfd.setup import setup
-from opsiconfd.utils import get_manager_pid, get_python_info, log_config, log_python_info
+from opsiconfd.utils import get_manager_process, get_python_info, log_config, log_python_info
 
 patch_popen()
 configure_warnings()
@@ -45,9 +45,9 @@ def opsiconfd_main() -> None:
 		print(json.dumps(get_python_info(), indent=2))
 		return
 
-	manager_pid = get_manager_pid(ignore_self=True)
+	manager_pid, manager_cmd = get_manager_process(ignore_self=True)
 	if config.action == "start" and manager_pid and config.check_running:
-		raise RuntimeError(f"Opsiconfd manager process already running (pid {manager_pid})")
+		raise RuntimeError(f"Opsiconfd manager process already running (pid: {manager_pid}, cmdline: {manager_cmd})")
 
 	if config.action in ("restart", "status"):
 		os.execvp("systemctl", ["systemctl", "--no-pager", "--lines", "0", config.action, "opsiconfd"])
@@ -62,7 +62,7 @@ def opsiconfd_main() -> None:
 				# Wait 5 seconds for processes to terminate or resend signal to force stop
 				for _num in range(5):
 					time.sleep(1)
-					if not get_manager_pid():
+					if not get_manager_process()[0]:
 						return
 				try:
 					os.kill(manager_pid, send_signal)

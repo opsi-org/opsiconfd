@@ -23,7 +23,7 @@ from opsiconfd import __version__
 from opsiconfd.logging import RedisLogHandler
 from opsiconfd.main import main
 from opsiconfd.main.log_viewer import stop_log_viewer
-from opsiconfd.utils import get_manager_pid
+from opsiconfd.utils import get_manager_process
 
 from .utils import Config, get_config
 
@@ -143,7 +143,7 @@ def test_log_viewer() -> None:
 
 
 def test_reload() -> None:
-	mpid = get_manager_pid()
+	mpid = get_manager_process()[0]
 	if mpid:
 		with patch("os.kill") as mock_kill:
 			with get_config({"action": "reload"}):
@@ -152,7 +152,7 @@ def test_reload() -> None:
 
 
 def test_force_stop() -> None:
-	mpid = get_manager_pid()
+	mpid = get_manager_process()[0]
 	if mpid:
 		with patch("os.kill") as mock_kill:
 			with get_config({"action": "force-stop"}):

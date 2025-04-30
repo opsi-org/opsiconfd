@@ -57,14 +57,20 @@ def opsiconfd_main() -> None:
 			# Send signal to manager process only, not to workers!
 			send_signal = signal.SIGINT if config.action in ("stop", "force-stop") else signal.SIGHUP
 
+			logger.notice("Sending signal %r to opsiconfd manager process (pid: %r, cmd: %r)", send_signal, manager_pid, manager_cmd)
 			os.kill(manager_pid, send_signal)
+
 			if config.action == "force-stop":
 				# Wait 5 seconds for processes to terminate or resend signal to force stop
 				for _num in range(5):
 					time.sleep(1)
 					if not get_manager_process()[0]:
+						logger.notice("Opsiconfd manager process terminated")
 						return
 				try:
+					logger.notice(
+						"Resending signal %r to opsiconfd manager process (pid: %r, cmd: %r)", send_signal, manager_pid, manager_cmd
+					)
 					os.kill(manager_pid, send_signal)
 				except ProcessLookupError:
 					return

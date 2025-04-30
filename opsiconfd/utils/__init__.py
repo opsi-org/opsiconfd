@@ -47,7 +47,6 @@ from opsicommon.types import forceStringLower
 from opsicommon.utils import prepare_proxy_environment
 
 from opsiconfd import __version__
-from opsiconfd.config import OPSICONFD_SUB_COMMANDS
 
 logger: OPSILogger | None = None
 config = None
@@ -128,6 +127,8 @@ def is_opsiconfd(proc: psutil.Process) -> bool:
 
 
 def is_manager(proc: psutil.Process) -> bool:
+	from opsiconfd.config import OPSICONFD_SUB_COMMANDS
+
 	return is_opsiconfd(proc) and not any(arg in OPSICONFD_SUB_COMMANDS + ["multiprocessing", "debugpy"] for arg in proc.cmdline())
 
 

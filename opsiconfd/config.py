@@ -104,6 +104,38 @@ SKIP_SETUP_ACTIONS = [
 	"systemd",
 	"users",
 ]
+OPSICONFD_ACTIONS = [
+	"start",
+	"stop",
+	"force-stop",
+	"status",
+	"restart",
+	"reload",
+	"setup",
+	"log-viewer",
+	"health-check",
+	"diagnostic-data",
+	"backup",
+	"backup-info",
+	"backup-extract",
+	"restore",
+	"get-config",
+	"set-config",
+	"test",
+]
+OPSICONFD_SUB_COMMANDS = [
+	"setup",
+	"log-viewer",
+	"health-check",
+	"diagnostic-data",
+	"backup",
+	"backup-info",
+	"backup-extract",
+	"restore",
+	"get-config",
+	"set-config",
+	"test",
+]
 
 try:
 	FQDN = get_fqdn()
@@ -331,24 +363,7 @@ class Config(metaclass=Singleton):
 			self._ex_help = conf.ex_help
 			if self._ex_help and "--help" not in self._args:
 				self._args.append("--help")
-			self._sub_command = (
-				conf.action
-				if conf.action
-				in (
-					"health-check",
-					"diagnostic-data",
-					"log-viewer",
-					"setup",
-					"backup",
-					"backup-info",
-					"backup-extract",
-					"restore",
-					"get-config",
-					"set-config",
-					"test",
-				)
-				else None
-			)
+			self._sub_command = conf.action if conf.action in OPSICONFD_SUB_COMMANDS else None
 			action = conf.action
 			if self._sub_command:
 				self._args.remove(self._sub_command)
@@ -1720,25 +1735,7 @@ class Config(metaclass=Singleton):
 			self._parser.add(
 				"action",
 				nargs=None if self._sub_command else "?",
-				choices=(
-					"start",
-					"stop",
-					"force-stop",
-					"status",
-					"restart",
-					"reload",
-					"setup",
-					"log-viewer",
-					"health-check",
-					"diagnostic-data",
-					"backup",
-					"backup-info",
-					"backup-extract",
-					"restore",
-					"get-config",
-					"set-config",
-					"test",
-				),
+				choices=OPSICONFD_ACTIONS,
 				default="start",
 				metavar="ACTION",
 				help=self._help(

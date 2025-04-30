@@ -10,6 +10,8 @@ statistics
 import re
 import time
 
+from opsiconfd.backend import get_unprotected_backend
+
 try:
 	import yappi  # type: ignore[import]
 except ImportError:
@@ -20,9 +22,9 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
 from opsiconfd import contextvar_request_id, contextvar_server_timing
-from opsiconfd.config import config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import logger
-from opsiconfd.metrics.metric import NodeMetric, WorkerMetric
+from opsiconfd.metrics.metric import DepotMetric, NodeMetric, WorkerMetric
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.redis import redis_client
 from opsiconfd.worker import Worker
@@ -35,25 +37,40 @@ def get_yappi_tag() -> int:
 
 
 def setup_metric_downsampling() -> None:
+	if get_server_role() != "configserver":
+		return
+
+	node_name = config.node_name
+	depot_ids = []
+	try:
+		depot_ids = get_unprotected_backend().host_getIdents(returnType="str", type="OpsiDepotserver")
+	except Exception as err:
+		logger.error("Failed to get depot ids: %s", err, exc_info=True)
+
 	client = redis_client()
 	for metric in MetricsRegistry().get_metrics():
-		is_worker_metric = isinstance(metric, WorkerMetric)
-		is_node_metric = isinstance(metric, NodeMetric)
-
 		if not metric.downsampling:
 			continue
+
+		is_worker_metric = isinstance(metric, WorkerMetric)
+		is_node_metric = isinstance(metric, NodeMetric)
+		is_depot_metric = isinstance(metric, DepotMetric)
 
 		iterations = 1
 		if is_worker_metric:
 			iterations = config.workers
+		elif is_depot_metric:
+			iterations = len(depot_ids)
 
 		for iteration in range(iterations):
-			node_name = config.node_name
-			worker_num = None
+			worker_num: int | None = None
+			depot_id: str | None = None
 			if is_worker_metric:
 				worker_num = iteration + 1
+			elif is_depot_metric:
+				depot_id = depot_ids[iteration]
 
-			logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
+			logger.debug("Iteration=%s, node_name=%s, worker_num=%s, depot_id=%s", iteration, node_name, worker_num, depot_id)
 
 			orig_key = None
 			cmd = None
@@ -63,6 +80,9 @@ def setup_metric_downsampling() -> None:
 			elif is_node_metric:
 				orig_key = metric.redis_key.format(node_name=node_name)
 				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
+			elif is_depot_metric:
+				orig_key = metric.redis_key.format(depot_id=depot_id)
+				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS depot_id {depot_id}"
 			else:
 				orig_key = metric.redis_key
 				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
@@ -93,6 +113,8 @@ def setup_metric_downsampling() -> None:
 					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 				elif is_node_metric:
 					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name}"
+				elif is_depot_metric:
+					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS depot_id {depot_id}"
 				else:
 					cmd = f"TS.CREATE {key} RETENTION {retention_time}"
 

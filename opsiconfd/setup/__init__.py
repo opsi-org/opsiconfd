@@ -344,7 +344,7 @@ def setup(explicit: bool = True) -> None:
 		except Exception as err:
 			logger.warning("Failed to setup redis: %s", err, exc_info=True)
 
-	if "metric_downsampling" not in config.skip_setup:
+	if get_server_role() == "configserver" and "metric_downsampling" not in config.skip_setup:
 		try:
 			setup_metric_downsampling()
 		except Exception as err:

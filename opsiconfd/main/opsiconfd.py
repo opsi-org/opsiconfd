@@ -53,6 +53,7 @@ def opsiconfd_main() -> None:
 		os.execvp("systemctl", ["systemctl", "--no-pager", "--lines", "0", config.action, "opsiconfd"])
 
 	if config.action in ("reload", "stop", "force-stop"):
+		init_logging(log_mode="local")
 		if manager_pid:
 			# Send signal to manager process only, not to workers!
 			send_signal = signal.SIGINT if config.action in ("stop", "force-stop") else signal.SIGHUP

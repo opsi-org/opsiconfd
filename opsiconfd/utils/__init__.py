@@ -129,7 +129,7 @@ def is_opsiconfd(proc: psutil.Process) -> bool:
 def is_manager(proc: psutil.Process) -> bool:
 	from opsiconfd.config import OPSICONFD_SUB_COMMANDS
 
-	return is_opsiconfd(proc) and not any(arg in OPSICONFD_SUB_COMMANDS + ["multiprocessing", "debugpy"] for arg in proc.cmdline())
+	return is_opsiconfd(proc) and not any(arg in OPSICONFD_SUB_COMMANDS + ["debugpy"] or "multiprocessing" in arg for arg in proc.cmdline())
 
 
 def get_manager_process(ignore_self: bool = False, ignore_parents: bool = False) -> tuple[int | None, str | None]:

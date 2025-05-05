@@ -33,7 +33,7 @@ dependencies = [
 	"python-magic>=0.4",
 	"python-multipart>=0.0",
 	"python-opsi>=4.3.6,<4.4",
-	"python-opsi-common>=4.3.22,<4.4",
+	"python-opsi-common>=4.3.29,<4.4",
 	"python-opsi-system>=4.3.2.1,<4.4",
 	"python3-saml==1.16.0",
 	"qrcode>=8.0",

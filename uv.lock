@@ -1361,7 +1361,7 @@ requires-dist = [
     { name = "python-magic", specifier = ">=0.4" },
     { name = "python-multipart", specifier = ">=0.0" },
     { name = "python-opsi", specifier = ">=4.3.6,<4.4" },
-    { name = "python-opsi-common", specifier = ">=4.3.22,<4.4" },
+    { name = "python-opsi-common", specifier = ">=4.3.29,<4.4" },
     { name = "python-opsi-system", specifier = ">=4.3.2.1,<4.4" },
     { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
@@ -1961,7 +1961,7 @@ wheels = [
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.28.3"
+version = "4.3.29.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1990,9 +1990,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.28.3.tar.gz", hash = "sha256:ac41ea0d35b901a8dde08cd3c0092a4893d7867796f28f40b5c60a9fd095919a" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.29.0.tar.gz", hash = "sha256:5d6d3328e4a6fbe8dd24a720fb3796096bd61a0b59f129d10062c25a7071a73e" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.28.3-py3-none-any.whl", hash = "sha256:981d7bdb21eab3c5000f0c0a28668707b8f9571682608dec34fd758ea71a9c69" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.29.0-py3-none-any.whl", hash = "sha256:e74b0cee27e7cb23a18a288586f5289ad3364d9709c2fb1dafbbf2f12a024c79" },
 ]
 
 [[package]]

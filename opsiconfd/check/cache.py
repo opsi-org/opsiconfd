@@ -13,19 +13,20 @@ from typing import Any, Callable
 from redis.exceptions import ConnectionError
 
 from opsiconfd.logging import logger
-from opsiconfd.redis import delete_recursively
+from opsiconfd.redis import delete_recursively, redis_lock
 
 
 def check_cache_clear(cache_id: str = "all") -> Any:
-	try:
-		logger.debug("Clearing check cache: %s", cache_id)
-		redis_key = "opsiconfd:checkcache"
-		if cache_id != "all":
-			redis_key = f"{redis_key}:{cache_id}"
-		delete_recursively(redis_key)
-	except ConnectionError as err:
-		logger.warning("Could not clear check cache. No Connection to Redis.")
-		logger.debug(err)
+	with redis_lock("check-cache", acquire_timeout=60.0, lock_timeout=300.0):
+		try:
+			logger.debug("Clearing check cache: %s", cache_id)
+			redis_key = "opsiconfd:checkcache"
+			if cache_id != "all":
+				redis_key = f"{redis_key}:{cache_id}"
+			delete_recursively(redis_key)
+		except ConnectionError as err:
+			logger.warning("Could not clear check cache. No Connection to Redis.")
+			logger.debug(err)
 
 
 def clear_check_cache(

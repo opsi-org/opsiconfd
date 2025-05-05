@@ -115,6 +115,7 @@ def console_health_check() -> int:
 			check_version = "1000"
 		else:
 			check_version = config.upgrade_check
+
 	if config.clear_cache:
 		check_cache_clear("all")
 

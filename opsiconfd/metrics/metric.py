@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Any, List
+from typing import Any
 
 from opsiconfd.grafana.panel_config import GrafanaPanelConfig
 
@@ -40,7 +40,7 @@ class Metric:
 		zero_if_missing: ZeroIfMissingType = ZeroIfMissingType.NONE,
 		time_related: bool = False,
 		grafana_config: GrafanaPanelConfig | None = None,
-		downsampling: List | None = None,
+		downsampling: list | None = None,
 	):
 		"""
 		Metric constructor

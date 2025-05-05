@@ -9,6 +9,8 @@ statistic tests
 
 import asyncio
 from asyncio import sleep
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 from opsicommon.objects import OpsiClient, OpsiDepotserver
@@ -16,6 +18,7 @@ from opsicommon.objects import OpsiClient, OpsiDepotserver
 from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
 from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.metrics.registry import MetricsRegistry
+from opsiconfd.metrics.statistics import TIME_BUCKET_DURATIONS_MS, setup_metric_downsampling
 from opsiconfd.worker import Worker
 
 from .utils import (  # noqa: F401
@@ -366,3 +369,45 @@ def test_disable_metrics() -> None:
 		assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS[1:])
 
 	reset_singleton(MetricsRegistry)
+
+
+def test_setup_metric_downsampling() -> None:
+	reset_singleton(MetricsRegistry)
+	metric_rgistry = MetricsRegistry()
+
+	class MockRedisClient:
+		cmds = []
+
+		def execute_command(self, cmd: str) -> Any:
+			self.cmds.append(cmd)
+			if cmd.startswith("TS.INFO"):
+				return []
+
+	mock_redis_client = MockRedisClient()
+
+	with patch("opsiconfd.metrics.statistics.redis_client", return_value=mock_redis_client):
+		setup_metric_downsampling()
+
+	assert len(mock_redis_client.cmds) > 100
+	for cmd_ in mock_redis_client.cmds:
+		cmd = cmd_.split(" ")
+		key = cmd[1]
+		metric_id = ":".join(key.split(":")[2:4])
+		# print("-----------------------------------------------------")
+		# print(cmd)
+		# print(metric_id)
+		metric = metric_rgistry.get_metric_by_id(metric_id)
+		assert metric
+		if cmd[0] == "TS.CREATE":
+			assert cmd[2] == "RETENTION"
+			assert cmd[4] == "LABELS"
+			labels_ = cmd[5:]
+			labels = {labels_[i]: labels_[i + 1] for i in range(0, len(labels_), 2)}
+			assert list(labels) == metric.vars
+
+		elif cmd[0] == "TS.CREATERULE":
+			_orig_key, agg = cmd[2].rsplit(":", 1)
+			downsampling = [d for d in metric.downsampling if d[0] == agg][0]
+			assert cmd[3] == "AGGREGATION"
+			assert cmd[4] == downsampling[2].value.lower()
+			assert int(cmd[5]) == TIME_BUCKET_DURATIONS_MS[agg]

@@ -16,8 +16,6 @@ from rich.console import Console
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.check.cli import process_check_result
 from opsiconfd.check.common import CheckStatus, check_manager
-from opsiconfd.check.opsipackages import get_available_product_versions
-from opsiconfd.check.register import register_checks
 from opsiconfd.check.system import (
 	CHECK_SYSTEM_PACKAGES,
 	disk_usage_check,
@@ -206,15 +204,6 @@ def test_check_system_packages_redhat() -> None:
 			assert partial_result.message == (
 				f"Package {partial_result.details['package']!r} is up to date. Installed version: {partial_result.details['version']!r}"
 			)
-
-
-def test_get_available_product_versions() -> None:
-	register_checks()
-	product_ids = ["opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-mac-client-agent", "hwaudit", "win10", "hwinvent"]
-	available_packages = get_available_product_versions(product_ids)
-	assert list(available_packages) == product_ids
-	for version in available_packages.values():
-		assert version != "0.0"
 
 
 def test_check_system_repos() -> None:

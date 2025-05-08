@@ -4,37 +4,52 @@
 # License: AGPL-3.0-only
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from typing import Iterable
 
 from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions
 
-from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
+from opsiconfd.backend import get_mysql, get_unprotected_backend
+from opsiconfd.check.common import (Check, CheckResult, CheckStatus,
+                                    check_manager)
 from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_requests_session
 
 OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
 OPSI_REPO_FILE = f"https://{OPSI_PACKAGES_HOST}/stable/packages.msgpack.zstd"
-MANDATORY_OPSI_PRODUCTS = ("opsi-script", "opsi-client-agent")
-MANDATORY_IF_INSTALLED = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
+# Packages that must be installed and up to date on all depots
+MANDATORY_DEPOT_PIDS = ("opsi-script", "opsi-client-agent")
+# Packages that must be up to date on all depots and clients if installed
+MANDATORY_IF_INSTALLED_PIDS = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
+# The number of days after which a package is considered outdated
+OUTDATED_AFTER_DAYS = 7
 
 
-def get_available_product_versions(product_ids: list[str]) -> dict:
-	available_packages = {}
+def _fetch_repo_file() -> bytes:
 	session = get_requests_session(OPSI_PACKAGES_HOST)
 	res = session.get(OPSI_REPO_FILE, timeout=10, stream=True)
 	res.raise_for_status()
+	return res.raw.read()
 
+
+def get_available_product_versions(product_ids: Iterable[str], min_age_seconds: int = 0) -> dict[str, str]:
+	available_packages: dict[str, str] = {}
+
+	now = datetime.now(tz=timezone.utc)
 	col = RepoMetaPackageCollection()
-	col.read_metafile_data(res.raw.read())
-	for product_id in product_ids:
-		if product_id in col.packages:
-			available_packages[product_id] = list(col.packages[product_id])[0]
-		else:
-			available_packages[product_id] = "0.0"
+	col.read_metafile_data(_fetch_repo_file())
+	for package in col.get_packages():
+		if package.product_id not in product_ids:
+			continue
+		age = (now - package.release_date).total_seconds() if package.release_date else 0
+		logger.debug("Package %r was released on %r (%d seconds ago)", package.product_id, package.release_date, age)
+		if age < min_age_seconds:
+			logger.debug("Package %r is too young (%d seconds)", package.product_id, age)
+			continue
 
+		available_packages[package.product_id] = f"{package.product_version}-{package.package_version}"
 	return available_packages
 
 
@@ -64,133 +79,92 @@ class OpsiProductsOnDepotsCheck(Check):
 		)
 		result.message = "All important products are up to date on all depots."
 
-		backend = get_unprotected_backend()
-		installed_products = [p.id for p in backend.product_getObjects()]
+		mysql = get_mysql()
+		check_product_ids: set[str] = set(MANDATORY_DEPOT_PIDS)
+		depot_ids: set[str] = set()
+		product_on_depot: dict[str, dict[str, tuple[str, str]]] = {}
 
-		not_installed = 0
+		with mysql.session() as session:
+			for row in session.execute("""
+				SELECT
+					pod.depotId,
+					pod.productId,
+					pod.productType,
+					pod.productVersion,
+					pod.packageVersion
+				FROM
+					PRODUCT_ON_DEPOT AS pod
+			""").fetchall():
+				depot_id = row[0]
+				product_id = row[1]
+				depot_ids.add(depot_id)
+				check_product_ids.add(product_id)
+				if depot_id not in product_on_depot:
+					product_on_depot[depot_id] = {}
+				product_on_depot[depot_id][product_id] = (row[2], f"{row[3]}-{row[4]}")
+
+		# Filter out depot ids that are not enabled
+		depot_ids = get_enabled_hosts(depot_ids)
+
+		mandatory_not_installed = 0
 		outdated = 0
 		try:
-			available_packages = get_available_product_versions(installed_products + list(MANDATORY_OPSI_PRODUCTS))
+			available_product_versions = get_available_product_versions(check_product_ids, min_age_seconds=OUTDATED_AFTER_DAYS * 24 * 3600)
 		except Exception as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Failed to get package info from repository '{OPSI_REPO_FILE}': {err}"
 			return result
 
-		depots = backend.host_getIdents(type="OpsiDepotserver")
-		packages_not_on_repo = []
-
-		enabled_hosts = get_enabled_hosts()
-		for depot_id in depots:
-			if depot_id not in enabled_hosts:
-				continue
-			for product_id, available_version in available_packages.items():
+		for depot_id in depot_ids:
+			for product_id, available_version in available_product_versions.items():
+				is_mandatory_depot = product_id in MANDATORY_DEPOT_PIDS
+				is_mandatory = is_mandatory_depot or product_id in MANDATORY_IF_INSTALLED_PIDS
 				partial_result = CheckResult(
 					check=self,
-					details={"depot_id": depot_id, "product_id": product_id},
+					details={
+						"depot_id": depot_id,
+						"product_id": product_id,
+						"installed_version": None,
+						"available_version": available_version,
+					},
 				)
 				try:
-					product_on_depot = backend.productOnDepot_getObjects(productId=product_id, depotId=depot_id)[0]
-				except IndexError:
-					if product_id not in MANDATORY_OPSI_PRODUCTS:
-						continue
-					not_installed = not_installed + 1
-					partial_result.check_status = CheckStatus.ERROR
-					partial_result.message = f"Mandatory product {product_id!r} is not installed on depot {depot_id!r}."
-					partial_result.upgrade_issue = "4.3"
-					result.add_partial_result(partial_result)
-					continue
-
-				product_version_on_depot = f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"
-				partial_result.details["version"] = product_version_on_depot
-				partial_result.details["available_version"] = available_version
-
-				if compare_versions(available_version, ">", product_version_on_depot):
-					outdated = outdated + 1
-					if product_id in MANDATORY_OPSI_PRODUCTS or (product_id in installed_products and product_id in MANDATORY_IF_INSTALLED):
+					product_type, product_version_on_depot = product_on_depot[depot_id][product_id]
+				except KeyError:
+					if is_mandatory_depot:
+						mandatory_not_installed += 1
 						partial_result.check_status = CheckStatus.ERROR
-						partial_result.message = (
-							f"Mandatory product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
-							f" < available version {available_version!r}."
-						)
+						partial_result.message = f"Mandatory product {product_id!r} is not installed on depot {depot_id!r}."
 						partial_result.upgrade_issue = "4.3"
-					else:
-						partial_result.check_status = CheckStatus.WARNING
-						partial_result.message = (
-							f"Product {product_id!r} is outdated on depot {depot_id!r}. Installed version {product_version_on_depot!r}"
-							f" < available version {available_version!r}."
-						)
-				elif available_version == "0.0":
-					logger.info("Could not find product %r on repository %s.", product_id, OPSI_REPO_FILE)
-					logger.info("Removing product %r from checked list.", product_id)
-					packages_not_on_repo.append(product_id)
+						result.add_partial_result(partial_result)
 					continue
-				else:
-					partial_result.check_status = CheckStatus.OK
-					partial_result.message = (
-						f"Installed version of product {product_id!r} on depot {depot_id!r} is {product_version_on_depot!r}."
-					)
 
-				if product_on_depot.productType == "NetbootProduct" and compare_versions(available_version, ">", product_version_on_depot):
+				partial_result.details["installed_version"] = product_version_on_depot
+				if compare_versions(product_version_on_depot, ">=", available_version):
+					continue
+
+				outdated += 1
+				partial_result.check_status = CheckStatus.ERROR if is_mandatory else CheckStatus.WARNING
+				partial_result.message = (
+					f"{'Mandatory product' if is_mandatory else 'Product'} {product_id!r} is outdated on depot {depot_id!r}. "
+					f"Installed version {product_version_on_depot!r} < available version {available_version!r}."
+				)
+				if is_mandatory or product_type == "NetbootProduct":
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
 
-		for package in packages_not_on_repo:
-			if package in available_packages:
-				del available_packages[package]
 		result.details = {
-			"products": len(available_packages),
-			"depots": len(depots),
-			"not_installed": not_installed,
+			"products": len(check_product_ids),
+			"depots": len(depot_ids),
+			"not_installed": mandatory_not_installed,
 			"outdated": outdated,
 		}
-		if not_installed > 0 or outdated > 0:
+		if mandatory_not_installed > 0 or outdated > 0:
 			result.message = (
-				f"Out of {len(available_packages)} products on {len(depots)} depots checked, "
-				f"{not_installed} mandatory products are not installed, {outdated} are out of date."
+				f"Out of {len(check_product_ids)} products on {len(depot_ids)} depots checked, "
+				f"{mandatory_not_installed} mandatory products are not installed, {outdated} are out of date."
 			)
-		return result
-
-
-@dataclass()
-class OpsiProductOnClientCheck(Check):
-	id: str = "product_on_client"
-	name: str = "Product On Client"
-	description: str = "Check opsi package versions on clients"
-	client_id: str = ""
-	product_id: str = ""
-	available_version: str = ""
-	partial_check: bool = True
-
-	def __post_init__(self) -> None:
-		super().__post_init__()
-		self.id = f"{self.id}:{self.client_id}:{self.product_id}"
-		self.name = f"{self.name} {self.product_id!r} on {self.client_id!r}"
-		self.description = f"{self.description} {self.product_id!r} on {self.client_id!r}"
-
-	def _check(self) -> CheckResult:
-		result = CheckResult(
-			check=self,
-			message=f"Product '{self.product_id}' is up to date on client '{self.client_id}'.",
-			check_status=CheckStatus.OK,
-		)
-		backend = get_unprotected_backend()
-		product_on_client = backend.productOnClient_getObjects(
-			attributes=["productVersion", "packageVersion"],
-			clientId=self.client_id,
-			productId=self.product_id,
-			installationStatus="installed",
-		)[0]
-		version = f"{product_on_client.productVersion}-{product_on_client.packageVersion}"
-		if compare_versions(version, ">=", self.available_version):
-			return result
-		if self.product_id in MANDATORY_OPSI_PRODUCTS or self.product_id in MANDATORY_IF_INSTALLED:
-			result.check_status = CheckStatus.ERROR
-		else:
-			result.check_status = CheckStatus.WARNING
-		result.message = f"Product {self.product_id!r} is outdated on client {self.client_id!r}. Installed version {version!r} < depot version {self.available_version!r}"
-		result.upgrade_issue = "4.3"
-
 		return result
 
 
@@ -213,15 +187,10 @@ class OpsiProductsOnClientsCheck(Check):
 			message="All products are up to date on all clients.",
 			check_status=CheckStatus.OK,
 		)
-		backend = get_unprotected_backend()
-		ignore_products = []
-		opsi_check_ignore_products = backend.config_getObjects(id="opsi.check.ignore_products")
-		if opsi_check_ignore_products:
-			ignore_products = opsi_check_ignore_products[0].defaultValues
 
+		backend = get_unprotected_backend()
 		now = datetime.now()
 		enabled_hosts = get_enabled_hosts()
-		depots = backend.host_getObjects(attributes=["id"], type="OpsiDepotserver")
 		client_ids = {
 			host.id
 			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
@@ -230,44 +199,111 @@ class OpsiProductsOnClientsCheck(Check):
 		if not client_ids:
 			return result
 
-		for depot in depots:
-			if depot.id not in get_enabled_hosts():
-				continue
-			clients_on_depot = set()
-			for depot_client_hash in backend.configState_getClientToDepotserver(clientIds=client_ids, depotIds=[depot.id]):
-				clients_on_depot.add(depot_client_hash["clientId"])
-			if not clients_on_depot:
-				logger.debug("No clients on depot %s", depot.id)
-				continue
-			try:
-				available_products = backend.productOnDepot_getObjects(
-					depotId=depot.id, attributes=["productId", "productVersion", "packageVersion"]
-				)
-			except Exception as err:
-				result.check_status = CheckStatus.ERROR
-				result.message = f"Failed to get product info from depot '{depot.id}': {err}"
-				return result
-			for product in available_products:
-				product_id = product.productId
-				if product_id in ignore_products:
-					continue
-				available_version = f"{product.productVersion}-{product.packageVersion}"
-				for product_on_client in backend.productOnClient_getObjects(
-					attributes=["productVersion", "packageVersion"],
-					clientId=clients_on_depot,
-					productId=product_id,
-					installationStatus="installed",
-					productType="LocalbootProduct",
-				):
-					check = OpsiProductOnClientCheck(
-						client_id=product_on_client.clientId,
-						product_id=product_id,
-						available_version=available_version,
-					)
-					self.add_partial_checks(check)
-					if product_on_client.clientId in client_ids:
-						client_ids.remove(product_on_client.clientId)
+		mysql = get_mysql()
+		depot_ids: set[str] = set()
+		product_on_depot: dict[str, dict[str, str]] = {}
+		product_on_client: dict[str, dict[str, str]] = {}
 
+		ignore_product_ids = []
+		opsi_check_ignore_products = backend.config_getObjects(id="opsi.check.ignore_products")
+		if opsi_check_ignore_products:
+			ignore_product_ids = opsi_check_ignore_products[0].defaultValues
+
+		with mysql.session() as session:
+			for row in session.execute(
+				"""
+				SELECT
+					pod.depotId,
+					pod.productId,
+					pod.productVersion,
+					pod.packageVersion
+				FROM
+					PRODUCT_ON_DEPOT AS pod
+				WHERE
+					pod.productType = "LocalbootProduct" AND
+					pod.productId NOT IN :ignore_product_ids AND
+					pod.installationTime <= :installation_time
+			""",
+				{
+					"ignore_product_ids": ignore_product_ids,
+					"installation_time": datetime.now(tz=timezone.utc) - timedelta(days=OUTDATED_AFTER_DAYS),
+				},
+			).fetchall():
+				depot_id = row[0]
+				product_id = row[1]
+				depot_ids.add(depot_id)
+				if depot_id not in product_on_depot:
+					product_on_depot[depot_id] = {}
+				product_on_depot[depot_id][product_id] = f"{row[2]}-{row[3]}"
+
+			for row in session.execute(
+				"""
+				SELECT
+					poc.clientId,
+					poc.productId,
+					poc.productVersion,
+					poc.packageVersion
+				FROM
+					PRODUCT_ON_CLIENT AS poc
+				WHERE
+					poc.productType = "LocalbootProduct" AND
+					poc.installationStatus = "installed" AND
+					poc.productId NOT IN :ignore_product_ids AND
+					poc.clientId IN :client_ids
+			""",
+				{"ignore_product_ids": ignore_product_ids, "client_ids": list(client_ids)},
+			).fetchall():
+				client_id = row[0]
+				if client_id not in product_on_client:
+					product_on_client[client_id] = {}
+				product_on_client[client_id][row[1]] = f"{row[2]}-{row[3]}"
+
+		# Filter out depot ids that are not enabled
+		depot_ids = depot_ids.intersection(enabled_hosts)
+
+		outdated_clients = set()
+		for depot_id in depot_ids:
+			client_ids_on_depot = set()
+			for depot_to_client in backend.configState_getClientToDepotserver(clientIds=list(client_ids), depotIds=[depot_id]):
+				client_ids_on_depot.add(depot_to_client["clientId"])
+
+			if not client_ids_on_depot:
+				logger.debug("No clients on depot %s", depot_id)
+				continue
+
+			for product_id, depot_version in product_on_depot.get(depot_id, {}).items():
+				is_mandatory = product_id in MANDATORY_IF_INSTALLED_PIDS
+
+				for client_id, pocs in product_on_client.items():
+					client_version = pocs.get(product_id)
+					if not client_version or compare_versions(client_version, ">=", depot_version):
+						continue
+
+					outdated_clients.add(client_id)
+					partial_result = CheckResult(
+						check=self,
+						check_status=CheckStatus.ERROR if is_mandatory else CheckStatus.WARNING,
+						message=(
+							f"{'Mandatory product' if is_mandatory else 'Product'} {product_id!r} is outdated on client {client_id!r}. "
+							f"Installed version {client_version!r} < depot version {depot_version!r}"
+						),
+						details={
+							"client_id": client_id,
+							"product_id": product_id,
+							"depot_id": depot_id,
+							"installed_version": client_version,
+							"available_version": depot_version,
+						},
+						upgrade_issue="4.3" if is_mandatory else None,
+					)
+					result.add_partial_result(partial_result)
+
+		num_outdated = len(outdated_clients)
+		num_clients = len(client_ids)
+		if num_outdated > 0:
+			result.message = (
+				f"Out-of-date products were found on {num_outdated} out of {num_clients} client{'s' if num_clients > 1 else ''} checked."
+			)
 		return result
 
 
@@ -320,19 +356,18 @@ class OpsiLockedProductsCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		backend = get_unprotected_backend()
-		enabled_hosts = get_enabled_hosts()
-		depots = backend.host_getObjects(attributes=["id"], type="OpsiDepotserver")
+		depots = backend.host_getIdents(type="OpsiDepotserver")
+		enabled_hosts = get_enabled_hosts(host_ids=depots)
 		for depot in depots:
-			if depot.id not in enabled_hosts:
+			if depot not in enabled_hosts:
 				continue
-			check = OpsiLockedProductsDepotCheck(depot_id=depot.id)
+			check = OpsiLockedProductsDepotCheck(depot_id=depot)
 			self.add_partial_checks(check)
 
 		return result
 
 
-# TODO: The checks are currently deactivated due to performance problems
-# opsi_products_on_depots_check = OpsiProductsOnDepotsCheck()
-# opsi_products_on_clients_check = OpsiProductsOnClientsCheck()
+opsi_products_on_depots_check = OpsiProductsOnDepotsCheck()
+opsi_products_on_clients_check = OpsiProductsOnClientsCheck()
 opsi_locked_products_check = OpsiLockedProductsCheck()
-check_manager.register(opsi_locked_products_check)
+check_manager.register(opsi_products_on_depots_check, opsi_products_on_clients_check, opsi_locked_products_check)

@@ -160,7 +160,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 17
+	schema_version = 18
 
 	def __init__(self) -> None:
 		self.address = "localhost"
@@ -362,6 +362,7 @@ class MySQLConnection:
 			);
 			SET SESSION group_concat_max_len = 1000000;
 			SET SESSION lock_wait_timeout = 60;
+			SET SESSION time_zone = '+00:00';
 		"""
 		)
 
@@ -646,7 +647,7 @@ class MySQLConnection:
 			return "WHERE " + " AND ".join([f"({c})" for c in conditions]), params
 		return "", {}
 
-	@lru_cache()
+	@lru_cache
 	def _get_read_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
@@ -655,7 +656,7 @@ class MySQLConnection:
 				conversions[name] = loads
 		return conversions
 
-	@lru_cache()
+	@lru_cache
 	def _get_write_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))

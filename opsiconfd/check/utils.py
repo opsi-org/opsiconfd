@@ -4,6 +4,7 @@
 # License: AGPL-3.0-only
 
 from datetime import datetime, timezone
+from typing import Iterable
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
@@ -17,9 +18,16 @@ def depots() -> list[str]:
 	return [depot.id for depot in depots]
 
 
-def get_enabled_hosts() -> list[str]:
+def get_enabled_hosts(host_ids: Iterable[str] | None = None) -> set[str]:
+	"""
+	Returns a list of host IDs that are enabled for checks.
+	If host_ids is provided, it filters the list to only include those hosts.
+	"""
 	backend = get_unprotected_backend()
-	config_states = backend.configState_getValues(["opsi.check.enabled", "opsi.check.downtime.start", "opsi.check.downtime.end"])
+	config_states = backend.configState_getValues(
+		config_ids=["opsi.check.enabled", "opsi.check.downtime.start", "opsi.check.downtime.end"],
+		object_ids=list(host_ids) if host_ids else [],
+	)
 	all_hosts = set(config_states)
 	downtime_hosts = set()
 	now = datetime.now().astimezone()
@@ -49,4 +57,4 @@ def get_enabled_hosts() -> list[str]:
 		if downtime_start < now and downtime_end > now:
 			downtime_hosts.add(host)
 
-	return [host for host in all_hosts - downtime_hosts if (config_states[host].get("opsi.check.enabled") or [True])[0]]
+	return {host for host in all_hosts - downtime_hosts if (config_states[host].get("opsi.check.enabled") or [True])[0]}

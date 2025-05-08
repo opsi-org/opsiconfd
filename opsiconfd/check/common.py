@@ -73,12 +73,16 @@ class Check:
 		self.documentation = dedent(self.documentation or "")
 		self.cache_expiration = self.cache_expiration or CACHE_EXPIRATION
 
+	def __eq__(self, other: object) -> bool:
+		return isinstance(other, Check) and self.id == other.id
+
 	def add_partial_checks(self, *checks: Check) -> None:
-		role = get_server_role()
+		is_depot = get_server_role() == "depotserver"
 		for check in checks:
-			if role == "depotserver" and not check.depot_check or check in self.partial_checks:
+			if is_depot and not check.depot_check:
 				return
-			self.partial_checks.append(check)
+			if check not in self.partial_checks:
+				self.partial_checks.append(check)
 
 	def check(self) -> CheckResult:
 		try:
@@ -98,7 +102,7 @@ class Check:
 			elif isinstance(err, RedisConnectionError):
 				result.message = f"Cannot connect to Redis: {err}"
 
-			logger.error("Error during check %s: %s", self.id, err)
+			logger.error("Error during check %s: %s", self.id, err, exc_info=True)
 			return result
 
 	def _check(self) -> CheckResult:

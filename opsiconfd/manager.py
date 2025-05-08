@@ -389,7 +389,8 @@ class Manager(metaclass=Singleton):
 		self._loop.run_until_complete(self.async_main())
 		pool_executer.shutdown()
 
-	async def run_health_check(self) -> None:
+	def run_health_check(self) -> None:
+		logger.notice("Running scheduled health check")
 		list(health_check())
 
 	async def check_server_cert(self) -> None:
@@ -442,7 +443,7 @@ class Manager(metaclass=Singleton):
 				if now - self._redis_check_time > self._redis_check_interval:
 					await self.check_redis()
 				if now - self._health_check_time > config.health_check_interval:
-					asyncio.ensure_future(self.run_health_check())
+					await run_in_threadpool(self.run_health_check)
 					self._health_check_time = now
 				if self._is_config_server:
 					if now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:

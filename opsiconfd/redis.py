@@ -17,7 +17,7 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, AsyncGenerator, Callable, Generator, Iterable, Literal
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Generator, Iterable, Literal
 from uuid import uuid4
 
 from opsicommon.utils import compare_versions, unix_timestamp
@@ -30,6 +30,9 @@ from redis.asyncio.connection import AbstractConnection
 
 from opsiconfd.config import REDIS_CONECTION_TIMEOUT, config
 from opsiconfd.utils import normalize_ip_address
+
+if TYPE_CHECKING:
+	from opsicommon.logging.logging import OPSILogger
 
 redis_pool_lock = threading.Lock()
 async_redis_pool_lock = asyncio.Lock()
@@ -54,6 +57,13 @@ def __con_del__(self: AbstractConnection) -> None:
 AsyncConnection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 Connection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 AbstractConnection.__del__ = __con_del__  # type: ignore[method-assign,attr-defined]
+
+
+@lru_cache
+def get_logger() -> OPSILogger:
+	from opsiconfd.logging import logger
+
+	return logger
 
 
 @lru_cache
@@ -297,6 +307,7 @@ async def async_delete_recursively(redis_key: str, piped: bool = True) -> None:
 
 @contextmanager
 def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: float | None = None) -> Generator[str, None, None]:
+	logger = get_logger()
 	conf = config
 	identifier = str(uuid4())
 	indentifier_b = identifier.encode("utf-8")
@@ -304,17 +315,21 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 	end = time.time() + acquire_timeout
 	pxt = round(lock_timeout) * 1000 if lock_timeout else None
 	client = redis_client()
+	logger.debug("Trying to acquire %r lock with identifier %r (timeout: %0.2f seconds)", lock_name, identifier, acquire_timeout)
 	while True:
 		# PXAT timestamp-milliseconds -- Set the specified Unix time at which the key will expire, in milliseconds.
 		if client.set(redis_key, identifier, nx=True, px=pxt):
 			break
 		if time.time() >= end:
+			logger.warning("Failed to acquire %r lock with identifier %r in %0.2f seconds", lock_name, acquire_timeout)
 			raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")
 		time.sleep(0.5)
+	logger.debug("Acquired %r lock with identifier %r", lock_name, identifier)
 	try:
 		yield identifier
 	finally:
 		with client.pipeline(transaction=True) as pipe:
+			logger.debug("Releasing %r lock with identifier %r", lock_name, identifier)
 			while True:
 				try:
 					# Redis will only perform the transaction if the watched keys were not modified.
@@ -330,6 +345,7 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 					break
 				except WatchError:
 					pass
+		logger.debug("Released %r lock with identifier %r", lock_name, identifier)
 
 
 @asynccontextmanager

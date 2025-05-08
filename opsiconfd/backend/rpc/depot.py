@@ -19,6 +19,7 @@ import subprocess
 import uuid
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
@@ -43,16 +44,16 @@ from opsicommon.types import forceProductId as typeForceProductId
 from opsicommon.utils import compare_versions, make_temp_dir
 
 from opsiconfd import __version__, contextvar_client_session
+
+# deprecated can be used in extension config files
+from opsiconfd.backend.rpc import rpc_method
 from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, WORKBENCH_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
 
-# deprecated can be used in extension config files
-from . import rpc_method
-
 if TYPE_CHECKING:
-	from .protocol import BackendProtocol
+	from opsiconfd.backend.rpc.protocol import BackendProtocol
 ALLOWED_SERVER_DATA = (
 	Path("/tmp"),
 	Path("/var/lib/opsi"),
@@ -873,6 +874,29 @@ class DepotserverPackageManager:
 											err,
 										)
 							self.backend.productPropertyState_createObjects(product_property_states)
+
+						with self.backend._mysql.session() as session:
+							logger.debug("Updating installation time of product %r on depot %r", product_id, self._depot_id)
+							session.execute(
+								"""
+								UPDATE
+									`PRODUCT_ON_DEPOT`
+								SET
+									`installationTime` = :installation_time
+								WHERE
+									`productId` = :product_id AND
+									`productVersion` = :product_version AND
+									`packageVersion` = :package_version AND
+									`depotId` = :depot_id
+								""",
+								params={
+									"installation_time": datetime.now(tz=timezone.utc),
+									"product_id": product_id,
+									"product_version": product.getProductVersion(),
+									"package_version": product.getPackageVersion(),
+									"depot_id": self._depot_id,
+								},
+							)
 
 						if product.getType() == "NetbootProduct":
 							logger.debug("Not creating package content file for NetbootProduct")

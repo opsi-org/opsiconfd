@@ -30,6 +30,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
+from functools import lru_cache
 from hashlib import md5
 from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address
 from json import JSONEncoder
@@ -48,7 +49,6 @@ from opsicommon.utils import prepare_proxy_environment
 
 from opsiconfd import __version__
 
-logger: OPSILogger | None = None
 config = None
 opsi_config = None
 
@@ -59,11 +59,11 @@ if TYPE_CHECKING:
 	opsi_config: "OpsiConfig" | None = None  # type: ignore[no-redef]
 
 
+@lru_cache
 def get_logger() -> OPSILogger:
-	global logger
-	if not logger:
-		from opsiconfd.logging import logger
-	return logger  # type: ignore[return-value]
+	from opsiconfd.logging import logger
+
+	return logger
 
 
 def get_config() -> Config:

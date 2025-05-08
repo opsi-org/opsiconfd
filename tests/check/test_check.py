@@ -69,7 +69,7 @@ def test_health_check() -> None:
 	sync_clean_redis()
 	register_checks()
 	results = list(health_check())
-	assert len(results) == 23
+	assert len(results) == 25
 	for result in results:
 		print(result.check.id, result.check_status)
 		assert result.check_status

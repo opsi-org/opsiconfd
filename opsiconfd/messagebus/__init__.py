@@ -19,7 +19,7 @@ from opsiconfd.utils import force_nodename
 from opsiconfd.worker import Worker
 
 
-@lru_cache()
+@lru_cache
 def get_messagebus_worker_id() -> str:
 	return get_user_id_for_service_worker(Worker.get_instance().id)
 
@@ -32,17 +32,17 @@ def get_user_id_for_user(user_id: str) -> str:
 	return f"user:{forceUserId(user_id)}"
 
 
-@lru_cache()
+@lru_cache
 def get_user_id_for_service_node(node_name: str) -> str:
 	return f"service_node:{forceStringLower(node_name)}"
 
 
-@lru_cache()
+@lru_cache
 def get_user_id_for_service_worker(worker_id: str) -> str:
 	return f"service_worker:{forceStringLower(worker_id)}"
 
 
-@lru_cache()
+@lru_cache
 def get_config_service_channel(channel: str) -> str:
 	if not channel.startswith("service:config:"):
 		raise ValueError(f"Invalid config service channel: {channel!r}")

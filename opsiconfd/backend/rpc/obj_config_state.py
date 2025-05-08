@@ -249,7 +249,7 @@ class RPCConfigStateMixin(Protocol):
 		used_depot_ids = set()
 		result = []
 
-		for client_id, configs in self.configState_getValues(config_ids=["clientconfig.depot.id"], object_ids=list(clientIds)).items():
+		for client_id, configs in self.configState_getValues(config_ids=["clientconfig.depot.id"], object_ids=clientIds).items():
 			try:
 				depotId = configs["clientconfig.depot.id"][0]
 				if not depotId:

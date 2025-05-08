@@ -331,7 +331,7 @@ class Backend(
 	def _get_client_id(self) -> str | None:
 		return None
 
-	@lru_cache()
+	@lru_cache
 	def _module_available(self, module: str) -> bool:
 		return module in self._available_modules
 

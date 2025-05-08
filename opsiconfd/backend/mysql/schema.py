@@ -11,13 +11,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Callable, Literal
 
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
-from opsiconfd.logging import logger
-
-from .cleanup import (
+from opsiconfd.backend.mysql.cleanup import (
 	remove_orphans_config_value,
 	remove_orphans_hardware_config,
 	remove_orphans_license_on_client_to_host,
@@ -26,9 +25,10 @@ from .cleanup import (
 	remove_orphans_product_on_depot,
 	remove_orphans_product_property_value,
 )
+from opsiconfd.logging import logger
 
 if TYPE_CHECKING:
-	from . import MySQLConnection, Session
+	from opsiconfd.backend.mysql import MySQLConnection, Session
 
 
 CREATE_TABLES_SQL = """
@@ -215,6 +215,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
 	`depotId` varchar(255) NOT NULL,
 	`productType` varchar(16) NOT NULL,
 	`locked` tinyint(1) NOT NULL DEFAULT '0',
+	`installationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (`productId`, `productType`, `productVersion`, `packageVersion`, `depotId`),
 	UNIQUE KEY `index_product_on_depot_pdid` (`productId`, `depotId`),
 	KEY `index_product_on_depot_productType` (`productType`),
@@ -723,7 +724,10 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 
 		if not schema_version or schema_version < mysql.schema_version:
 			logger.notice("Starting update to schema version %r", mysql.schema_version)
-			session.execute("INSERT INTO `OPSI_SCHEMA` (`version`) VALUES (:version)", params={"version": mysql.schema_version})
+			session.execute(
+				"INSERT INTO `OPSI_SCHEMA` (`version`, `updateStarted`) VALUES (:version, :update_started)",
+				params={"version": mysql.schema_version, "update_started": datetime.now(tz=timezone.utc)},
+			)
 
 		if schema_version and schema_version >= mysql.schema_version:
 			if force:
@@ -1396,11 +1400,16 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 		for table in ("SOFTWARE", "AUDIT_SOFTWARE_TO_LICENSE_POOL"):
 			session.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `architecture` VARCHAR(5) NOT NULL")
 
+		# schema_version 18
+		if "installationTime" not in mysql.tables["PRODUCT_ON_DEPOT"]:
+			logger.info("Adding column 'installationTime' on table PRODUCT_ON_DEPOT.")
+			session.execute("ALTER TABLE `PRODUCT_ON_DEPOT` ADD `installationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP")
+
 		logger.info("All updates completed")
 
 		if not schema_version or schema_version < mysql.schema_version:
 			logger.notice("Finished update to schema version %r", mysql.schema_version)
 			session.execute(
-				"UPDATE `OPSI_SCHEMA` SET `updateEnded` = CURRENT_TIMESTAMP WHERE version = :version",
-				params={"version": mysql.schema_version},
+				"UPDATE `OPSI_SCHEMA` SET `updateEnded` = :update_ended WHERE version = :version",
+				params={"version": mysql.schema_version, "update_ended": datetime.now(tz=timezone.utc)},
 			)

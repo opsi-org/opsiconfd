@@ -169,7 +169,7 @@ class RPCGeneralMixin(Protocol):
 	@rpc_method
 	def service_getHostsWithActiveHealthCheck(self: BackendProtocol) -> list[str]:
 		self._check_role("admin")
-		return get_enabled_hosts()
+		return list(get_enabled_hosts())
 
 	@rpc_method
 	async def service_getDiagnosticData(self: BackendProtocol) -> dict[str, Any]:

@@ -11,6 +11,7 @@ import json
 import re
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import UUID
@@ -27,13 +28,22 @@ from opsiconfd import __version__
 from opsiconfd.auth.saml import setup_saml, setup_saml_configuration
 from opsiconfd.backend import new_service_client
 from opsiconfd.check.cache import clear_check_cache
-from opsiconfd.config import DEPOT_DIR, FQDN, REPOSITORY_DIR, WORKBENCH_DIR, config, get_server_role, opsi_config
+from opsiconfd.config import (
+	DEPOT_DIR,
+	DEPRECATED_RPC_CALL_EXPIRE_SECONDS,
+	FQDN,
+	REPOSITORY_DIR,
+	WORKBENCH_DIR,
+	config,
+	get_server_role,
+	opsi_config,
+)
 from opsiconfd.dhcpd import setup_dhcpd
 from opsiconfd.exception import ConfigurationError
 from opsiconfd.grafana.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import delete_recursively, redis_client
+from opsiconfd.redis import decode_redis_result, delete_recursively, redis_client
 from opsiconfd.setup.backend import setup_backend, setup_mysql
 from opsiconfd.setup.configs import setup_configs
 from opsiconfd.setup.files import cleanup_log_files, setup_file_permissions, setup_files
@@ -65,18 +75,53 @@ def setup_redis() -> None:
 
 	# Delete obsolete sessions which were stored beneath the ip address
 	redis = redis_client()
-	for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
-		session_id = key.decode("utf-8").rsplit(":session:", maxsplit=1)[-1].split(":", maxsplit=1)[0]
+	for key_b in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):
+		key = str(key_b.decode("utf-8"))
+		session_id = key.rsplit(":session:", maxsplit=1)[-1].split(":", maxsplit=1)[0]
 		# Check if valid session id
 		if not re.match(r"^[0-9a-f]{32}$", session_id):
 			logger.info("Deleting obsolete session store %s", key)
 			delete_recursively(key)
 
-	for key in redis.scan_iter(f"{config.redis_key('log')}:*", count=1000):
-		node_name = key.decode("utf-8").rsplit(":", maxsplit=1)[-1]
+	for key_b in redis.scan_iter(f"{config.redis_key('log')}:*", count=1000):
+		key = str(key_b.decode("utf-8"))
+		node_name = key.rsplit(":", maxsplit=1)[-1]
 		if node_name != config.node_name:
 			logger.info("Deleting obsolete log %s", key)
 			delete_recursively(key)
+
+	# Remove logged deprecated RPC calls which are expired but not deleted
+	prefix = f"{config.redis_key('stats')}:rpcs:deprecated:"
+	methods = []
+	methods_processed = set()
+	now = datetime.now(tz=timezone.utc)
+	for key_b in redis.scan_iter(f"{prefix}*", count=1000):
+		key = str(key_b.decode("utf-8"))
+		method = key.removeprefix(prefix).split(":")[0]
+		if method == "methods" or method in methods_processed:
+			continue
+
+		base_method_key = f"{prefix}{method}"
+		methods_processed.add(method)
+		last_call = decode_redis_result(redis.get(f"{base_method_key}:last_call"))
+		if not last_call:
+			# No last call, delete key
+			logger.info("Deleting deprecated RPC call without last_call: %s", base_method_key)
+			delete_recursively(base_method_key)
+			continue
+
+		last_call_dt = datetime.fromisoformat(last_call.replace("Z", "")).astimezone(timezone.utc)
+		if now - last_call_dt > timedelta(seconds=DEPRECATED_RPC_CALL_EXPIRE_SECONDS):
+			logger.info("Deleting expired deprecated RPC call %s", base_method_key)
+			delete_recursively(base_method_key)
+			continue
+
+		# Keep
+		methods.append(method)
+
+	redis.delete(f"{prefix}methods")
+	if methods:
+		redis.sadd(f"{prefix}methods", *methods)
 
 
 def setup_depotserver(interactive: bool = True, unattended_configuration: dict[str, str] | None = None) -> bool:

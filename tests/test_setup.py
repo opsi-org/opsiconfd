@@ -10,6 +10,7 @@ setup tests
 import os
 import resource
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Generator
 from unittest.mock import patch
@@ -19,14 +20,15 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from opsicommon import objects
 
+from opsiconfd.application.jsonrpc import store_deprecated_call
 from opsiconfd.auth.saml import setup_saml
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.config import SKIP_SETUP_ACTIONS
-from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_systemd
+from opsiconfd.config import DEPRECATED_RPC_CALL_EXPIRE_SECONDS, SKIP_SETUP_ACTIONS, config
+from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_limits, setup_redis, setup_systemd
 from opsiconfd.setup import setup as opsiconfd_setup
 from opsiconfd.setup.files import migrate_acl_conf_if_default
 
-from .utils import ACL_CONF_41, get_config
+from .utils import ACL_CONF_41, async_redis_client, clean_redis, get_config  # noqa: F401
 
 
 def test_setup_limits() -> None:
@@ -210,3 +212,41 @@ def test_setup_saml(tmp_path: Path) -> None:
 		("-----BEGIN PRIVATE KEY-----\n" + conf["saml-sp-private-key"] + "\n-----END PRIVATE KEY-----\n").encode("utf-8"), password=None
 	)
 	assert cert.public_key() == key.public_key()
+
+
+async def test_setup_redis() -> None:
+	redis = await async_redis_client()
+	obsolete_keys = [
+		"status",
+		f"{config.redis_key('stats')}:client:failed_auth",
+		f"{config.redis_key('stats')}:client:num_http_request",
+		f"{config.redis_key('stats')}:client:sum_http_request",
+		f"{config.redis_key('stats')}:client:sum_http_request_number",
+	]
+	for key in obsolete_keys:
+		await redis.set(key, "test")
+
+	dep_prefix = f"{config.redis_key('stats')}:rpcs:deprecated"
+
+	await store_deprecated_call("getClientIds_list", "10.10.10.10/user-agent-1")
+	await store_deprecated_call("getPossibleMethods_listOfHashes", "10.10.10.11/user-agent-2")
+	await redis.set(
+		f"{dep_prefix}:getPossibleMethods_listOfHashes:last_call",
+		(datetime.now(tz=timezone.utc) - timedelta(seconds=DEPRECATED_RPC_CALL_EXPIRE_SECONDS + 1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+	)
+	await store_deprecated_call("readLog", "10.10.10.11/user-agent-3")
+	await redis.delete(f"{dep_prefix}:readLog:last_call")
+
+	setup_redis()
+
+	for key in obsolete_keys:
+		assert await redis.get(key) is None
+
+	assert await redis.smembers(f"{dep_prefix}:methods") == {b"getClientIds_list"}
+	assert await redis.get(f"{dep_prefix}:getClientIds_list:count") == b"1"
+	assert await redis.smembers(f"{dep_prefix}:getClientIds_list:clients") == {b"user-agent-1"}
+
+	for method in ["getPossibleMethods_listOfHashes", "readLog"]:
+		assert not await redis.get(f"{dep_prefix}:{method}:last_call")
+		assert not await redis.get(f"{dep_prefix}:{method}:count")
+		assert not await redis.smembers(f"{dep_prefix}:{method}:clients")

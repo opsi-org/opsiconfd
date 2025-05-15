@@ -70,6 +70,7 @@ LETSENCRYPT_DATA_DIR = "/var/lib/opsiconfd/letsencrypt"
 PUBLIC_DIR = "/var/lib/opsi/public"
 REPOSITORY_DIR = "/var/lib/opsi/repository"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
+DEPRECATED_RPC_CALL_EXPIRE_SECONDS = 30 * 24 * 3600  # 30 days
 PROD_DEP_DEBUG_DIR = "/tmp/opsiconfd-prod-dep-debug"
 SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
 SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"

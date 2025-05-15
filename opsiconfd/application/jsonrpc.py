@@ -43,7 +43,7 @@ from opsiconfd.backend import (
 	get_service_client,
 	get_unprotected_backend,
 )
-from opsiconfd.config import RPC_DEBUG_DIR, config, get_depotserver_id, get_server_role
+from opsiconfd.config import DEPRECATED_RPC_CALL_EXPIRE_SECONDS, RPC_DEBUG_DIR, config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_messagebus_worker_id
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
@@ -233,20 +233,19 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 async def store_deprecated_call(method_name: str, client: str) -> None:
 	redis_prefix_stats = config.redis_key("stats")
 	redis = await async_redis_client()
-	expire_time = 30 * 24 * 3600  # 30 days
+	expire_time = DEPRECATED_RPC_CALL_EXPIRE_SECONDS
 	async with redis.pipeline() as pipe:
-		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)  # type: ignore[attr-defined]
-		pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")  # type: ignore[attr-defined]
-		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count", expire_time)  # type: ignore[attr-defined]
-		# type: ignore[attr-defined]
+		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
+		pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")
+		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count", expire_time)
 		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
-		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)  # type: ignore[attr-defined]
-		pipe.set(  # type: ignore[attr-defined]
+		pipe.expire(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", expire_time)
+		pipe.set(
 			f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call",
 			datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
 			ex=expire_time,
 		)
-		await pipe.execute()  # type: ignore[attr-defined]
+		await pipe.execute()
 
 
 async def store_rpc_info(
@@ -296,12 +295,12 @@ async def store_rpc_info(
 	max_rpcs = 9999
 	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
-		pipe.lpush(  # type: ignore[attr-defined]
+		pipe.lpush(
 			f"{redis_prefix_stats}:rpcs",
 			msgspec.msgpack.encode(data),
 		)
-		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)  # type: ignore[attr-defined]
-		await pipe.execute()  # type: ignore[attr-defined]
+		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)
+		await pipe.execute()
 
 	if request.info.deprecated:
 		await store_deprecated_call(request.method, request.info.client)

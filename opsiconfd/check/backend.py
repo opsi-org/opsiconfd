@@ -12,13 +12,14 @@ from dataclasses import dataclass
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
+from opsiconfd.logging import logger
 
 
 @dataclass()
 class DepotPathCheck(Check):
 	id: str = "depotservers:depot_path"
 	name: str = "Depotserver Depot Path"
-	depot: str = ""
+	depot_id: str = ""
 	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -28,16 +29,17 @@ class DepotPathCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		backend = get_unprotected_backend()
-		depot_obj = backend.host_getObjects(id=self.depot)[0]
+		depot_obj = backend.host_getObjects(id=self.depot_id)[0]
 
 		path = (depot_obj.depotLocalUrl or "").removeprefix("file://").rstrip("/")
+		logger.debug("Depot path on depot %r: %r", self.depot_id, path)
 		result.details["depot_path"] = path
 
 		if path != DEPOT_DIR:
 			result.check_status = CheckStatus.ERROR
 			result.upgrade_issue = "4.3"
 			result.message = (
-				f"The local depot path is no longer configurable in version 4.3 and is set to {path!r} on depot {self.depot!r}."
+				f"The local depot path is no longer configurable in version 4.3 and is set to {path!r} on depot {self.depot_id!r}."
 			)
 
 		return result
@@ -47,7 +49,7 @@ class DepotPathCheck(Check):
 class WorkbenchPathCheck(Check):
 	id: str = "depotservers:workbench_path"
 	name: str = "Depotserver Workbench Path"
-	depot: str = ""
+	depot_id: str = ""
 	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -57,16 +59,17 @@ class WorkbenchPathCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		backend = get_unprotected_backend()
-		depot_obj = backend.host_getObjects(id=self.depot)[0]
+		depot_obj = backend.host_getObjects(id=self.depot_id)[0]
 
 		path = (depot_obj.workbenchLocalUrl or "").removeprefix("file://").rstrip("/")
+		logger.debug("Workbench path on depot %r: %r", self.depot_id, path)
 		result.details["workbench_path"] = path
 
 		if path != WORKBENCH_DIR:
 			result.check_status = CheckStatus.ERROR
 			result.upgrade_issue = "4.3"
 			result.message = (
-				f"The local workbench path is no longer configurable in version 4.3 and is set to {path!r} on depot {self.depot!r}."
+				f"The local workbench path is no longer configurable in version 4.3 and is set to {path!r} on depot {self.depot_id!r}."
 			)
 
 		return result
@@ -76,7 +79,7 @@ class WorkbenchPathCheck(Check):
 class RepositoryPathCheck(Check):
 	id: str = "depotservers:repository_path"
 	name: str = "Depotserver Repository Path"
-	depot: str = ""
+	depot_id: str = ""
 	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -86,16 +89,17 @@ class RepositoryPathCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		backend = get_unprotected_backend()
-		depot_obj = backend.host_getObjects(id=self.depot)[0]
+		depot_obj = backend.host_getObjects(id=self.depot_id)[0]
 
 		path = (depot_obj.repositoryLocalUrl or "").removeprefix("file://").rstrip("/")
+		logger.debug("Repository path on depot %r: %r", self.depot_id, path)
 		result.details["repository_path"] = path
 
 		if path != REPOSITORY_DIR:
 			result.check_status = CheckStatus.ERROR
 			result.upgrade_issue = "4.3"
 			result.message = (
-				f"The local repository path is no longer configurable in version 4.3 and is set to {path!r} on depot {self.depot!r}."
+				f"The local repository path is no longer configurable in version 4.3 and is set to {path!r} on depot {self.depot_id!r}."
 			)
 
 		return result
@@ -114,7 +118,6 @@ class DepotserverCheck(Check):
 		If this is not the case, an error will be reported.
 		"""
 	partial_check: bool = False
-	depot = ""
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -126,13 +129,13 @@ class DepotserverCheck(Check):
 		backend = get_unprotected_backend()
 		for depot in backend.host_getObjects(type="OpsiDepotserver"):  # type: ignore
 			depot_check = DepotPathCheck(
-				id=f"depotservers:{depot.id}:depot_path", name=f"Depotserver depot path on {depot.id!r}", depot=depot.id
+				id=f"depotservers:{depot.id}:depot_path", name=f"Depotserver depot path on {depot.id!r}", depot_id=depot.id
 			)
 			workbench_check = WorkbenchPathCheck(
-				id=f"depotservers:{depot.id}:workbench", name=f"Depotserver workbench path on {depot.id!r}", depot=depot.id
+				id=f"depotservers:{depot.id}:workbench", name=f"Depotserver workbench path on {depot.id!r}", depot_id=depot.id
 			)
 			repository_check = RepositoryPathCheck(
-				id=f"depotservers:{depot.id}:repository", name=f"Depotserver repository path on {depot.id!r}", depot=depot.id
+				id=f"depotservers:{depot.id}:repository", name=f"Depotserver repository path on {depot.id!r}", depot_id=depot.id
 			)
 			self.add_partial_checks(depot_check, workbench_check, repository_check)
 

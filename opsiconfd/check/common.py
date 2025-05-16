@@ -9,9 +9,9 @@ health check
 
 from __future__ import annotations
 
-import copy
+import json
 import re
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 from enum import StrEnum
 from textwrap import dedent
 from typing import Any, Iterator
@@ -57,7 +57,6 @@ class Check:
 	cache_expiration: int = CACHE_EXPIRATION
 	partial_checks: list[Check] = field(default_factory=list)
 	partial_check: bool = False
-	cache_partial_checks: bool = False
 
 	def __init__(self, **kwargs: Any) -> None:
 		names = set([f.name for f in fields(self)])
@@ -118,7 +117,7 @@ class Check:
 		if clear_cache:
 			check_cache_clear(self.id)
 		elif self.cache:
-			result = self.check_cache_load()
+			result = self.load_result_from_cache()
 		if result is None:
 			result = self.check()
 
@@ -133,36 +132,30 @@ class Check:
 		if issue_counter > 0:
 			result.message = f"{issue_counter} issue(s) found."
 		if self.cache:
-			self.check_cache_store(result, self.cache_expiration)
+			self.store_result_in_cache(result, self.cache_expiration)
 		return result
 
-	def check_cache_store(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
+	def store_result_in_cache(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
 		# TODO: check if check id is valid. With partial checks...
-		# if self.id not in CheckManager().check_ids:
-		# 	logger.error("Invalid check cache id: %s", self.id)
 		if self.cache is False:
 			return
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		logger.debug("Check cache store: %s", redis_key)
+		redis_client().set(redis_key, encode(result), ex=expiration)
 
-		if self.cache_partial_checks:
-			redis_client().set(redis_key, encode(result), ex=expiration)
-		else:
-			cache_result = copy.deepcopy(result)
-			cache_result.partial_results = []
-			redis_client().set(redis_key, encode(cache_result), ex=expiration)
-
-	def check_cache_load(self) -> CheckResult | None:
+	def load_result_from_cache(self) -> CheckResult | None:
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		msgpack_data = redis_client().get(redis_key)
 		if msgpack_data:
 			logger.debug("Check cache hit: %s", redis_key)
 			data = decode(msgpack_data)
 			data["check"] = Check(**data.get("check", self))
+			data["from_cache"] = True
 			check_result = CheckResult(**data)
 			check_result.partial_results = []
 			for partial_result in data.get("partial_results", []):
 				partial_result["check"] = Check(**partial_result.get("check", self))
+				partial_result["from_cache"] = True
 				partial_result = CheckResult(**partial_result)
 				check_result.add_partial_result(partial_result)
 			return check_result
@@ -216,12 +209,18 @@ class CheckResult:
 	message: str = ""
 	details: dict[str, Any] = field(default_factory=dict)
 	upgrade_issue: str | None = None  # version str
+	partial_results: list[CheckResult] = field(default_factory=list)
+	from_cache: bool = False
+
+	def __repr__(self) -> str:
+		return f"{self.__class__.__name__}({json.dumps(asdict(self), indent=2)}"
+
+	def __str__(self) -> str:
+		return f"{self.__class__.__name__}: {self.check.id} - {self.check_status}"
 
 	def __post_init__(self) -> None:
 		if isinstance(self.check_status, str):
 			self.check_status = CheckStatus(self.check_status)
-
-	partial_results: list[CheckResult] = field(default_factory=list)
 
 	def add_partial_result(self, partial_result: CheckResult) -> None:
 		if partial_result in self.partial_results:

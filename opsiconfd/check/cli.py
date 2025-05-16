@@ -83,7 +83,7 @@ def process_check_result(result: CheckResult, console: Console, check_version: s
 				return
 
 	style = STYLES[status]
-	console.print(f"[{style}]●[/{style}] [b]{result.check.name}[/b]: [{style}]{status.upper()}[/{style}]")
+	console.print(f"[{style}]●[/] [b]{result.check.name}[/b] \\[[cyan]{result.check.id}[/]]: [{style}]{status.upper()}[/]")
 	console.print(Padding(f"[{style}]➔[/{style}] [b]{message}[/b]", (0, 3)))
 	if detailed and result.details:
 		for key, value in result.details.items():
@@ -154,20 +154,16 @@ def console_health_check() -> int:
 			for check_id in CheckManager().possible_checks.keys():
 				console.print(check_id)
 			return 1
-		if config.detailed:
-			console.print("[bold]Check Name - Check ID[/bold]")
-			for check in CheckManager().possible_checks.values():
-				console.print(
-					f"➔ [bold]{check.name}[/bold]: {check.id} ([green]active[/green])"
-				) if check.id in CheckManager().check_ids else console.print(
-					f"➔ [bold]{check.name}[/bold]: {check.id} ([red]inactive[/red])"
-				)
-				console.print(indent(check.description.strip(), "\t"))
-		else:
-			for check in CheckManager().possible_checks.values():
-				console.print(f"{check.id} ([green]active[/green])") if check.id in CheckManager().check_ids else console.print(
-					f"{check.id} ([red]inactive[/red])"
-				)
+
+		for check in CheckManager().possible_checks.values():
+			is_active = check.id in CheckManager().check_ids
+			active_str = "active" if is_active else "inactive"
+			active_style = "green" if is_active else "red"
+			if config.detailed:
+				console.print(f"[b]{check.name}[/b] \\[[cyan]{check.id}[/]]: [{active_style}]{active_str}[/]")
+				console.print(indent(check.description.strip(), "  ") + "\n")
+			else:
+				console.print(f"[cyan]{check.id}[/]: [{active_style}]{active_str}[/]")
 
 		return 0
 	if not CheckManager().check_ids:

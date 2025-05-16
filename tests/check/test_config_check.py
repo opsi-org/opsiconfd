@@ -7,7 +7,6 @@
 check tests
 """
 
-import pprint
 from pathlib import Path
 from unittest import mock
 
@@ -35,7 +34,6 @@ def test_check_opsiconfd_config(tmp_path: Path) -> None:
 	with get_config({"log_level_stderr": 9, "debug_options": ["rpc-log", "asyncio"], "acl_file": str(acl_file)}):
 		check_manager.register(opsiconfd_config_check)
 		result = check_manager.get("opsiconfd_config").run(clear_cache=True)
-		# print(result)
 		ids_found = 0
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "3 issue(s) found."
@@ -92,8 +90,6 @@ def test_check_run_as_user() -> None:
 			mock.patch("opsiconfd.check.config.grp.getgrnam", mock_getgrnam),
 		):
 			result = check_manager.get("run_as_user").run(clear_cache=True)
-
-			pprint.pprint(result)
 			assert result.check_status == CheckStatus.OK
 
 		with (
@@ -111,7 +107,6 @@ def test_check_run_as_user() -> None:
 	):
 		result = check_manager.get("run_as_user").run(clear_cache=True)
 		assert result.check_status == CheckStatus.ERROR
-		print(result)
 		for partial_result in result.partial_results:
 			if partial_result.check.id.endswith("shadow"):
 				assert partial_result.message == "User 'opsiconfd' is not a member of group 'shadow'."
@@ -133,7 +128,6 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	assert res.status_code == 200
 
 	result = check_manager.get("opsi_config").run(clear_cache=True)
-	print(result)
 	assert result.check_status == CheckStatus.OK
 	assert result.message == "No issues found in the opsi configuration."
 	assert len(result.partial_results) == 1

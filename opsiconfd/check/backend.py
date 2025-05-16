@@ -33,6 +33,7 @@ class DepotPathCheck(Check):
 
 		path = (depot_obj.depotLocalUrl or "").removeprefix("file://").rstrip("/")
 		logger.debug("Depot path on depot %r: %r", self.depot_id, path)
+		result.details["depot_id"] = self.depot_id
 		result.details["depot_path"] = path
 
 		if path != DEPOT_DIR:
@@ -63,6 +64,7 @@ class WorkbenchPathCheck(Check):
 
 		path = (depot_obj.workbenchLocalUrl or "").removeprefix("file://").rstrip("/")
 		logger.debug("Workbench path on depot %r: %r", self.depot_id, path)
+		result.details["depot_id"] = self.depot_id
 		result.details["workbench_path"] = path
 
 		if path != WORKBENCH_DIR:
@@ -93,6 +95,7 @@ class RepositoryPathCheck(Check):
 
 		path = (depot_obj.repositoryLocalUrl or "").removeprefix("file://").rstrip("/")
 		logger.debug("Repository path on depot %r: %r", self.depot_id, path)
+		result.details["depot_id"] = self.depot_id
 		result.details["repository_path"] = path
 
 		if path != REPOSITORY_DIR:
@@ -132,10 +135,10 @@ class DepotserverCheck(Check):
 				id=f"depotservers:{depot.id}:depot_path", name=f"Depotserver depot path on {depot.id!r}", depot_id=depot.id
 			)
 			workbench_check = WorkbenchPathCheck(
-				id=f"depotservers:{depot.id}:workbench", name=f"Depotserver workbench path on {depot.id!r}", depot_id=depot.id
+				id=f"depotservers:{depot.id}:workbench_path", name=f"Depotserver workbench path on {depot.id!r}", depot_id=depot.id
 			)
 			repository_check = RepositoryPathCheck(
-				id=f"depotservers:{depot.id}:repository", name=f"Depotserver repository path on {depot.id!r}", depot_id=depot.id
+				id=f"depotservers:{depot.id}:repository_path", name=f"Depotserver repository path on {depot.id!r}", depot_id=depot.id
 			)
 			self.add_partial_checks(depot_check, workbench_check, repository_check)
 

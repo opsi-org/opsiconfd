@@ -11,8 +11,7 @@ from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions
 
 from opsiconfd.backend import get_mysql, get_unprotected_backend
-from opsiconfd.check.common import (Check, CheckResult, CheckStatus,
-                                    check_manager)
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_requests_session
@@ -69,7 +68,6 @@ class OpsiProductsOnDepotsCheck(Check):
 		If opsi-linux-client-agent and opsi-macos-client-agent are installed, these packages are also checked.
 		Here, an outdated package is considered a warning and an uninstalled package is considered an error.
 	"""
-	cache_partial_checks: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -179,7 +177,6 @@ class OpsiProductsOnClientsCheck(Check):
 		Checks whether newer versions of the products installed on the client are available in the depot.
 		If an older version is installed, the Health Check issues a warning.
 	"""
-	cache_partial_checks: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -347,7 +344,6 @@ class OpsiLockedProductsCheck(Check):
 
 		Checks if there are locked products on any depot.
 	"""
-	cache_partial_checks: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

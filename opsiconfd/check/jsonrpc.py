@@ -80,7 +80,6 @@ class DeprecatedCallsCheck(Check):
 		This check looks whether such calls have been made and then issues a warning.
 		The message also states which client agent called the API method.
 	"""
-	cache_partial_checks: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

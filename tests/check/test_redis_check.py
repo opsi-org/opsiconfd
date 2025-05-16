@@ -35,7 +35,7 @@ def test_check_redis() -> None:
 	console = Console(log_time=False, force_terminal=False, width=1000)
 	result = check_manager.get("redis").run(clear_cache=True)
 	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
-	assert "Redis: OK" in captured_output
+	assert "Redis [redis]: OK" in captured_output
 	assert "The connection to the Redis server does work. " in captured_output
 	assert "RedisTimeSeries version " in captured_output
 	assert "Redis memory usage is OK" in captured_output
@@ -76,8 +76,8 @@ def test_check_redis_memory_error() -> None:
 
 def test_check_redis_connection_settings() -> None:
 	with (
-		mock.patch("opsiconfd.check.common.Check.check_cache_load", return_value=None),
-		mock.patch("opsiconfd.check.common.Check.check_cache_store", return_value=None),
+		mock.patch("opsiconfd.check.common.Check.load_result_from_cache", return_value=None),
+		mock.patch("opsiconfd.check.common.Check.store_result_in_cache", return_value=None),
 	):
 		# Test unix socket
 		with get_config({"redis_internal_url": "unix:///tmp/redis.sock"}):

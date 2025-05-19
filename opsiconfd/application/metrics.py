@@ -167,13 +167,21 @@ async def create_grafana_datasource() -> None:
 		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
 		if resp.status == 200:
 			_id = (await resp.json())["id"]
+			logger.debug("Updating grafana datasource: %s", _id)
 			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
 		else:
+			logger.debug("Creating grafana datasource")
 			resp = await session.post(f"{base_url}/api/datasources", json=json)
 
 		if resp.status == 200:
+			logger.debug("Grafana datasource created: %s - %s", resp.status, await resp.text())
 			json = {"folderId": 0, "overwrite": True, "dashboard": await grafana_dashboard_config()}
+			logger.debug("Creating grafana dashboard")
 			resp = await session.post(f"{base_url}/api/dashboards/db", json=json)
+			if resp.status == 200:
+				logger.debug("Grafana dashboard created: %s - %s", resp.status, await resp.text())
+			else:
+				logger.error("Failed to create grafana dashboard: %s - %s", resp.status, await resp.text())
 		else:
 			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
 

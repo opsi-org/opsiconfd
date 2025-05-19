@@ -245,7 +245,7 @@ async def async_grafana_session(
 			logger.debug("Using api key for grafana authorization")
 			headers = {"Authorization": f"Bearer {username}"}
 		else:
-			logger.debug("Using username %s and password grafana authorization", username)
+			logger.debug("Using username %s and password for grafana authorization", username)
 			auth = aiohttp.BasicAuth(username, password)
 
 	ssl_context = create_default_context()
@@ -329,31 +329,53 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 	con = sqlite3.connect(GRAFANA_DB)
 	cur = con.cursor()
 	try:
-		cur.execute("SELECT id FROM user WHERE user.login='opsiconfd';")
-		user_id = cur.fetchone()
+		cur.execute("PRAGMA TABLE_INFO(user)")
+		column_names = [tup[1] for tup in cur.fetchall()]
+		has_uid = "uid" in column_names
 
-		if user_id and not recreate:
+		user_uid = ""
+		user_id = ""
+		if not has_uid:
+			cur.execute("SELECT id, uid FROM user WHERE user.login='opsiconfd'")
+			row = cur.fetchone()
+			if row:
+				user_id, user_uid = row
+		else:
+			cur.execute("SELECT id FROM user WHERE user.login='opsiconfd'")
+			row = cur.fetchone()
+			if row:
+				user_id = row[0]
+
+		if user_id and (user_uid or not has_uid) and not recreate:
 			return
 
 		if user_id:
-			cur.execute("DELETE FROM org_user WHERE user_id = ?", [user_id[0]])
-			cur.execute("DELETE FROM user WHERE id = ?", [user_id[0]])
+			cur.execute("DELETE FROM org_user WHERE user_id = ?", [user_id])
+			cur.execute("DELETE FROM user WHERE id = ?", [user_id])
 
 		password = get_random_string(16, alphabet=string.ascii_letters + string.digits)
 		secret_filter.add_secrets(password)
-
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
+
 		now = datetime.datetime.now(tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+		logger.debug("Creating grafana user 'opsiconfd'")
 		cur.execute(
 			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) "
 			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			[0, "opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now],
 		)
-		cur.execute("SELECT id FROM user WHERE user.login='opsiconfd';")
-		user_id = cur.fetchone()
-		cur.execute(
-			"INSERT INTO org_user(org_id, user_id, role, created, updated) VALUES (?, ?, ?, ?, ?)", [1, user_id[0], "Admin", now, now]
-		)
+		cur.execute("SELECT id FROM user WHERE user.login='opsiconfd'")
+		user_id = cur.fetchone()[0]
+		logger.debug("Created grafana user 'opsiconfd' with id %s", user_id)
+
+		if has_uid:
+			if not user_uid:
+				user_uid = get_random_string(14, alphabet=string.ascii_letters + string.digits).lower()
+			logger.debug("Adding user uid %r to user %r", user_uid, user_id)
+			cur.execute("UPDATE user SET uid = ? WHERE id = ?", [user_uid, user_id])
+
+		cur.execute("INSERT INTO org_user(org_id, user_id, role, created, updated) VALUES (?, ?, ?, ?, ?)", [1, user_id, "Admin", now, now])
 		con.commit()
 
 		url = urlparse(config.grafana_internal_url)

@@ -190,7 +190,7 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 
 def grafana_is_local() -> bool:
 	url = urlparse(config.grafana_internal_url)
-	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
+	if url.hostname not in ("localhost", "ip6-localhost", "127.0.0.1", "::1"):
 		return False
 
 	for path in (GRAFANA_CLI, GRAFANA_DB):

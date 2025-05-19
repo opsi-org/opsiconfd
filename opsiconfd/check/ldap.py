@@ -48,7 +48,7 @@ class LdapConnectionCheck(Check):
 					result.details["error"] = str(error)
 				finally:
 					if ldap_connection:
-						ldap_connection.unbind()
+						ldap_connection.unbind()  # type: ignore[no-untyped-call]
 			else:
 				result.check_status = CheckStatus.ERROR
 				result.message = "LDAP authentication is configured, but the Directory Connector module is not licensed."

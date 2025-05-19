@@ -207,6 +207,6 @@ class LDAPAuthentication(AuthenticationModule):
 	def __del__(self) -> None:
 		if self._ldap:
 			try:
-				self._ldap.unbind()
+				self._ldap.unbind()  # type: ignore[no-untyped-call]
 			except Exception as err:
 				logger.warning(err)

@@ -22,8 +22,10 @@ from opsiconfd.metrics.metric import AggregationType, NodeMetric
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
+	AsyncConnectionPool,
 	AsyncRedis,
 	Connection,
+	ConnectionPool,
 	Redis,
 	async_delete_recursively,
 	async_redis_client,
@@ -75,7 +77,7 @@ def test_get_redis_connections(config: Config) -> None:  # noqa: F811
 async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 	base_key = config.redis_key()
 	num_connections = 1000
-	pool = (await async_redis_client()).connection_pool
+	pool: AsyncConnectionPool = (await async_redis_client()).connection_pool
 	coroutines = []
 	for _ in range(num_connections):
 		redis = await async_redis_client()
@@ -87,7 +89,7 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(await pool.get_connection("_"))  # type: ignore[no-untyped-call]
+		connections.append(await pool.get_connection())  # type: ignore[call-arg]
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]
 
@@ -98,7 +100,7 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 	base_key = config.redis_key()
 	num_connections = 1000
-	pool = redis_client().connection_pool
+	pool: ConnectionPool = redis_client().connection_pool
 
 	for _ in range(num_connections):
 		redis = redis_client()
@@ -109,7 +111,7 @@ def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(pool.get_connection("_"))
+		connections.append(pool.get_connection())  # type: ignore[call-arg]
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]
 

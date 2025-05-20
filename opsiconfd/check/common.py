@@ -252,7 +252,7 @@ class CheckResult:
 			out = f"{self.check_status.upper()} - '{message}\\n"
 
 		if self.details:
-			indent = "   " if level > 0 else ""
+			indent = "   " if level > 0 else ""
 			out += "\\n".join(f"{indent}{key}: {str(value)}" for key, value in self.details.items()) + "\\n"
 
 		if self.partial_results:

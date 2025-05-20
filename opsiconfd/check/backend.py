@@ -20,7 +20,6 @@ class DepotPathCheck(Check):
 	id: str = "depotservers:depot_path"
 	name: str = "Depotserver Depot Path"
 	depot_id: str = ""
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -51,7 +50,6 @@ class WorkbenchPathCheck(Check):
 	id: str = "depotservers:workbench_path"
 	name: str = "Depotserver Workbench Path"
 	depot_id: str = ""
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -82,7 +80,6 @@ class RepositoryPathCheck(Check):
 	id: str = "depotservers:repository_path"
 	name: str = "Depotserver Repository Path"
 	depot_id: str = ""
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -120,7 +117,6 @@ class DepotserverCheck(Check):
 		The opsi repository, workbench and depot must be located under /var/lib/opsi/.
 		If this is not the case, an error will be reported.
 		"""
-	partial_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

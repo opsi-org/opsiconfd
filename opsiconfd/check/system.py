@@ -380,7 +380,6 @@ class DiskCheck(Check):
 	id: str = "disk_usage"
 	name: str = "Disk usage"
 	description: str = "Check disk usage"
-	partial_check: bool = True
 	mountpoint: str = ""
 	depot_check: bool = True
 

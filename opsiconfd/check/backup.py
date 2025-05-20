@@ -27,7 +27,6 @@ class BackupCheck(Check):
 
 			Checks if the backup is up to date. The backup is considered up to date if it was created less than config.max_backup_age hours ago.
 	"""
-	partial_check: bool = False
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

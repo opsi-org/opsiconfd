@@ -29,7 +29,6 @@ class HomeDirectoryCheck(Check):
 ## Home Directory
 Checks the home directory of the system user running opsiconfd.
 """
-	partial_check: bool = True
 	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -53,7 +52,6 @@ class GroupMembershipCheck(Check):
 ## Group membership
 Checks the group membership of the system user running opsiconfd.
 """
-	partial_check: bool = True
 	group: str = opsi_config.get("groups", "fileadmingroup")
 	depot_check: bool = True
 
@@ -117,7 +115,6 @@ class LogLevelCheck(Check):
 	id: str = "opsiconfd_config:log-level"
 	name: str = "Log Level"
 	description: str = "Check log level of opsiconfd"
-	partial_check: bool = True
 	attribute: str = "log-level"
 	depot_check: bool = True
 
@@ -147,7 +144,6 @@ class DebugOptionsCheck(Check):
 	id: str = "opsiconfd_config:debug_options"
 	name: str = "Debug Options"
 	description: str = "Check debug options of opsiconfd"
-	partial_check: bool = True
 	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -168,7 +164,6 @@ class ProfilerCheck(Check):
 	id: str = "opsiconfd_config:profiler"
 	name: str = "Profiler"
 	description: str = "Check profiler of opsiconfd"
-	partial_check: bool = True
 	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -184,7 +179,6 @@ class AclSelfForAllCheck(Check):
 	id: str = "opsiconfd_config:acl_self_for_all"
 	name: str = "ACL self for all"
 	description: str = "Check ACL self for all in opsiconfd"
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(check=self, check_status=CheckStatus.OK, message="No issues found with ACL.")
@@ -204,7 +198,6 @@ class OpsiconfdConfigRunAsUser(Check):
 	id: str = "opsiconfd_config:run_as_user"
 	name: str = "Run As User"
 	description: str = "Check system user running opsiconfd"
-	partial_check: bool = True
 	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -262,7 +255,6 @@ class OpsiConfigValueCheck(Check):
 	key: str = ""
 	default_value: Any = None
 	upgrade_issue: str = ""
-	partial_check: bool = True
 
 	def __post_init__(self) -> None:
 		super().__post_init__()

@@ -314,7 +314,6 @@ class OpsiLockedProductsDepotCheck(Check):
 
 		Checks if there are any locked products on this depot.
 	"""
-	partial_check: bool = True
 	depot_id: str = ""
 
 	def _check(self) -> CheckResult:

@@ -19,7 +19,6 @@ class MysqlConfigurationCheck(Check):
 	id: str = "mysql:configuration"
 	name: str = "MySQL Configuration"
 	description: str = "Check MySQL configuration"
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

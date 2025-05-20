@@ -17,7 +17,6 @@ class OpsiLicensesLimitCheck(Check):
 	name: str = "OPSI Licenses Limit"
 	description: str = "Check opsi licensing limits"
 	module_id: str = ""
-	partial_check: bool = True
 
 	def __post_init__(self) -> None:
 		super().__post_init__()
@@ -60,7 +59,6 @@ class OpsiLicensesMissingCustomCA(Check):
 	id: str = "opsi_licenses:missing:custom_ca"
 	name: str = "OPSI License missing for custom CA"
 	description: str = "Check for missing custom CA license"
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -82,7 +80,6 @@ class OpsiLicensesMissingLetsEncrypt(Check):
 	id: str = "opsi_licenses:missing:letsencrypt"
 	name: str = "OPSI License missing for Let's Encrypt"
 	description: str = "Check for missing Let's Encrypt license"
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -104,7 +101,6 @@ class OpsiLicensesMissingSSO(Check):
 	id: str = "opsi_licenses:missing:sso"
 	name: str = "OPSI License missing for Single Sign-On"
 	description: str = "Check for missing Single Sign-On license"
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -126,7 +122,6 @@ class OpsiLicensesMissingScalability(Check):
 	id: str = "opsi_licenses:missing:scalability1"
 	name: str = "OPSI License missing for Scalability"
 	description: str = "Check for missing Scalability license"
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -150,7 +145,6 @@ class OpsiLicensesMissingDirectoryConnector(Check):
 	id: str = "opsi_licenses:missing:directory-connector"
 	name: str = "OPSI License missing for Directory Connector"
 	description: str = "Check for missing Directory Connector license"
-	partial_check: bool = True
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

@@ -27,7 +27,6 @@ class WorkerCapacityCheck(Check):
 		The clients are considered up to date if they have been seen less than {MAX_DAYS_INACTIVE} days ago.
 		Warns if there are more than {CLIENT_NUMBER_WARNING} clients per worker and errors if there are more than {CLIENT_NUMBER_ERROR} clients per worker.
 	"""
-	partial_check: bool = False
 
 	def _check(self) -> CheckResult:
 		now = datetime.now()

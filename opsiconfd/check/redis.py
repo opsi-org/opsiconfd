@@ -21,7 +21,6 @@ class RedisConnectionSettingsCheck(Check):
 	id: str = "redis:connection_settings"
 	name: str = "Redis connection settings"
 	description: str = "Verify that the Redis connection settings are configured optimally."
-	partial_check: bool = True
 	documentation: str = """
 		## Redis connection settings
 
@@ -52,7 +51,6 @@ class RedisMemoryUsageCheck(Check):
 	id: str = "redis:memory_usage"
 	name: str = "Redis Memory Usage"
 	description: str = "Check whether the Redis memory usage is not too high."
-	partial_check: bool = True
 	documentation: str = """
 		## Redis Memory Usage
 
@@ -84,7 +82,6 @@ class RedisTimeseriesCheck(Check):
 	id: str = "redis:timeseries"
 	name: str = "RedisTimeSeries Module"
 	description: str = "Check whether the RedisTimeSeries module is loaded."
-	partial_check: bool = True
 	documentation: str = """
 		## RedisTimeSeries Module
 

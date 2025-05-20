@@ -17,7 +17,6 @@ class DeprecatedCallCheck(Check):
 	id: str = "deprecated_call"
 	name: str = "Deprecated Call"
 	description: str = "Deprecated Check"
-	partial_check: bool = True
 	method: str = "method"
 
 	def __post_init__(self) -> None:

@@ -45,6 +45,17 @@ class CheckStatus(StrEnum):
 		if self == CheckStatus.ERROR:
 			return 2
 
+	def checkmk_status(self) -> str:
+		return str(self.return_code())
+
+	def nagios_status(self) -> str:
+		if self == CheckStatus.OK:
+			return "OK"
+		if self == CheckStatus.WARNING:
+			return "WARNING"
+		if self == CheckStatus.ERROR:
+			return "CRITICAL"
+
 
 @dataclass(init=False)
 class Check:
@@ -56,7 +67,6 @@ class Check:
 	cache: bool = True
 	cache_expiration: int = CACHE_EXPIRATION
 	partial_checks: list[Check] = field(default_factory=list)
-	partial_check: bool = False
 
 	def __init__(self, **kwargs: Any) -> None:
 		names = set([f.name for f in fields(self)])
@@ -234,49 +244,35 @@ class CheckResult:
 			if not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue):
 				self.upgrade_issue = partial_result.upgrade_issue
 
+	def monitoring_details(self, prefix: str, level: int = 0) -> str:
+		message = self.message.replace("\n", " ") if self.message else self.check_status.value.upper()
+		if level == 0:
+			out = f"{prefix}{message}\\n"
+		else:
+			out = f"{self.check_status.upper()} - '{message}\\n"
+
+		if self.details:
+			indent = "   " if level > 0 else ""
+			out += "\\n".join(f"{indent}{key}: {str(value)}" for key, value in self.details.items()) + "\\n"
+
+		if self.partial_results:
+			out += "\\n" + "".join(partial_result.monitoring_details(prefix, level + 1) for partial_result in self.partial_results) + "\\n"
+
+		return out
+
 	def to_checkmk(self) -> str:
 		if not module_available("monitoring"):
 			return "Monitoring module not licensed, Checkmk output not available. Please check your opsi licenses."
-		newline = "\\n"
-		message = self.message.replace("\n", " ")
-		details = ""
-		if self.details:
-			details = "{newline} {details}".format(
-				newline=newline, details=newline.join(f"{key}: {value}" for key, value in self.details.items())
-			)
-		for partial_result in self.partial_results:
-			details += "{newline} '{name}': {message}".format(
-				newline=newline, name=partial_result.check.name, message=partial_result.message.replace("\n", newline)
-			)
-			if partial_result.details:
-				details += "{newline} {details}".format(
-					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
-				)
 
-		return f"{self.check_status.return_code()} 'opsi: {self.check.name}' - {message if message else self.check_status.value.upper()}{details}"
+		prefix = f"{self.check_status.checkmk_status()} 'opsi: {self.check.name}' - "
+		return self.monitoring_details(prefix)
 
 	def to_nagios(self) -> str:
 		if not module_available("monitoring"):
 			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
-		newline = "\\n"
-		message = self.message.replace("\n", " ")
-		details = ""
-		if self.details:
-			details = "{newline} {details}".format(
-				newline=newline, details=newline.join(f"{key}: {value}" for key, value in self.details.items())
-			)
-		for partial_result in self.partial_results:
-			details += "{newline} '{name}': {message}".format(
-				newline=newline, name=partial_result.check.name, message=partial_result.message.replace("\n", newline)
-			)
-			if partial_result.details:
-				details += "{newline} {details}".format(
-					newline=newline, details=newline.join(f"{key}: {value}" for key, value in partial_result.details.items())
-				)
 
-		if self.check_status == CheckStatus.ERROR:
-			return f"CRITICAL: {self.check.name}: {message if message else self.check_status.value.upper()}{details}"
-		return f"{self.check_status.value.upper()}: {self.check.name}: {message if message else self.check_status.value.upper()}{details}"
+		prefix = f"{self.check_status.nagios_status()}: {self.check.name}: "
+		return self.monitoring_details(prefix)
 
 
 def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:

@@ -16,7 +16,6 @@ class OpsiUserExistCheck(Check):
 	id: str = "opsi_user:exits"
 	name: str = "OPSI User Exists"
 	description: str = "Check if opsi user exists."
-	partial_check: bool = True
 	depot_check: bool = True
 	user: str = ""
 
@@ -45,7 +44,6 @@ class OpsiUserUIDCheck(Check):
 	id: str = "opsi_user:uid"
 	name: str = "OPSI User UID"
 	description: str = "Check if opsi user UID is unique."
-	partial_check: bool = True
 	depot_check: bool = True
 	user: str = ""
 

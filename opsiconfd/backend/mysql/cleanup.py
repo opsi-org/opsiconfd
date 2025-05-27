@@ -250,7 +250,7 @@ def remove_orphans_software_config(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Removed %d orphaned entries from SOFTWARE_CONFIG")
+		logger.notice("Removed %d orphaned entries from SOFTWARE_CONFIG", result.rowcount)
 
 
 def remove_orphans_software(session: Session) -> None:
@@ -262,7 +262,7 @@ def remove_orphans_software(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Removed %d orphaned entries from SOFTWARE")
+		logger.notice("Removed %d orphaned entries from SOFTWARE", result.rowcount)
 
 
 def convert_config_objects(session: Session) -> None:
@@ -275,7 +275,7 @@ def convert_config_objects(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Changed some Configs to BoolConfigs.")
+		logger.notice("Updated %d Configs to BoolConfigs.", result.rowcount)
 
 	result = session.execute(
 		"""
@@ -285,7 +285,7 @@ def convert_config_objects(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Changed some Configs to UnicodeConfigs.")
+		logger.notice("Updated %d Configs to UnicodeConfigs.", result.rowcount)
 
 
 def convert_product_property_objects(session: Session) -> None:
@@ -302,7 +302,7 @@ def convert_product_property_objects(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Changed some ProductProperties to BoolProductProperties.")
+		logger.notice("Updated %d ProductProperties to BoolProductProperties.", result.rowcount)
 
 	result = session.execute(
 		"""
@@ -312,7 +312,7 @@ def convert_product_property_objects(session: Session) -> None:
 		"""
 	)
 	if result.rowcount > 0:
-		logger.notice("Changed some ProductProperties to UnicodeProductProperties.")
+		logger.notice("Updated %d ProductProperties to UnicodeProductProperties.", result.rowcount)
 
 
 def add_missing_version_info_to_product_on_client(session: Session) -> None:

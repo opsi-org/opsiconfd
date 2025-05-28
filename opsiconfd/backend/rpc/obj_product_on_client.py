@@ -32,16 +32,16 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
-		if self.events_enabled:
-			data = {
-				"productId": productOnClient.productId,
-				"productType": productOnClient.productType,
-				"clientId": productOnClient.clientId,
-				"installationStatus": productOnClient.installationStatus,
-				"actionRequest": productOnClient.actionRequest,
-				"actionResult": productOnClient.actionResult,
-			}
-			self._send_messagebus_event("productOnClient_created", data=data)
+		if not self.events_enabled:
+			return
+		data = {
+			"productId": productOnClient.productId,
+			"productType": productOnClient.productType,
+			"clientId": productOnClient.clientId,
+			"installationStatus": productOnClient.installationStatus,
+			"actionRequest": productOnClient.actionRequest,
+		}
+		self._send_messagebus_event("productOnClient_created", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
@@ -49,16 +49,17 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_updateObject")
 		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
-		if self.events_enabled:
-			data = {
-				"productId": productOnClient.productId,
-				"productType": productOnClient.productType,
-				"clientId": productOnClient.clientId,
-				"installationStatus": productOnClient.installationStatus,
-				"actionRequest": productOnClient.actionRequest,
-				"actionResult": productOnClient.actionResult,
-			}
-			self._send_messagebus_event("productOnClient_updated", data=data)
+		if not self.events_enabled:
+			return
+		data = {
+			"productId": productOnClient.productId,
+			"productType": productOnClient.productType,
+			"clientId": productOnClient.clientId,
+			"installationStatus": productOnClient.installationStatus,
+			"actionRequest": productOnClient.actionRequest,
+			"actionResult": productOnClient.actionResult,
+		}
+		self._send_messagebus_event("productOnClient_updated", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
 
 	@rpc_method(check_acl=False)
@@ -72,16 +73,18 @@ class RPCProductOnClientMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session
 				)
-				if self.events_enabled:
-					data = {
-						"productId": productOnClient.productId,
-						"productType": productOnClient.productType,
-						"clientId": productOnClient.clientId,
-						"installationStatus": productOnClient.installationStatus,
-						"actionRequest": productOnClient.actionRequest,
-						"actionResult": productOnClient.actionResult,
-					}
-					self._send_messagebus_event("productOnClient_created", data=data)
+		if not self.events_enabled:
+			return
+		for productOnClient in productOnClients:
+			data = {
+				"productId": productOnClient.productId,
+				"productType": productOnClient.productType,
+				"clientId": productOnClient.clientId,
+				"installationStatus": productOnClient.installationStatus,
+				"actionRequest": productOnClient.actionRequest,
+				"actionResult": productOnClient.actionResult,
+			}
+			self._send_messagebus_event("productOnClient_created", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
@@ -95,16 +98,18 @@ class RPCProductOnClientMixin(Protocol):
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session
 				)
-				if self.events_enabled:
-					data = {
-						"productId": productOnClient.productId,
-						"productType": productOnClient.productType,
-						"clientId": productOnClient.clientId,
-						"installationStatus": productOnClient.installationStatus,
-						"actionRequest": productOnClient.actionRequest,
-						"actionResult": productOnClient.actionResult,
-					}
-					self._send_messagebus_event("productOnClient_updated", data=data)
+		if not self.events_enabled:
+			return
+		for productOnClient in productOnClients:
+			data = {
+				"productId": productOnClient.productId,
+				"productType": productOnClient.productType,
+				"clientId": productOnClient.clientId,
+				"installationStatus": productOnClient.installationStatus,
+				"actionRequest": productOnClient.actionRequest,
+				"actionResult": productOnClient.actionResult,
+			}
+			self._send_messagebus_event("productOnClient_updated", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
 
 	@rpc_method(check_acl=False)
@@ -146,18 +151,19 @@ class RPCProductOnClientMixin(Protocol):
 			return
 		ace = self._get_ace("productOnClient_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, obj=productOnClients, ace=ace)
-		if self.events_enabled:
-			productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
-			for productOnClient in productOnClients:
-				data = {
-					"productId": productOnClient.productId,
-					"productType": productOnClient.productType,
-					"clientId": productOnClient.clientId,
-					"installationStatus": productOnClient.installationStatus,
-					"actionRequest": productOnClient.actionRequest,
-					"actionResult": productOnClient.actionResult,
-				}
-				self._send_messagebus_event("productOnClient_deleted", data=data)
+		if not self.events_enabled:
+			return
+		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
+		for productOnClient in productOnClients:
+			data = {
+				"productId": productOnClient.productId,
+				"productType": productOnClient.productType,
+				"clientId": productOnClient.clientId,
+				"installationStatus": productOnClient.installationStatus,
+				"actionRequest": productOnClient.actionRequest,
+				"actionResult": productOnClient.actionResult,
+			}
+			self._send_messagebus_event("productOnClient_deleted", data=data)
 		self.opsipxeconfd_product_on_clients_deleted(productOnClients)
 
 	@rpc_method(check_acl=False)

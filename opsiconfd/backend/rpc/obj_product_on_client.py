@@ -57,6 +57,7 @@ class RPCProductOnClientMixin(Protocol):
 			"clientId": productOnClient.clientId,
 			"installationStatus": productOnClient.installationStatus,
 			"actionRequest": productOnClient.actionRequest,
+			"actionResult": productOnClient.actionResult,
 		}
 		self._send_messagebus_event("productOnClient_updated", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClient)
@@ -81,6 +82,7 @@ class RPCProductOnClientMixin(Protocol):
 				"clientId": productOnClient.clientId,
 				"installationStatus": productOnClient.installationStatus,
 				"actionRequest": productOnClient.actionRequest,
+				"actionResult": productOnClient.actionResult,
 			}
 			self._send_messagebus_event("productOnClient_created", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
@@ -105,6 +107,7 @@ class RPCProductOnClientMixin(Protocol):
 				"clientId": productOnClient.clientId,
 				"installationStatus": productOnClient.installationStatus,
 				"actionRequest": productOnClient.actionRequest,
+				"actionResult": productOnClient.actionResult,
 			}
 			self._send_messagebus_event("productOnClient_updated", data=data)
 		self.opsipxeconfd_product_on_clients_updated(productOnClients)
@@ -158,6 +161,7 @@ class RPCProductOnClientMixin(Protocol):
 				"clientId": productOnClient.clientId,
 				"installationStatus": productOnClient.installationStatus,
 				"actionRequest": productOnClient.actionRequest,
+				"actionResult": productOnClient.actionResult,
 			}
 			self._send_messagebus_event("productOnClient_deleted", data=data)
 		self.opsipxeconfd_product_on_clients_deleted(productOnClients)

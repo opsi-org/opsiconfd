@@ -19,7 +19,6 @@ import subprocess
 import uuid
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
@@ -875,28 +874,13 @@ class DepotserverPackageManager:
 										)
 							self.backend.productPropertyState_createObjects(product_property_states)
 
-						with self.backend._mysql.session() as session:
-							logger.debug("Updating installation time of product %r on depot %r", product_id, self._depot_id)
-							session.execute(
-								"""
-								UPDATE
-									`PRODUCT_ON_DEPOT`
-								SET
-									`installationTime` = :installation_time
-								WHERE
-									`productId` = :product_id AND
-									`productVersion` = :product_version AND
-									`packageVersion` = :package_version AND
-									`depotId` = :depot_id
-								""",
-								params={
-									"installation_time": datetime.now(tz=timezone.utc),
-									"product_id": product_id,
-									"product_version": product.getProductVersion(),
-									"package_version": product.getPackageVersion(),
-									"depot_id": self._depot_id,
-								},
-							)
+						logger.debug("Updating installation time of product %r on depot %r", product_id, self._depot_id)
+						self.backend.productOnDepot_updateInstallationTime(
+							productId=product_id,
+							productVersion=product.getProductVersion(),
+							packageVersion=product.getPackageVersion(),
+							depotId=self._depot_id,
+						)
 
 						if product.getType() == "NetbootProduct":
 							logger.debug("Not creating package content file for NetbootProduct")

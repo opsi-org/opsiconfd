@@ -9,6 +9,7 @@ opsiconfd.backend.rpc.product_on_depot
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ProductOnDepot
@@ -129,3 +130,33 @@ class RPCProductOnDepotMixin(Protocol):
 		)
 		if idents:
 			self.productOnDepot_deleteObjects(idents)
+
+	@rpc_method
+	def productOnDepot_updateInstallationTime(
+		self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, depotId: str
+	) -> None:
+		"""
+		Update the installation time of a product on a depot.
+		"""
+
+		with self._mysql.session() as session:
+			session.execute(
+				"""
+				UPDATE
+					`PRODUCT_ON_DEPOT`
+				SET
+					`installationTime` = :installation_time
+				WHERE
+					`productId` = :product_id AND
+					`productVersion` = :product_version AND
+					`packageVersion` = :package_version AND
+					`depotId` = :depot_id
+				""",
+				params={
+					"installation_time": datetime.now(tz=timezone.utc),
+					"product_id": productId,
+					"product_version": productVersion,
+					"package_version": packageVersion,
+					"depot_id": depotId,
+				},
+			)

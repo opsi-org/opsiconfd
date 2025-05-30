@@ -131,14 +131,14 @@ class RPCProductOnDepotMixin(Protocol):
 		if idents:
 			self.productOnDepot_deleteObjects(idents)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def productOnDepot_updateInstallationTime(
 		self: BackendProtocol, productId: str, productVersion: str, packageVersion: str, depotId: str
 	) -> None:
 		"""
 		Update the installation time of a product on a depot.
 		"""
-
+		self._get_ace("productOnDepot_updateObjects")
 		with self._mysql.session() as session:
 			session.execute(
 				"""

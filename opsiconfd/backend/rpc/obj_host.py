@@ -790,7 +790,7 @@ class RPCHostMixin(Protocol):
 					device_type = "notebook"
 				elif device_type in ("convertible",):
 					device_type = "convertible"
-				elif device_type in ("server",):
+				elif device_type in ("server", "rackmount"):
 					device_type = "server"
 				else:
 					device_type = "other"

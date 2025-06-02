@@ -210,3 +210,14 @@ def test_rename_depotserver(tmp_path: Path) -> None:  # noqa: F811
 			assert len(config_states) == 1
 			assert config_states[0].objectId == new_depot_id
 			assert config_states[0].values == ["depotserver-value"]
+
+			backend.host_delete(id=new_depot_id)
+
+
+def test_install_and_uninstall_package(tmp_path: Path) -> None:  # noqa: F811
+	package = Path("tests/data/workbench/localboot_legacy_42.0-1337.opsi").absolute()
+	with depotserver_setup(tmp_path):
+		backend = get_unprotected_backend()
+		assert backend._server_role == "depotserver"
+		backend.depot_installPackage(filename=str(package), force=True)
+		backend.depot_uninstallPackage(productId="localboot_legacy")

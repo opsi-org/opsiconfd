@@ -245,6 +245,8 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 				return False
 			except Exception as err:
 				rich_print(f"[b][red]Failed to register depot[/red]: {err}[/b]")
+				if unattended_configuration:
+					raise
 
 
 @clear_check_cache(check_id="all")

@@ -45,6 +45,7 @@ from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client, pool_disconnect_connections
+from opsiconfd.session import load_auth_module
 from opsiconfd.utils import asyncio_create_task
 from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
 
@@ -469,6 +470,7 @@ class Worker(WorkerInfo, UvicornServer):
 				setattr(self.config, key, value)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
+		load_auth_module.cache_clear()
 		get_protected_backend().reload_config()
 		get_unprotected_backend().reload_config()
 		AddonManager().reload_addons()

@@ -15,6 +15,7 @@ import re
 import time
 import uuid
 from collections import namedtuple
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
@@ -46,9 +47,7 @@ from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import MaintenanceState
 from opsiconfd.application import app as opsiconfd_app
-from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.const import AuthenticationMethod
-from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.module import AuthenticationModule
 from opsiconfd.auth.user import create_user_roles
 from opsiconfd.backend import get_unprotected_backend
@@ -1112,28 +1111,28 @@ class OPSISession:
 		self.deleted = True
 
 
-auth_module: AuthenticationModule | None = None
+@lru_cache
+def load_auth_module() -> AuthenticationModule:
+	try:
+		ldap_conf = opsi_config.get("ldap_auth")
+		if ldap_conf["ldap_url"]:
+			logger.debug("Using LDAP auth with config: %s", ldap_conf)
+			if module_available("directory-connector"):
+				from opsiconfd.auth.ldap import LDAPAuthentication
+
+				return LDAPAuthentication(**ldap_conf)
+			else:
+				logger.error("Directory Connector module not licensed, LDAP authentication not available")
+	except Exception as err:
+		logger.debug(err)
+
+	from opsiconfd.auth._pam import PAMAuthentication
+
+	return PAMAuthentication()
 
 
 def get_auth_module() -> AuthenticationModule:
-	global auth_module
-
-	if not auth_module:
-		try:
-			ldap_conf = opsi_config.get("ldap_auth")
-			if ldap_conf["ldap_url"]:
-				logger.debug("Using LDAP auth with config: %s", ldap_conf)
-				if module_available("directory-connector"):
-					auth_module = LDAPAuthentication(**ldap_conf)
-				else:
-					logger.error("Directory Connector module not licensed, LDAP authentication not available")
-		except Exception as err:
-			logger.debug(err)
-
-		if not auth_module:
-			auth_module = PAMAuthentication()
-
-	return auth_module.get_instance()
+	return load_auth_module().get_instance()
 
 
 def get_peer_cert_common_name(scope: Scope) -> str | None:

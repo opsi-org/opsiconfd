@@ -18,16 +18,16 @@ from typing import Any, Iterator
 
 from msgspec.msgpack import decode, encode
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
+from opsicommon.license import get_default_opsi_license_pool
 from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd.check.cache import check_cache_clear
-from opsiconfd.config import config, get_server_role
+from opsiconfd.config import OPSI_LICENSE_DIR, OPSI_MODULES_FILE, config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.redis import redis_client
 from opsiconfd.utils import Singleton
-from opsiconfd.utils.modules import module_available
 
 CACHE_EXPIRATION = 24 * 3600  # In seconds
 
@@ -143,6 +143,7 @@ class Check:
 			result.message = f"{issue_counter} issue(s) found."
 		if self.cache:
 			self.store_result_in_cache(result, self.cache_expiration)
+
 		return result
 
 	def store_result_in_cache(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
@@ -212,6 +213,15 @@ class CheckManager(metaclass=Singleton):
 		return iter(self._checks.values())
 
 
+def check_monitoring_module() -> bool:
+	"""
+	Fast check without initalizing backend
+	"""
+	return (
+		"monitoring" in get_default_opsi_license_pool(license_file_path=OPSI_LICENSE_DIR, modules_file_path=OPSI_MODULES_FILE).get_modules()
+	)
+
+
 @dataclass(kw_only=True)
 class CheckResult:
 	check: Check
@@ -265,21 +275,21 @@ class CheckResult:
 		return out
 
 	def to_checkmk(self) -> str:
-		if not module_available("monitoring"):
+		if not check_monitoring_module():
 			return "Monitoring module not licensed, Checkmk output not available. Please check your opsi licenses."
 
 		prefix = f"{self.check_status.checkmk_status()} 'opsi: {self.check.name}' - "
 		return self.monitoring_details(prefix)
 
 	def to_nagios(self) -> str:
-		if not module_available("monitoring"):
+		if not check_monitoring_module():
 			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
 
 		prefix = f"{self.check_status.nagios_status()}: {self.check.name}: "
 		return self.monitoring_details(prefix)
 
 	def to_zabbix(self) -> str:
-		if not module_available("monitoring"):
+		if not check_monitoring_module():
 			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
 
 		prefix = f"{self.check_status.nagios_status()}: {self.check.name}: "

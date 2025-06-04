@@ -23,4 +23,5 @@ def health_check(clear_cache: bool = False) -> Iterator[CheckResult]:
 			logger.error("No valid checks selected. Please check your configuration.")
 			return
 		for check in check_manager:
+			logger.info("Run check %r", check.id)
 			yield check.run(clear_cache)

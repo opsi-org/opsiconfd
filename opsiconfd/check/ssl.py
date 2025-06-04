@@ -36,8 +36,8 @@ class OpsiCaCert(Check):
 	id: str = "ssl:opsi_ca_cert"
 	name: str = "opsi CA Certificate"
 	description: str = "Checks the state of the opsi CA certificate."
-	documentation: str = """
-		## opsi CA certificate
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks the state of the opsi CA certificate
 	"""
@@ -76,8 +76,9 @@ class IntermediateCACheck(Check):
 	id: str = "ssl:intermediate_ca"
 	name: str = "opsi CA as intermediate CA"
 	description: str = "Checks if the opsi CA is an intermediate CA."
-	documentation: str = """
-		## Intermediate CA
+	documentation: str = f"""
+		## {name} [{id}]
+
 		Checks if the opsi CA is an intermediate CA.
 	"""
 
@@ -104,8 +105,8 @@ class OpsiCaKeyCheck(Check):
 	id: str = "ssl:opsi_ca_key"
 	name: str = "opsi CA Key"
 	description: str = "Checks the state of the opsi CA key."
-	documentation: str = """
-		## opsi CA key
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks the state of the opsi CA key.
 	"""
@@ -131,8 +132,9 @@ class ServerCertCheck(Check):
 	id: str = "ssl:server_cert"
 	name: str = "Server Certificate"
 	description: str = "Checks the state of the server certificate."
-	documentation: str = """
-		## Server certificate
+	documentation: str = f"""
+		## {name} [{id}]
+
 		Checks the state of the server certificate.
 	"""
 	depot_check: bool = True
@@ -166,8 +168,8 @@ class ServerKeyCheck(Check):
 	id: str = "ssl:server_key"
 	name: str = "Server Key"
 	description: str = "Checks the state of the server key."
-	documentation: str = """
-		## Server key
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks the state of the server key.
 	"""
@@ -213,8 +215,9 @@ class SSLCheck(Check):
 	id: str = "ssl"
 	name: str = "SSL"
 	description: str = "Checks the state of the opsi CA and the server certificate."
-	documentation: str = """
-		## SSL
+	documentation: str = f"""
+		## {name} [{id}]
+
 		Checks the state of the opsi CA and the server certificate.
 	"""
 	depot_check: bool = True

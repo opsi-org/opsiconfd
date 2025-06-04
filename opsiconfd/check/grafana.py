@@ -18,8 +18,8 @@ class GrafanaHealth(Check):
 	id: str = "grafana"
 	name: str = "Grafana Health Check"
 	description: str = "Check Grafana Health Check"
-	documentation: str = """
-		## Check Grafana
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether the Grafana server is accessible and whether the Grafana version is too old.
 	"""

@@ -25,10 +25,10 @@ class HomeDirectoryCheck(Check):
 	id: str = "home_directory"
 	name: str = "Home Directory"
 	description: str = "Check home directory of opsiconfd user"
-	documentation: str = """
-## Home Directory
-Checks the home directory of the system user running opsiconfd.
-"""
+	documentation: str = f"""
+		## {name} [{id}]
+		Checks the home directory of the system user running opsiconfd.
+	"""
 	depot_check: bool = True
 
 	def _check(self) -> CheckResult:
@@ -48,10 +48,10 @@ class GroupMembershipCheck(Check):
 	id: str = "run_as_user:group_membership"
 	name: str = "Group Membership"
 	description: str = "Check group membership of opsiconfd user"
-	documentation: str = """
-## Group membership
-Checks the group membership of the system user running opsiconfd.
-"""
+	documentation: str = f"""
+		## {name} [{id}]
+		Checks the group membership of the system user running opsiconfd.
+	"""
 	group: str = opsi_config.get("groups", "fileadmingroup")
 	depot_check: bool = True
 
@@ -91,8 +91,8 @@ class RunAsUserCheck(Check):
 	id: str = "run_as_user"
 	name: str = "Run As User"
 	description: str = "Check system user running opsiconfd"
-	documentation: str = """
-		## Run as user
+	documentation: str = f"""
+		## {name} [{id}]
 		Checks the system user running opsiconfd.
 		Checks for group membership and home directory.
 	"""
@@ -219,8 +219,8 @@ class OpsiconfdConfigCheck(Check):
 	id: str = "opsiconfd_config"
 	name: str = "Opsiconfd Config"
 	description: str = "Check opsiconfd configuration"
-	documentation: str = """
-		## Opsiconfd Config
+	documentation: str = f"""
+		## {name} [{id}]
 		This check examines the configuration of the opsiconfd service by checking the following values:
 
 		* `log-level-stderr`, `log-level-file`, `log-level`
@@ -289,8 +289,8 @@ class OpsiConfigCheck(Check):
 	id: str = "opsi_config"
 	name: str = "OPSI Configuration"
 	description: str = "Check opsi configuration state"
-	documentation: str = """
-		## OPSI Configuration
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Here we check whether certain configurations deviate from the standard.
 		If this is the case, a warning is issued.

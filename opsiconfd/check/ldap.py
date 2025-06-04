@@ -19,8 +19,8 @@ class LdapConnectionCheck(Check):
 	id: str = "ldap_connection"
 	name: str = "LDAP Connection"
 	description: str = "Checks whether opsi can connect to the configured LDAP server."
-	documentation: str = """
-		## Check LDAP Connection
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether opsi can connect to the configured LDAP server.
 	"""

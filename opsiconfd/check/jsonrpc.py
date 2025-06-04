@@ -72,8 +72,8 @@ class DeprecatedCallsCheck(Check):
 	id: str = "deprecated_calls"
 	name: str = "Deprecated API Calls"
 	description: str = "Check use of deprecated RPC methods"
-	documentation: str = """
-		## Deprecated API Calls
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Among other things, opsi stores calls to methods marked as deprecated in Redis.
 		This check looks whether such calls have been made and then issues a warning.

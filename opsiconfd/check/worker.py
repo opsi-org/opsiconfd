@@ -21,7 +21,7 @@ class WorkerCapacityCheck(Check):
 	name: str = "OPSI Worker Capacity"
 	description: str = "Checks if there are enough workers for the currently active clients."
 	documentation: str = f"""
-		## Check Worker Capacity
+		## {name} [{id}]
 
 		Checks if there are enough workers for the currently active clients.
 		The clients are considered up to date if they have been seen less than {MAX_DAYS_INACTIVE} days ago.

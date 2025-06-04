@@ -57,8 +57,8 @@ class OpsiProductsOnDepotsCheck(Check):
 	id: str = "products_on_depots"
 	name: str = "Products On Depots"
 	description: str = "Check opsi package versions on depots"
-	documentation: str = """
-		## Products on depots
+	documentation: str = f"""
+		## {name} [{id}]
 
 		It is checked whether the following products are installed and up-to-date on the depots:
 
@@ -171,8 +171,8 @@ class OpsiProductsOnClientsCheck(Check):
 	id: str = "products_on_clients"
 	name: str = "Products On Clients"
 	description: str = "Check opsi package versions on clients"
-	documentation: str = """
-		## Products on clients
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether newer versions of the products installed on the client are available in the depot.
 		If an older version is installed, the Health Check issues a warning.
@@ -309,8 +309,8 @@ class OpsiLockedProductsDepotCheck(Check):
 	id: str = "locked_products_depot"
 	name: str = "Locked Products Depot"
 	description: str = "Check for locked products on depots"
-	documentation: str = """
-		## Locked products on depot
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks if there are any locked products on this depot.
 	"""
@@ -338,8 +338,8 @@ class OpsiLockedProductsCheck(Check):
 	id: str = "locked_products"
 	name: str = "Locked Products"
 	description: str = "Check for locked products"
-	documentation: str = """
-		## Locked products
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks if there are locked products on any depot.
 	"""

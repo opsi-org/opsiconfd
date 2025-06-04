@@ -112,11 +112,11 @@ class DepotserverCheck(Check):
 	description: str = (
 		"The opsi repository, workbench and depot must be located under /var/lib/opsi/. If this is not the case, an error will be reported."
 	)
-	documentation: str = """
-		## Depotserver check
+	documentation: str = f"""
+		## {name} [{id}]
 		The opsi repository, workbench and depot must be located under /var/lib/opsi/.
 		If this is not the case, an error will be reported.
-		"""
+	"""
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(

@@ -26,9 +26,9 @@ class LastSeenCheck(Check):
 	name: str = "OPSI active Clients"
 	description: str = "Checks if the clients have been seen recently."
 	documentation: str = f"""
-			## Check Last Seen
+		## {name} [{id}]
 
-			Checks if the clients have been seen recently. The clients are considered up to date if they have been seen less than {MAX_DAYS_INACTIVE} days ago.
+		Checks if the clients have been seen recently. The clients are considered up to date if they have been seen less than {MAX_DAYS_INACTIVE} days ago.
 	"""
 
 	def _check(self) -> CheckResult:
@@ -57,8 +57,8 @@ class FailedClientsCheck(Check):
 	id: str = "opsi_failed_clients"
 	name: str = "OPSI failed Clients"
 	description: str = "Check if product installation failed on clients."
-	documentation: str = """
-			## Check Failed Clients
+	documentation: str = f"""
+		## {name} [{id}]
 
 		This check verifies if the product installation has failed on any clients.
 		It retrieves all clients and checks their 'actionResult' status.

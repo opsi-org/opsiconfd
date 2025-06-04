@@ -97,8 +97,8 @@ class OpsiUsersCheck(Check):
 	id: str = "opsi_users"
 	name: str = "OPSI Users"
 	description: str = "Check opsi users."
-	documentation: str = """
-		## Check users
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks if opsi depot user and opsiconfd user exist.
 		If the system is part of a domain, it checks if the users are domain users.

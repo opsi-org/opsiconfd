@@ -45,8 +45,8 @@ class MysqlCheck(Check):
 	id: str = "mysql"
 	name: str = "MySQL"
 	description: str = "Check MySQL server state"
-	documentation: str = """
-		## Check MySQL
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether the database is accessible.
 		The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
@@ -84,8 +84,8 @@ class UniqueHardwareAddressesCheck(Check):
 	id: str = "unique_hardware_addresses"
 	name: str = "Unique Hardware Addresses"
 	description: str = "Check if all hardware addresses are unique"
-	documentation: str = """
-		## Check Unique Hardware Addresses
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether all hardware addresses are unique if unique_hardware_addresses is enabled.
 	"""

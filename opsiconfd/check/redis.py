@@ -21,8 +21,8 @@ class RedisConnectionSettingsCheck(Check):
 	id: str = "redis:connection_settings"
 	name: str = "Redis connection settings"
 	description: str = "Verify that the Redis connection settings are configured optimally."
-	documentation: str = """
-		## Redis connection settings
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Verify that the Redis connection settings are configured optimally.
 	"""
@@ -51,8 +51,8 @@ class RedisMemoryUsageCheck(Check):
 	id: str = "redis:memory_usage"
 	name: str = "Redis Memory Usage"
 	description: str = "Check whether the Redis memory usage is not too high."
-	documentation: str = """
-		## Redis Memory Usage
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether the Redis memory usage is not too high.
 	"""
@@ -82,8 +82,8 @@ class RedisTimeseriesCheck(Check):
 	id: str = "redis:timeseries"
 	name: str = "RedisTimeSeries Module"
 	description: str = "Check whether the RedisTimeSeries module is loaded."
-	documentation: str = """
-		## RedisTimeSeries Module
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether the RedisTimeSeries module is loaded.
 	"""
@@ -110,8 +110,8 @@ class RedisCheck(Check):
 	id: str = "redis"
 	name: str = "Redis"
 	description: str = "Check Redis Server State."
-	documentation: str = """
-		## Redis
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
 		If the server is not available or the module is not loaded, this is considered an error.

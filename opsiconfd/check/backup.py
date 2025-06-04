@@ -22,10 +22,10 @@ class BackupCheck(Check):
 	id: str = "opsi_backup"
 	name: str = "OPSI Backup"
 	description: str = "Checks if the backup is up to date."
-	documentation: str = """
-			## Check Backup
+	documentation: str = f"""
+		## {name} [{id}]
 
-			Checks if the backup is up to date. The backup is considered up to date if it was created less than config.max_backup_age hours ago.
+		Checks if the backup is up to date. The backup is considered up to date if it was created less than config.max_backup_age hours ago.
 	"""
 
 	def _check(self) -> CheckResult:

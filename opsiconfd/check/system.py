@@ -240,8 +240,8 @@ class SystemEOLCheck(Check):
 		'End-of-life' or EOL is a term used by software vendors indicating that it is ending or
 		limiting it's support on the product and/or version to shift focus on their newer products and/or version.
 	"""
-	documentation: str = """
-		## Operating System End Of Life
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether the server system still receives updates.
 		The check issues a warning 90 days before the end of life of a distribution.
@@ -300,8 +300,9 @@ class SystemPackagesCheck(Check):
 	id: str = "system_packages"
 	name: str = "System packages"
 	description: str = "Check system package versions"
-	documentation: str = """
-		## System packages
+	documentation: str = f"""
+		## {name} [{id}]
+
 		Currently the following system packages are checked for actuality:
 
 		* opsiconfd
@@ -417,8 +418,9 @@ class DiskUsageCheck(Check):
 	id: str = "disk_usage"
 	name: str = "Disk usage"
 	description: str = "Check disk usage"
-	documentation: str = """
-		## Disk usage
+	documentation: str = f"""
+		## {name} [{id}]
+
 		Checks the free space for the following mount points:
 
 		* /
@@ -448,8 +450,9 @@ class SystemRepositoriesCheck(Check):
 	id: str = "system_repositories"
 	name: str = "System repositories"
 	description: str = "Check system repositories"
-	documentation: str = """
-		## System repositories
+	documentation: str = f"""
+		## {name} [{id}]
+
 		Check if the system repositories are compatible with opsi repositories.
 	"""
 	depot_check: bool = True

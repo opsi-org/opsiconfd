@@ -167,8 +167,8 @@ class OpsiLicensesCheck(Check):
 	id: str = "opsi_licenses"
 	name: str = "OPSI Licenses"
 	description: str = "Check opsi licensing state"
-	documentation: str = """
-		## OPSI licenses
+	documentation: str = f"""
+		## {name} [{id}]
 
 		Checks whether the imported licenses will soon exceed one of the defined limits (WARNING) or have already exceeded one (ERROR).
 	"""

@@ -18,9 +18,12 @@ from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
+from opsicommon.exceptions import OpsiServicePermissionError
+from opsicommon.utils import ip_address_in_network
+from starlette.status import HTTP_403_FORBIDDEN
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
-from starlette.status import HTTP_403_FORBIDDEN
+
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import app
 from opsiconfd.application.admininterface import admin_interface_setup
@@ -52,11 +55,6 @@ from opsiconfd.rest import OpsiApiException, rest_api
 from opsiconfd.session import SessionMiddleware, session_manager
 from opsiconfd.ssl import get_ca_certs_as_pem, get_opsi_ca_cert_as_pem
 from opsiconfd.utils import asyncio_create_task
-
-from opsicommon.utils import ip_address_in_network
-
-
-from opsicommon.exceptions import OpsiServicePermissionError
 
 
 @app.get("/")
@@ -304,10 +302,9 @@ def setup_app() -> None:
 	if "public-folder" not in config.disabled_features:
 		public_path.extend(["/public", "/dav/public"])
 
-	app.add_middleware(SessionMiddleware, public_path=public_path)
-	# app.add_middleware(GZipMiddleware, minimum_size=1000)
-	app.add_middleware(StatisticsMiddleware)
-	app.add_middleware(BaseMiddleware)
+	app.add_middleware(SessionMiddleware, public_path=public_path)  # type: ignore[arg-type]
+	app.add_middleware(StatisticsMiddleware)  # type: ignore[arg-type]
+	app.add_middleware(BaseMiddleware)  # type: ignore[arg-type]
 	if os.path.isdir(config.static_dir):
 		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")
 	else:

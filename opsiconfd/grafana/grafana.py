@@ -427,13 +427,14 @@ def set_grafana_root_url() -> None:
 		grafana_config.read_string(data)
 	except DuplicateSectionError as err:
 		logger.warning("Duplicate section in %s: %s", GRAFANA_INI, err.section)
-		logger.notice("Removing duplicate section %s from %s", err.section, GRAFANA_INI)
-		grafana_config = ConfigUpdater(strict=False)
-		grafana_config.read_string(data)
-		grafana_config.remove_section(err.section)
-		data = str(grafana_config)
-		grafana_config = ConfigUpdater(strict=True)
-		grafana_config.read_string(data)
+		if isinstance(err.section, str):
+			logger.notice("Removing duplicate section %s from %s", err.section, GRAFANA_INI)
+			grafana_config = ConfigUpdater(strict=False)
+			grafana_config.read_string(data)
+			grafana_config.remove_section(err.section)
+			data = str(grafana_config)
+			grafana_config = ConfigUpdater(strict=True)
+			grafana_config.read_string(data)
 
 	for section in grafana_config.sections():
 		if section == "server":

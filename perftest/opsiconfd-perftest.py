@@ -322,10 +322,12 @@ class TestCase:
 		)
 		print(
 			" * Round trip time: min/avg/max "
-			f"{res['min_round_trip_time']*1000:0.3f}ms/{res['avg_round_trip_time']*1000:0.3f}ms/{res['max_round_trip_time']*1000:0.3f}ms"
+			f"{res['min_round_trip_time'] * 1000:0.3f}ms/{res['avg_round_trip_time'] * 1000:0.3f}ms/{res['max_round_trip_time'] * 1000:0.3f}ms"
 		)
-		print(f" * Bytes sent: {res['bytes_sent']/1000/1000:0.2f}MB ({res['avg_bytes_send_per_second']/1000/1000:0.2f}MB/s)")
-		print(f" * Bytes received: {res['bytes_received']/1000/1000:0.2f}MB ({res['avg_bytes_received_per_second']/1000/1000:0.2f}MB/s)")
+		print(f" * Bytes sent: {res['bytes_sent'] / 1000 / 1000:0.2f}MB ({res['avg_bytes_send_per_second'] / 1000 / 1000:0.2f}MB/s)")
+		print(
+			f" * Bytes received: {res['bytes_received'] / 1000 / 1000:0.2f}MB ({res['avg_bytes_received_per_second'] / 1000 / 1000:0.2f}MB/s)"
+		)
 		print("")
 
 
@@ -529,8 +531,7 @@ class Client:
 					response = await asyncio.get_event_loop().run_in_executor(executor, msgpack.decode, body)
 				else:
 					response = await asyncio.get_event_loop().run_in_executor(executor, json.decode, body)
-				if response.get("error"):
-					error = response["error"]
+				error = getattr(response, "error", None) or None
 
 		if self.perftest.print_responses or error:
 			if error:

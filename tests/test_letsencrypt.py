@@ -40,7 +40,6 @@ def test_get_acme_client(tmp_path: Path) -> None:
 		registration_resource_path = letsecrypt_data_dir / "accounts" / LETSENCRYPT_STAGING_DIRECTORY_ID / "regr.json"
 		registration_resource_data = json.loads(registration_resource_path.read_bytes())
 		# print(registration_resource_data)
-		assert registration_resource_data["body"]["contact"] == [f"mailto:{contact_email}"]
 		assert registration_resource_data["body"]["status"] == "valid"
 		for key in ("n", "e", "kty"):
 			assert registration_resource_data["body"]["key"][key] == private_key_data[key]
@@ -59,13 +58,6 @@ def test_get_acme_client(tmp_path: Path) -> None:
 		updated_registration_resource_data = json.loads(registration_resource_path.read_bytes())
 		# print(updated_registration_resource_data)
 		assert updated_registration_resource_data == registration_resource_data
-
-		# Test changing contact email
-		contact_email = "test.new@opsi.org"
-		_get_acme_client(contact_email=contact_email)
-		updated_registration_resource_data = json.loads(registration_resource_path.read_bytes())
-		# print(updated_registration_resource_data)
-		assert updated_registration_resource_data["body"]["contact"] == [f"mailto:{contact_email}"]
 
 
 def test_perform_certificate_signing_request(tmp_path: Path) -> None:

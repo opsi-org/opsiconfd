@@ -97,14 +97,6 @@ def _get_acme_client(contact_email: str) -> client.ClientV2:
 	try:
 		registration_resource = messages.RegistrationResource.json_loads(account_registration_resource_data_path.read_bytes())
 		registration_resource = acme_client.query_registration(registration_resource)
-		if contact_email not in registration_resource.body.emails:
-			logger.info(
-				"Contact email %r for account in directory %r currently not registered (%s), updating registration",
-				contact_email,
-				directory_id,
-				registration_resource.body.emails,
-			)
-			update_registration = True
 	except Exception as err:
 		log = logger.debug if isinstance(err, FileNotFoundError) else logger.error
 		log("Failed to use stored registration from '%s': %s", account_registration_resource_data_path, err)
@@ -121,7 +113,6 @@ def _get_acme_client(contact_email: str) -> client.ClientV2:
 			update_registration = True
 
 	if update_registration:
-		registration_resource = registration_resource.update(body=registration_resource.body.update(contact=[f"mailto:{contact_email}"]))
 		registration_resource = acme_client.update_registration(registration_resource)
 		account_registration_resource_data_path.write_text(registration_resource.json_dumps(), encoding="utf-8")
 		account_registration_resource_data_path.chmod(0o600)

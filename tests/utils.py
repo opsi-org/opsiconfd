@@ -28,6 +28,7 @@ import msgpack  # type: ignore[import]
 import pytest
 from anyio import EndOfStream
 from fastapi.testclient import TestClient
+from httpx._auth import BasicAuth
 from httpx._models import Cookies
 from httpx._types import AuthTypes
 from opsicommon.logging import LOG_NONE, LOG_WARNING, get_logger, use_logging_config
@@ -93,7 +94,9 @@ class OpsiconfdTestClient(TestClient):
 
 		self._username = str(auth[0]) if auth[0] else None
 		self._password = str(auth[1]) if auth[1] else None
-		if not self._username and not self._password:
+		if self._username and self._password:
+			self._auth = BasicAuth(self._username, self._password)
+		else:
 			self._auth = None
 
 	def reset_cookies(self) -> None:

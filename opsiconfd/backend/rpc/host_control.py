@@ -27,7 +27,6 @@ from socket import error as socket_error
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Protocol
 
-from OPSI.Util.Thread import KillableThread  # type: ignore[import-untyped]
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.exceptions import (
 	BackendMissingDataError,
@@ -68,7 +67,7 @@ if TYPE_CHECKING:
 logger = get_logger("opsiconfd.host_control")
 
 
-class RpcThread(KillableThread):
+class RpcThread(Thread):
 	def __init__(
 		self,
 		host_id: str,
@@ -80,7 +79,7 @@ class RpcThread(KillableThread):
 		method: str,
 		params: list[Any] | None = None,
 	) -> None:
-		KillableThread.__init__(self)
+		Thread.__init__(self, daemon=True)
 		self.host_id = forceHostId(host_id)
 		self.address = str(address)
 		self.method = str(method)
@@ -95,7 +94,7 @@ class RpcThread(KillableThread):
 			username=str(username),
 			password=str(password),
 			verify="accept_all",
-			connect_timeout=max(host_rpc_timeout, 0),
+			connect_timeout=max(host_rpc_timeout, 1),
 			jsonrpc_create_methods=False,
 			jsonrpc_create_objects=True,
 		)
@@ -108,9 +107,9 @@ class RpcThread(KillableThread):
 			self.error = str(err)
 		finally:
 			try:
-				self.jsonrpc.disconnect()
+				self.jsonrpc.stop()
 			except Exception as err:
-				logger.warning("Failed to clean up jsonrpc connection: %s", err, exc_info=True)
+				logger.warning("Failed to clean up JSONRPC connection: %s", err, exc_info=True)
 			self.ended = time.time()
 
 
@@ -355,38 +354,33 @@ class RPCHostControlMixin(Protocol):
 			for rpct in rpcts:
 				if rpct.ended:
 					if rpct.error:
-						logger.info("Rpc to host %s failed, error: %s", rpct.host_id, rpct.error)
+						logger.info("JSONRPC to host %s failed, error: %s", rpct.host_id, rpct.error)
 						result[rpct.host_id] = {"result": None, "error": rpct.error}
 					else:
-						logger.info("Rpc to host %s successful, result: %s", rpct.host_id, rpct.result)
+						logger.info("JSONRPC to host %s successful, result: %s", rpct.host_id, rpct.result)
 						result[rpct.host_id] = {"result": rpct.result, "error": None}
 					running_threads -= 1
 					continue
 
 				if not rpct.started:
 					if running_threads < self._host_control_max_connections:
-						logger.debug("Starting rpc to host %s", rpct.host_id)
+						logger.debug("Starting JSONRPC to host %s", rpct.host_id)
 						rpct.start()
 						running_threads += 1
 				else:
 					time_running = round(time.time() - rpct.started)
 					if time_running >= timeout + 5:  # type: ignore[operator]
-						# thread still alive 5 seconds after timeout => kill
-						logger.info(
-							"Rpc to host %s (address: %s) timed out after %0.2f seconds, terminating",
+						# thread still alive 5 seconds after timeout
+						logger.warning(
+							"RPC to host %s (address: %s) did not complete after %0.2f seconds",
 							rpct.host_id,
 							rpct.address,
 							time_running,
 						)
 						result[rpct.host_id] = {
 							"result": None,
-							"error": f"timed out after {time_running:0.2f} seconds",
+							"error": f"Timed out after {time_running:0.2f} seconds",
 						}
-						if not rpct.ended:
-							try:
-								rpct.terminate()
-							except Exception as err:
-								logger.error("Failed to terminate rpc thread: %s", err)
 						running_threads -= 1
 						continue
 				new_rpcts.append(rpct)

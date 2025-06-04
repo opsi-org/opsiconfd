@@ -613,7 +613,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert remain >= lifetime - 2
 
 	session_id = cookie.value
-	test_client.auth = None
+	test_client.auth = ("", "")
 	# Keep session alive
 	for _ in range(lifetime + 3):
 		time.sleep(1)

@@ -373,8 +373,9 @@ def cleanup_groups(session: Session) -> None:
 	result = session.execute(
 		"""
 			UPDATE `GROUP` as g
+			LEFT JOIN `GROUP` as pg ON g.parentGroupId = pg.groupId
 			SET g.parentGroupId = NULL
-			WHERE g.parentGroupId = ""
+			WHERE g.parentGroupId IS NOT NULL AND pg.groupId IS NULL
 		"""
 	)
 	if result.rowcount > 0:

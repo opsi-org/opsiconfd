@@ -244,19 +244,23 @@ class CheckResult:
 			if not self.upgrade_issue or compare_versions(partial_result.upgrade_issue, "<", self.upgrade_issue):
 				self.upgrade_issue = partial_result.upgrade_issue
 
-	def monitoring_details(self, prefix: str, level: int = 0) -> str:
+	def monitoring_details(self, prefix: str, newline: str = "\\n", level: int = 0) -> str:
 		message = self.message.replace("\n", " ") if self.message else self.check_status.value.upper()
 		if level == 0:
-			out = f"{prefix}{message}\\n"
+			out = f"{prefix}{message}{newline}"
 		else:
-			out = f"{self.check_status.upper()} - '{message}\\n"
+			out = f"{self.check_status.upper()} - '{message}{newline}"
 
 		if self.details:
 			indent = "   " if level > 0 else ""
-			out += "\\n".join(f"{indent}{key}: {str(value)}" for key, value in self.details.items()) + "\\n"
+			out += newline.join(f"{indent}{key}: {str(value)}" for key, value in self.details.items()) + newline
 
 		if self.partial_results:
-			out += "\\n" + "".join(partial_result.monitoring_details(prefix, level + 1) for partial_result in self.partial_results) + "\\n"
+			out += (
+				newline
+				+ "".join(partial_result.monitoring_details(prefix, newline, level + 1) for partial_result in self.partial_results)
+				+ newline
+			)
 
 		return out
 
@@ -273,6 +277,13 @@ class CheckResult:
 
 		prefix = f"{self.check_status.nagios_status()}: {self.check.name}: "
 		return self.monitoring_details(prefix)
+
+	def to_zabbix(self) -> str:
+		if not module_available("monitoring"):
+			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
+
+		prefix = f"{self.check_status.nagios_status()}: {self.check.name}: "
+		return self.monitoring_details(prefix, newline="\n")
 
 
 def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:

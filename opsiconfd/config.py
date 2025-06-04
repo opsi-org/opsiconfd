@@ -1358,7 +1358,7 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_HEALTH_CHECK_FORMAT",
 			default="cli",
 			help=self._help(("opsiconfd", "health-check"), "Health-Check output format."),
-			choices=("cli", "checkmk", "nagios", "json"),
+			choices=("cli", "checkmk", "nagios", "zabbix", "json"),
 		)
 		self._parser.add(
 			"--health-check-interval",

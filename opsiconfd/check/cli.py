@@ -119,15 +119,11 @@ def console_health_check() -> int:
 	if config.clear_cache:
 		check_cache_clear("all")
 
-	if config.format == "checkmk":
+	if config.format in ("checkmk", "nagios", "zabbix"):
 		for result in health_check():
 			summary[result.check_status] += 1
-			print(result.to_checkmk())
-		return overall_check_status(summary).return_code()
-	elif config.format == "nagios":
-		for check_result in health_check():
-			summary[check_result.check_status] += 1
-			print(check_result.to_nagios())
+			func = result.to_checkmk if config.format == "checkmk" else result.to_zabbix if config.format == "zabbix" else result.to_nagios
+			print(func())
 		return overall_check_status(summary).return_code()
 
 	console = Console(log_time=False)

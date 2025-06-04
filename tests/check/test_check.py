@@ -121,7 +121,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	assert "Configuration opsiclientd.global.verify_server_cert does not exist." in checkmk
 
 
-def test_check_opsi_config_nagios(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_check_opsi_config_nagios_and_zabbix(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	register_checks()
 	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [True]]}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
@@ -153,6 +153,9 @@ def test_check_opsi_config_nagios(test_client: OpsiconfdTestClient) -> None:  # 
 	assert nagios.startswith("CRITICAL")
 	assert "OPSI Configuration: 1 issue(s) found." in nagios
 	assert "Configuration opsiclientd.global.verify_server_cert does not exist." in nagios
+
+	zabbix = result.to_zabbix()
+	assert zabbix == nagios.replace("\\n", "\n")
 
 
 @pytest.mark.parametrize("format", ("cli", "json", "checkmk", "nagios"))

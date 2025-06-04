@@ -474,6 +474,7 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 		with get_config(server_config, with_env=False) as conf:
 			setup_opsi_ca()
 			setup_server_cert()
+			session_manager.reset()
 			reset_singleton(Manager)
 			manager = Manager(install_signal_handlers=False)
 			thread = Thread(target=opsiconfd_main, daemon=True)

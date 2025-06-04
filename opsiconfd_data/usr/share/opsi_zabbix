@@ -9,9 +9,8 @@
 
 # Run "opsiconfd health-check --list" to view available checks.
 # Use "opsiconfd health-check --documentation" for detailed information about each check.
-# To disable specific checks, add skip-checks=[<check1>, <check2>] in /etc/opsi/opsiconfd.conf.
-# To run only selected checks, add checks=[<check1>, <check2>] in /etc/opsi/opsiconfd.conf.
+# Call this script with a specific check ID as an argument to get the result in Zabbix format.
 
 # Further details are available at https://docs.opsi.org/opsi-docs-en/stable/server/components/monitoring.html
 
-/usr/bin/opsiconfd health-check --format zabbix
+/usr/bin/opsiconfd health-check --format zabbix --checks=$1

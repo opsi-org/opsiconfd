@@ -30,6 +30,7 @@ from opsiconfd.redis import (
 	async_delete_recursively,
 	async_redis_client,
 	async_redis_lock,
+	delete_locks,
 	delete_recursively,
 	dump,
 	get_redis_connections,
@@ -246,6 +247,30 @@ async def test_async_redis_lock(config: Config) -> None:  # noqa: F811
 			await asyncio.sleep(1.0)
 
 	assert not await client.get(redis_key)
+
+
+def test_delete_redis_lock(config: Config) -> None:  # noqa: F811
+	"""
+	Test that redis_lock deletes the lock key after the lock is released.
+	"""
+	base_key = config.redis_key("locks")
+	lock_names = ("test-lock1", "test-lock2", "test-lock3")
+	client = redis_client()
+	for lock_name in lock_names:
+		assert not client.get(f"{base_key}:{lock_name}")
+
+	with redis_lock("test-lock1", acquire_timeout=1.0):
+		with redis_lock("test-lock2", acquire_timeout=1.0):
+			with redis_lock("test-lock3", acquire_timeout=1.0):
+				# Locks acquired
+				for lock_name in lock_names:
+					assert client.get(f"{base_key}:{lock_name}")
+				delete_locks("test-lock1", "test-lock3")
+				assert not client.get(f"{base_key}:test-lock1")
+				assert client.get(f"{base_key}:test-lock2")
+				assert not client.get(f"{base_key}:test-lock3")
+				delete_locks()
+				assert not client.get(f"{base_key}:test-lock2")
 
 
 async def test_dump_restore(config: Config) -> None:  # noqa: F811

@@ -476,6 +476,11 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 	return redis_info
 
 
-def delete_locks() -> None:
+def delete_locks(*lock_names: str) -> None:
 	redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True)
-	delete_recursively(config.redis_key("locks"))
+	base_key = config.redis_key("locks")
+	if lock_names:
+		for lock_name in lock_names:
+			delete_recursively(f"{base_key}:{lock_name}")
+	else:
+		delete_recursively(base_key)

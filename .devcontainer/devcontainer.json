@@ -66,23 +66,23 @@
 			},
 			"github.copilot.chat.codeGeneration.instructions": [
 				{
-					"file": ".vscode/instructions/python-coding-style.instructions.md"
+					"file": ".github/instructions/python-coding-style.instructions.md"
 				}
 			],
 			"github.copilot.chat.commitMessageGeneration.instructions": [
 				{
-					"file": ".vscode/git-commit-message.instructions.md"
+					"file": ".github/instructions/git-commit-message.instructions.md"
 				}
 			],
 			"github.copilot.chat.reviewSelection.enabled": true,
 			"github.copilot.chat.reviewSelection.instructions": [
 				{
-					"file": ".vscode/instructions/python-coding-style.instructions.md"
+					"file": ".github/instructions/python-coding-style.instructions.md"
 				}
 			],
 			"github.copilot.chat.testGeneration.instructions": [
 				{
-					"file": ".vscode/instructions/pytest.instructions.md"
+					"file": ".github/instructions/pytest.instructions.md"
 				}
 			]
 		}

@@ -1,8 +1,10 @@
 ---
 mode: 'edit'
-description: 'Add docstrings to the code'
+description: 'Update Python docstrings in the current file.'
 ---
-Add docstrings to the code in the file ${file}
+Update docstrings in ${file}
 
-* Add missing docstrings to all functions, classes, and modules in the codebase.
-* Ensure that the docstrings follow the Google style guide for Python docstrings.
+* Ensure every function, class, and module in the codebase has a docstring.
+* Revise existing docstrings to be clear, concise, and informative.
+* Update all Attributes, Args, Returns, Yields, Raises, and Examples sections to accurately reflect current variable names and types.
+* Format all docstrings according to the Google Python style guide.

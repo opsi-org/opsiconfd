@@ -1,24 +1,26 @@
 # Standards for writing Git commit messages
 
-Use the following format for Git commit messages:
+## Format of commit messages
+Each commit message must begin with a list of tags inside square brackets, separated by commas.
 
-```
-\[<type>[,pub]\] <subject>
+- The first tag is always required and specifies the **type** of change. Allowed values are:
+  - `chg`: Change to existing functionality
+  - `new`: New feature
+  - `fix`: Bug fix
+  - `rem`: Removal of functionality
+  - `dep`: Deprecation of functionality
+  - `sec`: Security update
 
-<details>
-```
-- **type**: The type of change being made. Available types are:
-  - `chg`: A change to existing functionality
-  - `new`: A new feature
-  - `fix`: A bug fix
-  - `rem`: A removal of functionality
-  - `dep`: A deprecation of functionality
-  - `sec`: A security-related change
-- **pub**: Optional. If included, indicates that the change is added to the public release notes.
-- **subject**: A brief description of the change, written in the imperative mood (e.g., "Fix bug in user authentication").
-- **details**: Optional. A more detailed description of the change, including any relevant context or information.
+- Optionally, add the `pub` tag as the second tag if the change should appear in public release notes.
+Use `pub` only for changes that are important for users to know about.
 
-If Python packages were updated (changes were made to the uv.lock file), use the following commit message format:
+After the tags, add a single space, then write the **subject** — a short, imperative summary of the change (for example: "Update user authentication logic").
+
+If needed, add a blank line after the subject, followed by a more detailed description of the change.
+
+## Python package updates
+
+If Python packages were updated (i.e., changes to the uv.lock file), use this commit message format:
 
 ```
 [chg] Update python packages

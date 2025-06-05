@@ -1,7 +1,7 @@
 # Standards for writing Git commit messages
 
 ## Format of commit messages
-IMPORTANT: Each commit message **must** begin with a list of tags inside square brackets, separated by commas.
+Each commit message **must** begin with a list of tags inside square brackets, separated by commas, i.e. `[chg]`.
 
 - The first tag is **always required** and specifies the **type** of change. Allowed values are:
   - `chg`: Change to existing functionality

@@ -37,10 +37,31 @@ def get_username() -> str:
 
 
 def parse_list(query_list: list[str] | None) -> list[str] | None:
+	"""Parses a query parameter list which might be a single string.
+
+	This function handles cases where a list is passed as:
+	1. None: Returns None.
+	2. A list with multiple strings: Returns the list as is.
+	3. A list with a single string:
+		- If the string does not start with '[' and end with ']',
+		  it's treated as a single-element list.
+		- If the string looks like a JSON array (e.g., '["item1","item2"]' or '[item1,item2]'),
+		  it's parsed into a list of strings. Quotes around items are removed.
+		  Empty strings resulting from parsing (e.g., "[,val]" or "[]") are filtered out.
+
+	Args:
+		query_list: A list of strings or None, typically from query parameters.
+
+	Returns:
+		A list of strings, or None if the input was None.
+	"""
+
 	def remove_prefix(value: str, prefix: str) -> str:
+		"""Removes a prefix from a string if it exists."""
 		return value[value.startswith(prefix) and len(prefix) :]
 
 	def remove_postfix(value: str, postfix: str) -> str:
+		"""Removes a postfix from a string if it exists."""
 		if value.endswith(postfix):
 			value = value[: -len(postfix)]
 		return value
@@ -48,22 +69,26 @@ def parse_list(query_list: list[str] | None) -> list[str] | None:
 	if query_list is None:
 		return None
 
-	# we already have a list, we can return
+	# If query_list already contains multiple elements, it's considered a valid list.
 	if len(query_list) > 1:
 		return query_list
 
-	# if we don't start with a "[" and end with "]" it's just a normal entry
+	# If query_list has one element, it might be a flat string representation of a list.
 	flat_list = query_list[0]
+	# If the string doesn't look like "[...]", treat it as a single-item list.
 	if not flat_list.startswith("[") and not flat_list.endswith("]"):
 		return query_list
 
+	# Remove surrounding brackets from the string representation of the list.
 	flat_list = remove_prefix(flat_list, "[")
 	flat_list = remove_postfix(flat_list, "]")
 
+	# Split the string by commas and strip quotes from each item.
 	result_list = flat_list.split(",")
 	result_list = [remove_prefix(n.strip(), '"') for n in result_list]
 	result_list = [remove_postfix(n.strip(), '"') for n in result_list]
 
+	# Filter out any empty strings that might result from parsing.
 	return list(filter(None, result_list))
 
 

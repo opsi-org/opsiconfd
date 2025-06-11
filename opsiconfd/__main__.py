@@ -14,9 +14,10 @@ from multiprocessing import freeze_support
 
 freeze_support()
 
-package_base = os.path.dirname(__file__)
-if package_base in sys.path:
-	sys.path.remove(package_base)
+if not getattr(sys, "frozen", False):
+	package_base = os.path.dirname(__file__)
+	if package_base in sys.path:
+		sys.path.remove(package_base)
 
 
 def main() -> None:
@@ -29,7 +30,7 @@ def main() -> None:
 	except KeyboardInterrupt:
 		print("Interrupted", file=sys.stderr)
 		sys.exit(1)
-	except Exception:  # pylint: disable=broad-except
+	except Exception:
 		# Do not let pyinstaller handle exceptions and print:
 		# Failed to execute script '__main__'
 		traceback.print_exc()

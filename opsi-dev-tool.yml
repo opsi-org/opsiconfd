@@ -55,7 +55,7 @@ pyinstaller:
     - websockets
     - wsproto
   scripts:
-    - script: run-opsiconfd
+    - script: opsiconfd/__main__.py
       binaries:
         - opsiconfd
   dirname: opsiconfd

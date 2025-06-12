@@ -11,7 +11,7 @@ stages:
 test:lint-and-test:
   stage: test
   tags:
-    - linux-docker-x64-hetzner
+    - docker-x64
   image: docker
   before_script:
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"

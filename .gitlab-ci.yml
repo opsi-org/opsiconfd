@@ -132,10 +132,10 @@ test:lint-and-test:
         coverage_format: cobertura
         path: coverage.xml
 
-build:linux-pyinstaller:
+build:linux-x64:
   stage: build
   tags:
-    - linux-docker-x64-hetzner
+    - docker-x64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
     - export UV_PYTHON="3.13"
@@ -158,10 +158,10 @@ build:linux-pyinstaller:
       - opsiconfd-amd64
     expire_in: 2 day
 
-build:arm64-pyinstaller:
+build:linux-arm64:
   stage: build
   tags:
-    - linux-arm64
+    - docker-arm64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
     - export UV_PYTHON="3.13"
@@ -182,25 +182,13 @@ build:arm64-pyinstaller:
       - opsiconfd-arm64
     expire_in: 2 day
 
-
-#publish:obs_int:
-#  stage: publish
-#  dependencies:
-#    - build:linux-pyinstaller
-#    - build:arm64-pyinstaller
-#  script:
-#    - *install_tools
-#    - opsi-dev-tool -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.3:development
-#  only:
-#    - tags
-
 publish:obs_ext:
   stage: publish
   tags:
-    - linux-docker-x64-hetzner
+    - docker-x64
   dependencies:
-    - build:linux-pyinstaller
-    - build:arm64-pyinstaller
+    - build:linux-x64:
+    - build:linux-arm64:
   script:
     - opsi-dev-cli self upgrade --system
     - opsi-dev-cli -l info packaging obs update-package https://build.opensuse.org home:uibmz:opsi:4.3:development

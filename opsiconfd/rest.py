@@ -18,6 +18,10 @@ from typing import Any, Callable
 import msgspec
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse, Response
+from opsicommon.exceptions import (
+	OpsiServiceAuthenticationError,
+	OpsiServicePermissionError,
+)
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import asc, column, desc  # type: ignore[import]
 from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
@@ -270,10 +274,18 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 						"details": err.details,
 					}
 				else:
+					status_code = default_error_status_code
+					if not status_code:
+						if isinstance(err, ConnectionRefusedError):
+							status_code = status.HTTP_403_FORBIDDEN
+						elif isinstance(err, (OpsiServiceAuthenticationError, OpsiServicePermissionError)):
+							status_code = status.HTTP_401_UNAUTHORIZED
+						else:
+							status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 					content = {
 						"class": err.__class__.__name__,
 						"code": None,
-						"status": default_error_status_code or status.HTTP_500_INTERNAL_SERVER_ERROR,
+						"status": status_code,
 						"message": str(err),
 						"details": str(traceback.format_exc()),
 					}

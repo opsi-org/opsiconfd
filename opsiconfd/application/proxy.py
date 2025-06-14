@@ -11,7 +11,6 @@ from asyncio import gather
 from typing import Callable
 from urllib.parse import urljoin, urlparse
 from ssl import SSLContext
-from typing import Literal
 
 from aiohttp import ClientConnectorError, ClientSession, WSServerHandshakeError
 from fastapi import FastAPI, status
@@ -59,7 +58,7 @@ class ReverseProxy:
 		forward_authorization: bool = False,
 		forward_cookies: list[str] | None = None,
 		preserve_host: bool = False,
-		verify_ssl: Literal[False] | SSLContext = False,
+		verify_ssl: bool | SSLContext = True,
 		forward_response_headers: list[str] | None = None,
 	) -> None:
 		self.mount_path = mount_path

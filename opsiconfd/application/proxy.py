@@ -10,6 +10,8 @@ proxy
 from asyncio import gather
 from typing import Callable
 from urllib.parse import urljoin, urlparse
+from ssl import SSLContext
+from typing import Literal
 
 from aiohttp import ClientConnectorError, ClientSession, WSServerHandshakeError
 from fastapi import FastAPI, status
@@ -52,10 +54,12 @@ class ReverseProxy:
 		app: FastAPI,
 		mount_path: str,
 		base_url: str,
+		*,
 		methods: tuple = ("GET", "POST"),
 		forward_authorization: bool = False,
 		forward_cookies: list[str] | None = None,
 		preserve_host: bool = False,
+		verify_ssl: Literal[False] | SSLContext = False,
 		forward_response_headers: list[str] | None = None,
 	) -> None:
 		self.mount_path = mount_path
@@ -65,6 +69,7 @@ class ReverseProxy:
 		self.forward_authorization = forward_authorization
 		self.forward_cookies = forward_cookies
 		self.preserve_host = preserve_host
+		self.verify_ssl = verify_ssl
 		if forward_response_headers is None:
 			forward_response_headers = ["Content-Type", "Content-Length", "Content-Encoding", "Last-Modified"]
 		self.forward_response_headers = [h.lower() for h in forward_response_headers]
@@ -131,7 +136,12 @@ class ReverseProxy:
 
 		try:
 			resp = await client._request(
-				method=request.method, headers=request_headers, str_or_url=path, data=request.stream(), allow_redirects=False
+				method=request.method,
+				headers=request_headers,
+				str_or_url=path,
+				data=request.stream(),
+				allow_redirects=False,
+				ssl=self.verify_ssl,
 			)
 		except ClientConnectorError as err:
 			proxy_logger.error(err)
@@ -189,7 +199,7 @@ class ReverseProxy:
 			request_headers = self._request_headers(client_websocket.headers, client_websocket.scope["client"][0])
 
 			await client_websocket.accept()
-			async with client.ws_connect(url=path, headers=request_headers) as server_websocket:
+			async with client.ws_connect(url=path, headers=request_headers, ssl=self.verify_ssl) as server_websocket:
 				server_websocket_reader = self._websocket_reader(
 					"<<<", server_websocket.receive_str, client_websocket.send_text, client_websocket.client_state
 				)

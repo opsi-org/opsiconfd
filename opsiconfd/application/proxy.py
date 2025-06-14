@@ -8,10 +8,10 @@ proxy
 """
 
 from asyncio import gather
-from typing import Callable
 from urllib.parse import urljoin, urlparse
 from ssl import SSLContext
 
+from aiohttp import WSMsgType, ClientWebSocketResponse
 from aiohttp import ClientConnectorError, ClientSession, WSServerHandshakeError
 from fastapi import FastAPI, status
 from fastapi.requests import Request
@@ -60,7 +60,6 @@ class ReverseProxy:
 		preserve_host: bool = False,
 		verify_ssl: bool | SSLContext = True,
 		forward_response_headers: list[str] | None = None,
-		ws_msg_type: Literal["text", "binary"] = "text",
 	) -> None:
 		self.mount_path = mount_path
 		url = urlparse(base_url)
@@ -73,7 +72,6 @@ class ReverseProxy:
 		if forward_response_headers is None:
 			forward_response_headers = ["Content-Type", "Content-Length", "Content-Encoding", "Last-Modified"]
 		self.forward_response_headers = [h.lower() for h in forward_response_headers]
-		self.ws_msg_type = ws_msg_type
 		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, list(methods))  # type: ignore[attr-defined]
 		app.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
 
@@ -181,13 +179,37 @@ class ReverseProxy:
 
 		return streaming_response
 
-	async def _websocket_reader(self, name: str, reader: Callable, writer: Callable, state: WebSocketState) -> None:
+	async def _server_websocket_reader(
+		self, server_websocket: ClientWebSocketResponse, client_websocket: WebSocket, state: WebSocketState
+	) -> None:
 		trace_log = proxy_logger.isEnabledFor(TRACE)
 		while state == WebSocketState.CONNECTED:
-			data = await reader()
-			if trace_log:
-				proxy_logger.trace("%s: %s", name, data)
-			await writer(data)
+			msg = await server_websocket.receive()
+			if msg.type == WSMsgType.BINARY:
+				if trace_log:
+					proxy_logger.trace("<<< binary: %s", msg.data)
+				await client_websocket.send_bytes(msg.data)
+			elif msg.type == WSMsgType.TEXT:
+				if trace_log:
+					proxy_logger.trace("<<< text: %s", msg.data)
+				await client_websocket.send_text(msg.data)
+
+	async def _client_websocket_reader(
+		self, client_websocket: WebSocket, server_websocket: ClientWebSocketResponse, state: WebSocketState
+	) -> None:
+		trace_log = proxy_logger.isEnabledFor(TRACE)
+		while state == WebSocketState.CONNECTED:
+			client_websocket.receive_bytes
+			msg = await client_websocket.receive()
+			client_websocket._raise_on_disconnect(msg)
+			if "bytes" in msg:
+				if trace_log:
+					proxy_logger.trace(">>> binary: %s", msg["bytes"])
+				await server_websocket.send_bytes(msg["bytes"])
+			elif "text" in msg:
+				if trace_log:
+					proxy_logger.trace(">>> text: %s", msg["text"])
+				await server_websocket.send_str(msg["text"])
 
 	async def handle_websocket_request(self, client_websocket: WebSocket) -> None:
 		path = self._get_path(client_websocket.url.path)
@@ -201,19 +223,8 @@ class ReverseProxy:
 
 			await client_websocket.accept()
 			async with client.ws_connect(url=path, headers=request_headers, ssl=self.verify_ssl) as server_websocket:
-				binary = self.ws_msg_type == "binary"
-				server_websocket_reader = self._websocket_reader(
-					"<<<",
-					server_websocket.receive_bytes if binary else server_websocket.receive_str,
-					client_websocket.send_bytes if binary else client_websocket.send_text,
-					client_websocket.client_state,
-				)
-				client_websocket_reader = self._websocket_reader(
-					">>>",
-					client_websocket.receive_bytes if binary else client_websocket.receive_text,
-					server_websocket.send_bytes if binary else server_websocket.send_str,
-					client_websocket.client_state,
-				)
+				server_websocket_reader = self._server_websocket_reader(server_websocket, client_websocket, client_websocket.client_state)
+				client_websocket_reader = self._client_websocket_reader(client_websocket, server_websocket, client_websocket.client_state)
 				try:
 					await gather(server_websocket_reader, client_websocket_reader)
 				except WebSocketDisconnect:

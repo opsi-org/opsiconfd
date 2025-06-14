@@ -8,11 +8,10 @@ proxy
 """
 
 from asyncio import gather
-from urllib.parse import urljoin, urlparse
 from ssl import SSLContext
+from urllib.parse import urljoin, urlparse
 
-from aiohttp import WSMsgType, ClientWebSocketResponse
-from aiohttp import ClientConnectorError, ClientSession, WSServerHandshakeError
+from aiohttp import ClientConnectorError, ClientSession, ClientWebSocketResponse, WSMsgType, WSServerHandshakeError
 from fastapi import FastAPI, status
 from fastapi.requests import Request
 from fastapi.responses import Response, StreamingResponse
@@ -179,12 +178,17 @@ class ReverseProxy:
 
 		return streaming_response
 
-	async def _server_websocket_reader(
-		self, server_websocket: ClientWebSocketResponse, client_websocket: WebSocket, state: WebSocketState
-	) -> None:
+	async def _server_websocket_reader(self, server_websocket: ClientWebSocketResponse, client_websocket: WebSocket) -> None:
 		trace_log = proxy_logger.isEnabledFor(TRACE)
-		while state == WebSocketState.CONNECTED:
+		while True:
+			if client_websocket.client_state != WebSocketState.CONNECTED:
+				proxy_logger.info("Client disconnect: %s %s", client_websocket.scope["client"][0], client_websocket.url.path)
+				return
 			msg = await server_websocket.receive()
+			if msg.type in (WSMsgType.CLOSED, WSMsgType.CLOSING):
+				proxy_logger.info("Server disconnect: %s %s", client_websocket.scope["client"][0], client_websocket.url.path)
+				await client_websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
+				return
 			if msg.type == WSMsgType.BINARY:
 				if trace_log:
 					proxy_logger.trace("<<< binary: %s", msg.data)
@@ -194,12 +198,12 @@ class ReverseProxy:
 					proxy_logger.trace("<<< text: %s", msg.data)
 				await client_websocket.send_text(msg.data)
 
-	async def _client_websocket_reader(
-		self, client_websocket: WebSocket, server_websocket: ClientWebSocketResponse, state: WebSocketState
-	) -> None:
+	async def _client_websocket_reader(self, client_websocket: WebSocket, server_websocket: ClientWebSocketResponse) -> None:
 		trace_log = proxy_logger.isEnabledFor(TRACE)
-		while state == WebSocketState.CONNECTED:
-			client_websocket.receive_bytes
+		while True:
+			if client_websocket.client_state != WebSocketState.CONNECTED:
+				proxy_logger.info("Client disconnect: %s %s", client_websocket.scope["client"][0], client_websocket.url.path)
+				return
 			msg = await client_websocket.receive()
 			client_websocket._raise_on_disconnect(msg)
 			if "bytes" in msg:
@@ -223,8 +227,8 @@ class ReverseProxy:
 
 			await client_websocket.accept()
 			async with client.ws_connect(url=path, headers=request_headers, ssl=self.verify_ssl) as server_websocket:
-				server_websocket_reader = self._server_websocket_reader(server_websocket, client_websocket, client_websocket.client_state)
-				client_websocket_reader = self._client_websocket_reader(client_websocket, server_websocket, client_websocket.client_state)
+				server_websocket_reader = self._server_websocket_reader(server_websocket, client_websocket)
+				client_websocket_reader = self._client_websocket_reader(client_websocket, server_websocket)
 				try:
 					await gather(server_websocket_reader, client_websocket_reader)
 				except WebSocketDisconnect:

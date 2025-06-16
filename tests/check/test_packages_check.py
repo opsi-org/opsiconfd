@@ -23,10 +23,10 @@ from opsiconfd.check.opsipackages import (
 )
 from opsiconfd.config import get_configserver_id
 from opsiconfd.setup.configs import CHECK_DEFAULT_IGNORE_PRODUCTS
-from tests.utils import (
+from tests.utils import (  # noqa: F401
 	cache_clear,
 	clean_mysql,
-	clean_redis,  # noqa: F401
+	clean_redis,
 	cleanup_checks,
 	database_connection,
 	get_unprotected_backend,

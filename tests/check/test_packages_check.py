@@ -11,21 +11,27 @@ from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
-from opsicommon.objects import (Config, ConfigState, LocalbootProduct,
-                                OpsiClient, OpsiDepotserver, ProductOnClient,
-                                ProductOnDepot)
+from opsicommon.objects import Config, ConfigState, LocalbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
 
 from opsiconfd.check.common import CheckStatus, check_manager
-from opsiconfd.check.opsipackages import (OUTDATED_AFTER_DAYS,
-                                          get_available_product_versions,
-                                          opsi_locked_products_check,
-                                          opsi_products_on_clients_check,
-                                          opsi_products_on_depots_check)
+from opsiconfd.check.opsipackages import (
+	OUTDATED_AFTER_DAYS,
+	get_available_product_versions,
+	opsi_locked_products_check,
+	opsi_products_on_clients_check,
+	opsi_products_on_depots_check,
+)
 from opsiconfd.config import get_configserver_id
 from opsiconfd.setup.configs import CHECK_DEFAULT_IGNORE_PRODUCTS
-from tests.utils import (cache_clear, clean_mysql, clean_redis,  # noqa: F401
-                         cleanup_checks, database_connection,
-                         get_unprotected_backend, test_client)
+from tests.utils import (
+	cache_clear,
+	clean_mysql,
+	clean_redis,  # noqa: F401
+	cleanup_checks,
+	database_connection,
+	get_unprotected_backend,
+	test_client,
+)
 
 
 def _prepare_products(depot_installation_time: datetime | None = None) -> None:

@@ -16,6 +16,7 @@ from opsicommon.objects import BoolConfig, Config, UnicodeConfig
 from opsicommon.types import forceObjectClass, forceObjectClassList
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd.utils import asyncio_create_task
 from opsiconfd.auth.role import Role
 from opsiconfd.auth.user import create_user_roles, get_users
 from opsiconfd.logging import logger
@@ -276,19 +277,20 @@ class RPCConfigMixin(Protocol):
 			client_ids = await get_websocket_connected_users(user_type="client")
 			logger.info("Sending messageOfTheDayUpdated to %d messagebus connected clients", len(client_ids))
 			if client_ids:
-				result = await self._messagebus_rpc(
-					client_ids=client_ids,
-					method="messageOfTheDayUpdated",
-					params=[
-						config_values.get("message_of_the_day.device.message") or "",
-						int(config_values.get("message_of_the_day.device.message_valid_until") or "0"),
-						config_values.get("message_of_the_day.user.message") or "",
-						int(config_values.get("message_of_the_day.user.message_valid_until") or "0"),
-					],
-					timeout=5,
-					messagebus_only=True,
+				asyncio_create_task(
+					self._messagebus_rpc(
+						client_ids=client_ids,
+						method="messageOfTheDayUpdated",
+						params=[
+							config_values.get("message_of_the_day.device.message") or "",
+							int(config_values.get("message_of_the_day.device.message_valid_until") or "0"),
+							config_values.get("message_of_the_day.user.message") or "",
+							int(config_values.get("message_of_the_day.user.message_valid_until") or "0"),
+						],
+						timeout=5,
+						messagebus_only=True,
+					)
 				)
-				logger.debug("messageOfTheDayUpdated result: %s", result)
 
 	@rpc_method(check_acl=False)
 	def config_createRole(self: BackendProtocol, name: str) -> None:

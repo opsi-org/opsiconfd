@@ -12,6 +12,7 @@ from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import Any, Generator
+import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -295,11 +296,13 @@ async def test_config_updateMessageOfTheDay(backend: UnprotectedBackend) -> None
 		patch("opsiconfd.backend.rpc.obj_config.get_websocket_connected_users", get_websocket_connected_users),
 	):
 		await backend.config_updateMessageOfTheDay(device_message="motd device", user_message="motd user")
+		await asyncio.sleep(2)  # Allow async tasks to complete
 		assert len(rpcs) == 1
 		assert rpcs[0] == (["client1.opsi.org"], "messageOfTheDayUpdated", ["motd device", 0, "motd user", 0], 5, True)
 
 		user_message_valid_until = time.time() + 60
 		await backend.config_updateMessageOfTheDay(device_message="", user_message_valid_until=user_message_valid_until)
+		await asyncio.sleep(2)  # Allow async tasks to complete
 		assert len(rpcs) == 2
 		assert rpcs[1] == (
 			["client1.opsi.org"],

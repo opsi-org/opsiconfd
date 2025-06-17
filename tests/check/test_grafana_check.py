@@ -13,7 +13,6 @@ from opsiconfd.check.grafana import GrafanaHealth
 from opsiconfd.check.common import CheckStatus
 
 
-
 @pytest.mark.parametrize(
 	"mock_status_code, mock_json, expected_status, expected_message",
 	[
@@ -61,9 +60,7 @@ from opsiconfd.check.common import CheckStatus
 		),
 	],
 )
-def test_grafana_health_check(
-	mock_status_code: int, mock_json: dict, expected_status: CheckStatus, expected_message: str
-) -> None:
+def test_grafana_health_check(mock_status_code: int, mock_json: dict, expected_status: CheckStatus, expected_message: str) -> None:
 	"""
 	Test the GrafanaHealth check with various mocked API responses.
 

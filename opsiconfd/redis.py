@@ -484,3 +484,13 @@ def delete_locks(*lock_names: str) -> None:
 			delete_recursively(f"{base_key}:{lock_name}")
 	else:
 		delete_recursively(base_key)
+
+
+async def async_delete_locks(*lock_names: str) -> None:
+	await async_redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True)
+	base_key = config.redis_key("locks")
+	if lock_names:
+		for lock_name in lock_names:
+			await async_delete_recursively(f"{base_key}:{lock_name}")
+	else:
+		await async_delete_recursively(base_key)

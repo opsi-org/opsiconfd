@@ -33,7 +33,7 @@ from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import DepotMetricsCollector, MetricsCollector, NodeMetricsCollector
 from opsiconfd.metrics.metric import DepotMetric
 from opsiconfd.metrics.registry import MetricsRegistry
-from opsiconfd.redis import async_get_redis_info, async_redis_client, redis_client
+from opsiconfd.redis import async_delete_locks, async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_ssl
 from opsiconfd.utils import Singleton, asyncio_create_task, log_config
 from opsiconfd.utils.modules import module_available
@@ -417,6 +417,7 @@ class Manager(metaclass=Singleton):
 
 		if self._is_config_server:
 			# TODO: Multiple managers on different nodes
+			await async_delete_locks("check-cache")
 			await run_in_threadpool(rpc_cache_clear)
 			await messagebus_cleanup(full=True)
 			await (await async_redis_client()).config_resetstat()

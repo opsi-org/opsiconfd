@@ -1,9 +1,16 @@
+# opsiconfd is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
+"""
+check tests
+"""
+
 from unittest.mock import patch, MagicMock
 import pytest
 from opsiconfd.check.grafana import GrafanaHealth
 from opsiconfd.check.common import CheckStatus
-
-# filepath: /workspace/tests/check/test_grafana_check.py
 
 
 

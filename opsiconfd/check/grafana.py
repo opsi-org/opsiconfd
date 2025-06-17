@@ -34,17 +34,12 @@ class GrafanaHealth(Check):
 		session = get_requests_session(urlparse(config.grafana_internal_url).hostname)
 		res = session.get(urljoin(config.grafana_internal_url, "/api/health"), timeout=10, stream=True)
 
-		print(f"Grafana health check response: {res.status_code} {res.text}")
-
 		if res.status_code != 200:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Cannot connect to grafana server, status code: {res.status_code}"
 			return result
 
 		res_data = res.json()
-		print(f"Grafana health check response data: {res_data}")
-		print(res_data.get("database"))
-		print(res_data.get("database") != "ok")
 		if res_data.get("database") != "ok":
 			result.check_status = CheckStatus.ERROR
 			result.message = "Grafana database is not OK."

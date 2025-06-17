@@ -243,8 +243,7 @@ class CheckResult:
 			self.check_status = CheckStatus(self.check_status)
 
 	def add_partial_result(self, partial_result: CheckResult) -> None:
-		if partial_result in self.partial_results:
-			return
+		# Do not add duplicate partial results, this will not be checked!
 		self.partial_results.append(partial_result)
 		if partial_result.check_status == CheckStatus.ERROR:
 			self.check_status = CheckStatus.ERROR

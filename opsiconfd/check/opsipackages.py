@@ -268,10 +268,16 @@ class OpsiProductsOnClientsCheck(Check):
 				logger.debug("No clients on depot %s", depot_id)
 				continue
 
+			dep_product_on_client = {}
+			for client_id in client_ids_on_depot:
+				poc = product_on_client.pop(client_id, None)
+				if poc:
+					dep_product_on_client[client_id] = poc
+
 			for product_id, depot_version in product_on_depot.get(depot_id, {}).items():
 				is_mandatory = product_id in MANDATORY_IF_INSTALLED_PIDS
 
-				for client_id, pocs in product_on_client.items():
+				for client_id, pocs in dep_product_on_client.items():
 					client_version = pocs.get(product_id)
 					if not client_version or compare_versions(client_version, ">=", depot_version):
 						continue

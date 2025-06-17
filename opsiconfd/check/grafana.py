@@ -34,16 +34,32 @@ class GrafanaHealth(Check):
 		session = get_requests_session(urlparse(config.grafana_internal_url).hostname)
 		res = session.get(urljoin(config.grafana_internal_url, "/api/health"), timeout=10, stream=True)
 
+		print(f"Grafana health check response: {res.status_code} {res.text}")
+
 		if res.status_code != 200:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Cannot connect to grafana server, status code: {res.status_code}"
+			return result
 
 		res_data = res.json()
+		print(f"Grafana health check response data: {res_data}")
+		print(res_data.get("database"))
+		print(res_data.get("database") != "ok")
 		if res_data.get("database") != "ok":
 			result.check_status = CheckStatus.ERROR
 			result.message = "Grafana database is not OK."
+			return result
 
-		if compare_versions(res_data.get("version", "0"), "<", "11.3.2"):
+		# grafana version can also be a string lke "12.0.1+security-01"
+		if "version" not in res_data:
+			result.check_status = CheckStatus.WARNING
+			result.message = "Grafana version information is missing."
+			return result
+
+		# Split version to remove any build metadata (e.g., "+security-01")
+		grafana_version = res_data.get("version", "0").split("+")[0]
+
+		if compare_versions(grafana_version, "<", "11.3.2"):
 			result.check_status = CheckStatus.WARNING
 			result.message = f"Grafana version is too old. Version: {res_data.get('version', 0)}"
 

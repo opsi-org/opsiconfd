@@ -64,7 +64,6 @@ class Check:
 	description: str = ""
 	documentation: str = ""
 	depot_check: bool = False
-	cache: bool = True
 	cache_expiration: int = CACHE_EXPIRATION
 	partial_checks: list[Check] = field(default_factory=list)
 
@@ -124,32 +123,32 @@ class Check:
 	def run(self, clear_cache: bool = False) -> CheckResult:
 		result = None
 		issue_counter = 0
+		store_in_cache = False
 		if clear_cache:
 			check_cache_clear(self.id)
-		elif self.cache:
+		else:
 			result = self.load_result_from_cache()
-		if result is None:
-			result = self.check()
 
-		for partial_check in self.partial_checks:
-			partial_result = partial_check.run(clear_cache)
-			result.add_partial_result(partial_result)
-			if partial_result.check_status != CheckStatus.OK:
-				issue_counter += 1
-				if partial_result.upgrade_issue:
-					result.upgrade_issue = partial_result.upgrade_issue
+		if result is None:
+			store_in_cache = True
+			result = self.check()
+			for partial_check in self.partial_checks:
+				partial_result = partial_check.run(clear_cache)
+				result.add_partial_result(partial_result)
+				if partial_result.check_status != CheckStatus.OK:
+					issue_counter += 1
+					if partial_result.upgrade_issue:
+						result.upgrade_issue = partial_result.upgrade_issue
 
 		if issue_counter > 0:
 			result.message = f"{issue_counter} issue(s) found."
-		if self.cache:
+		if store_in_cache:
 			self.store_result_in_cache(result, self.cache_expiration)
 
 		return result
 
 	def store_result_in_cache(self, result: Any, expiration: int = CACHE_EXPIRATION) -> None:
 		# TODO: check if check id is valid. With partial checks...
-		if self.cache is False:
-			return
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		logger.debug("Check cache store: %s", redis_key)
 		redis_client().set(redis_key, encode(result), ex=expiration)

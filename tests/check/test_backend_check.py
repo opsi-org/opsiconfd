@@ -42,6 +42,9 @@ def test_check_depotservers(backend: UnprotectedBackend) -> None:  # noqa: F811
 		assert result.check_status == CheckStatus.ERROR
 
 		partial_results = sorted(result.partial_results, key=lambda x: x.check.id)
+		# import pprint
+		# pprint.pprint(partial_results)
+
 		assert len(partial_results) == 6
 		for partial_result in partial_results:
 			assert partial_result.from_cache is not clear_cache

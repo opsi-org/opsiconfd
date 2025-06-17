@@ -336,6 +336,7 @@ def restore_backup(
 	config_files: bool = False,
 	redis_data: bool = False,
 	hw_audit: bool = True,
+	sw_audit: bool = True,
 	server_id: str = "backup",
 	password: str | None = None,
 	batch: bool = True,
@@ -409,7 +410,8 @@ def restore_backup(
 			total_objects = sum(
 				len(objs)
 				for obj_class, objs in data["objects"].items()
-				if hw_audit or obj_class not in ("AuditHardware", "AuditHardwareOnHost")
+				if (hw_audit or obj_class not in ("AuditHardware", "AuditHardwareOnHost"))
+				and (sw_audit or obj_class not in ("AuditSoftware", "AuditSoftwareOnClient"))
 			)
 
 			logger.notice("Restoring %d database objects", total_objects)
@@ -419,6 +421,8 @@ def restore_backup(
 			with backend.events_disabled(), mysql.disable_unique_hardware_addresses():
 				for obj_class in OBJECT_CLASSES:
 					if not hw_audit and obj_class in ("AuditHardware", "AuditHardwareOnHost"):
+						continue
+					if not sw_audit and obj_class in ("AuditSoftware", "AuditSoftwareOnClient"):
 						continue
 
 					objects = data["objects"].get(obj_class)

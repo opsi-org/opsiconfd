@@ -1954,6 +1954,11 @@ class Config(metaclass=Singleton):
 				help=self._help("restore", "Do not restore hardware audit data."),
 			)
 			self._parser.add(
+				"--no-sw-audit",
+				action="store_true",
+				help=self._help("restore", "Do not restore software audit data."),
+			)
+			self._parser.add(
 				"--server-id",
 				env_var="OPSICONFD_SERVER_ID",
 				default="backup",

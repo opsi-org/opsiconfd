@@ -193,7 +193,8 @@ def restore_main() -> None:
 			progress.console.print(
 				f"Using arguments: server_id={server_id}, decrypt={bool(config.password)}, "
 				f"config_files={config.config_files}, redis_data={config.redis_data}, "
-				f"hw_audit={not config.no_hw_audit}, ignore_errors={config.ignore_errors}"
+				f"hw_audit={not config.no_hw_audit}, sw_audit={not config.no_sw_audit}, "
+				f"ignore_errors={config.ignore_errors}"
 			)
 
 			initalized_event = threading.Event()
@@ -216,6 +217,7 @@ def restore_main() -> None:
 					config_files=config.config_files,
 					redis_data=config.redis_data,
 					hw_audit=not config.no_hw_audit,
+					sw_audit=not config.no_sw_audit,
 					ignore_errors=config.ignore_errors,
 					batch=not config.ignore_errors,
 					server_id=server_id,

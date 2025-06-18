@@ -15,3 +15,4 @@
 # Further details are available at https://docs.opsi.org/opsi-docs-en/stable/server/components/monitoring.html
 
 /usr/bin/opsiconfd health-check --format checkmk
+exit 0

@@ -91,7 +91,7 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(await pool.get_connection())  # type: ignore[call-arg]
+		connections.append(await pool.get_connection(None))  # type: ignore[call-arg]
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]
 
@@ -113,7 +113,7 @@ def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(pool.get_connection())  # type: ignore[call-arg]
+		connections.append(pool.get_connection(None))  # type: ignore[call-arg]
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]
 

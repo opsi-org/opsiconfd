@@ -975,7 +975,8 @@ class MySQLConnection:
 					# Abstact class
 					continue
 				if not create and data[attr] in ("OpsiCLient", "OpsiConfigserver", "OpsiDepotserver"):
-					raise OpsiServicePermissionError(f"No permission to change {column}/{attr}: {data.get(attr)}")
+					# Do not allow to change type
+					continue
 
 			if attr in ("systemUUID", "ipAddress", "hardwareAddress") and data.get(attr) == "":
 				data[attr] = None

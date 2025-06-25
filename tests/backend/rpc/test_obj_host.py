@@ -249,12 +249,16 @@ def test_host_updateObject(
 	res = test_client.post("/rpc", json=rpc).json()
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
 
-	# Test change type
+	# Assert that change type has no effect
 	client1["type"] = "OpsiDepotserver"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
-	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
-	assert "No permission to change" in res["error"]["message"]
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert res["result"][0]["type"] == "OpsiClient"
 
 
 def test_host_updateObject_systemUUID(

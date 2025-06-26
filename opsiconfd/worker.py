@@ -468,6 +468,9 @@ class Worker(WorkerInfo, UvicornServer):
 			# server adds additional keys like "encoded_headers" on start
 			if value is not None:
 				setattr(self.config, key, value)
+		from opsiconfd.session import _ip_address_in_networks_or_domains
+
+		_ip_address_in_networks_or_domains.cache_clear()
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
 		load_auth_module.cache_clear()

@@ -1455,6 +1455,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	await post_authenticate(scope)
 
 
+@lru_cache(maxsize=128)
 def _ip_address_in_networks_or_domains(address: str, networks_or_domains: Iterable[str]) -> bool:
 	for network_or_domain in networks_or_domains:
 		try:

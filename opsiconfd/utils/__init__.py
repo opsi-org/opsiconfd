@@ -4,13 +4,16 @@
 # License: AGPL-3.0-only
 
 """
-utils
+utils module for opsiconfd.
+
+Provides various utility functions and classes for device management solutions.
 """
 
 from __future__ import annotations
 
 import asyncio
 import dataclasses
+import functools
 import gzip
 import json
 import os
@@ -37,7 +40,7 @@ from json import JSONEncoder
 from logging import DEBUG, INFO  # type: ignore[import]
 from pathlib import Path
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Generator, Iterable, TextIO
+from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Coroutine, Generator, Iterable, TextIO
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -61,12 +64,24 @@ if TYPE_CHECKING:
 
 @lru_cache
 def get_logger() -> OPSILogger:
+	"""
+	Get the global logger instance.
+
+	Returns:
+		OPSILogger: The logger instance.
+	"""
 	from opsiconfd.logging import logger
 
 	return logger
 
 
 def get_config() -> Config:
+	"""
+	Get the global configuration instance.
+
+	Returns:
+		Config: The configuration instance.
+	"""
 	global config
 	if not config:
 		from opsiconfd.config import config  # type: ignore[assignment]
@@ -74,6 +89,12 @@ def get_config() -> Config:
 
 
 def get_opsi_config() -> OpsiConfig:
+	"""
+	Get the global opsi configuration instance.
+
+	Returns:
+		OpsiConfig: The opsi configuration instance.
+	"""
 	global opsi_config
 	if not opsi_config:
 		from opsiconfd.config import opsi_config  # type: ignore[assignment]
@@ -81,6 +102,10 @@ def get_opsi_config() -> OpsiConfig:
 
 
 class Singleton(type):
+	"""
+	Metaclass for implementing the Singleton design pattern.
+	"""
+
 	_instances: dict[type, type] = {}
 
 	def __call__(cls: "Singleton", *args: Any, **kwargs: Any) -> type:
@@ -90,10 +115,22 @@ class Singleton(type):
 
 
 def log_config(log_level: int = INFO) -> None:
+	"""
+	Log the current configuration.
+
+	Args:
+		log_level (int): The logging level. Defaults to INFO.
+	"""
 	get_logger().log(log_level, "Config: %s", json.dumps(get_config().items(), indent=2, sort_keys=True))
 
 
 def get_python_info() -> dict[str, Any]:
+	"""
+	Get detailed information about the Python environment.
+
+	Returns:
+		dict[str, Any]: A dictionary containing Python version, configuration flags, and other details.
+	"""
 	config_vars = sysconfig.get_config_vars()
 	py_core_cflags = shlex.split(config_vars["PY_CORE_CFLAGS"])
 	return {
@@ -106,10 +143,22 @@ def get_python_info() -> dict[str, Any]:
 
 
 def log_python_info(log_level: int = DEBUG) -> None:
+	"""
+	Log detailed Python environment information.
+
+	Args:
+		log_level (int): The logging level. Defaults to DEBUG.
+	"""
 	get_logger().log(log_level, "Python info: %s", json.dumps(get_python_info(), indent=2))
 
 
 def running_in_docker() -> bool:
+	"""
+	Check if the application is running inside a Docker container.
+
+	Returns:
+		bool: True if running in Docker, False otherwise.
+	"""
 	try:
 		with open("/proc/2/stat", encoding="utf-8", errors="replace") as file:
 			return "kthreadd" not in file.read()
@@ -121,18 +170,46 @@ def running_in_docker() -> bool:
 
 
 def is_opsiconfd(proc: psutil.Process) -> bool:
+	"""
+	Check if the given process is an opsiconfd process.
+
+	Args:
+		proc (psutil.Process): The process to check.
+
+	Returns:
+		bool: True if the process is opsiconfd, False otherwise.
+	"""
 	return proc.name() == "opsiconfd" or (
 		proc.name() in ("python", "python3") and ("opsiconfd" in proc.cmdline() or "opsiconfd.__main__" in " ".join(proc.cmdline()))
 	)
 
 
 def is_manager(proc: psutil.Process) -> bool:
+	"""
+	Check if the given process is an opsiconfd manager process.
+
+	Args:
+		proc (psutil.Process): The process to check.
+
+	Returns:
+		bool: True if the process is a manager, False otherwise.
+	"""
 	from opsiconfd.config import OPSICONFD_SUB_COMMANDS
 
 	return is_opsiconfd(proc) and not any(arg in OPSICONFD_SUB_COMMANDS + ["debugpy"] or "multiprocessing" in arg for arg in proc.cmdline())
 
 
 def get_manager_process(ignore_self: bool = False, ignore_parents: bool = False) -> tuple[int | None, str | None]:
+	"""
+	Get the PID and command of the opsiconfd manager process.
+
+	Args:
+		ignore_self (bool): Whether to ignore the current process. Defaults to False.
+		ignore_parents (bool): Whether to ignore parent processes. Defaults to False.
+
+	Returns:
+		tuple[int | None, str | None]: The PID and command of the manager process, or None if not found.
+	"""
 	container_procs = ("containerd-shim", "lxc-start")
 
 	manager_pid = None
@@ -168,6 +245,12 @@ def get_manager_process(ignore_self: bool = False, ignore_parents: bool = False)
 
 
 def systemd_running() -> bool:
+	"""
+	Check if systemd is running.
+
+	Returns:
+		bool: True if systemd is running, False otherwise.
+	"""
 	for proc in psutil.process_iter():
 		if proc.name() == "systemd":
 			return True
@@ -175,6 +258,12 @@ def systemd_running() -> bool:
 
 
 def opsiconfd_running() -> bool:
+	"""
+	Check if opsiconfd is running.
+
+	Returns:
+		bool: True if opsiconfd is running, False otherwise.
+	"""
 	if not systemd_running():
 		get_logger().debug("Systemd not running")
 		return False
@@ -186,6 +275,9 @@ def opsiconfd_running() -> bool:
 
 
 def restart_opsiconfd() -> None:
+	"""
+	Restart the opsiconfd service using systemd.
+	"""
 	if not systemd_running():
 		get_logger().debug("Systemd not running")
 		return
@@ -193,6 +285,9 @@ def restart_opsiconfd() -> None:
 
 
 def restart_opsiconfd_if_running() -> None:
+	"""
+	Restart the opsiconfd service if it is currently running.
+	"""
 	get_logger().info("Restarting opsiconfd")
 	if not opsiconfd_running():
 		get_logger().info("opsiconfd not running")
@@ -201,6 +296,9 @@ def restart_opsiconfd_if_running() -> None:
 
 
 def reload_opsiconfd_if_running() -> None:
+	"""
+	Reload the opsiconfd service if it is currently running.
+	"""
 	get_logger().info("Reloading opsiconfd")
 	manager_pid = get_manager_process(ignore_self=True)[0]
 	if not manager_pid:
@@ -210,6 +308,16 @@ def reload_opsiconfd_if_running() -> None:
 
 
 def normalize_ip_address(address: str, exploded: bool = False) -> str:
+	"""
+	Normalize an IP address.
+
+	Args:
+		address (str): The IP address to normalize.
+		exploded (bool): Whether to return the exploded form of the address. Defaults to False.
+
+	Returns:
+		str: The normalized IP address.
+	"""
 	ipa = ip_address(address)
 	if isinstance(ipa, IPv6Address) and ipa.ipv4_mapped:
 		ipa = ipa.ipv4_mapped
@@ -219,6 +327,13 @@ def normalize_ip_address(address: str, exploded: bool = False) -> str:
 
 
 class NamedIPv4Interface(IPv4Interface):
+	"""
+	Represents a named IPv4 interface.
+
+	Attributes:
+		name (str): The name of the interface.
+	"""
+
 	def __init__(self, name: str, address: str) -> None:
 		super().__init__(address)
 		self.name = name
@@ -228,6 +343,13 @@ class NamedIPv4Interface(IPv4Interface):
 
 
 class NamedIPv6Interface(IPv6Interface):
+	"""
+	Represents a named IPv6 interface.
+
+	Attributes:
+		name (str): The name of the interface.
+	"""
+
 	def __init__(self, name: str, address: str) -> None:
 		super().__init__(address)
 		self.name = name
@@ -237,6 +359,15 @@ class NamedIPv6Interface(IPv6Interface):
 
 
 def get_ip_interfaces(family: int | Iterable[int] | None = None) -> Generator[NamedIPv4Interface | NamedIPv6Interface, None, None]:
+	"""
+	Get all IP interfaces for the specified address family.
+
+	Args:
+		family (int | Iterable[int] | None): The address family (e.g., AF_INET, AF_INET6). Defaults to None.
+
+	Returns:
+		Generator[NamedIPv4Interface | NamedIPv6Interface, None, None]: A generator of named IP interfaces.
+	"""
 	if not family:
 		family = [AF_INET, AF_INET6]
 	elif isinstance(family, int):
@@ -260,6 +391,18 @@ def get_ip_interfaces(family: int | Iterable[int] | None = None) -> Generator[Na
 
 
 def get_primary_ip_interface(family: int | Iterable[int] | None = None) -> NamedIPv4Interface | NamedIPv6Interface:
+	"""
+	Get the primary IP interface for the specified address family.
+
+	Args:
+		family (int | Iterable[int] | None): The address family (e.g., AF_INET, AF_INET6). Defaults to None.
+
+	Returns:
+		NamedIPv4Interface | NamedIPv6Interface: The primary IP interface.
+
+	Raises:
+		RuntimeError: If no primary interface is found.
+	"""
 	if not family:
 		family = [AF_INET, AF_INET6]
 	elif isinstance(family, int):
@@ -274,6 +417,17 @@ def get_primary_ip_interface(family: int | Iterable[int] | None = None) -> Named
 
 
 def get_random_string(length: int, *, alphabet: str | None = None, mandatory_alphabet: str | None = None) -> str:
+	"""
+	Generate a random string.
+
+	Args:
+		length (int): The length of the string.
+		alphabet (str | None): The alphabet to use. Defaults to None.
+		mandatory_alphabet (str | None): Characters that must be included. Defaults to None.
+
+	Returns:
+		str: The generated random string.
+	"""
 	if not alphabet:
 		alphabet = string.ascii_letters + string.digits + string.punctuation
 	result_str = "".join(secrets.choice(alphabet) for i in range(length))
@@ -285,6 +439,19 @@ def get_random_string(length: int, *, alphabet: str | None = None, mandatory_alp
 
 
 def decompress_data(data: bytes, compression: str) -> bytes:
+	"""
+	Decompress data using the specified compression method.
+
+	Args:
+		data (bytes): The compressed data.
+		compression (str): The compression method (e.g., "lz4", "gzip").
+
+	Returns:
+		bytes: The decompressed data.
+
+	Raises:
+		ValueError: If the compression method is unsupported.
+	"""
 	compressed_size = len(data)
 
 	decompress_start = time.perf_counter()
@@ -311,6 +478,21 @@ def decompress_data(data: bytes, compression: str) -> bytes:
 
 
 def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4_block_linked: bool = True) -> bytes:
+	"""
+	Compress data using the specified compression method.
+
+	Args:
+		data (bytes): The data to compress.
+		compression (str): The compression method (e.g., "lz4", "gzip").
+		compression_level (int): The compression level. Defaults to 0.
+		lz4_block_linked (bool): Whether to use block linking for LZ4. Defaults to True.
+
+	Returns:
+		bytes: The compressed data.
+
+	Raises:
+		ValueError: If the compression method is unsupported.
+	"""
 	uncompressed_size = len(data)
 
 	compress_start = time.perf_counter()
@@ -338,6 +520,17 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 
 @contextmanager
 def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, timeout: float = 5.0) -> Generator[None, None, None]:
+	"""
+	Context manager for locking a file.
+
+	Args:
+		file (TextIO | BinaryIO): The file to lock.
+		lock_flags (int): The locking flags. Defaults to LOCK_EX | LOCK_NB.
+		timeout (float): The timeout for acquiring the lock. Defaults to 5.0.
+
+	Yields:
+		None: The context manager.
+	"""
 	start = time.time()
 	while True:
 		try:
@@ -370,6 +563,16 @@ def _asyncio_remove_task(task: asyncio.Task) -> None:
 
 
 def asyncio_create_task(coro: Coroutine, loop: asyncio.AbstractEventLoop | None = None) -> asyncio.Task:
+	"""
+	Create an asyncio task and manage its lifecycle.
+
+	Args:
+		coro (Coroutine): The coroutine to run.
+		loop (asyncio.AbstractEventLoop | None): The event loop. Defaults to None.
+
+	Returns:
+		asyncio.Task: The created task.
+	"""
 	if loop:
 		task = loop.create_task(coro)
 	else:
@@ -382,6 +585,16 @@ def asyncio_create_task(coro: Coroutine, loop: asyncio.AbstractEventLoop | None 
 
 @dataclass(slots=True, kw_only=True)
 class DiskUsage:
+	"""
+	Represents disk usage statistics.
+
+	Attributes:
+		capacity (float): Total disk capacity.
+		available (float): Available disk space.
+		used (float): Used disk space.
+		usage (float): Percentage of disk usage.
+	"""
+
 	capacity: float
 	available: float
 	used: float
@@ -392,6 +605,15 @@ class DiskUsage:
 
 
 def get_disk_usage(path: Path | str) -> DiskUsage:
+	"""
+	Get disk usage statistics for the specified path.
+
+	Args:
+		path (Path | str): The path to check.
+
+	Returns:
+		DiskUsage: The disk usage statistics.
+	"""
 	disk = os.statvfs(path)
 	return DiskUsage(
 		capacity=disk.f_bsize * disk.f_blocks,
@@ -402,7 +624,15 @@ def get_disk_usage(path: Path | str) -> DiskUsage:
 
 
 def get_file_md5sum(file_path: Path | str) -> str:
-	"""Returns the md5sum of the given file as hex digest string."""
+	"""
+	Calculate the MD5 checksum of a file.
+
+	Args:
+		file_path (Path | str): The path to the file.
+
+	Returns:
+		str: The MD5 checksum as a hex digest.
+	"""
 	md5_hash = md5()
 	with open(file_path, "rb") as file:
 		while data := file.read(1_000_000):
@@ -411,6 +641,15 @@ def get_file_md5sum(file_path: Path | str) -> str:
 
 
 def ldap3_uri_to_str(ldap_url: dict) -> str:
+	"""
+	Convert an LDAP URL dictionary to a string.
+
+	Args:
+		ldap_url (dict): The LDAP URL dictionary.
+
+	Returns:
+		str: The LDAP URL as a string.
+	"""
 	url = ldap_url["host"]
 	if ldap_url["port"]:
 		url = url + ":" + str(ldap_url["port"])
@@ -425,6 +664,18 @@ _NODENAME_REGEX = re.compile(r"^[a-z0-9][a-z0-9\-_]*$")
 
 
 def force_nodename(var: Any) -> str:
+	"""
+	Force a variable to be a valid nodename.
+
+	Args:
+		var (Any): The variable to validate.
+
+	Returns:
+		str: The validated nodename.
+
+	Raises:
+		ValueError: If the nodename is invalid.
+	"""
 	var = forceStringLower(var)
 	if not _NODENAME_REGEX.search(var):
 		raise ValueError(f"Bad nodename: '{var}'")
@@ -432,6 +683,15 @@ def force_nodename(var: Any) -> str:
 
 
 def is_local_user(username: str) -> bool:
+	"""
+	Check if a user is a local user.
+
+	Args:
+		username (str): The username to check.
+
+	Returns:
+		bool: True if the user is local, False otherwise.
+	"""
 	for line in Path("/etc/passwd").read_text(encoding="utf-8").splitlines():
 		if line.startswith(f"{username}:"):
 			return True
@@ -439,6 +699,13 @@ def is_local_user(username: str) -> bool:
 
 
 class NameService(StrEnum):
+	"""
+	Enumeration for name services.
+
+	Attributes:
+		is_local (bool): Whether the service is local.
+	"""
+
 	SSS = "sss"
 	WINBIND = "winbind"
 	LDAP = "ldap"
@@ -455,6 +722,19 @@ class NameService(StrEnum):
 
 @dataclass(unsafe_hash=True)
 class UserInfo:
+	"""
+	Represents user information.
+
+	Attributes:
+		username (str): The username.
+		uid (int): The user ID.
+		gid (int): The group ID.
+		gecos (str): The GECOS field.
+		home (str): The home directory.
+		shell (str): The login shell.
+		service (NameService): The name service.
+	"""
+
 	username: str
 	uid: int
 	gid: int
@@ -465,6 +745,15 @@ class UserInfo:
 
 
 def user_exists(username: str) -> bool:
+	"""
+	Check if a user exists.
+
+	Args:
+		username (str): The username to check.
+
+	Returns:
+		bool: True if the user exists, False otherwise.
+	"""
 	try:
 		subprocess.run(["id", username], check=True, capture_output=True, timeout=5)
 	except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as err:
@@ -481,6 +770,15 @@ def user_exists(username: str) -> bool:
 #           3      Enumeration not supported on this database.
 ###
 def get_user_passwd_details(username: str) -> list[UserInfo]:
+	"""
+	Get user details from the passwd database.
+
+	Args:
+		username (str): The username to query.
+
+	Returns:
+		list[UserInfo]: A list of user information.
+	"""
 	user_details = []
 	if is_ucs():
 		ucs_details = get_ucs_user_details(username)
@@ -515,6 +813,15 @@ def get_user_passwd_details(username: str) -> list[UserInfo]:
 
 
 def get_ucs_user_details(username: str) -> UserInfo | None:
+	"""
+	Get user details from UCS LDAP.
+
+	Args:
+		username (str): The username to query.
+
+	Returns:
+		UserInfo | None: The user information, or None if not found.
+	"""
 	try:
 		result = (
 			subprocess.run(
@@ -561,6 +868,12 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 
 
 def get_passwd_services() -> list[NameService]:
+	"""
+	Get the list of name services for the passwd database.
+
+	Returns:
+		list[NameService]: The list of name services.
+	"""
 	nsswitch_conf = Path("/etc/nsswitch.conf")
 	if not nsswitch_conf.is_file():
 		return []
@@ -576,6 +889,10 @@ def get_passwd_services() -> list[NameService]:
 
 
 class DataclassCapableJSONEncoder(JSONEncoder):
+	"""
+	JSON encoder capable of handling dataclasses.
+	"""
+
 	def default(self, obj: Any) -> Any:
 		if not isinstance(obj, type) and dataclasses.is_dataclass(obj):
 			return dataclasses.asdict(obj)
@@ -583,7 +900,50 @@ class DataclassCapableJSONEncoder(JSONEncoder):
 
 
 def get_requests_session(hostname: str) -> requests.Session:
+	"""
+	Get a configured requests session for the specified hostname.
+
+	Args:
+		hostname (str): The hostname to configure the session for.
+
+	Returns:
+		requests.Session: The configured session.
+	"""
 	session = prepare_proxy_environment(hostname)
 	session.verify = get_config().ssl_trusted_certs
 	session.headers.update({"User-Agent": f"opsiconfd {__version__}"})
 	return session
+
+
+def timed_lru_cache(timeout: float, maxsize: int = 128) -> Callable:
+	"""
+	Decorator for creating a timed LRU cache.
+
+	Args:
+		timeout (float): The cache timeout in seconds.
+		maxsize (int): The maximum size of the cache. Defaults to 128.
+
+	Returns:
+		Callable: The decorated function.
+	"""
+
+	def wrapper(func: Callable) -> Callable:
+		# Apply functools.lru_cache with maxsize
+		cached_func = functools.lru_cache(maxsize=maxsize)(func)
+		# Store the expiration time
+		cache_expiration = {"time": time.time() + timeout}
+
+		@functools.wraps(func)
+		def wrapped(*args: Any, **kwargs: Any) -> Any:
+			# If expired, clear the cache and reset expiration
+			if time.time() > cache_expiration["time"]:
+				cached_func.cache_clear()
+				cache_expiration["time"] = time.time() + timeout
+			return cached_func(*args, **kwargs)
+
+		# Expose cache control methods
+		setattr(wrapped, "cache_clear", cached_func.cache_clear)
+		setattr(wrapped, "cache_info", cached_func.cache_info)
+		return wrapped
+
+	return wrapper

@@ -56,7 +56,7 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
-from opsiconfd.utils import asyncio_create_task
+from opsiconfd.utils import asyncio_create_task, timed_lru_cache
 from opsiconfd.utils.modules import module_available
 from opsiconfd.utils.user import user_get_credentials
 
@@ -1455,7 +1455,8 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	await post_authenticate(scope)
 
 
-@lru_cache(maxsize=128)
+# The cache will invalidate after 15 minutes (900 seconds)
+@timed_lru_cache(timeout=900, maxsize=128)
 def _ip_address_in_networks_or_domains(address: str, networks_or_domains: Iterable[str]) -> bool:
 	for network_or_domain in networks_or_domains:
 		try:

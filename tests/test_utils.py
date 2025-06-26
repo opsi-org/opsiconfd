@@ -7,6 +7,7 @@
 test_utiles
 """
 
+import time
 from contextlib import nullcontext
 from pathlib import Path
 from socket import AF_INET, AF_INET6
@@ -19,6 +20,7 @@ from opsiconfd.utils import (
 	get_ip_interfaces,
 	get_primary_ip_interface,
 	get_user_passwd_details,
+	timed_lru_cache,
 )
 from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
@@ -102,3 +104,27 @@ def test_get_user_passwd_details() -> None:
 	assert info.gid == 0
 	assert info.home == "/root"
 	assert info.service == NameService.FILES
+
+
+def test_timed_lru_cache() -> None:
+	# Test timeout
+	@timed_lru_cache(timeout=1, maxsize=10)
+	def some_func(arg: int) -> float:
+		return time.time()
+
+	res = some_func(1)
+	assert some_func(2) != res
+	assert some_func(1) == res
+	assert some_func(1) == res
+	time.sleep(1.1)
+	assert some_func(1) != res
+
+	# Test maxsize
+	@timed_lru_cache(timeout=60, maxsize=2)
+	def some_func2(arg: int) -> float:
+		return time.time()
+
+	some_func2(1)
+	some_func2(2)
+	some_func2(3)
+	assert some_func2.cache_info().currsize == 2

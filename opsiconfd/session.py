@@ -16,7 +16,9 @@ import time
 import uuid
 from collections import namedtuple
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Literal
+from ipaddress import ip_network
+from socket import getaddrinfo
+from typing import TYPE_CHECKING, Any, Iterable, Literal
 
 import msgspec
 import pyotp
@@ -1453,11 +1455,36 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	await post_authenticate(scope)
 
 
+def _ip_address_in_networks_or_domains(address: str, networks_or_domains: Iterable[str]) -> bool:
+	for network_or_domain in networks_or_domains:
+		try:
+			networks = {ip_network(network_or_domain)}
+		except ValueError:
+			try:
+				networks = set(ip_network(x[4][0]) for x in getaddrinfo(network_or_domain, None))
+			except Exception as err:
+				logger.warning("Failed to resolve domain name '%s': %s", network_or_domain, err)
+				continue
+
+		if any(ip_address_in_network(address, network) for network in networks):
+			return True
+
+	return False
+
+
+async def check_network(client_addr: str) -> None:
+	if not config.networks:
+		return
+	if await run_in_threadpool(_ip_address_in_networks_or_domains, client_addr, config.networks):
+		return
+	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
+
+
 async def check_admin_networks(session: OPSISession) -> None:
 	if not session.is_admin or not config.admin_networks:
 		return
 
-	if any(ip_address_in_network(session.client_addr, network) for network in config.admin_networks):
+	if await run_in_threadpool(_ip_address_in_networks_or_domains, session.client_addr, config.admin_networks):
 		session.add_auth_methods(AuthenticationMethod.ADMIN_NETWORKS)
 		return
 
@@ -1494,15 +1521,6 @@ async def check_blocked(ip_address: str) -> None:
 		is_blocked = True
 		logger.warning("Blocking client '%s' for %0.2f minutes", ip_address, (config.client_block_time / 60))
 		await redis.setex(f"{config.redis_key('stats')}:client:blocked:{ip_key}", config.client_block_time, 1)
-
-
-async def check_network(client_addr: str) -> None:
-	if not config.networks:
-		return
-	for network in config.networks:
-		if ip_address_in_network(client_addr, network):
-			return
-	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
 
 
 async def check_min_configed_version(user_agent: str) -> None:

@@ -29,6 +29,7 @@ from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.ssl.linux import get_system_ca_cert_info
 from opsicommon.system.network import get_fqdn
+from opsicommon.types import forceDomain
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
@@ -44,7 +45,7 @@ CONFIG_FILE_HEADER = """
 # For available options see: opsiconfd --help
 # config examples:
 # log-level-file = 5
-# networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
+# networks = [192.168.0.0/16, 10.0.0.0/8, ::/0, host.example.corp]
 # update-ip = true
 """
 DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug")
@@ -204,6 +205,17 @@ def network_address(value: str) -> str:
 		return ipaddress.ip_network(value).compressed
 	except ValueError as err:
 		raise ArgumentTypeError(f"Invalid network address '{value}: {err}") from err
+
+
+def network_address_or_domain(value: str) -> str:
+	try:
+		return ipaddress.ip_network(value).compressed
+	except ValueError:
+		try:
+			return forceDomain(value)
+		except ValueError:
+			pass
+	raise ArgumentTypeError(f"Neither a valid network address nor a valid domain name: {value!r}")
 
 
 def ip_address(value: str) -> str:
@@ -500,8 +512,12 @@ class Config(metaclass=Singleton):
 			if conf:
 				add = True
 				for network in conf:
-					if ip_address_in_network("127.0.0.1", network):
-						add = False
+					try:
+						if ip_address_in_network("127.0.0.1", network):
+							add = False
+					except ValueError:
+						# Not a valid network address, assume it is a domain name
+						pass
 				if add:
 					conf.append("127.0.0.1/32")
 
@@ -760,16 +776,16 @@ class Config(metaclass=Singleton):
 			nargs="+",
 			env_var="OPSICONFD_NETWORKS",
 			default=[],
-			type=network_address,
-			help=self._help("opsiconfd", "A list of network addresses from which connections are allowed."),
+			type=network_address_or_domain,
+			help=self._help("opsiconfd", "A list of network addresses or domain names from which connections are allowed."),
 		)
 		self._parser.add(
 			"--admin-networks",
 			nargs="+",
 			env_var="OPSICONFD_ADMIN_NETWORKS",
 			default=[],
-			type=network_address,
-			help=self._help("opsiconfd", "A list of network addresses from which administrative connections are allowed."),
+			type=network_address_or_domain,
+			help=self._help("opsiconfd", "A list of network addresses or domain names from which administrative connections are allowed."),
 		)
 		self._parser.add(
 			"--trusted-proxies",

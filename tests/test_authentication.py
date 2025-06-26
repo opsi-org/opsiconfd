@@ -390,6 +390,16 @@ def test_update_client_object(
 		assert ip_address == client_addr
 
 
+def mock_getaddrinfo(host: str, port: int | None) -> list[tuple[int, int, int, str, tuple[str, int, int, int] | tuple[str, int]]]:
+	if host == "allow.example.corp":
+		return [
+			(10, 1, 6, "", ("2606:2800:220:1:248:1893:25c8:1946", 0, 0, 0)),
+			(2, 1, 6, "", ("93.184.216.34", 0)),
+			(2, 1, 6, "", ("1.2.3.4", 0)),
+		]
+	return []
+
+
 def test_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
@@ -401,6 +411,17 @@ def test_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
 		assert res.text == "Host '1.2.3.4' is not allowed to connect"
+
+	test_client.reset_cookies()
+	with get_config({"networks": ["example.org", "this.will.fail.to.resolve", "1.2.3.4/32"], "admin_networks": ["0.0.0.0/0"]}):
+		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
+		assert res.status_code == 200
+
+	test_client.reset_cookies()
+	with get_config({"networks": ["allow.example.corp"], "admin_networks": ["0.0.0.0/0"]}):
+		with patch("opsiconfd.session.getaddrinfo", mock_getaddrinfo):
+			res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
+			assert res.status_code == 200
 
 
 def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -418,6 +439,12 @@ def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
 		assert res.text == f"Admin user '{ADMIN_USER}' is not allowed to connect from '1.2.3.4'"
+
+	test_client.reset_cookies()
+	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["allow.example.corp"]}):
+		with patch("opsiconfd.session.getaddrinfo", mock_getaddrinfo):
+			res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
+			assert res.status_code == 200
 
 
 def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

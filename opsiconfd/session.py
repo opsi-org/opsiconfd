@@ -18,7 +18,7 @@ from collections import namedtuple
 from functools import lru_cache
 from ipaddress import ip_network
 from socket import getaddrinfo
-from typing import TYPE_CHECKING, Any, Iterable, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import msgspec
 import pyotp
@@ -1457,7 +1457,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 
 # The cache will invalidate after 15 minutes (900 seconds)
 @timed_lru_cache(timeout=900, maxsize=128)
-def _ip_address_in_networks_or_domains(address: str, networks_or_domains: Iterable[str]) -> bool:
+def _ip_address_in_networks_or_domains(address: str, networks_or_domains: tuple[str]) -> bool:
 	for network_or_domain in networks_or_domains:
 		try:
 			networks = {ip_network(network_or_domain)}
@@ -1477,7 +1477,9 @@ def _ip_address_in_networks_or_domains(address: str, networks_or_domains: Iterab
 async def check_network(client_addr: str) -> None:
 	if not config.networks:
 		return
-	if await run_in_threadpool(_ip_address_in_networks_or_domains, client_addr, config.networks):
+	if await run_in_threadpool(
+		_ip_address_in_networks_or_domains, client_addr, config.networks if isinstance(config.networks, tuple) else tuple(config.networks)
+	):
 		return
 	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
 
@@ -1486,7 +1488,11 @@ async def check_admin_networks(session: OPSISession) -> None:
 	if not session.is_admin or not config.admin_networks:
 		return
 
-	if await run_in_threadpool(_ip_address_in_networks_or_domains, session.client_addr, config.admin_networks):
+	if await run_in_threadpool(
+		_ip_address_in_networks_or_domains,
+		session.client_addr,
+		config.admin_networks if isinstance(config.admin_networks, tuple) else tuple(config.admin_networks),
+	):
 		session.add_auth_methods(AuthenticationMethod.ADMIN_NETWORKS)
 		return
 

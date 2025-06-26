@@ -404,7 +404,6 @@ def test_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
-		print(res.text)
 		assert res.status_code == 200
 
 	test_client.reset_cookies()

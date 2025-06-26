@@ -520,6 +520,7 @@ class Config(metaclass=Singleton):
 						pass
 				if add:
 					conf.append("127.0.0.1/32")
+			setattr(self._config, attr, tuple(conf))
 
 		jinja_templates.cache_clear()
 

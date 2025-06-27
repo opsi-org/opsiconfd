@@ -22,7 +22,7 @@ from types import NoneType
 from typing import TYPE_CHECKING, Any, Callable, Generator, Literal, Type, overload
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
-from opsicommon.exceptions import BackendPermissionDeniedError
+from opsicommon.exceptions import OpsiServicePermissionError
 from opsicommon.logging import secret_filter
 from opsicommon.logging.constants import TRACE
 from opsicommon.objects import OBJECT_CLASSES, BaseObject, BaseObjectT, get_ident_attributes, get_object_type, get_possible_class_attributes
@@ -593,7 +593,7 @@ class MySQLConnection:
 				continue
 
 			if (allowed_attributes and f_attr not in allowed_attributes) or (denied_attributes and f_attr in denied_attributes):
-				raise BackendPermissionDeniedError(f"No permission for attribute {f_attr}")
+				raise OpsiServicePermissionError(f"No permission for attribute {f_attr}")
 
 			values = []
 			if isinstance(f_val, list):
@@ -959,20 +959,24 @@ class MySQLConnection:
 
 			if allowed_client_ids and column.client_id_column:
 				if data.get(attr) not in allowed_client_ids:
-					raise BackendPermissionDeniedError(f"No permission for {column}/{attr}: {data.get(attr)}")
+					raise OpsiServicePermissionError(f"No permission for {column}/{attr}: {data.get(attr)}")
 
 			if attr in ident_attrs:
 				where.append(f"`{column.column}` = :{attr}")
 
-			if attr == "type" and data[attr] in (
-				"Host",
-				"Config",
-				"Product",
-				"Group",
-				"ProductProperty",
-			):
-				# Abstact class
-				continue
+			if attr == "type":
+				if data[attr] in (
+					"Host",
+					"Config",
+					"Product",
+					"Group",
+					"ProductProperty",
+				):
+					# Abstact class
+					continue
+				if not create and data[attr] in ("OpsiCLient", "OpsiConfigserver", "OpsiDepotserver"):
+					# Do not allow to change type
+					continue
 
 			if attr in ("systemUUID", "ipAddress", "hardwareAddress") and data.get(attr) == "":
 				data[attr] = None
@@ -1082,7 +1086,7 @@ class MySQLConnection:
 		ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
 		columns = self.get_columns(tables=[table], ace=ace, attributes=ident_attributes)
 		if len(columns) < len(ident_attributes):
-			raise BackendPermissionDeniedError("No permission")
+			raise OpsiServicePermissionError("No permission")
 		allowed_client_ids = self.get_allowed_client_ids(ace)
 
 		conditions = []
@@ -1118,7 +1122,7 @@ class MySQLConnection:
 				conditions.append(f"({' AND '.join(cond)})")
 
 		if not conditions:
-			raise BackendPermissionDeniedError("No objects to delete")
+			raise OpsiServicePermissionError("No objects to delete")
 
 		return f"DELETE FROM `{table}` WHERE {' OR '.join(conditions)}", params, idents
 

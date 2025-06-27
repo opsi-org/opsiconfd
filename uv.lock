@@ -478,6 +478,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.7.0"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/4a/263763cb2ba3816dd94b08ad3a33d5fdae34ecb856678773cc40a3605829/dnspython-2.7.0.tar.gz", hash = "sha256:ce9c432eda0dc91cf618a5cedf1a4e142651196bbcd2c80e89ed5a907e5cfaf1", size = 345197, upload-time = "2024-10-05T20:14:59.362Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/1b/e0a87d256e40e8c888847551b20a017a6b98139178505dc7ffb96f04e954/dnspython-2.7.0-py3-none-any.whl", hash = "sha256:b4c34b7d10b51bcc3a5071e7b8dee77939f1e878477eeecc965e9835f63c6c86", size = 313632, upload-time = "2024-10-05T20:14:57.687Z" },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.115.14"
 source = { registry = "https://pypi.uib.gmbh/simple" }
@@ -1198,7 +1207,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.34.0"
+version = "4.3.34.1"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },
@@ -1901,7 +1910,7 @@ wheels = [
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.31.3"
+version = "4.3.32.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1910,10 +1919,12 @@ dependencies = [
     { name = "colorlog" },
     { name = "cryptography" },
     { name = "distro" },
+    { name = "dnspython" },
     { name = "lz4" },
     { name = "mailbits" },
     { name = "msgpack" },
     { name = "msgspec", marker = "sys_platform != 'win32'" },
+    { name = "netifaces" },
     { name = "packaging" },
     { name = "psutil" },
     { name = "ptyprocess" },
@@ -1926,13 +1937,14 @@ dependencies = [
     { name = "requests" },
     { name = "rich" },
     { name = "tomlkit" },
+    { name = "types-netifaces" },
     { name = "websocket-client" },
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.31.3.tar.gz", hash = "sha256:0f07250f98ddf9c75b1d591d847b074087df866d32ca3b36c7fd1964d66c862c" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.32.0.tar.gz", hash = "sha256:a46da984c65447796c514ac98c357fd8ef77e096f7494454585096285ef39644" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.31.3-py3-none-any.whl", hash = "sha256:77de0c65a2f33e90ddbf20ffbad78da0c39337e480b97507dd323ef32360d1d5" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.32.0-py3-none-any.whl", hash = "sha256:2e994799e596bd08cbaa18367b8f83450056a8362b2754088321166be3f2b56c" },
 ]
 
 [[package]]
@@ -2333,6 +2345,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/51/aa/238da23c20f48359c667b69c932a45bdcc325149042f677dc420a721844c/types_ldap3-2.9.13.20250622.tar.gz", hash = "sha256:4770a8701daddf1ee936d46414205a329211b6f6e655c2764f6b70c89b023c47", size = 33634, upload-time = "2025-06-22T03:19:16.32Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d4/fd/0339a618985d19d9b0630f78822d1becb0661be6abe8adbadd9569b875e1/types_ldap3-2.9.13.20250622-py3-none-any.whl", hash = "sha256:c18d0320327fa0017eb3d95acdf38921542d80939255e4ba130ca2d13ca3375f", size = 56498, upload-time = "2025-06-22T03:19:15.495Z" },
+]
+
+[[package]]
+name = "types-netifaces"
+version = "0.11.0.20241025"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/72/6b9d2bc6a0709c071687bd29afdf9069db64c751df647475c761cfca6841/types-netifaces-0.11.0.20241025.tar.gz", hash = "sha256:0877b98a80e53e08dcb0e2d562772f6d0c4eee8bd0e1101a1ee78d17a88c3c8d", size = 2688, upload-time = "2024-10-25T02:45:03.523Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/ea/503f8bc06ab9903e0302d9b94f10d3fb8f599353874cb7e8b6d2fd453079/types_netifaces-0.11.0.20241025-py3-none-any.whl", hash = "sha256:b760315d043acbb1f96232094ab05751f1cec9863df09cd95f533bd1aaee6da8", size = 3023, upload-time = "2024-10-25T02:45:02.462Z" },
 ]
 
 [[package]]

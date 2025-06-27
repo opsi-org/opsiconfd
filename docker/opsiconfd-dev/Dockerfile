@@ -67,4 +67,4 @@ RUN chmod +x /entrypoint.sh /healthcheck.sh \
 
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "sleep", "infinity" ]
-HEALTHCHECK --start-period=300s --retries=10 CMD /healthcheck.sh
+HEALTHCHECK CMD /healthcheck.sh

@@ -40,6 +40,11 @@ services:
     env_file:
       - .env
       - opsiserver43-dev.env
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      timeout: 30s
+      retries: 3
+      start_period: 300s
 
   mysql-dev:
     image: mariadb:10.7
@@ -97,6 +102,11 @@ services:
       - .env
       - opsiserver43-cs.env
     command: uv run opsiconfd
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      timeout: 30s
+      retries: 3
+      start_period: 300s
 
   mysql-cs:
     image: mariadb:10.7

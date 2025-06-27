@@ -46,6 +46,8 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 	state_file="$OPSICONFD_BASE_DIR/.venv_state"
 	state_lock="$OPSICONFD_BASE_DIR/.venv_state_lock"
 
+	touch "$OPSICONFD_BASE_DIR/docker.$(hostname)"
+
 	while true; do
 		if mkdir "$state_lock" 2>/dev/null; then
 			echo "state lock acquired: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
@@ -54,10 +56,9 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 		sleep 3
 	done
 
-	[ ! -e "$OPSICONFD_BASE_DIR/.venv" -a -e "$state_file" ] && rm $state_file
-	state=$(cat $state_file 2>/dev/null)
-	echo "venv state: ${state}"
 	stat $state_file || true
+	state=$(cat $state_file || true 2>/dev/null)
+	echo "venv state: ${state}"
 
 	if [ "$state" = "ready" ]; then
 		echo "* opsiconfd venv is ready"
@@ -69,10 +70,10 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 		echo "* Waiting until opsiconfd venv is set up"
 		start_time=$(date +%s)
 		i=1
-		while [ "$i" -le 60 ]; do
+		while [ "$i" -le 100 ]; do
 			state=$(cat $state_file 2>/dev/null)
 			[ "$state" = "ready" ] && break
-			sleep 2
+			sleep 3
 			i=$((i+1))
 		done
 		end_time=$(date +%s)
@@ -85,13 +86,23 @@ if [ -d $OPSICONFD_BASE_DIR ]; then
 	else
 		echo "* Setup opsiconfd venv"
 		echo -n "setup" > $state_file
+		sync
+		echo "State \"setup\" written to $state_file ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		sleep 2
 		echo "release state lock: $state_lock ($(date +"%Y-%m-%d %H:%M:%S.%N"))"
 		rmdir "$state_lock"
 		cd $OPSICONFD_BASE_DIR
-		uv sync --frozen
+		rm -rf ".venv"
+		echo "Running uv sync"
+		uv sync --frozen || (
+			echo "uv sync failed: $?"
+			exit 1
+		)
+		echo "uv completed"
 		[ -n "$DEV_USER" ] && chown -R $DEV_USER $OPSICONFD_BASE_DIR
+		sleep 3
 		echo -n "ready" > $state_file
+		sync
 		echo "venv created"
 	fi
 fi

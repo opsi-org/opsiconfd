@@ -1,6 +1,6 @@
 [project]
 name = "opsiconfd"
-version = "4.3.33.8"
+version = "4.3.34.0"
 description = "opsi configuration service"
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -50,7 +50,9 @@ dependencies = [
 	"werkzeug>=3.0",
 	"wsgidav>=4.3",
 	"wsproto>=1.2",
-	"xmlsec",
+	# Compilation errors with lxml 1.3.14 and 1.3.15
+	# Binary wheels can lead to segfaults at runtime (i.e. Debian 12)
+	"xmlsec<=1.3.13",
 	"lxml",
 	"yappi>=1.4; platform_machine == 'x86_64'",
 ]
@@ -103,6 +105,7 @@ opsiconfd = "opsiconfd.__main__:main"
 extra-index-url = ["https://pypi.uib.gmbh/simple"]
 index-strategy = "unsafe-best-match"
 package = true
+no-binary-package = ["lxml", "xmlsec"]
 
 [tool.mypy]
 disallow_untyped_calls = true
@@ -113,23 +116,6 @@ follow_imports = "silent"
 [tool.ruff]
 line-length = 140
 target-version = "py311"
-
-[tool.uv.sources]
-[[tool.uv.sources.xmlsec]]
-path = "binary-wheels/xmlsec-1.3.15.dev19+g1104b4c-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-marker = "platform_machine == 'x86_64'"
-
-[[tool.uv.sources.xmlsec]]
-path = "binary-wheels/xmlsec-1.3.15.dev19+g1104b4c-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
-marker = "platform_machine == 'aarch64'"
-
-[[tool.uv.sources.lxml]]
-path = "binary-wheels/lxml-5.3.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-marker = "platform_machine == 'x86_64'"
-
-[[tool.uv.sources.lxml]]
-path = "binary-wheels/lxml-5.3.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
-marker = "platform_machine == 'aarch64'"
 
 [tool.ruff.format]
 indent-style = "tab"

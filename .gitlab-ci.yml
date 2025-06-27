@@ -20,6 +20,7 @@ test:lint-and-test:
     - LOCAL_WORKSPACE_DIR=$(docker inspect $CONTAINER_ID -f "{{ range .Mounts }}{{ if eq .Destination \"/builds\" }}{{ .Source }}{{end}}{{end}}")/uib/opsiconfd/
     - DOCKER_COMPOSE="docker compose -f docker/opsiconfd-dev/docker-compose.yml -p opsiconfd-test-$CI_JOB_ID"
 
+    - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}"
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
     - echo "OPSILICSRV_TOKEN=${OPSILICSRV_TOKEN}" >> docker/opsiconfd-dev/.env
     #- echo "LOCAL_WORKSPACE_DIR=../.." >> docker/opsiconfd-dev/.env
@@ -53,6 +54,7 @@ test:lint-and-test:
     - chmod +x bencher
 
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
+    - echo "" > .venv_state
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 120
 
     - for i in 1 2 3 4 5 6 7 8 9; do sleep 1; $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs && break; done

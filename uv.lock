@@ -1942,9 +1942,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.32.0.tar.gz", hash = "sha256:a46da984c65447796c514ac98c357fd8ef77e096f7494454585096285ef39644" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.32.0.tar.gz", hash = "sha256:989d9421a3ad1d80488278f3ae88ac5961d7d1a0d3bbf716db2d4d26919584c9" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.32.0-py3-none-any.whl", hash = "sha256:2e994799e596bd08cbaa18367b8f83450056a8362b2754088321166be3f2b56c" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.32.0-py3-none-any.whl", hash = "sha256:3954a2c6653fb0e1dad79fca80b1de63baf6e0dcf385773da85b92652af40981" },
 ]
 
 [[package]]

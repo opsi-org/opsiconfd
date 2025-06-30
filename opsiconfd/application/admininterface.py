@@ -23,14 +23,13 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
-from opsicommon import __version__ as python_opsi_common_version
 from opsicommon.license import OpsiLicenseFile
 from opsicommon.objects import OpsiDepotserver
 from opsicommon.system.info import linux_distro_id_like_contains
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd import __version__, contextvar_client_session
+from opsiconfd import contextvar_client_session, get_version_string
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import AppState
 from opsiconfd.application.memoryprofiler import memory_profiler_router
@@ -73,7 +72,7 @@ async def welcome_interface_index(request: Request) -> Response:
 	context = {
 		"request": request,
 		"client_lang": client_lang,
-		"opsi_version": f"{__version__} [python-opsi-common={python_opsi_common_version}]",
+		"opsi_version": get_version_string(),
 		"ucs_server": linux_distro_id_like_contains("univention"),
 		"webgui": webgui,
 		"welcome_page": welcome_page,
@@ -112,7 +111,7 @@ async def admin_interface_index(request: Request) -> Response:
 	cert_info["subject_txt"] = ", ".join(f"{k} = {v}" for k, v in cert_info["subject"].items() if v)
 	context = {
 		"request": request,
-		"opsi_version": f"{__version__} [python-opsi-common={python_opsi_common_version}]",
+		"opsi_version": get_version_string(),
 		"node_name": config.node_name,
 		"username": username,
 		"interface": interface,

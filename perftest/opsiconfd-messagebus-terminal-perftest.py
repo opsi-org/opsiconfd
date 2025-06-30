@@ -73,7 +73,7 @@ class TerminalClient:
 				sender="*",
 				channel=self.back_channel,
 				terminal_id=self.terminal_id,
-				data=f"###{num+1}###\r".encode("utf-8"),
+				data=f"###{num + 1}###\r".encode("utf-8"),
 			)
 			await self.send_message(msg)
 
@@ -162,7 +162,7 @@ class TestManager:
 
 	async def run_test(self) -> dict[str, int]:
 		self.request_stats = []
-		test_clients = [TerminalClient(self, name=f"terminal client{c+1}") for c in range(self.args.clients)]
+		test_clients = [TerminalClient(self, name=f"terminal client{c + 1}") for c in range(self.args.clients)]
 		await asyncio.gather(*[client.setup() for client in test_clients])
 
 		start = datetime.utcnow()

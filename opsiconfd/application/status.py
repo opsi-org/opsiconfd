@@ -11,10 +11,9 @@ import datetime
 
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import PlainTextResponse
-from opsicommon import __version__ as python_opsi_common_version
 from starlette.status import HTTP_404_NOT_FOUND
 
-from opsiconfd import __version__
+from opsiconfd import get_version_string
 from opsiconfd.config import FQDN, config
 from opsiconfd.redis import async_get_redis_info, async_redis_client
 from opsiconfd.ssl import get_opsi_ca_cert_info, get_server_cert_info
@@ -52,7 +51,7 @@ async def status_overview() -> PlainTextResponse:
 
 	data = (
 		f"status: {status}\n"
-		f"version: {__version__} [python-opsi-common={python_opsi_common_version}]\n"
+		f"version: {get_version_string()}\n"
 		f"date: {datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()}\n"
 		f"node: {config.node_name}\n"
 		f"fqdn: {FQDN}\n"

@@ -165,7 +165,7 @@ class TestManager:
 
 	async def main(self) -> None:
 		test_clients = [
-			MessagebusClient(self, name=f"messagebus client{c+1}", start_wait=c * self.args.start_gap) for c in range(self.args.clients)
+			MessagebusClient(self, name=f"messagebus client{c + 1}", start_wait=c * self.args.start_gap) for c in range(self.args.clients)
 		]
 		await asyncio.gather(*[client.run() for client in test_clients])
 		out = sum([client.messages_out for client in test_clients])

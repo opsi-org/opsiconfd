@@ -144,7 +144,7 @@ class TestManager:
 		print("")
 
 		try:
-			test_clients = [FileDownloadClient(self, name=f"download client{c+1}") for c in range(self.args.clients)]
+			test_clients = [FileDownloadClient(self, name=f"download client{c + 1}") for c in range(self.args.clients)]
 			start = datetime.now(timezone.utc)
 			await asyncio.gather(*[client.run() for client in test_clients])
 			now = datetime.now(timezone.utc)

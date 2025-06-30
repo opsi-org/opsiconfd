@@ -20,13 +20,14 @@ import psutil
 from opsicommon.utils import prepare_proxy_environment
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd import get_version_string
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.main import health_check
 from opsiconfd.check.system import get_disk_mountpoints, get_installed_packages
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_get_redis_info, async_redis_client
-from opsiconfd.utils import running_in_docker
+from opsiconfd.utils import get_python_info, running_in_docker
 
 OS_RELEASE_FILE = "/etc/os-release"
 LSB_RELASE_COMMAND = ["lsb_release", "-a"]
@@ -267,6 +268,9 @@ def get_proxy_vars() -> dict[str, str]:
 async def get_diagnostic_data() -> dict[str, Any]:
 	def _get_sync_data() -> dict[str, Any]:
 		return {
+			"opsiconfd_version": get_version_string(),
+			"environment": dict(os.environ),
+			"python_info": get_python_info(),
 			"system": get_system_info(),
 			"processor": get_processor_info(),
 			"memory": get_memory_info(),

@@ -7,15 +7,13 @@
 opsiconfd main
 """
 
-from opsicommon import __version__ as python_opsi_common_version
-
-from opsiconfd import __version__
+from opsiconfd import get_version_string
 from opsiconfd.config import config as opsiconfd_config
 
 
 def main() -> None:
 	if opsiconfd_config.version:
-		print(f"{__version__} [python-opsi-common={python_opsi_common_version}]")
+		print(get_version_string())
 		return None
 
 	if opsiconfd_config.action == "get-config":

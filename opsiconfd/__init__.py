@@ -17,6 +17,8 @@ from contextvars import Context, ContextVar
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Generator
 
+from opsicommon import __version__ as python_opsi_common_version
+
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
 
@@ -24,6 +26,13 @@ contextvar_request_id: ContextVar[int | None] = ContextVar("request_id", default
 contextvar_client_session: ContextVar[OPSISession | None] = ContextVar("client_session", default=None)
 contextvar_client_address: ContextVar[str | None] = ContextVar("client_address", default=None)
 contextvar_server_timing: ContextVar[dict[str, float] | None] = ContextVar("server_timing", default=None)
+
+
+def get_version_string() -> str:
+	"""
+	Return the opsiconfd version string.
+	"""
+	return f"{__version__} [python-opsi-common={python_opsi_common_version}]"
 
 
 def get_contextvars() -> dict[str, Any]:

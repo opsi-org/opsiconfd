@@ -22,7 +22,7 @@ test:lint-and-test:
 
     - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}"
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
-    - echo "UV_PYTHON_INSTALL_DIR=${LOCAL_WORKSPACE_DIR}/.uv-python" >> docker/opsiconfd-dev/.env
+    - echo "UV_PYTHON_INSTALL_DIR=/workspace/.uv_python" >> docker/opsiconfd-dev/.env
     - echo "OPSILICSRV_TOKEN=${OPSILICSRV_TOKEN}" >> docker/opsiconfd-dev/.env
     #- echo "LOCAL_WORKSPACE_DIR=../.." >> docker/opsiconfd-dev/.env
     - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}" >> docker/opsiconfd-dev/.env

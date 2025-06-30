@@ -22,6 +22,7 @@ test:lint-and-test:
 
     - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}"
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
+    - echo "UV_PYTHON_INSTALL_DIR=${LOCAL_WORKSPACE_DIR}/.uv-python" >> docker/opsiconfd-dev/.env
     - echo "OPSILICSRV_TOKEN=${OPSILICSRV_TOKEN}" >> docker/opsiconfd-dev/.env
     #- echo "LOCAL_WORKSPACE_DIR=../.." >> docker/opsiconfd-dev/.env
     - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}" >> docker/opsiconfd-dev/.env
@@ -54,7 +55,6 @@ test:lint-and-test:
     - chmod +x bencher
 
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
-    - echo "" > .venv_state
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 300
 
     - for i in 1 2 3 4 5 6 7 8 9; do sleep 1; $DOCKER_COMPOSE exec opsiserver43-dev ping -c1 opsiserver43-cs && break; done

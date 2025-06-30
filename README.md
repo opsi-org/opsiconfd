@@ -84,6 +84,10 @@ Analyze in gdb:
 ```shell
 coredumpctl gdb
 
+# or
+
+gdb /usr/lib/opsiconfd/opsiconfd /var/lib/systemd/coredump/core.opsiconfd...
+
 (gdb) bt
 (gdb) info registers
 (gdb) disassemble $pc-32, $pc+32

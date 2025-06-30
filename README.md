@@ -45,8 +45,37 @@ py-spy top --full-filenames --pid <pid-of-opsiconfd-worker-or-manager>
 ```
 
 ### valgrind
-```
+```shell
 PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsymutil=yes --leak-check=full --show-leak-kinds=all --log-file=/tmp/valgrind-out uv run opsiconfd --workers=1 --log-level-stderr=5
 ```
 * PYTHONMALLOC=debug
 * PYTHONMALLOC=malloc_debug
+
+# Segfaults and Core dumps
+
+Install systemd-coredump
+```shell
+apt install systemd-coredump
+```
+
+Edit opsiconfd Unit-File
+```shell
+systemctl edit opsiconfd
+```
+
+Add:
+```ini
+[Service]
+LimitCORE=infinity
+```
+
+Activate configuration change
+```shell
+systemctl daemon-reexec
+systemctl restart opsiconfd
+```
+
+After a segfault run:
+```shell
+coredumpctl info opsiconfd
+```

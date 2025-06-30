@@ -33,16 +33,14 @@ transifex:
 
 pyinstaller:
   one_file: no
-  strip: yes
-  # TODO: opsi-dev-cli 1.30.0 supports collect_all
-  extra_args:
-    - --collect-all
-    - opsiconfd_data
+  strip: no
   hidden_imports:
     all:
       - ipaddress
       - colorsys
       - OPSI.Util.WIM
+  collect_all:
+    - opsiconfd_data
   collect_submodules:
     - opsiconfd
     - pydantic_core

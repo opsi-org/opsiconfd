@@ -92,3 +92,8 @@ gdb /usr/lib/opsiconfd/opsiconfd /var/lib/systemd/coredump/core.opsiconfd...
 (gdb) info registers
 (gdb) disassemble $pc-32, $pc+32
 ```
+
+To simulate a segfault:
+```shell
+kill -s SIGSEGV <pid>
+```

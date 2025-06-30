@@ -1487,9 +1487,9 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				"expert",
-				"A list of development options (possible options are: delay-get-session).",
+				"A list of development options (possible options are: delay-get-session, markupsafe-native).",
 			),
-			choices=("delay-get-session",),
+			choices=("delay-get-session", "markupsafe-native"),
 		)
 		self._parser.add(
 			"--profiler",

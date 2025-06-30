@@ -36,6 +36,18 @@ from opsiconfd.redis import delete_locks, redis_client
 from opsiconfd.setup import setup
 from opsiconfd.utils import get_manager_process, get_python_info, log_config, log_python_info
 
+
+def patch_markupsafe() -> None:
+	import markupsafe
+	from markupsafe._native import _escape_inner
+
+	# Monkey-patch _escape_inner to override the one loaded from _speedups
+	# because the _speedups module has Py_MOD_GIL_NOT_USED set and seems to produce segfaults
+	markupsafe._escape_inner = _escape_inner
+	if markupsafe._escape_inner.__module__ != "markupsafe._native":
+		raise RuntimeError("Failed to patch markupsafe")
+
+
 patch_popen()
 configure_warnings()
 
@@ -91,6 +103,10 @@ def opsiconfd_main() -> None:
 		logger.info("Redis connection is working")
 
 		init_logging(log_mode=config.log_mode)
+
+		if "markupsafe-native" in config.development_options:
+			logger.info("Using markupsafe native")
+			patch_markupsafe()
 
 		if config.delete_locks:
 			delete_locks()

@@ -79,3 +79,12 @@ After a segfault run:
 ```shell
 coredumpctl info opsiconfd
 ```
+
+Analyze in gdb:
+```shell
+coredumpctl gdb
+
+(gdb) bt
+(gdb) info registers
+(gdb) disassemble $pc-32, $pc+32
+```

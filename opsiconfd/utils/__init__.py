@@ -133,15 +133,16 @@ def get_python_info() -> dict[str, Any]:
 	"""
 	config_vars = sysconfig.get_config_vars()
 	py_core_cflags = shlex.split(config_vars["PY_CORE_CFLAGS"])
-	jit_available = "-D_Py_JIT" in py_core_cflags
-	jit_enabled = jit_available and os.environ.get("PYTHON_JIT", "0") == "1"
+	jit_supported = "-D_Py_JIT" in py_core_cflags
 	return {
 		"version": sys.version,
 		"MULTIARCH": config_vars["MULTIARCH"],
 		"CONFIG_ARGS": shlex.split(config_vars["CONFIG_ARGS"]),
 		"PY_CORE_CFLAGS": py_core_cflags,
-		"jit_available": jit_available,
-		"jit_enabled": jit_enabled,
+		"free_threading_supported": sysconfig.get_config_var("Py_GIL_DISABLED") == "1",
+		"free_threading_enabled": not sys._is_gil_enabled(),
+		"jit_supported": jit_supported,
+		"jit_enabled": jit_supported and os.environ.get("PYTHON_JIT", "0") == "1",
 	}
 
 

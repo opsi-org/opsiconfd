@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import ctypes
+import faulthandler
 import gc
 import multiprocessing
 import os
@@ -46,7 +47,7 @@ from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.redis import async_redis_client, pool_disconnect_connections
 from opsiconfd.session import load_auth_module
-from opsiconfd.utils import asyncio_create_task
+from opsiconfd.utils import asyncio_create_task, patch_markupsafe
 from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
 
 if TYPE_CHECKING:
@@ -296,13 +297,18 @@ class Worker(WorkerInfo, UvicornServer):
 			from opsiconfd.application.memoryprofiler import start_tracemalloc
 
 			start_tracemalloc()
+
 		self.pid = os.getpid()
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		logger.notice("%s started", self)
 
+		faulthandler.dump_traceback(file=sys.stderr, all_threads=False)
 		patch_popen()
 		configure_warnings()
+		if "markupsafe-native" in config.development_options:
+			logger.info("Using markupsafe native")
+			patch_markupsafe()
 
 		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
 		gc.set_threshold(*GC_THRESHOLDS)

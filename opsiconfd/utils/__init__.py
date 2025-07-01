@@ -951,3 +951,14 @@ def timed_lru_cache(timeout: float, maxsize: int = 128) -> Callable:
 		return wrapped
 
 	return wrapper
+
+
+def patch_markupsafe() -> None:
+	import markupsafe
+	from markupsafe._native import _escape_inner
+
+	# Monkey-patch _escape_inner to override the one loaded from _speedups
+	# because the _speedups module has Py_MOD_GIL_NOT_USED set and seems to produce segfaults
+	markupsafe._escape_inner = _escape_inner
+	if markupsafe._escape_inner.__module__ != "markupsafe._native":
+		raise RuntimeError("Failed to patch markupsafe")

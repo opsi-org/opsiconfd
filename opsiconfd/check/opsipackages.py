@@ -11,7 +11,8 @@ from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions
 
 from opsiconfd.backend import get_mysql, get_unprotected_backend
-from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
+from opsiconfd.check.common import (Check, CheckResult, CheckStatus,
+                                    check_manager)
 from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_requests_session
@@ -19,7 +20,7 @@ from opsiconfd.utils import get_requests_session
 OPSI_PACKAGES_HOST = "opsipackages.43.opsi.org"
 OPSI_REPO_FILE = f"https://{OPSI_PACKAGES_HOST}/stable/packages.msgpack.zstd"
 # Packages that must be installed and up to date on all depots
-MANDATORY_DEPOT_PIDS = ("opsi-script", "opsi-client-agent")
+MANDATORY_DEPOT_PIDS = {"opsi-script"}
 # Packages that must be up to date on all depots and clients if installed
 MANDATORY_IF_INSTALLED_PIDS = ("opsi-script", "opsi-client-agent", "opsi-linux-client-agent", "opsi-macos-client-agent")
 # The number of days after which a package is considered outdated
@@ -106,6 +107,7 @@ class OpsiProductsOnDepotsCheck(Check):
 
 		mandatory_not_installed = 0
 		outdated = 0
+
 		try:
 			available_product_versions = get_available_product_versions(check_product_ids, min_age_seconds=OUTDATED_AFTER_DAYS * 24 * 3600)
 		except Exception as err:
@@ -114,6 +116,18 @@ class OpsiProductsOnDepotsCheck(Check):
 			return result
 
 		for depot_id in depot_ids:
+			if not any(
+				product_id.endswith("client-agent") for product_id in product_on_depot[depot_id]
+			):
+				mandatory_not_installed += 1
+				result.add_partial_result(
+					CheckResult(
+						check=self,
+						check_status=CheckStatus.WARNING,
+						message=f"No client-agent is installed on depot {depot_id!r}.",
+						details={"depot_id": depot_id, "product_id": "opsi-*-client-agent"},
+					)
+				)
 			for product_id, available_version in available_product_versions.items():
 				is_mandatory_depot = product_id in MANDATORY_DEPOT_PIDS
 				is_mandatory = is_mandatory_depot or product_id in MANDATORY_IF_INSTALLED_PIDS
@@ -158,11 +172,13 @@ class OpsiProductsOnDepotsCheck(Check):
 			"not_installed": mandatory_not_installed,
 			"outdated": outdated,
 		}
+
 		if mandatory_not_installed > 0 or outdated > 0:
 			result.message = (
 				f"Out of {len(check_product_ids)} products on {len(depot_ids)} depots checked, "
 				f"{mandatory_not_installed} mandatory products are not installed, {outdated} are out of date."
 			)
+
 		return result
 
 

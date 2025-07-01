@@ -126,6 +126,14 @@ def _prepare_products(depot_installation_time: datetime | None = None) -> None:
 				"UPDATE PRODUCT_ON_DEPOT SET installationTime = :installation_time", params={"installation_time": depot_installation_time}
 			)
 
+def _remove_client_agent_from_depot() -> None:
+	"""
+	Remove the opsi-client-agent product from the specified depot.
+	"""
+	backend = get_unprotected_backend()
+	product_on_depot = backend.productOnDepot_getObjects(depotId="test-check-depot-1.opsi.test", productId="opsi-client-agent")
+	if product_on_depot:
+		backend.productOnDepot_deleteObjects(product_on_depot)
 
 REPO_DATA = """{
   "schema_version": "1.1",
@@ -295,6 +303,8 @@ def test_check_products_on_depots(relase_age: int) -> None:
 	with mock.patch("opsiconfd.check.opsipackages._fetch_repo_file", return_value=repo_data.encode("utf-8")):
 		result = check_manager.get("products_on_depots").run(clear_cache=True)
 
+	print(f"Check result: {result}")
+
 	if relase_age < OUTDATED_AFTER_DAYS:
 		assert result.check_status == CheckStatus.OK
 		assert result.message == "All important products are up to date on all depots."
@@ -323,6 +333,27 @@ def test_check_products_on_depots(relase_age: int) -> None:
 				assert "is outdated" in partial_result.message
 				assert partial_result.upgrade_issue == "4.3"
 		assert found == 2
+
+	# Remove opsi-client-agent from depot to test the case where no client-agent is installed
+	_remove_client_agent_from_depot()
+	with mock.patch("opsiconfd.check.opsipackages._fetch_repo_file", return_value=repo_data.encode("utf-8")):
+		result = check_manager.get("products_on_depots").run(clear_cache=True)
+	if relase_age < OUTDATED_AFTER_DAYS:
+		assert result.check_status == CheckStatus.WARNING
+		assert "Out of 3 products on 2 depots checked, 1 mandatory products are not installed, 0 are out of date." in result.message
+		assert result.upgrade_issue is None
+		assert len(result.partial_results) == 1
+		partial_result = result.partial_results[0]
+		assert partial_result.check_status == CheckStatus.WARNING
+		assert "No client-agent is installed on depot" in partial_result.message
+	else:
+		assert result.check_status == CheckStatus.ERROR
+		# products opsi-script is not installed on both depots, opsi-client-agent is not installed on one depot and outdated on the other depot
+		assert "Out of 3 products on 2 depots checked, 3 mandatory products are not installed, 1 are out of date." in result.message
+		assert result.upgrade_issue == "4.3"
+
+
+
 
 
 @pytest.mark.parametrize("installation_age", [OUTDATED_AFTER_DAYS - 1, OUTDATED_AFTER_DAYS + 1])

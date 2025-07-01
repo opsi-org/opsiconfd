@@ -11,8 +11,7 @@ from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions
 
 from opsiconfd.backend import get_mysql, get_unprotected_backend
-from opsiconfd.check.common import (Check, CheckResult, CheckStatus,
-                                    check_manager)
+from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.check.utils import get_enabled_hosts
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_requests_session
@@ -116,9 +115,7 @@ class OpsiProductsOnDepotsCheck(Check):
 			return result
 
 		for depot_id in depot_ids:
-			if not any(
-				product_id.endswith("client-agent") for product_id in product_on_depot[depot_id]
-			):
+			if not any(product_id.endswith("client-agent") for product_id in product_on_depot[depot_id]):
 				mandatory_not_installed += 1
 				result.add_partial_result(
 					CheckResult(

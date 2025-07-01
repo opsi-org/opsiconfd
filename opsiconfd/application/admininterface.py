@@ -23,7 +23,7 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
-from opsicommon.license import OpsiLicenseFile
+from opsicommon.license import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
 from opsicommon.objects import OpsiDepotserver
 from opsicommon.system.info import linux_distro_id_like_contains
 from redis import ResponseError
@@ -678,14 +678,17 @@ def get_licensing_info() -> RESTResponse:
 	modules: dict[str, dict] = {}
 	previous: dict[str, dict] = {}
 	obsolete_modules = info.get("obsolete_modules", [])
+	module_ids = sorted(set(m for di in info.get("dates", {}).values() for m in di["modules"] if m not in obsolete_modules))
+
 	for at_date, date_info in info.get("dates", {}).items():
 		at_date = datetime.date.fromisoformat(at_date)
 		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):
 			active_date = at_date
 
-		for module_id, module in date_info["modules"].items():
-			if module_id in obsolete_modules:
-				continue
+		for module_id in module_ids:
+			module = date_info["modules"].get(
+				module_id, {"available": False, "state": OPSI_MODULE_STATE_UNLICENSED, "license_ids": [], "client_number": 0}
+			)
 			if module_id not in modules:
 				modules[module_id] = {}
 			modules[module_id][at_date.strftime("%Y-%m-%d")] = module

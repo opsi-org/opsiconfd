@@ -107,7 +107,6 @@ class OpsiProductsOnDepotsCheck(Check):
 
 		mandatory_not_installed = 0
 		outdated = 0
-		client_agent_not_installed = False
 
 		try:
 			available_product_versions = get_available_product_versions(check_product_ids, min_age_seconds=OUTDATED_AFTER_DAYS * 24 * 3600)
@@ -130,7 +129,6 @@ class OpsiProductsOnDepotsCheck(Check):
 					)
 				)
 			for product_id, available_version in available_product_versions.items():
-
 				is_mandatory_depot = product_id in MANDATORY_DEPOT_PIDS
 				is_mandatory = is_mandatory_depot or product_id in MANDATORY_IF_INSTALLED_PIDS
 				partial_result = CheckResult(
@@ -167,8 +165,6 @@ class OpsiProductsOnDepotsCheck(Check):
 					partial_result.upgrade_issue = "4.3"
 
 				result.add_partial_result(partial_result)
-			print(f"Depot {depot_id!r} has {len(product_on_depot[depot_id])} products installed.")
-
 
 		result.details = {
 			"products": len(check_product_ids),

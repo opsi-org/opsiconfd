@@ -53,6 +53,10 @@ PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsym
 
 # Segfaults and Core dumps
 
+opsiconfd leverages Python's faulthandler module to output a backtrace to stderr, which is captured by systemd-journald.
+
+To obtain and analyze a coredump, follow these steps:
+
 Install systemd-coredump
 ```shell
 apt install systemd-coredump

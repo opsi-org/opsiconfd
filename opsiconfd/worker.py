@@ -303,7 +303,7 @@ class Worker(WorkerInfo, UvicornServer):
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		logger.notice("%s started", self)
 
-		faulthandler.dump_traceback(file=sys.stderr, all_threads=False)
+		faulthandler.enable(file=sys.stderr, all_threads=False)
 		patch_popen()
 		configure_warnings()
 		if "markupsafe-native" in config.development_options:

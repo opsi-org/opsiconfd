@@ -19,6 +19,7 @@ import signal
 import socket
 import ssl
 import sys
+import threading
 import time
 from asyncio import sleep as asyncio_sleep
 from enum import StrEnum
@@ -293,6 +294,8 @@ class Worker(WorkerInfo, UvicornServer):
 		self.socket.set_inheritable(True)
 
 	def _run(self) -> None:
+		running_threads = [thread.name for thread in threading.enumerate()]
+
 		if "tracemalloc" in config.profiler:
 			from opsiconfd.application.memoryprofiler import start_tracemalloc
 
@@ -302,6 +305,9 @@ class Worker(WorkerInfo, UvicornServer):
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		logger.notice("%s started", self)
+		if len(running_threads) > 1:
+			# Forking in a multithreaded program is dangerous and can cause undefined behavior
+			raise RuntimeError(f"{self} was forked with multiple threads: {', '.join(running_threads)}.")
 
 		faulthandler.enable(file=sys.stderr, all_threads=False)
 		patch_popen()

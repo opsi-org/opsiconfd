@@ -309,7 +309,7 @@ class Worker(WorkerInfo, UvicornServer):
 			# Forking in a multithreaded program is dangerous and can cause undefined behavior
 			raise RuntimeError(f"{self} was forked with multiple threads: {', '.join(running_threads)}.")
 
-		faulthandler.enable(file=sys.stderr, all_threads=False)
+		faulthandler.enable(file=sys.stderr, all_threads=True)
 		patch_popen()
 		configure_warnings()
 		if "markupsafe-native" in config.development_options:

@@ -202,7 +202,7 @@ class RPCHostMixin(Protocol):
 			return
 
 		self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
-		if host.getType() == "OpsiClient":
+		if host.getType() == "OpsiClient" and (host.hardwareAddress or host.ipAddress or host.systemUUID):
 			self.opsipxeconfd_hosts_updated([host.id])
 			self.dhcpd_control_hosts_updated([host.id])
 
@@ -232,7 +232,7 @@ class RPCHostMixin(Protocol):
 		client_ids = []
 		for host in hosts:
 			self._send_messagebus_event("host_created", data={"type": host.getType(), "id": host.id})
-			if host.getType() == "OpsiClient":
+			if host.getType() == "OpsiClient" and (host.hardwareAddress or host.ipAddress or host.systemUUID):
 				client_ids.append(host.id)
 		if client_ids:
 			self.opsipxeconfd_hosts_updated(client_ids)
@@ -253,7 +253,7 @@ class RPCHostMixin(Protocol):
 		client_ids = []
 		for host in hosts:
 			self._send_messagebus_event("host_updated", data={"type": host.getType(), "id": host.id})
-			if host.getType() == "OpsiClient":
+			if host.getType() == "OpsiClient" and (host.hardwareAddress or host.ipAddress or host.systemUUID):
 				client_ids.append(host.id)
 		if client_ids:
 			self.opsipxeconfd_hosts_updated(client_ids)

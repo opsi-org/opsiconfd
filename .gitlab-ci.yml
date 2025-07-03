@@ -2,6 +2,7 @@ image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.13
 
 variables:
   CI_DEBUG_SERVICES: "false"
+  SKIP_TESTS: "false"
 
 stages:
   - test
@@ -12,6 +13,9 @@ test:lint-and-test:
   stage: test
   tags:
     - docker-x64
+  except:
+    variables:
+      - $SKIP_TESTS
   image: docker
   before_script:
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"

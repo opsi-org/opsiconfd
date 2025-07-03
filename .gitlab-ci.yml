@@ -181,6 +181,10 @@ build:linux-x64-debug:
     - rm -rf .venv
     - uv self update
     - wget https://github.com/astral-sh/python-build-standalone/releases/download/20250702/cpython-3.13.5+20250702-x86_64-unknown-linux-gnu-debug-full.tar.zst -O- | zstd -d | tar -xf -
+    - export CFLAGS='-g -O0'
+    - export CXXFLAGS='-g -O0'
+    - sed -i '/no-binary-package.*/d' pyproject.toml
+    - sed -i '/\[tool\.uv\]/a\no-binary-package = ["aiohttp","cffi","charset_normalizer","Crypto","frozenlist","greenlet","hiredis","lz4","lxml","markupsafe","multidict","msgpack","msgspec","mysqlclient","netifaces","psutil","sqlalchemy","uvloop","websockets","wrapt","xmlsec","yaml","yarl","zstandard"]\nno-cache = true' pyproject.toml
     #- uv sync --python ./python/install --frozen
     #- uv run --python ./python/install opsi-dev-cli -l debug pyinstaller build --extra-args "--noupx"
     - uv sync --frozen

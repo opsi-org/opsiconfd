@@ -55,6 +55,9 @@ PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsym
 
 opsiconfd leverages Python's faulthandler module to output a backtrace to stderr, which is captured by systemd-journald.
 
+Look for `Current thread xxxxxx (most recent call first)`.
+Tracebacks starting with `Thread xxxxxx (most recent call first)` are from other running threads.
+
 To obtain and analyze a coredump, follow these steps:
 
 Install systemd-coredump
@@ -95,6 +98,17 @@ gdb /usr/lib/opsiconfd/opsiconfd /var/lib/systemd/coredump/core.opsiconfd...
 (gdb) bt
 (gdb) info registers
 (gdb) disassemble $pc-32, $pc+32
+```
+
+When Python's faulthandler is enabled, the backtrace will include additional entries after the actual crash, as faulthandler becomes active at that point. To identify the cause of the crash, examine the backtrace entries immediately preceding the faulthandler activation. For example:
+```
+#0  0x00007f868c46d9fc __pthread_kill_implementation (libc.so.6 + 0x969fc)
+#1  0x00007f868c419476 __GI_raise (libc.so.6 + 0x42476)
+#2  0x00007f868b22bb61 faulthandler_fatal_error (libpython3.13.so.1.0 + 0x5c4b61)
+#3  0x00007f868c419520 __restore_rt (libc.so.6 + 0x42520)
+#4  0x00007f868c5747fd __strlen_avx2 (libc.so.6 + 0x19d7fd)
+#5  0x00007f868b11ce36 string_at (libpython3.13.so.1.0 + 0x4b5e36)    <<< segfault happend here
+...
 ```
 
 To simulate a segfault:

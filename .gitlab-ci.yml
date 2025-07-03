@@ -188,6 +188,7 @@ build:linux-x64-debug:
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64-debug
     - install -m 0644 python/install/lib/libpython3.13d.so.1.0 dist/opsiconfd/_internal/libpython3.13.so.1.0
+    - install -m 0644 python/install/lib/python3.13/_sysconfigdata_d_linux_x86_64-linux-gnu.py dist/opsiconfd/_internal/_sysconfigdata_d_linux_x86_64-linux-gnu.py
     # Check if binary is working
     - ./opsiconfd-amd64-debug/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --python-info
   artifacts:

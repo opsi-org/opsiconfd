@@ -124,10 +124,11 @@ kill -s SIGSEGV <pid>
 
 ## Check libraries for debug sections
 ```shell
-for so in $(find .venv -iname "*.so"); do
-	echo $so
-	readelf -S  .venv/lib/python3.13/site-packages/xmlsec.cpython-313-x86_64-linux-gnu.so | grep debug >/dev/null || (
-		echo "No debug section found in $so"
+for so in $(find . -iname "*.so"); do
+	readelf -S "$so" | grep debug >/dev/null && (
+		echo -e "\033[0;32m[*] debug section found in $so\033[0m"
+	) || (
+		echo -e "\033[1;33m[\!] debug section missing in $so\033[0m"
 	)
 done
 ```

@@ -185,7 +185,7 @@ build:linux-x64-debug:
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64-debug
     # Check if binary is working
-    - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --python-info
+    - ./opsiconfd-amd64-debug/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --python-info
   artifacts:
     name: 'opsiconfd-linux-pyinstaller-debug'
     paths:

@@ -2,7 +2,6 @@ image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.13
 
 variables:
   CI_DEBUG_SERVICES: "false"
-  SKIP_TESTS: "false"
 
 stages:
   - test

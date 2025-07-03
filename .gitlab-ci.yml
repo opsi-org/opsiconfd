@@ -160,6 +160,32 @@ build:linux-x64:
       - opsiconfd-amd64
     expire_in: 2 day
 
+build:linux-x64-debug:
+  stage: build
+  when: manual
+  tags:
+    - docker-x64
+  script:
+    - TRANSIFEX_MIN_REVIEW_RATE=0.0
+    - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
+    - apt update
+    - apt-get --yes install clang
+    - opsi-dev-cli self upgrade
+    - rm -rf .venv
+    - uv self update
+    - uv sync --frozen
+    - wget https://github.com/astral-sh/python-build-standalone/releases/download/20250702/cpython-3.13.5+20250702-x86_64-unknown-linux-gnu-debug-full.tar.zst -O- | tar -xf -
+    - uv run --python ./python/install opsi-dev-cli -l debug pyinstaller build --extra-args "--noupx"
+    - mv opsiconfd opsiconfd.src
+    - mv dist/opsiconfd ./opsiconfd-amd64-debug
+    # Check if binary is working
+    - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --python-info
+  artifacts:
+    name: 'opsiconfd-linux-pyinstaller-debug'
+    paths:
+      - opsiconfd-amd64-debug
+    expire_in: 2 day
+
 build:linux-arm64:
   stage: build
   tags:

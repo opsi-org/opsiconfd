@@ -73,7 +73,7 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Run perftests${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --log-level-file=5 --log-file=opsiconfd-perftest.log --max-session-per-ip=20000 &
-    - sleep 10
+    - sleep 15
 
     - echo -e "${TXT_HEAD}Run opsiconfd-perftest${TXT_CLEAR}"
     # Average request time has to be faster than 10 ms

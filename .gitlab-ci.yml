@@ -176,7 +176,7 @@ build:linux-x64-debug:
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - apt update
-    - apt-get --yes install clang zstd
+    - apt-get --yes install clang zstd libmariadb-dev libmariadb-dev-compat
     - opsi-dev-cli self upgrade
     - rm -rf .venv
     - uv self update
@@ -184,7 +184,8 @@ build:linux-x64-debug:
     - export CFLAGS='-g -O0'
     - export CXXFLAGS='-g -O0'
     - sed -i '/no-binary-package.*/d' pyproject.toml
-    - sed -i '/\[tool\.uv\]/a\no-binary-package = ["aiohttp","cffi","charset_normalizer","Crypto","frozenlist","greenlet","hiredis","lz4","lxml","markupsafe","multidict","msgpack","msgspec","mysqlclient","netifaces","psutil","sqlalchemy","uvloop","websockets","wrapt","xmlsec","yaml","yarl","zstandard"]\nno-cache = true' pyproject.toml
+    #- sed -i '/\[tool\.uv\]/a\no-binary-package = ["aiohttp","cffi","charset_normalizer","Crypto","frozenlist","greenlet","hiredis","lz4","lxml","markupsafe","multidict","msgpack","msgspec","mysqlclient","netifaces","psutil","sqlalchemy","uvloop","websockets","wrapt","xmlsec","yaml","yarl","zstandard"]\nno-cache = true' pyproject.toml
+    - sed -i '/\[tool\.uv\]/a\no-binary-package = ["aiohttp","cffi","charset_normalizer","Crypto","frozenlist","hiredis","lz4","lxml","markupsafe","multidict","msgpack","msgspec","mysqlclient","netifaces","psutil","sqlalchemy","uvloop","websockets","wrapt","xmlsec","yaml","yarl","zstandard"]\nno-cache = true' pyproject.toml
     #- uv sync --python ./python/install --frozen
     #- uv run --python ./python/install opsi-dev-cli -l debug pyinstaller build --extra-args "--noupx"
     - uv sync --frozen

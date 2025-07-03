@@ -180,11 +180,14 @@ build:linux-x64-debug:
     - opsi-dev-cli self upgrade
     - rm -rf .venv
     - uv self update
-    - uv sync --frozen
     - wget https://github.com/astral-sh/python-build-standalone/releases/download/20250702/cpython-3.13.5+20250702-x86_64-unknown-linux-gnu-debug-full.tar.zst -O- | zstd -d | tar -xf -
-    - uv run --python ./python/install opsi-dev-cli -l debug pyinstaller build --extra-args "--noupx"
+    #- uv sync --python ./python/install --frozen
+    #- uv run --python ./python/install opsi-dev-cli -l debug pyinstaller build --extra-args "--noupx"
+    - uv sync --frozen
+    - uv run opsi-dev-cli -l debug pyinstaller build --extra-args "--noupx"
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64-debug
+    - install -m 0644 python/install/lib/libpython3.13d.so.1.0 dist/opsiconfd/_internal/libpython3.13.so.1.0
     # Check if binary is working
     - ./opsiconfd-amd64-debug/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --python-info
   artifacts:

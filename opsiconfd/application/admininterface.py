@@ -752,3 +752,13 @@ def get_num_servers() -> int:
 def get_num_clients() -> int:
 	clients = len(get_unprotected_backend().host_getIdents(type="OpsiClient"))
 	return clients
+
+
+@admin_interface_router.get("/segfault")
+def segfault() -> None:
+	"""
+	Trigger a segmentation fault for testing purposes.
+	"""
+	import ctypes
+
+	ctypes.string_at(0)  # This will cause a segmentation fault by trying to access memory at address 0

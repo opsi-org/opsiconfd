@@ -20,6 +20,7 @@ from opsiconfd.utils import (
 	get_ip_interfaces,
 	get_primary_ip_interface,
 	get_user_passwd_details,
+	running_in_docker,
 	timed_lru_cache,
 )
 from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
@@ -28,7 +29,12 @@ from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_
 @pytest.mark.parametrize("family", (None, AF_INET, AF_INET6, [AF_INET, AF_INET6]))
 def test_get_ip_interfaces(family: int | list[int] | None) -> None:
 	interfaces = list(get_ip_interfaces(family))
-	assert interfaces
+	if not running_in_docker() or family != AF_INET6:
+		# In Docker, the IPv6 interface is not always available
+		# and can lead to an empty list.
+		# So we skip the test for IPv6 in Docker.
+		assert interfaces
+
 	for iface in interfaces:
 		assert iface.name
 		assert iface.ip

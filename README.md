@@ -117,9 +117,17 @@ kill -s SIGSEGV <pid>
 ```
 
 ## Use Python with Debug Symbols
-```shell
 * Download a Python debug version from: https://github.com/astral-sh/python-build-standalone/releases/ (for example `cpython-3.13.5+20250702-x86_64-unknown-linux-gnu-debug-full.tar.zst`)
 * extract: `tar xf cpython-3.13.5+20250702-x86_64-unknown-linux-gnu-debug-full.tar.zst`
 * Build: `uv run --python ./python/install opsi-dev-cli pyinstaller build --skip-transifex --extra-args "--noupx"`
 * Check for debug sections: `readelf -S dist/opsiconfd/_internal/libpython3.13.so | grep debug`
+
+## Check libraries for debug sections
+```shell
+for so in $(find .venv -iname "*.so"); do
+	echo $so
+	readelf -S  .venv/lib/python3.13/site-packages/xmlsec.cpython-313-x86_64-linux-gnu.so | grep debug >/dev/null || (
+		echo "No debug section found in $so"
+	)
+done
 ```

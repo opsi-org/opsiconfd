@@ -140,6 +140,7 @@ test:lint-and-test:
 
 build:linux-x64:
   stage: build
+  image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
   tags:
     - docker-x64
   script:

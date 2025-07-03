@@ -3,7 +3,7 @@ common_env_file=${base_dir}/docker/opsiconfd-dev/common.env
 env_file=${base_dir}/docker/opsiconfd-dev/.env
 
 echo "Install git-hooks"
-opsi-dev-tool git-hooks --install
+opsi-dev-cli git-hook install
 
 echo "Writing env file: ${env_file}"
 

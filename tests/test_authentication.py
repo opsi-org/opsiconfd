@@ -247,6 +247,7 @@ def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 				"/auth/login",
 				json={"username": ADMIN_USER, "password": ADMIN_PASS, "mfa_otp": otp_in_tolerance},
 			)
+			print(res.text)
 			assert res.status_code == 200
 			# Test session session.authenticated is true
 			res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))

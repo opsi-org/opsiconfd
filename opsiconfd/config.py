@@ -1489,7 +1489,7 @@ class Config(metaclass=Singleton):
 				"expert",
 				"A list of development options (possible options are: delay-get-session, markupsafe-native).",
 			),
-			choices=("delay-get-session", "markupsafe-native"),
+			choices=("delay-get-session", "markupsafe-native", "no-memory-cleanup"),
 		)
 		self._parser.add(
 			"--profiler",

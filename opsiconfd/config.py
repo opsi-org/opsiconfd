@@ -1487,7 +1487,7 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=self._help(
 				"expert",
-				"A list of development options (possible options are: delay-get-session, markupsafe-native).",
+				"A list of development options (possible options are: delay-get-session, markupsafe-native, no-memory-cleanup).",
 			),
 			choices=("delay-get-session", "markupsafe-native", "no-memory-cleanup"),
 		)

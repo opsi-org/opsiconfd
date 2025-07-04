@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from functools import lru_cache
 from subprocess import run
 from typing import TYPE_CHECKING
 
@@ -129,6 +130,7 @@ def setup_configs() -> None:
 
 	add_configs: list[BoolConfig | UnicodeConfig] = []
 	add_config_states: list[ConfigState] = []
+	remove_configs: list[dict[str, str]] = []
 
 	try:
 		_auto_correct_depot_urls(backend)
@@ -365,30 +367,6 @@ def setup_configs() -> None:
 			)
 		)
 
-	if "opsi-linux-bootimage.append" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.append'")
-		add_configs.append(
-			UnicodeConfig(
-				id="opsi-linux-bootimage.append",
-				description="Extra options to append to kernel command line",
-				possibleValues=[
-					"acpi=off",
-					"irqpoll",
-					"noapic",
-					"pci=nomsi",
-					"vga=normal",
-					"reboot=b",
-					"mem=2G",
-					"nomodeset",
-					"ramdisk_size=2097152",
-					"dhclienttimeout=N",
-				],
-				defaultValues=[""],
-				editable=True,
-				multiValue=True,
-			)
-		)
-
 	if "license-management.use" not in config_ids:
 		logger.info("Creating config 'license-management.use'")
 		add_configs.append(BoolConfig(id="license-management.use", description="Activate license management", defaultValues=[False]))
@@ -476,13 +454,195 @@ def setup_configs() -> None:
 			)
 		)
 
+	# Bootimage configs
+	if "opsi-linux-bootimage.cmdline.quiet" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.quiet'")
+		add_configs.append(
+			BoolConfig(
+				id="opsi-linux-bootimage.cmdline.quiet",
+				description="Hide most kernel and system messages on boot",
+				defaultValues=[True],
+			)
+		)
+
+	if "opsi-linux-bootimage.cmdline.splash" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.splash'")
+		add_configs.append(
+			BoolConfig(
+				id="opsi-linux-bootimage.cmdline.splash",
+				description="Show a graphical splash screen on boot",
+				defaultValues=[True],
+			)
+		)
+
+	if "opsi-linux-bootimage.cmdline.loglevel" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.loglevel'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.cmdline.loglevel",
+				description=(
+					"Kernel log level to use on boot.\n"
+					"0 (KERN_EMERG)   system is unusable\n"
+					"1 (KERN_ALERT)   action must be taken immediately\n"
+					"2 (KERN_CRIT)    critical conditions\n"
+					"3 (KERN_ERR)     error conditions\n"
+					"4 (KERN_WARNING) warning conditions\n"
+					"5 (KERN_NOTICE)  normal but significant condition\n"
+					"6 (KERN_INFO)    informational\n"
+					"7 (KERN_DEBUG)   debug-level messages\n"
+				),
+				possibleValues=["0", "1", "2", "3", "4", "5", "6", "7"],
+				defaultValues=["3"],
+				editable=False,
+				multiValue=False,
+			)
+		)
+
+	if "opsi-linux-bootimage.cmdline.video" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.video'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.cmdline.video",
+				description="Frame buffer configuration. See https://www.kernel.org/doc/Documentation/fb/modedb.txt",
+				possibleValues=["vesa:ywrap,mtrr"],
+				defaultValues=["vesa:ywrap,mtrr"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "opsi-linux-bootimage.cmdline.vga" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.vga'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.cmdline.vga",
+				description=(
+					"Set VGA resolution and color depth\n\n"
+					"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 |\n"
+					"|-------------|---------|----------|----------|-----------|-----------|\n"
+					"| 8 bit       | 771     | 773      | 353      | 775       | 796       |\n"
+					"| 16 bit      | 788     | 791      | 355      | 794       | 798       |\n"
+					"| 24 bit      | 789     | 792      |          | 795       | 799       |\n"
+				),
+				possibleValues=["771", "773", "353", "775", "796", "788", "791", "355", "794", "798", "789", "792", "795", "799"],
+				defaultValues=["791"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "opsi-linux-bootimage.cmdline.opsi_ui" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.opsi_ui'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.cmdline.opsi_ui",
+				description="Choose to show either the opsi TUI or only opsi messages on the splash screen.",
+				possibleValues=["splash", "tui"],
+				defaultValues=["splash"],
+				editable=False,
+				multiValue=False,
+			)
+		)
+
+	@lru_cache
+	def _get_legacy_append_values() -> dict[str, list[str]]:
+		return {
+			host_id: conf.values()
+			for host_id, conf in backend.configState_getValues(config_ids="opsi-linux-bootimage.append", with_defaults=False).items()
+		}
+
+	if "opsi-linux-bootimage.cmdline.pwh" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.pwh'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.cmdline.pwh",
+				description=(
+					"Root password for the bootimage. Accepts either a plain text password or a hash for /etc/shadow. "
+					"Plain text passwords will be hashed automatically. Hashes must follow the format $<hash-type>$<salt>$<hash-value>."
+				),
+				possibleValues=["linux123"],
+				defaultValues=["linux123"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+		for host_id, values in _get_legacy_append_values().items():
+			for val in values:
+				if val.startswith("pwh="):
+					logger.info("Migrating legacy append value 'pwh' for host %s", host_id)
+					add_config_states.append(
+						ConfigState(
+							configId="opsi-linux-bootimage.cmdline.pwh",
+							objectId=host_id,
+							values=[val.removeprefix("pwh=")],
+						)
+					)
+					break
+
+	if "opsi-linux-bootimage.cmdline.lang" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline.lang'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.cmdline.lang",
+				description=("Locale to use for the opsi Linux bootimage."),
+				possibleValues=["en_US", "de_DE", "fr_FR"],
+				defaultValues=["en_US"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "opsi-linux-bootimage.cmdline_append" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.cmdline_append'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.cmdline_append",
+				description="Extra options to append to kernel command line",
+				possibleValues=[
+					"acpi=off",
+					"noapic",
+					"irqpoll",
+					"pci=nomsi",
+					"reboot=b",
+					"mem=2G",
+					"nomodeset",
+				],
+				defaultValues=[""],
+				editable=True,
+				multiValue=True,
+			)
+		)
+
+	if "opsi-linux-bootimage.append" not in config_ids:
+		logger.info("Creating config 'opsi-linux-bootimage.append'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.append",
+				description="Extra options to append to kernel command line",
+				possibleValues=[
+					"acpi=off",
+					"irqpoll",
+					"noapic",
+					"pci=nomsi",
+					"vga=normal",
+					"reboot=b",
+					"mem=2G",
+					"nomodeset",
+					"ramdisk_size=2097152",
+					"dhclienttimeout=N",
+				],
+				defaultValues=[""],
+				editable=True,
+				multiValue=True,
+			)
+		)
+
 	if add_configs:
 		backend.config_createObjects(add_configs)
 	if add_config_states:
 		backend.configState_createObjects(add_config_states)
 
 	# Delete obsolete configs
-	remove_configs = []
 	for config_id in config_ids:
 		if config_id.endswith(".product.cache.outdated") or config_id in ("product_sort_algorithm", "clientconfig.dhcpd.filename"):
 			logger.info("Removing config %r", config_id)

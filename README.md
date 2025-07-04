@@ -46,7 +46,7 @@ py-spy top --full-filenames --pid <pid-of-opsiconfd-worker-or-manager>
 
 ### valgrind
 ```shell
-PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsymutil=yes --leak-check=full --show-leak-kinds=all --log-file=/tmp/valgrind-out uv run opsiconfd --workers=1 --log-level-stderr=5
+PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsymutil=yes --leak-check=full --show-leak-kinds=all --log-file=/tmp/valgrind.log uv run opsiconfd --workers=1 --log-level-stderr=5
 ```
 * PYTHONMALLOC=debug
 * PYTHONMALLOC=malloc_debug
@@ -131,4 +131,9 @@ for so in $(find . -iname "*.so"); do
 		echo -e "\033[1;33m[\!] debug section missing in $so\033[0m"
 	)
 done
+```
+
+## valgrind
+```shell
+valgrind --log-file=/tmp/valgrind.log --trace-children=yes --track-origins=yes --leak-check=full opsiconfd -l6
 ```

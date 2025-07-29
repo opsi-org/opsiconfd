@@ -15,6 +15,7 @@ import os
 import re
 import socket
 import sys
+import threading
 import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from functools import lru_cache
@@ -350,6 +351,7 @@ class Config(metaclass=Singleton):
 		self._sub_command = None
 		self._config = configargparse.Namespace()
 		self._config.config_file = DEFAULT_CONFIG_FILE
+		self._config_file_lock = threading.RLock()
 		self.jinja_templates_dir = "."
 
 		self._set_args()
@@ -672,28 +674,31 @@ class Config(metaclass=Singleton):
 		return data
 
 	def _config_file_contents(self) -> str:
-		with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
-			with lock_file(file, lock_method=FILE_LOCK_METHOD):
-				conf = self._parse_config_file(file)
-				masked_config_file_arguments: tuple[str, ...] = tuple()
-				if self._sub_command:
-					masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
-				return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
+		with self._config_file_lock:
+			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
+				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+					conf = self._parse_config_file(file)
+					masked_config_file_arguments: tuple[str, ...] = tuple()
+					if self._sub_command:
+						masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
+					return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
 
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
-		with open(self._config.config_file, "a+", encoding="utf-8") as file:
-			with lock_file(file, lock_method=FILE_LOCK_METHOD):
-				conf = self._parse_config_file(file)
-				conf[arg] = value
-				return self._generate_config_file(file, conf)
+		with self._config_file_lock:
+			with open(self._config.config_file, "a+", encoding="utf-8") as file:
+				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+					conf = self._parse_config_file(file)
+					conf[arg] = value
+					return self._generate_config_file(file, conf)
 
 	def _update_config_file(self) -> str:
-		with open(self._config.config_file, "a+", encoding="utf-8") as file:
-			with lock_file(file, lock_method=FILE_LOCK_METHOD):
-				conf = self._parse_config_file(file)
-				for deprecated in DEPRECATED:
-					conf.pop(deprecated, None)
-				return self._generate_config_file(file, conf)
+		with self._config_file_lock:
+			with open(self._config.config_file, "a+", encoding="utf-8") as file:
+				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+					conf = self._parse_config_file(file)
+					for deprecated in DEPRECATED:
+						conf.pop(deprecated, None)
+					return self._generate_config_file(file, conf)
 
 	def _init_parser(self) -> None:
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))

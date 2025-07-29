@@ -134,9 +134,7 @@ class OpsiLicensesMissingScalability(Check):
 				result.message = f"The number of workers is set to {config.workers} in configuration and a scalability module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = (
-					f"The number of workers is set to {config.workers} in configuration but no scalability module is licensed."
-				)
+				result.message = f"The number of workers is set to {config.workers} in configuration but no scalability module is licensed."
 		return result
 
 

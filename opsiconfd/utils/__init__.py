@@ -29,10 +29,8 @@ import sysconfig
 import threading
 import time
 import zlib
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from functools import lru_cache
 from hashlib import md5
 from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address
@@ -40,7 +38,7 @@ from json import JSONEncoder
 from logging import DEBUG, INFO  # type: ignore[import]
 from pathlib import Path
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Coroutine, Generator, Iterable, TextIO
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
 
 import lz4.frame  # type: ignore[import]
 import psutil

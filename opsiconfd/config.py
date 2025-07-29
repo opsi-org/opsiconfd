@@ -19,7 +19,7 @@ import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Literal, TextIO
+from typing import TYPE_CHECKING, Any, Final, Iterable, Literal, TextIO
 from urllib.parse import unquote, urlparse
 
 import certifi
@@ -28,13 +28,14 @@ import DNS  # type: ignore[import]
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.ssl.linux import get_system_ca_cert_info
+from opsicommon.system import lock_file
 from opsicommon.system.network import get_fqdn
 from opsicommon.types import forceDomain
 from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.metrics.metric import ALL_METRICS
-from opsiconfd.utils import Singleton, lock_file, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
+from opsiconfd.utils import Singleton, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
 
 if TYPE_CHECKING:
 	from fastapi.templating import Jinja2Templates
@@ -61,6 +62,7 @@ DEPOT_DIR = "/var/lib/opsi/depot"
 BACKUP_DIR = "/var/lib/opsi/backup"
 FILE_TRANSFER_STORAGE_DIR = "/var/lib/opsi/tmp/file-transfer"
 LOG_DIR = "/var/log/opsi"
+FILE_LOCK_METHOD: Final = "lockf"
 NTFS_IMAGES_DIR = "/var/lib/opsi/ntfs-images"
 OPSI_LICENSE_DIR = "/etc/opsi/licenses"
 OPSI_MODULES_FILE = "/etc/opsi/modules"
@@ -671,7 +673,7 @@ class Config(metaclass=Singleton):
 
 	def _config_file_contents(self) -> str:
 		with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
-			with lock_file(file):
+			with lock_file(file, lock_method=FILE_LOCK_METHOD):
 				conf = self._parse_config_file(file)
 				masked_config_file_arguments: tuple[str, ...] = tuple()
 				if self._sub_command:
@@ -680,14 +682,14 @@ class Config(metaclass=Singleton):
 
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with open(self._config.config_file, "a+", encoding="utf-8") as file:
-			with lock_file(file):
+			with lock_file(file, lock_method=FILE_LOCK_METHOD):
 				conf = self._parse_config_file(file)
 				conf[arg] = value
 				return self._generate_config_file(file, conf)
 
 	def _update_config_file(self) -> str:
 		with open(self._config.config_file, "a+", encoding="utf-8") as file:
-			with lock_file(file):
+			with lock_file(file, lock_method=FILE_LOCK_METHOD):
 				conf = self._parse_config_file(file)
 				for deprecated in DEPRECATED:
 					conf.pop(deprecated, None)

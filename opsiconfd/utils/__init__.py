@@ -522,35 +522,6 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 	return data
 
 
-@contextmanager
-def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, timeout: float = 5.0) -> Generator[None, None, None]:
-	"""
-	Context manager for locking a file.
-
-	Args:
-		file (TextIO | BinaryIO): The file to lock.
-		lock_flags (int): The locking flags. Defaults to LOCK_EX | LOCK_NB.
-		timeout (float): The timeout for acquiring the lock. Defaults to 5.0.
-
-	Yields:
-		None: The context manager.
-	"""
-	start = time.time()
-	while True:
-		try:
-			flock(file, lock_flags)
-			break
-		except (IOError, BlockingIOError):
-			if time.time() >= start + timeout:
-				raise
-			time.sleep(0.1)
-	try:
-		yield
-		file.flush()
-	finally:
-		flock(file, LOCK_UN)
-
-
 # From https://docs.python.org/3/library/asyncio-task.html:
 # Important: Save a reference to the result of this function,
 # to avoid a task disappearing mid-execution.

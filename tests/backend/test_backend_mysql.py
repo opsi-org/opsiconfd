@@ -299,16 +299,16 @@ def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expe
 			uri_used = uri
 			return None
 
+		class MockResult:
+			def fetchone(self) -> list[str]:
+				return ["MariaDB 10.1"]
+
+		class MockSession:
+			def execute(self, query: str) -> MockResult:
+				return MockResult()
+
 		@contextmanager
-		def session(self: MySQLConnection) -> Generator[None, None, None]:
-			class MockResult:
-				def fetchone(self) -> list[str]:
-					return ["MariaDB 10.1"]
-
-			class MockSession:
-				def execute(self, query: str) -> MockResult:
-					return MockResult()
-
+		def session(self: MySQLConnection) -> Generator[MockSession, None, None]:
 			yield MockSession()
 
 		with (

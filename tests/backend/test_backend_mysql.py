@@ -9,9 +9,10 @@ test opsiconfd.backend.mysql
 
 import re
 import textwrap
+from contextlib import contextmanager
 from pathlib import Path
 from threading import Thread
-from typing import Any
+from typing import Any, Generator
 from unittest.mock import patch
 
 import pytest
@@ -48,6 +49,7 @@ def test_config_backend_mysql_conf(tmp_path: Path) -> None:
 			"username": "usernameö$",
 			"database": "databaseö$",
 			"address": "addressö$",
+			"port": 3306,
 			"password": "passwordö$",
 			"_driver": "drivername",
 			"_database_charset": "charset",
@@ -199,14 +201,30 @@ def test_update_config_file(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-	"mysql_internal_url, expected_config",
+	"mysql_internal_url, expected_uri, expected_config",
 	(
 		(
-			"mysql+drivername://mysql-host:3306/opsidb?databaseCharset=utf8&username=opsiuser&password=opsipass",
+			"mysql+drivername://mysql-host/opsidb?databaseCharset=utf8&username=opsiuser&password=opsipass",
+			"mysql+drivername://opsiuser:opsipass@mysql-host:3306/opsidb?charset=utf8mb4&ssl=false",
 			{
 				"username": "opsiuser",
 				"database": "opsidb",
 				"address": "mysql-host",
+				"port": 3306,
+				"password": "opsipass",
+				"_database_charset": "utf8mb4",
+				"_driver": "drivername",
+				"unique_hardware_addresses": True,
+			},
+		),
+		(
+			"mysql+drivername://mysql-host:3307/opsidb?databaseCharset=utf8&username=opsiuser&password=opsipass",
+			"mysql+drivername://opsiuser:opsipass@mysql-host:3307/opsidb?charset=utf8mb4&ssl=false",
+			{
+				"username": "opsiuser",
+				"database": "opsidb",
+				"address": "mysql-host",
+				"port": 3307,
 				"password": "opsipass",
 				"_database_charset": "utf8mb4",
 				"_driver": "drivername",
@@ -215,6 +233,7 @@ def test_update_config_file(tmp_path: Path) -> None:
 		),
 		(
 			"mysql://username:p%C3%A4ssw%C3%B6rd%24@host:3306/opsidb?connectionPoolRecycling=100",
+			"mysql+mysqldb://username:p%C3%A4ssw%C3%B6rd%24@host:3306/opsidb?charset=utf8mb4&ssl=false",
 			{
 				"username": "username",
 				"database": "opsidb",
@@ -226,6 +245,7 @@ def test_update_config_file(tmp_path: Path) -> None:
 		(
 			"mysql://u:p@localhost:3306/db?databaseCharset=charset"
 			"&connection_pool_max_overflow=11&connectionPoolTimeout=12&connection_pool_size=13&unique_hardware_addresses=0",
+			"mysql+mysqldb://u:p@localhost:3306/db?charset=charset&ssl=false",
 			{
 				"username": "u",
 				"database": "db",
@@ -241,6 +261,7 @@ def test_update_config_file(tmp_path: Path) -> None:
 		),
 		(
 			"mysql://u:p@localhost:3306/db?unique_system_uuids=false&unique_hardware_addresses=true",
+			"mysql+mysqldb://u:p@localhost:3306/db?charset=utf8mb4&ssl=false",
 			{
 				"username": "u",
 				"database": "db",
@@ -252,7 +273,7 @@ def test_update_config_file(tmp_path: Path) -> None:
 		),
 	),
 )
-def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expected_config: dict[str, Any]) -> None:
+def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expected_uri: str, expected_config: dict[str, Any]) -> None:
 	config_file = tmp_path / "mysql.conf"
 	with get_config({"backend_config_dir": str(tmp_path), "mysql_internal_url": mysql_internal_url}, with_env=False):
 		config = textwrap.dedent(
@@ -270,6 +291,32 @@ def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expe
 		con = MySQLConnection()
 		for key, value in expected_config.items():
 			assert getattr(con, key) == value
+
+		uri_used = None
+
+		def _create_engine(self: MySQLConnection, uri: str) -> None:
+			nonlocal uri_used
+			uri_used = uri
+			return None
+
+		@contextmanager
+		def session(self: MySQLConnection) -> Generator[None, None, None]:
+			class MockResult:
+				def fetchone(self) -> list[str]:
+					return ["MariaDB 10.1"]
+
+			class MockSession:
+				def execute(self, query: str) -> MockResult:
+					return MockResult()
+
+			yield MockSession()
+
+		with (
+			patch("opsiconfd.backend.mysql.MySQLConnection._create_engine", _create_engine),
+			patch("opsiconfd.backend.mysql.MySQLConnection.session", session),
+		):
+			con._init_connection()
+			assert uri_used == expected_uri
 
 		config_file.unlink()
 		con = MySQLConnection()

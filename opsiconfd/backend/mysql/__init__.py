@@ -164,6 +164,7 @@ class MySQLConnection:
 
 	def __init__(self) -> None:
 		self.address = "localhost"
+		self.port = 3306
 		self.username = "opsi"
 		self.password = "opsi"
 		self.database = "opsi"
@@ -251,6 +252,7 @@ class MySQLConnection:
 		if "+" in uri.scheme:
 			self._driver = uri.scheme.split("+")[1]
 		self.address = uri.hostname
+		self.port = uri.port or self.port
 		self.database = uri.path.lstrip("/")
 		self.username = unquote(uri.username or "")
 		self.password = unquote(uri.password or "")
@@ -305,7 +307,7 @@ class MySQLConnection:
 			match = config_regex.search(line)
 			if match:
 				option = match.group(2)
-				if option in ("address", "database", "username", "password"):
+				if option in ("address", "port", "database", "username", "password"):
 					value = getattr(self, option)
 					lines[idx] = f'{match.group(1)}"{option}"{match.group(3)}"{value}",'
 		mysql_conf.write_text("\n".join(lines), encoding="utf-8")
@@ -380,6 +382,8 @@ class MySQLConnection:
 		if address.startswith("/"):
 			properties["unix_socket"] = address
 			address = "localhost"
+		else:
+			address = f"{address}:{self.port}"
 		properties["ssl"] = "true" if self._ssl else "false"
 
 		params = f"?{urlencode(properties)}" if properties else ""

@@ -252,7 +252,7 @@ class MySQLConnection:
 		if "+" in uri.scheme:
 			self._driver = uri.scheme.split("+")[1]
 		self.address = uri.hostname
-		self.port = uri.port or self.port
+		self.port = int(uri.port or self.port)
 		self.database = uri.path.lstrip("/")
 		self.username = unquote(uri.username or "")
 		self.password = unquote(uri.password or "")
@@ -309,7 +309,9 @@ class MySQLConnection:
 				option = match.group(2)
 				if option in ("address", "port", "database", "username", "password"):
 					value = getattr(self, option)
-					lines[idx] = f'{match.group(1)}"{option}"{match.group(3)}"{value}",'
+					if value != "port":
+						value = f'"{value}"'
+					lines[idx] = f'{match.group(1)}"{option}"{match.group(3)}{value},'
 		mysql_conf.write_text("\n".join(lines), encoding="utf-8")
 
 	def _create_engine(self, uri: str) -> None:

@@ -71,6 +71,7 @@ class H11ProtocolOpsiconfd(H11Protocol):
 
 WS_PROTOCOLS["wsproto_opsiconfd"] = WSProtocolOpsiconfd  # type: ignore
 WS_PROTOCOLS["websockets_opsiconfd"] = WebSocketProtocolOpsiconfd  # type: ignore
+WS_PROTOCOLS["websockets-sansio"] = WebSocketsSansIOProtocol  # type: ignore
 HTTP_PROTOCOLS["h11_opsiconfd"] = H11ProtocolOpsiconfd  # type: ignore
 
 
@@ -89,7 +90,7 @@ def get_uvicorn_config() -> Config:
 		"loop": "uvloop",
 		"interface": "asgi3",
 		"http": "h11_opsiconfd",  # h11_opsiconfd / h11 / httptools
-		"ws": config.websocket_protocol,  # wsproto_opsiconfd / wsproto / websockets_opsiconfd / websockets
+		"ws": config.websocket_protocol,  # wsproto_opsiconfd / wsproto / websockets_opsiconfd / websockets / websockets-sansio
 		"host": config.interface,
 		"port": config.port,
 		"workers": config.workers,

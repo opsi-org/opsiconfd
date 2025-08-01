@@ -1524,7 +1524,7 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_WEBSOCKET_PROTOCOL",
 			default="wsproto_opsiconfd",
 			help=self._help("expert", "Set the websocket protocol."),
-			choices=("wsproto_opsiconfd", "websockets_opsiconfd", "wsproto", "websockets"),
+			choices=("wsproto_opsiconfd", "websockets_opsiconfd", "wsproto", "websockets", "websockets-sansio"),
 		)
 		self._parser.add(
 			"--websocket-open-timeout",

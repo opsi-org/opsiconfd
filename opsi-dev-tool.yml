@@ -122,8 +122,6 @@ package:
     done
 
   postinst_script: |
-    /usr/lib/opsiconfd/opsiconfd-pre-start
-
     # Remove obsolete files
     cd /usr/lib/opsiconfd
     for file in /usr/lib/opsiconfd/*; do

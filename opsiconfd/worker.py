@@ -37,6 +37,7 @@ from opsicommon.utils import (
 )
 from uvicorn.config import HTTP_PROTOCOLS, WS_PROTOCOLS, Config  # type: ignore[import]
 from uvicorn.protocols.http.h11_impl import H11Protocol
+from uvicorn.protocols.websockets.websockets_sansio_impl import WebSocketsSansIOProtocol
 from uvicorn.protocols.websockets.wsproto_impl import WSProtocol
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
@@ -431,7 +432,9 @@ class Worker(WorkerInfo, UvicornServer):
 		else:
 			logger.info("All connections closed")
 
-	def get_connection_info(self, connection: H11Protocol | HttpToolsProtocol | WSProtocol | WebSocketProtocol) -> str:
+	def get_connection_info(
+		self, connection: H11Protocol | HttpToolsProtocol | WSProtocol | WebSocketProtocol | WebSocketsSansIOProtocol
+	) -> str:
 		info = ""
 		client = connection.client
 		if client:

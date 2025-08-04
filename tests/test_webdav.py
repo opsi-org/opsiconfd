@@ -233,7 +233,7 @@ def test_webdav_ignore_case_download(
 	abs_dir = os.path.join(base_dir, directory)
 	abs_filename = os.path.join(abs_dir, filename)
 
-	prov = OpsiconfdFilesystemProvider(base_dir)
+	prov = OpsiconfdFilesystemProvider(base_dir, fs_opts={"ignore_case": True})
 
 	if directory:
 		os.makedirs(abs_dir)

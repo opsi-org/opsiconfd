@@ -455,31 +455,51 @@ def setup_configs() -> None:
 		)
 
 	# Bootimage configs
-	if "opsi-linux-bootimage.cmdline.quiet" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.quiet'")
-		add_configs.append(
-			BoolConfig(
-				id="opsi-linux-bootimage.cmdline.quiet",
-				description="Hide most kernel and system messages on boot",
-				defaultValues=[True],
-			)
-		)
+	@lru_cache
+	def _get_legacy_append_values() -> dict[str, list[str]]:
+		return {
+			host_id: conf.values()
+			for host_id, conf in backend.configState_getValues(config_ids="opsi-linux-bootimage.append", with_defaults=False).items()
+		}
 
-	if "opsi-linux-bootimage.cmdline.splash" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.splash'")
-		add_configs.append(
-			BoolConfig(
-				id="opsi-linux-bootimage.cmdline.splash",
-				description="Show a graphical splash screen on boot",
-				defaultValues=[True],
-			)
-		)
-
-	if "opsi-linux-bootimage.cmdline.loglevel" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.loglevel'")
+	if "netboot.host_identifiers" not in config_ids:
+		logger.info("Creating config 'netboot.host_identifiers'")
 		add_configs.append(
 			UnicodeConfig(
-				id="opsi-linux-bootimage.cmdline.loglevel",
+				id="netboot.host_identifiers",
+				description="Defines the identifiers used for host recognition on the boot server.",
+				possibleValues=["system_uuid", "mac_address"],
+				defaultValues=["system_uuid", "mac_address"],
+				editable=False,
+				multiValue=True,
+			)
+		)
+
+	if "netboot.linux-bootimage.cmdline.quiet" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.quiet'")
+		add_configs.append(
+			BoolConfig(
+				id="netboot.linux-bootimage.cmdline.quiet",
+				description="Hide most kernel and system messages on boot?",
+				defaultValues=[True],
+			)
+		)
+
+	if "netboot.linux-bootimage.cmdline.splash" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.splash'")
+		add_configs.append(
+			BoolConfig(
+				id="netboot.linux-bootimage.cmdline.splash",
+				description="Show a graphical splash screen on boot?",
+				defaultValues=[True],
+			)
+		)
+
+	if "netboot.linux-bootimage.cmdline.loglevel" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.loglevel'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.loglevel",
 				description=(
 					"Kernel log level to use on boot.\n"
 					"0 (KERN_EMERG)   system is unusable\n"
@@ -498,12 +518,12 @@ def setup_configs() -> None:
 			)
 		)
 
-	if "opsi-linux-bootimage.cmdline.video" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.video'")
+	if "netboot.linux-bootimage.cmdline.video" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.video'")
 		add_configs.append(
 			UnicodeConfig(
-				id="opsi-linux-bootimage.cmdline.video",
-				description="Frame buffer configuration. See https://www.kernel.org/doc/Documentation/fb/modedb.txt",
+				id="netboot.linux-bootimage.cmdline.video",
+				description="Frame buffer configuration.\nSee https://www.kernel.org/doc/Documentation/fb/modedb.txt",
 				possibleValues=["vesa:ywrap,mtrr"],
 				defaultValues=["vesa:ywrap,mtrr"],
 				editable=True,
@@ -511,31 +531,33 @@ def setup_configs() -> None:
 			)
 		)
 
-	if "opsi-linux-bootimage.cmdline.vga" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.vga'")
+	if "netboot.linux-bootimage.cmdline.vga" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.vga'")
 		add_configs.append(
 			UnicodeConfig(
-				id="opsi-linux-bootimage.cmdline.vga",
+				id="netboot.linux-bootimage.cmdline.vga",
 				description=(
-					"Set VGA resolution and color depth\n\n"
+					"Configure VGA resolution and color depth.\n\n"
 					"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 |\n"
 					"|-------------|---------|----------|----------|-----------|-----------|\n"
 					"| 8 bit       | 771     | 773      | 353      | 775       | 796       |\n"
 					"| 16 bit      | 788     | 791      | 355      | 794       | 798       |\n"
 					"| 24 bit      | 789     | 792      |          | 795       | 799       |\n"
+					"\n"
+					"Use `normal` for 80×25 text mode without framebuffer."
 				),
-				possibleValues=["771", "773", "353", "775", "796", "788", "791", "355", "794", "798", "789", "792", "795", "799"],
+				possibleValues=["771", "773", "353", "775", "796", "788", "791", "355", "794", "798", "789", "792", "795", "799", "normal"],
 				defaultValues=["791"],
 				editable=True,
 				multiValue=False,
 			)
 		)
 
-	if "opsi-linux-bootimage.cmdline.opsi_ui" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.opsi_ui'")
+	if "netboot.linux-bootimage.cmdline.opsi_ui" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.opsi_ui'")
 		add_configs.append(
 			UnicodeConfig(
-				id="opsi-linux-bootimage.cmdline.opsi_ui",
+				id="netboot.linux-bootimage.cmdline.opsi_ui",
 				description="Choose to show either the opsi TUI or only opsi messages on the splash screen.",
 				possibleValues=["splash", "tui"],
 				defaultValues=["splash"],
@@ -544,18 +566,24 @@ def setup_configs() -> None:
 			)
 		)
 
-	@lru_cache
-	def _get_legacy_append_values() -> dict[str, list[str]]:
-		return {
-			host_id: conf.values()
-			for host_id, conf in backend.configState_getValues(config_ids="opsi-linux-bootimage.append", with_defaults=False).items()
-		}
-
-	if "opsi-linux-bootimage.cmdline.pwh" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.pwh'")
+	if "netboot.linux-bootimage.cmdline.lang" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.lang'")
 		add_configs.append(
 			UnicodeConfig(
-				id="opsi-linux-bootimage.cmdline.pwh",
+				id="netboot.linux-bootimage.cmdline.lang",
+				description=("Locale to use for the opsi Linux bootimage."),
+				possibleValues=["en_US", "de_DE", "fr_FR"],
+				defaultValues=["en_US"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "netboot.linux-bootimage.cmdline.pwh" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.pwh'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.pwh",
 				description=(
 					"Root password for the bootimage. Accepts either a plain text password or a hash for /etc/shadow. "
 					"Plain text passwords will be hashed automatically. Hashes must follow the format $<hash-type>$<salt>$<hash-value>."
@@ -569,73 +597,131 @@ def setup_configs() -> None:
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
 				if val.startswith("pwh="):
-					logger.info("Migrating legacy append value 'pwh' for host %s", host_id)
+					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					add_config_states.append(
 						ConfigState(
-							configId="opsi-linux-bootimage.cmdline.pwh",
+							configId="netboot.linux-bootimage.cmdline.pwh",
 							objectId=host_id,
-							values=[val.removeprefix("pwh=")],
+							values=[val.removeprefix("pwh=").strip()],
 						)
 					)
 					break
 
-	if "opsi-linux-bootimage.cmdline.lang" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline.lang'")
+	if "netboot.linux-bootimage.cmdline.noapic" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.noapic'")
 		add_configs.append(
-			UnicodeConfig(
-				id="opsi-linux-bootimage.cmdline.lang",
-				description=("Locale to use for the opsi Linux bootimage."),
-				possibleValues=["en_US", "de_DE", "fr_FR"],
-				defaultValues=["en_US"],
-				editable=True,
-				multiValue=False,
+			BoolConfig(
+				id="netboot.linux-bootimage.cmdline.noapic",
+				description="Disable the use of the I/O Advanced Programmable Interrupt Controller (I/O APIC)?",
+				defaultValues=[False],
 			)
 		)
+		for host_id, values in _get_legacy_append_values().items():
+			if "noapic" in values:
+				logger.info("Migrating legacy append value %r for host %r", val, host_id)
+				add_config_states.append(
+					ConfigState(
+						configId="netboot.linux-bootimage.cmdline.noapic",
+						objectId=host_id,
+						values=[True],
+					)
+				)
 
-	if "opsi-linux-bootimage.cmdline_append" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.cmdline_append'")
+	if "netboot.linux-bootimage.cmdline.irqpoll" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.irqpoll'")
+		add_configs.append(
+			BoolConfig(
+				id="netboot.linux-bootimage.cmdline.irqpoll",
+				description="Enable IRQ polling to support buggy or non-compliant hardware?",
+				defaultValues=[False],
+			)
+		)
+		for host_id, values in _get_legacy_append_values().items():
+			if "irqpoll" in values:
+				logger.info("Migrating legacy append value %r for host %r", val, host_id)
+				add_config_states.append(
+					ConfigState(
+						configId="netboot.linux-bootimage.cmdline.irqpoll",
+						objectId=host_id,
+						values=[True],
+					)
+				)
+
+	if "netboot.linux-bootimage.cmdline.pci" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.pci'")
 		add_configs.append(
 			UnicodeConfig(
-				id="opsi-linux-bootimage.cmdline_append",
-				description="Extra options to append to kernel command line",
-				possibleValues=[
-					"acpi=off",
-					"noapic",
-					"irqpoll",
-					"pci=nomsi",
-					"reboot=b",
-					"mem=2G",
-					"nomodeset",
-				],
-				defaultValues=[""],
+				id="netboot.linux-bootimage.cmdline.pci",
+				description="PCI subsystem options.\n`nomsi` disables PCI Message Signaled Interrupts and forces use of legacy IRQs.",
+				possibleValues=["nomsi"],
+				defaultValues=[],
 				editable=True,
 				multiValue=True,
 			)
 		)
+		for host_id, values in _get_legacy_append_values().items():
+			for val in values:
+				if val.startswith("pci="):
+					logger.info("Migrating legacy append value %r for host %r", val, host_id)
+					add_config_states.append(
+						ConfigState(
+							configId="netboot.linux-bootimage.cmdline.pci",
+							objectId=host_id,
+							values=[v.strip() for v in val.removeprefix("pci=").split(",")],
+						)
+					)
 
-	if "opsi-linux-bootimage.append" not in config_ids:
-		logger.info("Creating config 'opsi-linux-bootimage.append'")
+	if "netboot.linux-bootimage.cmdline.acpi" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.acpi'")
 		add_configs.append(
 			UnicodeConfig(
-				id="opsi-linux-bootimage.append",
-				description="Extra options to append to kernel command line",
-				possibleValues=[
-					"acpi=off",
-					"irqpoll",
-					"noapic",
-					"pci=nomsi",
-					"vga=normal",
-					"reboot=b",
-					"mem=2G",
-					"nomodeset",
-					"ramdisk_size=2097152",
-					"dhclienttimeout=N",
-				],
-				defaultValues=[""],
+				id="netboot.linux-bootimage.cmdline.acpi",
+				description="Control the Advanced Configuration and Power Interface (ACPI) subsystem.\n`off` disables ACPI completely.",
+				possibleValues=["off", "force", "strict", "noirq"],
+				defaultValues=[],
 				editable=True,
 				multiValue=True,
 			)
 		)
+		for host_id, values in _get_legacy_append_values().items():
+			for val in values:
+				if val.startswith("acpi="):
+					logger.info("Migrating legacy append value %r for host %r", val, host_id)
+					add_config_states.append(
+						ConfigState(
+							configId="netboot.linux-bootimage.cmdline.acpi",
+							objectId=host_id,
+							values=[v.strip() for v in val.removeprefix("acpi=").split(",")],
+						)
+					)
+
+	if "netboot.linux-bootimage.cmdline.reboot" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.reboot'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.reboot",
+				description=(
+					"How should the system perform a reboot?\n"
+					"`b`: Reboot using the BIOS reboot function (reliable on older hardware).\n"
+					"`efi`: Use UEFI runtime services (works well with most modern machines)."
+				),
+				possibleValues=["b", "efi"],
+				defaultValues=[],
+				editable=True,
+				multiValue=True,
+			)
+		)
+		for host_id, values in _get_legacy_append_values().items():
+			for val in values:
+				if val.startswith("reboot="):
+					logger.info("Migrating legacy append value %r for host %r", val, host_id)
+					add_config_states.append(
+						ConfigState(
+							configId="netboot.linux-bootimage.cmdline.acpi",
+							objectId=host_id,
+							values=[v.strip() for v in val.removeprefix("reboot=").split(",")],
+						)
+					)
 
 	if add_configs:
 		backend.config_createObjects(add_configs)

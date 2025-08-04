@@ -458,7 +458,7 @@ def setup_configs() -> None:
 	@lru_cache
 	def _get_legacy_append_values() -> dict[str, list[str]]:
 		return {
-			host_id: conf.values()
+			host_id: next(iter(conf.values()))
 			for host_id, conf in backend.configState_getValues(config_ids="opsi-linux-bootimage.append", with_defaults=False).items()
 		}
 
@@ -472,6 +472,16 @@ def setup_configs() -> None:
 				defaultValues=["system_uuid", "mac_address"],
 				editable=False,
 				multiValue=True,
+			)
+		)
+
+	if "netboot.use_host_onetime_password" not in config_ids:
+		logger.info("Creating config 'netboot.use_host_onetime_password'")
+		add_configs.append(
+			BoolConfig(
+				id="netboot.use_host_onetime_password",
+				description="Use a one-time password for host authentication?",
+				defaultValues=[False],
 			)
 		)
 
@@ -531,28 +541,6 @@ def setup_configs() -> None:
 			)
 		)
 
-	if "netboot.linux-bootimage.cmdline.vga" not in config_ids:
-		logger.info("Creating config 'netboot.linux-bootimage.cmdline.vga'")
-		add_configs.append(
-			UnicodeConfig(
-				id="netboot.linux-bootimage.cmdline.vga",
-				description=(
-					"Configure VGA resolution and color depth.\n\n"
-					"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 |\n"
-					"|-------------|---------|----------|----------|-----------|-----------|\n"
-					"| 8 bit       | 771     | 773      | 353      | 775       | 796       |\n"
-					"| 16 bit      | 788     | 791      | 355      | 794       | 798       |\n"
-					"| 24 bit      | 789     | 792      |          | 795       | 799       |\n"
-					"\n"
-					"Use `normal` for 80×25 text mode without framebuffer."
-				),
-				possibleValues=["771", "773", "353", "775", "796", "788", "791", "355", "794", "798", "789", "792", "795", "799", "normal"],
-				defaultValues=["791"],
-				editable=True,
-				multiValue=False,
-			)
-		)
-
 	if "netboot.linux-bootimage.cmdline.opsi_ui" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.opsi_ui'")
 		add_configs.append(
@@ -579,6 +567,42 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "netboot.linux-bootimage.cmdline.vga" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.vga'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.vga",
+				description=(
+					"Configure VGA resolution and color depth.\n\n"
+					"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 |\n"
+					"|-------------|---------|----------|----------|-----------|-----------|\n"
+					"| 8 bit       | 771     | 773      | 353      | 775       | 796       |\n"
+					"| 16 bit      | 788     | 791      | 355      | 794       | 798       |\n"
+					"| 24 bit      | 789     | 792      |          | 795       | 799       |\n"
+					"\n"
+					"Use `normal` for 80×25 text mode without framebuffer."
+				),
+				possibleValues=["771", "773", "353", "775", "796", "788", "791", "355", "794", "798", "789", "792", "795", "799", "normal"],
+				defaultValues=["791"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+		for host_id, values in _get_legacy_append_values().items():
+			for val in values:
+				if val.startswith("vga="):
+					logger.info("Migrating legacy append value %r for host %r", val, host_id)
+					val = val.removeprefix("vga=").strip()
+					if val:
+						add_config_states.append(
+							ConfigState(
+								configId="netboot.linux-bootimage.cmdline.vga",
+								objectId=host_id,
+								values=[val],
+							)
+						)
+					break
+
 	if "netboot.linux-bootimage.cmdline.pwh" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.pwh'")
 		add_configs.append(
@@ -598,13 +622,15 @@ def setup_configs() -> None:
 			for val in values:
 				if val.startswith("pwh="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
-					add_config_states.append(
-						ConfigState(
-							configId="netboot.linux-bootimage.cmdline.pwh",
-							objectId=host_id,
-							values=[val.removeprefix("pwh=").strip()],
+					val = val.removeprefix("pwh=").strip()
+					if val:
+						add_config_states.append(
+							ConfigState(
+								configId="netboot.linux-bootimage.cmdline.pwh",
+								objectId=host_id,
+								values=[val],
+							)
 						)
-					)
 					break
 
 	if "netboot.linux-bootimage.cmdline.noapic" not in config_ids:
@@ -667,9 +693,10 @@ def setup_configs() -> None:
 						ConfigState(
 							configId="netboot.linux-bootimage.cmdline.pci",
 							objectId=host_id,
-							values=[v.strip() for v in val.removeprefix("pci=").split(",")],
+							values=[v.strip() for v in val.removeprefix("pci=").split(",") if v.strip()],
 						)
 					)
+					break
 
 	if "netboot.linux-bootimage.cmdline.acpi" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.acpi'")
@@ -691,9 +718,10 @@ def setup_configs() -> None:
 						ConfigState(
 							configId="netboot.linux-bootimage.cmdline.acpi",
 							objectId=host_id,
-							values=[v.strip() for v in val.removeprefix("acpi=").split(",")],
+							values=[v.strip() for v in val.removeprefix("acpi=").split(",") if v.strip()],
 						)
 					)
+					break
 
 	if "netboot.linux-bootimage.cmdline.reboot" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.reboot'")
@@ -717,11 +745,12 @@ def setup_configs() -> None:
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					add_config_states.append(
 						ConfigState(
-							configId="netboot.linux-bootimage.cmdline.acpi",
+							configId="netboot.linux-bootimage.cmdline.reboot",
 							objectId=host_id,
-							values=[v.strip() for v in val.removeprefix("reboot=").split(",")],
+							values=[v.strip() for v in val.removeprefix("reboot=").split(",") if v.strip()],
 						)
 					)
+					break
 
 	if add_configs:
 		backend.config_createObjects(add_configs)

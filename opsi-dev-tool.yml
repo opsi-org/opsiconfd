@@ -63,7 +63,7 @@ pyinstaller:
     rm dist/opsiconfd/_internal/libmariadb.so.3
     rm dist/opsiconfd/_internal/libpam.so.0
     rm dist/opsiconfd/_internal/libpam_misc.so.0
-    rm dist/opsiconfd/_internal/libssl.so.1.1
+    # Keeping the libssl.so.1.1 for xmlsec
 
     find dist/opsiconfd/_internal -iname "*.c" -delete
     find dist/opsiconfd/_internal -iname "*.h" -delete

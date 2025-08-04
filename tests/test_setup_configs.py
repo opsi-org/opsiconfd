@@ -16,9 +16,10 @@ from opsicommon.objects import (
 	OpsiDepotserver,
 	ProductOnClient,
 	ProductOnDepot,
+	UnicodeConfig,
 )
 
-from opsiconfd.setup.configs import _auto_correct_depot_urls, _cleanup_product_on_clients, _get_windows_domain
+from opsiconfd.setup.configs import _auto_correct_depot_urls, _cleanup_product_on_clients, _get_windows_domain, setup_configs
 from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
 
 
@@ -128,3 +129,73 @@ def test_cleanup_product_on_clients(backend: UnprotectedBackend) -> None:  # noq
 			assert poc.actionRequest == "setup"
 		elif poc.productId == product2.id:
 			assert poc.actionRequest == "none"
+
+
+def test_migrate_bootimage_append(backend: UnprotectedBackend) -> None:  # noqa: F811
+	client1 = OpsiClient(id="test-migrate-append-1.opsi.test")
+	client2 = OpsiClient(id="test-migrate-append-2.opsi.test")
+	client3 = OpsiClient(id="test-migrate-append-3.opsi.test")
+	legacy_config = UnicodeConfig(
+		id="opsi-linux-bootimage.append",
+		description="Extra options to append to kernel command line",
+		possibleValues=[
+			"acpi=off",
+			"irqpoll",
+			"noapic",
+			"pci=nomsi",
+			"vga=normal",
+			"reboot=b",
+			"mem=2G",
+			"nomodeset",
+			"ramdisk_size=2097152",
+			"dhclienttimeout=N",
+		],
+		defaultValues=[""],
+		editable=True,
+		multiValue=True,
+	)
+	config_state1 = ConfigState(
+		configId=legacy_config.id, objectId=client1.id, values=["acpi=off", "reboot= b , w", "irqpoll", "pci=nomsi"]
+	)
+	config_state2 = ConfigState(
+		configId=legacy_config.id, objectId=client2.id, values=["dhclienttimeout=N", "reboot=b, k,w", "vga=normal ", "noapic"]
+	)
+
+	backend.host_createObjects([client1, client2, client3])
+	backend.config_createObjects([legacy_config])
+	backend.configState_createObjects([config_state1, config_state2])
+
+	setup_configs()
+
+	new_states = sorted(
+		backend.configState_getObjects(configId="netboot.linux-bootimage.cmdline.*"), key=lambda s: (s.objectId, s.configId)
+	)
+	assert len(new_states) == 7
+
+	assert new_states[0].objectId == client1.id
+	assert new_states[0].configId == "netboot.linux-bootimage.cmdline.acpi"
+	assert new_states[0].values == ["off"]
+
+	assert new_states[1].objectId == client1.id
+	assert new_states[1].configId == "netboot.linux-bootimage.cmdline.irqpoll"
+	assert new_states[1].values == [True]
+
+	assert new_states[2].objectId == client1.id
+	assert new_states[2].configId == "netboot.linux-bootimage.cmdline.pci"
+	assert new_states[2].values == ["nomsi"]
+
+	assert new_states[3].objectId == client1.id
+	assert new_states[3].configId == "netboot.linux-bootimage.cmdline.reboot"
+	assert new_states[3].values == ["b", "w"]
+
+	assert new_states[4].objectId == client2.id
+	assert new_states[4].configId == "netboot.linux-bootimage.cmdline.noapic"
+	assert new_states[4].values == [True]
+
+	assert new_states[5].objectId == client2.id
+	assert new_states[5].configId == "netboot.linux-bootimage.cmdline.reboot"
+	assert new_states[5].values == ["b", "k", "w"]
+
+	assert new_states[6].objectId == client2.id
+	assert new_states[6].configId == "netboot.linux-bootimage.cmdline.vga"
+	assert new_states[6].values == ["normal"]

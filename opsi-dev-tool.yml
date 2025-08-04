@@ -75,6 +75,7 @@ package:
   type: binary
   systemd: yes
   depends:
+    - libmariadb3
     - librsync | librsync2 | librsync1
     - pigz
   conflicts:

@@ -80,9 +80,17 @@ class WorkerManager:
 		if config.workers == 1:
 			return
 
-		if not module_available("scalability1"):
-			config.workers = 1
-			logger.error("Scalability module not licensed, limiting to %d workers.", config.workers)
+		if module_available("scalability1"):
+			return
+
+		if module_available("scalability_light"):
+			if config.workers > 2:
+				config.workers = 2
+				logger.warning("Only scalability light module licensed, limiting to %d workers.", config.workers)
+			return
+
+		config.workers = 1
+		logger.error("Scalability module not licensed, limiting to %d workers.", config.workers)
 
 	def get_workers(self) -> list[Worker]:
 		return [w for w in self.workers.values() if isinstance(w, Worker)]

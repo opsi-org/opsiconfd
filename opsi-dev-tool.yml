@@ -58,6 +58,13 @@ pyinstaller:
         - opsiconfd
   dirname: opsiconfd
   after_script: |
+    # Remove dynamic libraries that should be used from the system
+    rm dist/opsiconfd/_internal/libcrypto.so.1.1
+    rm dist/opsiconfd/_internal/libmariadb.so.3
+    rm dist/opsiconfd/_internal/libpam.so.0
+    rm dist/opsiconfd/_internal/libpam_misc.so.0
+    # Keeping the libssl.so.1.1 for xmlsec
+
     find dist/opsiconfd/_internal -iname "*.c" -delete
     find dist/opsiconfd/_internal -iname "*.h" -delete
     find dist/opsiconfd/_internal -iname "*.so" -exec chmod -x "{}" \;
@@ -68,6 +75,7 @@ package:
   type: binary
   systemd: yes
   depends:
+    - libmariadb3
     - librsync | librsync2 | librsync1
     - pigz
   conflicts:
@@ -115,8 +123,6 @@ package:
     done
 
   postinst_script: |
-    /usr/lib/opsiconfd/opsiconfd-pre-start
-
     # Remove obsolete files
     cd /usr/lib/opsiconfd
     for file in /usr/lib/opsiconfd/*; do

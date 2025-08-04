@@ -1,6 +1,6 @@
 [project]
 name = "opsiconfd"
-version = "4.3.34.6"
+version = "4.3.35.6"
 description = "opsi configuration service"
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -39,6 +39,7 @@ dependencies = [
 	"qrcode>=8.0",
 	# TODO:
 	# Messagebus problems with redis 5.3.0, 6.0.0, 6.1.0, 6.1.1 and 6.2.0
+	# https://github.com/redis/redis-py/issues/3692
 	# uv run ./perftest/messagebus-clients.py --clients 1000 --event-interval 30 --start-gap 20
 	"redis>=5.0,<5.3",
 	"rich>=13.0",

@@ -119,24 +119,22 @@ class OpsiLicensesMissingSSO(Check):
 
 @dataclass()
 class OpsiLicensesMissingScalability(Check):
-	id: str = "opsi_licenses:missing:scalability1"
+	id: str = "opsi_licenses:missing:scalability"
 	name: str = "OPSI License missing for Scalability"
 	description: str = "Check for missing Scalability license"
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
-			message="Module 'scalability1' is not needed.",
+			message="Scalability module is not needed.",
 			check_status=CheckStatus.OK,
 		)
 		if config.workers > 1:
-			if module_available("scalability1"):
-				result.message = f"The number of workers is set to {config.workers} in configuration and Scalability module is licensed."
+			if module_available("scalability1") or (module_available("scalability_light") and config.workers <= 2):
+				result.message = f"The number of workers is set to {config.workers} in configuration and a scalability module is licensed."
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = (
-					f"The number of workers is set to {config.workers} in configuration but Scalability module is not licensed."
-				)
+				result.message = f"The number of workers is set to {config.workers} in configuration but no scalability module is licensed."
 		return result
 
 

@@ -180,6 +180,36 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	assert res.status_code == 200
 
 
+def test_webdav_new_folder_and_file_permissions(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	base_dir = "/var/lib/opsi/repository"
+	new_dirname = "new_dir"
+	new_filename = "new_file.txt"
+
+	abs_new_dir = os.path.join(base_dir, new_dirname)
+	abs_new_file = os.path.join(abs_new_dir, new_filename)
+
+	if os.path.exists(abs_new_dir):
+		shutil.rmtree(abs_new_dir)
+
+	try:
+		url = f"/repository/{new_dirname}"
+		res = test_client.request(method="MKCOL", url=url)
+		# print(res.status_code, res.text)
+		assert res.status_code == 201
+		assert os.stat(abs_new_dir).st_mode & 0o777 == 0o770
+
+		url = f"/repository/{new_dirname}/{new_filename}"
+		headers = {"Content-Type": "binary/octet-stream", "Content-Length": "0"}
+		res = test_client.put(url=url, headers=headers, content=b"")
+		assert os.stat(abs_new_file).st_mode & 0o777 == 0o660
+	finally:
+		if os.path.exists(abs_new_dir):
+			shutil.rmtree(abs_new_dir)
+
+
 @pytest.mark.parametrize(
 	"filename, path, exception",
 	(
@@ -203,7 +233,7 @@ def test_webdav_ignore_case_download(
 	abs_dir = os.path.join(base_dir, directory)
 	abs_filename = os.path.join(abs_dir, filename)
 
-	prov = OpsiconfdFilesystemProvider(base_dir)
+	prov = OpsiconfdFilesystemProvider(base_dir, fs_opts={"ignore_case": True})
 
 	if directory:
 		os.makedirs(abs_dir)

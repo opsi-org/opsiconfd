@@ -20,7 +20,7 @@ from wsgidav.dav_provider import (  # type: ignore[import]
 	DAVProvider,
 	_DAVResource,
 )
-from wsgidav.fs_dav_provider import FilesystemProvider, FolderResource
+from wsgidav.fs_dav_provider import FileResource, FilesystemProvider, FolderResource
 from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
 from opsiconfd import __version__
@@ -54,12 +54,42 @@ def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info:
 wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
+class OpsiconfdFolderResource(FolderResource):
+	def create_empty_resource(self, name: str) -> FileResource:
+		# Override to set permissions for new files
+		resource: FileResource = super().create_empty_resource(name)
+		assert isinstance(resource._file_path, str)
+		# Remove all permissions for others, add write permissions for group
+		os.chmod(resource._file_path, (os.stat(resource._file_path).st_mode & 0o770) | 0o020)
+		return resource
+
+	def create_collection(self, name: str) -> None:
+		# Override to set permissions for new directories
+		assert "/" not in name
+		if self.provider.readonly:
+			raise DAVError(HTTP_FORBIDDEN)
+		path = util.join_uri(self.path, name)
+		fp = self.provider._loc_to_file_path(path, self.environ)
+		os.mkdir(fp)
+		os.chmod(fp, 0o770)
+
+
 class OpsiconfdFilesystemProvider(FilesystemProvider):
 	def _loc_to_file_path(self, path: str, environ: dict | None = None) -> str:
 		"""
 		Convert resource path to a unicode absolute file path.
 		Check if the path is within the root folder.
 		If file does not exist, try to find a case-insensitive match.
+
+		Args:
+			path: The resource path.
+			environ: The WSGI environment.
+
+		Returns:
+			The absolute unicode file path.
+
+		Raises:
+			RuntimeError: If access is denied.
 		"""
 
 		assert util.is_str(self.root_folder_path)
@@ -67,7 +97,7 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 		root_path = Path(self.root_folder_path).resolve()
 		file_path = root_path / path.strip("/")
 
-		if not file_path.exists():
+		if self.fs_opts.get("ignore_case") and not file_path.exists():
 			alt_path = root_path
 			alt_found = False
 			for part in file_path.relative_to(root_path).parts:
@@ -96,6 +126,22 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 			raise RuntimeError(f"Access to '{util.to_unicode_safe(full_path)}' denied")
 
 		return util.to_unicode_safe(file_path.as_posix())
+
+	def get_resource_inst(self, path: str, environ: dict) -> FileResource:
+		"""Return info dictionary for path.
+
+		See DAVProvider.get_resource_inst()
+		"""
+		self._count_get_resource_inst += 1
+		fp = self._loc_to_file_path(path, environ)
+
+		if not os.path.exists(fp):
+			return None
+		if not self.fs_opts.get("follow_symlinks") and os.path.islink(fp):
+			raise DAVError(HTTP_FORBIDDEN, f"Symlink support is disabled: {fp!r}")
+		if os.path.isdir(fp):
+			return OpsiconfdFolderResource(path, environ, fp)
+		return FileResource(path, environ, fp)
 
 
 class VirtualRootFilesystemCollection(DAVCollection):
@@ -223,10 +269,9 @@ def webdav_setup(app: FastAPI) -> None:
 
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()
-		prov_class = OpsiconfdFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
-		app_config["provider_mapping"]["/"] = prov_class(  # type: ignore[index]
-			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True}
+		app_config["provider_mapping"]["/"] = OpsiconfdFilesystemProvider(  # type: ignore[index]
+			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
 		)
 		app_config["mount_path"] = f"/{name}"
 		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))  # type: ignore[arg-type]
@@ -234,10 +279,9 @@ def webdav_setup(app: FastAPI) -> None:
 	# Virtual filesystem /dav
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
-		prov_class = OpsiconfdFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
-		app_config["provider_mapping"][f"/{name}"] = prov_class(  # type: ignore[index]
-			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True}
+		app_config["provider_mapping"][f"/{name}"] = OpsiconfdFilesystemProvider(  # type: ignore[index]
+			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
 		)
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
 	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]

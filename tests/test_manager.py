@@ -215,17 +215,29 @@ def test_worker_manager_and_workers() -> None:
 			assert proc1.is_running()
 			assert proc2.is_running()
 
-			data = {
-				k.decode("utf-8"): v.decode("utf-8")
-				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:1").items()
-			}
+			data = {}
+			for _ in range(10):
+				data = {
+					k.decode("utf-8"): v.decode("utf-8")
+					for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:1").items()
+				}
+				if data.get("worker_num"):
+					break
+				time.sleep(1)
+
 			assert data["worker_num"] == "1"
 			assert data["node_name"] == worker_manager.node_name
 			assert data["pid"] == str(pid1)
-			data = {
-				k.decode("utf-8"): v.decode("utf-8")
-				for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:2").items()
-			}
+
+			for _ in range(10):
+				data = {
+					k.decode("utf-8"): v.decode("utf-8")
+					for k, v in redis.hgetall(f"{config.redis_key('state')}:workers:{worker_manager.node_name}:2").items()
+				}
+				if data.get("worker_num"):
+					break
+				time.sleep(1)
+
 			assert data["worker_num"] == "2"
 			assert data["node_name"] == worker_manager.node_name
 			assert data["pid"] == str(pid2)

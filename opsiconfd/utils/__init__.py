@@ -29,10 +29,8 @@ import sysconfig
 import threading
 import time
 import zlib
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from functools import lru_cache
 from hashlib import md5
 from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address
@@ -40,7 +38,7 @@ from json import JSONEncoder
 from logging import DEBUG, INFO  # type: ignore[import]
 from pathlib import Path
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Coroutine, Generator, Iterable, TextIO
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -520,35 +518,6 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 		1000 * (compress_end - compress_start),
 	)
 	return data
-
-
-@contextmanager
-def lock_file(file: TextIO | BinaryIO, lock_flags: int = LOCK_EX | LOCK_NB, timeout: float = 5.0) -> Generator[None, None, None]:
-	"""
-	Context manager for locking a file.
-
-	Args:
-		file (TextIO | BinaryIO): The file to lock.
-		lock_flags (int): The locking flags. Defaults to LOCK_EX | LOCK_NB.
-		timeout (float): The timeout for acquiring the lock. Defaults to 5.0.
-
-	Yields:
-		None: The context manager.
-	"""
-	start = time.time()
-	while True:
-		try:
-			flock(file, lock_flags)
-			break
-		except (IOError, BlockingIOError):
-			if time.time() >= start + timeout:
-				raise
-			time.sleep(0.1)
-	try:
-		yield
-		file.flush()
-	finally:
-		flock(file, LOCK_UN)
 
 
 # From https://docs.python.org/3/library/asyncio-task.html:

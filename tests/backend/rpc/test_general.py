@@ -385,6 +385,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			"mysql_backend": 999999999,
 			"professional": 1000,
 			"roaming_profiles": 999999999,
+			"scalability_light": 1000,
 			"sso": 100,
 			"swondemand": 999999999,
 			"treeview": 999999999,

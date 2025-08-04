@@ -13,20 +13,25 @@ import re
 from functools import lru_cache
 from pathlib import Path
 from subprocess import run
+from threading import RLock
 
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import secret_filter
 from opsicommon.server.rights import set_rights
+from opsicommon.system import lock_file
 from opsicommon.system.info import is_ucs
 from opsicommon.types import forceHostId
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.config import FILE_LOCK_METHOD
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_opsi_config, is_local_user, lock_file
+from opsiconfd.utils import get_opsi_config, is_local_user
 from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
 from opsiconfd.utils.ucs import get_server_role
 
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
+
+_passwd_rlock = RLock()
 
 
 @lru_cache
@@ -60,25 +65,26 @@ def user_set_credentials(username: str, password: str) -> None:
 	encoded_password = blowfish_encrypt(depot.opsiHostKey, password)
 
 	passwd_file = get_passwd_file()
-	with open(passwd_file, "a+", encoding="utf-8") as file:
-		with lock_file(file):
-			file.seek(0)
-			lines = []
-			add_line = f"{username}:{encoded_password}"
-			for line in file.readlines():
-				line = line.strip()
-				match = PASSWD_LINE_REGEX.search(line)
-				if not match:
-					continue
-				if match.group(1) == username:
-					line = add_line
-					add_line = ""
-				lines.append(line)
-			if add_line:
-				lines.append(add_line)
-			file.seek(0)
-			file.truncate()
-			file.write("\n".join(lines) + "\n")
+	with _passwd_rlock:
+		with open(passwd_file, "a+", encoding="utf-8") as file:
+			with lock_file(file, lock_method=FILE_LOCK_METHOD):
+				file.seek(0)
+				lines = []
+				add_line = f"{username}:{encoded_password}"
+				for line in file.readlines():
+					line = line.strip()
+					match = PASSWD_LINE_REGEX.search(line)
+					if not match:
+						continue
+					if match.group(1) == username:
+						line = add_line
+						add_line = ""
+					lines.append(line)
+				if add_line:
+					lines.append(add_line)
+				file.seek(0)
+				file.truncate()
+				file.write("\n".join(lines) + "\n")
 
 	set_rights(passwd_file)
 
@@ -192,14 +198,15 @@ def user_get_credentials(username: str | None = None, hostId: str | None = None)
 	result = {"password": "", "rsaPrivateKey": ""}
 
 	passwd_file = get_passwd_file()
-	if passwd_file.exists():
-		with open(passwd_file, "r", encoding="utf-8") as file:
-			with lock_file(file):
-				for line in file.readlines():
-					match = PASSWD_LINE_REGEX.search(line)
-					if match and match.group(1) == username:
-						result["password"] = match.group(2)
-						break
+	with _passwd_rlock:
+		if passwd_file.exists():
+			with open(passwd_file, "r", encoding="utf-8") as file:
+				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+					for line in file.readlines():
+						match = PASSWD_LINE_REGEX.search(line)
+						if match and match.group(1) == username:
+							result["password"] = match.group(2)
+							break
 
 	if not result["password"]:
 		raise BackendMissingDataError(f"Username '{username}' not found in '{passwd_file}'")

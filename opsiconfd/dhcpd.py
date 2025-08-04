@@ -19,9 +19,11 @@ from functools import lru_cache
 from pathlib import Path
 from socket import AF_INET
 from subprocess import CalledProcessError, run
+from threading import RLock
 from time import sleep, time
 from typing import Generator, Literal
 
+from opsicommon.system import lock_file
 from opsicommon.types import (
 	forceBool,
 	forceDict,
@@ -33,33 +35,35 @@ from opsicommon.types import (
 from opsicommon.utils import ip_address_in_network
 
 from opsiconfd.backend.rpc import read_backend_config_file
-from opsiconfd.config import OPSICONFD_DIR, config, opsi_config
+from opsiconfd.config import FILE_LOCK_METHOD, OPSICONFD_DIR, config, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_primary_ip_interface, lock_file
+from opsiconfd.utils import get_primary_ip_interface
+
+_dhcp_rlock = RLock()
 
 
 @contextmanager
 def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
 	dhcpd_lock_file = Path(OPSICONFD_DIR) / ".opsi-dhcpd-lock"
-	with open(dhcpd_lock_file, "a+", encoding="utf8") as lock_fh:
-		try:
-			os.chmod(dhcpd_lock_file, 0o666)
-		except PermissionError:
-			pass
-		with lock_file(lock_fh, timeout=10.0):
-			lock_fh.seek(0)
-			lines = lock_fh.readlines()
-			if len(lines) >= 100:
-				lines = lines[-100:]
-			lines.append(f"{time()};{os.getpid()};{lock_type}\n")
-			lock_fh.seek(0)
-			lock_fh.truncate()
-			lock_fh.writelines(lines)
-			lock_fh.flush()
-			yield None
-			if lock_type == "config_reload":
-				sleep(4.0)
-	# os.remove(dhcpd_lock_file)
+	with _dhcp_rlock:
+		with open(dhcpd_lock_file, "a+", encoding="utf8") as lock_fh:
+			try:
+				os.chmod(dhcpd_lock_file, 0o666)
+			except PermissionError:
+				pass
+			with lock_file(lock_fh, lock_method=FILE_LOCK_METHOD, timeout=10.0):
+				lock_fh.seek(0)
+				lines = lock_fh.readlines()
+				if len(lines) >= 100:
+					lines = lines[-100:]
+				lines.append(f"{time()};{os.getpid()};{lock_type}\n")
+				lock_fh.seek(0)
+				lock_fh.truncate()
+				lock_fh.writelines(lines)
+				lock_fh.flush()
+				yield None
+				if lock_type == "config_reload":
+					sleep(4.0)
 
 
 class DHCPDConfComponent:
@@ -313,6 +317,7 @@ class DHCPDConfFile:
 	def __init__(self, file_path: str | Path, lock_timeout: float = 2.0) -> None:
 		self.file_path = Path(file_path)
 		self._lock_timeout = lock_timeout
+		self._file_rlock = RLock()
 		self._lines: list[str] = []
 		self._current_line = 0
 		self._current_token: str | None = None
@@ -334,9 +339,10 @@ class DHCPDConfFile:
 		self._data = ""
 		self._parsed = False
 
-		with open(self.file_path, "r", encoding="utf-8") as file:
-			with lock_file(file, timeout=self._lock_timeout):
-				self._lines = file.readlines()
+		with self._file_rlock:
+			with open(self.file_path, "r", encoding="utf-8") as file:
+				with lock_file(file, lock_method=FILE_LOCK_METHOD, timeout=self._lock_timeout):
+					self._lines = file.readlines()
 
 		self._current_block = self._global_block = DHCPDConfGlobalBlock()
 		self._global_block.end_line = len(self._lines)
@@ -385,11 +391,12 @@ class DHCPDConfFile:
 		self.parse()
 
 	def generate(self) -> None:
-		with open(self.file_path, "r+", encoding="utf-8") as file:
-			with lock_file(file, timeout=self._lock_timeout):
-				file.seek(0)
-				file.truncate()
-				file.write(self._global_block.as_text())
+		with self._file_rlock:
+			with open(self.file_path, "r+", encoding="utf-8") as file:
+				with lock_file(file, lock_method=FILE_LOCK_METHOD, timeout=self._lock_timeout):
+					file.seek(0)
+					file.truncate()
+					file.write(self._global_block.as_text())
 
 	def add_host(
 		self, hostname: str, hardware_address: str, ip_address: str, fixed_address: str, parameters: dict[str, str | bool] | None = None

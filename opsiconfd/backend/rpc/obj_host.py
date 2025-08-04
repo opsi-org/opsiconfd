@@ -811,9 +811,10 @@ class RPCHostMixin(Protocol):
 
 		return list(clients.values())
 
-	@rpc_method(check_acl=False)
-	def host_updateClients(
-		self: BackendProtocol, clients: list[dict] | list[OpsiClientExtendedUpdate] | dict | OpsiClientExtendedUpdate
+	def _host_update_or_create_clients(
+		self: BackendProtocol,
+		clients: list[dict] | list[OpsiClientExtendedUpdate] | dict | OpsiClientExtendedUpdate,
+		operation: Literal["create", "update"],
 	) -> None:
 		opsi_clients: list[OpsiClient] = []
 		opsi_clients_extended: list[OpsiClientExtendedUpdate] = []
@@ -823,7 +824,10 @@ class RPCHostMixin(Protocol):
 			opsi_clients_extended.append(client)
 			opsi_clients.append(client.to_opsi_client())
 
-		self.host_updateObjects(opsi_clients)
+		if operation == "create":
+			self.host_createObjects(opsi_clients)
+		else:
+			self.host_updateObjects(opsi_clients)
 
 		config_states: list[ConfigState] = []
 		for client in opsi_clients_extended:
@@ -860,3 +864,15 @@ class RPCHostMixin(Protocol):
 
 		if config_states:
 			self.configState_createObjects(config_states)
+
+	@rpc_method(check_acl=False)
+	def host_createClients(
+		self: BackendProtocol, hosts: list[dict] | list[OpsiClientExtendedUpdate] | dict | OpsiClientExtendedUpdate
+	) -> None:
+		self._host_update_or_create_clients(hosts, operation="create")
+
+	@rpc_method(check_acl=False)
+	def host_updateClients(
+		self: BackendProtocol, clients: list[dict] | list[OpsiClientExtendedUpdate] | dict | OpsiClientExtendedUpdate
+	) -> None:
+		self._host_update_or_create_clients(clients, operation="update")

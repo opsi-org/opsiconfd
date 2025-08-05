@@ -528,6 +528,31 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "netboot.linux-bootimage.cmdline.opsi_loglevel" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.opsi_loglevel'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.opsi_loglevel",
+				description=(
+					"Specifies the opsi log level for the bootimage.\n"
+					"0 (NONE):         Logging disabled\n"
+					"1 (ESSENTIAL):    Essential messages\n"
+					"2 (CRITICAL):     Critical conditions\n"
+					"3 (ERROR):        Error conditions\n"
+					"4 (WARNING):      Warning conditions\n"
+					"5 (NOTICE):       Significant but normal conditions\n"
+					"6 (INFO):         Informational messages\n"
+					"7 (DEBUG):        Debug-level messages\n"
+					"8 (TRACE):        Trace-level messages\n"
+					"9 (LOG_SECRET):   Secret information\n"
+				),
+				possibleValues=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+				defaultValues=["6"],
+				editable=False,
+				multiValue=False,
+			)
+		)
+
 	if "netboot.linux-bootimage.cmdline.video" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.video'")
 		add_configs.append(

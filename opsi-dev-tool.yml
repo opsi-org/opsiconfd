@@ -59,11 +59,10 @@ pyinstaller:
   dirname: opsiconfd
   after_script: |
     # Remove dynamic libraries that should be used from the system
-    rm dist/opsiconfd/_internal/libcrypto.so.1.1
     rm dist/opsiconfd/_internal/libmariadb.so.3
     rm dist/opsiconfd/_internal/libpam.so.0
     rm dist/opsiconfd/_internal/libpam_misc.so.0
-    # Keeping the libssl.so.1.1 for xmlsec
+    # Keeping the libssl.so.1.1 and libcrypto.so.1.1 for xmlsec (Debian package libssl1.1)
 
     find dist/opsiconfd/_internal -iname "*.c" -delete
     find dist/opsiconfd/_internal -iname "*.h" -delete

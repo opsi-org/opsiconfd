@@ -579,6 +579,19 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "netboot.linux-bootimage.cmdline.tz" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.tz'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.tz",
+				description=("Timezone to use for the opsi Linux bootimage."),
+				possibleValues=["UTC", "Europe/Berlin", "America/New_York", "Asia/Tokyo"],
+				defaultValues=["UTC"],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
 	if "netboot.linux-bootimage.cmdline.lang" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.lang'")
 		add_configs.append(

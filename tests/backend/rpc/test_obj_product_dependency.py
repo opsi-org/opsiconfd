@@ -1673,15 +1673,16 @@ def test_get_product_action_groups_installation_manager_rfc(
 		action_pocs = []
 		for action_group in res:
 			for poc in action_group.product_on_clients:
-				if poc.actionSequence > -1:
+				if poc.actionSequence or -1 > -1:
 					action_pocs.append(poc)
 
-		action_pocs.sort(key=lambda x: x.actionSequence)
+		action_pocs.sort(key=lambda x: x.actionSequence or -1)
 		for poc in action_pocs:
 			print(f"{poc.actionSequence}: {poc.productId} - {poc.actionRequest}")
 
 		assert len(action_pocs) == len(expected_actions)
 		for poc in action_pocs:
+			assert poc.actionSequence is not None
 			assert expected_actions[poc.actionSequence] == (poc.productId, poc.actionRequest)
 
 

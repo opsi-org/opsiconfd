@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 
+from opsicommon.logging import use_logging_config
 from opsicommon.objects import AuditHardwareOnHost, NetbootProduct, OpsiClient
 from opsisystem.inffile import Architecture, INFTargetOSVersion
 
@@ -30,9 +31,46 @@ def test_driver_updateDatabase_and_getSources(
 	product_id = "win11-x64-drivers-test"
 	client_id = "test-client.opsi.test"
 	client_data_dir = tmp_path / product_id
-	drivers_dir = client_data_dir / "drivers"
+	drivers_dir = client_data_dir / "drivers" / "drivers"
+	excluded_dir = drivers_dir / "excluded"
+	additional_dir = drivers_dir / "additional"
+	by_audit_dir = additional_dir / "byAudit"
+	driver_db_dir = client_data_dir / "drivers" / "driver_db"
+
 	client_data_dir.mkdir()
 	shutil.copytree("tests/data/windows_drivers", drivers_dir)
+	excluded_dir.mkdir()
+	additional_dir.mkdir()
+	shutil.move(drivers_dir / "vioserial", excluded_dir / "vioserial")
+
+	by_audit_inf1 = by_audit_dir / "A Vendor." / "Some model_" / "sub1" / "driver1.inf"
+	by_audit_inf2 = by_audit_dir / "A Vendor." / "Some model_" / "sub2" / "driver2.inf"
+	by_audit_inf3 = by_audit_dir / "A Vendor." / "Some model_" / "sub3" / "sub3" / "driver3.inf"
+
+	additional_drv1 = additional_dir / "additional1" / "sub1" / "driver1.inf"
+	additional_drv2 = additional_dir / "additional2" / "sub2" / "sub2" / "driver2.inf"
+	additional_drv3 = additional_dir / "additional3" / "sub3" / "driver3.inf"
+	additional_drv4 = additional_dir / "additional3" / "sub33" / "driver33.inf"
+	additional_drv5 = additional_dir / "additional4" / "driver4.inf"
+
+	by_audit_inf1.parent.mkdir(parents=True)
+	by_audit_inf1.touch()
+	by_audit_inf2.parent.mkdir(parents=True)
+	by_audit_inf2.touch()
+	by_audit_inf3.parent.mkdir(parents=True)
+	by_audit_inf3.touch()
+
+	additional_drv1.parent.mkdir(parents=True)
+	additional_drv1.touch()
+	additional_drv2.parent.mkdir(parents=True)
+	additional_drv2.touch()
+	additional_drv3.parent.mkdir(parents=True)
+	additional_drv3.touch()
+	additional_drv4.parent.mkdir(parents=True)
+	additional_drv4.touch()
+	additional_drv5.parent.mkdir(parents=True)
+	additional_drv5.touch()
+
 	get_target_os_versions = [
 		INFTargetOSVersion(Architecture=Architecture.X64, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=22000),
 		INFTargetOSVersion(Architecture=Architecture.X86, OSMajorVersion=10, OSMinorVersion=0, BuildNumber=1507),
@@ -42,32 +80,50 @@ def test_driver_updateDatabase_and_getSources(
 	backend.product_createObjects([product])
 
 	with (
+		use_logging_config(stderr_level=5),
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions),
 		patch("opsiconfd.backend.rpc.driver.find_wim_files", return_value=[Path("install.wim")]),
-		patch.object(backend, "productPropertyState_getValues", lambda **kwargs: {client_id: {product_id: {"image": ["install.wim:0"]}}}),
+		patch.object(
+			backend,
+			"productPropertyState_getValues",
+			lambda **kwargs: {
+				client_id: {
+					product_id: {
+						"image": ["install.wim:0"],
+						"additional_drivers": ["additional2", "additional3", "additional_missing"],
+					}
+				}
+			},
+		),
 	):
 		install_wim = tmp_path / product_id / "images" / "install.wim"
 		install_wim.parent.mkdir(parents=True)
 		install_wim.touch()
 		backend.driver_updateDatabase(productId=product.id)
 
-		links = []
+		links: list[Path] = []
+		missing_links: list[Path] = []
 		for sub_dir in ("x64/10.0.22000/PCI/1AF4", "x86/10.0.1507/PCI/1AF4"):
-			for device_id in ("1001", "1003", "1042", "1043"):
-				links.append(client_data_dir / "driver_db" / sub_dir / device_id)
+			for device_id in ("1001", "1042"):
+				links.append(driver_db_dir / sub_dir / device_id)
+			for device_id in ("1003", "1043"):
+				missing_links.append(driver_db_dir / sub_dir / device_id)
 
 		for device_id in ("0236", "0289", "0295"):
-			links.append(client_data_dir / "driver_db" / "x64/10.0.22000/HDAUDIO/10EC" / device_id)
+			links.append(driver_db_dir / "x64/10.0.22000/HDAUDIO/10EC" / device_id)
 
 		for device_id in ("4001", "4008", "400E", "4014", "4016", "402D", "402E", "4C63"):
-			links.append(client_data_dir / "driver_db" / "x64/10.0.22000/USB/0BDA" / device_id)
+			links.append(driver_db_dir / "x64/10.0.22000/USB/0BDA" / device_id)
 
 		for link in links:
 			assert link.is_symlink()
 			inf_file = next(link.resolve().glob("*.inf"))
 			assert inf_file.exists()
 			assert inf_file.is_file()
+
+		for link in missing_links:
+			assert not link.exists()
 
 		client = OpsiClient(id=client_id)
 		ahohs = [
@@ -101,6 +157,24 @@ def test_driver_updateDatabase_and_getSources(
 				subsystemVendorId="09E3",
 				subsystemDeviceId="1028",
 			),
+			AuditHardwareOnHost(
+				hardwareClass="COMPUTER_SYSTEM",
+				hostId=client.id,
+				vendor="A VENDOR_",
+				model="some model (some sku).",
+				description="",
+				totalPhysicalMemory=8589389824,
+				name="COMPUTERNAME",
+				systemType="x64-based PC",
+				sku="some sku",
+				systemUUID="25aa985c-9f87-462e-b005-eea8fdae9546",
+			),
+			AuditHardwareOnHost(
+				hardwareClass="BASE_BOARD",
+				hostId=client.id,
+				vendor="Other Vendor",
+				model="Other model",
+			),
 		]
 
 		backend.host_createObjects([client])
@@ -110,40 +184,62 @@ def test_driver_updateDatabase_and_getSources(
 			# Default image: x64 10.0.22000
 			sources = backend.driver_getSources(productId=product.id, clientId=client.id, architecture=architecture, osVersion=os_version)
 			sources.sort(key=lambda src: src.url)
-			assert len(sources) == 3
+
+			assert len(sources) == 9
 
 			for source in sources:
 				assert source.binary_type == "windows_driver"
 				assert source.access_type == "depot"
 				assert source.operation_type == "recursive_copy"
 
-			assert sources[0].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/HDAUDIO/10EC/0236"
+			assert sources[0].url == "win11-x64-drivers-test/drivers/driver_db/x64/10.0.22000/HDAUDIO/10EC/0236"
 			assert sources[0].information["device_type"] == "HDAUDIO"
 			assert sources[0].information["vendor_id"] == "10EC"
 			assert sources[0].information["device_id"] == "0236"
 			assert sources[0].information["device_name"] == "Realtek Audio"
 
-			assert sources[1].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/PCI/1AF4/1001"
+			assert sources[1].url == "win11-x64-drivers-test/drivers/driver_db/x64/10.0.22000/PCI/1AF4/1001"
 			assert sources[1].information["device_type"] == "PCI"
 			assert sources[1].information["vendor_id"] == "1AF4"
 			assert sources[1].information["device_id"] == "1001"
 			assert sources[1].information["vendor_name"] == "Red Hat, Inc."
 			assert sources[1].information["device_name"] == "Red Hat VirtIO SCSI controller"
 
-			assert sources[2].url == "win11-x64-drivers-test/driver_db/x64/10.0.22000/USB/0BDA/4001"
+			assert sources[2].url == "win11-x64-drivers-test/drivers/driver_db/x64/10.0.22000/USB/0BDA/4001"
 			assert sources[2].information["device_type"] == "USB"
 			assert sources[2].information["vendor_id"] == "0BDA"
 			assert sources[2].information["device_id"] == "4001"
 			assert sources[2].information["vendor_name"] == "Realtek"
 			assert sources[2].information["device_name"] == "Realtek USB Audio"
 
+			assert sources[3].url == "win11-x64-drivers-test/drivers/drivers/additional/additional2/sub2/sub2"
+			assert sources[3].information["additional_dir"] == "additional2"
+
+			assert sources[4].url == "win11-x64-drivers-test/drivers/drivers/additional/additional3/sub3"
+			assert sources[4].information["additional_dir"] == "additional3"
+
+			assert sources[5].url == "win11-x64-drivers-test/drivers/drivers/additional/additional3/sub33"
+			assert sources[5].information["additional_dir"] == "additional3"
+
+			assert sources[6].url == "win11-x64-drivers-test/drivers/drivers/additional/byAudit/A Vendor./Some model_/sub1"
+			assert sources[7].url == "win11-x64-drivers-test/drivers/drivers/additional/byAudit/A Vendor./Some model_/sub2"
+			assert sources[8].url == "win11-x64-drivers-test/drivers/drivers/additional/byAudit/A Vendor./Some model_/sub3/sub3"
+
+			for source in sources[6:]:
+				assert source.information["sys_vendor"] == "A VENDOR"
+				assert source.information["sys_model"] == "some model (some sku)"
+				assert source.information["board_vendor"] == "Other Vendor"
+				assert source.information["board_model"] == "Other model"
+				assert source.information["by_audit_vendor_dir_name"] == "A Vendor."
+				assert source.information["by_audit_model_dir_name"] == "Some model_"
+
 		sources = backend.driver_getSources(clientId=client.id, productId=product.id, architecture="x86", osVersion="10.0.1507")
-		assert len(sources) == 1
+		assert len(sources) == 7
 
 		assert sources[0].binary_type == "windows_driver"
 		assert sources[0].access_type == "depot"
 		assert sources[0].operation_type == "recursive_copy"
-		assert sources[0].url == "win11-x64-drivers-test/driver_db/x86/10.0.1507/PCI/1AF4/1001"
+		assert sources[0].url == "win11-x64-drivers-test/drivers/driver_db/x86/10.0.1507/PCI/1AF4/1001"
 		assert sources[0].information["device_type"] == "PCI"
 		assert sources[0].information["vendor_id"] == "1AF4"
 		assert sources[0].information["device_id"] == "1001"

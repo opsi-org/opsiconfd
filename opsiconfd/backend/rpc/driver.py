@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
@@ -50,6 +50,12 @@ class BinarySource:
 	operation_type: BinarySourceOperationType
 	url: str
 	information: dict[str, Any] = field(default_factory=dict)
+
+	def as_dict(self) -> dict[str, Any]:
+		"""
+		Convert the BinarySource to a dictionary.
+		"""
+		return asdict(self)
 
 
 def find_wim_files(client_data_dir: Path) -> list[Path]:
@@ -115,36 +121,42 @@ class RPCDriverMixin(Protocol):
 		if not target_os_versions:
 			raise BackendError(f"No target OS versions found in images for product '{product_id}'")
 
-		drivers_dir = client_data_dir / "drivers"
-		driver_db_dir = client_data_dir / "driver_db"
+		base_dir = client_data_dir / "drivers"
+		drivers_dir = base_dir / "drivers"
+		driver_db_dir = base_dir / "driver_db"
 		if driver_db_dir.exists():
 			shutil.rmtree(driver_db_dir)
 		inf_re = re.compile(r".*\.inf", re.IGNORECASE)
 
-		for root, _dirs, files in os.walk(drivers_dir):
+		for root, dirs, files in os.walk(drivers_dir, topdown=True):
+			root_path = Path(root)
+			if root_path == drivers_dir:
+				dirs[:] = [d for d in dirs if d not in ("additional", "excluded")]
+
 			for filename in files:
-				if inf_re.match(filename):
-					file_path = Path(root) / filename
-					logger.info("Processing file '%s'", file_path)
-					inf_file = INFFile(file_path)
-					for tov in target_os_versions:
-						logger.debug("Creating driver links for %s", tov)
-						for dev in inf_file.get_devices(target_os_version=tov):
-							logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
-							tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
-							for hwid in dev.hardware_ids:
-								if not hwid.vendor_id or not hwid.device_id:
-									continue
-								if hwid.device_type == DeviceType.MULTI:
-									logger.debug("Skipping device type %s", hwid.device_type)
-									continue
-								hwid_dir: Path = tov_dir / hwid.device_type / hwid.vendor_id
-								hwid_dir.mkdir(parents=True, exist_ok=True)
-								link: Path = hwid_dir / hwid.device_id
-								if link.exists():
-									continue
-								link.symlink_to(root)
-								logger.debug("Created link '%s' -> '%s'", link, root)
+				if not inf_re.match(filename):
+					continue
+				file_path = root_path / filename
+				logger.info("Processing file '%s'", file_path)
+				inf_file = INFFile(file_path)
+				for tov in target_os_versions:
+					logger.debug("Creating driver links for %s", tov)
+					for dev in inf_file.get_devices(target_os_version=tov):
+						logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
+						tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+						for hwid in dev.hardware_ids:
+							if not hwid.vendor_id or not hwid.device_id:
+								continue
+							if hwid.device_type == DeviceType.MULTI:
+								logger.debug("Skipping device type %s", hwid.device_type)
+								continue
+							hwid_dir: Path = tov_dir / hwid.device_type / hwid.vendor_id
+							hwid_dir.mkdir(parents=True, exist_ok=True)
+							link: Path = hwid_dir / hwid.device_id
+							if link.exists():
+								continue
+							link.symlink_to(root)
+							logger.debug("Created link '%s' -> '%s'", link, root)
 
 	@rpc_method
 	def driver_getSources(
@@ -194,11 +206,31 @@ class RPCDriverMixin(Protocol):
 		if not ahohs:
 			raise BackendMissingDataError(f"No hardware information found for client '{client_id}'")
 
-		driver_db_dir = depot_dir / product_id / "driver_db"
+		client_data_dir = depot_dir / product_id
+		base_dir = client_data_dir / "drivers"
+		drivers_dir = base_dir / "drivers"
+		additional_dir = drivers_dir / "additional"
+		by_audit_dir = additional_dir / "byAudit"
+		driver_db_dir = base_dir / "driver_db"
 		tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
 
 		sources = []
+		replace_re = re.compile(r'[<>?":|\\/*]')
+		sys_vendor = ""
+		sys_model = ""
+		sys_sku = ""
+		board_vendor = ""
+		board_model = ""
 		for ahoh in ahohs:
+			if ahoh.hardwareClass == "COMPUTER_SYSTEM":
+				sys_vendor = replace_re.sub("_", ahoh.vendor or "").rstrip("._ ")
+				sys_model = replace_re.sub("_", ahoh.model or "").rstrip("._ ")
+				sys_sku = replace_re.sub("_", ahoh.sku or "").rstrip("._ ")
+				continue
+			if ahoh.hardwareClass == "BASE_BOARD":
+				board_vendor = replace_re.sub("_", ahoh.vendor or "").rstrip("._ ")
+				board_model = replace_re.sub("_", ahoh.model or "").rstrip("._ ")
+				continue
 			if ahoh.hardwareClass not in ("PCI_DEVICE", "USB_DEVICE", "HDAUDIO_DEVICE"):
 				continue
 			if not ahoh.vendorId or not ahoh.deviceId:
@@ -224,4 +256,75 @@ class RPCDriverMixin(Protocol):
 					},
 				)
 			)
+
+		additional_dirs: dict[Path, dict[str, Any]] = {}
+		if by_audit_dir.is_dir():
+			vendors = []
+			if sys_vendor:
+				vendors.append(sys_vendor.lower())
+			if board_vendor:
+				vendors.append(board_vendor.lower())
+
+			models = []
+			if sys_model:
+				models.append(sys_model.lower())
+				if sys_sku and sys_sku in sys_model:
+					models.append(sys_model.lower().replace(f"{sys_sku.lower()}", "").replace("()", "").strip())
+			if board_model:
+				models.append(board_model.lower())
+
+			if vendors and models:
+				logger.notice("Looking for byAudit drivers for vendors %r and models %r", vendors, models)
+				for vendor_dir in by_audit_dir.iterdir():
+					if vendor_dir.name.lower().rstrip("._ ") in vendors:
+						logger.info("Found matching byAudit driver vendor directory %r", vendor_dir.name)
+						for model_dir in vendor_dir.iterdir():
+							if model_dir.is_dir() and model_dir.name.lower().rstrip("._ ") in models:
+								logger.info("Found matching byAudit driver model directory %r", model_dir.name)
+								additional_dirs[model_dir] = {
+									"sys_vendor": sys_vendor,
+									"sys_model": sys_model,
+									"board_vendor": board_vendor,
+									"board_model": board_model,
+									"by_audit_vendor_dir_name": vendor_dir.name,
+									"by_audit_model_dir_name": model_dir.name,
+								}
+								break
+						break
+
+		additional_drivers: list[str] = (
+			self.productPropertyState_getValues(
+				product_ids=product_id, property_ids="additional_drivers", object_ids=client_id, with_defaults=True
+			)
+			.get(client_id, {})
+			.get(product_id, {})
+			.get("additional_drivers", [])
+		)
+		if additional_drivers:
+			logger.notice("Found configured additional drivers for client %r and product %r: %r", client_id, product_id, additional_drivers)
+			for dirname in additional_drivers:
+				additional_dirs[additional_dir / dirname] = {"additional_dir": dirname}
+
+		for driver_dir, information in additional_dirs.items():
+			if not driver_dir.is_dir():
+				logger.warning("Additional driver directory '%s' does not exist, skipping", driver_dir)
+				continue
+
+			inf_files = list(driver_dir.glob("**/*.[Ii][Nn][Ff]"))
+			if not inf_files:
+				logger.warning("No inf files found in additional driver directory '%s', skipping", driver_dir)
+				continue
+
+			for inf_file in inf_files:
+				logger.info("Found additional inf file '%s'", inf_file)
+				sources.append(
+					BinarySource(
+						binary_type=BinarySourceBinaryType.WINDOWS_DRIVER,
+						access_type=BinarySourceAccessType.DEPOT,
+						operation_type=BinarySourceOperationType.RECURSIVE_COPY,
+						url=str(inf_file.parent.relative_to(depot_dir)),
+						information=information,
+					)
+				)
+
 		return sources

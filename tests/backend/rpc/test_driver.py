@@ -89,7 +89,7 @@ def test_driver_updateDatabase_and_getSources(
 	backend.product_createObjects([product])
 
 	with (
-		use_logging_config(stderr_level=5),
+		use_logging_config(stderr_level=7),
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions),
 		patch("opsiconfd.backend.rpc.driver.find_wim_files", return_value=[Path("install.wim")]),

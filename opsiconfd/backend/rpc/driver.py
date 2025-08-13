@@ -257,11 +257,20 @@ class RPCDriverMixin(Protocol):
 		client_id = typeForceHostId(clientId)
 		depot_dir = Path(DEPOT_DIR)
 
+		if not self.host_getIdents(id=client_id):
+			raise BackendMissingDataError(f"Client '{client_id}' not found")
+		if not self.product_getIdents(id=product_id):
+			raise BackendMissingDataError(f"Product '{product_id}' not found")
+
+		ahohs = self.auditHardwareOnHost_getObjects(hostId=client_id)
+		if not ahohs:
+			raise BackendMissingDataError(f"No hardware information found for client '{client_id}'")
+
 		if not architecture or not osVersion:
-			logger.debug("Getting architecture and OS version from WIM image")
+			logger.info("Getting architecture and OS version from WIM image")
 			values = self.productPropertyState_getValues(product_ids=product_id, property_ids="image", object_ids=client_id)
 			image = values.get(client_id, {}).get(product_id, {}).get("image", [""])[0]
-			logger.debug("Image: %s", image)
+			logger.debug("Product property 'image' for client %r is %r", client_id, image)
 			if image:
 				image_file, image_name_or_index = image.split(":", 1) if ":" in image else ("install.wim", image)
 				image_path = depot_dir / product_id / "images" / image_file
@@ -269,7 +278,7 @@ class RPCDriverMixin(Protocol):
 				if not image_path.exists():
 					raise BackendError(f"Image file '{image_path}' from product property 'image' not found")
 				for tov in get_target_os_versions(image_path, image_name_or_index):
-					logger.debug("Using target OS version %s", tov)
+					logger.info("Using target OS version %s", tov)
 					if not architecture:
 						architecture = str(tov.Architecture)
 					if not osVersion:
@@ -289,10 +298,6 @@ class RPCDriverMixin(Protocol):
 				tov.OSMinorVersion = int(version_parts[1])
 				if len(version_parts) >= 3:
 					tov.BuildNumber = int(version_parts[2])
-
-		ahohs = self.auditHardwareOnHost_getObjects(hostId=client_id)
-		if not ahohs:
-			raise BackendMissingDataError(f"No hardware information found for client '{client_id}'")
 
 		client_data_dir = depot_dir / product_id
 		base_dir = client_data_dir / "drivers"
@@ -415,5 +420,4 @@ class RPCDriverMixin(Protocol):
 					)
 				)
 
-		return sources
 		return sources

@@ -85,7 +85,6 @@ and device type (PCI / USB / HDAUDIO / ACPI).
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 from dataclasses import asdict, dataclass, field
@@ -203,37 +202,31 @@ class RPCDriverMixin(Protocol):
 		driver_db_dir = base_dir / "driver_db"
 		if driver_db_dir.exists():
 			shutil.rmtree(driver_db_dir)
-		inf_re = re.compile(r".*\.inf", re.IGNORECASE)
 
-		for root, dirs, files in os.walk(drivers_dir, topdown=True):
-			root_path = Path(root)
-			if root_path == drivers_dir:
-				dirs[:] = [d for d in dirs if d not in ("additional", "excluded")]
-
-			for filename in files:
-				if not inf_re.match(filename):
-					continue
-				file_path = root_path / filename
-				logger.info("Processing file '%s'", file_path)
-				inf_file = INFFile(file_path)
-				for tov in target_os_versions:
-					logger.debug("Creating driver links for %s", tov)
-					for dev in inf_file.get_devices(target_os_version=tov):
-						logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
-						tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
-						for hwid in dev.hardware_ids:
-							if not hwid.vendor_id or not hwid.device_id:
-								continue
-							if hwid.device_type == DeviceType.MULTI:
-								logger.debug("Skipping device type %s", hwid.device_type)
-								continue
-							hwid_dir: Path = tov_dir / hwid.device_type / hwid.vendor_id
-							hwid_dir.mkdir(parents=True, exist_ok=True)
-							link: Path = hwid_dir / hwid.device_id
-							if link.exists():
-								continue
-							link.symlink_to(root)
-							logger.debug("Created link '%s' -> '%s'", link, root)
+		for file_path in drivers_dir.glob("**/*.[Ii][Nn][Ff]"):
+			root_path = file_path.parent
+			if root_path.relative_to(drivers_dir).parts[0] in ("additional", "excluded"):
+				continue
+			logger.info("Processing file '%s'", file_path)
+			inf_file = INFFile(file_path)
+			for tov in target_os_versions:
+				logger.debug("Creating driver links for %s", tov)
+				for dev in inf_file.get_devices(target_os_version=tov):
+					logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
+					tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+					for hwid in dev.hardware_ids:
+						if not hwid.vendor_id or not hwid.device_id:
+							continue
+						if hwid.device_type == DeviceType.MULTI:
+							logger.debug("Skipping device type %s", hwid.device_type)
+							continue
+						hwid_dir: Path = tov_dir / hwid.device_type / hwid.vendor_id
+						hwid_dir.mkdir(parents=True, exist_ok=True)
+						link: Path = hwid_dir / hwid.device_id
+						if link.exists():
+							continue
+						link.symlink_to(root_path)
+						logger.debug("Created link '%s' -> '%s'", link, root_path)
 
 	@rpc_method
 	def driver_getSources(

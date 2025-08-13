@@ -5,6 +5,82 @@
 
 """
 opsiconfd.backend.rpc.driver
+
+Base structure of the traditional drivers directory in a Windows netboot product:
+
+CLIENT_DATA
+├── drivers
+│   ├── drivers
+│   ├── additional
+│   │   ├── byAudit
+│   │   │   ├── <vendor-a>
+│   │   │   │   ├── <model-c>
+│   │   │   │   └── <model-d>
+│   │   │   └── <vendor-b>
+│   │   │       └── <model-e>
+│   │   ├── <additional-name-1>
+│   │   └── <additional-name-2>
+│   ├── excluded
+│   └── preferred
+├── pci.ids
+├── usb.ids
+├── pciids
+│   └── <vendor-id>
+│       └── <device-id> (symlink)
+├── usbids
+│   └── <vendor-id>
+│       └── <device-id> (symlink)
+├── hdaudioids
+│   └── <vendor-id>
+│       └── <device-id> (symlink)
+├── classes
+│   └── <device-class>
+│       └── <vendor-name>
+│           └── <device-name> (symlink)
+└── vendors
+    └── <vendor-id>
+        └── <device-id> (symlink)
+
+Symlinks to driver directories under drivers/drivers are created in the
+`pciids`, `usbids`, `hdaudioids`, `classes`, and `vendors` directories,
+using information extracted from INF files in the drivers directory.
+Drivers in `preferred` are given priority, while drivers in `excluded` are omitted from this process.
+The `classes` and `vendors` directories serve informational purposes only.
+Automatic driver integration is performed using the `pciids`, `usbids`, and `hdaudioids` directories.
+The `byAudit` directory contains drivers added manually, based on system vendor and model information from hardware inventory.
+This directory requires manual maintenance.
+The `additional` directory contains subdirectories with custom names, which can be specified
+in the product property `additional_drivers` to manually select extra drivers for a device.
+
+Because the original automatic driver integration did not consider architecture or Windows version,
+an alternative approach was introduced.
+
+CLIENT_DATA
+├── drivers
+│   ├── drivers
+│   ├── additional
+│   │   ├── byAudit
+│   │   │   ├── <vendor-a>
+│   │   │   │   ├── <model-c>
+│   │   │   │   └── <model-d>
+│   │   │   └── <vendor-b>
+│   │   │       └── <model-e>
+│   │   ├── <additional-name-1>
+│   │   └── <additional-name-2>
+│   ├── excluded
+│   └── preferred
+├── pci.ids
+├── usb.ids
+└── driver_db
+    └── <architecture>
+        └── <windows-version>
+            └── <device-type>
+                └── <vendor-id>
+                    └── <device-id> (symlink)
+
+The `driver_db` directory contains symlinks to driver directories under `drivers/drivers`,
+organized by architecture (x86 / x64 / arm64), Windows version (<major>.<minor>.<build>),
+and device type (PCI / USB / HDAUDIO / ACPI).
 """
 
 from __future__ import annotations
@@ -19,6 +95,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.exceptions import BackendError, BackendMissingDataError
 from opsicommon.package.wim import wim_info
+from opsicommon.types import forceHostId as typeForceHostId
 from opsicommon.types import forceProductId as typeForceProductId
 from opsisystem.inffile import Architecture, DeviceType, INFFile, INFTargetOSVersion
 
@@ -105,7 +182,7 @@ class RPCDriverMixin(Protocol):
 	@rpc_method
 	def driver_updateDatabase(self: BackendProtocol, productId: str) -> None:
 		"""
-		Create the driver integration structure in the products depot directory.
+		Creation of the driver integration structure in the product's depot directory.
 		"""
 		product_id = typeForceProductId(productId)
 		client_data_dir = Path(DEPOT_DIR) / product_id
@@ -166,7 +243,7 @@ class RPCDriverMixin(Protocol):
 		Get drivers for product and client.
 		"""
 		product_id = typeForceProductId(productId)
-		client_id = typeForceProductId(clientId)
+		client_id = typeForceHostId(clientId)
 		depot_dir = Path(DEPOT_DIR)
 
 		if not architecture or not osVersion:
@@ -327,4 +404,5 @@ class RPCDriverMixin(Protocol):
 					)
 				)
 
+		return sources
 		return sources

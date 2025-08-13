@@ -141,6 +141,8 @@ def find_wim_files(client_data_dir: Path) -> list[Path]:
 		if not image_path.exists():
 			continue
 		for file in image_path.iterdir():
+			if file.is_symlink() and not file.exists():
+				continue
 			if file.suffix.lower() not in (".wim", ".esd", ".swm"):
 				continue
 			if file.suffix.lower() == ".swm" and re.match(r"\d+\.swm", file.stem):

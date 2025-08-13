@@ -200,8 +200,13 @@ class RPCDriverMixin(Protocol):
 		base_dir = client_data_dir / "drivers"
 		drivers_dir = base_dir / "drivers"
 		driver_db_dir = base_dir / "driver_db"
-		if driver_db_dir.exists():
-			shutil.rmtree(driver_db_dir)
+		legacy_pciids_dir = base_dir / "pciids"
+		legacy_usbids_dir = base_dir / "usbids"
+		legacy_hdaudioids_dir = base_dir / "hdaudioids"
+		for _dir in (driver_db_dir, legacy_pciids_dir, legacy_usbids_dir, legacy_hdaudioids_dir):
+			if _dir.exists():
+				shutil.rmtree(_dir)
+			_dir.mkdir(parents=True)
 
 		for file_path in drivers_dir.glob("**/*.[Ii][Nn][Ff]"):
 			root_path = file_path.parent
@@ -220,13 +225,24 @@ class RPCDriverMixin(Protocol):
 						if hwid.device_type == DeviceType.MULTI:
 							logger.debug("Skipping device type %s", hwid.device_type)
 							continue
-						hwid_dir: Path = tov_dir / hwid.device_type / hwid.vendor_id
-						hwid_dir.mkdir(parents=True, exist_ok=True)
-						link: Path = hwid_dir / hwid.device_id
-						if link.exists():
-							continue
-						link.symlink_to(root_path)
-						logger.debug("Created link '%s' -> '%s'", link, root_path)
+						for driver_db in True, False:
+							if driver_db:
+								hwid_dir: Path = tov_dir / hwid.device_type
+							else:
+								if hwid.device_type == DeviceType.USB:
+									hwid_dir = legacy_usbids_dir
+								elif hwid.device_type == DeviceType.HDAUDIO:
+									hwid_dir = legacy_hdaudioids_dir
+								elif hwid.device_type == DeviceType.PCI:
+									hwid_dir = legacy_pciids_dir
+								else:
+									continue
+							link: Path = hwid_dir / hwid.vendor_id / hwid.device_id
+							link.parent.mkdir(parents=True, exist_ok=True)
+							if link.exists():
+								continue
+							link.symlink_to(root_path)
+							logger.debug("Created link '%s' -> '%s'", link, root_path)
 
 	@rpc_method
 	def driver_getSources(

@@ -31,11 +31,15 @@ def test_driver_updateDatabase_and_getSources(
 	product_id = "win11-x64-drivers-test"
 	client_id = "test-client.opsi.test"
 	client_data_dir = tmp_path / product_id
-	drivers_dir = client_data_dir / "drivers" / "drivers"
+	base_dir = client_data_dir / "drivers"
+	drivers_dir = base_dir / "drivers"
 	excluded_dir = drivers_dir / "excluded"
 	additional_dir = drivers_dir / "additional"
 	by_audit_dir = additional_dir / "byAudit"
 	driver_db_dir = client_data_dir / "drivers" / "driver_db"
+	legacy_pciids_dir = base_dir / "pciids"
+	legacy_usbids_dir = base_dir / "usbids"
+	legacy_hdaudioids_dir = base_dir / "hdaudioids"
 
 	client_data_dir.mkdir()
 	shutil.copytree("tests/data/windows_drivers", drivers_dir)
@@ -104,17 +108,35 @@ def test_driver_updateDatabase_and_getSources(
 
 		links: list[Path] = []
 		missing_links: list[Path] = []
-		for sub_dir in ("x64/10.0.22000/PCI/1AF4", "x86/10.0.1507/PCI/1AF4"):
-			for device_id in ("1001", "1042"):
+
+		# PCI
+		for device_id in ("1001", "1042"):
+			# driver_db
+			for sub_dir in ("x64/10.0.22000/PCI/1AF4", "x86/10.0.1507/PCI/1AF4"):
 				links.append(driver_db_dir / sub_dir / device_id)
-			for device_id in ("1003", "1043"):
-				missing_links.append(driver_db_dir / sub_dir / device_id)
+			# Legacy
+			links.append(legacy_pciids_dir / "1AF4" / device_id)
 
+		# PCI excluded
+		for device_id in ("1003", "1043"):
+			# driver_db
+			missing_links.append(driver_db_dir / sub_dir / device_id)
+			# Legacy
+			missing_links.append(legacy_pciids_dir / "1AF4" / device_id)
+
+		# HDAUDIO
 		for device_id in ("0236", "0289", "0295"):
+			# driver_db
 			links.append(driver_db_dir / "x64/10.0.22000/HDAUDIO/10EC" / device_id)
+			# Legacy
+			links.append(legacy_hdaudioids_dir / "10EC" / device_id)
 
+		# USB
 		for device_id in ("4001", "4008", "400E", "4014", "4016", "402D", "402E", "4C63"):
+			# driver_db
 			links.append(driver_db_dir / "x64/10.0.22000/USB/0BDA" / device_id)
+			# Legacy
+			links.append(legacy_usbids_dir / "0BDA" / device_id)
 
 		for link in links:
 			assert link.is_symlink()

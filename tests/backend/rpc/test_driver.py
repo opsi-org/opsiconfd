@@ -216,6 +216,8 @@ def test_driver_updateDatabase_and_getSources(
 		backend.auditHardwareOnHost_createObjects(ahohs)
 
 		for architecture, os_version in (("x64", "10.0.22000"), ("x64", None), (None, "10.0.22000"), (None, None)):
+			print("------------------------------------------------------")
+			print(f"{architecture=}, {os_version=}")
 			# Default image: x64 10.0.22000
 			sources = backend.driver_getSources(productId=product.id, clientId=client.id, architecture=architecture, osVersion=os_version)
 			sources.sort(

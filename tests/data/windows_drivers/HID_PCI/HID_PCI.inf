@@ -1,0 +1,159 @@
+﻿;*******************************************************************************
+;*                                                                            **
+;*                     I N T E L   P R O P R I E T A R Y                      **
+;*                                                                            **
+;*   COPYRIGHT (c) 2012-2022 BY INTEL CORPORATION. ALL RIGHTS RESERVED.  NO   **
+;*   PART  OF  THIS  PROGRAM OR PUBLICATION MAY BE REPRODUCED, TRANSMITTED,   **
+;*   TRANSCRIBED, STORED IN A RETRIEVAL  SYSTEM,  OR  TRANSLATED  INTO  ANY   **
+;*   LANGUAGE OR COMPUTER LANGUAGE IN ANY FORM OR BY ANY MEANS, ELECTRONIC,   **
+;*   MECHANICAL, MAGNETIC, OPTICAL, CHEMICAL, MANUAL, OR OTHERWISE, WITHOUT   **
+;*   THE PRIOR WRITTEN PERMISSION OF :                                        **
+;*                                                                            **
+;*                             INTEL CORPORATION                              **
+;*                                                                            **
+;*                          2200 MISSION COLLEGE BLVD                         **
+;*                                                                            **
+;*                     SANTA CLARA, CALIFORNIA 95052-8119                     **
+;*                                                                            **
+;*******************************************************************************
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=HIDClass
+ClassGuid={745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Provider=%VENDOR%
+DriverVer = 11/04/2022,3.1.0.4589
+PnpLockDown=1
+CatalogFile=HID_PCI.cat
+
+
+;--------- DestinationDirs Section -------------------------------------------
+
+
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+;--------- SourceDiskNames and SourceDiskFiles Section -----------------------
+
+[SourceDisksNames]
+1=%Location%,
+
+[SourceDisksFiles.amd64]
+HID_PCI.sys=1,.
+
+
+;--------- Manufacturer and Models Sections ----------------------------------
+
+[Manufacturer]
+%VENDOR% = Vendor, NTamd64.10.0
+
+[Vendor.NTamd64.10.0]
+; ----- Win 10 ; x64 -------
+%HID_PCI%    = HID_DDI, {DEA5AE2A-D1FD-438A-A091-CBD484788436}\ISH_MINIPORT
+
+
+;===============================================================
+;   HID_PCI for WinB
+;   Instead of using hidkmdf.sys as a filter, use the inbox
+;   mshidkmdf.sys as a mapper filter
+;===============================================================
+[HID_DDI]
+; Just copy the driver. No neeed to copy other system binaries.
+CopyFiles = CopyFunctionDriver
+
+[HID_DDI.HW]
+; Just copy the driver. No neeed to copy other system binaries.
+AddReg=HID_NT_AddReg.AddReg
+
+;
+; hidkmdf is the function driver and HID_PCI is the lower filter
+;
+[HID_DDI.Services]
+AddService = HID_PCI,0x00000002, HID_Service, HID_EventLog_Inst
+
+[HID_NT_AddReg.AddReg]
+HKR,,"UpperFilters",0x00010000,"mshidkmdf"
+HKR,,DeviceCharacteristics,0x10001,0x0100         ; Use same security checks on relative opens
+HKR,,Security,,"D:P(A;;GA;;;BA)(A;;GA;;;SY)"      ; Allow generic-all access to Built-in administrators and Local system
+
+[CopyFunctionDriver]
+HID_PCI.sys
+
+; --------- Service ----------------------
+
+[HID_Service]
+DisplayName    = %HID_PCI%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_IGNORE%
+ServiceBinary  = %13%\HID_PCI.sys
+
+;-----------------------------------------------------------------------------
+; Common base for all drivers for Eventlog
+;
+[HID_EventLog_Inst]
+AddReg = HID_EventLog.AddReg
+
+[HID_EventLog.AddReg]
+HKR, , EventMessageFile, 0x00020000, "%%SystemRoot%%\system32\IoLogMsg.dll;%%13%%\HID_PCI.sys"
+HKR, , TypesSupported,   0x00010001, 7
+
+
+;--------------- Events Installation
+[HID_DDI.Events]
+AddEventProvider = {F450DD90-C804-4740-986A-3B5D4B568A59},ISH_HID_ETW_Inst
+
+[ISH_HID_ETW_Inst]
+ProviderName  = ISH_HID_PCI
+ResourceFile  = "%%13%%\HID_PCI.sys"
+MessageFile   = "%%13%%\HID_PCI.sys"
+ImportChannel = System
+AddChannel    = Intel-ISH-HID/Performance,0x3,performance_Channel_Inst      ;Channel-type: Analytic
+AddChannel    = Intel-ISH-HID/Debug,0x3,debug_Channel_Inst                  ;Channel-type: Analytic
+
+[debug_Channel_Inst]
+OwningPublisher = "{F450DD90-C804-4740-986A-3B5D4B568A59}"
+Isolation       = 2                                                         ;System
+Enabled         = 0
+ChannelAccess   = "O:BAG:SYD:(A;;0xf0007;;;SY)(A;;0x7;;;BA)(A;;0x3;;;BO)(A;;0x5;;;SO)(A;;0x1;;;IU)(A;;0x3;;;SU)(A;;0x1;;;S-1-5-3)(A;;0x2;;;S-1-5-33)(A;;0x1;;;S-1-5-32-573)"
+
+[performance_Channel_Inst]
+OwningPublisher = "{F450DD90-C804-4740-986A-3B5D4B568A59}"
+Isolation       = 2                                                         ;System
+Enabled         = 0
+ChannelAccess   = "O:BAG:SYD:(A;;0xf0007;;;SY)(A;;0x7;;;BA)(A;;0x3;;;BO)(A;;0x5;;;SO)(A;;0x1;;;IU)(A;;0x3;;;SU)(A;;0x1;;;S-1-5-3)(A;;0x2;;;S-1-5-33)(A;;0x1;;;S-1-5-32-573)"
+
+
+
+;--------- Strings Section ---------------------------------------------------
+
+[Strings]
+
+;  *******Localizable Strings*******
+VENDOR         = "Intel"
+HID_PCI       = "HID PCI Minidriver for ISS"
+DISK_NAME      = "HID PCI Install Disk"
+Location       = "HID PCI Minidriver for ISS"
+
+;  *******Non Localizable Strings*******
+
+SERVICE_BOOT_START     = 0x0
+SERVICE_SYSTEM_START   = 0x1
+SERVICE_AUTO_START     = 0x2
+SERVICE_DEMAND_START   = 0x3
+SERVICE_DISABLED       = 0x4
+
+SERVICE_KERNEL_DRIVER  = 0x1
+SERVICE_ERROR_IGNORE   = 0x0
+SERVICE_ERROR_NORMAL   = 0x1
+SERVICE_ERROR_SEVERE   = 0x2
+SERVICE_ERROR_CRITICAL = 0x3
+
+REG_EXPAND_SZ          = 0x00020000
+REG_DWORD              = 0x00010001
+REG_MULTI_SZ           = 0x00010000
+REG_BINARY             = 0x00000001
+REG_SZ                 = 0x00000000
+
+

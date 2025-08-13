@@ -210,6 +210,7 @@ class RPCDriverMixin(Protocol):
 				shutil.rmtree(_dir)
 			_dir.mkdir(parents=True)
 
+		link_to_version: dict[Path, INFTargetOSVersion] = {}
 		for file_path in drivers_dir.glob("**/*.[Ii][Nn][Ff]"):
 			root_path = file_path.parent
 			if root_path.relative_to(drivers_dir).parts[0] in ("additional", "excluded"):
@@ -219,6 +220,8 @@ class RPCDriverMixin(Protocol):
 			for tov in target_os_versions:
 				logger.debug("Creating driver links for %s", tov)
 				for dev in inf_file.get_devices(target_os_version=tov):
+					if not dev.target_os_version:
+						continue
 					logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
 					tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
 					for hwid in dev.hardware_ids:
@@ -241,11 +244,24 @@ class RPCDriverMixin(Protocol):
 									continue
 							link: Path = hwid_dir / hwid.vendor_id / hwid.device_id
 							link.parent.mkdir(parents=True, exist_ok=True)
-							if link.exists():
-								continue
+							linked_version = link_to_version.get(link)
+							if linked_version:
+								if dev.target_os_version.compare_version(linked_version) < 1:
+									logger.debug(
+										"Not replacing existing link %s (version %s) with version %s",
+										link,
+										linked_version,
+										dev.target_os_version,
+									)
+									continue
+								logger.debug(
+									"Replacing existing link %s (version %s) with version %s", link, linked_version, dev.target_os_version
+								)
+								link.unlink()
 							target = file_path if driver_db else root_path
+							logger.debug("Creating link '%s' -> '%s'", link, target)
 							link.symlink_to(target)
-							logger.debug("Created link '%s' -> '%s'", link, target)
+							link_to_version[link] = dev.target_os_version
 
 	@rpc_method
 	def driver_getSources(

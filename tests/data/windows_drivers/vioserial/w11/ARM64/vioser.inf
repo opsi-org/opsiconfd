@@ -42,9 +42,9 @@ vioser.sys  = 1,,
 ;*****************************************
 
 [Manufacturer]
-%VENDOR%=VirtioSerial,NTARM64.6.3
+%VENDOR%=VirtioSerial,NTARM64.6.3...22000
 
-[VirtioSerial.NTARM64.6.3]
+[VirtioSerial.NTARM64.6.3...22000]
 ;
 ; Hw Ids are PCI\VEN_1AF4&DEV_1003&SUBSYS_00031AF4&REV_00
 ;            PCI\VEN_1AF4&DEV_1043&SUBSYS_11001AF4&REV_01

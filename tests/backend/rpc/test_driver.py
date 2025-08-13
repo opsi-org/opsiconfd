@@ -89,7 +89,7 @@ def test_driver_updateDatabase_and_getSources(
 	backend.product_createObjects([product])
 
 	with (
-		use_logging_config(stderr_level=7),
+		use_logging_config(stderr_level=5),
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions),
 		patch("opsiconfd.backend.rpc.driver.find_wim_files", return_value=[Path("install.wim")]),
@@ -110,6 +110,14 @@ def test_driver_updateDatabase_and_getSources(
 		install_wim.parent.mkdir(parents=True)
 		install_wim.touch()
 		backend.driver_updateDatabase(productId=product.id)
+
+		print("--- driver_db content --------------------------")
+		for root, _dirs, files in driver_db_dir.walk():
+			for file in files:
+				link = (root / file).relative_to(driver_db_dir)
+				target = (root / file).resolve().relative_to(base_dir)
+				print(f"{link} -> {target}")
+		print("------------------------------------------------")
 
 		links: list[Path] = []
 		inf_links: list[Path] = []
@@ -218,7 +226,7 @@ def test_driver_updateDatabase_and_getSources(
 		for architecture, os_version in (("x64", "10.0.22000"), ("x64", None), (None, "10.0.22000"), (None, None)):
 			print("------------------------------------------------------")
 			print(f"{architecture=}, {os_version=}")
-			# Default image: x64 10.0.22000
+			# Default image: x64 10.0.22000 (Windows 11 21H2)
 			sources = backend.driver_getSources(productId=product.id, clientId=client.id, architecture=architecture, osVersion=os_version)
 			sources.sort(
 				key=lambda src: (
@@ -226,13 +234,13 @@ def test_driver_updateDatabase_and_getSources(
 					src.url,
 				)
 			)
-
-			assert len(sources) == 9
-
 			for source in sources:
+				print(source.url)
 				assert source.binary_type == "windows_driver"
 				assert source.access_type == "depot"
 				assert source.operation_type == "recursive_copy"
+
+			assert len(sources) == 9
 
 			assert sources[0].url == "win11-x64-drivers-test/drivers/drivers/HDXACPDELLCSMB/w10/amd64"
 			assert sources[0].information["driver_integration_mode"] == "hardware_info"

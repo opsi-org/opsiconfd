@@ -243,8 +243,9 @@ class RPCDriverMixin(Protocol):
 							link.parent.mkdir(parents=True, exist_ok=True)
 							if link.exists():
 								continue
-							link.symlink_to(root_path)
-							logger.debug("Created link '%s' -> '%s'", link, root_path)
+							target = file_path if driver_db else root_path
+							link.symlink_to(target)
+							logger.debug("Created link '%s' -> '%s'", link, target)
 
 	@rpc_method
 	def driver_getSources(
@@ -307,13 +308,13 @@ class RPCDriverMixin(Protocol):
 		driver_db_dir = base_dir / "driver_db"
 		tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
 
-		sources = []
 		replace_re = re.compile(r'[<>?":|\\/*]')
 		sys_vendor = ""
 		sys_model = ""
 		sys_sku = ""
 		board_vendor = ""
 		board_model = ""
+		inf_files: dict[Path, dict[str, Any]] = {}
 		for ahoh in ahohs:
 			if ahoh.hardwareClass == "COMPUTER_SYSTEM":
 				sys_vendor = replace_re.sub("_", ahoh.vendor or "").rstrip("._ ")
@@ -329,26 +330,19 @@ class RPCDriverMixin(Protocol):
 			if not ahoh.vendorId or not ahoh.deviceId:
 				continue
 			device_type = ahoh.hardwareClass.removesuffix("_DEVICE")
-			drv_dir = tov_dir / device_type / ahoh.vendorId / ahoh.deviceId
-			if not drv_dir.exists():
+			inf_file = (tov_dir / device_type / ahoh.vendorId / ahoh.deviceId).resolve()
+			if not inf_file.exists():
 				continue
 
 			ahoh_dict = ahoh.to_hash()
-			sources.append(
-				BinarySource(
-					binary_type=BinarySourceBinaryType.WINDOWS_DRIVER,
-					access_type=BinarySourceAccessType.DEPOT,
-					operation_type=BinarySourceOperationType.RECURSIVE_COPY,
-					url=str(drv_dir.relative_to(depot_dir)),
-					information={
-						"device_type": device_type,
-						"vendor_id": ahoh_dict.get("vendorId"),
-						"device_id": ahoh_dict.get("deviceId"),
-						"vendor_name": ahoh_dict.get("vendor"),
-						"device_name": ahoh_dict.get("name"),
-					},
-				)
-			)
+			inf_files[inf_file] = {
+				"driver_integration_mode": "hardware_info",
+				"device_type": device_type,
+				"vendor_id": ahoh_dict.get("vendorId"),
+				"device_id": ahoh_dict.get("deviceId"),
+				"vendor_name": ahoh_dict.get("vendor"),
+				"device_name": ahoh_dict.get("name"),
+			}
 
 		additional_dirs: dict[Path, dict[str, Any]] = {}
 		if by_audit_dir.is_dir():
@@ -375,6 +369,7 @@ class RPCDriverMixin(Protocol):
 							if model_dir.is_dir() and model_dir.name.lower().rstrip("._ ") in models:
 								logger.info("Found matching byAudit driver model directory %r", model_dir.name)
 								additional_dirs[model_dir] = {
+									"driver_integration_mode": "system_info",
 									"sys_vendor": sys_vendor,
 									"sys_model": sys_model,
 									"board_vendor": board_vendor,
@@ -396,28 +391,37 @@ class RPCDriverMixin(Protocol):
 		if additional_drivers:
 			logger.notice("Found configured additional drivers for client %r and product %r: %r", client_id, product_id, additional_drivers)
 			for dirname in additional_drivers:
-				additional_dirs[additional_dir / dirname] = {"additional_dir": dirname}
+				additional_dirs[additional_dir / dirname] = {"driver_integration_mode": "additional", "additional_dir": dirname}
 
 		for driver_dir, information in additional_dirs.items():
 			if not driver_dir.is_dir():
 				logger.warning("Additional driver directory '%s' does not exist, skipping", driver_dir)
 				continue
 
-			inf_files = list(driver_dir.glob("**/*.[Ii][Nn][Ff]"))
-			if not inf_files:
+			files = list(driver_dir.glob("**/*.[Ii][Nn][Ff]"))
+			if not files:
 				logger.warning("No inf files found in additional driver directory '%s', skipping", driver_dir)
 				continue
 
-			for inf_file in inf_files:
+			for inf_file in files:
 				logger.info("Found additional inf file '%s'", inf_file)
-				sources.append(
-					BinarySource(
-						binary_type=BinarySourceBinaryType.WINDOWS_DRIVER,
-						access_type=BinarySourceAccessType.DEPOT,
-						operation_type=BinarySourceOperationType.RECURSIVE_COPY,
-						url=str(inf_file.parent.relative_to(depot_dir)),
-						information=information,
-					)
-				)
+				inf_files[inf_file] = information
 
+		sources = []
+		for inf_file, information in inf_files.items():
+			inf = INFFile(inf_file)
+			inf.parse()
+			information["inf_class"] = inf.version.Class if inf.version else None
+			information["inf_provider"] = inf.version.Provider if inf.version else None
+			information["inf_date"] = inf.version.DriverVer.date.strftime("%Y-%m-%d") if inf.version else None
+			information["inf_version"] = ".".join(str(v) for v in inf.version.DriverVer.version) if inf.version else None
+			sources.append(
+				BinarySource(
+					binary_type=BinarySourceBinaryType.WINDOWS_DRIVER,
+					access_type=BinarySourceAccessType.DEPOT,
+					operation_type=BinarySourceOperationType.RECURSIVE_COPY,
+					url=str(inf_file.parent.relative_to(depot_dir)),
+					information=information,
+				)
+			)
 		return sources

@@ -23,7 +23,7 @@ from opsicommon.system.info import is_ucs
 from opsicommon.types import forceHostId
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.config import FILE_LOCK_METHOD
+from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, is_local_user
 from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
@@ -67,7 +67,7 @@ def user_set_credentials(username: str, password: str) -> None:
 	passwd_file = get_passwd_file()
 	with _passwd_rlock:
 		with open(passwd_file, "a+", encoding="utf-8") as file:
-			with lock_file(file, lock_method=FILE_LOCK_METHOD):
+			with lock_file(file, lock_method=config._file_lock_method):
 				file.seek(0)
 				lines = []
 				add_line = f"{username}:{encoded_password}"
@@ -201,7 +201,7 @@ def user_get_credentials(username: str | None = None, hostId: str | None = None)
 	with _passwd_rlock:
 		if passwd_file.exists():
 			with open(passwd_file, "r", encoding="utf-8") as file:
-				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+				with lock_file(file, lock_method=config._file_lock_method):
 					for line in file.readlines():
 						match = PASSWD_LINE_REGEX.search(line)
 						if match and match.group(1) == username:

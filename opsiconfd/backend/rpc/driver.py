@@ -81,6 +81,8 @@ CLIENT_DATA
 The `driver_db` directory contains symlinks to driver directories under `drivers/drivers`,
 organized by architecture (x86 / x64 / arm64), Windows version (<major>.<minor>.<build>),
 and device type (PCI / USB / HDAUDIO / ACPI).
+The algorithm searches and examines WIM files in the product's depot directory to detect Windows OS
+architectures and versions, creating a subdirectory for each discovered architecture–version combination.
 """
 
 from __future__ import annotations

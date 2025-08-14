@@ -1994,15 +1994,15 @@ wheels = [
 
 [[package]]
 name = "python-opsi-system"
-version = "4.3.3.5"
+version = "4.3.3.6"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "hivex" },
     { name = "python-opsi-common" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_system-4.3.3.5.tar.gz", hash = "sha256:480656fd803be6410b5a81048bd6169ec82fbed3fe4f435cc8dca2bc140a087f" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_system-4.3.3.6.tar.gz", hash = "sha256:6a7ae3b1d3297d8507b8209612e76c3bb482c73e67d359a1beac542f954057e8" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_system-4.3.3.5-py3-none-any.whl", hash = "sha256:6b452d7e9c66464f181fbfb4d4ed26ab155e53929cc8163e7131cc45f9f06aa7" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi_system-4.3.3.6-py3-none-any.whl", hash = "sha256:c33308668295cfcf886fe5c5a5300db2656ea7efecb660ad5841f4b917aaecbf" },
 ]
 
 [[package]]

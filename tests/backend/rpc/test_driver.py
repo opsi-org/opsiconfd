@@ -9,8 +9,11 @@ test opsiconfd.backend.rpc.depot
 
 import shutil
 from pathlib import Path
+from random import shuffle
+from typing import Iterator
 from unittest.mock import patch
 
+import pytest
 from opsicommon.logging import use_logging_config
 from opsicommon.objects import AuditHardwareOnHost, NetbootProduct, OpsiClient
 from opsisystem.inffile import Architecture, INFTargetOSVersion
@@ -24,9 +27,12 @@ TESTPACKAGE = Path(f"tests/data/workbench/{TESTPACKAGE_NAME}_42.0-1337.opsi")
 CONTROLFILE = Path("tests/data/workbench/control")
 
 
+# Run multiple times to verify robustness against shuffled .inf file ordering
+@pytest.mark.parametrize("execution_number", range(3))
 def test_driver_updateDatabase_and_getSources(
 	backend: UnprotectedBackend,  # noqa: F811
 	tmp_path: Path,
+	execution_number: int,
 ) -> None:
 	product_id = "win11-x64-drivers-test"
 	client_id = "test-client.opsi.test"
@@ -88,8 +94,16 @@ def test_driver_updateDatabase_and_getSources(
 	product = NetbootProduct(id=product_id, productVersion="1", packageVersion="1")
 	backend.product_createObjects([product])
 
+	glob_orig = Path.glob
+
+	def mock_glob(self: Path, pattern: str) -> Iterator[Path]:
+		res = list(glob_orig(self, pattern))
+		shuffle(res)
+		return iter(res)
+
 	with (
 		use_logging_config(stderr_level=7),
+		patch("pathlib.Path.glob", mock_glob),
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions),
 		patch("opsiconfd.backend.rpc.driver.find_wim_files", return_value=[Path("install.wim")]),
@@ -225,7 +239,7 @@ def test_driver_updateDatabase_and_getSources(
 
 		for architecture, os_version in (("x64", "10.0.22000"), ("x64", None), (None, "10.0.22000"), (None, None)):
 			print("------------------------------------------------------")
-			print(f"{architecture=}, {os_version=}")
+			print(f"{execution_number=} {architecture=}, {os_version=}")
 			# Default image: x64 10.0.22000 (Windows 11 21H2)
 			sources = backend.driver_getSources(productId=product.id, clientId=client.id, architecture=architecture, osVersion=os_version)
 			sources.sort(

@@ -65,7 +65,9 @@ class H11ProtocolOpsiconfd(H11Protocol):
 	def _get_upgrade(self) -> bytes | None:
 		if "extensions" not in self.scope:
 			self.scope["extensions"] = {}
-		self.scope["extensions"]["peer_cert"] = self.transport.get_extra_info("ssl_object").getpeercert()
+		ssl_obj = self.transport.get_extra_info("ssl_object")
+		if ssl_obj:
+			self.scope["extensions"]["peer_cert"] = ssl_obj.getpeercert()
 		return super()._get_upgrade()
 
 
@@ -107,18 +109,19 @@ def get_uvicorn_config() -> Config:
 		"ws_ping_timeout": config.websocket_ping_timeout,
 	}
 
-	if config.ssl_server_key and config.ssl_server_cert:
-		options["ssl_keyfile"] = config.ssl_server_key
-		options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
-		options["ssl_certfile"] = config.ssl_server_cert
-		options["ssl_ciphers"] = config.ssl_ciphers
-		options["ssl_ca_certs"] = config.ssl_ca_cert
+	if config.ssl:
+		if config.ssl_server_key and config.ssl_server_cert:
+			options["ssl_keyfile"] = config.ssl_server_key
+			options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
+			options["ssl_certfile"] = config.ssl_server_cert
+			options["ssl_ciphers"] = config.ssl_ciphers
+			options["ssl_ca_certs"] = config.ssl_ca_cert
 
-	if config.client_cert_auth:
-		if config.websocket_protocol != "wsproto_opsiconfd":
-			raise ValueError("Client certificate authentication is only supported with wsproto_opsiconfd")
-		options["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
-		options["ssl_ca_certs"] = config.ssl_ca_cert
+		if config.client_cert_auth:
+			if config.websocket_protocol != "wsproto_opsiconfd":
+				raise ValueError("Client certificate authentication is only supported with wsproto_opsiconfd")
+			options["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
+			options["ssl_ca_certs"] = config.ssl_ca_cert
 
 	return Config("opsiconfd.application:app", **options)
 

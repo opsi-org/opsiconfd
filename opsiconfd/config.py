@@ -464,7 +464,7 @@ class Config(metaclass=Singleton):
 			pass
 
 		scheme = "http"
-		if self._config.ssl_server_key and self._config.ssl_server_cert:
+		if self._config.ssl and self._config.ssl_server_key and self._config.ssl_server_cert:
 			scheme = "https"
 
 		os.putenv("SSL_CERT_FILE", self._config.ssl_trusted_certs)
@@ -1068,6 +1068,18 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_LETSENCRYPT_CONTACT_EMAIL",
 			default="",
 			help=self._help("expert", "The contact e-mail for the Let's Encrypt account."),
+		)
+		self._parser.add(
+			"--ssl",
+			env_var="OPSICONFD_SSL",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"expert",
+				"If enabled, SSL will be used.",
+			),
 		)
 		self._parser.add(
 			"--ssl-server-key",

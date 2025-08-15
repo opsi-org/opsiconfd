@@ -363,9 +363,15 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		await self._process_channel_subscription(websocket=websocket, channels=message.channels, message=message)
 
 	async def dispatch(self) -> None:
-		websocket = WebSocket(self.scope, receive=self.receive, send=self.send)
+		if self._backend.server_role == "depotserver":
+			raise HTTPException(
+				status_code=status.HTTP_404_NOT_FOUND,
+				detail="Messagebus not available on depotserver",
+			)
+
 		await self._check_authorization()
 
+		websocket = WebSocket(self.scope, receive=self.receive, send=self.send)
 		compression = websocket.query_params.get("compression")
 		if compression:
 			if compression not in ("lz4", "gzip"):

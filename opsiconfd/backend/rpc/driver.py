@@ -354,6 +354,7 @@ class RPCDriverMixin(Protocol):
 
 			ahoh_dict = ahoh.to_hash()
 			inf_files[inf_file] = {
+				"inf_file": inf_file.name,
 				"driver_integration_mode": "hardware_info",
 				"device_type": device_type,
 				"vendor_id": ahoh_dict.get("vendorId"),
@@ -423,12 +424,13 @@ class RPCDriverMixin(Protocol):
 
 			for inf_file in files:
 				logger.info("Found additional inf file '%s'", inf_file)
-				inf_files[inf_file] = information
+				inf_files[inf_file] = information.copy()
 
 		sources = []
 		for inf_file, information in inf_files.items():
 			inf = INFFile(inf_file)
 			inf.parse()
+			information["inf_file"] = inf_file.name
 			information["inf_class"] = inf.version.Class if inf.version else None
 			information["inf_provider"] = inf.version.Provider if inf.version else None
 			information["inf_date"] = inf.version.DriverVer.date.strftime("%Y-%m-%d") if inf.version else None

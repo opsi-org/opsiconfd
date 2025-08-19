@@ -257,18 +257,19 @@ def test_driver_updateDatabase_and_getSources(
 			assert len(sources) == 9
 
 			assert sources[0].url == "win11-x64-drivers-test/drivers/drivers/HDXACPDELLCSMB/w10/amd64"
+			assert sources[0].information["inf_file"] == "HDXACPDELLCSMB.inf"
 			assert sources[0].information["driver_integration_mode"] == "hardware_info"
 			assert sources[0].information["inf_class"] == "MEDIA"
 			assert sources[0].information["inf_provider"] == "Realtek Semiconductor Corp."
 			assert sources[0].information["inf_date"] == "2023-05-09"
 			assert sources[0].information["inf_version"] == "6.0.9514.1"
-
 			assert sources[0].information["device_type"] == "HDAUDIO"
 			assert sources[0].information["vendor_id"] == "10EC"
 			assert sources[0].information["device_id"] == "0236"
 			assert sources[0].information["device_name"] == "Realtek Audio"
 
 			assert sources[1].url == "win11-x64-drivers-test/drivers/drivers/RtDUsbAD_dell/w10/amd64"
+			assert sources[1].information["inf_file"] == "RtDUsbAD_dell.inf"
 			assert sources[1].information["driver_integration_mode"] == "hardware_info"
 			assert sources[1].information["inf_class"] == "MEDIA"
 			assert sources[1].information["device_type"] == "USB"
@@ -278,6 +279,7 @@ def test_driver_updateDatabase_and_getSources(
 			assert sources[1].information["device_name"] == "Realtek USB Audio"
 
 			assert sources[2].url == "win11-x64-drivers-test/drivers/drivers/viostor/w11/amd64"
+			assert sources[2].information["inf_file"] == "viostor.inf"
 			assert sources[2].information["driver_integration_mode"] == "hardware_info"
 			assert sources[2].information["inf_class"] == "SCSIAdapter"
 			assert sources[2].information["device_type"] == "PCI"
@@ -287,8 +289,11 @@ def test_driver_updateDatabase_and_getSources(
 			assert sources[2].information["device_name"] == "Red Hat VirtIO SCSI controller"
 
 			assert sources[3].url == "win11-x64-drivers-test/drivers/drivers/additional/byAudit/A Vendor./Some model_/sub1"
+			assert sources[3].information["inf_file"] == "driver1.inf"
 			assert sources[4].url == "win11-x64-drivers-test/drivers/drivers/additional/byAudit/A Vendor./Some model_/sub2"
+			assert sources[4].information["inf_file"] == "driver2.inf"
 			assert sources[5].url == "win11-x64-drivers-test/drivers/drivers/additional/byAudit/A Vendor./Some model_/sub3/sub3"
+			assert sources[5].information["inf_file"] == "driver3.inf"
 
 			for source in sources[3:6]:
 				assert source.information["driver_integration_mode"] == "system_info"
@@ -301,12 +306,15 @@ def test_driver_updateDatabase_and_getSources(
 				assert source.information["by_audit_model_dir_name"] == "Some model_"
 
 			assert sources[6].url == "win11-x64-drivers-test/drivers/drivers/additional/additional2/sub2/sub2"
+			assert sources[6].information["inf_file"] == "driver2.inf"
 			assert sources[6].information["additional_dir"] == "additional2"
 
 			assert sources[7].url == "win11-x64-drivers-test/drivers/drivers/additional/additional3/sub3"
+			assert sources[7].information["inf_file"] == "driver3.inf"
 			assert sources[7].information["additional_dir"] == "additional3"
 
 			assert sources[8].url == "win11-x64-drivers-test/drivers/drivers/additional/additional3/sub33"
+			assert sources[8].information["inf_file"] == "driver33.inf"
 			assert sources[8].information["additional_dir"] == "additional3"
 
 			for source in sources[6:9]:
@@ -320,6 +328,7 @@ def test_driver_updateDatabase_and_getSources(
 		assert sources[0].access_type == "depot"
 		assert sources[0].operation_type == "recursive_copy"
 		assert sources[0].url == "win11-x64-drivers-test/drivers/drivers/viostor/w10/x86"
+		assert sources[0].information["inf_file"] == "viostor.inf"
 		assert sources[0].information["device_type"] == "PCI"
 		assert sources[0].information["vendor_id"] == "1AF4"
 		assert sources[0].information["device_id"] == "1001"

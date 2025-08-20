@@ -35,7 +35,7 @@ class Client:
 	systemUUID: str | None = None
 	device_vendor: str | None = None
 	device_model: str | None = None
-	device_sn: str = None
+	device_sn: str | None = None
 	device_ram: float | None = None
 	device_processor: str | None = None
 	operating_system_type: OPERATING_SYSTEM_TYPE | None = None

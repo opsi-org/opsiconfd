@@ -85,6 +85,7 @@ from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
 from .obj_user import RPCUserMixin
 from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
+from .reporting import RPCReportingMixin
 
 
 def describe_interface(instance: Any) -> dict[str, MethodInterface]:
@@ -146,6 +147,7 @@ class Backend(
 	RPCDHCPDControlMixin,
 	RPCOpsiPXEConfdControlMixin,
 	RPCExtenderMixin,
+	RPCReportingMixin,
 ):
 	__instance = None
 	__initialized = False

@@ -101,9 +101,9 @@ def test_driver_get_architecture_and_os_version_from_wim_image(
 	client_data_dir = tmp_path / product_id
 	client_data_dir.mkdir()
 	for wim_file in wim_files:
-		wim_file = client_data_dir / wim_file
-		wim_file.parent.mkdir(parents=True, exist_ok=True)
-		wim_file.touch()
+		wim_path = client_data_dir / wim_file
+		wim_path.parent.mkdir(parents=True, exist_ok=True)
+		wim_path.touch()
 
 	client = OpsiClient(id=client_id)
 	product = NetbootProduct(id=product_id, productVersion="1", packageVersion="1")
@@ -157,14 +157,14 @@ def test_driver_get_architecture_and_os_version_from_wim_image(
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", mock_get_target_os_versions),
 	):
-		backend._get_architecture_and_os_version_from_wim_image(client_id=client.id, product_id=product.id)
+		backend._get_architecture_and_os_version_from_wim_image(client_id=client.id, product_id=product.id)  # type: ignore[misc]
 
 	if not params:
 		assert expected_wim_file is None
 		assert expected_image_name_or_index is None
 	else:
 		assert len(params) == 1
-		assert params[0] == (client_data_dir / expected_wim_file, expected_image_name_or_index)
+		assert params[0] == (client_data_dir / (expected_wim_file or ""), expected_image_name_or_index)
 
 
 # Run multiple times to verify robustness against shuffled .inf file ordering

@@ -3,6 +3,7 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
+import re
 import shutil
 from pathlib import Path
 from random import shuffle
@@ -26,6 +27,7 @@ CONTROLFILE = Path("tests/data/workbench/control")
 
 def test_find_wim_files(tmp_path: Path) -> None:
 	files = [
+		tmp_path / "installfiles/sources/boot.wim",
 		tmp_path / "installfiles/sources/install.wim",
 		tmp_path / "installfiles/sources/install3.esd",
 		tmp_path / "installfiles/sources2/install2.swm",
@@ -37,8 +39,17 @@ def test_find_wim_files(tmp_path: Path) -> None:
 		file.touch()
 
 	assert sorted(find_wim_files(tmp_path)) == sorted(files)
-	assert sorted(find_wim_files([tmp_path / "installfiles/sources"])) == sorted(files[:2])
-	assert sorted(find_wim_files([tmp_path / "installfiles/sources", tmp_path / "installfiles/sources2"])) == sorted(files[:3])
+	assert sorted(find_wim_files(tmp_path, exclude=re.compile(r"^boot.wim$"))) == sorted(files[1:])
+	assert sorted(find_wim_files(tmp_path, exclude=re.compile(r"^.*3\.[^\.]{3}$"))) == sorted(
+		[
+			tmp_path / "installfiles/sources/boot.wim",
+			tmp_path / "installfiles/sources/install.wim",
+			tmp_path / "installfiles/sources2/install2.swm",
+			tmp_path / "installfiles2/image2.Wim",
+		]
+	)
+	assert sorted(find_wim_files([tmp_path / "installfiles/sources"])) == sorted(files[:3])
+	assert sorted(find_wim_files([tmp_path / "installfiles/sources", tmp_path / "installfiles/sources2"])) == sorted(files[:4])
 
 
 @pytest.mark.parametrize(

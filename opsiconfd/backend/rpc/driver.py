@@ -136,7 +136,7 @@ class BinarySource:
 		return asdict(self)
 
 
-def find_wim_files(search_base: Path | Iterable[Path]) -> list[Path]:
+def find_wim_files(search_base: Path | Iterable[Path], exclude: re.Pattern | None = None) -> list[Path]:
 	wim_files = set()
 	if isinstance(search_base, Path):
 		search_base = [search_base]
@@ -148,6 +148,9 @@ def find_wim_files(search_base: Path | Iterable[Path]) -> list[Path]:
 			if file.is_symlink() and not file.exists():
 				continue
 			if file.suffix.lower() not in (".wim", ".esd", ".swm"):
+				continue
+			if exclude and exclude.match(file.name):
+				logger.debug("Excluding WIM file '%s'", file)
 				continue
 			if file.suffix.lower() == ".swm" and re.match(r"\d+\.swm", file.stem):
 				# Only process first part of split wim
@@ -192,7 +195,7 @@ class RPCDriverMixin(Protocol):
 		product_id = typeForceProductId(productId)
 		client_data_dir = Path(DEPOT_DIR) / product_id
 		search_bases = [client_data_dir / "images", client_data_dir / "installfiles/sources"]
-		wim_files = find_wim_files(search_bases)
+		wim_files = find_wim_files(search_bases, exclude=re.compile(r"^boot.wim$", re.IGNORECASE))
 		if not wim_files:
 			raise BackendError(f"No WIM files found in '{client_data_dir}'")
 
@@ -292,7 +295,9 @@ class RPCDriverMixin(Protocol):
 			if not image_path.exists():
 				raise BackendError(f"Image file '{image_path}' from product property 'image' not found")
 		else:
-			wim_files = find_wim_files(client_data_dir / (install_files_dir or "installfiles") / "sources")
+			wim_files = find_wim_files(
+				client_data_dir / (install_files_dir or "installfiles") / "sources", exclude=re.compile(r"^boot.wim$", re.IGNORECASE)
+			)
 			if wim_files:
 				image_path = wim_files[0]
 				logger.debug("Using WIM file from installfiles: %s", image_path)

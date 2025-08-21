@@ -92,7 +92,7 @@ import shutil
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Iterable, Protocol
 
 from opsicommon.exceptions import BackendError, BackendMissingDataError
 from opsicommon.package.wim import wim_info
@@ -136,13 +136,15 @@ class BinarySource:
 		return asdict(self)
 
 
-def find_wim_files(client_data_dir: Path) -> list[Path]:
+def find_wim_files(search_base: Path | Iterable[Path]) -> list[Path]:
 	wim_files = set()
-	for image_dir in ("images", "installfiles/sources"):
-		image_path = client_data_dir / image_dir
-		if not image_path.exists():
+	if isinstance(search_base, Path):
+		search_base = [search_base]
+	for sb in search_base:
+		if not sb.is_dir():
+			logger.debug("Skipping non-directory search base: %s", sb)
 			continue
-		for file in image_path.iterdir():
+		for file in sb.glob("**/*.[wes][isw][md]", case_sensitive=False):
 			if file.is_symlink() and not file.exists():
 				continue
 			if file.suffix.lower() not in (".wim", ".esd", ".swm"):
@@ -152,7 +154,7 @@ def find_wim_files(client_data_dir: Path) -> list[Path]:
 				continue
 			logger.info("Found WIM file '%s'", file)
 			wim_files.add(file)
-	return list(wim_files)
+	return sorted(wim_files)
 
 
 def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | None = None) -> list[INFTargetOSVersion]:
@@ -189,7 +191,8 @@ class RPCDriverMixin(Protocol):
 		"""
 		product_id = typeForceProductId(productId)
 		client_data_dir = Path(DEPOT_DIR) / product_id
-		wim_files = find_wim_files(client_data_dir)
+		search_bases = [client_data_dir / "images", client_data_dir / "installfiles/sources"]
+		wim_files = find_wim_files(search_bases)
 		if not wim_files:
 			raise BackendError(f"No WIM files found in '{client_data_dir}'")
 
@@ -265,6 +268,42 @@ class RPCDriverMixin(Protocol):
 							link.symlink_to(target)
 							link_to_version[link] = dev.target_os_version
 
+	def _get_architecture_and_os_version_from_wim_image(
+		self: BackendProtocol, client_id: str, product_id: str
+	) -> tuple[str | None, str | None]:
+		logger.info("Getting architecture and OS version from WIM image")
+		depot_dir = Path(DEPOT_DIR)
+		client_data_dir = depot_dir / product_id
+
+		image_path: Path | None = None
+		values = self.productPropertyState_getValues(
+			product_ids=product_id, property_ids=["image", "installfiles_dir", "imagename"], object_ids=client_id
+		)
+		pp_states = values.get(client_id, {}).get(product_id, {})
+		logger.debug("Product properties for client %r: %r", client_id, pp_states)
+		image = pp_states.get("image", [""])[0]
+		install_files_dir = pp_states.get("installfiles_dir", [""])[0]
+		image_name_or_index = pp_states.get("imagename", [None])[0]
+
+		if image:
+			image_file, image_name_or_index = image.split(":", 1) if ":" in image else ("install.wim", image)
+			image_path = client_data_dir / "images" / image_file
+			logger.debug("Image file: %s", image_path)
+			if not image_path.exists():
+				raise BackendError(f"Image file '{image_path}' from product property 'image' not found")
+		else:
+			wim_files = find_wim_files(client_data_dir / (install_files_dir or "installfiles") / "sources")
+			if wim_files:
+				image_path = wim_files[0]
+				logger.debug("Using WIM file from installfiles: %s", image_path)
+
+		if image_path:
+			for tov in get_target_os_versions(image_path, image_name_or_index):
+				logger.info("Using target OS version %s", tov)
+				return str(tov.Architecture), f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+
+		return None, None
+
 	@rpc_method
 	def driver_getSources(
 		self: BackendProtocol, clientId: str, productId: str, architecture: str | None = None, osVersion: str | None = None
@@ -275,6 +314,7 @@ class RPCDriverMixin(Protocol):
 		product_id = typeForceProductId(productId)
 		client_id = typeForceHostId(clientId)
 		depot_dir = Path(DEPOT_DIR)
+		client_data_dir = depot_dir / product_id
 
 		if not self.host_getIdents(id=client_id):
 			raise BackendMissingDataError(f"Client '{client_id}' not found")
@@ -286,23 +326,9 @@ class RPCDriverMixin(Protocol):
 			raise BackendMissingDataError(f"No hardware information found for client '{client_id}'")
 
 		if not architecture or not osVersion:
-			logger.info("Getting architecture and OS version from WIM image")
-			values = self.productPropertyState_getValues(product_ids=product_id, property_ids="image", object_ids=client_id)
-			image = values.get(client_id, {}).get(product_id, {}).get("image", [""])[0]
-			logger.debug("Product property 'image' for client %r is %r", client_id, image)
-			if image:
-				image_file, image_name_or_index = image.split(":", 1) if ":" in image else ("install.wim", image)
-				image_path = depot_dir / product_id / "images" / image_file
-				logger.debug("Image file: %s", image_path)
-				if not image_path.exists():
-					raise BackendError(f"Image file '{image_path}' from product property 'image' not found")
-				for tov in get_target_os_versions(image_path, image_name_or_index):
-					logger.info("Using target OS version %s", tov)
-					if not architecture:
-						architecture = str(tov.Architecture)
-					if not osVersion:
-						osVersion = f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
-					break
+			wim_architecture, wim_os_version = self._get_architecture_and_os_version_from_wim_image(client_id, product_id)
+			architecture = architecture or wim_architecture
+			osVersion = osVersion or wim_os_version
 
 		if not architecture:
 			raise BackendError("Missing architecture")
@@ -318,7 +344,6 @@ class RPCDriverMixin(Protocol):
 				if len(version_parts) >= 3:
 					tov.BuildNumber = int(version_parts[2])
 
-		client_data_dir = depot_dir / product_id
 		base_dir = client_data_dir / "drivers"
 		drivers_dir = base_dir / "drivers"
 		additional_dir = drivers_dir / "additional"

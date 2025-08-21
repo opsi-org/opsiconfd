@@ -3,10 +3,6 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
-"""
-test opsiconfd.backend.rpc.depot
-"""
-
 import shutil
 from pathlib import Path
 from random import shuffle
@@ -15,9 +11,10 @@ from unittest.mock import patch
 
 import pytest
 from opsicommon.logging import use_logging_config
-from opsicommon.objects import AuditHardwareOnHost, NetbootProduct, OpsiClient
+from opsicommon.objects import AuditHardwareOnHost, NetbootProduct, OpsiClient, ProductProperty, ProductPropertyState
 from opsisystem.inffile import Architecture, INFTargetOSVersion
 
+from opsiconfd.backend.rpc.driver import find_wim_files
 from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
 
 TESTDIR = Path("tests/data/workbench/test_dir")
@@ -25,6 +22,149 @@ TESTFILE = TESTDIR / "testfile"
 TESTPACKAGE_NAME = "localboot_legacy"
 TESTPACKAGE = Path(f"tests/data/workbench/{TESTPACKAGE_NAME}_42.0-1337.opsi")
 CONTROLFILE = Path("tests/data/workbench/control")
+
+
+def test_find_wim_files(tmp_path: Path) -> None:
+	files = [
+		tmp_path / "installfiles/sources/install.wim",
+		tmp_path / "installfiles/sources/install3.esd",
+		tmp_path / "installfiles/sources2/install2.swm",
+		tmp_path / "installfiles/image3.wim",
+		tmp_path / "installfiles2/image2.Wim",
+	]
+	for file in files:
+		file.parent.mkdir(parents=True, exist_ok=True)
+		file.touch()
+
+	assert sorted(find_wim_files(tmp_path)) == sorted(files)
+	assert sorted(find_wim_files([tmp_path / "installfiles/sources"])) == sorted(files[:2])
+	assert sorted(find_wim_files([tmp_path / "installfiles/sources", tmp_path / "installfiles/sources2"])) == sorted(files[:3])
+
+
+@pytest.mark.parametrize(
+	"wim_files, pp_image, pp_installfiles_dir, pp_imagename, expected_wim_file, expected_image_name_or_index",
+	(
+		(
+			[],
+			None,
+			None,
+			None,
+			None,
+			None,
+		),
+		(
+			["installfiles/sources/install.wim", "installfiles/sources/install2.wim", "z_installfiles/sources/install.wim"],
+			None,
+			"z_installfiles",
+			2,
+			"z_installfiles/sources/install.wim",
+			2,
+		),
+		(
+			["installfiles/sources/install.wim", "installfiles/sources/install2.wim"],
+			None,
+			None,
+			None,
+			"installfiles/sources/install.wim",
+			None,
+		),
+		(
+			["images/win10-de.wim", "images/win10-en.wim", "images/win10.swm"],
+			"win10.swm:Windows 10 Pro",
+			None,
+			None,
+			"images/win10.swm",
+			"Windows 10 Pro",
+		),
+		(
+			["images/install.wim", "images/win10-en.wim", "images/win10.wim"],
+			"Windows 10 Pro",
+			None,
+			None,
+			"images/install.wim",
+			"Windows 10 Pro",
+		),
+	),
+)
+def test_driver_get_architecture_and_os_version_from_wim_image(
+	backend: UnprotectedBackend,  # noqa: F811
+	tmp_path: Path,
+	wim_files: list[str],
+	pp_image: str | None,
+	pp_installfiles_dir: str | None,
+	pp_imagename: str | None,
+	expected_wim_file: Path | None,
+	expected_image_name_or_index: int | str | None,
+) -> None:
+	product_id = "win11-x64-drivers-test"
+	client_id = "test-client.opsi.test"
+	client_data_dir = tmp_path / product_id
+	client_data_dir.mkdir()
+	for wim_file in wim_files:
+		wim_file = client_data_dir / wim_file
+		wim_file.parent.mkdir(parents=True, exist_ok=True)
+		wim_file.touch()
+
+	client = OpsiClient(id=client_id)
+	product = NetbootProduct(id=product_id, productVersion="1", packageVersion="1")
+	product_properties = [
+		ProductProperty(
+			productId=product.id,
+			productVersion=product.productVersion,
+			packageVersion=product.packageVersion,
+			propertyId="image",
+		),
+		ProductProperty(
+			productId=product.id,
+			productVersion=product.productVersion,
+			packageVersion=product.packageVersion,
+			propertyId="installfiles_dir",
+		),
+		ProductProperty(
+			productId=product.id,
+			productVersion=product.productVersion,
+			packageVersion=product.packageVersion,
+			propertyId="imagename",
+		),
+	]
+	product_property_states = []
+	if pp_image:
+		product_property_states.append(
+			ProductPropertyState(productId=product.id, propertyId="image", values=[pp_image], objectId=client.id)
+		)
+	if pp_installfiles_dir:
+		product_property_states.append(
+			ProductPropertyState(productId=product.id, propertyId="installfiles_dir", values=[pp_installfiles_dir], objectId=client.id)
+		)
+	if pp_imagename:
+		product_property_states.append(
+			ProductPropertyState(productId=product.id, propertyId="imagename", values=[pp_imagename], objectId=client.id)
+		)
+
+	backend.host_createObjects([client])
+	backend.product_createObjects([product])
+	backend.productProperty_createObjects(product_properties)
+	backend.productPropertyState_createObjects(product_property_states)
+
+	params = []
+
+	def mock_get_target_os_versions(wim_image: Path, image_name_or_index: int | str | None = None) -> list[INFTargetOSVersion]:
+		nonlocal params
+		params.append((wim_image, image_name_or_index))
+		return []
+
+	with (
+		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
+		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", mock_get_target_os_versions),
+	):
+		backend._get_architecture_and_os_version_from_wim_image(client_id=client.id, product_id=product.id)
+
+	if not params:
+		assert expected_wim_file is None
+		assert expected_image_name_or_index is None
+	else:
+		assert len(params) == 1
+		assert params[0] == (client_data_dir / expected_wim_file, expected_image_name_or_index)
 
 
 # Run multiple times to verify robustness against shuffled .inf file ordering

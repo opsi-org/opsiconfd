@@ -11,7 +11,7 @@ from typing import Iterator
 from unittest.mock import patch
 
 import pytest
-from opsicommon.logging import use_logging_config
+from opsicommon.exceptions import BackendError
 from opsicommon.objects import AuditHardwareOnHost, NetbootProduct, OpsiClient, ProductProperty, ProductPropertyState
 from opsisystem.inffile import Architecture, INFTargetOSVersion
 
@@ -168,7 +168,10 @@ def test_driver_get_architecture_and_os_version_from_wim_image(
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", mock_get_target_os_versions),
 	):
-		backend._get_architecture_and_os_version_from_wim_image(client_id=client.id, product_id=product.id)  # type: ignore[misc]
+		try:
+			backend._get_architecture_and_os_version_from_wim_image(product_id=product.id, client_id=client.id)  # type: ignore[misc]
+		except BackendError:
+			pass
 
 	if not params:
 		assert expected_wim_file is None
@@ -253,7 +256,6 @@ def test_driver_updateDatabase_and_getSources(
 		return iter(res)
 
 	with (
-		use_logging_config(stderr_level=7),
 		patch("pathlib.Path.glob", mock_glob),
 		patch("opsiconfd.backend.rpc.driver.DEPOT_DIR", str(tmp_path)),
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", return_value=get_target_os_versions),

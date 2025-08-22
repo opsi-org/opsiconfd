@@ -161,6 +161,7 @@ def find_wim_files(search_base: Path | Iterable[Path], exclude: re.Pattern | Non
 
 
 def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | None = None) -> list[INFTargetOSVersion]:
+	logger.debug("Searching for target OS versions in '%s' (%s)", wim_image, image_name_or_index)
 	target_os_versions: list[INFTargetOSVersion] = []
 	image_index = -1
 	image_name = image_name_or_index
@@ -170,8 +171,9 @@ def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | Non
 	except (ValueError, TypeError):
 		pass
 
+	logger.debug("Image index: %r, image name: %r", image_index, image_name)
 	for image in wim_info(wim_image).images:
-		logger.debug("Processing image %s in '%s'", image.name, wim_image)
+		logger.debug("Processing image %r in '%s'", image.name, wim_image)
 		if not image.windows_info or (image_index > -1 and image.index != image_index) or (image_name and image.name != image_name):
 			continue
 		tov = INFTargetOSVersion(
@@ -180,7 +182,7 @@ def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | Non
 			OSMinorVersion=image.windows_info.minor_version,
 			BuildNumber=image.windows_info.build,
 		)
-		logger.debug("Found target OS version %s", tov)
+		logger.debug("Found matching target OS version %r", tov)
 		target_os_versions.append(tov)
 
 	return target_os_versions
@@ -271,10 +273,8 @@ class RPCDriverMixin(Protocol):
 							link.symlink_to(target)
 							link_to_version[link] = dev.target_os_version
 
-	def _get_architecture_and_os_version_from_wim_image(
-		self: BackendProtocol, client_id: str, product_id: str
-	) -> tuple[str | None, str | None]:
-		logger.info("Getting architecture and OS version from WIM image")
+	def _get_architecture_and_os_version_from_wim_image(self: BackendProtocol, product_id: str, client_id: str) -> tuple[str, str]:
+		logger.info("Getting architecture and OS version from WIM image for %r and %r", product_id, client_id)
 		depot_dir = Path(DEPOT_DIR)
 		client_data_dir = depot_dir / product_id
 
@@ -295,19 +295,25 @@ class RPCDriverMixin(Protocol):
 			if not image_path.exists():
 				raise BackendError(f"Image file '{image_path}' from product property 'image' not found")
 		else:
-			wim_files = find_wim_files(
-				client_data_dir / (install_files_dir or "installfiles") / "sources", exclude=re.compile(r"^boot.wim$", re.IGNORECASE)
-			)
+			if not install_files_dir:
+				install_files_dir = "installfiles"
+			sources_dir = client_data_dir / install_files_dir / "sources"
+			logger.debug("No image file specified in product properties, searching for WIM files in '%s'", sources_dir)
+			wim_files = find_wim_files(sources_dir, exclude=re.compile(r"^boot.wim$", re.IGNORECASE))
 			if wim_files:
 				image_path = wim_files[0]
 				logger.debug("Using WIM file from installfiles: %s", image_path)
 
-		if image_path:
-			for tov in get_target_os_versions(image_path, image_name_or_index):
-				logger.info("Using target OS version %s", tov)
-				return str(tov.Architecture), f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+		if not image_path:
+			raise BackendError(f"No matching WIM image found for {product_id!r} and {client_id!r}")
 
-		return None, None
+		for tov in get_target_os_versions(image_path, image_name_or_index):
+			logger.info("Using target OS version %s", tov)
+			return str(tov.Architecture), f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+
+		raise BackendError(
+			f"No matching target OS version found in image '{image_path}' ({image_name_or_index}) for {product_id!r} and {client_id!r}"
+		)
 
 	@rpc_method
 	def driver_getSources(
@@ -331,7 +337,7 @@ class RPCDriverMixin(Protocol):
 			raise BackendMissingDataError(f"No hardware information found for client '{client_id}'")
 
 		if not architecture or not osVersion:
-			wim_architecture, wim_os_version = self._get_architecture_and_os_version_from_wim_image(client_id, product_id)
+			wim_architecture, wim_os_version = self._get_architecture_and_os_version_from_wim_image(product_id, client_id)
 			architecture = architecture or wim_architecture
 			osVersion = osVersion or wim_os_version
 

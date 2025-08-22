@@ -465,7 +465,11 @@ class RPCDriverMixin(Protocol):
 		sources = []
 		for inf_file, information in inf_files.items():
 			inf = INFFile(inf_file)
-			inf.parse()
+			try:
+				inf.parse()
+			except Exception as exc:
+				logger.error("Failed to parse INF file '%s': %s", inf_file, exc)
+				continue
 			information["inf_file"] = inf_file.name
 			information["inf_class"] = inf.version.Class if inf.version else None
 			information["inf_provider"] = inf.version.Provider if inf.version else None

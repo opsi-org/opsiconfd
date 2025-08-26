@@ -149,6 +149,9 @@ package:
     # Debian 11: ImportError: /usr/lib/opsiconfd/_internal/libssl.so.1.1: version `OPENSSL_1_1_1' not found (required by /usr/lib/x86_64-linux-gnu/libmariadb.so.3)
     [ -e /usr/lib/x86_64-linux-gnu/libssl.so.1.1 ] && cp /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /usr/lib/opsiconfd/_internal/libssl.so.1.1
     [ -e /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 ] && cp /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /usr/lib/opsiconfd/_internal/libcrypto.so.1.1
+    # RedHat 8
+    [ -e /lib64/libssl.so.1.1 ] && cp /lib64/libssl.so.1.1 /usr/lib/opsiconfd/_internal/libssl.so.1.1
+    [ -e /lib64/libcrypto.so.1.1 ] && cp /lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/_internal/libcrypto.so.1.1
 
     # Setup opsiconfd
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

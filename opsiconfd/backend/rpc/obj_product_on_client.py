@@ -234,6 +234,8 @@ class RPCProductOnClientMixin(Protocol):
 				for poc in group.product_on_clients:
 					if action_request := action_requests.get((poc.clientId, poc.productId)):
 						setattr(poc, "actionGroup", idx + 1)
+						setattr(poc, "actionGroupPriority", group.priority)
+						setattr(poc, "actionPriority", group.priorities[poc.productId])
 						# Keep actionRequest from database
 						poc.actionRequest = action_request or "none"
 						if poc.actionRequest == "none":

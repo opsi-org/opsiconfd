@@ -45,7 +45,7 @@ def test_get_product_action_groups_1(
 		id="someapp6",
 		productVersion="6.0",
 		packageVersion="1",
-		priority=0,
+		priority=1,
 		setupScript="setup.opsiscript",
 		uninstallScript="uninstall.opsiscript",
 	)
@@ -471,18 +471,37 @@ def test_get_product_action_groups_1(
 	assert res2[0].productId == "someapp6"
 	assert res2[0].actionRequest == "uninstall"
 	assert res2[0].actionSequence == 0
+	assert res2[0].actionGroup == 1
+	assert res2[0].actionGroupPriority == 20
+	assert res2[0].actionPriority == -1  # Product priority is 1 but with uninstall -1
+
 	assert res2[1].productId == "someapp7"
 	assert res2[1].actionRequest == "setup"
 	assert res2[1].actionSequence == 1
+	assert res2[1].actionGroup == 1
+	assert res2[1].actionGroupPriority == 20
+	assert res2[1].actionPriority == 10
+
 	assert res2[2].productId == "someapp-config"
 	assert res2[2].actionRequest == "setup"
 	assert res2[2].actionSequence == 2
+	assert res2[2].actionGroup == 1
+	assert res2[2].actionGroupPriority == 20
+	assert res2[2].actionPriority == 20
+
 	assert res2[3].productId == "firefox"
 	assert res2[3].installationStatus == "installed"
 	assert res2[3].actionSequence == -1
+	assert res2[3].actionGroup == 2
+	assert res2[3].actionGroupPriority == 0
+	assert res2[3].actionPriority == -80
+
 	assert res2[4].productId == "some-meta"
 	assert res2[4].actionRequest == "setup"
 	assert res2[4].actionSequence == 3
+	assert res2[4].actionGroup == 3
+	assert res2[4].actionGroupPriority == 0
+	assert res2[4].actionPriority == 0
 
 	product_on_client_1 = ProductOnClient(
 		productId="firefox",

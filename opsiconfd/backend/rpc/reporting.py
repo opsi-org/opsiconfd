@@ -77,7 +77,8 @@ class RPCReportingMixin(Protocol):
 				JOIN HARDWARE_DEVICE_COMPUTER_SYSTEM AS hdcs ON hdcs.hardware_id = hccs.hardware_id
 				LEFT JOIN HARDWARE_CONFIG_CHASSIS AS hcc ON hcc.hostId = hccs.hostId
 				LEFT JOIN HARDWARE_DEVICE_CHASSIS AS hdc ON hdc.hardware_id = hcc.hardware_id
-				LEFT JOIN HARDWARE_DEVICE_PROCESSOR AS hdp ON hdp.hardware_id = hdcs.hardware_id
+				LEFT JOIN HARDWARE_CONFIG_PROCESSOR as hcp ON hcp.hostId = hccs.hostId
+				LEFT JOIN HARDWARE_DEVICE_PROCESSOR AS hdp ON hdp.hardware_id = hcp.hardware_id
 				WHERE hccs.hostId in :client_ids
 				""",
 				params={"client_ids": list(clients)},

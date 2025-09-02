@@ -44,6 +44,7 @@ LINUX_DISTRO_EOL = {
 		"10": date(2022, 8, 1),
 		"11": date(2024, 7, 1),
 		"12": date(2026, 6, 10),
+		"13": date(2028, 9, 9),
 	},
 	# https://access.redhat.com/support/policy/updates/errata
 	"rhel": {

@@ -45,7 +45,7 @@ def test_get_product_action_groups_1(
 		id="someapp6",
 		productVersion="6.0",
 		packageVersion="1",
-		priority=0,
+		priority=1,
 		setupScript="setup.opsiscript",
 		uninstallScript="uninstall.opsiscript",
 	)
@@ -471,18 +471,37 @@ def test_get_product_action_groups_1(
 	assert res2[0].productId == "someapp6"
 	assert res2[0].actionRequest == "uninstall"
 	assert res2[0].actionSequence == 0
+	assert res2[0].actionGroup == 1
+	assert res2[0].actionGroupPriority == 20
+	assert res2[0].actionPriority == -1  # Product priority is 1 but with uninstall -1
+
 	assert res2[1].productId == "someapp7"
 	assert res2[1].actionRequest == "setup"
 	assert res2[1].actionSequence == 1
+	assert res2[1].actionGroup == 1
+	assert res2[1].actionGroupPriority == 20
+	assert res2[1].actionPriority == 10
+
 	assert res2[2].productId == "someapp-config"
 	assert res2[2].actionRequest == "setup"
 	assert res2[2].actionSequence == 2
+	assert res2[2].actionGroup == 1
+	assert res2[2].actionGroupPriority == 20
+	assert res2[2].actionPriority == 20
+
 	assert res2[3].productId == "firefox"
 	assert res2[3].installationStatus == "installed"
 	assert res2[3].actionSequence == -1
+	assert res2[3].actionGroup == 2
+	assert res2[3].actionGroupPriority == 0
+	assert res2[3].actionPriority == -80
+
 	assert res2[4].productId == "some-meta"
 	assert res2[4].actionRequest == "setup"
 	assert res2[4].actionSequence == 3
+	assert res2[4].actionGroup == 3
+	assert res2[4].actionGroupPriority == 0
+	assert res2[4].actionPriority == 0
 
 	product_on_client_1 = ProductOnClient(
 		productId="firefox",
@@ -1446,7 +1465,7 @@ def test_get_product_action_groups_installation_manager(
 		productId="some-product",
 		productType="localboot",
 		clientId=client_id,
-		installationStatus="not_installed",
+		installationStatus="installed",
 		actionRequest="uninstall",
 	)
 
@@ -1457,8 +1476,8 @@ def test_get_product_action_groups_installation_manager(
 	assert len(res[0].product_on_clients) == 2
 
 	poc_installation_manager = next(poc for poc in res[0].product_on_clients if poc.productId == "installation-manager")
-	assert poc_installation_manager.actionRequest == "none"
-	assert poc_installation_manager.actionSequence == -1
+	assert poc_installation_manager.actionRequest == "uninstall"
+	assert poc_installation_manager.actionSequence == 1
 
 	poc_some_product = next(poc for poc in res[0].product_on_clients if poc.productId == "some-product")
 	assert poc_some_product.actionRequest == "uninstall"
@@ -1490,6 +1509,200 @@ def test_get_product_action_groups_installation_manager(
 	assert res[0].product_on_clients[1].productId == "some-product"
 	assert res[0].product_on_clients[1].actionRequest == "uninstall"
 	assert res[0].product_on_clients[1].actionSequence == 1
+
+
+def test_get_product_action_groups_installation_manager_rfc(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	product1 = LocalbootProduct(
+		id="installation-manager",
+		name="installation-manager",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="installation-manager--rfc",
+		name="installation-manager--rfc",
+		productVersion="2.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product3 = LocalbootProduct(
+		id="some-product",
+		name="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product4 = LocalbootProduct(
+		id="some-product--rfc",
+		name="some-product--rfc",
+		productVersion="2.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+
+	product_dependency1 = ProductDependency(
+		productId="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="installation-manager",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="some-product--rfc",
+		productVersion="2.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="some-product",
+		requiredAction="setup",
+		requirementType="before",
+	)
+	product_dependency3 = ProductDependency(
+		productId="installation-manager--rfc",
+		productVersion="2.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="installation-manager",
+		requiredAction="setup",
+		requirementType="before",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="installation-manager",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="some-product",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot3 = ProductOnDepot(
+		productId="installation-manager--rfc",
+		productType="localboot",
+		productVersion="2.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot4 = ProductOnDepot(
+		productId="some-product--rfc",
+		productType="localboot",
+		productVersion="2.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2, product3, product4])
+	backend.productDependency_createObjects([product_dependency1, product_dependency2, product_dependency3])
+	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2, product_on_depot3, product_on_depot4])
+
+	for psas, expected_actions in (
+		(
+			(
+				("installation-manager", "not_installed", "setup"),
+				("installation-manager--rfc", "not_installed", "none"),
+				("some-product", "not_installed", "setup"),
+				("some-product--rfc", "not_installed", "none"),
+			),
+			(
+				("installation-manager", "setup"),
+				("some-product", "setup"),
+			),
+		),
+		(
+			(
+				("installation-manager", "not_installed", "setup"),
+				("installation-manager--rfc", "not_installed", "none"),
+				("some-product", "not_installed", "none"),
+				("some-product--rfc", "not_installed", "setup"),
+			),
+			(
+				("installation-manager", "setup"),
+				("some-product", "setup"),
+				("some-product--rfc", "setup"),
+			),
+		),
+		(
+			(
+				("installation-manager", "not_installed", "none"),
+				("installation-manager--rfc", "not_installed", "setup"),
+				("some-product", "not_installed", "setup"),
+				("some-product--rfc", "not_installed", "none"),
+			),
+			(
+				("installation-manager", "setup"),
+				("installation-manager--rfc", "setup"),
+				("some-product", "setup"),
+			),
+		),
+		(
+			(
+				("installation-manager", "not_installed", "none"),
+				("installation-manager--rfc", "not_installed", "setup"),
+				("some-product", "not_installed", "none"),
+				("some-product--rfc", "not_installed", "setup"),
+			),
+			(
+				("installation-manager", "setup"),
+				("installation-manager--rfc", "setup"),
+				("some-product", "setup"),
+				("some-product--rfc", "setup"),
+			),
+		),
+	):
+		print("---------------------------------------------")
+		product_on_clients = []
+		for psa in psas:
+			print(psa)
+			product_on_clients.append(
+				ProductOnClient(
+					productId=psa[0],
+					productType="localboot",
+					clientId=client_id,
+					installationStatus=psa[1],
+					actionRequest=psa[2],
+				)
+			)
+
+		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
+
+		action_pocs = []
+		for action_group in res:
+			for poc in action_group.product_on_clients:
+				if poc.actionSequence is not None and poc.actionSequence > -1:
+					action_pocs.append(poc)
+
+		action_pocs.sort(key=lambda x: x.actionSequence or -1)
+		for poc in action_pocs:
+			print(f"{poc.actionSequence}: {poc.productId} - {poc.actionRequest}")
+
+		assert len(action_pocs) == len(expected_actions)
+		for poc in action_pocs:
+			assert poc.actionSequence is not None
+			assert expected_actions[poc.actionSequence] == (poc.productId, poc.actionRequest)
 
 
 def test_get_product_action_groups_sql(

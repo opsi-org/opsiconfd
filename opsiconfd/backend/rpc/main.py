@@ -85,6 +85,7 @@ from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
 from .obj_user import RPCUserMixin
 from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
+from .reporting import RPCReportingMixin
 
 
 def describe_interface(instance: Any) -> dict[str, MethodInterface]:
@@ -146,6 +147,7 @@ class Backend(
 	RPCDHCPDControlMixin,
 	RPCOpsiPXEConfdControlMixin,
 	RPCExtenderMixin,
+	RPCReportingMixin,
 ):
 	__instance = None
 	__initialized = False
@@ -181,7 +183,7 @@ class Backend(
 		except RuntimeError:
 			pass
 
-		if self._server_role == "configserver":
+		if self.server_role == "configserver":
 			self._config_server_init()
 		else:
 			self._depot_server_init()
@@ -195,7 +197,7 @@ class Backend(
 			logger.debug("Init %s", base)
 			base.__init__(self)  # type: ignore[misc]
 
-		if self._server_role == "configserver":
+		if self.server_role == "configserver":
 			self._interface = describe_interface(self)
 			self._interface_list = [self._interface[name].as_dict() for name in sorted(list(self._interface.keys()))]
 
@@ -307,6 +309,10 @@ class Backend(
 		finally:
 			self.events_enabled = events_enabled
 
+	@property
+	def server_role(self) -> str | None:
+		return self._server_role
+
 	def shutdown(self) -> None:
 		self._shutting_down = True
 		with self.events_disabled():
@@ -314,7 +320,7 @@ class Backend(
 				for method in base.__dict__.values():
 					if callable(method) and hasattr(method, "backend_event_shutdown"):
 						method(self)
-		if self._server_role == "depotserver":
+		if self.server_role == "depotserver":
 			stop_service_clients()
 
 	def reload_config(self) -> None:

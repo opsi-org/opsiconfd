@@ -20,7 +20,7 @@ import warnings
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, Iterable, Literal, TextIO
+from typing import TYPE_CHECKING, Any, Iterable, Literal, TextIO
 from urllib.parse import unquote, urlparse
 
 import certifi
@@ -63,7 +63,6 @@ DEPOT_DIR = "/var/lib/opsi/depot"
 BACKUP_DIR = "/var/lib/opsi/backup"
 FILE_TRANSFER_STORAGE_DIR = "/var/lib/opsi/tmp/file-transfer"
 LOG_DIR = "/var/log/opsi"
-FILE_LOCK_METHOD: Final = "lockf"
 NTFS_IMAGES_DIR = "/var/lib/opsi/ntfs-images"
 OPSI_LICENSE_DIR = "/etc/opsi/licenses"
 OPSI_MODULES_FILE = "/etc/opsi/modules"
@@ -352,6 +351,7 @@ class Config(metaclass=Singleton):
 		self._config = configargparse.Namespace()
 		self._config.config_file = DEFAULT_CONFIG_FILE
 		self._config_file_lock = threading.RLock()
+		self._file_lock_method: Literal["flock", "lockf"] = "flock"
 		self.jinja_templates_dir = "."
 
 		self._set_args()
@@ -386,6 +386,16 @@ class Config(metaclass=Singleton):
 				self._args.remove(self._sub_command)
 		except BaseException:
 			pass
+
+		# Prefer flock if supported by filesystem and fallback to lockf
+		with self._config_file_lock:
+			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
+				self._file_lock_method = "flock"
+				try:
+					with lock_file(file, lock_method=self._file_lock_method):
+						pass
+				except Exception:
+					self._file_lock_method = "lockf"
 
 		self._init_parser()
 
@@ -454,7 +464,7 @@ class Config(metaclass=Singleton):
 			pass
 
 		scheme = "http"
-		if self._config.ssl_server_key and self._config.ssl_server_cert:
+		if self._config.ssl and self._config.ssl_server_key and self._config.ssl_server_cert:
 			scheme = "https"
 
 		os.putenv("SSL_CERT_FILE", self._config.ssl_trusted_certs)
@@ -676,7 +686,7 @@ class Config(metaclass=Singleton):
 	def _config_file_contents(self) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					masked_config_file_arguments: tuple[str, ...] = tuple()
 					if self._sub_command:
@@ -686,7 +696,7 @@ class Config(metaclass=Singleton):
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					conf[arg] = value
 					return self._generate_config_file(file, conf)
@@ -694,7 +704,7 @@ class Config(metaclass=Singleton):
 	def _update_config_file(self) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=FILE_LOCK_METHOD):
+				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					for deprecated in DEPRECATED:
 						conf.pop(deprecated, None)
@@ -1058,6 +1068,18 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_LETSENCRYPT_CONTACT_EMAIL",
 			default="",
 			help=self._help("expert", "The contact e-mail for the Let's Encrypt account."),
+		)
+		self._parser.add(
+			"--ssl",
+			env_var="OPSICONFD_SSL",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=True,
+			help=self._help(
+				"expert",
+				"If enabled, SSL will be used.",
+			),
 		)
 		self._parser.add(
 			"--ssl-server-key",

@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.x509 import verification  # type: ignore[attr-defined]
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
-from opsiconfd.config import config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.ssl import (
 	check_intermediate_ca,
 	get_ca_certs,
@@ -113,6 +113,13 @@ class OpsiCaKeyCheck(Check):
 	depot_check: bool = False
 
 	def _check(self) -> CheckResult:
+		if get_server_role() == "depotserver":
+			return CheckResult(
+				check=self,
+				check_status=CheckStatus.OK,
+				message="opsi CA key is not required on a depotserver.",
+			)
+
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,

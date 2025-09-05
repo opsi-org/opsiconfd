@@ -83,7 +83,6 @@ class RPCProductPropertyStateMixin(Protocol):
 						depot_values[pps.objectId][pps.productId][pps.propertyId] = pps.values or []
 
 				for host_id in self.host_getIdents(returnType="str", type="OpsiClient", id=client_ids):
-					res[host_id] = {}
 					depot_id = client_id_to_depot_id.get(host_id) or configserver_id
 					if depot_id in depot_values:
 						res[host_id] = depot_values[depot_id].copy()

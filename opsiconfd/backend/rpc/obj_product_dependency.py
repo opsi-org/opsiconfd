@@ -119,6 +119,7 @@ class ActionGroup:
 		dependent_actions["before"].sort(key=lambda a: (a.priority * -1, a.product_id, ACTION_REQUEST_PRIO[a.action]))
 		dependent_actions["after"].sort(key=lambda a: (a.priority, a.product_id, ACTION_REQUEST_PRIO[a.action]))
 
+		logger.trace(dependent_actions)
 		run_number = 0
 		while run_number < len(self.actions):
 			run_number += 1
@@ -498,14 +499,15 @@ class RPCProductDependencyMixin(Protocol):
 				for product_id, ar_actions in self.unsorted_actions.items():
 					if len(ar_actions) <= 1:
 						continue
-					logger.trace("Actions: %s", ar_actions)
+					logger.trace("Actions %r: %s", product_id, ar_actions)
 					product_on_client = next(
 						(a.product_on_client for a in ar_actions.values() if a.product_on_client),
 						None,
 					)
+
 					actions = sorted(
 						list(ar_actions.values()),
-						key=lambda a: (ACTION_REQUEST_PRIO[a.action], len(a.from_actions.values())),
+						key=lambda a: (not a.required, ACTION_REQUEST_PRIO[a.action], len(a.from_actions.values())),
 					)
 
 					actions[0].product_on_client = product_on_client
@@ -514,7 +516,26 @@ class RPCProductDependencyMixin(Protocol):
 						action.required = False
 						action.product_on_client = None
 
-					logger.trace("Actions: %s", ar_actions)
+					if (
+						len(actions) == 2
+						and actions[0].action == "uninstall"
+						and actions[0].required
+						and actions[1].action == "setup"
+						and not actions[1].required
+						and actions[1].from_actions["before"]
+					):
+						# Handle the scenario where a product requires another product to be installed
+						# for its own uninstallation and the required product is already installed and
+						# also scheduled for uninstallation. In this case, ensure the required product
+						# is only uninstalled after the product which depends on it.
+						for action in actions[1].from_actions["before"]:
+							for dep_action in action.dependent_actions["before"]:
+								if dep_action == actions[1]:
+									logger.debug("Adding action %s to from_actions['after']", action)
+									actions[0].from_actions["after"].append(action)
+									action.dependent_actions["after"].append(actions[0])
+
+					logger.trace("Actions %r: %s", product_id, ar_actions)
 
 				logger.debug("Build and sort action groups")
 				p_groups: list[set[str]] = []

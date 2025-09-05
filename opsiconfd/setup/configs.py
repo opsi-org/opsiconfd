@@ -788,7 +788,7 @@ def setup_configs() -> None:
 				description=(
 					"Force usage of a specific amount of memory. "
 					"Useful when the kernel is not able to see the whole system memory or for testing. "
-					"Format: `mem=nn[KMG]`",
+					"Format: `mem=nn[KMG]`"
 				),
 				possibleValues=[],
 				defaultValues=[],

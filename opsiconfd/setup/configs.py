@@ -10,6 +10,7 @@ opsiconfd - setup
 from __future__ import annotations
 
 import re
+import string
 from collections import defaultdict
 from functools import lru_cache
 from subprocess import run
@@ -29,7 +30,7 @@ from opsicommon.objects import (
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import config, get_configserver_id, get_server_role, opsi_config
 from opsiconfd.logging import logger
-from opsiconfd.utils import running_in_docker
+from opsiconfd.utils import get_random_string, running_in_docker
 
 if TYPE_CHECKING:
 	from opsiconfd.backend import UnprotectedBackend
@@ -485,6 +486,47 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "netboot.grub.timeout" not in config_ids:
+		logger.info("Creating config 'netboot.grub.timeout'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.grub.timeout",
+				description="Timeout in seconds before GRUB boots the default entry.",
+				possibleValues=["0", "1", "2", "3", "4", "5", "10", "15", "20", "30"],
+				defaultValues=["3"],
+				editable=True,
+			)
+		)
+
+	if "netboot.grub.graphicsmode" not in config_ids:
+		logger.info("Creating config 'netboot.grub.graphicsmode'")
+		add_configs.append(
+			BoolConfig(
+				id="netboot.grub.graphicsmode",
+				description="Enable graphical mode in GRUB?",
+				defaultValues=[True],
+			)
+		)
+
+	"""
+	if "netboot.grub.password" not in config_ids:
+		logger.info("Creating config 'netboot.grub.password'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.grub.password",
+				description=(
+					"Password to protect GRUB menu editing and access to the GRUB command line. "
+					"Plain text passwords will be hashed automatically. "
+					"Hashes must use MD5 and follow the format $1$<salt>$<hash-value>. "
+					"grub-md5-crypt can be used to generate suitable hashes."
+				),
+				possibleValues=[""],
+				defaultValues=[""],
+				editable=True,
+			)
+		)
+	"""
+
 	if "netboot.linux-bootimage.cmdline.quiet" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.quiet'")
 		add_configs.append(
@@ -572,10 +614,10 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.opsi_ui",
 				description="Choose to show either the opsi TUI or only opsi messages on the splash screen.",
-				possibleValues=["splash", "tui"],
-				defaultValues=["splash"],
-				editable=False,
-				multiValue=False,
+				possibleValues=[],
+				defaultValues=[],
+				editable=True,
+				multiValue=True,
 			)
 		)
 
@@ -643,6 +685,8 @@ def setup_configs() -> None:
 
 	if "netboot.linux-bootimage.cmdline.pwh" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.pwh'")
+		# Generate a strong password
+		password = get_random_string(8, alphabet=string.ascii_letters + string.digits)
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.pwh",
@@ -650,8 +694,8 @@ def setup_configs() -> None:
 					"Root password for the bootimage. Accepts either a plain text password or a hash for /etc/shadow. "
 					"Plain text passwords will be hashed automatically. Hashes must follow the format $<hash-type>$<salt>$<hash-value>."
 				),
-				possibleValues=["linux123"],
-				defaultValues=["linux123"],
+				possibleValues=[password],
+				defaultValues=[password],
 				editable=True,
 				multiValue=False,
 			)
@@ -736,6 +780,37 @@ def setup_configs() -> None:
 					)
 					break
 
+	if "netboot.linux-bootimage.cmdline.mem" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.mem'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.mem",
+				description=(
+					"Force usage of a specific amount of memory. "
+					"Useful when the kernel is not able to see the whole system memory or for testing. "
+					"Format: `mem=nn[KMG]`",
+				),
+				possibleValues=[],
+				defaultValues=[],
+				editable=True,
+				multiValue=False,
+			)
+		)
+		for host_id, values in _get_legacy_append_values().items():
+			for val in values:
+				if val.startswith("mem="):
+					logger.info("Migrating legacy append value %r for host %r", val, host_id)
+					val = val.removeprefix("mem=").strip()
+					if val:
+						add_config_states.append(
+							ConfigState(
+								configId="netboot.linux-bootimage.cmdline.mem",
+								objectId=host_id,
+								values=[val],
+							)
+						)
+					break
+
 	if "netboot.linux-bootimage.cmdline.acpi" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.acpi'")
 		add_configs.append(
@@ -757,6 +832,31 @@ def setup_configs() -> None:
 							configId="netboot.linux-bootimage.cmdline.acpi",
 							objectId=host_id,
 							values=[v.strip() for v in val.removeprefix("acpi=").split(",") if v.strip()],
+						)
+					)
+					break
+
+	if "netboot.linux-bootimage.cmdline.modprobe.blacklist" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.modprobe.blacklist'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.modprobe.blacklist",
+				description="List of kernel modules to blacklist.",
+				possibleValues=[],
+				defaultValues=[],
+				editable=True,
+				multiValue=True,
+			)
+		)
+		for host_id, values in _get_legacy_append_values().items():
+			for val in values:
+				if val.startswith("modprobe.blacklist="):
+					logger.info("Migrating legacy append value %r for host %r", val, host_id)
+					add_config_states.append(
+						ConfigState(
+							configId="netboot.linux-bootimage.cmdline.modprobe.blacklist",
+							objectId=host_id,
+							values=[v.strip() for v in val.removeprefix("modprobe.blacklist=").split(",") if v.strip()],
 						)
 					)
 					break
@@ -789,6 +889,32 @@ def setup_configs() -> None:
 						)
 					)
 					break
+
+	if "netboot.linux-bootimage.cmdline.dhcp_identifier" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.dhcp_identifier'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.dhcp_identifier",
+				description="The DHCPv4 client identifier to use.",
+				possibleValues=["mac", "duid"],
+				defaultValues=["mac"],
+				editable=False,
+				multiValue=False,
+			)
+		)
+
+	if "netboot.linux-bootimage.cmdline.ff" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.ff'")
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.ff",
+				description="Feature flags to enable experimental or less common features.",
+				possibleValues=["splash", "tui"],
+				defaultValues=["splash"],
+				editable=False,
+				multiValue=False,
+			)
+		)
 
 	if add_configs:
 		backend.config_createObjects(add_configs)

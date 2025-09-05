@@ -102,6 +102,7 @@ from opsisystem.inffile import Architecture, DeviceType, INFFile, INFTargetOSVer
 
 from opsiconfd.config import DEPOT_DIR
 from opsiconfd.logging import logger
+from opsiconfd.redis import redis_lock
 
 from . import rpc_method
 
@@ -215,63 +216,68 @@ class RPCDriverMixin(Protocol):
 		legacy_pciids_dir = base_dir / "pciids"
 		legacy_usbids_dir = base_dir / "usbids"
 		legacy_hdaudioids_dir = base_dir / "hdaudioids"
-		for _dir in (driver_db_dir, legacy_pciids_dir, legacy_usbids_dir, legacy_hdaudioids_dir):
-			if _dir.exists():
-				shutil.rmtree(_dir)
-			_dir.mkdir(parents=True)
 
-		link_to_version: dict[Path, INFTargetOSVersion] = {}
-		for file_path in drivers_dir.glob("**/*.[Ii][Nn][Ff]"):
-			root_path = file_path.parent
-			if root_path.relative_to(drivers_dir).parts[0] in ("additional", "excluded"):
-				continue
-			logger.info("Processing file '%s'", file_path)
-			inf_file = INFFile(file_path)
-			for tov in target_os_versions:
-				logger.debug("Creating driver links for %s", tov)
-				for dev in inf_file.get_devices(target_os_version=tov):
-					if not dev.target_os_version:
-						continue
-					logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
-					tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
-					for hwid in dev.hardware_ids:
-						if not hwid.vendor_id or not hwid.device_id:
+		with redis_lock("driver-update-database", acquire_timeout=300, lock_timeout=3600):
+			for _dir in (driver_db_dir, legacy_pciids_dir, legacy_usbids_dir, legacy_hdaudioids_dir):
+				if _dir.exists():
+					shutil.rmtree(_dir)
+				_dir.mkdir(parents=True)
+
+			link_to_version: dict[Path, INFTargetOSVersion] = {}
+			for file_path in drivers_dir.glob("**/*.[Ii][Nn][Ff]"):
+				root_path = file_path.parent
+				if root_path.relative_to(drivers_dir).parts[0] in ("additional", "excluded"):
+					continue
+				logger.info("Processing file '%s'", file_path)
+				inf_file = INFFile(file_path)
+				for tov in target_os_versions:
+					logger.debug("Creating driver links for %s", tov)
+					for dev in inf_file.get_devices(target_os_version=tov):
+						if not dev.target_os_version:
 							continue
-						if hwid.device_type == DeviceType.MULTI:
-							logger.debug("Skipping device type %s", hwid.device_type)
-							continue
-						for driver_db in True, False:
-							if driver_db:
-								hwid_dir: Path = tov_dir / hwid.device_type
-							else:
-								if hwid.device_type == DeviceType.USB:
-									hwid_dir = legacy_usbids_dir
-								elif hwid.device_type == DeviceType.HDAUDIO:
-									hwid_dir = legacy_hdaudioids_dir
-								elif hwid.device_type == DeviceType.PCI:
-									hwid_dir = legacy_pciids_dir
+						logger.debug("Processing Hardware ID '%s'", dev.hardware_id)
+						tov_dir = driver_db_dir / tov.Architecture / f"{tov.OSMajorVersion}.{tov.OSMinorVersion}.{tov.BuildNumber}"
+						for hwid in dev.hardware_ids:
+							if not hwid.vendor_id or not hwid.device_id:
+								continue
+							if hwid.device_type == DeviceType.MULTI:
+								logger.debug("Skipping device type %s", hwid.device_type)
+								continue
+							for driver_db in True, False:
+								if driver_db:
+									hwid_dir: Path = tov_dir / hwid.device_type
 								else:
-									continue
-							link: Path = hwid_dir / hwid.vendor_id / hwid.device_id
-							link.parent.mkdir(parents=True, exist_ok=True)
-							linked_version = link_to_version.get(link)
-							if linked_version:
-								if dev.target_os_version.compare_version(linked_version) < 1:
+									if hwid.device_type == DeviceType.USB:
+										hwid_dir = legacy_usbids_dir
+									elif hwid.device_type == DeviceType.HDAUDIO:
+										hwid_dir = legacy_hdaudioids_dir
+									elif hwid.device_type == DeviceType.PCI:
+										hwid_dir = legacy_pciids_dir
+									else:
+										continue
+								link: Path = hwid_dir / hwid.vendor_id / hwid.device_id
+								link.parent.mkdir(parents=True, exist_ok=True)
+								linked_version = link_to_version.get(link)
+								if linked_version:
+									if dev.target_os_version.compare_version(linked_version) < 1:
+										logger.debug(
+											"Not replacing existing link %s (version %s) with version %s",
+											link,
+											linked_version,
+											dev.target_os_version,
+										)
+										continue
 									logger.debug(
-										"Not replacing existing link %s (version %s) with version %s",
+										"Replacing existing link %s (version %s) with version %s",
 										link,
 										linked_version,
 										dev.target_os_version,
 									)
-									continue
-								logger.debug(
-									"Replacing existing link %s (version %s) with version %s", link, linked_version, dev.target_os_version
-								)
-								link.unlink()
-							target = file_path if driver_db else root_path
-							logger.debug("Creating link '%s' -> '%s'", link, target)
-							link.symlink_to(target)
-							link_to_version[link] = dev.target_os_version
+									link.unlink()
+								target = file_path if driver_db else root_path
+								logger.debug("Creating link '%s' -> '%s'", link, target)
+								link.symlink_to(target)
+								link_to_version[link] = dev.target_os_version
 
 	def _get_architecture_and_os_version_from_wim_image(self: BackendProtocol, product_id: str, client_id: str) -> tuple[str, str]:
 		logger.info("Getting architecture and OS version from WIM image for %r and %r", product_id, client_id)

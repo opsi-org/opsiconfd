@@ -16,11 +16,11 @@ from opsicommon.objects import BoolConfig, Config, UnicodeConfig
 from opsicommon.types import forceObjectClass, forceObjectClassList
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.utils import asyncio_create_task
 from opsiconfd.auth.role import Role
 from opsiconfd.auth.user import create_user_roles, get_users
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import get_websocket_connected_users
+from opsiconfd.utils import asyncio_create_task
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_config_state
@@ -43,10 +43,12 @@ class RPCConfigMixin(Protocol):
 	) -> None:
 		config = forceObjectClass(config, Config)
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
+		modify_values = create or data.get("possibleValues") is not None
 		with self._mysql.session(session) as session:
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():
-				session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
-				if session.execute(query, params=data).rowcount > 0:
+				if modify_values:
+					session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
+				if session.execute(query, params=data).rowcount > 0 and modify_values:
 					for value in data["possibleValues"] or []:
 						session.execute(
 							"INSERT INTO `CONFIG_VALUE` (configId, value, isDefault) VALUES (:configId, :value, :isDefault)",

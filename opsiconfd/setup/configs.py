@@ -916,6 +916,15 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "opsi-linux-bootimage.append" in config_ids:
+		logger.info("Updating config 'opsi-linux-bootimage.append'")
+		backend.config_updateObject(
+			UnicodeConfig(
+				id="opsi-linux-bootimage.append",
+				description="DEPRECATED, please use the specific configs instead: netboot.linux-bootimage.cmdline.*",
+			)
+		)
+
 	if add_configs:
 		backend.config_createObjects(add_configs)
 	if add_config_states:

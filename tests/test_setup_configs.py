@@ -150,7 +150,7 @@ def test_migrate_bootimage_append(backend: UnprotectedBackend) -> None:  # noqa:
 			"ramdisk_size=2097152",
 			"dhclienttimeout=N",
 		],
-		defaultValues=[""],
+		defaultValues=["vga=normal"],
 		editable=True,
 		multiValue=True,
 	)
@@ -175,8 +175,13 @@ def test_migrate_bootimage_append(backend: UnprotectedBackend) -> None:  # noqa:
 
 	setup_configs()
 
-	configs = {c.id: c for c in backend.config_getObjects(id="netboot.linux-bootimage.cmdline.*")}
+	configs = {c.id: c for c in backend.config_getObjects(id=["opsi-linux-bootimage.append", "netboot.linux-bootimage.cmdline.*"])}
 	assert len(configs["netboot.linux-bootimage.cmdline.pwh"].possibleValues[0]) == 8
+	assert (
+		configs["opsi-linux-bootimage.append"].description
+		== "DEPRECATED, please use the specific configs instead: netboot.linux-bootimage.cmdline.*"
+	)
+	assert configs["opsi-linux-bootimage.append"].defaultValues == ["vga=normal"]
 
 	new_states = sorted(
 		backend.configState_getObjects(configId="netboot.linux-bootimage.cmdline.*"), key=lambda s: (s.objectId, s.configId)

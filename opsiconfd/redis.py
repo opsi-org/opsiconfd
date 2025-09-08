@@ -34,10 +34,26 @@ from opsiconfd.utils import normalize_ip_address
 if TYPE_CHECKING:
 	from opsicommon.logging.logging import OPSILogger
 
-redis_pool_lock = threading.Lock()
-async_redis_pool_lock = asyncio.Lock()
+
 redis_connection_pool: dict[str, ConnectionPool] = {}
 async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
+
+
+@lru_cache(maxsize=None)
+def get_redis_pool_lock() -> threading.Lock:
+	return threading.Lock()
+
+
+@lru_cache(maxsize=None)
+def get_async_redis_pool_lock() -> asyncio.Lock:
+	return asyncio.Lock()
+
+
+def reset_redis_pools() -> None:
+	redis_connection_pool.clear()
+	get_redis_pool_lock.cache_clear()
+	async_redis_connection_pool.clear()
+	get_async_redis_pool_lock.cache_clear()
 
 
 def repr_pieces(self: Connection | AsyncConnection) -> list[tuple[str, str | int]]:
@@ -87,13 +103,13 @@ def get_redis_connections() -> list[Connection | AsyncConnection]:
 
 
 async def _async_pool_disconnect_connections(inuse_connections: bool = False) -> None:
-	async with async_redis_pool_lock:
+	async with get_async_redis_pool_lock():
 		for pool in async_redis_connection_pool.values():
 			await pool.disconnect(inuse_connections)
 
 
 def _sync_pool_disconnect_connections(inuse_connections: bool = False) -> None:
-	with redis_pool_lock:
+	with get_redis_pool_lock():
 		for pool in redis_connection_pool.values():
 			pool.disconnect(inuse_connections)
 
@@ -155,7 +171,7 @@ def get_redis_connection(
 	while True:
 		try:
 			new_pool = False
-			with redis_pool_lock:
+			with get_redis_pool_lock():
 				if con_id not in redis_connection_pool:
 					new_pool = True
 					redis_connection_pool[con_id] = ConnectionPool.from_url(url, db=db)
@@ -184,7 +200,7 @@ async def get_async_redis_connection(
 		try:
 			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"
 			new_pool = False
-			async with async_redis_pool_lock:
+			async with get_async_redis_pool_lock():
 				if con_id not in async_redis_connection_pool:
 					new_pool = True
 					async_redis_connection_pool[con_id] = AsyncConnectionPool.from_url(url, db=db)

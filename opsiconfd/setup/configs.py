@@ -14,6 +14,7 @@ import string
 from collections import defaultdict
 from functools import lru_cache
 from subprocess import run
+from textwrap import dedent
 from typing import TYPE_CHECKING
 
 from opsicommon.license import (
@@ -508,6 +509,43 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "netboot.grub.menu" not in config_ids:
+		logger.info("Creating config 'netboot.grub.menu'")
+		grub_menu = [
+			"""
+			menuentry 'Start opsi-linux-bootimage' {
+				echo "Loading opsi-linux-bootimage - please wait..."
+				linux (pxe)/opsi/opsi-linux-bootimage/install-x64 {{ linux_cmdline }}
+				initrd (pxe)/opsi/opsi-linux-bootimage/miniroot-x64
+				echo "Starting opsi-linux-bootimage - please wait..."
+			}
+			""",
+			"""
+			if [ "$grub_platform" = "efi" ]; then
+				menuentry 'UEFI Firmware Settings' {
+					fwsetup
+				}
+			fi
+			""",
+		]
+		grub_menu = [dedent(m) for m in grub_menu]
+		add_configs.append(
+			UnicodeConfig(
+				id="netboot.grub.menu",
+				description=(
+					"When a device is set to boot from the opsi server (PXE), it loads the GRUB bootloader provided by the server. "
+					"If no action is set for a netboot product, the device will display a boot menu. "
+					"This boot menu will include these additional entries alongside the default option, "
+					"which starts the currently installed operating system.\n"
+					"Currently, these menu entries can only be configured at the depot server level, not individually per device."
+				),
+				possibleValues=grub_menu,
+				defaultValues=grub_menu,
+				editable=True,
+				multiValue=True,
+			)
+		)
+
 	"""
 	if "netboot.grub.password" not in config_ids:
 		logger.info("Creating config 'netboot.grub.password'")
@@ -921,7 +959,7 @@ def setup_configs() -> None:
 		backend.config_updateObject(
 			UnicodeConfig(
 				id="opsi-linux-bootimage.append",
-				description="DEPRECATED, please use the specific configs instead: netboot.linux-bootimage.cmdline.*",
+				description="OBSOLETE, please use the specific configs instead: netboot.linux-bootimage.cmdline.*",
 			)
 		)
 

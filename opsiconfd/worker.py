@@ -47,7 +47,7 @@ from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
-from opsiconfd.redis import async_redis_client, pool_disconnect_connections
+from opsiconfd.redis import async_redis_client, pool_disconnect_connections, reset_redis_pools
 from opsiconfd.session import load_auth_module
 from opsiconfd.utils import asyncio_create_task, patch_markupsafe
 from opsiconfd.websocket import WebSocketProtocolOpsiconfd, WSProtocolOpsiconfd
@@ -328,6 +328,8 @@ class Worker(WorkerInfo, UvicornServer):
 
 		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
 		gc.set_threshold(*GC_THRESHOLDS)
+
+		reset_redis_pools()
 
 		self._metrics_collector = WorkerMetricsCollector(self)
 

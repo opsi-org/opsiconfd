@@ -35,9 +35,14 @@ if TYPE_CHECKING:
 	from opsicommon.logging.logging import OPSILogger
 
 redis_pool_lock = threading.Lock()
-async_redis_pool_lock = asyncio.Lock()
 redis_connection_pool: dict[str, ConnectionPool] = {}
 async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
+
+
+def reset_redis_pools() -> None:
+	with redis_pool_lock:
+		redis_connection_pool.clear()
+		async_redis_connection_pool.clear()
 
 
 def repr_pieces(self: Connection | AsyncConnection) -> list[tuple[str, str | int]]:
@@ -87,9 +92,12 @@ def get_redis_connections() -> list[Connection | AsyncConnection]:
 
 
 async def _async_pool_disconnect_connections(inuse_connections: bool = False) -> None:
-	async with async_redis_pool_lock:
+	await asyncio.to_thread(redis_pool_lock.acquire)
+	try:
 		for pool in async_redis_connection_pool.values():
 			await pool.disconnect(inuse_connections)
+	finally:
+		redis_pool_lock.release()
 
 
 def _sync_pool_disconnect_connections(inuse_connections: bool = False) -> None:
@@ -184,10 +192,13 @@ async def get_async_redis_connection(
 		try:
 			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"
 			new_pool = False
-			async with async_redis_pool_lock:
+			await asyncio.to_thread(redis_pool_lock.acquire)
+			try:
 				if con_id not in async_redis_connection_pool:
 					new_pool = True
 					async_redis_connection_pool[con_id] = AsyncConnectionPool.from_url(url, db=db)
+			finally:
+				redis_pool_lock.release()
 			# This will return a client (no Exception) even if connection is currently lost
 			client = AsyncRedis(connection_pool=async_redis_connection_pool[con_id])
 			if new_pool or test_connection:

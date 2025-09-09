@@ -510,16 +510,8 @@ def setup_configs() -> None:
 		)
 
 	if "netboot.grub.menu" not in config_ids:
-		logger.info("Creating config 'netboot.grub.menu'")
+		logger.info("Creating config 'netboot.grub.additional_menu_entries'")
 		grub_menu = [
-			"""
-			menuentry 'Start opsi-linux-bootimage' {
-				echo "Loading opsi-linux-bootimage - please wait..."
-				linux (pxe)/opsi/opsi-linux-bootimage/install-x64 {{ linux_cmdline }}
-				initrd (pxe)/opsi/opsi-linux-bootimage/miniroot-x64
-				echo "Starting opsi-linux-bootimage - please wait..."
-			}
-			""",
 			"""
 			if [ "$grub_platform" = "efi" ]; then
 				menuentry 'UEFI Firmware Settings' {
@@ -531,12 +523,11 @@ def setup_configs() -> None:
 		grub_menu = [dedent(m) for m in grub_menu]
 		add_configs.append(
 			UnicodeConfig(
-				id="netboot.grub.menu",
+				id="netboot.grub.additional_menu_entries",
 				description=(
 					"When a device is set to boot from the opsi server (PXE), it loads the GRUB bootloader provided by the server. "
 					"If no action is set for a netboot product, the device will display a boot menu. "
-					"This boot menu will include these additional entries alongside the default option, "
-					"which starts the currently installed operating system.\n"
+					"This boot menu will include these additional entries alongside the default options. \n"
 					"Currently, these menu entries can only be configured at the depot server level, not individually per device."
 				),
 				possibleValues=grub_menu,

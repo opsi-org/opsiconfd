@@ -699,7 +699,7 @@ def setup_configs() -> None:
 		)
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
-				if val.startswith("vga="):
+				if val and val.startswith("vga="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					val = val.removeprefix("vga=").strip()
 					if val:
@@ -731,7 +731,7 @@ def setup_configs() -> None:
 		)
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
-				if val.startswith("pwh="):
+				if val and val.startswith("pwh="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					val = val.removeprefix("pwh=").strip()
 					if val:
@@ -798,7 +798,7 @@ def setup_configs() -> None:
 		)
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
-				if val.startswith("pci="):
+				if val and val.startswith("pci="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					add_config_states.append(
 						ConfigState(
@@ -827,7 +827,7 @@ def setup_configs() -> None:
 		)
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
-				if val.startswith("mem="):
+				if val and val.startswith("mem="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					val = val.removeprefix("mem=").strip()
 					if val:
@@ -854,7 +854,7 @@ def setup_configs() -> None:
 		)
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
-				if val.startswith("acpi="):
+				if val and val.startswith("acpi="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					add_config_states.append(
 						ConfigState(
@@ -879,7 +879,7 @@ def setup_configs() -> None:
 		)
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
-				if val.startswith("modprobe.blacklist="):
+				if val and val.startswith("modprobe.blacklist="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					add_config_states.append(
 						ConfigState(
@@ -908,7 +908,7 @@ def setup_configs() -> None:
 		)
 		for host_id, values in _get_legacy_append_values().items():
 			for val in values:
-				if val.startswith("reboot="):
+				if val and val.startswith("reboot="):
 					logger.info("Migrating legacy append value %r for host %r", val, host_id)
 					add_config_states.append(
 						ConfigState(

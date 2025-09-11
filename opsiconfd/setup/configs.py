@@ -543,10 +543,10 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.grub.password",
 				description=(
-					"Password to protect GRUB menu editing and access to the GRUB command line. "
+					"Password to protect GRUB menu entries and access to the GRUB command line. "
 					"Plain text passwords will be hashed automatically. "
-					"Hashes must use MD5 and follow the format $1$<salt>$<hash-value>. "
-					"`mkpasswd` or `grub-md5-crypt` can be used to generate suitable hashes."
+					"Hashes must follow the format `grub.pbkdf2.sha512.10000.<salt>.<hash-value>`. "
+					"`grub-mkpasswd-pbkdf2` can be used to generate suitable hashes."
 				),
 				possibleValues=[],
 				defaultValues=[],

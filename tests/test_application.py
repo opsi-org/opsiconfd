@@ -16,7 +16,7 @@ import pytest
 from fastapi import status
 from fastapi.websockets import WebSocketDisconnect
 from msgspec import msgpack
-from opsicommon.logging import LOG_TRACE, use_logging_config
+from opsicommon.logging import use_logging_config
 
 from opsiconfd.application import (
 	AppState,
@@ -106,7 +106,7 @@ def test_maintenance(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	app_state_reader: AppStateReaderThread,
 ) -> None:
-	with use_logging_config(stderr_level=LOG_TRACE):
+	with use_logging_config(stderr_level=5):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 		initalized_event = Event()
 		thread = Thread(

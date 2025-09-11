@@ -187,11 +187,16 @@ class OpsiconfdApp(FastAPI):
 			time.sleep(1)
 
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
+		logger.debug("Set app state to %s, wait_accomplished=%r", app_state, wait_accomplished)
 		app_state.accomplished = False
 		with redis_lock("app-state", acquire_timeout=2.0, lock_timeout=10.0):
+			logger.trace("Store app state in redis")
 			self.store_app_state_in_redis(app_state)
+
 		if wait_accomplished is not None and wait_accomplished > 0:
+			logger.trace("Wait up to %s seconds for app state %s to be accomplished", wait_accomplished, app_state)
 			self.wait_for_app_state(app_state, wait_accomplished)
+			logger.trace("App state %s accomplished", app_state)
 
 	async def load_app_state_from_redis(self, update_accomplished: bool = False) -> AppState | None:
 		redis = await async_redis_client()

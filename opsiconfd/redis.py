@@ -17,7 +17,6 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
-from types import TracebackType
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Generator, Iterable, Literal
 from uuid import uuid4
 
@@ -35,60 +34,10 @@ from opsiconfd.utils import normalize_ip_address
 if TYPE_CHECKING:
 	from opsicommon.logging.logging import OPSILogger
 
-
-class AsyncThreadingLock:
-	"""
-	Async wrapper for a threading.Lock that is safe to use from asyncio coroutines.
-
-	- Uses run_in_executor to avoid blocking the event loop.
-	- Uses short timeout loops so cancellation is responsive.
-	- On CancelledError it waits for the pending executor call with asyncio.shield and
-	  releases the lock if it was acquired, preventing a leaked lock.
-	"""
-
-	def __init__(self, lock: threading.Lock, try_timeout: float = 1.0) -> None:
-		self._lock = lock
-		self._try_timeout = try_timeout
-
-	async def acquire(self) -> None:
-		loop = asyncio.get_running_loop()
-		while True:
-			# schedule blocking acquire in default ThreadPoolExecutor
-			future = loop.run_in_executor(None, self._lock.acquire, True, self._try_timeout)
-			try:
-				acquired = await future
-			except asyncio.CancelledError:
-				# Cancelled while waiting. The background thread will still complete;
-				# use shield to wait for it and release if it actually acquired the lock, avoiding a leaked lock.
-				acquired = await asyncio.shield(future)
-				if acquired:
-					# we were cancelled, but the background thread succeeded -> release to avoid leak
-					self._lock.release()
-				raise
-			if acquired:
-				return
-			# Not acquired within timeout -> loop and try again (gives cancellation point)
-			await asyncio.sleep(0.001)  # Allow loop to run other tasks / be cancelled
-
-	async def __aenter__(self) -> AsyncThreadingLock:
-		await self.acquire()
-		return self
-
-	async def __aexit__(self, exc_type: type[BaseException], exc: BaseException, tb: TracebackType) -> None:
-		# Release immediately (synchronous, non-blocking)
-		self._lock.release()
-
-
 redis_pool_lock = threading.Lock()
-async_redis_pool_lock = AsyncThreadingLock(redis_pool_lock)
+async_redis_pool_lock = asyncio.Lock()
 redis_connection_pool: dict[str, ConnectionPool] = {}
 async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
-
-
-def reset_redis_pools() -> None:
-	with redis_pool_lock:
-		redis_connection_pool.clear()
-		async_redis_connection_pool.clear()
 
 
 def repr_pieces(self: Connection | AsyncConnection) -> list[tuple[str, str | int]]:
@@ -126,6 +75,11 @@ def redis_supports_xtrim_minid() -> bool:
 def get_redis_version() -> str:
 	client = redis_client()
 	return client.info("server")["redis_version"]
+
+
+def reset_redis_pools() -> None:
+	redis_connection_pool.clear()
+	async_redis_connection_pool.clear()
 
 
 def get_redis_connections() -> list[Connection | AsyncConnection]:
@@ -239,7 +193,6 @@ async def get_async_redis_connection(
 				if con_id not in async_redis_connection_pool:
 					new_pool = True
 					async_redis_connection_pool[con_id] = AsyncConnectionPool.from_url(url, db=db)
-
 			# This will return a client (no Exception) even if connection is currently lost
 			client = AsyncRedis(connection_pool=async_redis_connection_pool[con_id])
 			if new_pool or test_connection:

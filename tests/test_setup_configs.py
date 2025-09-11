@@ -179,7 +179,7 @@ def test_migrate_bootimage_append(backend: UnprotectedBackend) -> None:  # noqa:
 	assert len(configs["netboot.linux-bootimage.cmdline.pwh"].possibleValues[0]) == 8
 	assert (
 		configs["opsi-linux-bootimage.append"].description
-		== "DEPRECATED, please use the specific configs instead: netboot.linux-bootimage.cmdline.*"
+		== "OBSOLETE, please use the specific configs instead: netboot.linux-bootimage.cmdline.*"
 	)
 	assert configs["opsi-linux-bootimage.append"].defaultValues == ["vga=normal"]
 

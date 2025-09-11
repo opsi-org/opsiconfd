@@ -674,6 +674,16 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "netboot.linux-bootimage.cmdline.ssh" not in config_ids:
+		logger.info("Creating config 'netboot.linux-bootimage.cmdline.ssh'")
+		add_configs.append(
+			BoolConfig(
+				id="netboot.linux-bootimage.cmdline.ssh",
+				description="Start the ssh service at boot?",
+				defaultValues=[False],
+			)
+		)
+
 	if "netboot.linux-bootimage.cmdline.vga" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.vga'")
 		add_configs.append(

@@ -537,7 +537,6 @@ def setup_configs() -> None:
 			)
 		)
 
-	"""
 	if "netboot.grub.password" not in config_ids:
 		logger.info("Creating config 'netboot.grub.password'")
 		add_configs.append(
@@ -547,14 +546,13 @@ def setup_configs() -> None:
 					"Password to protect GRUB menu editing and access to the GRUB command line. "
 					"Plain text passwords will be hashed automatically. "
 					"Hashes must use MD5 and follow the format $1$<salt>$<hash-value>. "
-					"grub-md5-crypt can be used to generate suitable hashes."
+					"`mkpasswd` or `grub-md5-crypt` can be used to generate suitable hashes."
 				),
 				possibleValues=[""],
 				defaultValues=[""],
 				editable=True,
 			)
 		)
-	"""
 
 	if "netboot.linux-bootimage.cmdline.quiet" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.quiet'")

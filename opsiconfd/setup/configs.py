@@ -643,10 +643,10 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.opsi_ui",
 				description="Choose to show either the opsi TUI or only opsi messages on the splash screen.",
-				possibleValues=[],
-				defaultValues=[],
-				editable=True,
-				multiValue=True,
+				possibleValues=["splash", "tui"],
+				defaultValues=["splash"],
+				editable=False,
+				multiValue=False,
 			)
 		)
 
@@ -938,10 +938,10 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.ff",
 				description="Feature flags to enable experimental or less common features.",
-				possibleValues=["splash", "tui"],
-				defaultValues=["splash"],
-				editable=False,
-				multiValue=False,
+				possibleValues=[],
+				defaultValues=[],
+				editable=True,
+				multiValue=True,
 			)
 		)
 

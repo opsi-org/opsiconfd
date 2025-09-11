@@ -548,8 +548,8 @@ def setup_configs() -> None:
 					"Hashes must use MD5 and follow the format $1$<salt>$<hash-value>. "
 					"`mkpasswd` or `grub-md5-crypt` can be used to generate suitable hashes."
 				),
-				possibleValues=[""],
-				defaultValues=[""],
+				possibleValues=[],
+				defaultValues=[],
 				editable=True,
 			)
 		)

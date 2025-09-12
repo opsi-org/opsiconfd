@@ -10,7 +10,6 @@ opsiconfd - setup
 from __future__ import annotations
 
 import re
-import string
 from collections import defaultdict
 from functools import lru_cache
 from subprocess import run
@@ -722,8 +721,8 @@ def setup_configs() -> None:
 
 	if "netboot.linux-bootimage.cmdline.pwh" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.pwh'")
-		# Generate a strong password
-		password = get_random_string(8, alphabet=string.ascii_letters + string.digits)
+		# Do not use ambiguous characters like 'O', '0', 'I', 'l'
+		password = get_random_string(8, alphabet="abcdefghkmnpqrstuvwxABCDEFGHKMNPQRSTUVWX23456789")
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.pwh",

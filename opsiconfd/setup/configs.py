@@ -511,13 +511,11 @@ def setup_configs() -> None:
 	if "netboot.grub.menu" not in config_ids:
 		logger.info("Creating config 'netboot.grub.additional_menu_entries'")
 		grub_menu = [
-			"""
-			if [ "$grub_platform" = "efi" ]; then
-				menuentry 'UEFI Firmware Settings' {
-					fwsetup
-				}
-			fi
-			""",
+			'if [ "$grub_platform" = "efi" ]; then\n'
+			"	menuentry 'UEFI Firmware Settings' --class firmware {\n"
+			"		fwsetup\n"
+			"	}\n"
+			"fi\n"
 		]
 		grub_menu = [dedent(m) for m in grub_menu]
 		add_configs.append(

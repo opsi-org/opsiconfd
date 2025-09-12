@@ -360,7 +360,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="opsiclientd.global.max_log_transfer_size",
-				description="Maximum size of opsiclientd log to transfer to the server in MB",
+				description="Maximum size of opsiclientd log to transfer to the server in MB.",
 				possibleValues=["0.25", "0.5", "1", "2", "3", "4", "5"],
 				defaultValues=["1"],
 				editable=True,
@@ -381,7 +381,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="software-on-demand.product-group-ids",
-				description="Product group ids containing products which are allowed to be installed on demand",
+				description="Product group ids containing products which are allowed to be installed on demand.",
 				possibleValues=["software-on-demand"],
 				defaultValues=["software-on-demand"],
 				editable=True,
@@ -524,8 +524,8 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.grub.additional_menu_entries",
 				description=(
-					"When a device is set to boot from the opsi server (PXE), it loads the GRUB bootloader provided by the server. "
-					"If no action is set for a netboot product, the device will display a boot menu. "
+					"When a device is set to boot from the opsi server (PXE), it loads the GRUB bootloader provided by the server. \n"
+					"If no action is set for a netboot product, the device will display a boot menu. \n"
 					"This boot menu will include these additional entries alongside the default options. \n"
 					"Currently, these menu entries can only be configured at the depot server level, not individually per device."
 				),
@@ -542,9 +542,9 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.grub.password",
 				description=(
-					"Password to protect GRUB menu entries and access to the GRUB command line. "
-					"Plain text passwords will be hashed automatically. "
-					"Hashes must follow the format `grub.pbkdf2.sha512.10000.<salt>.<hash-value>`. "
+					"Password to protect GRUB menu entries and access to the GRUB command line. \n"
+					"Plain text passwords will be hashed automatically. \n"
+					"Hashes must follow the format `grub.pbkdf2.sha512.10000.<salt>.<hash-value>`. \n"
 					"`grub-mkpasswd-pbkdf2` can be used to generate suitable hashes."
 				),
 				possibleValues=[],
@@ -579,15 +579,15 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.loglevel",
 				description=(
-					"Kernel log level to use on boot.\n"
-					"0 (KERN_EMERG)   system is unusable\n"
-					"1 (KERN_ALERT)   action must be taken immediately\n"
-					"2 (KERN_CRIT)    critical conditions\n"
-					"3 (KERN_ERR)     error conditions\n"
-					"4 (KERN_WARNING) warning conditions\n"
-					"5 (KERN_NOTICE)  normal but significant condition\n"
-					"6 (KERN_INFO)    informational\n"
-					"7 (KERN_DEBUG)   debug-level messages\n"
+					"Kernel log level to use on boot. \n"
+					"0 (KERN_EMERG)   system is unusable \n"
+					"1 (KERN_ALERT)   action must be taken immediately \n"
+					"2 (KERN_CRIT)    critical conditions \n"
+					"3 (KERN_ERR)     error conditions \n"
+					"4 (KERN_WARNING) warning conditions \n"
+					"5 (KERN_NOTICE)  normal but significant condition \n"
+					"6 (KERN_INFO)    informational \n"
+					"7 (KERN_DEBUG)   debug-level messages \n"
 				),
 				possibleValues=["0", "1", "2", "3", "4", "5", "6", "7"],
 				defaultValues=["3"],
@@ -602,17 +602,17 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.opsi_loglevel",
 				description=(
-					"Specifies the opsi log level for the bootimage.\n"
-					"0 (NONE):         Logging disabled\n"
-					"1 (ESSENTIAL):    Essential messages\n"
-					"2 (CRITICAL):     Critical conditions\n"
-					"3 (ERROR):        Error conditions\n"
-					"4 (WARNING):      Warning conditions\n"
-					"5 (NOTICE):       Significant but normal conditions\n"
-					"6 (INFO):         Informational messages\n"
-					"7 (DEBUG):        Debug-level messages\n"
-					"8 (TRACE):        Trace-level messages\n"
-					"9 (LOG_SECRET):   Secret information\n"
+					"Specifies the opsi log level for the bootimage. \n"
+					"0 (NONE):         Logging disabled \n"
+					"1 (ESSENTIAL):    Essential messages \n"
+					"2 (CRITICAL):     Critical conditions \n"
+					"3 (ERROR):        Error conditions \n"
+					"4 (WARNING):      Warning conditions \n"
+					"5 (NOTICE):       Significant but normal conditions \n"
+					"6 (INFO):         Informational messages \n"
+					"7 (DEBUG):        Debug-level messages \n"
+					"8 (TRACE):        Trace-level messages \n"
+					"9 (LOG_SECRET):   Secret information \n"
 				),
 				possibleValues=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
 				defaultValues=["6"],
@@ -626,7 +626,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.video",
-				description="Frame buffer configuration.\nSee https://www.kernel.org/doc/Documentation/fb/modedb.txt",
+				description="Frame buffer configuration. \nSee https://www.kernel.org/doc/Documentation/fb/modedb.txt",
 				possibleValues=["vesa:ywrap,mtrr"],
 				defaultValues=["vesa:ywrap,mtrr"],
 				editable=True,
@@ -689,13 +689,13 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.vga",
 				description=(
-					"Configure VGA resolution and color depth.\n\n"
-					"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 |\n"
-					"|-------------|---------|----------|----------|-----------|-----------|\n"
-					"| 8 bit       | 771     | 773      | 353      | 775       | 796       |\n"
-					"| 16 bit      | 788     | 791      | 355      | 794       | 798       |\n"
-					"| 24 bit      | 789     | 792      |          | 795       | 799       |\n"
-					"\n"
+					"Configure VGA resolution and color depth. \n \n"
+					"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 | \n"
+					"|-------------|---------|----------|----------|-----------|-----------| \n"
+					"| 8 bit       | 771     | 773      | 353      | 775       | 796       | \n"
+					"| 16 bit      | 788     | 791      | 355      | 794       | 798       | \n"
+					"| 24 bit      | 789     | 792      |          | 795       | 799       | \n"
+					" \n"
 					"Use `normal` for 80×25 text mode without framebuffer."
 				),
 				possibleValues=["771", "773", "353", "775", "796", "788", "791", "355", "794", "798", "789", "792", "795", "799", "normal"],
@@ -727,8 +727,8 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.pwh",
 				description=(
-					"Root password for the bootimage. Accepts either a plain text password or a hash for /etc/shadow. "
-					"Plain text passwords will be hashed automatically. Hashes must follow the format $<hash-type>$<salt>$<hash-value>."
+					"Root password for the bootimage. \nAccepts either a plain text password or a hash for /etc/shadow. \n"
+					"Plain text passwords will be hashed automatically. \nHashes must follow the format $<hash-type>$<salt>$<hash-value>."
 				),
 				possibleValues=[password],
 				defaultValues=[password],
@@ -796,7 +796,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.pci",
-				description="PCI subsystem options.\n`nomsi` disables PCI Message Signaled Interrupts and forces use of legacy IRQs.",
+				description="PCI subsystem options. \n`nomsi` disables PCI Message Signaled Interrupts and forces use of legacy IRQs.",
 				possibleValues=["nomsi"],
 				defaultValues=[],
 				editable=True,
@@ -822,8 +822,8 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.mem",
 				description=(
-					"Force usage of a specific amount of memory. "
-					"Useful when the kernel is not able to see the whole system memory or for testing. "
+					"Force usage of a specific amount of memory. \n"
+					"Useful when the kernel is not able to see the whole system memory or for testing. \n"
 					"Format: `mem=nn[KMG]`"
 				),
 				possibleValues=[],
@@ -852,7 +852,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.acpi",
-				description="Control the Advanced Configuration and Power Interface (ACPI) subsystem.\n`off` disables ACPI completely.",
+				description="Control the Advanced Configuration and Power Interface (ACPI) subsystem. \n`off` disables ACPI completely.",
 				possibleValues=["off", "force", "strict", "noirq"],
 				defaultValues=[],
 				editable=True,
@@ -903,8 +903,8 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.reboot",
 				description=(
-					"How should the system perform a reboot?\n"
-					"`b`: Reboot using the BIOS reboot function (reliable on older hardware).\n"
+					"How should the system perform a reboot? \n"
+					"`b`: Reboot using the BIOS reboot function (reliable on older hardware). \n"
 					"`efi`: Use UEFI runtime services (works well with most modern machines)."
 				),
 				possibleValues=["b", "efi"],
@@ -957,7 +957,7 @@ def setup_configs() -> None:
 		backend.config_updateObject(
 			UnicodeConfig(
 				id="opsi-linux-bootimage.append",
-				description="OBSOLETE, please use the specific configs instead: netboot.linux-bootimage.cmdline.*",
+				description="**OBSOLETE**, please use the specific configs instead: netboot.linux-bootimage.cmdline.*",
 			)
 		)
 

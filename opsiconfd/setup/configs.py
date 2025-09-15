@@ -625,10 +625,10 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.video",
 				description="Frame buffer configuration. \nSee https://www.kernel.org/doc/Documentation/fb/modedb.txt",
-				possibleValues=["vesa:ywrap,mtrr"],
-				defaultValues=["vesa:ywrap,mtrr"],
+				possibleValues=["vesa:ywrap", "mtrr"],
+				defaultValues=["vesa:ywrap", "mtrr"],
 				editable=True,
-				multiValue=False,
+				multiValue=True,
 			)
 		)
 

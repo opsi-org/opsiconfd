@@ -32,10 +32,7 @@ from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.result import Result  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import (
-	DatabaseError,  # type: ignore[import]
-	OperationalError,
-)
+from sqlalchemy.exc import DatabaseError, OperationalError  # type: ignore[import]
 from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
 
 from opsiconfd import contextvar_client_session, server_timing

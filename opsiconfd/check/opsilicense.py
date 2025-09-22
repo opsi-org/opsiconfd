@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from opsicommon.license import OPSI_MODULE_BUNDLES, OPSI_STAGING_MODULE_IDS
+from opsicommon.license import OPSI_MODULE_BUNDLES, OPSI_OBSOLETE_MODULE_IDS, OPSI_STAGING_MODULE_IDS
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
@@ -189,7 +189,7 @@ class OpsiLicensesCheck(Check):
 		self.add_partial_checks(OpsiLicensesMissingScalability())
 		self.add_partial_checks(OpsiLicensesMissingDirectoryConnector())
 		for module_id in licensing_info.get("modules", {}).keys():
-			if module_id in OPSI_MODULE_BUNDLES or module_id in OPSI_STAGING_MODULE_IDS:
+			if module_id in OPSI_MODULE_BUNDLES or module_id in OPSI_STAGING_MODULE_IDS or module_id in OPSI_OBSOLETE_MODULE_IDS:
 				continue
 			self.add_partial_checks(OpsiLicensesLimitCheck(module_id=module_id))
 		return result

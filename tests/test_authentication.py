@@ -1026,3 +1026,37 @@ def test_disabled_auth_methods(
 				res = test_client.get("/auth/authenticated")
 				assert res.status_code == 401
 				assert res.text == "Authentication error"
+
+
+def test_pam_authentication_concurrency() -> None:
+	auth1 = PAMAuthentication()
+	auth2 = PAMAuthentication()
+
+	class AuthThread(threading.Thread):
+		def __init__(self, auth: PAMAuthentication, username: str, password: str) -> None:
+			super().__init__()
+			self.auth = auth
+			self.username = username
+			self.password = password
+			self.completed: bool = False
+
+		def run(self) -> None:
+			try:
+				self.auth.get_instance().authenticate(self.username, self.password)
+			except OpsiServiceAuthenticationError:
+				pass
+			self.completed = True
+
+	threads: list[AuthThread] = []
+	for _ in range(10):
+		t = AuthThread((auth1 if len(threads) % 2 == 0 else auth2), "some-user", "wrong-password")
+		threads.append(t)
+
+	for t in threads:
+		t.start()
+
+	for t in threads:
+		t.join()
+
+	for t in threads:
+		assert t.completed

@@ -374,12 +374,12 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 		lic_info = backend.backend_getLicensingInfo(allow_cache=False)
 
 		expected_modules = {
-			"2fa": 1000,
+			"2fa": 1500,
 			"directory-connector": 1000,
 			"dynamic_depot": 999999999,
 			"install_by_shutdown": 999999999,
 			"license_management": 1000,
-			"linux_agent": 1500,
+			"linux_agent": 2500,
 			"local_imaging": 1000,
 			"monitoring": 1000,
 			"mysql_backend": 999999999,
@@ -399,6 +399,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 		assert sorted(lic_info["available_modules"]) == list(expected_modules)
 		for module, info in lic_info["modules"].items():
 			client_number = expected_modules.get(module, 0)
+			print(module, info, client_number)
 			assert info["client_number"] == client_number
 			if client_number > 0:
 				assert info["available"] is True
@@ -580,3 +581,40 @@ def test_service_createBackup(test_client: OpsiconfdTestClient, tmp_path: Path, 
 			assert (tmp_path / str(file_id)).exists()
 		elif return_type == "data":
 			assert response["result"]["meta"]["type"] == "opsiconfd_backup"
+
+
+def test_backend_getInterface(backend: UnprotectedBackend) -> None:  # noqa: F811
+	interface = backend.backend_getInterface()
+	deprecated_methods = []
+	for method in interface:
+		assert "name" in method
+		assert "params" in method
+		assert "args" in method
+		assert "varargs" in method
+		assert "keywords" in method
+		assert "defaults" in method
+		assert "deprecated" in method
+		assert "drop_version" in method
+		assert "alternative_method" in method
+		assert "doc" in method
+		assert "annotations" in method
+
+		assert isinstance(method["name"], str)
+		assert isinstance(method["params"], list)
+		assert isinstance(method["args"], list)
+		assert all(isinstance(a, str) for a in method["args"])
+		assert method["varargs"] is None or isinstance(method["varargs"], str)
+		assert method["keywords"] is None or isinstance(method["keywords"], str)
+		assert method["defaults"] is None or isinstance(method["defaults"], tuple)
+		assert isinstance(method["deprecated"], bool)
+		assert method["drop_version"] is None or isinstance(method["drop_version"], str)
+		assert method["alternative_method"] is None or isinstance(method["alternative_method"], str)
+		assert method["doc"] is None or isinstance(method["doc"], str)
+		assert isinstance(method["annotations"], dict)
+		assert all(isinstance(k, str) and isinstance(v, str) for k, v in method["annotations"].items())
+
+		if method["deprecated"]:
+			deprecated_methods.append(method["name"])
+
+	assert deprecated_methods
+	assert "getOpsiInformation_hash" in deprecated_methods

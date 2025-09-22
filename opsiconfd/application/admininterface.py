@@ -23,11 +23,14 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
+from opsicommon.exceptions import OpsiServicePermissionError
 from opsicommon.license import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
 from opsicommon.objects import OpsiDepotserver
 from opsicommon.system.info import linux_distro_id_like_contains
+from opsicommon.utils import ip_address_in_network
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
+from starlette.status import HTTP_403_FORBIDDEN
 
 from opsiconfd import contextvar_client_session, get_version_string
 from opsiconfd.addon import AddonManager
@@ -57,8 +60,20 @@ def admin_interface_setup(app: FastAPI) -> None:
 	app.include_router(router=welcome_interface_router, prefix="/welcome")
 
 
+def check_admin_network(request: Request) -> None:
+	if not request.client:
+		raise OpsiServicePermissionError(f"No permissions to access {request.url.path}", status_code=HTTP_403_FORBIDDEN)
+
+	if config.admin_networks and not any(ip_address_in_network(request.client.host, network) for network in config.admin_networks):
+		raise OpsiServicePermissionError(
+			f"No permissions to access {request.url.path} from '{request.client.host}'", status_code=HTTP_403_FORBIDDEN
+		)
+
+
 @welcome_interface_router.get("/")
 async def welcome_interface_index(request: Request) -> Response:
+	check_admin_network(request)
+
 	welcome_page = config.welcome_page
 
 	webgui = False
@@ -81,7 +96,8 @@ async def welcome_interface_index(request: Request) -> Response:
 
 
 @welcome_interface_router.post("/deactivate")
-async def welcome_interface_deactivate() -> None:
+async def welcome_interface_deactivate(request: Request) -> None:
+	check_admin_network(request)
 	config.welcome_page = False
 	config.update_config({"welcome_page": "false"}, on_change="reload")
 

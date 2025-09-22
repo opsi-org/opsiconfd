@@ -319,6 +319,7 @@ class Manager(metaclass=Singleton):
 		self._interval = 60
 		self._is_config_server = get_server_role() == "configserver"
 		self._worker_manager = WorkerManager()
+		self._async_loop_thread: Thread | None = None
 
 		self._metrics_collectors: list[MetricsCollector] = [NodeMetricsCollector()]
 		# Collect depot metrics only on config server
@@ -336,6 +337,11 @@ class Manager(metaclass=Singleton):
 		return self._worker_manager.startup_completed
 
 	def stop(self, force: bool = False) -> None:
+		if self._is_config_server and not self._should_stop:
+			try:
+				app.set_app_state(ShutdownState(), wait_accomplished=10)
+			except TimeoutError as err:
+				logger.error("Timeout while setting app state to shutdown: %s", err)
 		self._should_stop = True
 		self._force_stop = force
 		logger.notice("Manager stopping force=%s", self._force_stop)
@@ -345,6 +351,8 @@ class Manager(metaclass=Singleton):
 		if self._service_client:
 			self._service_client.disconnect()
 		self._async_main_stopped.wait(5.0)
+		if self._async_loop_thread:
+			self._async_loop_thread.join(5.0)
 
 	def reload(self) -> None:
 		self._last_reload = int(time.time())
@@ -384,7 +392,8 @@ class Manager(metaclass=Singleton):
 			self._service_client.messagebus.register_messagebus_listener(listener)
 			self._service_client.connect_messagebus()
 		try:
-			Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
+			self._async_loop_thread = Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop)
+			self._async_loop_thread.start()
 			self._worker_manager.run()
 		except Exception as exc:
 			logger.error(exc, exc_info=True)
@@ -466,13 +475,10 @@ class Manager(metaclass=Singleton):
 					break
 				await asyncio.sleep(1)
 
-		if self._is_config_server:
-			await run_in_threadpool(app.set_app_state, ShutdownState())
-
-			if config.zeroconf:
-				try:
-					await unregister_opsi_services()
-				except Exception as err:
-					logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
+		if self._is_config_server and config.zeroconf:
+			try:
+				await unregister_opsi_services()
+			except Exception as err:
+				logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
 
 		self._async_main_stopped.set()

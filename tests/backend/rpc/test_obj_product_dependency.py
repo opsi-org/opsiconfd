@@ -1514,6 +1514,8 @@ def test_get_product_action_groups_installation_manager(
 def test_get_product_action_groups_installation_manager_rfc(
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
+	# `--` is always the separator, `rfc` is optional
+
 	client_id = "test-client.opsi.org"
 	depot_id = get_depotserver_id()
 
@@ -1557,6 +1559,7 @@ def test_get_product_action_groups_installation_manager_rfc(
 		uninstallScript="uninstall.opsiscript",
 	)
 
+	# Dependencies always point to base packages
 	product_dependency1 = ProductDependency(
 		productId="some-product",
 		productVersion="1.0",
@@ -1567,21 +1570,30 @@ def test_get_product_action_groups_installation_manager_rfc(
 		requirementType="before",
 	)
 	product_dependency2 = ProductDependency(
+		productId="some-product",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="uninstall",
+		requiredProductId="installation-manager",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency3 = ProductDependency(
 		productId="some-product--rfc",
 		productVersion="2.0",
 		packageVersion="1",
 		productAction="setup",
-		requiredProductId="some-product",
-		requiredAction="setup",
+		requiredProductId="installation-manager",
+		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
-	product_dependency3 = ProductDependency(
-		productId="installation-manager--rfc",
+	product_dependency4 = ProductDependency(
+		productId="some-product--rfc",
 		productVersion="2.0",
 		packageVersion="1",
-		productAction="setup",
+		productAction="uninstall",
 		requiredProductId="installation-manager",
-		requiredAction="setup",
+		requiredInstallationStatus="installed",
 		requirementType="before",
 	)
 
@@ -1616,7 +1628,7 @@ def test_get_product_action_groups_installation_manager_rfc(
 
 	backend.host_createOpsiClient(id=client_id)
 	backend.product_createObjects([product1, product2, product3, product4])
-	backend.productDependency_createObjects([product_dependency1, product_dependency2, product_dependency3])
+	backend.productDependency_createObjects([product_dependency1, product_dependency2, product_dependency3, product_dependency4])
 	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2, product_on_depot3, product_on_depot4])
 
 	for psas, expected_actions in (
@@ -1641,7 +1653,6 @@ def test_get_product_action_groups_installation_manager_rfc(
 			),
 			(
 				("installation-manager", "setup"),
-				("some-product", "setup"),
 				("some-product--rfc", "setup"),
 			),
 		),
@@ -1653,7 +1664,6 @@ def test_get_product_action_groups_installation_manager_rfc(
 				("some-product--rfc", "not_installed", "none"),
 			),
 			(
-				("installation-manager", "setup"),
 				("installation-manager--rfc", "setup"),
 				("some-product", "setup"),
 			),
@@ -1666,10 +1676,57 @@ def test_get_product_action_groups_installation_manager_rfc(
 				("some-product--rfc", "not_installed", "setup"),
 			),
 			(
-				("installation-manager", "setup"),
 				("installation-manager--rfc", "setup"),
-				("some-product", "setup"),
 				("some-product--rfc", "setup"),
+			),
+		),
+		# Uninstall
+		(
+			(
+				("installation-manager", "installed", "uninstall"),
+				("installation-manager--rfc", "not_installed", "none"),
+				("some-product", "installed", "uninstall"),
+				("some-product--rfc", "not_installed", "none"),
+			),
+			(
+				("some-product", "uninstall"),
+				("installation-manager", "uninstall"),
+			),
+		),
+		(
+			(
+				("installation-manager", "installed", "uninstall"),
+				("installation-manager--rfc", "not_installed", "none"),
+				("some-product", "not_installed", "none"),
+				("some-product--rfc", "installed", "uninstall"),
+			),
+			(
+				("some-product--rfc", "uninstall"),
+				("installation-manager", "uninstall"),
+			),
+		),
+		(
+			(
+				("installation-manager", "not_installed", "none"),
+				("installation-manager--rfc", "installed", "uninstall"),
+				("some-product", "installed", "uninstall"),
+				("some-product--rfc", "not_installed", "none"),
+			),
+			(
+				("some-product", "uninstall"),
+				("installation-manager--rfc", "uninstall"),
+			),
+		),
+		(
+			(
+				("installation-manager", "not_installed", "none"),
+				("installation-manager--rfc", "installed", "uninstall"),
+				("some-product", "not_installed", "none"),
+				("some-product--rfc", "installed", "uninstall"),
+			),
+			(
+				("some-product--rfc", "uninstall"),
+				("installation-manager--rfc", "uninstall"),
 			),
 		),
 	):

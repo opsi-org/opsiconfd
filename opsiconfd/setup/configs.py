@@ -631,7 +631,7 @@ def setup_configs() -> None:
 				id="netboot.linux-bootimage.cmdline.opsi_ui",
 				description="Choose to show either the opsi TUI or only opsi messages on the splash screen.",
 				possibleValues=["splash", "tui"],
-				defaultValues=["splash"],
+				defaultValues=["tui"],
 				editable=False,
 				multiValue=False,
 			)

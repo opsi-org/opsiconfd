@@ -958,9 +958,10 @@ def setup_configs() -> None:
 
 	# Delete obsolete configs
 	for config_id in config_ids:
-		if config_id.endswith((".product_cache.outdated", ".product.cache.outdated")) or config_id.startswith("configed.meta_config.wan") or config_id in (
-			"product_sort_algorithm",
-			"clientconfig.dhcpd.filename"
+		if (
+			config_id.endswith((".product_cache.outdated", ".product.cache.outdated"))
+			or config_id.startswith("configed.meta_config.wan")
+			or config_id in ("product_sort_algorithm", "clientconfig.dhcpd.filename")
 		):
 			logger.info("Removing config %r", config_id)
 			remove_configs.append({"id": config_id})

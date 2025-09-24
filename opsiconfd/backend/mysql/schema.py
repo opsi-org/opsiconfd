@@ -705,7 +705,13 @@ def drop_database(mysql: MySQLConnection) -> None:
 			row_dict = dict(row)
 			if row_dict["ID"] != our_id:
 				logger.info("Killing MySQL process %r", row_dict["ID"])
-				session.execute(f"KILL {row_dict['ID']}")
+				try:
+					session.execute(f"KILL {row_dict['ID']}")
+				except Exception as err:
+					if "Unknown thread id" in str(err):
+						logger.debug("MySQL process %r is already gone", row_dict["ID"])
+					else:
+						raise
 
 		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 

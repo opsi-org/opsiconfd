@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS `PRODUCT` (
 	`priority` int(11) DEFAULT '0',
 	`description` text,
 	`advice` text,
-	`pxeConfigTemplate` varchar(50) DEFAULT NULL,
+	`pxeConfigTemplate` varchar(2048) DEFAULT NULL,
 	`changelog` text,
 	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`),
 	KEY `index_product_type` (`type`)
@@ -705,7 +705,13 @@ def drop_database(mysql: MySQLConnection) -> None:
 			row_dict = dict(row)
 			if row_dict["ID"] != our_id:
 				logger.info("Killing MySQL process %r", row_dict["ID"])
-				session.execute(f"KILL {row_dict['ID']}")
+				try:
+					session.execute(f"KILL {row_dict['ID']}")
+				except Exception as err:
+					if "Unknown thread id" in str(err):
+						logger.debug("MySQL process %r is already gone", row_dict["ID"])
+					else:
+						raise
 
 		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 
@@ -1413,3 +1419,6 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				"UPDATE `OPSI_SCHEMA` SET `updateEnded` = :update_ended WHERE version = :version",
 				params={"version": mysql.schema_version, "update_ended": datetime.now(tz=timezone.utc)},
 			)
+
+		# schema_version 19
+		session.execute("ALTER TABLE `PRODUCT` MODIFY COLUMN `pxeConfigTemplate` varchar(2048) DEFAULT NULL")

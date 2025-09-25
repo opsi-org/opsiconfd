@@ -29,17 +29,13 @@ from types import FrameType
 from typing import TYPE_CHECKING, Any, Callable
 
 import uvloop
-from anyio import CapacityLimiter
-from anyio.lowlevel import RunVar
-from opsicommon.utils import (
-	ip_address_in_network,
-	patch_popen,  # type: ignore[import]
-)
-from uvicorn.config import HTTP_PROTOCOLS, WS_PROTOCOLS, Config  # type: ignore[import]
+from anyio import to_thread
+from opsicommon.utils import ip_address_in_network, patch_popen
+from uvicorn.config import HTTP_PROTOCOLS, WS_PROTOCOLS, Config
 from uvicorn.protocols.http.h11_impl import H11Protocol
 from uvicorn.protocols.websockets.websockets_sansio_impl import WebSocketsSansIOProtocol
 from uvicorn.protocols.websockets.wsproto_impl import WSProtocol
-from uvicorn.server import Server as UvicornServer  # type: ignore[import]
+from uvicorn.server import Server as UvicornServer
 
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import AppState, MaintenanceState, app
@@ -352,7 +348,7 @@ class Worker(WorkerInfo, UvicornServer):
 			raise RuntimeError("uvloop is not used")
 
 		# Default for CapacityLimiter is 40
-		RunVar("_default_thread_limiter").set(CapacityLimiter(config.executor_workers))  # type: ignore[arg-type]
+		to_thread.current_default_thread_limiter().total_tokens = config.executor_workers
 
 		loop.set_exception_handler(self.handle_asyncio_exception)
 

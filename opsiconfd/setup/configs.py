@@ -16,16 +16,8 @@ from subprocess import run
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from opsicommon.license import (
-	OPSI_FREE_MODULE_IDS,
-	OPSI_MODULE_IDS,
-	OPSI_OBSOLETE_MODULE_IDS,
-)
-from opsicommon.objects import (
-	BoolConfig,
-	ConfigState,
-	UnicodeConfig,
-)
+from opsicommon.license import OPSI_FREE_MODULE_IDS, OPSI_MODULE_IDS, OPSI_OBSOLETE_MODULE_IDS
+from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
 
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import config, get_configserver_id, get_server_role, opsi_config
@@ -625,10 +617,10 @@ def setup_configs() -> None:
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.video",
 				description="Frame buffer configuration. \nSee https://www.kernel.org/doc/Documentation/fb/modedb.txt",
-				possibleValues=["vesa:ywrap,mtrr"],
-				defaultValues=["vesa:ywrap,mtrr"],
+				possibleValues=["vesa:ywrap", "mtrr"],
+				defaultValues=["vesa:ywrap", "mtrr"],
 				editable=True,
-				multiValue=False,
+				multiValue=True,
 			)
 		)
 
@@ -639,7 +631,7 @@ def setup_configs() -> None:
 				id="netboot.linux-bootimage.cmdline.opsi_ui",
 				description="Choose to show either the opsi TUI or only opsi messages on the splash screen.",
 				possibleValues=["splash", "tui"],
-				defaultValues=["splash"],
+				defaultValues=["tui"],
 				editable=False,
 				multiValue=False,
 			)
@@ -966,9 +958,10 @@ def setup_configs() -> None:
 
 	# Delete obsolete configs
 	for config_id in config_ids:
-		if config_id.endswith((".product_cache.outdated", ".product.cache.outdated")) or config_id in (
-			"product_sort_algorithm",
-			"clientconfig.dhcpd.filename",
+		if (
+			config_id.endswith((".product_cache.outdated", ".product.cache.outdated"))
+			or config_id.startswith("configed.meta_config.wan")
+			or config_id in ("product_sort_algorithm", "clientconfig.dhcpd.filename")
 		):
 			logger.info("Removing config %r", config_id)
 			remove_configs.append({"id": config_id})

@@ -233,10 +233,14 @@ class RPCProductDependencyMixin(Protocol):
 		product_on_client_cache: dict[tuple[str, str], ProductOnClient] = {}
 		product_dependency_cache: dict[tuple[str, str, str], list[ProductDependency]] = {}
 		product_on_clients_by_client_id: dict[str, list[ProductOnClient]] = defaultdict(list)
+		rfc_products_by_client_id: dict[str, dict[str, str]] = defaultdict(dict)
 		product_ids = set()
 		for poc in product_on_clients:
 			product_on_clients_by_client_id[poc.clientId].append(poc)
 			product_ids.add(poc.productId)
+			if "--" in poc.productId:
+				base_product_id, _ = poc.productId.split("--", 1)
+				rfc_products_by_client_id[poc.clientId][base_product_id] = poc.productId
 		client_ids = list(product_on_clients_by_client_id)
 		client_to_depot = {c2d["clientId"]: c2d["depotId"] for c2d in self.configState_getClientToDepotserver(clientIds=client_ids)}
 		depot_ids = list(set(client_to_depot.values()))
@@ -407,6 +411,37 @@ class RPCProductDependencyMixin(Protocol):
 						product_type=dep_product.getType(),
 						client_id=client_id,
 					)
+					if dep_poc.actionRequest in (None, "none") and rfc_products_by_client_id:
+						rfc_product_id = rfc_products_by_client_id.get(client_id, {}).get(dep_product.id)
+						if rfc_product_id:
+							# There is an action request set for a RFC product and not for the base product
+							# Use the RFC product for the dependency
+							try:
+								dep_product_on_depot = get_product_on_depot(
+									depot_id=self.depot_id,
+									product_id=rfc_product_id,
+									product_version=dependency.requiredProductVersion,
+									package_version=dependency.requiredPackageVersion,
+								)
+								dep_product = get_product(
+									product_id=rfc_product_id,
+									product_version=dep_product_on_depot.productVersion,
+									package_version=dep_product_on_depot.packageVersion,
+								)
+								dep_poc_rfc = get_product_on_client(
+									product_id=dep_product.id,
+									product_type=dep_product.getType(),
+									client_id=client_id,
+								)
+								if dep_poc.installationStatus == "installed":
+									dep_poc_rfc.installationStatus = "installed"
+								dep_poc = dep_poc_rfc
+								logger.info("Using rfc product: %s", dep_poc_rfc)
+							except (
+								OpsiProductNotAvailableError,
+								OpsiProductNotAvailableOnDepotError,
+							) as err:
+								logger.debug("RFC product not available: %s", err)
 
 					required_action = dependency.requiredAction
 					required = True

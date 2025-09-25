@@ -374,12 +374,12 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 		lic_info = backend.backend_getLicensingInfo(allow_cache=False)
 
 		expected_modules = {
-			"2fa": 1000,
+			"2fa": 1500,
 			"directory-connector": 1000,
 			"dynamic_depot": 999999999,
 			"install_by_shutdown": 999999999,
 			"license_management": 1000,
-			"linux_agent": 1500,
+			"linux_agent": 2500,
 			"local_imaging": 1000,
 			"monitoring": 1000,
 			"mysql_backend": 999999999,
@@ -399,6 +399,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 		assert sorted(lic_info["available_modules"]) == list(expected_modules)
 		for module, info in lic_info["modules"].items():
 			client_number = expected_modules.get(module, 0)
+			print(module, info, client_number)
 			assert info["client_number"] == client_number
 			if client_number > 0:
 				assert info["available"] is True

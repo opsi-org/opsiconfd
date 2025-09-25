@@ -1762,6 +1762,263 @@ def test_get_product_action_groups_installation_manager_rfc(
 			assert expected_actions[poc.actionSequence] == (poc.productId, poc.actionRequest)
 
 
+def test_get_product_action_groups_installation_novm_rfc(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	# `--` is always the separator, `rfc` is optional
+
+	client_id = "test-client.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	product1 = LocalbootProduct(
+		id="novm-test-26",
+		name="novm-test-26",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product2 = LocalbootProduct(
+		id="novm-test-26--rfc99997",
+		name="novm-test-26--rfc99997",
+		productVersion="2.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product3 = LocalbootProduct(
+		id="novm-test-26--rfc99998",
+		name="novm-test-26--rfc99998",
+		productVersion="3.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product4 = LocalbootProduct(
+		id="novm-test-27",
+		name="novm-test-27",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+	product5 = LocalbootProduct(
+		id="novm-test-27--rfc99999",
+		name="novm-test-27--rfc99999",
+		productVersion="2.0",
+		packageVersion="1",
+		priority=0,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+
+	# Dependencies always point to base packages
+	product_dependency1 = ProductDependency(
+		productId="novm-test-26",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="novm-test-27",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency2 = ProductDependency(
+		productId="novm-test-26",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="uninstall",
+		requiredProductId="novm-test-27",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency3 = ProductDependency(
+		productId="novm-test-26--rfc99997",
+		productVersion="2.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="novm-test-27",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency4 = ProductDependency(
+		productId="novm-test-26--rfc99997",
+		productVersion="2.0",
+		packageVersion="1",
+		productAction="uninstall",
+		requiredProductId="novm-test-27",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+
+	product_on_depot1 = ProductOnDepot(
+		productId="novm-test-26",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot2 = ProductOnDepot(
+		productId="novm-test-26--rfc99997",
+		productType="localboot",
+		productVersion="2.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot3 = ProductOnDepot(
+		productId="novm-test-26--rfc99998",
+		productType="localboot",
+		productVersion="3.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot4 = ProductOnDepot(
+		productId="novm-test-27",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot5 = ProductOnDepot(
+		productId="novm-test-27--rfc99999",
+		productType="localboot",
+		productVersion="2.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product1, product2, product3, product4, product5])
+	backend.productDependency_createObjects([product_dependency1, product_dependency2, product_dependency3, product_dependency4])
+	backend.productOnDepot_createObjects([product_on_depot1, product_on_depot2, product_on_depot3, product_on_depot4, product_on_depot5])
+
+	for psas, expected_actions in (
+		(
+			(("novm-test-26", "not_installed", "setup"),),
+			(
+				("novm-test-27", "setup"),
+				("novm-test-26", "setup"),
+			),
+		),
+		(
+			(
+				("novm-test-26", "not_installed", "setup"),  # Can be ignored
+				("novm-test-26--rfc99997", "not_installed", "setup"),
+			),
+			(
+				("novm-test-27", "setup"),
+				("novm-test-26", "setup"),  # Can be ignored
+				("novm-test-26--rfc99997", "setup"),
+			),
+		),
+		(
+			(("novm-test-26--rfc99997", "not_installed", "setup"),),
+			(
+				("novm-test-27", "setup"),
+				("novm-test-26--rfc99997", "setup"),
+			),
+		),
+		(
+			(
+				("novm-test-26", "not_installed", "setup"),
+				("novm-test-27--rfc99999", "not_installed", "setup"),
+			),
+			(
+				("novm-test-27--rfc99999", "setup"),
+				("novm-test-26", "setup"),
+			),
+		),
+		(
+			(
+				("novm-test-26", "not_installed", "setup"),  # Can be ignored
+				("novm-test-26--rfc99997", "not_installed", "setup"),
+				("novm-test-27--rfc99999", "not_installed", "setup"),
+			),
+			(
+				("novm-test-27--rfc99999", "setup"),
+				("novm-test-26", "setup"),  # Can be ignored
+				("novm-test-26--rfc99997", "setup"),
+			),
+		),
+		(
+			(
+				("novm-test-26", "installed", "uninstall"),
+				("novm-test-27", "installed", "uninstall"),
+			),
+			(
+				("novm-test-26", "uninstall"),
+				("novm-test-27", "uninstall"),
+			),
+		),
+		(
+			(
+				("novm-test-26--rfc99997", "installed", "uninstall"),
+				("novm-test-27", "installed", "uninstall"),
+			),
+			(
+				("novm-test-26--rfc99997", "uninstall"),
+				("novm-test-27", "uninstall"),
+			),
+		),
+		(
+			(
+				("novm-test-26", "installed", "uninstall"),
+				("novm-test-27--rfc99999", "installed", "uninstall"),
+			),
+			(
+				("novm-test-26", "uninstall"),
+				("novm-test-27--rfc99999", "uninstall"),
+			),
+		),
+		(
+			(
+				("novm-test-26--rfc99997", "installed", "uninstall"),
+				("novm-test-27--rfc99999", "installed", "uninstall"),
+			),
+			(
+				("novm-test-26--rfc99997", "uninstall"),
+				("novm-test-27--rfc99999", "uninstall"),
+			),
+		),
+	):
+		print("---------------------------------------------")
+		product_on_clients = []
+		for psa in psas:
+			print(psa)
+			product_on_clients.append(
+				ProductOnClient(
+					productId=psa[0],
+					productType="localboot",
+					clientId=client_id,
+					installationStatus=psa[1],
+					actionRequest=psa[2],
+				)
+			)
+
+		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
+
+		action_pocs = []
+		for action_group in res:
+			for poc in action_group.product_on_clients:
+				if poc.actionSequence is not None and poc.actionSequence > -1:
+					action_pocs.append(poc)
+
+		action_pocs.sort(key=lambda x: x.actionSequence or -1)
+		for poc in action_pocs:
+			print(f"{poc.actionSequence}: {poc.productId} - {poc.actionRequest}")
+
+		assert len(action_pocs) == len(expected_actions)
+		for poc in action_pocs:
+			assert poc.actionSequence is not None
+			assert expected_actions[poc.actionSequence] == (poc.productId, poc.actionRequest)
+
+
 def test_get_product_action_groups_sql(
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:

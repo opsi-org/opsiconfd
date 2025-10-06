@@ -329,6 +329,7 @@ class Worker(WorkerInfo, UvicornServer):
 
 		self._metrics_collector = WorkerMetricsCollector(self)
 
+		signal.signal(signal.SIGINT, signal.SIG_IGN)
 		signal.signal(signal.SIGHUP, self.handle_sighup)
 		self.bind_socket()
 		assert self.socket

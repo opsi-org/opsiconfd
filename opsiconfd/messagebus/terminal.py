@@ -10,6 +10,7 @@ opsiconfd.messagebus.terminal
 from __future__ import annotations
 
 import os
+import time
 from queue import Empty, Queue
 
 from opsicommon.client.opsiservice import Messagebus, MessagebusListener
@@ -179,7 +180,8 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 		except Exception as err:
 			logger.error(err, exc_info=True)
 		if isinstance(message, TerminalOpenRequestMessage) and pid != os.getpid():
-			# Process has been forked, stop processing messages
+			# Process has been forked, just wait for the exec
+			time.sleep(10)
 			break
 		# ACK Message
 		await terminal_request_reader.ack_message(message.channel, redis_id)

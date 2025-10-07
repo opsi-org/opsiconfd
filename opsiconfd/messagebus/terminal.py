@@ -166,9 +166,8 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 	)
 	await terminal_request_reader.set_channels({channel: "0"})
 	async for redis_id, message, _context in terminal_request_reader.get_messages():
-		is_terminal_open_request = isinstance(message, TerminalOpenRequestMessage)
 		try:
-			if is_terminal_open_request:
+			if isinstance(message, TerminalOpenRequestMessage):
 				await process_messagebus_message(
 					message=message,
 					send_message=redis_send_message,
@@ -179,7 +178,7 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:
 			logger.error(err, exc_info=True)
-		if is_terminal_open_request and pid != os.getpid():
+		if isinstance(message, TerminalOpenRequestMessage) and pid != os.getpid():
 			# Process has been forked, stop processing messages
 			break
 		# ACK Message

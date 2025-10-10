@@ -258,7 +258,7 @@ def setup_configs() -> None:
 			)
 		)
 
-	if "clientconfig.depot.user" not in config_ids:
+	if "clientconfig.depot.user1024" not in config_ids:
 		logger.info("Creating config 'clientconfig.depot.user'")
 
 		depot_user = opsi_config.get("depot_user", "username")
@@ -500,6 +500,12 @@ def setup_configs() -> None:
 			)
 		)
 
+	description = (
+		"When a device is set to boot from the opsi server (PXE), it loads the GRUB bootloader provided by the server. \n"
+		"If no action is set for a netboot product, the device will display a boot menu. \n"
+		"This boot menu will include these additional entries alongside the default options. \n"
+		"Currently, these menu entries can only be configured at the depot server level, not individually per device."
+	)
 	if "netboot.grub.menu" not in config_ids:
 		logger.info("Creating config 'netboot.grub.additional_menu_entries'")
 		grub_menu = [
@@ -513,33 +519,43 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.grub.additional_menu_entries",
-				description=(
-					"When a device is set to boot from the opsi server (PXE), it loads the GRUB bootloader provided by the server. \n"
-					"If no action is set for a netboot product, the device will display a boot menu. \n"
-					"This boot menu will include these additional entries alongside the default options. \n"
-					"Currently, these menu entries can only be configured at the depot server level, not individually per device."
-				),
+				description=description,
 				possibleValues=grub_menu,
 				defaultValues=grub_menu,
 				editable=True,
 				multiValue=True,
 			)
 		)
+	else:
+		backend.config_updateObject(
+			UnicodeConfig(
+				id="netboot.grub.additional_menu_entries",
+				description=description,
+			)
+		)
 
+	description = (
+		"Password to protect GRUB menu entries and access to the GRUB command line. \n"
+		"Plain text passwords will be hashed automatically. \n"
+		"Hashes must follow the format `grub.pbkdf2.sha512.10000.<salt>.<hash-value>`. \n"
+		"`grub-mkpasswd-pbkdf2` can be used to generate suitable hashes."
+	)
 	if "netboot.grub.password" not in config_ids:
 		logger.info("Creating config 'netboot.grub.password'")
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.grub.password",
-				description=(
-					"Password to protect GRUB menu entries and access to the GRUB command line. \n"
-					"Plain text passwords will be hashed automatically. \n"
-					"Hashes must follow the format `grub.pbkdf2.sha512.10000.<salt>.<hash-value>`. \n"
-					"`grub-mkpasswd-pbkdf2` can be used to generate suitable hashes."
-				),
+				description=description,
 				possibleValues=[],
 				defaultValues=[],
 				editable=True,
+			)
+		)
+	else:
+		backend.config_updateObject(
+			UnicodeConfig(
+				id="netboot.grub.password",
+				description=description,
 			)
 		)
 
@@ -563,51 +579,67 @@ def setup_configs() -> None:
 			)
 		)
 
+	description = (
+		"Kernel log level to use on boot. \n"
+		"0 (KERN_EMERG)   system is unusable \n"
+		"1 (KERN_ALERT)   action must be taken immediately \n"
+		"2 (KERN_CRIT)    critical conditions \n"
+		"3 (KERN_ERR)     error conditions \n"
+		"4 (KERN_WARNING) warning conditions \n"
+		"5 (KERN_NOTICE)  normal but significant condition \n"
+		"6 (KERN_INFO)    informational \n"
+		"7 (KERN_DEBUG)   debug-level messages \n"
+	)
 	if "netboot.linux-bootimage.cmdline.loglevel" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.loglevel'")
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.loglevel",
-				description=(
-					"Kernel log level to use on boot. \n"
-					"0 (KERN_EMERG)   system is unusable \n"
-					"1 (KERN_ALERT)   action must be taken immediately \n"
-					"2 (KERN_CRIT)    critical conditions \n"
-					"3 (KERN_ERR)     error conditions \n"
-					"4 (KERN_WARNING) warning conditions \n"
-					"5 (KERN_NOTICE)  normal but significant condition \n"
-					"6 (KERN_INFO)    informational \n"
-					"7 (KERN_DEBUG)   debug-level messages \n"
-				),
+				description=description,
 				possibleValues=["0", "1", "2", "3", "4", "5", "6", "7"],
 				defaultValues=["3"],
 				editable=False,
 				multiValue=False,
 			)
 		)
+	else:
+		backend.config_updateObject(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.loglevel",
+				description=description,
+			)
+		)
 
+	description = (
+		"Specifies the opsi log level for the bootimage. \n"
+		"0 (NONE):         Logging disabled \n"
+		"1 (ESSENTIAL):    Essential messages \n"
+		"2 (CRITICAL):     Critical conditions \n"
+		"3 (ERROR):        Error conditions \n"
+		"4 (WARNING):      Warning conditions \n"
+		"5 (NOTICE):       Significant but normal conditions \n"
+		"6 (INFO):         Informational messages \n"
+		"7 (DEBUG):        Debug-level messages \n"
+		"8 (TRACE):        Trace-level messages \n"
+		"9 (LOG_SECRET):   Secret information \n"
+	)
 	if "netboot.linux-bootimage.cmdline.opsi_loglevel" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.opsi_loglevel'")
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.opsi_loglevel",
-				description=(
-					"Specifies the opsi log level for the bootimage. \n"
-					"0 (NONE):         Logging disabled \n"
-					"1 (ESSENTIAL):    Essential messages \n"
-					"2 (CRITICAL):     Critical conditions \n"
-					"3 (ERROR):        Error conditions \n"
-					"4 (WARNING):      Warning conditions \n"
-					"5 (NOTICE):       Significant but normal conditions \n"
-					"6 (INFO):         Informational messages \n"
-					"7 (DEBUG):        Debug-level messages \n"
-					"8 (TRACE):        Trace-level messages \n"
-					"9 (LOG_SECRET):   Secret information \n"
-				),
+				description=description,
 				possibleValues=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
 				defaultValues=["6"],
 				editable=False,
 				multiValue=False,
+			)
+		)
+	else:
+		backend.config_updateObject(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.opsi_loglevel",
+				description=description,
 			)
 		)
 
@@ -673,21 +705,22 @@ def setup_configs() -> None:
 			)
 		)
 
+	description = (
+		"Configure VGA resolution and color depth. \n \n"
+		"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 | \n"
+		"|-------------|---------|----------|----------|-----------|-----------| \n"
+		"| 8 bit       | 771     | 773      | 353      | 775       | 796       | \n"
+		"| 16 bit      | 788     | 791      | 355      | 794       | 798       | \n"
+		"| 24 bit      | 789     | 792      |          | 795       | 799       | \n"
+		" \n"
+		"Use `normal` for 80×25 text mode without framebuffer."
+	)
 	if "netboot.linux-bootimage.cmdline.vga" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.vga'")
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.vga",
-				description=(
-					"Configure VGA resolution and color depth. \n \n"
-					"| Color Depth | 800x600 | 1024x768 | 1152x864 | 1280x1024 | 1600x1200 | \n"
-					"|-------------|---------|----------|----------|-----------|-----------| \n"
-					"| 8 bit       | 771     | 773      | 353      | 775       | 796       | \n"
-					"| 16 bit      | 788     | 791      | 355      | 794       | 798       | \n"
-					"| 24 bit      | 789     | 792      |          | 795       | 799       | \n"
-					" \n"
-					"Use `normal` for 80×25 text mode without framebuffer."
-				),
+				description=description,
 				possibleValues=["771", "773", "353", "775", "796", "788", "791", "355", "794", "798", "789", "792", "795", "799", "normal"],
 				defaultValues=["791"],
 				editable=True,
@@ -708,6 +741,13 @@ def setup_configs() -> None:
 							)
 						)
 					break
+	else:
+		backend.config_updateObject(
+			UnicodeConfig(
+				id="netboot.linux-bootimage.cmdline.vga",
+				description=description,
+			)
+		)
 
 	if "netboot.linux-bootimage.cmdline.pwh" not in config_ids:
 		logger.info("Creating config 'netboot.linux-bootimage.cmdline.pwh'")

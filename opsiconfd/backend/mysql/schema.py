@@ -35,7 +35,7 @@ CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS `CONFIG` (
 	`configId` varchar(200) NOT NULL,
 	`type` varchar(30) NOT NULL,
-	`description` varchar(256) DEFAULT NULL,
+	`description` varchar(1024) DEFAULT NULL,
 	`multiValue` tinyint(1) NOT NULL DEFAULT '0',
 	`editable` tinyint(1) NOT NULL DEFAULT '1',
 	PRIMARY KEY (`configId`),
@@ -1422,3 +1422,6 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 
 		# schema_version 19
 		session.execute("ALTER TABLE `PRODUCT` MODIFY COLUMN `pxeConfigTemplate` varchar(2048) DEFAULT NULL")
+
+		# schema_version 20
+		session.execute("ALTER TABLE `CONFIG` MODIFY COLUMN `description` varchar(1024) DEFAULT NULL")

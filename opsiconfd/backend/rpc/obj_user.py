@@ -139,13 +139,14 @@ class RPCUserMixin(Protocol):
 			qrcode_io = StringIO()
 			qrcode.print_ascii(out=qrcode_io)
 			qrcode_io.seek(0)
-			return "\n".join(
+			qrcode_string = "\n".join(
 				[
 					line[4:-4] if line.startswith("\xa0\xa0\xa0\xa0") and line.endswith("\xa0\xa0\xa0\xa0") else line
 					for line in qrcode_io.getvalue().split("\n")
 					if line.strip()
 				]
 			)
+			return qrcode_string + "\n" + user.otpSecret
 
 		raise ValueError(f"Invalid returnType {returnType}")
 

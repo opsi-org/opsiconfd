@@ -230,7 +230,7 @@ class NodeMetricsCollector(MetricsCollector):
 		if "node:avg_redis_cpu_time" in self._metrics:
 			redis = await async_redis_client()
 			cpu_info = await redis.info("cpu")
-			redis_cpu_time = cpu_info["used_cpu_sys"] + cpu_info["used_cpu_user"]
+			redis_cpu_time = max(cpu_info["used_cpu_sys"] + cpu_info["used_cpu_user"], 0.0)
 			redis_cpu_time_diff: float | None = None
 			if self._last_redis_cpu_time is not None:
 				redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time

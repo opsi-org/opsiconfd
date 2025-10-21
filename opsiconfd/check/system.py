@@ -90,6 +90,7 @@ LINUX_DISTRO_REPO_NAMES = {
 		"10": "Debian_10",
 		"11": "Debian_11",
 		"12": "Debian_12",
+		"13": "Debian_13",
 	},
 	"ubuntu": {
 		"18.04": "Ubuntu_18.04",

@@ -9,8 +9,6 @@ opsiconfd.messagebus.terminal
 
 from __future__ import annotations
 
-import os
-import time
 from queue import Empty, Queue
 
 from opsicommon.client.opsiservice import Messagebus, MessagebusListener
@@ -26,7 +24,8 @@ from opsicommon.messagebus.message import (
 	TerminalOpenRequestMessage,
 	TerminalResizeRequestMessage,
 )
-from opsicommon.messagebus.terminal import process_messagebus_message, terminals
+from opsicommon.messagebus.terminal import Terminal, terminals
+from opsicommon.messagebus.terminal import process_messagebus_message as process_terminal_message
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_service_client
@@ -44,6 +43,7 @@ terminal_instance_reader: MessageReader | None = None
 
 async def async_terminal_startup() -> None:
 	if "messagebus_terminal" not in config.disabled_features:
+		Terminal.fork_delay = config.terminal_fork_delay
 		asyncio_create_task(messagebus_terminal_open_request_worker())
 		asyncio_create_task(messagebus_terminal_instance_worker())
 
@@ -69,7 +69,7 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 			if isinstance(
 				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
 			):
-				await process_messagebus_message(message, redis_send_message, sender=messagebus_worker_id)
+				await process_terminal_message(message, redis_send_message, sender=messagebus_worker_id)
 			elif isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
 				if isinstance(message, FileUploadRequestMessage):
 					if message.terminal_id and not message.destination_dir:
@@ -142,7 +142,7 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 							message.destination_dir = str(destination_dir)
 				await process_file_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 			else:
-				await process_messagebus_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
+				await process_terminal_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
@@ -159,7 +159,6 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 	messagebus_worker_id = get_messagebus_worker_id()
 
 	channel = f"service:depot:{get_depotserver_id()}:terminal"
-	pid = os.getpid()
 	# ID "0" means: Start reading pending messages (not ACKed) and continue reading new messages
 	terminal_request_reader = ConsumerGroupMessageReader(
 		consumer_group=channel,
@@ -169,7 +168,7 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 	async for redis_id, message, _context in terminal_request_reader.get_messages():
 		try:
 			if isinstance(message, TerminalOpenRequestMessage):
-				await process_messagebus_message(
+				await process_terminal_message(
 					message=message,
 					send_message=redis_send_message,
 					sender=messagebus_worker_id,
@@ -179,10 +178,6 @@ async def messagebus_terminal_open_request_worker_configserver() -> None:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:
 			logger.error(err, exc_info=True)
-		if isinstance(message, TerminalOpenRequestMessage) and pid != os.getpid():
-			# Process has been forked, just wait for the exec
-			time.sleep(10)
-			break
 		# ACK Message
 		await terminal_request_reader.ack_message(message.channel, redis_id)
 
@@ -214,7 +209,7 @@ async def messagebus_terminal_open_request_worker_depotserver() -> None:
 			term_message: TerminalOpenRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
 		except Empty:
 			continue
-		await process_messagebus_message(
+		await process_terminal_message(
 			message=term_message,
 			send_message=service_client.messagebus.async_send_message,
 			sender=messagebus_worker_id,

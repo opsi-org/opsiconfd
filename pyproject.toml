@@ -46,7 +46,7 @@ dependencies = [
 	"six>=1.16",
 	"starlette>=0.46",
 	"uvicorn>=0.34",
-	"uvloop>=0.21",
+	"uvloop>=0.22",
 	"websockets>=15.0",
 	"werkzeug>=3.0",
 	"wsgidav>=4.3",
@@ -56,6 +56,7 @@ dependencies = [
 	"xmlsec<=1.3.13",
 	"lxml",
 	#"yappi>=1.4; platform_machine == 'x86_64'",
+	"lz4",
 ]
 
 [[project.authors]]
@@ -107,6 +108,9 @@ extra-index-url = ["https://pypi.uib.gmbh/simple"]
 index-strategy = "unsafe-best-match"
 package = true
 no-binary-package = ["lxml", "xmlsec"]
+
+[tool.uv.sources]
+lz4 = { git = "https://github.com/python-lz4/python-lz4" }
 
 [tool.mypy]
 disallow_untyped_calls = true

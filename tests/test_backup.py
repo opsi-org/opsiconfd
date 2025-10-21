@@ -12,6 +12,7 @@ import base64
 import json
 import pprint
 from copy import deepcopy
+from datetime import datetime
 from os.path import abspath
 from pathlib import Path
 from threading import Event, Thread
@@ -177,6 +178,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 	try:
 		print("initalized_event =", initalized_event.wait(10))
 
+		print("Drop database", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		database = "opsitestbackup"
 		mysql = MySQLConnection()
 		mysql.connect()
@@ -186,6 +188,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 		mysql.database = database
 		mysql.connect()
 
+		print("Restore backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		try:
 			restore_backup(Path("tests/data/backup/opsiconfd-backup.msgpack.lz4"), server_id="local", config_files=False, redis_data=False)
 		except Exception:
@@ -196,28 +199,35 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 			databases = [row[0] for row in session.execute("SHOW DATABASES").fetchall()]
 			assert database in databases
 
+		print("Create backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		with get_config({"add_config_files": []}):
 			backup = create_backup(config_files=False, redis_data=False)
 
+		print("Drop database", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		with mysql.session() as session:
 			session.execute(f"DROP DATABASE {database}")
 
+		print("Restore backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		restore_backup(deepcopy(backup))
 		with get_config({"add_config_files": []}):
 			backup2 = create_backup(config_files=False, redis_data=False)
 
+		print("Compare backups", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		assert sorted(list(backup["objects"])) == sorted(list(backup["objects"]))
 		for object_type in backup["objects"]:
 			assert backup["objects"][object_type] == backup2["objects"][object_type]
 
+		print("Test truncate", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		# Test truncate
 		for host in backup2["objects"]["Host"]:
 			# Max 256
 			host["description"] = "x" * 1000
 
+		print("Restore backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		restore_backup(backup2)
 
 	finally:
+		print("End maintenance", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		app.set_app_state(NormalState())
 		app.stop_app_state_manager_task()
 		thread.join(5)

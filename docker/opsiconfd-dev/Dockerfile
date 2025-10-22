@@ -44,7 +44,7 @@ RUN chmod +x /entrypoint.sh /healthcheck.sh \
 	&& (getent group opsifileadmins || groupadd opsifileadmins) \
 	&& (getent group opsiadmin || groupadd opsiadmin) \
 	&& (getent passwd opsiconfd || useradd --system -g opsifileadmins -d /var/lib/opsiconfd/home -s /bin/zsh opsiconfd) \
-	&& (getent passwd pcpatch || useradd --system -g opsifileadmins -d /var/lib/opsi -s /bin/sh pcpatch) \
+	&& (getent passwd pcpatch || useradd --system -g opsifileadmins -d /var/lib/opsi -s /bin/false pcpatch) \
 	&& (getent passwd adminuser || useradd --uid 2222 --create-home -d /home/adminuser -s /bin/zsh adminuser) \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser opsifileadmins \

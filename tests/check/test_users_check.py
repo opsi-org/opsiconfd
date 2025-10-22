@@ -61,6 +61,7 @@ def test_check_opsi_users(tmp_path: Path) -> None:
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
 	):
 		result = check_manager.get("opsi_users").run(clear_cache=True)
+		print(result.to_checkmk())
 		assert result.check_status == CheckStatus.WARNING
 
 	# If the server  is part of a domain and the opsi users are only domain users, no warning should be issued.

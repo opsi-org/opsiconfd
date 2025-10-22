@@ -20,18 +20,16 @@ from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
 
 
 def test_check_opsi_users(tmp_path: Path) -> None:
-	register_checks()
-	check_manager.register(opsi_users_check)
-	result = check_manager.get("opsi_users").run(clear_cache=True)
-	assert result.check_status == CheckStatus.OK
+	opsiconfd_home = tmp_path / "opsiconfd_home"
+	opsiconfd_home.mkdir()
 
 	opsiconfd_infos = [
 		UserInfo(
 			username="opsiconfd",
-			uid=999,
+			uid=os.geteuid(),
 			gid=1000,
 			gecos="opsiconfd",
-			home=Path("/var/lib/opsiconfd/home"),
+			home=opsiconfd_home,
 			shell=Path("/bin/bash"),
 			service=NameService.FILES,
 		)
@@ -48,6 +46,11 @@ def test_check_opsi_users(tmp_path: Path) -> None:
 		)
 	]
 
+	register_checks()
+	check_manager.register(opsi_users_check)
+	result = check_manager.get("opsi_users").run(clear_cache=True)
+	assert result.check_status == CheckStatus.OK
+
 	def get_user_passwd_details(username: str) -> list[UserInfo]:
 		if username == "opsiconfd":
 			return opsiconfd_infos
@@ -61,7 +64,6 @@ def test_check_opsi_users(tmp_path: Path) -> None:
 		mock.patch("opsiconfd.check.users.get_passwd_services", return_value=([NameService.FILES, NameService.SSS])),
 	):
 		result = check_manager.get("opsi_users").run(clear_cache=True)
-		print(result.to_checkmk())
 		assert result.check_status == CheckStatus.WARNING
 
 	# If the server  is part of a domain and the opsi users are only domain users, no warning should be issued.
@@ -115,9 +117,8 @@ def test_check_opsi_users(tmp_path: Path) -> None:
 		)
 
 	# Check opsiconfd owns home directory
-	home_dir = tmp_path / "opsiconfd_home"
-	home_dir.mkdir()
-	opsiconfd_infos[0].home = home_dir
+	opsiconfd_infos[0].uid = 9999
+	opsiconfd_infos[0].home = opsiconfd_home
 	with (
 		mock.patch("opsiconfd.check.users.get_user_passwd_details", get_user_passwd_details),
 	):
@@ -125,12 +126,11 @@ def test_check_opsi_users(tmp_path: Path) -> None:
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "1 issue(s) found."
 		assert "not owned by the user" in result.partial_results[1].message
+	opsiconfd_infos[0].uid = os.geteuid()
 
 	# Check opsiconfd can access home directory
-	opsiconfd_infos[0].uid = os.geteuid()
 	with mock.patch("opsiconfd.check.users.get_user_passwd_details", get_user_passwd_details), mock.patch("os.access", return_value=False):
 		result = check_manager.get("opsi_users").run(clear_cache=True)
-		print(result.to_checkmk())
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "1 issue(s) found."
 		assert "opsi user 'opsiconfd' cannot access its home directory" in result.partial_results[1].message

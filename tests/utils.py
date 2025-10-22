@@ -182,7 +182,7 @@ def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None,
 			_opsi_config.set(value["category"], value["config"], value=value["value"])
 		yield _opsi_config
 	finally:
-		reset_singleton(OpsiConfig)
+		reset_singleton(OpsiConfig)  # type: ignore[arg-type]
 		_opsi_config.read_config_file()
 
 

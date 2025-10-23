@@ -326,7 +326,7 @@ class OpsiProductsOnClientsCheck(Check):
 @dataclass()
 class OpsiLockedProductsDepotCheck(Check):
 	id: str = "locked_products_depot"
-	name: str = "Locked Products Depot"
+	name: str = "Locked products on depot"
 	description: str = "Check for locked products on depots"
 	documentation: str = f"""
 		## {name} [{id}]
@@ -334,6 +334,12 @@ class OpsiLockedProductsDepotCheck(Check):
 		Checks if there are any locked products on this depot.
 	"""
 	depot_id: str = ""
+
+	def __post_init__(self) -> None:
+		super().__post_init__()
+		self.id = f"locked_products_depot:{self.depot_id}"
+		self.name = f"Locked products on depot: {self.depot_id}"
+		self.description = f"Check locked products on depot '{self.depot_id}'."
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -370,12 +376,13 @@ class OpsiLockedProductsCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		backend = get_unprotected_backend()
-		depots = backend.host_getIdents(type="OpsiDepotserver")
-		enabled_hosts = get_enabled_hosts(host_ids=depots)
-		for depot in depots:
-			if depot not in enabled_hosts:
+		depot_ids = backend.host_getIdents(type="OpsiDepotserver")
+		enabled_hosts = get_enabled_hosts(host_ids=depot_ids)
+		logger.debug("Checking depots for locked products: %s, enabled_hosts: %s", depot_ids, enabled_hosts)
+		for depot_id in depot_ids:
+			if depot_id not in enabled_hosts:
 				continue
-			check = OpsiLockedProductsDepotCheck(depot_id=depot)
+			check = OpsiLockedProductsDepotCheck(depot_id=depot_id)
 			self.add_partial_checks(check)
 
 		return result

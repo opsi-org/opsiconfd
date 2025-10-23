@@ -1325,6 +1325,13 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Minimum opsi-configed version allowed to connect."),
 		)
 		self._parser.add(
+			"--allowed-user-agents",
+			nargs="+",
+			env_var="OPSICONFD_ALLOWED_USER_AGENTS",
+			default=[],
+			help=self._help("opsiconfd", "List of user agents that are allowed to connect. If empty, all user agents are allowed."),
+		)
+		self._parser.add(
 			"--collect-metrics",
 			env_var="OPSICONFD_COLLECT_METRICS",
 			type=str2bool,

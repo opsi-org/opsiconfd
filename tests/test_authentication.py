@@ -881,6 +881,38 @@ def test_min_configed_version(
 		assert response_text_match in res.text
 
 
+@pytest.mark.parametrize(
+	"allowed_user_agents, user_agent, status_code, response_text_match",
+	(
+		([], "opsiclientd 4.3.20.0", 200, ""),
+		(["opsi config editor", "opsiclientd"], "opsiclientd 4.3.20.0", 200, ""),
+		(["opsi config editor", "opsiclientd"], "opsi config editor 4.3.10.0", 200, ""),
+		(
+			["opsi config editor", "opsiclientd"],
+			"opsi-cli 4.3.0.0",
+			403,
+			"User-Agent 'opsi-cli 4.3.0.0' is not allowed to connect",
+		),
+	),
+)
+def test_allowed_user_agents(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	allowed_user_agents: list[str],
+	user_agent: str | None,
+	status_code: int,
+	response_text_match: str,
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with get_config({"allowed_user_agents": allowed_user_agents}):
+		if user_agent:
+			res = test_client.get("/admin/", headers={"User-Agent": str(user_agent)})
+		else:
+			res = test_client.get("/admin/")
+		print(res.status_code, res.text)
+		assert res.status_code == status_code
+		assert response_text_match in res.text
+
+
 def test_client_certificate(
 	tmp_path: Path,
 	backend: UnprotectedBackend,  # noqa: F811

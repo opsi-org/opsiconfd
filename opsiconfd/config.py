@@ -1651,13 +1651,6 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Shell command for admin interface terminal"),
 		)
 		self._parser.add(
-			"--terminal-fork-delay",
-			env_var="OPSICONFD_TERMINAL_FORK_DELAY",
-			default=0.1,
-			type=float,
-			help=self._help("expert", "Delay in seconds before forking a new terminal process"),
-		)
-		self._parser.add(
 			"--allow-host-key-only-auth",
 			env_var="OPSICONFD_ALLOW_HOST_KEY_ONLY_AUTH",
 			type=str2bool,

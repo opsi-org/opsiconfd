@@ -13,6 +13,7 @@ from unittest import mock
 import pytest
 from opsicommon.objects import Config, ConfigState, LocalbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
 
+from opsiconfd import __version__
 from opsiconfd.check.common import CheckStatus, check_manager
 from opsiconfd.check.opsipackages import (
 	OUTDATED_AFTER_DAYS,
@@ -315,7 +316,7 @@ def test_check_products_on_depots(relase_age: int) -> None:
 	else:
 		assert result.check_status == CheckStatus.ERROR
 		assert "Out of 3 products on 2 depots checked, 2 mandatory products are not installed, 2 are out of date." in result.message
-		assert result.upgrade_issue == "4.3"
+		assert result.upgrade_issue == __version__
 		found = 0
 		for partial_result in result.partial_results:
 			if (
@@ -325,7 +326,7 @@ def test_check_products_on_depots(relase_age: int) -> None:
 				found += 1
 				assert partial_result.check_status == CheckStatus.ERROR
 				assert "not installed" in partial_result.message
-				assert partial_result.upgrade_issue == "4.3"
+				assert partial_result.upgrade_issue == __version__
 			if (
 				partial_result.details.get("depot_id") == "test-check-depot-1.opsi.test"
 				and partial_result.details.get("product_id") == "opsi-client-agent"
@@ -333,7 +334,7 @@ def test_check_products_on_depots(relase_age: int) -> None:
 				found += 1
 				assert partial_result.check_status == CheckStatus.ERROR
 				assert "is outdated" in partial_result.message
-				assert partial_result.upgrade_issue == "4.3"
+				assert partial_result.upgrade_issue == __version__
 		assert found == 2
 
 	# Remove opsi-client-agent from depot to test the case where no client-agent is installed
@@ -352,7 +353,7 @@ def test_check_products_on_depots(relase_age: int) -> None:
 		assert result.check_status == CheckStatus.ERROR
 		# products opsi-script is not installed on both depots, opsi-client-agent is not installed on one depot and outdated on the other depot
 		assert "Out of 3 products on 2 depots checked, 3 mandatory products are not installed, 1 are out of date." in result.message
-		assert result.upgrade_issue == "4.3"
+		assert result.upgrade_issue == __version__
 
 
 @pytest.mark.parametrize("installation_age", [OUTDATED_AFTER_DAYS - 1, OUTDATED_AFTER_DAYS + 1])

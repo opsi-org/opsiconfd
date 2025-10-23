@@ -9,6 +9,7 @@ health check backup
 
 from dataclasses import dataclass
 
+from opsiconfd import __version__
 from opsiconfd.backup import BACKUP_TIME_TOLERANCE
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config
@@ -42,6 +43,7 @@ class BackupCheck(Check):
 		if backup_age <= 0:
 			result.message = f"The last successful backup was created more than {config.max_backup_age} hours ago."
 			result.check_status = CheckStatus.ERROR
+			result.upgrade_issue = __version__
 			return result
 		if backup_age < BACKUP_TIME_TOLERANCE:
 			result.message = f"The last successful backup is approaching the maximum allowed age of {config.max_backup_age} hours."

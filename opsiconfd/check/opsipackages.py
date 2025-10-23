@@ -10,6 +10,7 @@ from typing import Iterable
 from opsicommon.package.repo_meta import RepoMetaPackageCollection
 from opsicommon.utils import compare_versions
 
+from opsiconfd import __version__
 from opsiconfd.backend import get_mysql, get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.check.utils import get_enabled_hosts
@@ -144,7 +145,7 @@ class OpsiProductsOnDepotsCheck(Check):
 						mandatory_not_installed += 1
 						partial_result.check_status = CheckStatus.ERROR
 						partial_result.message = f"Mandatory product {product_id!r} is not installed on depot {depot_id!r}."
-						partial_result.upgrade_issue = "4.3"
+						partial_result.upgrade_issue = __version__
 						result.add_partial_result(partial_result)
 					continue
 
@@ -159,7 +160,7 @@ class OpsiProductsOnDepotsCheck(Check):
 					f"Installed version {product_version_on_depot!r} < available version {available_version!r}."
 				)
 				if is_mandatory or product_type == "NetbootProduct":
-					partial_result.upgrade_issue = "4.3"
+					partial_result.upgrade_issue = __version__
 
 				result.add_partial_result(partial_result)
 

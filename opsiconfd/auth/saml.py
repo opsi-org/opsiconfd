@@ -75,6 +75,7 @@ def get_saml_settings(
 			# See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
 			"requestedAuthnContext": False,
 			"authnRequestsSigned": False,
+			"logoutRequestSigned": False,
 		},
 		# Identity Provider
 		"idp": {
@@ -107,6 +108,7 @@ def get_saml_settings(
 		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:
 			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
 		settings["security"]["authnRequestsSigned"] = True
+		settings["security"]["logoutRequestSigned"] = True
 		settings["security"]["wantAssertionsSigned"] = True
 		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
 		settings["sp"]["privateKey"] = config.saml_sp_private_key

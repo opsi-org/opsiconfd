@@ -1297,6 +1297,18 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Map SAML roles to opsi groups (<role> = <group>)."),
 		)
 		self._parser.add(
+			"--saml-slo",
+			env_var="OPSICONFD_SAML_SLO",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"opsiconfd",
+				"If enabled, SAML Single Logout (SLO) will be triggered on logout.",
+			),
+		)
+		self._parser.add(
 			"--client-block-time",
 			env_var="OPSICONFD_CLIENT_BLOCK_TIME",
 			type=int,

@@ -144,7 +144,6 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	if session:
 		request_data = await saml_auth_request_data(request)
 		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		# redirect_url = auth.logout(name_id_format="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified", name_id=session.username)
 		redirect_url = auth.logout()
 		if saml_logger.isEnabledFor(TRACE):
 			saml_logger.trace(auth.get_last_request_xml())

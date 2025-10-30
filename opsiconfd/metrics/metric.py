@@ -206,6 +206,14 @@ ALL_METRICS = [
 		zero_if_missing=ZeroIfMissingType.CONTINUOUS,
 		grafana_config=GrafanaPanelConfig(title="MySQL processes", unit="short", decimals=0, stack=False),
 	),
+	NodeMetric(
+		id="node:avg_mysql_queries",
+		name="Average running MySQL queries for {node_name}",
+		retention=2 * 3600 * 1000,
+		aggregation=AggregationType.AVG,
+		zero_if_missing=ZeroIfMissingType.CONTINUOUS,
+		grafana_config=GrafanaPanelConfig(title="MySQL queries", unit="short", decimals=0, stack=False),
+	),
 	WorkerMetric(
 		id="worker:sum_jsonrpc_requests",
 		name="Incoming JSONRPC requests by worker {worker_num} on {node_name}",

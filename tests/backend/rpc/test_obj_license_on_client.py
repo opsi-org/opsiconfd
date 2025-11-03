@@ -87,6 +87,7 @@ def test_licenseOnClient_getOrCreateObject(
 	backend.auditSoftwareToLicensePool_createObjects([audit_software_to_license_pool1])
 
 	assert client2.id and client2.opsiHostKey
+	test_client.reset_cookies()
 	test_client.auth = (client2.id, client2.opsiHostKey)
 
 	for _ in range(2):
@@ -176,13 +177,14 @@ def test_licenseOnClient_getOrCreateObject_2(
 	client3 = OpsiClient(id="test-client-3.opsi.org")
 
 	backend.host_createObjects([client1, client2, client3])
+	assert client1.id and client1.opsiHostKey
+	assert client2.id and client2.opsiHostKey
+	assert client3.id and client3.opsiHostKey
+
 	backend.licensePool_createObjects([pool1])
 	backend.licenseContract_createObjects([contract1, contract2])
 	backend.softwareLicense_createObjects([license1, license2])
 	backend.softwareLicenseToLicensePool_createObjects([lic2pool1, lic2pool2])
-
-	assert client2.id and client2.opsiHostKey
-	test_client.auth = (client2.id, client2.opsiHostKey)
 
 	backend.licenseOnClient_deleteObjects(backend.licenseOnClient_getObjects())
 	backend.licenseOnClient_getOrCreateObject(clientId=client1.id, licensePoolId=pool1.id)
@@ -200,3 +202,36 @@ def test_licenseOnClient_getOrCreateObject_2(
 		match=r"License missing error: No license available for pool 'test-pool-1' and client 'test-client-1.opsi.org', or all remaining licenses are bound to a different host.",
 	):
 		backend.licenseOnClient_getOrCreateObject(clientId=client1.id, licensePoolId=pool1.id)
+
+	# Test client access rights
+	# client2 and client3 are using the available licenses
+
+	# client1 should fail acquiring a license
+	test_client.auth = (client1.id, client1.opsiHostKey)
+	test_client.reset_cookies()
+	res = test_client.jsonrpc20("licenseOnClient_getOrCreateObject", params={"clientId": client1.id, "licensePoolId": pool1.id})
+	assert "error" in res
+
+	# client3 should succeed to reacquire its license
+	test_client.auth = (client3.id, client3.opsiHostKey)
+	test_client.reset_cookies()
+
+	res = test_client.jsonrpc20("licenseOnClient_getOrCreateObject", params={"clientId": client3.id, "licensePoolId": pool1.id})
+	assert "error" not in res
+	assert res["result"].clientId == client3.id
+	assert res["result"].licensePoolId == pool1.id
+
+	# client3 should succeed releasing its license
+	res = test_client.jsonrpc20("deleteSoftwareLicenseUsage", params={"hostId": client3.id, "licensePoolId": pool1.id})
+	assert "error" not in res
+
+	locs = backend.licenseOnClient_getObjects()
+	assert len(locs) == 1
+
+	# client1 should now succeed to acquire a license
+	test_client.auth = (client1.id, client1.opsiHostKey)
+	test_client.reset_cookies()
+	res = test_client.jsonrpc20("licenseOnClient_getOrCreateObject", params={"clientId": client1.id, "licensePoolId": pool1.id})
+	assert "error" not in res
+	assert res["result"].clientId == client1.id
+	assert res["result"].licensePoolId == pool1.id

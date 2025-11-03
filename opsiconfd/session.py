@@ -332,7 +332,7 @@ class SessionMiddleware:
 				status_code = status.HTTP_403_FORBIDDEN
 
 		elif isinstance(err, ValidationException):
-			status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+			status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
 			error = str(err)
 
 		elif isinstance(err, HTTPException):

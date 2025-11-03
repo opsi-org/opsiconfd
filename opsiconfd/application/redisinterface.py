@@ -27,7 +27,7 @@ def redis_interface_setup(app: FastAPI) -> None:
 
 @redis_interface_router.post("")
 @redis_interface_router.post("/")
-@rest_api(default_error_status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+@rest_api(default_error_status_code=status.HTTP_422_UNPROCESSABLE_CONTENT)
 async def redis_command(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
 	request_body = await request.json()

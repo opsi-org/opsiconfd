@@ -353,10 +353,10 @@ async def create_depot(request: Request) -> RESTResponse:
 	request_body = await request.json() or {}
 	depot_id = request_body.get("id")
 	if not depot_id:
-		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Depot ID missing")
+		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_CONTENT, message="Depot ID missing")
 	backend = get_unprotected_backend()
 	if backend.host_getIdents(id=depot_id):
-		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Depot already exists")
+		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_CONTENT, message="Depot already exists")
 
 	depot = OpsiDepotserver(id=depot_id, description=request_body.get("description"))
 	auto_fill_depotserver_urls(depot)
@@ -758,7 +758,7 @@ async def license_upload(files: list[UploadFile]) -> RESTResponse:
 		return RESTResponse(data=f"{len(files)} opsi license files imported", http_status=status.HTTP_201_CREATED)
 	except Exception as err:
 		logger.warning(err, exc_info=True)
-		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Invalid license file.", details=err)
+		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_CONTENT, message="Invalid license file.", details=err)
 
 
 def get_num_servers() -> int:

@@ -254,17 +254,20 @@ async def saml_callback_login(request: Request) -> Response:
 @auth_router.get("/saml/callback/logout")
 @auth_router.post("/saml/callback/logout")
 async def saml_callback_logout(request: Request) -> RedirectResponse:
-	request_data = await saml_auth_request_data(request)
-	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-	await run_in_threadpool(auth.process_slo)
-	if saml_logger.isEnabledFor(TRACE):
-		saml_logger.trace(auth.get_last_request_xml())
-		saml_logger.trace(auth.get_last_response_xml())
-	errors = auth.get_errors()
-	if errors:
-		saml_logger.error("Failed to process SAML SLO response: %s %s", errors, auth.get_last_error_reason())
-	else:
-		saml_logger.info("SAML SLO successful")
+	try:
+		request_data = await saml_auth_request_data(request)
+		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
+		await run_in_threadpool(auth.process_slo)
+		if saml_logger.isEnabledFor(TRACE):
+			saml_logger.trace(auth.get_last_request_xml())
+			saml_logger.trace(auth.get_last_response_xml())
+		errors = auth.get_errors()
+		if errors:
+			saml_logger.error("Failed to process SAML SLO response: %s %s", errors, auth.get_last_error_reason())
+		else:
+			saml_logger.info("SAML SLO successful")
+	except Exception as err:
+		saml_logger.error("SAML logout error: %s", err, exc_info=True)
 
 	session: OPSISession | None = request.scope.get("session")
 	if session:

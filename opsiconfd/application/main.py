@@ -191,7 +191,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 @app.exception_handler(RequestValidationError)
 @rest_api
 def validation_exception_handler(request: Request, exc: Exception) -> None:
-	raise OpsiApiException(message=f"Validation error: {exc}", http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, error=exc)
+	raise OpsiApiException(message=f"Validation error: {exc}", http_status=status.HTTP_422_UNPROCESSABLE_CONTENT, error=exc)
 
 
 def application_setup() -> None:

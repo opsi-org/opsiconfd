@@ -151,6 +151,7 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	return RedirectResponse(url=redirect_url)
 
 
+@auth_router.get("/saml/callback/login")
 @auth_router.post("/saml/callback/login")
 async def saml_callback_login(request: Request) -> Response:
 	try:

@@ -82,7 +82,7 @@ def get_saml_settings(
 			"entityId": config.saml_idp_entity_id,
 			"singleSignOnService": {
 				"url": config.saml_idp_sso_url,
-				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 			},
 			"x509cert": config.saml_idp_x509_cert,
 		},
@@ -98,11 +98,11 @@ def get_saml_settings(
 	if config.saml_idp_slo_url:
 		settings["idp"]["singleLogoutService"] = {
 			"url": config.saml_idp_slo_url,
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 		}
 		settings["sp"]["singleLogoutService"] = {
 			"url": f"{get_sp_url(logout_callback_path)}",
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 		}
 	if config.saml_sp_client_signature:
 		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:

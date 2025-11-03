@@ -143,6 +143,7 @@ async def admin_interface_index(request: Request) -> Response:
 		],
 		"addon_install_enabled": VAR_ADDON_DIR in config.addon_dirs,
 		"multi_factor_auth": config.multi_factor_auth,
+		"saml_slo": config.saml_slo,
 	}
 
 	return jinja_templates().TemplateResponse(request=request, name="admininterface.html", context=context)

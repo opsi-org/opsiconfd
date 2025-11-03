@@ -703,8 +703,8 @@ class UserInfo:
 		uid (int): The user ID.
 		gid (int): The group ID.
 		gecos (str): The GECOS field.
-		home (str): The home directory.
-		shell (str): The login shell.
+		home (Path): The home directory.
+		shell (Path): The login shell.
 		service (NameService): The name service.
 	"""
 
@@ -712,8 +712,8 @@ class UserInfo:
 	uid: int
 	gid: int
 	gecos: str  # https://en.wikipedia.org/wiki/Gecos_field
-	home: str
-	shell: str
+	home: Path
+	shell: Path
 	service: NameService
 
 
@@ -776,8 +776,8 @@ def get_user_passwd_details(username: str) -> list[UserInfo]:
 					uid=int(user_info[2]),
 					gid=int(user_info[3]),
 					gecos=user_info[4],
-					home=user_info[5],
-					shell=user_info[6],
+					home=Path(user_info[5]),
+					shell=Path(user_info[6]),
 					service=service,
 				)
 			)
@@ -828,8 +828,8 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 			uid=int(ldap_data["uidNumber"]),
 			gid=int(ldap_data["gidNumber"]),
 			gecos=ldap_data.get("gecos", ""),
-			home=ldap_data.get("homeDirectory", ""),
-			shell=ldap_data.get("loginShell", ""),
+			home=Path(ldap_data.get("homeDirectory", "")),
+			shell=Path(ldap_data.get("loginShell", "")),
 			service=NameService.LDAP,
 		)
 	except (subprocess.CalledProcessError, FileNotFoundError) as err:

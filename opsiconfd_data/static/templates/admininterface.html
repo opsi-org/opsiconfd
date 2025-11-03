@@ -191,7 +191,11 @@
 			<a href="/dav" target="_blank" class="tablink">WebDAV</a>
 			<a href="/public" target="_blank" class="tablink">Public</a>
 			<a href="#links" id="tablink-links" class="tablink" onclick="openTab('links');">Links</a>
+			{% if saml_slo %}
+			<a href="/auth/saml/logout" class="tablink">Logout</a>
+			{% else %}
 			<a href="#" class="tablink" onclick="logout()">Logout</a>
+			{% endif %}
 		</div>
 
 		<div id="tab-maintenance" class="tabcontent">

@@ -168,7 +168,10 @@ def console_health_check() -> int:
 		return 1
 	with console.status("Health check running", spinner="arrow3"):
 		for result in health_check():
-			summary[result.check_status] += 1
+			if check_version and not result.upgrade_issue:
+				summary[CheckStatus.OK] += 1
+			else:
+				summary[result.check_status] += 1
 			process_check_result(result=result, console=console, check_version=check_version, detailed=config.detailed)
 
 	status = overall_check_status(summary)

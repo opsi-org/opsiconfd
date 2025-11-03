@@ -54,7 +54,7 @@ test:lint-and-test:
   script:
     - 'echo "CI_CONCURRENT_ID: $CI_CONCURRENT_ID"'
     - echo -e "${TXT_HEAD}Fetch bencher${TXT_CLEAR}"
-    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.4.2/bencher-v0.4.2-linux-x86-64 -O bencher
+    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.5.6/bencher-v0.5.6-linux-x86-64 -O bencher
     - chmod +x bencher
 
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
@@ -89,7 +89,7 @@ test:lint-and-test:
 
     - echo -e "${TXT_HEAD}Run opsiconfd-backend-perftest${TXT_CLEAR}"
     - |
-      $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 || (
+      $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 --max-real 30000 --bencher-results bencher-results.json --bencher-measure backend-perftest-rpc-duration || (
         echo -e "${TXT_ERROR}opsiconfd-backend-perftest.py failed${TXT_CLEAR}"
         cat opsiconfd-perftest.log
         exit 1
@@ -124,8 +124,7 @@ test:lint-and-test:
         exit 1
       )
 
-    # Bencher server currently not working
-    # - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
+    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: 'opsiconfd_test'

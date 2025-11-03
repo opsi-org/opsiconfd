@@ -24,8 +24,8 @@ from opsicommon.messagebus.message import (
 	TerminalOpenRequestMessage,
 	TerminalResizeRequestMessage,
 )
-from opsicommon.messagebus.terminal import Terminal, terminals
 from opsicommon.messagebus.terminal import process_messagebus_message as process_terminal_message
+from opsicommon.messagebus.terminal import terminals
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_service_client
@@ -43,7 +43,6 @@ terminal_instance_reader: MessageReader | None = None
 
 async def async_terminal_startup() -> None:
 	if "messagebus_terminal" not in config.disabled_features:
-		Terminal.fork_delay = config.terminal_fork_delay
 		asyncio_create_task(messagebus_terminal_open_request_worker())
 		asyncio_create_task(messagebus_terminal_instance_worker())
 

@@ -152,6 +152,9 @@ package:
     # RedHat 8
     [ -e /lib64/libssl.so.1.1 ] && cp /lib64/libssl.so.1.1 /usr/lib/opsiconfd/_internal/libssl.so.1.1
     [ -e /lib64/libcrypto.so.1.1 ] && cp /lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/_internal/libcrypto.so.1.1
+    # openSUSE Leap
+    [ -e /usr/lib64/libssl.so.1.1 ] && cp /usr/lib64/libssl.so.1.1 /usr/lib/opsiconfd/_internal/libssl.so.1.1
+    [ -e /usr/lib64/libcrypto.so.1.1 ] && cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/_internal/libcrypto.so.1.1
 
     # Setup opsiconfd
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

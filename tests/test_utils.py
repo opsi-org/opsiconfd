@@ -108,7 +108,7 @@ def test_get_user_passwd_details() -> None:
 	info = get_user_passwd_details("root")[0]
 	assert info.uid == 0
 	assert info.gid == 0
-	assert info.home == "/root"
+	assert info.home == Path("/root")
 	assert info.service == NameService.FILES
 
 

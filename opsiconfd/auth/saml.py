@@ -75,13 +75,14 @@ def get_saml_settings(
 			# See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
 			"requestedAuthnContext": False,
 			"authnRequestsSigned": False,
+			"logoutRequestSigned": False,
 		},
 		# Identity Provider
 		"idp": {
 			"entityId": config.saml_idp_entity_id,
 			"singleSignOnService": {
 				"url": config.saml_idp_sso_url,
-				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 			},
 			"x509cert": config.saml_idp_x509_cert,
 		},
@@ -97,16 +98,17 @@ def get_saml_settings(
 	if config.saml_idp_slo_url:
 		settings["idp"]["singleLogoutService"] = {
 			"url": config.saml_idp_slo_url,
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 		}
 		settings["sp"]["singleLogoutService"] = {
 			"url": f"{get_sp_url(logout_callback_path)}",
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
 		}
 	if config.saml_sp_client_signature:
 		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:
 			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
 		settings["security"]["authnRequestsSigned"] = True
+		settings["security"]["logoutRequestSigned"] = True
 		settings["security"]["wantAssertionsSigned"] = True
 		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
 		settings["sp"]["privateKey"] = config.saml_sp_private_key

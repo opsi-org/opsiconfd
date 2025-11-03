@@ -307,14 +307,17 @@ def setup(explicit: bool = True) -> None:
 		return
 
 	if get_server_role() == "depotserver":
-		for attempt in range(1, 6):
+		start_time = time.monotonic()
+		attempt = 0
+		while True:
+			attempt += 1
 			service_client = new_service_client(f"opsiconfd depotserver {__version__} connection test")
 			try:
 				service_client.connect()
 				service_client.disconnect()
 				break
 			except OpsiServiceConnectionError as err:
-				if attempt >= 5:
+				if time.monotonic() - start_time >= 12 * 3600:  # 12 hours
 					raise
 				logger.warning("%s (attempt %d, retry in 5 seconds)", err, attempt)
 				time.sleep(5)

@@ -192,7 +192,7 @@ def get_backendmanager_extension_methods() -> dict[str, Any]:
 def get_config() -> dict[str, Any]:
 	logger.debug("get_config")
 	conf = config.items().copy()
-	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase"]:
+	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase", "saml_sp_private_key"]:
 		conf[key] = "********"
 	conf["grafana_internal_url"] = re.sub(r"//.*:.*@", "//user:*****@", conf["grafana_internal_url"])
 	return conf

@@ -1297,6 +1297,18 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Map SAML roles to opsi groups (<role> = <group>)."),
 		)
 		self._parser.add(
+			"--saml-slo",
+			env_var="OPSICONFD_SAML_SLO",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"opsiconfd",
+				"If enabled, SAML Single Logout (SLO) will be triggered on logout.",
+			),
+		)
+		self._parser.add(
 			"--client-block-time",
 			env_var="OPSICONFD_CLIENT_BLOCK_TIME",
 			type=int,
@@ -1323,6 +1335,13 @@ class Config(metaclass=Singleton):
 			type=str,
 			default="4.3.2.18",
 			help=self._help("opsiconfd", "Minimum opsi-configed version allowed to connect."),
+		)
+		self._parser.add(
+			"--allowed-user-agents",
+			nargs="+",
+			env_var="OPSICONFD_ALLOWED_USER_AGENTS",
+			default=[],
+			help=self._help("opsiconfd", "List of user agents that are allowed to connect. If empty, all user agents are allowed."),
 		)
 		self._parser.add(
 			"--collect-metrics",
@@ -1649,13 +1668,6 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_ADMIN_INTERFACE_TERMINAL_SHELL",
 			default="/bin/bash",
 			help=self._help("opsiconfd", "Shell command for admin interface terminal"),
-		)
-		self._parser.add(
-			"--terminal-fork-delay",
-			env_var="OPSICONFD_TERMINAL_FORK_DELAY",
-			default=0.1,
-			type=float,
-			help=self._help("expert", "Delay in seconds before forking a new terminal process"),
 		)
 		self._parser.add(
 			"--allow-host-key-only-auth",

@@ -10,6 +10,8 @@ opsiconfd backend performance tests
 
 import argparse
 import asyncio
+import json as pyjson
+import os
 import sys
 import time
 from asyncio import sleep
@@ -31,6 +33,8 @@ class TestManager:
 		arg_parser.add_argument("--clients", action="store", type=int, help="Number of clients", default=1000)
 		arg_parser.add_argument("--products", action="store", type=int, help="Number of products", default=100)
 		arg_parser.add_argument("--iterations", action="store", type=int, help="Number of test repetitions", default=3)
+		arg_parser.add_argument("--bencher-results", action="store", metavar="FILE", help="Write bencher results to FILE")
+		arg_parser.add_argument("--bencher-measure", action="store", metavar="MEASURE_SLUG", help="Add this measure to bencher results")
 		arg_parser.add_argument(
 			"--max-real", action="store", type=int, help="Fail if real time spent exceeds this value (in ms)", default=0
 		)
@@ -131,6 +135,30 @@ class TestManager:
 			"cpu": worker_cpu_usage,
 		}
 
+	def write_bencher_results(self) -> None:
+		if not self.args.bencher_results or not self.args.bencher_measure:
+			return
+		bencher_results = {}
+		benchmark_name = "opsiconfd-perftest"
+		if os.path.exists(self.args.bencher_results):
+			with open(self.args.bencher_results, "r", encoding="utf-8") as file:
+				bencher_results = pyjson.loads(file.read())
+
+		if benchmark_name not in bencher_results:
+			bencher_results[benchmark_name] = {}
+		bencher_results[benchmark_name].update(
+			{
+				self.args.bencher_measure: {
+					"value": mean(self.request_stats) * 1000,
+					"lower_value": min(self.request_stats) * 1000,
+					"upper_value": max(self.request_stats) * 1000,
+				}
+			}
+		)
+
+		with open(self.args.bencher_results, "w", encoding="utf-8") as file:
+			file.write(pyjson.dumps(bencher_results, indent=2))
+
 	async def main(self) -> None:
 		stats = []
 		for num in range(1, self.args.iterations + 1):
@@ -143,6 +171,8 @@ class TestManager:
 		print("rpc statistics (ms):")
 		for k, v in avg_stats.items():
 			print(f"{k}={v}")
+
+		self.write_bencher_results()
 
 		if self.args.max_real > 0 and avg_stats["real"] > self.args.max_real:
 			print(f"real time of {avg_stats['real']} ms exceeds limit of {self.args.max_real} ms")

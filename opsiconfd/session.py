@@ -1333,7 +1333,7 @@ async def ensure_session(scope: Scope, session_id: str | None = None) -> OPSISes
 async def pre_authenticate(scope: Scope, session_id: str | None = None) -> None:
 	await ensure_session(scope, session_id=session_id)
 	try:
-		await check_min_configed_version(scope["session"].user_agent)
+		await check_user_agent(scope["session"].user_agent)
 		# Check if client address is blocked
 		await check_blocked(scope["session"].client_addr)
 	except ConnectionRefusedError as err:
@@ -1531,7 +1531,13 @@ async def check_blocked(ip_address: str) -> None:
 		await redis.setex(f"{config.redis_key('stats')}:client:blocked:{ip_key}", config.client_block_time, 1)
 
 
-async def check_min_configed_version(user_agent: str) -> None:
+async def check_user_agent(user_agent: str) -> None:
+	if not user_agent:
+		return
+
+	if config.allowed_user_agents and not any(pattern in user_agent for pattern in config.allowed_user_agents):
+		raise ConnectionRefusedError(f"User-Agent '{user_agent}' is not allowed to connect")
+
 	if not config.min_configed_version or not user_agent or "opsi config editor" not in user_agent:
 		return
 

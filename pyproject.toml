@@ -110,9 +110,6 @@ index-strategy = "unsafe-best-match"
 package = true
 no-binary-package = ["lxml", "xmlsec"]
 
-[tool.uv.sources]
-lz4 = { git = "https://github.com/python-lz4/python-lz4" }
-
 [tool.mypy]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
@@ -121,7 +118,7 @@ follow_imports = "silent"
 
 [tool.ruff]
 line-length = 140
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.format]
 indent-style = "tab"

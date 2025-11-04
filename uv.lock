@@ -1547,6 +1547,7 @@ dependencies = [
     { name = "mysqlclient" },
     { name = "netifaces" },
     { name = "objgraph" },
+    { name = "pam" },
     { name = "py3dns" },
     { name = "pydantic" },
     { name = "pydantic-core" },
@@ -1622,6 +1623,7 @@ requires-dist = [
     { name = "mysqlclient", specifier = ">=2.0,<2.2" },
     { name = "netifaces", specifier = ">=0.11" },
     { name = "objgraph", specifier = ">=3.5" },
+    { name = "pam", specifier = ">=0.2.0" },
     { name = "py3dns", specifier = ">=4.0" },
     { name = "pydantic", specifier = ">=2.12.0a1" },
     { name = "pydantic-core", specifier = ">=2.18" },
@@ -1682,6 +1684,17 @@ source = { registry = "https://pypi.uib.gmbh/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a1/d4/1fc4078c65507b51b96ca8f8c3ba19e6a61c8253c72794544580a7b6c24d/packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f", size = 165727, upload-time = "2025-04-19T11:48:59.673Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484", size = 66469, upload-time = "2025-04-19T11:48:57.875Z" },
+]
+
+[[package]]
+name = "pam"
+version = "0.2.0"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+dependencies = [
+    { name = "python-pam" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/65/25/74fcd42f6a76c7d06ca161c11a2455ddd4f68a76545241f7d3ea3354c6d6/pam-0.2.0-py3-none-any.whl", hash = "sha256:fcec42cee82e164b77fdf70c52117c668645c17d9756b3af66058816a5102401", size = 976, upload-time = "2020-11-11T23:11:01.769Z" },
 ]
 
 [[package]]

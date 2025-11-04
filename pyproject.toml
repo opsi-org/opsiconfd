@@ -57,6 +57,7 @@ dependencies = [
 	"lxml",
 	"yappi>=1.4; platform_machine == 'x86_64'",
 	"lz4>=4.4.5",
+	"pam>=0.2.0",
 ]
 
 [[project.authors]]

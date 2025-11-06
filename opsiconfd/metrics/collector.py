@@ -182,7 +182,9 @@ class ConfigServerMetricsCollector(MetricsCollector):
 		super().__init__()
 
 		self._labels = {"node_name": config.node_name}
+		self._last_mysql_queries: int | None = None
 		self._mysql: MySQLConnection | None = None
+
 
 	def _get_mysql_connection(self) -> MySQLConnection | None:
 		if self._mysql:
@@ -195,19 +197,48 @@ class ConfigServerMetricsCollector(MetricsCollector):
 			self._mysql = None
 		return None
 
-	def _get_running_mysql_processes(self) -> int:
+	def _get_mysql_metrics(self, queries: bool, processes: bool) -> tuple[int, int]:
+		num_queries = 0
+		num_processes = 0
 		mysql = self._get_mysql_connection()
-		if not mysql:
-			return 0
-		with mysql.session() as session:
-			res = session.execute("SELECT COUNT(*) INFO FROM information_schema.processlist WHERE Command != 'Sleep'").fetchone()
-			return res[0] if res else 0
+		if mysql:
+			with mysql.session() as session:
+				try:
+					if queries:
+						res = session.execute("SHOW STATUS LIKE 'Queries'").fetchone()
+						sum_queries = max(int(res[1] if res else 0), 0)
+						logger.trace("MySQL Queries status: %r", num_queries)
+						if self._last_mysql_queries is None:
+							# First run, just store the value
+							self._last_mysql_queries = sum_queries
+						else:
+							num_queries = max(sum_queries - self._last_mysql_queries, 0)
+							self._last_mysql_queries = sum_queries
+
+					if processes:
+						res = session.execute(
+							"SELECT COUNT(*) FROM information_schema.processlist WHERE user = :username and Command = 'Query'",
+							params={"username": mysql.username},
+						).fetchone()
+						num_processes = max(int(res[0] if res else 0), 0)
+						logger.trace("Running MySQL processes: %r", num_processes)
+
+				except Exception as err:
+					logger.warning("Failed to get MySQL metrics: %s", err)
+		return num_queries, num_processes
+
 
 	async def _fetch_values(self) -> None:
 
-		if "node:avg_mysql_processes" in self._metrics:
-			num_processes = await run_in_threadpool(self._get_running_mysql_processes)
-			await self.add_value("node:avg_mysql_processes", num_processes)
+		mysql_queries = "node:avg_mysql_queries" in self._metrics
+		mysql_processes = "node:avg_mysql_processes" in self._metrics
+		if mysql_processes or mysql_queries:
+			num_queries, num_processes = await run_in_threadpool(self._get_mysql_metrics, mysql_queries, mysql_processes)
+			if mysql_processes:
+				await self.add_value("node:avg_mysql_processes", num_processes)
+			if mysql_queries:
+				await self.add_value("node:avg_mysql_queries", num_queries)
+
 
 class NodeMetricsCollector(MetricsCollector):
 	_metric_type = NodeMetric

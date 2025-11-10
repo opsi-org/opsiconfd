@@ -21,7 +21,7 @@ from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
 EXPECTED_CONF = f"""
 [opsi_depot]
    available = yes
-   comment = opsi depot share (ro)
+   comment = OPSI depot share (ro)
    path = /var/lib/opsi/depot
    follow symlinks = yes
    writeable = no
@@ -30,7 +30,7 @@ EXPECTED_CONF = f"""
 
 [opsi_depot_rw]
    available = yes
-   comment = opsi depot share (rw)
+   comment = OPSI depot share (rw)
    path = /var/lib/opsi/depot
    follow symlinks = yes
    writeable = yes
@@ -41,7 +41,7 @@ EXPECTED_CONF = f"""
 
 [opsi_images]
    available = yes
-   comment = opsi ntfs images share (rw)
+   comment = OPSI ntfs images share (rw)
    path = /var/lib/opsi/ntfs-images
    writeable = yes
    invalid users = root
@@ -50,7 +50,7 @@ EXPECTED_CONF = f"""
 
 [opsi_workbench]
    available = yes
-   comment = opsi workbench
+   comment = OPSI workbench
    path = /var/lib/opsi/workbench
    writeable = yes
    invalid users = root {opsi_config.get("depot_user", "username")}
@@ -60,7 +60,7 @@ EXPECTED_CONF = f"""
 
 [opsi_repository]
    available = yes
-   comment = opsi repository share (ro)
+   comment = OPSI repository share (ro)
    path = /var/lib/opsi/repository
    follow symlinks = yes
    writeable = no
@@ -68,7 +68,7 @@ EXPECTED_CONF = f"""
 
 [opsi_logs]
    available = yes
-   comment = opsi logs share (ro)
+   comment = OPSI logs share (ro)
    path = /var/log/opsi
    follow symlinks = yes
    writeable = no

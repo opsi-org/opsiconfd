@@ -656,7 +656,7 @@ ACL_CONF_41 = """# -*- coding: utf-8 -*-
 #    host_deleteObjects : sys_user(admin,opsiadmin),sys_group(opsiadmins)
 #       allow system users "admin", "opsiadmin" and members of system group "opsiadmins" to delete hosts
 #    product_.* : opsi_client(client1.uib.local),opsi_depotserver
-#       allow access to product objects to opsi client "client1.uib.local" and all OPSI depot servers
+#       allow access to product objects to opsi client "client1.uib.local" and all opsi depot servers
 #    host_getObjects : sys_user(user1,attributes(id,description,notes))
 #       allow partial access to host objects to system user "user1". "user1" is allowed to read object attributes "id", "description", "notes"
 #    host_getObjects : sys_group(group1,attributes(!opsiHostKey))

@@ -18,7 +18,7 @@ from opsiconfd.utils.modules import module_available
 class LdapConnectionCheck(Check):
 	id: str = "ldap_connection"
 	name: str = "LDAP Connection"
-	description: str = "Checks whether opsi can connect to the configured LDAP server."
+	description: str = "Checks whether OPSI can connect to the configured LDAP server."
 	documentation: str = f"""
 		## {name} [{id}]
 

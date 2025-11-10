@@ -34,18 +34,18 @@ from opsiconfd.ssl import (
 @dataclass()
 class OpsiCaCert(Check):
 	id: str = "ssl:opsi_ca_cert"
-	name: str = "opsi CA Certificate"
-	description: str = "Checks the state of the opsi CA certificate."
+	name: str = "OPSI CA Certificate"
+	description: str = "Checks the state of the OPSI CA certificate."
 	documentation: str = f"""
 		## {name} [{id}]
 
-		Checks the state of the opsi CA certificate
+		Checks the state of the OPSI CA certificate
 	"""
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
-			message="The opsi CA certificate is OK.",
+			message="The OPSI CA certificate is OK.",
 			check_status=CheckStatus.OK,
 		)
 		try:
@@ -53,49 +53,49 @@ class OpsiCaCert(Check):
 			not_after_days = get_not_before_and_not_after(ca_cert)[3] or 0
 			if not_after_days <= 0:
 				result.check_status = CheckStatus.ERROR
-				result.message = "The opsi CA certificate is expired."
+				result.message = "The OPSI CA certificate is expired."
 			else:
-				result.message = f"The opsi CA certificate is OK and will expire in {not_after_days} days."
+				result.message = f"The OPSI CA certificate is OK and will expire in {not_after_days} days."
 				if not_after_days <= config.ssl_ca_cert_renew_days - 1:
-					result.message = f"The opsi CA certificate is OK but will expire in {not_after_days} days."
+					result.message = f"The OPSI CA certificate is OK but will expire in {not_after_days} days."
 					result.check_status = CheckStatus.WARNING
 				else:
 					ca_subject = get_opsi_ca_subject()
 					current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
-					if ca_subject != current_ca_subject:
+					if ca_subject.lower() != current_ca_subject.lower():
 						result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."
 						result.check_status = CheckStatus.WARNING
 		except Exception as err:
 			result.check_status = CheckStatus.ERROR
-			result.message = f"A problem was found with the opsi CA certificate: {err}."
+			result.message = f"A problem was found with the OPSI CA certificate: {err}."
 		return result
 
 
 @dataclass()
 class IntermediateCACheck(Check):
 	id: str = "ssl:intermediate_ca"
-	name: str = "opsi CA as intermediate CA"
-	description: str = "Checks if the opsi CA is an intermediate CA."
+	name: str = "OPSI CA as intermediate CA"
+	description: str = "Checks if the OPSI CA is an intermediate CA."
 	documentation: str = f"""
 		## {name} [{id}]
 
-		Checks if the opsi CA is an intermediate CA.
+		Checks if the OPSI CA is an intermediate CA.
 	"""
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
-			message="The opsi CA is not a intermediate CA.",
+			message="The OPSI CA is not a intermediate CA.",
 		)
 		ca_cert = load_opsi_ca_cert()
 		if ca_cert and not opsi_ca_is_self_signed():
-			result.message = "The opsi CA is a functional intermediate CA."
+			result.message = "The OPSI CA is a functional intermediate CA."
 			try:
 				check_intermediate_ca(ca_cert)
 			except Exception as err:
 				result.check_status = CheckStatus.ERROR
-				result.message = f"The opsi CA is an intermediate CA and a problem has been found: {err}"
+				result.message = f"The OPSI CA is an intermediate CA and a problem has been found: {err}"
 
 		return result
 
@@ -103,12 +103,12 @@ class IntermediateCACheck(Check):
 @dataclass()
 class OpsiCaKeyCheck(Check):
 	id: str = "ssl:opsi_ca_key"
-	name: str = "opsi CA Key"
-	description: str = "Checks the state of the opsi CA key."
+	name: str = "OPSI CA Key"
+	description: str = "Checks the state of the OPSI CA key."
 	documentation: str = f"""
 		## {name} [{id}]
 
-		Checks the state of the opsi CA key.
+		Checks the state of the OPSI CA key.
 	"""
 	depot_check: bool = False
 
@@ -117,19 +117,19 @@ class OpsiCaKeyCheck(Check):
 			return CheckResult(
 				check=self,
 				check_status=CheckStatus.OK,
-				message="opsi CA key is not required on a depotserver.",
+				message="OPSI CA key is not required on a depotserver.",
 			)
 
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
-			message="The opsi CA key is OK.",
+			message="The OPSI CA key is OK.",
 		)
 		try:
 			load_opsi_ca_key()
 		except Exception as err:
 			result.check_status = CheckStatus.ERROR
-			result.message = f"A problem was found with the opsi CA key: {err}."
+			result.message = f"A problem was found with the OPSI CA key: {err}."
 
 		return result
 
@@ -202,7 +202,7 @@ class ServerKeyCheck(Check):
 				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 				if not isinstance(cert_cn, str):
 					cert_cn = cert_cn.decode("utf-8")
-				if server_cn != cert_cn:
+				if server_cn.lower() != cert_cn.lower():
 					result.check_status = CheckStatus.ERROR
 					result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
 				elif ca_certs:
@@ -221,11 +221,11 @@ class ServerKeyCheck(Check):
 class SSLCheck(Check):
 	id: str = "ssl"
 	name: str = "SSL"
-	description: str = "Checks the state of the opsi CA and the server certificate."
+	description: str = "Checks the state of the OPSI CA and the server certificate."
 	documentation: str = f"""
 		## {name} [{id}]
 
-		Checks the state of the opsi CA and the server certificate.
+		Checks the state of the OPSI CA and the server certificate.
 	"""
 	depot_check: bool = True
 

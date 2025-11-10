@@ -448,7 +448,7 @@ class Manager(metaclass=Singleton):
 				try:
 					await register_opsi_services()
 				except Exception as err:
-					logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
+					logger.error("Failed to register OPSI service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
 			try:
@@ -479,6 +479,6 @@ class Manager(metaclass=Singleton):
 			try:
 				await unregister_opsi_services()
 			except Exception as err:
-				logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
+				logger.error("Failed to unregister OPSI service via zeroconf: %s", err, exc_info=True)
 
 		self._async_main_stopped.set()

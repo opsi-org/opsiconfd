@@ -160,7 +160,7 @@ REPO_DATA = """{
         "priority": 95,
         "product_dependencies": [],
         "package_dependencies": [],
-        "description": "opsi windows client agent",
+        "description": "OPSI windows client agent",
         "compatibility": [
           {
             "os": "windows",
@@ -193,7 +193,7 @@ REPO_DATA = """{
         "priority": 0,
         "product_dependencies": [],
         "package_dependencies": [],
-        "description": "The opsi-script script interpreter of the opsi client agent",
+        "description": "The opsi-script script interpreter of the OPSI client agent",
         "compatibility": [
           {
             "os": "windows",

@@ -274,21 +274,21 @@ class CheckResult:
 
 	def to_checkmk(self) -> str:
 		if not check_monitoring_module():
-			return "Monitoring module not licensed, Checkmk output not available. Please check your opsi licenses."
+			return "Monitoring module not licensed, Checkmk output not available. Please check your OPSI licenses."
 
 		prefix = f"{self.check_status.checkmk_status()} 'opsi: {self.check.name}' - "
 		return self.monitoring_details(prefix)
 
 	def to_nagios(self) -> str:
 		if not check_monitoring_module():
-			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
+			return "Monitoring module not licensed, Nagios output not available. Please check your OPSI licenses."
 
 		prefix = f"{self.check_status.nagios_status()}: {self.check.name}: "
 		return self.monitoring_details(prefix)
 
 	def to_zabbix(self) -> str:
 		if not check_monitoring_module():
-			return "Monitoring module not licensed, Nagios output not available. Please check your opsi licenses."
+			return "Monitoring module not licensed, Nagios output not available. Please check your OPSI licenses."
 
 		prefix = f"{self.check_status.nagios_status()}: {self.check.name}: "
 		return self.monitoring_details(prefix, newline="\n")

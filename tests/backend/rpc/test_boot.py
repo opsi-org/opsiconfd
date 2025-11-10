@@ -42,7 +42,7 @@ def test_boot_getConfig(
 		[
 			UnicodeConfig(
 				id="clientconfig.configserver.url",
-				description="URL(s) of opsi config service(s) to use",
+				description="URL(s) of OPSI config service(s) to use",
 				possibleValues=["https://opsiservice.opsi.test:4447/rpc"],
 				defaultValues=["https://opsiservice.opsi.test:4447/rpc"],
 				editable=True,

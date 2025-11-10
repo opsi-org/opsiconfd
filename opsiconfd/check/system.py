@@ -494,7 +494,7 @@ class SystemRepositoriesCheck(Check):
 						break
 					else:
 						result.check_status = CheckStatus.ERROR
-						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split()[1]}"
+						result.message = f"System and OPSI repositories are incompatible. System '{distro} {version}' using repository: {line.split()[1]}"
 
 		elif distro in ("almalinux", "centos", "rocky", "rhel", "ol"):
 			if distro in ("rocky", "ol"):
@@ -518,7 +518,7 @@ class SystemRepositoriesCheck(Check):
 					else:
 						result.check_status = CheckStatus.ERROR
 						result.message = (
-							f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line}"
+							f"System and OPSI repositories are incompatible. System '{distro} {version}' using repository: {line}"
 						)
 		elif distro in ("opensuse-leap", "sles"):
 			cmd = ["zypper", "repos", "-E"]
@@ -539,7 +539,7 @@ class SystemRepositoriesCheck(Check):
 						break
 					else:
 						result.check_status = CheckStatus.ERROR
-						result.message = f"System and opsi repositories are incompatible. System '{distro} {version}' using repository: {line.split('|')[2].strip()}"
+						result.message = f"System and OPSI repositories are incompatible. System '{distro} {version}' using repository: {line.split('|')[2].strip()}"
 		else:
 			result.check_status = CheckStatus.ERROR
 			result.message = "Could not determine system distribution."

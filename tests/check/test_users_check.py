@@ -112,7 +112,7 @@ def test_check_opsi_users(tmp_path: Path) -> None:
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "1 issue(s) found."
 		assert (
-			"opsi user 'opsiconfd' has a non existing home directory configured: '/non/existing/home/dir'"
+			"OPSI user 'opsiconfd' has a non existing home directory configured: '/non/existing/home/dir'"
 			in result.partial_results[1].message
 		)
 
@@ -133,7 +133,7 @@ def test_check_opsi_users(tmp_path: Path) -> None:
 		result = check_manager.get("opsi_users").run(clear_cache=True)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "1 issue(s) found."
-		assert "opsi user 'opsiconfd' cannot access its home directory" in result.partial_results[1].message
+		assert "OPSI user 'opsiconfd' cannot access its home directory" in result.partial_results[1].message
 
 	# Check for missing user
 	with get_opsi_config([{"category": "depot_user", "config": "username", "value": "pcpatch-local"}]):

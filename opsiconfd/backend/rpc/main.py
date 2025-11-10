@@ -347,7 +347,7 @@ class Backend(
 			return
 		if not self._module_available(module):
 			raise BackendModuleDisabledError(
-				f"This feature is not available, the module {module!r} must be licensed. Please check your opsi licenses."
+				f"This feature is not available, the module {module!r} must be licensed. Please check your OPSI licenses."
 			)
 
 	def _get_responsible_depot_id(self, client_id: str) -> str | None:

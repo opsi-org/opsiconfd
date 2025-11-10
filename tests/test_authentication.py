@@ -859,9 +859,10 @@ test_urls = (
 		("4.3.0.0", None, 200, ""),
 		(None, "opsi config editor 4.2.0.0", 200, ""),
 		("4.3.0.1", "opsi config editor 4.3.0.1", 200, ""),
-		("4.3.0.1", "opsi config editor 4.3.1.0", 200, ""),
+		("4.3.0.1", "OPSI config editor 4.3.1.0", 200, ""),
 		("4.3.0.1", "opsi config editor 4.4.0.0", 200, ""),
 		("4.3.0.0", "opsi config editor 4.2.0.0", 426, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
+		("4.3.0.0", "OPSI config editor 4.2.0.0", 426, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
 	),
 )
 def test_min_configed_version(
@@ -885,7 +886,7 @@ def test_min_configed_version(
 	"allowed_user_agents, user_agent, status_code, response_text_match",
 	(
 		([], "opsiclientd 4.3.20.0", 200, ""),
-		(["opsi config editor", "opsiclientd"], "opsiclientd 4.3.20.0", 200, ""),
+		(["OPSI config editor", "opsiclientd"], "opsiclientd 4.3.20.0", 200, ""),
 		(["opsi config editor", "opsiclientd"], "opsi config editor 4.3.10.0", 200, ""),
 		(
 			["opsi config editor", "opsiclientd"],

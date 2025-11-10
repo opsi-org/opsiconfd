@@ -15,8 +15,8 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 
-from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
 from opsiconfd.config import opsi_config
+from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
 
 EXPECTED_CONF = f"""
 [opsi_depot]
@@ -117,7 +117,7 @@ def test_setup_samba_keep_settings(tmp_path: Path) -> None:
 		"[opsi_depot]\n"
 		"  available = yes\n"
 		"  directory mask = 0777\n"
-		"  comment = opsi depot share (ro)\n"
+		"  comment = OPSI depot share (ro)\n"
 		"  path = /var/lib/opsi/depot\n"
 		"  follow symlinks = no\n"
 		"  writeable = no\n"

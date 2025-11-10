@@ -346,7 +346,7 @@ function updateMultiFactorAuth(userId, type) {
 			html += "<p>Your multi-factor secret has been changed.<br>";
 			html += "Please use an app like Google Authenticator and scan the QR code displayed.<br>"
 			html += "The app will then generate a new one-time password every 30 seconds.<br>"
-			html += "Without this password you will not be able to log in to the opsi server anymore.</p>"
+			html += "Without this password you will not be able to log in to the OPSI server anymore.</p>"
 			html += '<button onClick="clearMFAQRCode();">All done, hide instructions and QR code.</button>';
 			document.getElementById("mfa-instructions").innerHTML = html;
 		}

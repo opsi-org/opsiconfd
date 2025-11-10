@@ -97,7 +97,7 @@ def opsiconfd_main() -> None:
 		try:
 			opsi_config.read_config_file()
 		except ValueError as err:
-			logger.error("Failed to read opsi config file (%s): %s", opsi_config.config_file, err)
+			logger.error("Failed to read OPSI config file (%s): %s", opsi_config.config_file, err)
 			sys.exit(1)
 
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)

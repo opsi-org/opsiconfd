@@ -51,8 +51,8 @@ def test_check_ssl(tmpdir: Path) -> None:
 		result = check_manager.get("ssl").run(clear_cache=True)
 		assert result.check_status == CheckStatus.ERROR
 		assert result.message == "5 issue(s) found."
-		assert result.partial_results[0].message.startswith("A problem was found with the opsi CA certificate")
-		assert result.partial_results[2].message.startswith("A problem was found with the opsi CA key")
+		assert result.partial_results[0].message.startswith("A problem was found with the OPSI CA certificate")
+		assert result.partial_results[2].message.startswith("A problem was found with the OPSI CA key")
 		assert result.partial_results[3].message.startswith("A problem was found with the server certificate")
 		assert result.partial_results[4].message.startswith("A problem was found with the server key")
 
@@ -71,11 +71,11 @@ def test_check_ssl(tmpdir: Path) -> None:
 		assert result.message == "No SSL issues found."
 		assert (
 			result.partial_results[0].message
-			== f"The opsi CA certificate is OK and will expire in {config.ssl_ca_cert_valid_days + 9} days."
+			== f"The OPSI CA certificate is OK and will expire in {config.ssl_ca_cert_valid_days + 9} days."
 		)
 		assert result.partial_results[1].check_status == CheckStatus.OK
-		assert result.partial_results[1].message == "The opsi CA is not a intermediate CA."
-		assert result.partial_results[2].message == "The opsi CA key is OK."
+		assert result.partial_results[1].message == "The OPSI CA is not a intermediate CA."
+		assert result.partial_results[2].message == "The OPSI CA key is OK."
 
 		with mock.patch(
 			"opsiconfd.check.ssl.get_opsi_ca_subject",
@@ -102,7 +102,7 @@ def test_check_ssl(tmpdir: Path) -> None:
 		assert result.check_status == CheckStatus.ERROR
 		assert (
 			result.partial_results[0].message
-			== f"The opsi CA certificate is OK but will expire in {config.ssl_ca_cert_renew_days - 11} days."
+			== f"The OPSI CA certificate is OK but will expire in {config.ssl_ca_cert_renew_days - 11} days."
 		)
 		assert result.partial_results[4].check_status == CheckStatus.ERROR
 		assert result.partial_results[4].message == "Failed to verify server cert with CA certs."

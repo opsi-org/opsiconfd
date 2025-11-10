@@ -251,7 +251,7 @@ class OpsiconfdConfigCheck(Check):
 class OpsiConfigValueCheck(Check):
 	id: str = "opsi_config_value"
 	name: str = "OPSI Configuration Value"
-	description: str = "Check opsi configuration value"
+	description: str = "Check OPSI configuration value"
 	key: str = ""
 	default_value: Any = None
 	upgrade_issue: str = ""
@@ -288,7 +288,7 @@ class OpsiConfigValueCheck(Check):
 class OpsiConfigCheck(Check):
 	id: str = "opsi_config"
 	name: str = "OPSI Configuration"
-	description: str = "Check opsi configuration state"
+	description: str = "Check OPSI configuration state"
 	documentation: str = f"""
 		## {name} [{id}]
 
@@ -303,7 +303,7 @@ class OpsiConfigCheck(Check):
 		result = CheckResult(
 			check=self,
 			check_status=CheckStatus.OK,
-			message="No issues found in the opsi configuration.",
+			message="No issues found in the OPSI configuration.",
 		)
 
 		return result

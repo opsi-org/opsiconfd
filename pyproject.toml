@@ -1,7 +1,7 @@
 [project]
 name = "opsiconfd"
 version = "4.3.44.1"
-description = "opsi configuration service"
+description = "OPSI configuration service"
 readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"

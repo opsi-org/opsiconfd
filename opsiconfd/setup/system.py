@@ -178,20 +178,20 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	try:
 		grp.getgrnam(admingroup)
 	except KeyError:
-		create_ucs_group(admingroup, "opsi admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+		create_ucs_group(admingroup, "OPSI admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
 	try:
 		grp.getgrnam(fileadmingroup)
 	except KeyError:
-		create_ucs_group(fileadmingroup, "opsi fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+		create_ucs_group(fileadmingroup, "OPSI fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
 	try:
 		grp.getgrnam(depot_user)
 	except KeyError:
-		create_ucs_user(depot_user, "opsi depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
+		create_ucs_user(depot_user, "OPSI depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
 	try:
 		grp.getgrnam(opsiconfd_user)
 	except KeyError:
 		create_ucs_user(
-			opsiconfd_user, "opsi configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password
+			opsiconfd_user, "OPSI configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password
 		)
 	return True
 

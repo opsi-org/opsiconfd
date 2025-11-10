@@ -157,7 +157,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 				if unattended_configuration:
 					server_address = unattended_configuration["configserver"]
 				else:
-					server_address = Prompt.ask("Enter opsi server address or service url", default=hostname or "", show_default=True)
+					server_address = Prompt.ask("Enter OPSI server address or service url", default=hostname or "", show_default=True)
 				if not server_address:
 					raise ValueError(f"Invalid address {server_address!r}")
 				service.set_addresses(server_address)
@@ -179,7 +179,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 			except Exception as err:
 				if unattended_configuration:
 					raise
-				rich_print(f"[b][red]Failed to connect to opsi service[/red]: {err}[/b]")
+				rich_print(f"[b][red]Failed to connect to OPSI Service[/red]: {err}[/b]")
 
 		depot = OpsiDepotserver(id=opsi_config.get("host", "id"))
 		while True:

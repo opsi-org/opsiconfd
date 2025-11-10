@@ -221,7 +221,7 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 			if res == 0:
 				session.execute(
 					"INSERT INTO CONFIG (configId, `type`, description, multiValue, editable) VALUES "
-					'("clientconfig.depot.id", "UnicodeConfig", "ID of the opsi depot to use", 0, 1);'
+					'("clientconfig.depot.id", "UnicodeConfig", "ID of the OPSI depot to use", 0, 1);'
 				)
 
 				session.execute(

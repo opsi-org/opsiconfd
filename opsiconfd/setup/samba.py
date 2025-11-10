@@ -1,4 +1,4 @@
-# opsiconfd is part of the device management solution opsi http://www.opsi.org
+# opsiconfd is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2008-2025 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -25,7 +25,7 @@ from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
 SHARES = {
 	"opsi_depot": {
 		"available": "yes",
-		"comment": "opsi depot share (ro)",
+		"comment": "OPSI depot share (ro)",
 		"path": "/var/lib/opsi/depot",
 		"follow symlinks": "yes",
 		"writeable": "no",
@@ -34,7 +34,7 @@ SHARES = {
 	},
 	"opsi_depot_rw": {
 		"available": "yes",
-		"comment": "opsi depot share (rw)",
+		"comment": "OPSI depot share (rw)",
 		"path": "/var/lib/opsi/depot",
 		"follow symlinks": "yes",
 		"writeable": "yes",
@@ -45,7 +45,7 @@ SHARES = {
 	},
 	"opsi_images": {
 		"available": "yes",
-		"comment": "opsi ntfs images share (rw)",
+		"comment": "OPSI ntfs images share (rw)",
 		"path": "/var/lib/opsi/ntfs-images",
 		"writeable": "yes",
 		"invalid users": "root",
@@ -54,7 +54,7 @@ SHARES = {
 	},
 	"opsi_workbench": {
 		"available": "yes",
-		"comment": "opsi workbench",
+		"comment": "OPSI workbench",
 		"path": "/var/lib/opsi/workbench",
 		"writeable": "yes",
 		"invalid users": f"root {opsi_config.get('depot_user', 'username')}",
@@ -64,7 +64,7 @@ SHARES = {
 	},
 	"opsi_repository": {
 		"available": "yes",
-		"comment": "opsi repository share (ro)",
+		"comment": "OPSI repository share (ro)",
 		"path": "/var/lib/opsi/repository",
 		"follow symlinks": "yes",
 		"writeable": "no",
@@ -72,7 +72,7 @@ SHARES = {
 	},
 	"opsi_logs": {
 		"available": "yes",
-		"comment": "opsi logs share (ro)",
+		"comment": "OPSI logs share (ro)",
 		"path": "/var/log/opsi",
 		"follow symlinks": "yes",
 		"writeable": "no",

@@ -1002,14 +1002,15 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-ca-subject-cn",
 			env_var="OPSICONFD_SSL_CA_SUBJECT_CN",
+			# Do not change to OPSI CA to keep backward compatibility
 			default="opsi CA",
-			help=self._help("opsiconfd", "The common name to use in the opsi CA subject."),
+			help=self._help("opsiconfd", "The common name to use in the OPSI CA subject."),
 		)
 		self._parser.add(
 			"--ssl-ca-key",
 			env_var="OPSICONFD_SSL_CA_KEY",
 			default="/etc/opsi/ssl/opsi-ca-key.pem",
-			help=self._help("expert", "The location of the opsi ssl ca key."),
+			help=self._help("expert", "The location of the OPSI ssl ca key."),
 		)
 		self._parser.add(
 			"--ssl-ca-key-passphrase",
@@ -1021,14 +1022,14 @@ class Config(metaclass=Singleton):
 			"--ssl-ca-cert",
 			env_var="OPSICONFD_SSL_CA_CERT",
 			default="/etc/opsi/ssl/opsi-ca-cert.pem",
-			help=self._help("expert", "The location of the opsi ssl ca certificate."),
+			help=self._help("expert", "The location of the OPSI ssl ca certificate."),
 		)
 		self._parser.add(
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
 			type=int,
 			default=730,
-			help=self._help("expert", "The period of validity of the opsi ssl ca certificate in days."),
+			help=self._help("expert", "The period of validity of the OPSI ssl ca certificate in days."),
 		)
 		self._parser.add(
 			"--ssl-ca-cert-renew-days",
@@ -1052,7 +1053,7 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"expert",
 				"The type of the server certificate.\n"
-				"opsi-ca: Automatically managed and signed by the opsi CA\n"
+				"opsi-ca: Automatically managed and signed by the OPSI CA\n"
 				"letsencrypt: Automatically managed Let's Encrypt certificate\n"
 				"custom-ca: Use custom certificates.",
 			),
@@ -1121,7 +1122,7 @@ class Config(metaclass=Singleton):
 			nargs="+",
 			env_var="OPSICONFD_SSL_SERVER_CERT_SANS",
 			default=[],
-			help=self._help("opsiconfd", "Subject alternative names for the opsi server certificate."),
+			help=self._help("opsiconfd", "Subject alternative names for the OPSI server certificate."),
 		)
 		self._parser.add(
 			"--ssl-client-cert-valid-days",
@@ -1149,7 +1150,7 @@ class Config(metaclass=Singleton):
 			default=True,
 			help=self._help(
 				"opsiconfd",
-				"If enabled, a client's ip address will be updated in the opsi database, "
+				"If enabled, a client's ip address will be updated in the OPSI database, "
 				"when the client connects to the service and authentication is successful.",
 			),
 		)
@@ -1294,7 +1295,7 @@ class Config(metaclass=Singleton):
 			nargs="+",
 			env_var="OPSICONFD_SAML_ROLE_GROUP_MAPPINGS",
 			default=[],
-			help=self._help("opsiconfd", "Map SAML roles to opsi groups (<role> = <group>)."),
+			help=self._help("opsiconfd", "Map SAML roles to OPSI groups (<role> = <group>)."),
 		)
 		self._parser.add(
 			"--saml-slo",

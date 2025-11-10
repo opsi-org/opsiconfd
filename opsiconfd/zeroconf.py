@@ -72,7 +72,7 @@ async def register_opsi_services() -> None:
 
 	_info = ServiceInfo(
 		"_opsics._tcp.local.",
-		"opsi config service._opsics._tcp.local.",
+		"OPSI config service._opsics._tcp.local.",
 		address=address.packed if address else None,
 		address6=address6.packed if address6 else None,
 		port=config.port,

@@ -47,13 +47,13 @@
 	"inputs": [
 		{
 			"id": "opsi-backup",
-			"description": "opsi backup file to use.",
+			"description": "OPSI backup file to use.",
 			"default": "opsibackups/dev-backup.tar.bz2",
 			"type": "promptString"
 		},
 		{
 			"id": "opsi-backends",
-			"description": "opsi backend to use.",
+			"description": "OPSI backend to use.",
 			"default": "mysql",
 			"type": "promptString"
 		},

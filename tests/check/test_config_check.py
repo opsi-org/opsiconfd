@@ -129,7 +129,7 @@ def test_check_opsi_config(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 
 	result = check_manager.get("opsi_config").run(clear_cache=True)
 	assert result.check_status == CheckStatus.OK
-	assert result.message == "No issues found in the opsi configuration."
+	assert result.message == "No issues found in the OPSI configuration."
 	assert len(result.partial_results) == 1
 	partial_result = result.partial_results[0]
 	assert partial_result.message == "Configuration opsiclientd.global.verify_server_cert is set to default."

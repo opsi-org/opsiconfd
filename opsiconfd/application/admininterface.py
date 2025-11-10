@@ -752,10 +752,10 @@ async def license_upload(files: list[UploadFile]) -> RESTResponse:
 			olf.read_string((await file.read()).decode("utf-8"))  # type: ignore[union-attr]
 			if not olf.licenses:
 				raise ValueError(f"No license found in {file.filename!r}")
-			logger.notice("Writing opsi license file %r", olf.filename)
+			logger.notice("Writing OPSI license file %r", olf.filename)
 			olf.write()
 			os.chmod(olf.filename, 0o660)
-		return RESTResponse(data=f"{len(files)} opsi license files imported", http_status=status.HTTP_201_CREATED)
+		return RESTResponse(data=f"{len(files)} OPSI license files imported", http_status=status.HTTP_201_CREATED)
 	except Exception as err:
 		logger.warning(err, exc_info=True)
 		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_CONTENT, message="Invalid license file.", details=err)

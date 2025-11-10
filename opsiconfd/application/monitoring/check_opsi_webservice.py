@@ -100,7 +100,7 @@ async def check_opsi_webservice(
 			message.append(f"CPU-Usage over {cpu_thresholds.get('warning')}%")
 
 		if state == State.OK:
-			message.append("Opsi Webservice has no Problem.")
+			message.append("OPSI Webservice has no Problem.")
 
 		message_str = " ".join(message)
 

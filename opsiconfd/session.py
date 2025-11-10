@@ -1160,18 +1160,18 @@ async def authenticate_host(scope: Scope) -> None:
 	auth_method = None
 	if config.allow_host_key_only_auth:
 		session.username = "<host-key-only-auth>"
-		logger.debug("Trying to authenticate host by opsi host key only")
+		logger.debug("Trying to authenticate host by OPSI host key only")
 		host_filter["opsiHostKey"] = session.password
 	elif session.username.startswith("{hardware_address}") or HARDWARE_ADDRESS_RE.search(session.username):
-		logger.debug("Trying to authenticate host by mac address and opsi host key")
+		logger.debug("Trying to authenticate host by mac address and OPSI host key")
 		host_filter["hardwareAddress"] = forceHardwareAddress(session.username.replace("{hardware_address}", ""))
 		auth_method = AuthenticationMethod.HARDWARE_ADDRESS
 	elif session.username.startswith("{system_uuid}"):
-		logger.debug("Trying to authenticate host by system UUID and opsi host key")
+		logger.debug("Trying to authenticate host by system UUID and OPSI host key")
 		host_filter["systemUUID"] = forceUUIDString(session.username.replace("{system_uuid}", ""))
 		auth_method = AuthenticationMethod.SYSTEM_UUID
 	else:
-		logger.debug("Trying to authenticate host by host id and opsi host key")
+		logger.debug("Trying to authenticate host by host id and OPSI host key")
 		session.username = session.username.rstrip(".")
 		host_filter["id"] = session.username
 		auth_method = AuthenticationMethod.HOST_ID
@@ -1260,7 +1260,7 @@ async def authenticate_host(scope: Scope) -> None:
 
 async def authenticate_user_passwd(scope: Scope) -> None:
 	if "opsi_passwd" in config.disabled_auth_methods:
-		raise OpsiServiceAuthenticationError("opsi passwd authentication is disabled")
+		raise OpsiServiceAuthenticationError("OPSI passwd authentication is disabled")
 
 	session: OPSISession = scope["session"]
 	credentials = await run_in_threadpool(user_get_credentials, session.username)
@@ -1538,7 +1538,7 @@ async def check_user_agent(user_agent: str) -> None:
 	if config.allowed_user_agents and not any(pattern in user_agent for pattern in config.allowed_user_agents):
 		raise ConnectionRefusedError(f"User-Agent '{user_agent}' is not allowed to connect")
 
-	if not config.min_configed_version or not user_agent or "opsi config editor" not in user_agent:
+	if not config.min_configed_version or not user_agent or "OPSI config editor" not in user_agent:
 		return
 
 	configed_version = None

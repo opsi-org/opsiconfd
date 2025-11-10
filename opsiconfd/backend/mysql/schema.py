@@ -742,7 +742,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				logger.info("Database schema is up-to-date")
 				return
 
-		logger.info("Running opsi 4.1 updates")
+		logger.info("Running OPSI 4.1 updates")
 
 		if "BOOT_CONFIGURATION" in mysql.tables:
 			logger.info("Dropping table BOOT_CONFIGURATION")
@@ -772,13 +772,13 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 			columns=["productId"],
 		)
 
-		logger.info("Running opsi 4.2 updates")
+		logger.info("Running OPSI 4.2 updates")
 
 		if mysql.tables["HOST"]["ipAddress"]["type"] != "varchar(255)":
 			logger.info("Changing size of column 'ipAddress' on table HOST")
 			session.execute("ALTER TABLE `HOST` MODIFY COLUMN `ipAddress` varchar(255)")
 
-		logger.info("Running opsi 4.3 updates")
+		logger.info("Running OPSI 4.3 updates")
 
 		for row in session.execute(
 			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM `INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` LIKE :database",

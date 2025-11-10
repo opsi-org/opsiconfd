@@ -154,7 +154,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="clientconfig.configserver.url",
-				description="URL(s) of opsi config service(s) to use",
+				description="URL(s) of OPSI config service(s) to use",
 				possibleValues=possible_values,
 				defaultValues=default_values,
 				editable=True,
@@ -166,7 +166,7 @@ def setup_configs() -> None:
 	add_configs.append(
 		UnicodeConfig(
 			id="clientconfig.depot.id",
-			description="ID of the opsi depot to use",
+			description="ID of the OPSI depot to use",
 			possibleValues=depot_ids,
 			defaultValues=[get_configserver_id()],
 			editable=False,
@@ -294,7 +294,7 @@ def setup_configs() -> None:
 	if "opsiclientd.global.verify_server_cert" not in config_ids:
 		logger.info("Creating config 'opsiclientd.global.verify_server_cert'")
 		add_configs.append(
-			BoolConfig(id="opsiclientd.global.verify_server_cert", description="Verify opsi server TLS certificates", defaultValues=[True])
+			BoolConfig(id="opsiclientd.global.verify_server_cert", description="Verify OPSI server TLS certificates", defaultValues=[True])
 		)
 
 	if "opsiclientd.global.install_opsi_ca_into_os_store" not in config_ids:
@@ -302,7 +302,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			BoolConfig(
 				id="opsiclientd.global.install_opsi_ca_into_os_store",
-				description="Automatically install opsi CA into operating systems certificate store",
+				description="Automatically install OPSI CA into operating systems certificate store",
 				defaultValues=[True],
 			)
 		)
@@ -342,7 +342,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			BoolConfig(
 				id="opsiclientd.config_service.permanent_connection",
-				description="Client should keep a permanent connection to the opsi messagebus",
+				description="Client should keep a permanent connection to the OPSI messagebus",
 				defaultValues=[True],
 			)
 		)
@@ -501,7 +501,7 @@ def setup_configs() -> None:
 		)
 
 	description = (
-		"When a device is set to boot from the opsi server (PXE), it loads the GRUB bootloader provided by the server. \n"
+		"When a device is set to boot from the OPSI server (PXE), it loads the GRUB bootloader provided by the server. \n"
 		"If no action is set for a netboot product, the device will display a boot menu. \n"
 		"This boot menu will include these additional entries alongside the default options. \n"
 		"Currently, these menu entries can only be configured at the depot server level, not individually per device."
@@ -611,7 +611,7 @@ def setup_configs() -> None:
 		)
 
 	description = (
-		"Specifies the opsi log level for the bootimage. \n"
+		"Specifies the OPSI log level for the bootimage. \n"
 		"0 (NONE):         Logging disabled \n"
 		"1 (ESSENTIAL):    Essential messages \n"
 		"2 (CRITICAL):     Critical conditions \n"
@@ -661,7 +661,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.opsi_ui",
-				description="Choose to show either the opsi TUI or only opsi messages on the splash screen.",
+				description="Choose to show either the OPSI TUI or only OPSI messages on the splash screen.",
 				possibleValues=["splash", "tui"],
 				defaultValues=["tui"],
 				editable=False,
@@ -674,7 +674,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.tz",
-				description=("Timezone to use for the opsi Linux bootimage."),
+				description=("Timezone to use for the OPSI Linux bootimage."),
 				possibleValues=["UTC", "Europe/Berlin", "America/New_York", "Asia/Tokyo"],
 				defaultValues=["UTC"],
 				editable=True,
@@ -687,7 +687,7 @@ def setup_configs() -> None:
 		add_configs.append(
 			UnicodeConfig(
 				id="netboot.linux-bootimage.cmdline.lang",
-				description=("Locale to use for the opsi Linux bootimage."),
+				description=("Locale to use for the OPSI Linux bootimage."),
 				possibleValues=["en_US", "de_DE", "fr_FR"],
 				defaultValues=["en_US"],
 				editable=True,

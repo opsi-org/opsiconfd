@@ -1538,7 +1538,7 @@ async def check_user_agent(user_agent: str) -> None:
 	if config.allowed_user_agents and not any(pattern in user_agent for pattern in config.allowed_user_agents):
 		raise ConnectionRefusedError(f"User-Agent '{user_agent}' is not allowed to connect")
 
-	if not config.min_configed_version or not user_agent or "OPSI config editor" not in user_agent:
+	if not config.min_configed_version or not user_agent or "opsi config editor" not in user_agent.lower():
 		return
 
 	configed_version = None

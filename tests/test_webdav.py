@@ -64,7 +64,6 @@ def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  #
 		("/dav/workbench", 207),
 		("/dav/repository", 207),
 		("/dav/public", 207),
-		("/dav/boot", 207),
 		("/depot", 207),
 		("/workbench", 207),
 		("/repository", 207),

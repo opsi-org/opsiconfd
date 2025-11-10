@@ -29,7 +29,6 @@ from opsiconfd.worker import Worker
 PATH_MAPPINGS = {
 	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
 	"/dav": "/dav/",
-	"/boot": "/boot/",
 	"/depot": "/depot/",
 	"/public": "/public/",
 	"/repository": "/repository/",
@@ -181,13 +180,6 @@ class BaseMiddleware:
 			self.before_send(scope, receive, send)
 
 			if "headers" in message:
-				if scope["path"]:
-					if scope["path"].startswith("/public/boot") and scope["request_headers"].get("user-agent", "").startswith(
-						"UefiHttpBoot"
-					):
-						# Grub 2.06 needs titled headers (Content-Length instead of content-length)
-						message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
-
 				dat = get_server_date()
 				message["headers"].append((b"date", dat[1]))
 				message["headers"].append((b"x-date-unix-timestamp", dat[0]))

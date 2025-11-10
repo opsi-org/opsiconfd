@@ -221,7 +221,7 @@ class SessionMiddleware:
 			if (
 				required_access_role != ACCESS_ROLE_PUBLIC
 				and path.startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer", "/auth"))
-				or (path.startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+				or (path.startswith(("/depot",)) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 			):
 				required_access_role = ACCESS_ROLE_AUTHENTICATED
 			scope["required_access_role"] = required_access_role

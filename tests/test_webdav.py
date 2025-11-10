@@ -69,7 +69,6 @@ def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  #
 		("/workbench", 207),
 		("/repository", 207),
 		("/public", 207),
-		("/boot", 207),
 		("/", 405),
 		("/static", 405),
 	),
@@ -306,7 +305,6 @@ def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # noq
 	res = test_client.get(url="/dav")
 	assert res.status_code == 200
 
-	assert "/boot" in res.text
 	assert "/depot" in res.text
 	assert "/public" in res.text
 	assert "/repository" in res.text

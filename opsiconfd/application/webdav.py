@@ -25,7 +25,6 @@ from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
 from opsiconfd import __version__
 from opsiconfd.config import (
-	BOOT_DIR,
 	DEPOT_DIR,
 	PUBLIC_DIR,
 	REPOSITORY_DIR,
@@ -255,17 +254,6 @@ def webdav_setup(app: FastAPI) -> None:
 			filesystems["public"] = {"path": path, "ignore_case": False, "read_only": True}
 		except Exception as exc:
 			logger.error(exc, exc_info=True)
-
-	if os.path.isdir(BOOT_DIR):
-		try:
-			path = BOOT_DIR
-			logger.info("Running on depot server %r, exporting boot directory %r", depot_id, path)
-			if not os.access(path, os.R_OK | os.X_OK):
-				raise RuntimeError(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
-
-			filesystems["boot"] = {"path": path, "ignore_case": True, "read_only": True}
-		except Exception as err:
-			logger.error(err, exc_info=True)
 
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()

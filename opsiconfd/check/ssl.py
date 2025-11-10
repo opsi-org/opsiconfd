@@ -62,7 +62,7 @@ class OpsiCaCert(Check):
 				else:
 					ca_subject = get_opsi_ca_subject()
 					current_ca_subject = x509_name_to_dict(load_opsi_ca_cert().subject)
-					if ca_subject.lower() != current_ca_subject.lower():
+					if ca_subject != current_ca_subject:
 						result.message = f"The subject of the CA has changed from {current_ca_subject!r} to {ca_subject!r}."
 						result.check_status = CheckStatus.WARNING
 		except Exception as err:
@@ -202,7 +202,7 @@ class ServerKeyCheck(Check):
 				cert_cn = srv_crt.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 				if not isinstance(cert_cn, str):
 					cert_cn = cert_cn.decode("utf-8")
-				if server_cn.lower() != cert_cn.lower():
+				if server_cn != cert_cn:
 					result.check_status = CheckStatus.ERROR
 					result.message = f"Server CN has changed from '{server_cn}' to '{cert_cn}'"
 				elif ca_certs:

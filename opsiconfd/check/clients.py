@@ -76,17 +76,18 @@ class FailedClientsCheck(Check):
 		backend = get_unprotected_backend()
 		clients = backend.host_getObjects(type="OpsiClient")
 		enabled_hosts = get_enabled_hosts()
-		failed_clients = set()
+		failed_actions = {}
 		for client in clients:
 			if client.id not in enabled_hosts:
 				continue
-			if backend.productOnClient_getObjects(clientId=client.id, actionResult="failed"):
-				failed_clients.add(client.id)
+			pocs = backend.productOnClient_getObjects(clientId=client.id, actionResult="failed")
+			if pocs:
+				failed_actions[client.id] = [poc.productId for poc in pocs]
 
-		if failed_clients:
+		if failed_actions:
 			result.message = "Some clients have action results with the status failed."
 			result.check_status = CheckStatus.ERROR
-			result.details = {"failed_clients": list(failed_clients)}
+			result.details = {"failed_actions": failed_actions}
 
 		return result
 

@@ -332,26 +332,131 @@ function loadRPCTable(sortKey, sort) {
 	});
 }
 
-function clearMFAQRCode() {
-	document.getElementById('mfa-instructions').innerHTML = "";
+function clearUserInstructions() {
+	document.getElementById('user-instructions').innerHTML = "";
 }
 
 
 function updateMultiFactorAuth(userId, type) {
-	clearMFAQRCode();
+	clearUserInstructions();
 	let req = ajaxRequest("POST", "/admin/update-multi-factor-auth", { "user_id": userId, "type": type });
 	req.then((result) => {
 		if (result) {
-			let html = `<pre id="mfa-instructions" style="line-height: 1.0;">${result}</pre>`;
+			let html = `<pre id="user-instructions" style="line-height: 1.0;">${result}</pre>`;
 			html += "<p>Your multi-factor secret has been changed.<br>";
 			html += "Please use an app like Google Authenticator and scan the QR code displayed.<br>"
 			html += "The app will then generate a new one-time password every 30 seconds.<br>"
 			html += "Without this password you will not be able to log in to the OPSI server anymore.</p>"
-			html += '<button onClick="clearMFAQRCode();">All done, hide instructions and QR code.</button>';
-			document.getElementById("mfa-instructions").innerHTML = html;
+			html += '<button onClick="clearUserInstructions();">All done, hide instructions and QR code.</button>';
+			document.getElementById("user-instructions").innerHTML = html;
 		}
 		loadUserTable();
 	});
+}
+
+function showPasswordInstructions(userId, errorMessage = null) {
+	let html = `<h4>Change password</h4>`;
+	if (errorMessage) {
+		html += `<p style="color:red;">${errorMessage}</p>`;
+	}
+	html += `<form action="javascript:void(0);">`;
+	html += `<label for="username" style="width: 150px; display: inline-block;">Username:</label>`;
+	html += `<input type="text" id="username" autocomplete="username" value="${userId}" /><br/>`;
+	html += `<label for="new-password" style="width: 150px; display: inline-block;">New password:</label>`;
+	html += `<input type="password" id="new-password" autocomplete="new-password" /><br/>`;
+	html += `<label for="confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
+	html += `<input type="password" id="confirm-password" autocomplete="new-password" /><br/>`;
+	html += `<button onclick="changeInternalUserPassword('${userId}', document.getElementById('new-password').value, document.getElementById('confirm-password').value);">Change password</button>`;
+	html += `</form>`;
+	document.getElementById("user-instructions").innerHTML = html;
+}
+
+function changeInternalUserPassword(userId, password = null, confirmPassword = null) {
+	if (!password || password !== confirmPassword) {
+		let errorMessage = null;
+		if (password !== confirmPassword) {
+			errorMessage = "The provided passwords do not match. Please try again.";
+		}
+		showPasswordInstructions(userId, errorMessage);
+	}
+	else {
+		let req = ajaxRequest("POST", "/admin/set-internal-user-password", { "user_id": userId, "password": password });
+		req.then((result) => {
+			showNotifcation("New password successfully set", "user-edit", "success", 3);
+			clearUserInstructions();
+			loadUserTable();
+		}, (error) => {
+			let errorMessage = `Failed to set user password: ${error.message || error.detail || JSON.stringify(error)}`;
+			showPasswordInstructions(userId, errorMessage);
+			showNotifcation(errorMessage, "user-edit", "error", 10);
+			loadUserTable();
+		});
+	}
+}
+
+function updateUserTokenAuth(userId, enable) {
+	let req = ajaxRequest("POST", "/admin/update-user-token-auth", { "user_id": userId, "enable": enable });
+	req.then((result) => {
+		showNotifcation(`Token authentication ${enable ? "enabled" : "disabled"} successfully`, "user-edit", "success", 3);
+		if (enable) {
+			let html = "<p>Token authentication is now enabled.<br>";
+			html += "Please store the following token securely as it will not be shown again:<br><br>";
+			html += `<strong>${result}</strong></p>`;
+			html += '<button onClick="clearUserInstructions();">Done, hide token</button>';
+			document.getElementById("user-instructions").innerHTML = html;
+		}
+		else {
+			clearUserInstructions();
+		}
+		loadUserTable();
+	}, (error) => {
+		let errorMessage = `Failed to update token authentication: ${error.message || error.detail || JSON.stringify(error)}`;
+		showNotifcation(errorMessage, "user-edit", "error", 10);
+		loadUserTable();
+	});
+}
+
+
+function showNewUserInstructions(userId, admin, readonly, errorMessage = null) {
+	let html = `<h4>Create new user</h4>`;
+	if (errorMessage) {
+		html += `<p style="color:red;">${errorMessage}</p>`;
+	}
+	html += `<form action="javascript:void(0);">`;
+	html += `<label for="username" style="width: 150px; display: inline-block;">Username:</label>`;
+	html += `<input type="text" id="username" autocomplete="username" value="${userId || ''}" /><br/>`;
+	html += `<label for="new-password" style="width: 150px; display: inline-block;">Password:</label>`;
+	html += `<input type="password" id="new-password" autocomplete="new-password" /><br/>`;
+	html += `<label for="confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
+	html += `<input type="password" id="confirm-password" autocomplete="new-password" /><br/>`;
+	html += `<input type="checkbox" id="admin" ${admin ? "checked" : ""} /> Admin<br/>`;
+	html += `<input type="checkbox" id="readonly" ${readonly ? "checked" : ""} /> Readonly<br/>`;
+	html += `<button onclick="createNewUser(document.getElementById('username').value, document.getElementById('new-password').value, document.getElementById('confirm-password').value, document.getElementById('admin').checked, document.getElementById('readonly').checked);">Create user</button>`;
+	html += `</form>`;
+	document.getElementById("user-instructions").innerHTML = html;
+}
+
+function createNewUser(userId = null, password = null, confirmPassword = null, admin = false, readonly = false) {
+	if (!userId || !password || password !== confirmPassword) {
+		let errorMessage = null;
+		if (password !== confirmPassword) {
+			errorMessage = "The provided passwords do not match. Please try again.";
+		}
+		showNewUserInstructions(userId, admin, readonly, errorMessage);
+	}
+	else {
+		let req = ajaxRequest("POST", "/admin/create-internal-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly });
+		req.then((result) => {
+			showNotifcation("New user successfully created", "user-edit", "success", 3);
+			clearUserInstructions();
+			loadUserTable();
+		}, (error) => {
+			let errorMessage = `Failed to create user: ${error.message || error.detail || JSON.stringify(error)}`;
+			showNewUserInstructions(userId, admin, readonly, errorMessage);
+			showNotifcation(errorMessage, "user-edit", "error", 10);
+			loadUserTable();
+		});
+	}
 }
 
 
@@ -364,36 +469,48 @@ function printUserTable(data, htmlId) {
 			"<tr>" +
 			"<th class='user-th'>User-ID</th>" +
 			"<th class='user-th'>Last login</th>" +
+			"<th class='user-th'>Internal Authentication</th>" +
+			"<th class='user-th'>Token Authentication</th>" +
 			"<th class='user-th'>Messagebus</th>";
 		if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
 			htmlStr += "<th class='user-th'>MFA state</th>";
-			htmlStr += "<th class='user-th'>Activate Time-based one-time password</th>";
-			if (multiFactorAuth == "totp_optional") {
-				htmlStr += "<th class='user-th'>Deactivate Multi-factor auth</th>";
-			}
 		}
+		htmlStr += "<th class='user-th'>Actions</th>";
 		htmlStr += "</tr>";
 		data.forEach(user => {
+			let actions = []
 			let connected = messagebusConnectedUsers.includes(user.id);
 			let cls = "user-" + (connected ? "connected" : "not-connected");
 			htmlStr += "<tr>" +
 				`<td class="user-td">${user.id}</td>` +
 				`<td class="user-td">${formateDate(new Date(user.lastLogin))}</td>` +
-				`<td id="user-messagebus-state-${user.id}" data-user-id="${user.id}" class="user-td ${cls}">` +
+				`<td class="user-td">${user.internal_auth ? "yes" : "no"}</td>` +
+				`<td class="user-td">${user.token_auth ? "yes" : "no"}</td>` +
+				`<td class="user-td ${cls}"id="user-messagebus-state-${user.id}" data-user-id="${user.id}">` +
 				`${connected ? 'connected' : 'not connected'}</td >`;
+			if (user.internal_auth) {
+				actions.push(`<input type="button" onclick="changeInternalUserPassword('${user.id}')" value="Change password"></input>`);
+			}
+			if (user.token_auth) {
+				actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', false)" value="Remove token"></input>`);
+			}
+			actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', true)" value="Generate new token"></input>`);
 			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
 				cls = "mfa-" + (user.mfaState == "inactive" ? "inactive" : "active");
 				if (multiFactorAuth == "totp_mandatory" && user.mfaState == "inactive") {
 					cls += "-warn";
 				}
 				htmlStr += `<td class="user-td ${cls}">${user.mfaState}</td>`;
-				htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${user.id}', 'totp')" value="Generate new secret and activate TOTP"</td>`;
+				actions.push(`<input type="button" onclick="updateMultiFactorAuth('${user.id}', 'totp')" value="Generate new secret and activate TOTP"></input>`);
 				if (multiFactorAuth == "totp_optional") {
-					htmlStr += `<td class="user-td"><input type="button" onclick="updateMultiFactorAuth('${user.id}', 'inactive')" value="Deactivate MFA"</td>`;
+					actions.push(`<input type="button" onclick="updateMultiFactorAuth('${user.id}', 'inactive')" value="Deactivate MFA"></input>`);
 				}
 			}
+			htmlStr += `<td class="user-td">${actions.join(" ")}</td>`;
+			htmlStr += "</tr>";
 		});
 		htmlStr += "</table>";
+		htmlStr += "<button onclick='createNewUser();'>Create new user</button>";
 	}
 	div = document.getElementById(htmlId);
 	div.innerHTML = htmlStr;

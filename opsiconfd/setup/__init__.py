@@ -26,7 +26,7 @@ from rich.prompt import Confirm, Prompt
 
 from opsiconfd import __version__
 from opsiconfd.auth.saml import setup_saml, setup_saml_configuration
-from opsiconfd.backend import new_service_client
+from opsiconfd.backend import get_unprotected_backend, new_service_client
 from opsiconfd.check.cache import clear_check_cache
 from opsiconfd.config import (
 	DEPOT_DIR,
@@ -52,7 +52,7 @@ from opsiconfd.setup.sudo import setup_sudoers
 from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups
 from opsiconfd.ssl import fetch_server_cert, setup_ssl, store_local_server_cert, store_local_server_key
 from opsiconfd.utils import opsiconfd_running, restart_opsiconfd
-from opsiconfd.utils.user import user_set_credentials
+from opsiconfd.utils.user import migrate_opsi_passwd_file
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -292,18 +292,18 @@ def setup(explicit: bool = True) -> None:
 			return
 
 	if set_depot_user_password:
+		username = opsi_config.get("depot_user", "username")
+
 		if isinstance(set_depot_user_password, str):
 			password = set_depot_user_password
 		else:
-			password = Prompt.ask(
-				f"Enter the password for the user '{opsi_config.get('depot_user', 'username')}'", password=True, show_default=False
-			)
+			password = Prompt.ask(f"Enter the password for the user '{username}'", password=True, show_default=False)
 		if not password:
 			logger.error("Can not use empty password!")
 			return
 
-		user_set_credentials(opsi_config.get("depot_user", "username"), password)
-		rich_print(f"Password for user {opsi_config.get('depot_user', 'username')} set.")
+		get_unprotected_backend().user_setCredentials(username, password)
+		rich_print(f"Password for user {username} set.")
 		return
 
 	if get_server_role() == "depotserver":
@@ -430,6 +430,9 @@ def setup(explicit: bool = True) -> None:
 			setup_saml()
 		except Exception as err:
 			logger.error("Failed to setup saml: %s", err, exc_info=True)
+
+	if get_server_role() == "configserver" and backend_available:
+		migrate_opsi_passwd_file()
 
 	if explicit and (register_depot or rename_server):
 		restart_opsiconfd_if_running()

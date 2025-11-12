@@ -500,11 +500,15 @@ class Config(metaclass=Singleton):
 			self._config.ssl_server_cert_sans = []
 
 		if self._config.auth_allowed_groups:
-			for idx in range(len(self._config.auth_allowed_groups)):
-				if self._config.auth_allowed_groups[idx].startswith("{") and self._config.auth_allowed_groups[idx].endswith("}"):
-					groupname = opsi_config.get("groups", self._config.auth_allowed_groups[idx].strip("{}"))
-					if groupname:
-						self._config.auth_allowed_groups[idx] = groupname
+			cleaned_groups = []
+			for group in self._config.auth_allowed_groups:
+				group = group.strip()
+				if group.startswith("{") and group.endswith("}"):
+					group = opsi_config.get("groups", group.strip("{}"))
+				if not group:
+					continue
+				cleaned_groups.append(group)
+			self._config.auth_allowed_groups = cleaned_groups
 		else:
 			self._config.auth_allowed_groups = []
 
@@ -959,7 +963,7 @@ class Config(metaclass=Singleton):
 			"--monitoring-user",
 			env_var="OPSICONFD_MONITORING_USER",
 			default="monitoring",
-			help=self._help("opsiconfd", "The User for opsi-Nagios-Connetor."),
+			help=self._help("opsiconfd", "The User for opsi-Nagios-Connector."),
 		)
 		self._parser.add("--internal-url", env_var="OPSICONFD_INTERNAL_URL", help=self._help("opsiconfd", "The internal base url."))
 		self._parser.add("--external-url", env_var="OPSICONFD_EXTERNAL_URL", help=self._help("opsiconfd", "The external base url."))
@@ -1213,10 +1217,10 @@ class Config(metaclass=Singleton):
 			type=str_lower,
 			nargs="*",
 			default=[],
-			choices=("saml", "pam", "ldap", "opsi_passwd"),
+			choices=("saml", "pam", "ldap", "database", "opsi_passwd"),
 			help=self._help(
 				"opsiconfd",
-				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed.\n",
+				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed. opsi_passwd is obsolete\n",
 			),
 		)
 		self._parser.add(

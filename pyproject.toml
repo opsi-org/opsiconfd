@@ -58,6 +58,8 @@ dependencies = [
 	"yappi>=1.4; platform_machine == 'x86_64'",
 	"lz4>=4.4.5",
 	"pam>=0.2.0",
+	"crypt-r>=3.13.1",
+	"bcrypt>=5.0.0",
 ]
 
 [[project.authors]]

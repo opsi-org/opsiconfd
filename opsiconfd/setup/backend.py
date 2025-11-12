@@ -323,7 +323,6 @@ def setup_backend_depotserver(new_server_id: str | None = None) -> None:
 	(srv_crt, srv_key) = fetch_server_cert(backend, new_server_id)
 	store_local_server_key(srv_key)
 	store_local_server_cert(srv_crt)
-	backend.exit()
 
 
 def setup_backend(new_server_id: str | None = None) -> None:

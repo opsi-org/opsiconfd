@@ -7,6 +7,8 @@
 utils
 """
 
+from __future__ import annotations
+
 import base64
 import re
 from enum import StrEnum
@@ -14,6 +16,8 @@ from functools import lru_cache
 from random import randbytes
 from typing import Type, overload
 
+import bcrypt
+import crypt_r  # type: ignore[import-untyped]
 from Crypto.Cipher import AES, Blowfish
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Hash import SHA256
@@ -196,3 +200,61 @@ def decrypt(value: str, *, return_type: Type[str] | Type[bytes] = str, ignore_un
 			raise ValueError(f"Decryption failed: {err}") from err
 
 	raise ValueError(f"Unsupported algorithm: {algorithm!r}")
+
+
+class HashingAlgorithm(StrEnum):
+	SHA512 = "SHA512"
+	BCRYPT = "BCRYPT"
+
+	def identifier(self) -> str:
+		if self == HashingAlgorithm.SHA512:
+			return "6"
+		if self == HashingAlgorithm.BCRYPT:
+			return "2b"
+		raise ValueError(f"Unsupported hashing algorithm: {self!r}")
+
+	@classmethod
+	def from_identifier(cls, identifier: str) -> HashingAlgorithm:
+		if identifier == "6":
+			return HashingAlgorithm.SHA512
+		if identifier in ("2a", "2b", "2y"):
+			return HashingAlgorithm.BCRYPT
+		raise ValueError(f"Unsupported hashing algorithm {identifier!r}")
+
+
+def create_password_hash(password: str, *, algorithm: HashingAlgorithm = HashingAlgorithm.SHA512, rounds: int | None = None) -> str:
+	"""
+	Encode a password using the specified algorithm and return a hash string.
+	"""
+	encoded_password = password.encode("utf-8")
+	if len(encoded_password) > 64:
+		# Max for bcrypt is 72 bytes
+		raise ValueError("Password cannot be longer than 64 bytes")
+
+	if algorithm == HashingAlgorithm.SHA512:
+		salt = crypt_r.mksalt(method=crypt_r.METHOD_SHA512, rounds=rounds or 500_000)
+		return crypt_r.crypt(password, salt=salt)
+
+	if algorithm == HashingAlgorithm.BCRYPT:
+		salt = bcrypt.gensalt(rounds=rounds or 12)
+		return bcrypt.hashpw(encoded_password, salt).decode("utf-8")
+
+	raise ValueError("Only 'SHA512' and 'BCRYPT' methods are supported")
+
+
+def verify_password(password: str, hash: str) -> bool:
+	"""
+	Verify a password against a given hash string.
+	"""
+	if hash.count("$") < 3:
+		raise ValueError("Invalid shadow hash format")
+
+	identifier = hash.split("$", 2)[1]
+	algorithm = HashingAlgorithm.from_identifier(identifier)
+	if algorithm == HashingAlgorithm.SHA512:
+		return crypt_r.crypt(password, hash) == hash
+
+	if algorithm == HashingAlgorithm.BCRYPT:
+		return bcrypt.checkpw(password.encode("utf-8"), hash.encode("utf-8"))
+
+	raise ValueError("Only 'SHA512' and 'BCRYPT' methods are supported")

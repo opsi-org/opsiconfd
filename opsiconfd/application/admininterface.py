@@ -517,7 +517,7 @@ async def get_user_list() -> RESTResponse:
 	backend = get_unprotected_backend()
 	user_list = []
 	for user in await run_in_threadpool(backend.user_getObjects):
-		user_dict = {k: v for k, v in user.to_hash().items() if k != "otpSecret"}
+		user_dict = {k: v for k, v in user.to_hash().items() if k not in ("otpSecret", "tokenHash", "passwordHash", "encryptedPassword")}
 		user_list.append(user_dict)
 	return RESTResponse(user_list)
 

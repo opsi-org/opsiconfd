@@ -18,9 +18,9 @@ from uuid import UUID
 
 import pytest
 from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicense, OpsiLicensePool, generate_key_pair, get_default_opsi_license_pool
-from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
+from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient, User
 
-from opsiconfd.utils.cryptography import blowfish_encrypt
+from opsiconfd.utils.cryptography import decrypt, verify_password
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -160,30 +160,32 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 			raise out
 		return proc
 
-	opsi_passwd_file = tmp_path / "passwd"
 	with (
-		patch("opsiconfd.utils.user.get_passwd_file", return_value=opsi_passwd_file),
-		patch("opsiconfd.utils.user.is_local_user", lambda x: True),
-		patch("opsiconfd.utils.user.run", run),
-		patch("opsiconfd.utils.user.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
+		patch("opsiconfd.utils.is_local_user", lambda x: True),
+		patch("opsiconfd.utils.run", run),
+		patch("opsiconfd.utils.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
 		backend.user_setCredentials("pcpatch", "password")
-		enc_password = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password")
-		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\n"
+		user: User = backend.user_getObjects(id="pcpatch")[0]
+		assert user.encryptedPassword and decrypt(user.encryptedPassword) == "password"
+		assert user.passwordHash and verify_password("password", user.passwordHash)
 		cmds = list(proc.test_input)
 		assert cmds == ["smbldap-passwd pcpatch"]
+		assert backend.user_getCredentials("pcpatch") == {"password": "password", "rsaPrivateKey": ""}
 
 		proc.test_input = {}
 		proc.test_output["smbldap-passwd pcpatch"] = FileNotFoundError()
-		backend.user_setCredentials("pcpatch", "password")
-		enc_password = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password")
-		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\n"
+		backend.user_setCredentials("pcpatch", "password2")
+		user = backend.user_getObjects(id="pcpatch")[0]
+		assert user.encryptedPassword and decrypt(user.encryptedPassword) == "password2"
+		assert user.passwordHash and verify_password("password2", user.passwordHash)
 		cmds = list(proc.test_input)
 		assert cmds == ["smbldap-passwd pcpatch", "chpasswd", "smbpasswd -a -s pcpatch"]
+		assert backend.user_getCredentials("pcpatch") == {"password": "password2", "rsaPrivateKey": ""}
 
 		proc.test_input = {}
-		with patch("opsiconfd.utils.user.is_ucs", lambda: True):
-			with patch("opsiconfd.utils.user.get_server_role", lambda: "domaincontroller_prim"):
+		with patch("opsiconfd.utils.is_ucs", lambda: True):
+			with patch("opsiconfd.utils.get_ucs_server_role", lambda: "domaincontroller_prim"):
 				proc.test_output["univention-admin users/user list --filter (uid=pcpatch)"] = "DN: cn=pcpatch,dc=x,dc=y"
 				backend.user_setCredentials("pcpatch", "password")
 				cmds = list(proc.test_input)
@@ -194,16 +196,9 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 				]
 
 		proc.test_input = {}
-		backend.user_setCredentials("pcpatch2", "password2")
-		enc_password2 = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password2")
-		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password}\npcpatch2:{enc_password2}\n"
+		with pytest.raises(ValueError, match="Invalid user:"):
+			backend.user_setCredentials("other-user", "password")
 		assert not proc.test_input
-
-		backend.user_setCredentials("pcpatch", "password3")
-		enc_password3 = blowfish_encrypt(backend.host_getObjects(type="OpsiConfigserver")[0].opsiHostKey, "password3")
-		assert opsi_passwd_file.read_text(encoding="utf-8") == f"pcpatch:{enc_password3}\npcpatch2:{enc_password2}\n"
-
-		assert backend.user_getCredentials("pcpatch") == {"password": "password3", "rsaPrivateKey": ""}
 
 
 @pytest.mark.parametrize("log_type", ("instlog", "bootimage"))

@@ -337,6 +337,10 @@ CREATE TABLE IF NOT EXISTS `USER` (
 	`lastLogin` timestamp NULL DEFAULT NULL,
 	`mfaState` varchar(16) DEFAULT NULL,
 	`otpSecret` varchar(32) DEFAULT NULL,
+	`passwordHash` varchar(128) DEFAULT NULL,
+	`encryptedPassword` varchar(128) DEFAULT NULL,
+	`tokenHash` varchar(128) DEFAULT NULL,
+	`groups` varchar(256) DEFAULT NULL,
 	PRIMARY KEY (`userId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -1425,3 +1429,16 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 
 		# schema_version 20
 		session.execute("ALTER TABLE `CONFIG` MODIFY COLUMN `description` varchar(1024) DEFAULT NULL")
+
+		# schema_version 21
+		if "passwordHash" not in mysql.tables["USER"]:
+			logger.info("Adding column 'passwordHash', 'tokenHash' and 'role' on table USER.")
+			session.execute("""
+				ALTER TABLE `USER`
+				ADD `passwordHash` varchar(128) DEFAULT NULL,
+				ADD `encryptedPassword` varchar(128) DEFAULT NULL,
+				ADD `tokenHash` varchar(128) DEFAULT NULL,
+				ADD `groups` varchar(256) DEFAULT NULL
+			""")
+
+		# Be sure to update MySQLConnection.schema_version as well when changing this function.

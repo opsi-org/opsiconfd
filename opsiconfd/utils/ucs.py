@@ -14,9 +14,6 @@ from typing import Tuple
 from rich import print as rich_print
 from rich.prompt import Prompt
 
-from opsiconfd.config import config
-from opsiconfd.logging import logger, secret_filter
-
 
 @lru_cache(maxsize=1)
 def get_root_dn() -> str:
@@ -26,6 +23,8 @@ def get_root_dn() -> str:
 	Returns:
 		str: The root dn of the UCS domain.
 	"""
+	from opsiconfd.logging import logger
+
 	try:
 		return subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
 	except subprocess.CalledProcessError as err:
@@ -41,6 +40,8 @@ def get_server_role() -> str:
 	Returns:
 		str: The server role of the UCS system.
 	"""
+	from opsiconfd.logging import logger
+
 	try:
 		return subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
 	except subprocess.CalledProcessError as err:
@@ -52,6 +53,9 @@ def get_ucs_admin_user(interactive: bool = False) -> Tuple[str | None, str | Non
 	"""
 	Get the UCS Administrator user and password.
 	"""
+	from opsiconfd.config import config
+	from opsiconfd.logging import logger, secret_filter
+
 	if get_server_role() in ("domaincontroller_prim", "domaincontroller_master"):
 		return None, None
 

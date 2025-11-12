@@ -11,11 +11,15 @@ import time
 from contextlib import nullcontext
 from pathlib import Path
 from socket import AF_INET, AF_INET6
+from unittest import mock
 
 import pytest
+from opsicommon.objects import User
 
+from opsiconfd.config import opsi_config
 from opsiconfd.utils import (
 	NameService,
+	create_auth_token,
 	get_file_md5sum,
 	get_ip_interfaces,
 	get_primary_ip_interface,
@@ -23,9 +27,20 @@ from opsiconfd.utils import (
 	running_in_docker,
 	timed_lru_cache,
 )
-from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password, decrypt, encrypt, get_encryption_key
+from opsiconfd.utils.cryptography import (
+	HashingAlgorithm,
+	aes_decrypt_with_password,
+	aes_encrypt_with_password,
+	blowfish_encrypt,
+	create_password_hash,
+	decrypt,
+	encrypt,
+	get_encryption_key,
+	verify_password,
+)
+from opsiconfd.utils.user import migrate_opsi_passwd_file
 
-from .utils import get_config
+from .utils import UnprotectedBackend, backend, get_config  # noqa: F401
 
 
 @pytest.mark.parametrize("family", (None, AF_INET, AF_INET6, [AF_INET, AF_INET6]))
@@ -261,3 +276,112 @@ def test_encrypt_decrypt() -> None:
 
 		with pytest.raises(ValueError, match="Decryption failed"):
 			decrypt("ENCv1[ALG=AESGCM|KID=2024-12]:invalid", ignore_unencrypted=True)
+
+
+@pytest.mark.parametrize(
+	"password, algorithm, rounds, expected_exception, expected_exception_message",
+	(
+		(r"?z!W!@pmvU;7-|`}P7rb]Xz@VZ", "BCRYPT", 13, None, None),
+		(r"7ERlz[I|12by1ycIqe?ES6t`2r<F,y", "BCRYPT", None, None, None),
+		(r'Eg$l5;]g\&yW)lC9)*WI"0dOI]XV', "BCRYPT", None, None, None),
+		("x" * 65, "BCRYPT", None, ValueError, "Password cannot be longer than 64 bytes"),
+		(r"o~'UaGQ,negIb_nf7_}(SrFC)\"", "SHA512", 5000, None, None),
+		(r"5&|F{#(OO+y?z`Zg];AL&TIJ;", "SHA512", None, None, None),
+		(r"c5e9b99b0e4a4d3f8a6722b2e91a8cd4d274a923e56d43f4d2b1187b9b09f6a3", "SHA512", None, None, None),
+		("x" * 65, "SHA512", None, ValueError, "Password cannot be longer than 64 bytes"),
+	),
+)
+def test_password_hashing(
+	password: str,
+	algorithm: str,
+	rounds: int | None,
+	expected_exception: type[Exception] | None,
+	expected_exception_message: str | None,
+) -> None:
+	if expected_exception:
+		with pytest.raises(expected_exception, match=expected_exception_message):
+			create_password_hash(password, algorithm=HashingAlgorithm(algorithm), rounds=rounds)
+		return
+
+	hash = create_password_hash(password, algorithm=HashingAlgorithm(algorithm), rounds=rounds)
+	print(hash)
+	assert len(hash) <= 128
+	assert hash.startswith("$")
+	parts = hash.split("$")
+	if algorithm == "BCRYPT":
+		assert parts[1] == "2b"
+		assert parts[2] == str(rounds or 12)
+	elif algorithm == "SHA512":
+		assert parts[1] == "6"
+		if rounds:
+			assert parts[2] == f"rounds={rounds}"
+	assert verify_password(password, hash)
+	assert not verify_password("wrong_password", hash)
+
+
+def test_create_auth_token() -> None:
+	token1, hash1 = create_auth_token()
+	token2, hash2 = create_auth_token()
+
+	assert isinstance(token1, str)
+	assert len(token1) == 64
+	assert isinstance(hash1, str)
+	assert verify_password(token1, hash1)
+
+	assert isinstance(token2, str)
+	assert len(token2) == 64
+	assert isinstance(hash2, str)
+	assert verify_password(token2, hash2)
+
+	assert token1 != token2
+
+
+def test_migrate_opsi_passwd_file(tmp_path: Path, backend: UnprotectedBackend) -> None:  # noqa: F811
+	configserver = backend.host_getObjects(type="OpsiConfigserver")[0]
+	depot_user = opsi_config.get("depot_user", "username")
+	users = {
+		depot_user: "depot_user_password",
+		"monitoring": "TPNc5JezvwDm9CjtkyEUymu",
+		"someone": "some_password",
+	}
+
+	for broken_passwords in (True, False):
+		passwd_file = tmp_path / "passwd"
+		data = ""
+		for username, password in users.items():
+			encoded_password = blowfish_encrypt(configserver.opsiHostKey, password)
+			if broken_passwords:
+				encoded_password = encoded_password[:-4]  # Truncate to simulate broken password
+			data += f"{username}:{encoded_password}\n"
+		passwd_file.write_text(data, encoding="utf-8")
+
+		user_objs: list[User] = backend.user_getObjects()
+		assert len(user_objs) == 0
+		with mock.patch("opsiconfd.utils.user.get_passwd_file", return_value=passwd_file):
+			migrate_opsi_passwd_file()
+		user_objs = backend.user_getObjects()
+		assert len(user_objs) == 3
+
+		user_objs_by_id = {user.id: user for user in user_objs}
+		for username, password in users.items():
+			user_obj = user_objs_by_id[username]
+			assert user_obj.id == username
+			assert user_obj.groups == ["{readonly}"]
+
+			if username == depot_user:
+				assert user_obj.encryptedPassword is not None
+			else:
+				assert user_obj.encryptedPassword is None
+
+			if not broken_passwords or username == depot_user:
+				assert user_obj.passwordHash
+
+			if not broken_passwords:
+				assert user_obj.passwordHash and verify_password(password, user_obj.passwordHash)
+
+		assert not passwd_file.exists()
+		assert passwd_file.with_suffix(".old").exists()
+
+		backend.user_deleteObjects(user_objs)
+		user_objs = backend.user_getObjects()
+		assert len(user_objs) == 0

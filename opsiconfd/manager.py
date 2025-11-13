@@ -328,6 +328,8 @@ class Manager(metaclass=Singleton):
 			for depot_id in get_unprotected_backend().host_getIdents(returnType="str", type="OpsiDepotserver"):
 				self._metrics_collectors.append(DepotMetricsCollector(depot_id))
 
+
+
 		self._service_client: ServiceClient | None = None
 		if not self._is_config_server:
 			self._service_client = get_service_client("manager")

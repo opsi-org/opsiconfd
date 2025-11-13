@@ -18,7 +18,7 @@ from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.config import config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import get_logger
 from opsiconfd.metrics.metric import AggregationType, DepotMetric, Metric, NodeMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.metrics.registry import MetricsRegistry
@@ -190,8 +190,10 @@ class NodeMetricsCollector(MetricsCollector):
 		self._last_bytes_sent = 0
 		self._last_bytes_recv = 0
 		self._last_redis_cpu_time: float | None = None  # CPU time sys + user, expressed in seconds, as reported by the getrusage() call
-		self._last_mysql_queries: int | None = None
-		self._mysql: MySQLConnection | None = None
+		self._is_config_server = get_server_role() == "configserver"
+		if self._is_config_server:
+			self._last_mysql_queries: int | None = None
+			self._mysql: MySQLConnection | None = None
 
 	def _get_mysql_connection(self) -> MySQLConnection | None:
 		if self._mysql:
@@ -234,6 +236,7 @@ class NodeMetricsCollector(MetricsCollector):
 					logger.warning("Failed to get MySQL metrics: %s", err)
 		return num_queries, num_processes
 
+
 	async def _fetch_values(self) -> None:
 		if "node:avg_load" in self._metrics:
 			await self.add_value("node:avg_load", psutil.getloadavg()[0])
@@ -265,14 +268,15 @@ class NodeMetricsCollector(MetricsCollector):
 			memory_info = await redis.info("memory")
 			await self.add_value("node:avg_redis_memory_used", memory_info["used_memory"])
 
-		mysql_queries = "node:avg_mysql_queries" in self._metrics
-		mysql_processes = "node:avg_mysql_processes" in self._metrics
-		if mysql_processes or mysql_queries:
-			num_queries, num_processes = await run_in_threadpool(self._get_mysql_metrics, mysql_queries, mysql_processes)
-			if mysql_processes:
-				await self.add_value("node:avg_mysql_processes", num_processes)
-			if mysql_queries:
-				await self.add_value("node:avg_mysql_queries", num_queries)
+		if self._is_config_server:
+			mysql_queries = "node:avg_mysql_queries" in self._metrics
+			mysql_processes = "node:avg_mysql_processes" in self._metrics
+			if mysql_processes or mysql_queries:
+				num_queries, num_processes = await run_in_threadpool(self._get_mysql_metrics, mysql_queries, mysql_processes)
+				if mysql_processes:
+					await self.add_value("node:avg_mysql_processes", num_processes)
+				if mysql_queries:
+					await self.add_value("node:avg_mysql_queries", num_queries)
 
 
 class DepotMetricsCollector(MetricsCollector):

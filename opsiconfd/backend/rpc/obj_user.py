@@ -97,7 +97,7 @@ class RPCUserMixin(Protocol):
 		**filter: Any,
 	) -> list[User]:
 		ace = self._get_ace("user_getObjects")
-		return self._user_get(ace=ace, attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._user_getObjects(ace=ace, attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def user_getIdents(

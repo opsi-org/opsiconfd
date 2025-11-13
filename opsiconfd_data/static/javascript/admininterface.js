@@ -429,14 +429,14 @@ function showNewUserInstructions(userId, admin, readonly, errorMessage = null) {
 	html += `<input type="password" id="new-password" autocomplete="new-password" /><br/>`;
 	html += `<label for="confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
 	html += `<input type="password" id="confirm-password" autocomplete="new-password" /><br/>`;
-	html += `<input type="checkbox" id="admin" ${admin ? "checked" : ""} /> Admin<br/>`;
-	html += `<input type="checkbox" id="readonly" ${readonly ? "checked" : ""} /> Readonly<br/>`;
-	html += `<button onclick="createNewUser(document.getElementById('username').value, document.getElementById('new-password').value, document.getElementById('confirm-password').value, document.getElementById('admin').checked, document.getElementById('readonly').checked);">Create user</button>`;
+	html += `<input type="checkbox" id="admin" ${admin ? "checked" : ""} onchange="document.getElementById('readonly').checked = !this.checked;" /> Admin<br/>`;
+	html += `<input type="checkbox" id="readonly" ${readonly ? "checked" : ""} onchange="document.getElementById('admin').checked = !this.checked;" /> Readonly<br/>`;
+	html += `<button onclick="createUser(document.getElementById('username').value, document.getElementById('new-password').value, document.getElementById('confirm-password').value, document.getElementById('admin').checked, document.getElementById('readonly').checked);">Create user</button>`;
 	html += `</form>`;
 	document.getElementById("user-instructions").innerHTML = html;
 }
 
-function createNewUser(userId = null, password = null, confirmPassword = null, admin = false, readonly = false) {
+function createUser(userId = null, password = null, confirmPassword = null, admin = true, readonly = false) {
 	if (!userId || !password || password !== confirmPassword) {
 		let errorMessage = null;
 		if (password !== confirmPassword) {
@@ -445,7 +445,7 @@ function createNewUser(userId = null, password = null, confirmPassword = null, a
 		showNewUserInstructions(userId, admin, readonly, errorMessage);
 	}
 	else {
-		let req = ajaxRequest("POST", "/admin/create-internal-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly });
+		let req = ajaxRequest("POST", "/admin/create-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly });
 		req.then((result) => {
 			showNotifcation("New user successfully created", "user-edit", "success", 3);
 			clearUserInstructions();
@@ -460,6 +460,33 @@ function createNewUser(userId = null, password = null, confirmPassword = null, a
 }
 
 
+function deleteUser(userId, confirmed = false) {
+	if (!confirmed) {
+		let html = `<h4>Delete user ${userId}</h4>`;
+		html += `<p>Are you sure you want to delete the user <strong>${userId}</strong>?`;
+		html += `<br />This action cannot be undone.</p>`;
+		html += `<form action="javascript:void(0);">`;
+		html += `<button onclick="clearUserInstructions()">Cancel</button> `;
+		html += `<button onclick="deleteUser('${userId}', true)">Delete user</button>`;
+		html += `</form>`;
+		document.getElementById("user-instructions").innerHTML = html;
+	}
+	else {
+		let req = ajaxRequest("POST", "/admin/delete-user", { "user_id": userId });
+		req.then((result) => {
+			showNotifcation("User successfully deleted", "user-edit", "success", 3);
+			clearUserInstructions();
+			loadUserTable();
+		}, (error) => {
+			let errorMessage = `Failed to delete user: ${error.message || error.detail || JSON.stringify(error)}`;
+			showNotifcation(errorMessage, "user-edit", "error", 10);
+			clearUserInstructions();
+			loadUserTable();
+		});
+	}
+}
+
+
 function printUserTable(data, htmlId) {
 	if (data.length == 0) {
 		htmlStr = "<p>No users found.</p>";
@@ -468,49 +495,58 @@ function printUserTable(data, htmlId) {
 		htmlStr = "<table class=\"user-table\" id=\"user-table\">" +
 			"<tr>" +
 			"<th class='user-th'>User-ID</th>" +
+			"<th class='user-th'>Groups</th>" +
 			"<th class='user-th'>Last login</th>" +
 			"<th class='user-th'>Internal Authentication</th>" +
-			"<th class='user-th'>Token Authentication</th>" +
-			"<th class='user-th'>Messagebus</th>";
+			"<th class='user-th'>Token Authentication</th>";
 		if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
 			htmlStr += "<th class='user-th'>MFA state</th>";
 		}
+		htmlStr += "<th class='user-th'>Messagebus</th>";
 		htmlStr += "<th class='user-th'>Actions</th>";
 		htmlStr += "</tr>";
 		data.forEach(user => {
-			let actions = []
-			let connected = messagebusConnectedUsers.includes(user.id);
-			let cls = "user-" + (connected ? "connected" : "not-connected");
+			let actions = [];
 			htmlStr += "<tr>" +
 				`<td class="user-td">${user.id}</td>` +
-				`<td class="user-td">${formateDate(new Date(user.lastLogin))}</td>` +
+				`<td class="user-td" style="max-width: 150px">${user.groups.join(", ")}</td>` +
+				`<td class="user-td">${user.lastLogin ? formateDate(new Date(user.lastLogin)) : "never"}</td>` +
 				`<td class="user-td">${user.internal_auth ? "yes" : "no"}</td>` +
-				`<td class="user-td">${user.token_auth ? "yes" : "no"}</td>` +
-				`<td class="user-td ${cls}"id="user-messagebus-state-${user.id}" data-user-id="${user.id}">` +
-				`${connected ? 'connected' : 'not connected'}</td >`;
-			if (user.internal_auth) {
-				actions.push(`<input type="button" onclick="changeInternalUserPassword('${user.id}')" value="Change password"></input>`);
+				`<td class="user-td">${user.token_auth ? "yes" : "no"}</td>`;
+			if (databaseAuth) {
+				if (user.internal_auth) {
+					actions.push(`<input type="button" onclick="changeInternalUserPassword('${user.id}')" value="Change password"></input>`);
+				}
+				if (user.token_auth) {
+					actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', false)" value="Remove Authentication Token"></input>`);
+				}
+				actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', true)" value="New Authentication Token"></input>`);
 			}
-			if (user.token_auth) {
-				actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', false)" value="Remove token"></input>`);
-			}
-			actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', true)" value="Generate new token"></input>`);
 			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
-				cls = "mfa-" + (user.mfaState == "inactive" ? "inactive" : "active");
+				let cls = "mfa-" + (user.mfaState == "inactive" ? "inactive" : "active");
 				if (multiFactorAuth == "totp_mandatory" && user.mfaState == "inactive") {
 					cls += "-warn";
 				}
 				htmlStr += `<td class="user-td ${cls}">${user.mfaState}</td>`;
 				actions.push(`<input type="button" onclick="updateMultiFactorAuth('${user.id}', 'totp')" value="Generate new secret and activate TOTP"></input>`);
-				if (multiFactorAuth == "totp_optional") {
+				if (multiFactorAuth == "totp_optional" && user.mfaState != "inactive") {
 					actions.push(`<input type="button" onclick="updateMultiFactorAuth('${user.id}', 'inactive')" value="Deactivate MFA"></input>`);
 				}
 			}
+			if (databaseAuth) {
+				actions.push(`<input type="button" onclick="deleteUser('${user.id}')" value="Delete user"></input>`);
+			}
+			let connected = messagebusConnectedUsers.includes(user.id);
+			let cls = "user-" + (connected ? "connected" : "not-connected");
+			htmlStr += `<td class="user-td ${cls}"id="user-messagebus-state-${user.id}" data-user-id="${user.id}">` +
+				`${connected ? 'connected' : 'not connected'}</td >`;
 			htmlStr += `<td class="user-td">${actions.join(" ")}</td>`;
 			htmlStr += "</tr>";
 		});
 		htmlStr += "</table>";
-		htmlStr += "<button onclick='createNewUser();'>Create new user</button>";
+	}
+	if (databaseAuth) {
+		htmlStr += "<button onclick='createUser();'>Create new user</button>";
 	}
 	div = document.getElementById(htmlId);
 	div.innerHTML = htmlStr;

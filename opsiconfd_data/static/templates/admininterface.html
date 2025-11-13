@@ -23,6 +23,7 @@
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 		var multiFactorAuth = '{{multi_factor_auth}}';
 		var availableModules = JSON.parse('{{available_modules|tojson}}');
+		var databaseAuth = JSON.parse('{{database_auth|tojson}}');
 
 		function onLoad() {
 			const serverRole = localStorage.getItem("serverRole") || "configserver";

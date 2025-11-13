@@ -1386,6 +1386,8 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	if user and (user.passwordHash or user.tokenHash):
 		if "database" in config.disabled_auth_methods:
 			logger.debug("Database authentication is disabled")
+		elif not (module_available("professional") or module_available("enterprise")):
+			logger.error("Database authentication not licensed")
 		else:
 			if password_is_token:
 				if not user.tokenHash:
@@ -1460,6 +1462,9 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	else:
 		assert auth_module
 		groups = auth_module.get_groupnames(session.username)
+		if user:
+			user.groups = list(groups)
+			await backend.async_call("user_updateObjects", users=[user])
 
 	if config.auth_allowed_groups and not groups.intersection(config.auth_allowed_groups):
 		raise OpsiServicePermissionError(f"User {session.username!r} not in allowed groups")

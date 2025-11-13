@@ -146,6 +146,8 @@ async def admin_interface_index(request: Request) -> Response:
 		"addon_install_enabled": VAR_ADDON_DIR in config.addon_dirs,
 		"multi_factor_auth": config.multi_factor_auth,
 		"saml_slo": config.saml_slo,
+		"database_auth": ("professional" in backend._available_modules or "enterprise" in backend._available_modules)
+		and "database" not in config.disabled_auth_methods,
 	}
 
 	return jinja_templates().TemplateResponse(request=request, name="admininterface.html", context=context)
@@ -518,10 +520,12 @@ async def get_session_list() -> RESTResponse:
 async def get_user_list() -> RESTResponse:
 	backend = get_unprotected_backend()
 	user_list = []
+	user: User
 	for user in await run_in_threadpool(backend.user_getObjects):
 		user_dict = {k: v for k, v in user.to_hash().items() if k not in ("otpSecret", "tokenHash", "passwordHash", "encryptedPassword")}
 		user_dict["token_auth"] = bool(user.tokenHash)
 		user_dict["internal_auth"] = bool(user.passwordHash)
+		user_dict["groups"] = user.groups
 		user_list.append(user_dict)
 	return RESTResponse(user_list)
 
@@ -535,7 +539,7 @@ def check_password_strength(password: str) -> None:
 		raise ValueError("Password must contain at least one lowercase letter")
 	if not re.search(r"\d", password):
 		raise ValueError("Password must contain at least one digit")
-	if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+	if not re.search(r"[!@#$%^&*(),.?\":;{}\[\]/\\|<>=~`\-\+']", password):
 		raise ValueError("Password must contain at least one special character")
 
 
@@ -604,9 +608,9 @@ async def update_multi_factor_auth(request: Request) -> RESTResponse:
 	return RESTResponse(res)
 
 
-@admin_interface_router.post("/create-internal-user")
+@admin_interface_router.post("/create-user")
 @rest_api
-async def create_internal_user(request: Request) -> RESTResponse:
+async def create_user(request: Request) -> RESTResponse:
 	params = await request.json()
 	if not params.get("user_id") or not params.get("password"):
 		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
@@ -625,10 +629,27 @@ async def create_internal_user(request: Request) -> RESTResponse:
 	groups = []
 	if params.get("admin"):
 		groups.append("{admingroup}")
-	if params.get("readonly"):
+	elif params.get("readonly"):
 		groups.append("{readonly}")
 	user = User(id=params.get("user_id"), passwordHash=create_password_hash(password), groups=groups)
 	await backend.async_call("user_createObjects", users=[user])
+
+	return RESTResponse("ok")
+
+
+@admin_interface_router.post("/delete-user")
+@rest_api
+async def delete_user(request: Request) -> RESTResponse:
+	params = await request.json()
+	if not params.get("user_id"):
+		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
+
+	backend = get_unprotected_backend()
+	users: list[User] = await backend.async_call("user_getObjects", id=params.get("user_id"))
+	if not users:
+		return RESTErrorResponse(message="User not found", http_status=status.HTTP_404_NOT_FOUND)
+
+	await backend.async_call("user_deleteObjects", users=users)
 
 	return RESTResponse("ok")
 

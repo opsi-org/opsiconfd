@@ -15,7 +15,7 @@ from unittest.mock import patch
 import pytest
 from opsicommon.objects import OpsiClient, OpsiDepotserver
 
-from opsiconfd.metrics.collector import ConfigServerMetricsCollector, DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
+from opsiconfd.metrics.collector import  DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
 from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, WorkerMetric, ZeroIfMissingType
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import TIME_BUCKET_DURATIONS_MS, setup_metric_downsampling
@@ -342,6 +342,8 @@ def test_node_metrics_collector() -> None:
 	assert not metrics_collector._values["node:sum_network_bits_received"]
 	assert not metrics_collector._values["node:avg_redis_cpu_time"]
 	assert list(metrics_collector._values["node:avg_redis_memory_used"].values())[0]
+	assert metrics_collector._values["node:avg_mysql_processes"]
+	assert metrics_collector._values["node:avg_mysql_queries"]
 
 	asyncio.run(metrics_collector._fetch_values())
 	assert list(metrics_collector._values["node:avg_load"].values())[0]
@@ -349,16 +351,6 @@ def test_node_metrics_collector() -> None:
 	assert list(metrics_collector._values["node:sum_network_bits_received"].values())[0]
 	assert list(metrics_collector._values["node:avg_redis_cpu_time"].values())[0]
 	assert list(metrics_collector._values["node:avg_redis_memory_used"].values())[0]
-
-
-def test_config_server_metrics_collector() -> None:
-	metrics_collector = ConfigServerMetricsCollector()
-
-	asyncio.run(metrics_collector._fetch_values())
-	assert metrics_collector._values["node:avg_mysql_processes"]
-	assert metrics_collector._values["node:avg_mysql_queries"]
-
-	asyncio.run(metrics_collector._fetch_values())
 	assert metrics_collector._values["node:avg_mysql_processes"]
 	assert metrics_collector._values["node:avg_mysql_queries"]
 

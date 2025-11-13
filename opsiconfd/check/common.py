@@ -276,7 +276,7 @@ class CheckResult:
 		if not check_monitoring_module():
 			return "Monitoring module not licensed, Checkmk output not available. Please check your OPSI licenses."
 
-		prefix = f"{self.check_status.checkmk_status()} 'opsi: {self.check.name}' - "
+		prefix = f"{self.check_status.checkmk_status()} 'OPSI: {self.check.name}' - "
 		return self.monitoring_details(prefix)
 
 	def to_nagios(self) -> str:

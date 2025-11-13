@@ -15,6 +15,7 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+from opsiconfd.backend.auth import RPCACE
 import pyotp
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import secret_filter
@@ -81,6 +82,14 @@ class RPCUserMixin(Protocol):
 			for user in forceList(users):
 				self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=False, session=session)
 
+	def _user_getObjects(
+		self: BackendProtocol,
+		ace: list[RPCACE] | None = None,
+		attributes: list[str] | None = None,
+		filter: dict[str, Any] | None = None,
+	) -> list[User]:
+		return self._mysql.get_objects(table="USER", ace=ace, object_type=User, attributes=attributes, filter=filter)
+
 	@rpc_method(check_acl=False)
 	def user_getObjects(
 		self: BackendProtocol,
@@ -88,7 +97,7 @@ class RPCUserMixin(Protocol):
 		**filter: Any,
 	) -> list[User]:
 		ace = self._get_ace("user_getObjects")
-		return self._mysql.get_objects(table="USER", ace=ace, object_type=User, attributes=attributes, filter=filter)
+		return self._user_get(ace=ace, attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def user_getIdents(
@@ -184,9 +193,12 @@ class RPCUserMixin(Protocol):
 			raise ValueError(f"Invalid user: {username!r}")
 
 		result = {"password": "", "rsaPrivateKey": ""}
-		users = self.user_getObjects(id=depot_user, attributes=["encryptedPassword"])
+		users = self._user_getObjects(ace=None, attributes=["encryptedPassword"], filter={"id": depot_user})
 		if not users:
 			raise BackendMissingDataError(f"User {depot_user!r} not found")
+
+		if not users[0].encryptedPassword:
+			raise BackendMissingDataError(f"User {depot_user!r} has no encrypted password")
 
 		result["password"] = decrypt(users[0].encryptedPassword)
 		secret_filter.add_secrets(result["password"])

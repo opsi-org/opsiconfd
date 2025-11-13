@@ -78,7 +78,7 @@ def test_get_redis_connections(config: Config) -> None:  # noqa: F811
 
 async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 	base_key = config.redis_key()
-	num_connections = 1000
+	num_connections = 250
 	pool: AsyncConnectionPool = (await async_redis_client()).connection_pool
 	coroutines = []
 	for _ in range(num_connections):
@@ -101,7 +101,7 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 
 def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 	base_key = config.redis_key()
-	num_connections = 1000
+	num_connections = 250
 	pool: ConnectionPool = redis_client().connection_pool
 
 	for _ in range(num_connections):

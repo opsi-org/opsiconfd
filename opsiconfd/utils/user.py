@@ -7,31 +7,22 @@
 utils user
 """
 
-import os
-import pwd
+from __future__ import annotations
+
 import re
+import string
 from functools import lru_cache
 from pathlib import Path
-from subprocess import run
-from threading import RLock
 
 from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.logging import secret_filter
-from opsicommon.server.rights import set_rights
-from opsicommon.system import lock_file
-from opsicommon.system.info import is_ucs
-from opsicommon.types import forceHostId
+from opsicommon.objects import User
 
 from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.utils import get_opsi_config, is_local_user
-from opsiconfd.utils.cryptography import blowfish_decrypt, blowfish_encrypt
-from opsiconfd.utils.ucs import get_server_role
+from opsiconfd.utils import get_opsi_config, get_random_string
+from opsiconfd.utils.cryptography import blowfish_decrypt, create_password_hash, encrypt
 
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
-
-_passwd_rlock = RLock()
 
 
 @lru_cache
@@ -41,202 +32,57 @@ def get_passwd_file() -> Path:
 	return Path(OPSI_PASSWD_FILE)
 
 
-def user_set_credentials(username: str, password: str) -> None:
-	"""
-	Set the password of an opsi user.
-	The information is stored in ``/etc/opsi/passwd``.
-	The password will be encrypted with the opsi host key of the depot where the method is executed.
-	"""
-	username = str(username).lower()
-	password = str(password)
-	secret_filter.add_secrets(password)
-
-	backend = get_unprotected_backend()
-
-	if '"' in password:
-		raise ValueError("Character '\"' not allowed in password")
-
-	try:
-		depot = backend.host_getObjects(id=backend._depot_id)[0]
-		logger.debug(f"We are on depot: {depot}")
-	except IndexError as err:
-		raise BackendMissingDataError(f"Depot {backend._depot_id} not found in backend") from err
-
-	encoded_password = blowfish_encrypt(depot.opsiHostKey, password)
-
+def migrate_opsi_passwd_file() -> None:
 	passwd_file = get_passwd_file()
-	with _passwd_rlock:
-		with open(passwd_file, "a+", encoding="utf-8") as file:
-			with lock_file(file, lock_method=config._file_lock_method):
-				file.seek(0)
-				lines = []
-				add_line = f"{username}:{encoded_password}"
-				for line in file.readlines():
-					line = line.strip()
-					match = PASSWD_LINE_REGEX.search(line)
-					if not match:
-						continue
-					if match.group(1) == username:
-						line = add_line
-						add_line = ""
-					lines.append(line)
-				if add_line:
-					lines.append(add_line)
-				file.seek(0)
-				file.truncate()
-				file.write("\n".join(lines) + "\n")
-
-	set_rights(passwd_file)
-
-	if username != get_opsi_config().get("depot_user", "username"):
+	if not passwd_file.exists():
 		return
 
-	if is_ucs():
-		univention_server_role = get_server_role()
-		try:
-			logger.debug("Running on univention %s", univention_server_role)
-			if univention_server_role not in ("domaincontroller_prim", "domaincontroller_master", "domaincontroller_backup"):
-				logger.warning("Did not change the password for %r, please change it on the master server.", username)
-				return
-
-			user_dn = ""
-			cmd = ["univention-admin", "users/user", "list", "--filter", f"(uid={username})"]
-			logger.debug("Executing: %s", cmd)
-			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5).stdout
-			logger.debug(out)
-			for line in out.strip().splitlines():
-				line = line.strip()
-				if line.startswith("DN"):
-					user_dn = line.split(" ")[1]
-					break
-
-			if not user_dn:
-				raise RuntimeError(f"Failed to get DN for user {username}")
-
-			escaped_password = password.replace("'", "\\'")
-			cmd = [
-				"univention-admin",
-				"users/user",
-				"modify",
-				"--dn",
-				user_dn,
-				"--set",
-				f"password={escaped_password}",
-				"--set",
-				"overridePWLength=1",
-				"--set",
-				"overridePWHistory=1",
-			]
-			logger.debug("Executing: %s", cmd)
-			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-			logger.debug(out)
-		except Exception as err:
-			logger.error(err)
-		return
-
-	try:
-		pwd.getpwnam(username)
-	except KeyError as err:
-		raise RuntimeError(f"System user '{username}' not found") from err
-
-	password_set = False
-	try:
-		# smbldap
-		cmd = ["smbldap-passwd", username]
-		logger.debug("Executing: %s", cmd)
-		inp = f"{password}\n{password}\n"
-		out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-		logger.debug(out)
-		password_set = True
-	except Exception as err:
-		logger.debug("Setting password using smbldap failed: %s", err)
-
-	if not password_set:
-		# unix
-		if not is_local_user(username):
-			logger.warning("The user '%s' is not a local user, please change password also in Active Directory", username)
-			return
-
-		try:
-			cmd = ["chpasswd"]
-			logger.debug("Executing: %s", cmd)
-			inp = f"{username}:{password}\n"
-			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-			logger.debug(out)
-		except Exception as err:
-			logger.debug("Setting password using chpasswd failed: %s", err)
-
-		try:
-			cmd = ["smbpasswd", "-a", "-s", username]
-			logger.debug("Executing: %s", cmd)
-			inp = f"{password}\n{password}\n"
-			out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-			logger.debug(out)
-		except Exception as err:
-			logger.debug("Setting password using smbpasswd failed: %s", err)
-
-
-def user_get_credentials(username: str | None = None, hostId: str | None = None) -> dict:
-	"""
-	Get the credentials of an opsi user.
-	The information is stored in ``/etc/opsi/passwd``.
-
-	:param hostId: Optional value that should be the calling host.
-	:return: Dict with the keys *password* and *rsaPrivateKey*.
-	If this is called with an valid hostId the data will be encrypted with the opsi host key.
-	:rtype: dict
-	"""
-
-	depot_user = get_opsi_config().get("depot_user", "username")
-	username = username or depot_user
-
-	if hostId:
-		hostId = forceHostId(hostId)
-
 	backend = get_unprotected_backend()
-
-	result = {"password": "", "rsaPrivateKey": ""}
-
-	passwd_file = get_passwd_file()
-	with _passwd_rlock:
-		if passwd_file.exists():
-			with open(passwd_file, "r", encoding="utf-8") as file:
-				with lock_file(file, lock_method=config._file_lock_method):
-					for line in file.readlines():
-						match = PASSWD_LINE_REGEX.search(line)
-						if match and match.group(1) == username:
-							result["password"] = match.group(2)
-							break
-
-	if not result["password"]:
-		raise BackendMissingDataError(f"Username '{username}' not found in '{passwd_file}'")
-
+	user_ids = backend.user_getIdents()
 	depot = backend.host_getObjects(id=backend._depot_id)
 	if not depot:
-		raise BackendMissingDataError(f"Depot '{backend._depot_id}'' not found in backend")
+		raise BackendMissingDataError(f"Depot '{backend._depot_id}' not found in backend")
 	depot = depot[0]
 	if not depot.opsiHostKey:
 		raise BackendMissingDataError(f"Host key for depot '{backend._depot_id}' not found")
 
-	result["password"] = blowfish_decrypt(depot.opsiHostKey, result["password"])
+	depot_user = get_opsi_config().get("depot_user", "username")
 
-	if username == depot_user:
-		try:
-			id_rsa = os.path.join(pwd.getpwnam(username)[5], ".ssh", "id_rsa")
-			with open(id_rsa, encoding="utf-8") as file:
-				result["rsaPrivateKey"] = file.read()
-		except Exception as err:
-			logger.debug(err)
+	with open(passwd_file, "r", encoding="utf-8") as file:
+		for line in file.readlines():
+			match = PASSWD_LINE_REGEX.search(line)
+			if not match:
+				continue
+			username = match.group(1)
+			blowfish_encrypted_password = match.group(2)
+			if username in user_ids and username != depot_user and username != "monitoring":
+				continue
 
-	if hostId:
-		host = backend.host_getObjects(id=hostId)
-		try:
-			host = host[0]
-		except IndexError as err:
-			raise BackendMissingDataError(f"Host '{hostId}' not found in backend") from err
+			logger.info("Migrating user %r to backend", username)
 
-		result["password"] = blowfish_encrypt(host.opsiHostKey, result["password"])
-		if result["rsaPrivateKey"]:
-			result["rsaPrivateKey"] = blowfish_encrypt(host.opsiHostKey, result["rsaPrivateKey"])
+			groups = ["{readonly}"]
+			password = None
+			encrypted_password = None
+			try:
+				password = blowfish_decrypt(depot.opsiHostKey, blowfish_encrypted_password)
+			except Exception as err:
+				logger.warning("Failed to decrypt password for user %r (%s), creating new random password", username, err)
+				password = get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
 
-	return result
+			if username == depot_user:
+				# Only store encrypted password for depot user, login not required
+				encrypted_password = encrypt(password) if password else None
+				password = None
+
+			backend.user_insertObject(
+				User(
+					id=username,
+					passwordHash=create_password_hash(password) if password else None,
+					encryptedPassword=encrypted_password,
+					groups=groups,
+				)
+			)
+
+	old_passwd_file = passwd_file.with_suffix(".old")
+	old_passwd_file.unlink(missing_ok=True)
+	passwd_file.rename(old_passwd_file)

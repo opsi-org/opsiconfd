@@ -57,8 +57,8 @@ from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task, timed_lru_cache
+from opsiconfd.utils.cryptography import verify_password
 from opsiconfd.utils.modules import module_available
-from opsiconfd.utils.user import user_get_credentials
 
 if TYPE_CHECKING:
 	pass
@@ -85,6 +85,7 @@ SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
 MESSAGEBUS_IN_USE_TIMEOUT = 60
 HARDWARE_ADDRESS_RE = re.compile(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$")
 HOST_ID_RE = re.compile(r"^[^.]+\.[^.]+\.\S+$")
+AUTH_TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
 # Zsync2 will send "curl/<curl-version>" as User-Agent.
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
 # Do not keep sessions because they will never send a cookie (session id).
@@ -221,7 +222,7 @@ class SessionMiddleware:
 			if (
 				required_access_role != ACCESS_ROLE_PUBLIC
 				and path.startswith(("/rpc", "/monitoring", "/messagebus", "/file-transfer", "/auth"))
-				or (path.startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+				or (path.startswith(("/depot",)) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 			):
 				required_access_role = ACCESS_ROLE_AUTHENTICATED
 			scope["required_access_role"] = required_access_role
@@ -1118,27 +1119,32 @@ class OPSISession:
 
 
 @lru_cache
-def load_auth_module() -> AuthenticationModule:
-	try:
-		ldap_conf = opsi_config.get("ldap_auth")
-		if ldap_conf["ldap_url"]:
-			logger.debug("Using LDAP auth with config: %s", ldap_conf)
-			if module_available("directory-connector"):
-				from opsiconfd.auth.ldap import LDAPAuthentication
+def load_auth_module() -> AuthenticationModule | None:
+	if "ldap" not in config.disabled_auth_methods:
+		try:
+			ldap_conf = opsi_config.get("ldap_auth")
+			if ldap_conf["ldap_url"]:
+				logger.debug("Using LDAP auth with config: %s", ldap_conf)
+				if module_available("directory-connector"):
+					from opsiconfd.auth.ldap import LDAPAuthentication
 
-				return LDAPAuthentication(**ldap_conf)
-			else:
-				logger.error("Directory Connector module not licensed, LDAP authentication not available")
-	except Exception as err:
-		logger.debug(err)
+					return LDAPAuthentication(**ldap_conf)
+				else:
+					logger.error("Directory Connector module not licensed, LDAP authentication not available")
+		except Exception as err:
+			logger.debug(err)
 
-	from opsiconfd.auth._pam import PAMAuthentication
+	if "pam" not in config.disabled_auth_methods:
+		from opsiconfd.auth._pam import PAMAuthentication
 
-	return PAMAuthentication()
+		return PAMAuthentication()
+
+	return None
 
 
-def get_auth_module() -> AuthenticationModule:
-	return load_auth_module().get_instance()
+def get_auth_module() -> AuthenticationModule | None:
+	auth_module = load_auth_module()
+	return auth_module.get_instance() if auth_module else None
 
 
 def get_peer_cert_common_name(scope: Scope) -> str | None:
@@ -1160,18 +1166,18 @@ async def authenticate_host(scope: Scope) -> None:
 	auth_method = None
 	if config.allow_host_key_only_auth:
 		session.username = "<host-key-only-auth>"
-		logger.debug("Trying to authenticate host by opsi host key only")
+		logger.debug("Trying to authenticate host by OPSI host key only")
 		host_filter["opsiHostKey"] = session.password
 	elif session.username.startswith("{hardware_address}") or HARDWARE_ADDRESS_RE.search(session.username):
-		logger.debug("Trying to authenticate host by mac address and opsi host key")
+		logger.debug("Trying to authenticate host by mac address and OPSI host key")
 		host_filter["hardwareAddress"] = forceHardwareAddress(session.username.replace("{hardware_address}", ""))
 		auth_method = AuthenticationMethod.HARDWARE_ADDRESS
 	elif session.username.startswith("{system_uuid}"):
-		logger.debug("Trying to authenticate host by system UUID and opsi host key")
+		logger.debug("Trying to authenticate host by system UUID and OPSI host key")
 		host_filter["systemUUID"] = forceUUIDString(session.username.replace("{system_uuid}", ""))
 		auth_method = AuthenticationMethod.SYSTEM_UUID
 	else:
-		logger.debug("Trying to authenticate host by host id and opsi host key")
+		logger.debug("Trying to authenticate host by host id and OPSI host key")
 		session.username = session.username.rstrip(".")
 		host_filter["id"] = session.username
 		auth_method = AuthenticationMethod.HOST_ID
@@ -1258,48 +1264,6 @@ async def authenticate_host(scope: Scope) -> None:
 		depot_addresses[session.client_addr] = time.time()
 
 
-async def authenticate_user_passwd(scope: Scope) -> None:
-	if "opsi_passwd" in config.disabled_auth_methods:
-		raise OpsiServiceAuthenticationError("opsi passwd authentication is disabled")
-
-	session: OPSISession = scope["session"]
-	credentials = await run_in_threadpool(user_get_credentials, session.username)
-	if credentials and session.password == credentials.get("password"):
-		session.authenticated = True
-		session.is_read_only = True
-		session.is_admin = False
-		session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_FILE)
-	else:
-		raise OpsiServiceAuthenticationError(f"Authentication failed for user {session.username}")
-
-
-async def authenticate_user_auth_module(scope: Scope) -> AuthenticationModule:
-	session: OPSISession = scope["session"]
-	authm = get_auth_module()
-
-	if not authm:
-		raise OpsiServiceAuthenticationError("Authentication module unavailable")
-
-	peer_cert_cn = get_peer_cert_common_name(scope)
-
-	if "user" in config.client_cert_auth:
-		if not peer_cert_cn:
-			raise OpsiServiceAuthenticationError(f"Client certificate missing for user '{session.username}'")
-		if peer_cert_cn != session.username:
-			raise OpsiServiceAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'")
-		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
-
-	logger.debug("Trying to authenticate by user authentication module %s", authm)
-
-	try:
-		await run_in_threadpool(authm.authenticate, session.username, session.password or "")
-		session.add_auth_methods(AuthenticationMethod.USERNAME, authm.authentication_method)
-	except Exception as err:
-		raise OpsiServiceAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
-
-	return authm
-
-
 async def _post_failed_authenticate(scope: Scope) -> None:
 	cmd = (
 		f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
@@ -1381,14 +1345,6 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	if not session.password:
 		raise OpsiServiceAuthenticationError("No password specified")
 
-	if session.username == config.monitoring_user:
-		# Monitoring user
-		if not module_available("monitoring"):
-			raise OpsiServicePermissionError("Monitoring not licensed")
-		await authenticate_user_passwd(scope=scope)
-		await post_authenticate(scope)
-		return
-
 	if (
 		not session.username
 		or session.username.startswith("{hardware_address}")
@@ -1402,10 +1358,11 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		await post_authenticate(scope)
 		return
 
+	password_is_token = bool(AUTH_TOKEN_RE.match(password))
 	if config.multi_factor_auth in ("totp_mandatory", "totp_optional"):
 		if not mfa_otp:
 			mfa_otp = scope["request_headers"].get("x-opsi-mfa-otp")
-		if not mfa_otp:
+		if not mfa_otp and not password_is_token:
 			match = re.search(r"^(.+)(\d{6})$", session.password)
 			if match:
 				logger.info("Assuming that TOTP is attached to password")
@@ -1413,41 +1370,121 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 				secret_filter.add_secrets(session.password)
 				mfa_otp = match.group(2)
 
-	auth_module = await authenticate_user_auth_module(scope=scope)
-	# Authentication did not throw exception => authentication successful
+	peer_cert_cn = get_peer_cert_common_name(scope)
+	if "user" in config.client_cert_auth:
+		if not peer_cert_cn:
+			raise OpsiServiceAuthenticationError(f"Client certificate missing for user '{session.username}'")
+		if peer_cert_cn != session.username:
+			raise OpsiServiceAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'")
+		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 
 	backend = get_unprotected_backend()
-	users = await backend.async_call("user_getObjects", id=session.username)
+	users: list[User] = await backend.async_call("user_getObjects", id=session.username)
+	user = users[0] if users else None
+	authenticated_user: User | None = None
 
-	if config.multi_factor_auth == "totp_mandatory" or (
-		config.multi_factor_auth == "totp_optional" and users and users[0].mfaState == "totp_active"
-	):
-		if not users or not users[0].otpSecret:
-			raise OpsiServiceAuthenticationError("MFA OTP configuration error")
-		if not mfa_otp:
-			raise OpsiServiceAuthenticationError("MFA one-time password missing")
-		totp = pyotp.TOTP(users[0].otpSecret)
-		if not totp.verify(mfa_otp, valid_window=max(0, config.totp_tolerance)):
-			raise OpsiServiceAuthenticationError("Incorrect one-time password")
-		session.add_auth_methods(AuthenticationMethod.TOTP)
-		logger.info("OTP MFA successful")
+	if user and (user.passwordHash or user.tokenHash):
+		if "database" in config.disabled_auth_methods:
+			logger.debug("Database authentication is disabled")
+		elif not (
+			module_available("professional")
+			or module_available("enterprise")
+			or user.id in (config.monitoring_user, opsi_config.get("depot_user", "username"))
+		):
+			logger.error("Database authentication not licensed")
+		else:
+			if password_is_token:
+				if not user.tokenHash:
+					raise OpsiServiceAuthenticationError(f"Token authentication failed for user {session.username}")
+				try:
+					if verify_password(password, user.tokenHash):
+						authenticated_user = user
+						session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.TOKEN_DATABASE)
+						logger.debug("Token authentication successful for user %r", session.username)
+					else:
+						logger.debug("Token verification failed for user %r", session.username)
+				except Exception as err:
+					logger.error("Token verification error: %s", err)
+			else:
+				if not user.passwordHash:
+					logger.debug("No password hash in database for user %s", session.username)
+				else:
+					try:
+						if verify_password(session.password, user.passwordHash):
+							authenticated_user = user
+							session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_DATABASE)
+							logger.debug("Password hash authentication successful for user %r", session.username)
+						else:
+							logger.debug("Password hash verification failed for user %r", session.username)
+					except Exception as err:
+						logger.error("Password hash verification error: %s", err)
 
-	groups = auth_module.get_groupnames(session.username)
+	auth_module: AuthenticationModule | None = None
+	if not authenticated_user:
+		auth_module = get_auth_module()
+		if not auth_module:
+			raise OpsiServiceAuthenticationError(f"Authentication failed for user '{session.username}'")
+
+		logger.debug("Trying to authenticate by user authentication module %s", auth_module)
+		try:
+			await run_in_threadpool(auth_module.authenticate, session.username, session.password or "")
+			session.add_auth_methods(AuthenticationMethod.USERNAME, auth_module.authentication_method)
+		except Exception as err:
+			raise OpsiServiceAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
+
+	if config.multi_factor_auth != "inactive":
+		# If the password is a token, only check TOTP if the user has it active, even for mandatory TOTP
+		user_totp_active = user and user.mfaState == "totp_active"
+		logger.debug("multi_factor_auth: %r, user_totp_active: %r", config.multi_factor_auth, user_totp_active)
+		if (config.multi_factor_auth == "totp_mandatory" and not password_is_token) or user_totp_active:
+			if not user or not user.otpSecret:
+				raise OpsiServiceAuthenticationError("MFA OTP configuration error")
+			if not mfa_otp:
+				raise OpsiServiceAuthenticationError("MFA one-time password missing")
+			totp = pyotp.TOTP(user.otpSecret)
+			if not totp.verify(mfa_otp, valid_window=max(0, config.totp_tolerance)):
+				raise OpsiServiceAuthenticationError("Incorrect one-time password")
+			session.add_auth_methods(AuthenticationMethod.TOTP)
+			logger.info("OTP MFA successful")
+
+	admin_groupname = opsi_config.get("groups", "admingroup").lower()
+	readonly_groupname = opsi_config.get("groups", "readonly").lower()
+	groups = set()
+	if authenticated_user:
+		for group in authenticated_user.groups or []:
+			if group == "{readonly}":
+				if readonly_groupname:
+					group = readonly_groupname
+				else:
+					continue
+			elif group == "{admingroup}":
+				if admin_groupname:
+					group = admin_groupname
+				else:
+					continue
+			groups.add(group)
+	else:
+		assert auth_module
+		groups = auth_module.get_groupnames(session.username)
+		if user:
+			user.groups = list(groups)
+			await backend.async_call("user_updateObjects", users=[user])
+
 	if config.auth_allowed_groups and not groups.intersection(config.auth_allowed_groups):
-		raise OpsiServicePermissionError(f"User '{session.username}' not in allowed groups")
+		raise OpsiServicePermissionError(f"User {session.username!r} not in allowed groups")
 
 	session.authenticated = True
 	session.user_groups = groups
-	session.is_admin = auth_module.user_is_admin(session.username)
-	session.is_read_only = auth_module.user_is_read_only(session.username)
+	session.is_admin = admin_groupname in groups
+	session.is_read_only = readonly_groupname in groups
 
 	logger.info(
-		"Authentication successful for user '%s', groups '%s', admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
+		"Authentication successful for user %r, groups %r, admin group is %r, admin: %r, readonly group is %r, readonly: %r",
 		session.username,
-		",".join(session.user_groups),
-		auth_module.get_admin_groupname(),
+		session.user_groups,
+		admin_groupname,
 		session.is_admin,
-		auth_module.get_read_only_groupnames(),
+		readonly_groupname,
 		session.is_read_only,
 	)
 
@@ -1538,7 +1575,7 @@ async def check_user_agent(user_agent: str) -> None:
 	if config.allowed_user_agents and not any(pattern in user_agent for pattern in config.allowed_user_agents):
 		raise ConnectionRefusedError(f"User-Agent '{user_agent}' is not allowed to connect")
 
-	if not config.min_configed_version or not user_agent or "opsi config editor" not in user_agent:
+	if not config.min_configed_version or not user_agent or "opsi config editor" not in user_agent.lower():
 		return
 
 	configed_version = None

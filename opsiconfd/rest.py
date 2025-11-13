@@ -251,7 +251,7 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data") is not None:
 					warnings.warn(
-						"opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning
+						"OPSI REST api data dict ist deprecated. All OPSI api functions should return a RESTResponse.", DeprecationWarning
 					)
 					if result.get("data"):
 						content = result.get("data")

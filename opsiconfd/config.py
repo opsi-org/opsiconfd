@@ -41,6 +41,7 @@ from opsiconfd.utils import Singleton, reload_opsiconfd_if_running, restart_opsi
 if TYPE_CHECKING:
 	from fastapi.templating import Jinja2Templates
 
+
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 CONFIG_FILE_HEADER = """
 # This file was automatically migrated from an older opsiconfd version
@@ -499,13 +500,18 @@ class Config(metaclass=Singleton):
 			self._config.ssl_server_cert_sans = []
 
 		if self._config.auth_allowed_groups:
-			for idx in range(len(self._config.auth_allowed_groups)):
-				if self._config.auth_allowed_groups[idx].startswith("{") and self._config.auth_allowed_groups[idx].endswith("}"):
-					groupname = opsi_config.get("groups", self._config.auth_allowed_groups[idx].strip("{}"))
-					if groupname:
-						self._config.auth_allowed_groups[idx] = groupname
+			cleaned_groups = []
+			for group in self._config.auth_allowed_groups:
+				group = group.strip()
+				if group.startswith("{") and group.endswith("}"):
+					group = opsi_config.get("groups", group.strip("{}"))
+				if not group:
+					continue
+				cleaned_groups.append(group)
+			self._config.auth_allowed_groups = cleaned_groups
 		else:
 			self._config.auth_allowed_groups = []
+
 		if not self._config.saml_role_group_mappings:
 			self._config.saml_role_group_mappings = []
 		if not self._config.client_cert_auth:
@@ -521,6 +527,10 @@ class Config(metaclass=Singleton):
 			self._config.development_options = []
 		if not self._config.profiler:
 			self._config.profiler = []
+
+		if not self._config.database_encryption_keys:
+			self._config.database_encryption_keys = []
+
 		for attr in "networks", "admin_networks":
 			conf = getattr(self._config, attr)
 			if conf:
@@ -790,7 +800,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--networks",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_NETWORKS",
 			default=[],
 			type=network_address_or_domain,
@@ -798,7 +808,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--admin-networks",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_ADMIN_NETWORKS",
 			default=[],
 			type=network_address_or_domain,
@@ -806,7 +816,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--trusted-proxies",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_TRUSTED_PROXIES",
 			default=["127.0.0.1/32", "::1/128"],
 			type=network_address,
@@ -953,7 +963,7 @@ class Config(metaclass=Singleton):
 			"--monitoring-user",
 			env_var="OPSICONFD_MONITORING_USER",
 			default="monitoring",
-			help=self._help("opsiconfd", "The User for opsi-Nagios-Connetor."),
+			help=self._help("opsiconfd", "The User for opsi-Nagios-Connector."),
 		)
 		self._parser.add("--internal-url", env_var="OPSICONFD_INTERNAL_URL", help=self._help("opsiconfd", "The internal base url."))
 		self._parser.add("--external-url", env_var="OPSICONFD_EXTERNAL_URL", help=self._help("opsiconfd", "The external base url."))
@@ -975,6 +985,19 @@ class Config(metaclass=Singleton):
 			type=int,
 			default=4447,
 			help=self._help("opsiconfd", "The port where opsiconfd will listen for https requests."),
+		)
+		self._parser.add(
+			"--database-encryption-keys",
+			env_var="OPSICONFD_DATABASE_ENCRYPTION_KEYS",
+			nargs="*",
+			default=["0=7be4a050e419cafe9945dcfa15856503c43f3622e521ad7288133cf556458d3a"],
+			help=self._help(
+				"opsiconfd",
+				"The encryption keys used to secure sensitive data in the database (<key-id> = <hex-key>). "
+				"Key IDs may only include lowercase letters, numbers, hyphens, and underscores, and cannot exceed 16 characters in length. "
+				"Keys will be ordered in descending order by their ID. "
+				"The first key in the list will be used for encrypting new data, while all keys will be available for decrypting existing data.",
+			),
 		)
 
 		ca_cert_path = get_system_ca_cert_info().ca_cert_path
@@ -1002,14 +1025,15 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-ca-subject-cn",
 			env_var="OPSICONFD_SSL_CA_SUBJECT_CN",
+			# Do not change to OPSI CA to keep backward compatibility
 			default="opsi CA",
-			help=self._help("opsiconfd", "The common name to use in the opsi CA subject."),
+			help=self._help("opsiconfd", "The common name to use in the OPSI CA subject."),
 		)
 		self._parser.add(
 			"--ssl-ca-key",
 			env_var="OPSICONFD_SSL_CA_KEY",
 			default="/etc/opsi/ssl/opsi-ca-key.pem",
-			help=self._help("expert", "The location of the opsi ssl ca key."),
+			help=self._help("expert", "The location of the OPSI ssl ca key."),
 		)
 		self._parser.add(
 			"--ssl-ca-key-passphrase",
@@ -1021,14 +1045,14 @@ class Config(metaclass=Singleton):
 			"--ssl-ca-cert",
 			env_var="OPSICONFD_SSL_CA_CERT",
 			default="/etc/opsi/ssl/opsi-ca-cert.pem",
-			help=self._help("expert", "The location of the opsi ssl ca certificate."),
+			help=self._help("expert", "The location of the OPSI ssl ca certificate."),
 		)
 		self._parser.add(
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
 			type=int,
 			default=730,
-			help=self._help("expert", "The period of validity of the opsi ssl ca certificate in days."),
+			help=self._help("expert", "The period of validity of the OPSI ssl ca certificate in days."),
 		)
 		self._parser.add(
 			"--ssl-ca-cert-renew-days",
@@ -1040,7 +1064,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-ca-permitted-domains",
 			env_var="OPSICONFD_SSL_CA_PERMITTED_DOMAINS",
-			nargs="+",
+			nargs="*",
 			default=[],
 			help=self._help("opsiconfd", "The CA will be limited to these domains (X.509 Name Constraints)."),
 		)
@@ -1052,7 +1076,7 @@ class Config(metaclass=Singleton):
 			help=self._help(
 				"expert",
 				"The type of the server certificate.\n"
-				"opsi-ca: Automatically managed and signed by the opsi CA\n"
+				"opsi-ca: Automatically managed and signed by the OPSI CA\n"
 				"letsencrypt: Automatically managed Let's Encrypt certificate\n"
 				"custom-ca: Use custom certificates.",
 			),
@@ -1118,10 +1142,10 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--ssl-server-cert-sans",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_SSL_SERVER_CERT_SANS",
 			default=[],
-			help=self._help("opsiconfd", "Subject alternative names for the opsi server certificate."),
+			help=self._help("opsiconfd", "Subject alternative names for the OPSI server certificate."),
 		)
 		self._parser.add(
 			"--ssl-client-cert-valid-days",
@@ -1149,7 +1173,7 @@ class Config(metaclass=Singleton):
 			default=True,
 			help=self._help(
 				"opsiconfd",
-				"If enabled, a client's ip address will be updated in the opsi database, "
+				"If enabled, a client's ip address will be updated in the OPSI database, "
 				"when the client connects to the service and authentication is successful.",
 			),
 		)
@@ -1193,10 +1217,10 @@ class Config(metaclass=Singleton):
 			type=str_lower,
 			nargs="*",
 			default=[],
-			choices=("saml", "pam", "ldap", "opsi_passwd"),
+			choices=("saml", "pam", "ldap", "database", "opsi_passwd"),
 			help=self._help(
 				"opsiconfd",
-				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed.\n",
+				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed. opsi_passwd is obsolete\n",
 			),
 		)
 		self._parser.add(
@@ -1216,7 +1240,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--client-cert-auth",
 			env_var="OPSICONFD_CLIENT_CERT_AUTH",
-			nargs="+",
+			nargs="*",
 			default=None,
 			help=self._help("expert", "HTTPS client certificate authentication settings."),
 			choices=("client", "depot", "user"),
@@ -1291,10 +1315,10 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--saml-role-group-mappings",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_SAML_ROLE_GROUP_MAPPINGS",
 			default=[],
-			help=self._help("opsiconfd", "Map SAML roles to opsi groups (<role> = <group>)."),
+			help=self._help("opsiconfd", "Map SAML roles to OPSI groups (<role> = <group>)."),
 		)
 		self._parser.add(
 			"--saml-slo",
@@ -1324,7 +1348,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--max-sessions-excludes",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_MAX_SESSIONS_EXCLUDES",
 			default=["127.0.0.1", "::1"],
 			help=self._help("expert", "Allow unlimited sessions for these addresses."),
@@ -1338,7 +1362,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--allowed-user-agents",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_ALLOWED_USER_AGENTS",
 			default=[],
 			help=self._help("opsiconfd", "List of user agents that are allowed to connect. If empty, all user agents are allowed."),
@@ -1358,7 +1382,7 @@ class Config(metaclass=Singleton):
 		metric_ids = [m.id for m in ALL_METRICS]
 		self._parser.add(
 			"--disabled-metrics",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_DISABLED_METRICS",
 			default=None,
 			help=self._help(
@@ -1381,7 +1405,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--skip-setup",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_SKIP_SETUP",
 			default=None,
 			help=self._help(
@@ -1393,7 +1417,7 @@ class Config(metaclass=Singleton):
 
 		self._parser.add(
 			"--checks",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_CHECKS",
 			default=None,
 			help=self._help(
@@ -1404,7 +1428,7 @@ class Config(metaclass=Singleton):
 
 		self._parser.add(
 			"--skip-checks",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_SKIP_CHECKS",
 			default=None,
 			help=self._help(
@@ -1519,7 +1543,7 @@ class Config(metaclass=Singleton):
 		self._parser.add("--ex-help", action="store_true", help=self._help("expert", "Show expert help message and exit."))
 		self._parser.add(
 			"--debug-options",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_DEBUG_OPTIONS",
 			default=None,
 			help=self._help(
@@ -1530,7 +1554,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--development-options",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_DEVELOPMENT_OPTIONS",
 			default=None,
 			help=self._help(
@@ -1541,7 +1565,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--profiler",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_PROFILER",
 			default=None,
 			help=self._help("expert", "Turn profilers on. This will slow down requests, never use in production."),
@@ -1629,7 +1653,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--addon-dirs",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_ADDON_DIRS",
 			default=[ADDON_DIR, VAR_ADDON_DIR],
 			help=self._help("expert", "A list of addon directories"),
@@ -1643,7 +1667,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--disabled-features",
-			nargs="+",
+			nargs="*",
 			env_var="OPSICONFD_DISABLED_FEATURES",
 			default=None,
 			help=self._help(
@@ -1784,7 +1808,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--add-config-files",
 			env_var="OPSICONFD_ADD_CONFIG_FILES",
-			nargs="+",
+			nargs="*",
 			default=[],
 			help=self._help(
 				"backup",

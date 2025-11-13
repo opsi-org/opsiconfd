@@ -221,7 +221,7 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 			if res == 0:
 				session.execute(
 					"INSERT INTO CONFIG (configId, `type`, description, multiValue, editable) VALUES "
-					'("clientconfig.depot.id", "UnicodeConfig", "ID of the opsi depot to use", 0, 1);'
+					'("clientconfig.depot.id", "UnicodeConfig", "ID of the OPSI depot to use", 0, 1);'
 				)
 
 				session.execute(
@@ -500,38 +500,3 @@ def test_check_client_plugin(
 	)
 
 	assert json.loads(result.body) == expected_result
-
-
-def test_monitoring_user_permissions(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	monitoring_user = "monitoring"
-	monitoring_password = "monitoring123"
-	backend.user_setCredentials(monitoring_user, monitoring_password)
-
-	res = test_client.post("/rpc", auth=(monitoring_user, monitoring_password), json={"method": "host_getObjects", "params": []})
-	print(res.json())
-	print(res.status_code)
-	result_json = res.json()
-	assert res.status_code == 200
-	assert result_json.get("error")
-	assert result_json["error"].get("class") == "OpsiServicePermissionError"
-	assert result_json["error"].get("message") == "Opsi service permission error: No permission for method 'host_getObjects'"
-
-	with get_config({"multi-factor-auth": "totp_mandatory"}):
-		res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
-		print("admin login: ", res.json())
-		assert res.status_code == 401
-		assert "MFA OTP configuration error" in res.json()["message"]
-
-		res = test_client.post("/session/login", json={"username": monitoring_user, "password": monitoring_password})
-		print("monitoring login: ", res.json())
-		assert res.status_code == 200
-		assert res.json().get("is_admin") is False
-
-		res = test_client.post("/monitoring", auth=(monitoring_user, monitoring_password), json={})
-		print(res.json())
-		print(res.status_code)
-		assert res.status_code == 200
-		assert res.json()["state"] == 3
-		assert res.json()["message"] == "No matching task found."
-
-	backend.user_delete(monitoring_user)

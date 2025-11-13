@@ -17,7 +17,7 @@ from opsiconfd.utils.modules import module_available
 class OpsiLicensesLimitCheck(Check):
 	id: str = "opsi_licenses:limit"
 	name: str = "OPSI Licenses Limit"
-	description: str = "Check opsi licensing limits"
+	description: str = "Check OPSI licensing limits"
 	module_id: str = ""
 
 	def __post_init__(self) -> None:
@@ -166,7 +166,7 @@ class OpsiLicensesMissingDirectoryConnector(Check):
 class OpsiLicensesCheck(Check):
 	id: str = "opsi_licenses"
 	name: str = "OPSI Licenses"
-	description: str = "Check opsi licensing state"
+	description: str = "Check OPSI licensing state"
 	documentation: str = f"""
 		## {name} [{id}]
 

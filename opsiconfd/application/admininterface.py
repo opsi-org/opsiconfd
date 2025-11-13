@@ -25,7 +25,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from opsicommon.exceptions import OpsiServicePermissionError
 from opsicommon.license import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
-from opsicommon.objects import OpsiDepotserver
+from opsicommon.objects import OpsiDepotserver, User
 from opsicommon.system.info import linux_distro_id_like_contains
 from opsicommon.utils import ip_address_in_network
 from redis import ResponseError
@@ -40,6 +40,7 @@ from opsiconfd.application.metrics import create_grafana_datasource
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
+from opsiconfd.backend.rpc.obj_user import create_auth_token
 from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates
 from opsiconfd.grafana.grafana import GRAFANA_DASHBOARD_UID, async_grafana_session, create_dashboard_user
 from opsiconfd.logging import logger
@@ -49,6 +50,7 @@ from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
 from opsiconfd.utils import get_manager_process
+from opsiconfd.utils.cryptography import create_password_hash, encrypt
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -144,6 +146,8 @@ async def admin_interface_index(request: Request) -> Response:
 		"addon_install_enabled": VAR_ADDON_DIR in config.addon_dirs,
 		"multi_factor_auth": config.multi_factor_auth,
 		"saml_slo": config.saml_slo,
+		"database_auth": ("professional" in backend._available_modules or "enterprise" in backend._available_modules)
+		and "database" not in config.disabled_auth_methods,
 	}
 
 	return jinja_templates().TemplateResponse(request=request, name="admininterface.html", context=context)
@@ -516,19 +520,138 @@ async def get_session_list() -> RESTResponse:
 async def get_user_list() -> RESTResponse:
 	backend = get_unprotected_backend()
 	user_list = []
+	user: User
 	for user in await run_in_threadpool(backend.user_getObjects):
-		user_dict = {k: v for k, v in user.to_hash().items() if k != "otpSecret"}
+		user_dict = {k: v for k, v in user.to_hash().items() if k not in ("otpSecret", "tokenHash", "passwordHash", "encryptedPassword")}
+		user_dict["token_auth"] = bool(user.tokenHash)
+		user_dict["internal_auth"] = bool(user.passwordHash)
+		user_dict["groups"] = user.groups
 		user_list.append(user_dict)
 	return RESTResponse(user_list)
+
+
+def check_password_strength(password: str) -> None:
+	if len(password) < 8:
+		raise ValueError("Password must be at least 8 characters long")
+	if not re.search(r"[A-Z]", password):
+		raise ValueError("Password must contain at least one uppercase letter")
+	if not re.search(r"[a-z]", password):
+		raise ValueError("Password must contain at least one lowercase letter")
+	if not re.search(r"\d", password):
+		raise ValueError("Password must contain at least one digit")
+	if not re.search(r"[!@#$%^&*(),.?\":;{}\[\]/\\|<>=~`\-\+']", password):
+		raise ValueError("Password must contain at least one special character")
+
+
+@admin_interface_router.post("/set-internal-user-password")
+@rest_api
+async def set_internal_user_password(request: Request) -> RESTResponse:
+	params = await request.json()
+	if not params.get("user_id") or "password" not in params:
+		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
+
+	backend = get_unprotected_backend()
+	users: list[User] = await backend.async_call("user_getObjects", id=params.get("user_id"))
+	if not users:
+		return RESTErrorResponse(message="User not found", http_status=status.HTTP_404_NOT_FOUND)
+	user = users[0]
+
+	password = params.get("password") or ""
+	if password:
+		try:
+			check_password_strength(password)
+		except Exception as err:
+			return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
+
+		user.passwordHash = create_password_hash(password)
+		if user.encryptedPassword:
+			user.encryptedPassword = encrypt(password)
+	else:
+		user.passwordHash = ""
+		user.encryptedPassword = ""
+	await backend.async_call("user_updateObjects", users=[user])
+
+	return RESTResponse("ok")
+
+
+@admin_interface_router.post("/update-user-token-auth")
+@rest_api
+async def update_user_token_auth(request: Request) -> RESTResponse:
+	params = await request.json()
+	if not params.get("user_id") or "enable" not in params:
+		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
+
+	backend = get_unprotected_backend()
+	users: list[User] = await backend.async_call("user_getObjects", id=params.get("user_id"))
+	if not users:
+		return RESTErrorResponse(message="User not found", http_status=status.HTTP_404_NOT_FOUND)
+	user = users[0]
+
+	token = ""
+	if params.get("enable"):
+		token, user.tokenHash = create_auth_token()
+	else:
+		user.tokenHash = ""
+	await backend.async_call("user_updateObjects", users=[user])
+	return RESTResponse(token)
 
 
 @admin_interface_router.post("/update-multi-factor-auth")
 @rest_api
 async def update_multi_factor_auth(request: Request) -> RESTResponse:
 	params = await request.json()
+	if not params.get("user_id") or not params.get("type"):
+		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
+
 	backend = get_unprotected_backend()
-	res = await run_in_threadpool(backend.user_updateMultiFactorAuth, params.get("user_id"), params.get("type"), "qrcode")
+	res = await backend.async_call("user_updateMultiFactorAuth", userId=params.get("user_id"), type=params.get("type"), returnType="qrcode")
 	return RESTResponse(res)
+
+
+@admin_interface_router.post("/create-user")
+@rest_api
+async def create_user(request: Request) -> RESTResponse:
+	params = await request.json()
+	if not params.get("user_id") or not params.get("password"):
+		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
+
+	backend = get_unprotected_backend()
+	users: list[User] = await backend.async_call("user_getObjects", id=params.get("user_id"))
+	if users:
+		return RESTErrorResponse(message="User already exists", http_status=status.HTTP_409_CONFLICT)
+
+	password = params.get("password") or ""
+	try:
+		check_password_strength(password)
+	except Exception as err:
+		return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
+
+	groups = []
+	if params.get("admin"):
+		groups.append("{admingroup}")
+	elif params.get("readonly"):
+		groups.append("{readonly}")
+	user = User(id=params.get("user_id"), passwordHash=create_password_hash(password), groups=groups)
+	await backend.async_call("user_createObjects", users=[user])
+
+	return RESTResponse("ok")
+
+
+@admin_interface_router.post("/delete-user")
+@rest_api
+async def delete_user(request: Request) -> RESTResponse:
+	params = await request.json()
+	if not params.get("user_id"):
+		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
+
+	backend = get_unprotected_backend()
+	users: list[User] = await backend.async_call("user_getObjects", id=params.get("user_id"))
+	if not users:
+		return RESTErrorResponse(message="User not found", http_status=status.HTTP_404_NOT_FOUND)
+
+	await backend.async_call("user_deleteObjects", users=users)
+
+	return RESTResponse("ok")
 
 
 @admin_interface_router.get("/locked-products-list", response_model=list[str])
@@ -752,10 +875,10 @@ async def license_upload(files: list[UploadFile]) -> RESTResponse:
 			olf.read_string((await file.read()).decode("utf-8"))  # type: ignore[union-attr]
 			if not olf.licenses:
 				raise ValueError(f"No license found in {file.filename!r}")
-			logger.notice("Writing opsi license file %r", olf.filename)
+			logger.notice("Writing OPSI license file %r", olf.filename)
 			olf.write()
 			os.chmod(olf.filename, 0o660)
-		return RESTResponse(data=f"{len(files)} opsi license files imported", http_status=status.HTTP_201_CREATED)
+		return RESTResponse(data=f"{len(files)} OPSI license files imported", http_status=status.HTTP_201_CREATED)
 	except Exception as err:
 		logger.warning(err, exc_info=True)
 		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_CONTENT, message="Invalid license file.", details=err)

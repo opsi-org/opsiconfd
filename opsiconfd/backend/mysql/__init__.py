@@ -66,6 +66,16 @@ def query_log_level(level: str) -> Generator[None, None, None]:
 		MySQLSession.query_log = current
 
 
+def split_values_on_comma(values: str | None) -> list[str]:
+	if not values:
+		return []
+	return [v.strip() for v in values.split(",")]
+
+
+def join_values_with_comma(values: list[str]) -> str:
+	return ",".join(v.strip() for v in values)
+
+
 class MySQLSession(Session):
 	retry_on_server_has_gone_away = 3
 	retry_on_deadlock = 3
@@ -160,7 +170,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 20
+	schema_version = 21
 
 	def __init__(self) -> None:
 		self.address = "localhost"
@@ -660,6 +670,8 @@ class MySQLConnection:
 		for name, param in sig.parameters.items():
 			if name == "values":
 				conversions[name] = loads
+			elif name == "groups":
+				conversions[name] = split_values_on_comma
 		return conversions
 
 	@lru_cache
@@ -669,6 +681,8 @@ class MySQLConnection:
 		for name, param in sig.parameters.items():
 			if name == "values":
 				conversions[name] = dumps
+			elif name == "groups":
+				conversions[name] = join_values_with_comma
 		return conversions
 
 	@overload

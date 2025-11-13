@@ -387,7 +387,11 @@ def cleanup_users(session: Session) -> None:
 		"""
 			DELETE u.*
 			FROM `USER` AS u
-			WHERE u.lastLogin IS NULL
+			WHERE
+				u.lastLogin IS NULL AND
+				COALESCE(u.encryptedPassword, "") = "" AND
+				COALESCE(u.passwordHash, "") = "" AND
+				COALESCE(u.tokenHash, "") = ""
 		"""
 	)
 	if result.rowcount > 0:

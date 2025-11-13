@@ -33,6 +33,8 @@ from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.saml import check_if_saml_available
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession
+from opsiconfd.utils import create_auth_token
+from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -469,7 +471,7 @@ def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa:
 		]
 	):
 		with get_config({"auth_allowed_groups": ["{admingroup}", "{readonly}"]}) as opsiconfd_config:
-			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group", "{readonly}"]
+			assert opsiconfd_config.auth_allowed_groups == ["opsi-admin-group"]
 
 	with get_opsi_config(
 		[
@@ -859,9 +861,10 @@ test_urls = (
 		("4.3.0.0", None, 200, ""),
 		(None, "opsi config editor 4.2.0.0", 200, ""),
 		("4.3.0.1", "opsi config editor 4.3.0.1", 200, ""),
-		("4.3.0.1", "opsi config editor 4.3.1.0", 200, ""),
+		("4.3.0.1", "OPSI config editor 4.3.1.0", 200, ""),
 		("4.3.0.1", "opsi config editor 4.4.0.0", 200, ""),
 		("4.3.0.0", "opsi config editor 4.2.0.0", 426, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
+		("4.3.0.0", "OPSI config editor 4.2.0.0", 426, "Configed 4.2.0.0 is not allowed to connect (min-configed-version: 4.3.0.0)"),
 	),
 )
 def test_min_configed_version(
@@ -885,7 +888,7 @@ def test_min_configed_version(
 	"allowed_user_agents, user_agent, status_code, response_text_match",
 	(
 		([], "opsiclientd 4.3.20.0", 200, ""),
-		(["opsi config editor", "opsiclientd"], "opsiclientd 4.3.20.0", 200, ""),
+		(["OPSI config editor", "opsiclientd"], "opsiclientd 4.3.20.0", 200, ""),
 		(["opsi config editor", "opsiclientd"], "opsi config editor 4.3.10.0", 200, ""),
 		(
 			["opsi config editor", "opsiclientd"],
@@ -1044,20 +1047,23 @@ def test_disabled_auth_methods(
 		with pytest.raises(OpsiServiceAuthenticationError, match="SAML authentication is disabled"):
 			check_if_saml_available()
 
-	passwd_file = tmp_path / "passwd"
-	with patch("opsiconfd.utils.user.get_passwd_file", return_value=passwd_file):
-		with get_config({"monitoring-user": "monitoring"}):
-			backend.user_setCredentials("monitoring", "monitoring-pwd")
-			assert "monitoring:" in passwd_file.read_text(encoding="utf-8")
-			test_client.auth = ("monitoring", "monitoring-pwd")
-			res = test_client.get("/auth/authenticated")
-			assert res.status_code == 200
-			assert res.text == "true"
-			test_client.reset_cookies()
-			with get_config({"disabled-auth-methods": ["opsi_passwd"]}):
-				res = test_client.get("/auth/authenticated")
-				assert res.status_code == 401
-				assert res.text == "Authentication error"
+	password = "secret"
+	user = objects.User(
+		id="test_user_123",
+		passwordHash=create_password_hash(password),
+		groups=["{admingroup}"],
+	)
+	backend.user_createObjects([user])
+
+	test_client.auth = (user.id, password)
+	res = test_client.get("/auth/authenticated")
+	assert res.status_code == 200
+	assert res.text == "true"
+	test_client.reset_cookies()
+	with get_config({"disabled-auth-methods": ["database"]}):
+		res = test_client.get("/auth/authenticated")
+		assert res.status_code == 401
+		assert res.text == "Authentication error"
 
 
 def test_pam_authentication_concurrency() -> None:
@@ -1092,3 +1098,131 @@ def test_pam_authentication_concurrency() -> None:
 
 	for t in threads:
 		assert t.completed
+
+
+@pytest.mark.parametrize(
+	"hash_algorithm, groups",
+	(
+		("SHA512", ["{admingroup}"]),
+		("BCRYPT", ["{readonly}"]),
+		("BCRYPT", ["other-group"]),
+		("SHA512", ["opsi-admin-group", "opsi-readonly-group"]),
+		("SHA512", ["other-group", "opsi-readonly-group"]),
+	),
+)
+def test_database_password_authentication(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+	hash_algorithm: str,
+	groups: list[str],
+) -> None:
+	password = "securepassword"
+	user = objects.User(
+		id="dbpasswordtest",
+		passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(hash_algorithm)),
+		groups=groups,
+	)
+	print("Creating user with hash algorithm:", hash_algorithm, "and groups:", groups)
+	backend.user_createObjects([user])
+	with (
+		get_opsi_config(
+			[
+				{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"},
+				{"category": "groups", "config": "readonly", "value": "opsi-readonly-group"},
+			]
+		),
+		get_config(
+			{
+				"disabled_auth_methods": ["pam", "ldap", "saml"],
+				"auth_allowed_groups": ["{admingroup}", "{readonly}"],
+			}
+		),
+	):
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password})
+
+		for idx in range(len(groups)):
+			if groups[idx] == "{admingroup}":
+				groups[idx] = "opsi-admin-group"
+			elif groups[idx] == "{readonly}":
+				groups[idx] = "opsi-readonly-group"
+
+		if "opsi-admin-group" not in groups and "opsi-readonly-group" not in groups:
+			assert res.status_code == 401
+			assert res.json()["message"] == f"Opsi service permission error: User '{user.id}' not in allowed groups"
+		else:
+			assert res.status_code == 200
+			assert res.json()["is_admin"] == ("opsi-admin-group" in groups)
+
+		# Try with invalid password
+		test_client.reset_cookies()
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password + "x"})
+		assert res.status_code == 401
+		assert "Authentication failed" in res.json()["message"]
+
+		# Delete user and verify login fails
+		backend.user_deleteObjects([user])
+		test_client.reset_cookies()
+		res = test_client.post("/auth/login", json={"username": user.id, "password": password})
+		assert res.status_code == 401
+		assert "Authentication failed" in res.json()["message"]
+
+
+@pytest.mark.parametrize(
+	"multi_factor_auth, mfa_state, with_totp, expected_status",
+	(
+		("inactive", "inactive", "none", 200),
+		("inactive", "inactive", "wrong", 200),
+		("inactive", "inactive", "correct", 200),
+		("inactive", "totp_active", "none", 200),
+		("inactive", "totp_active", "wrong", 200),
+		("inactive", "totp_active", "correct", 200),
+		("totp_optional", "inactive", "none", 200),
+		("totp_optional", "inactive", "wrong", 200),
+		("totp_optional", "inactive", "correct", 200),
+		("totp_optional", "totp_active", "none", 401),
+		("totp_optional", "totp_active", "wrong", 401),
+		("totp_optional", "totp_active", "correct", 200),
+		("totp_mandatory", "inactive", "none", 200),
+		("totp_mandatory", "inactive", "wrong", 200),
+		("totp_mandatory", "inactive", "correct", 200),
+		("totp_mandatory", "totp_active", "none", 401),
+		("totp_mandatory", "totp_active", "wrong", 401),
+		("totp_mandatory", "totp_active", "correct", 200),
+	),
+)
+def test_database_token_authentication(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811,
+	multi_factor_auth: str,
+	mfa_state: str,
+	with_totp: str,
+	expected_status: int,
+) -> None:
+	token, token_hash = create_auth_token()
+	user = objects.User(
+		id="dbtokentest",
+		mfaState=mfa_state,
+		tokenHash=token_hash,
+		groups=["opsi-admin-group"],
+		otpSecret=pyotp.random_base32(),
+	)
+	backend.user_createObjects([user])
+
+	mfa_otp = pyotp.TOTP(user.otpSecret).now() if user.otpSecret and with_totp != "none" else None
+	if with_totp == "wrong":
+		mfa_otp = "123456" if mfa_otp != "123456" else "654321"
+
+	with (
+		get_opsi_config([{"category": "groups", "config": "admingroup", "value": "opsi-admin-group"}]),
+		get_config(
+			{
+				"multi_factor_auth": multi_factor_auth,
+				"disabled_auth_methods": ["pam", "ldap", "saml"],
+				"auth_allowed_groups": ["{admingroup}"],
+			}
+		),
+	):
+		res = test_client.post("/auth/login", json={"username": user.id, "password": token, "mfa_otp": mfa_otp})
+		assert res.status_code == expected_status
+		if expected_status == 200:
+			assert res.json()["is_admin"] is True

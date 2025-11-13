@@ -15,13 +15,13 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 
-from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
 from opsiconfd.config import opsi_config
+from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
 
 EXPECTED_CONF = f"""
 [opsi_depot]
    available = yes
-   comment = opsi depot share (ro)
+   comment = OPSI depot share (ro)
    path = /var/lib/opsi/depot
    follow symlinks = yes
    writeable = no
@@ -30,7 +30,7 @@ EXPECTED_CONF = f"""
 
 [opsi_depot_rw]
    available = yes
-   comment = opsi depot share (rw)
+   comment = OPSI depot share (rw)
    path = /var/lib/opsi/depot
    follow symlinks = yes
    writeable = yes
@@ -41,7 +41,7 @@ EXPECTED_CONF = f"""
 
 [opsi_images]
    available = yes
-   comment = opsi ntfs images share (rw)
+   comment = OPSI ntfs images share (rw)
    path = /var/lib/opsi/ntfs-images
    writeable = yes
    invalid users = root
@@ -50,7 +50,7 @@ EXPECTED_CONF = f"""
 
 [opsi_workbench]
    available = yes
-   comment = opsi workbench
+   comment = OPSI workbench
    path = /var/lib/opsi/workbench
    writeable = yes
    invalid users = root {opsi_config.get("depot_user", "username")}
@@ -60,7 +60,7 @@ EXPECTED_CONF = f"""
 
 [opsi_repository]
    available = yes
-   comment = opsi repository share (ro)
+   comment = OPSI repository share (ro)
    path = /var/lib/opsi/repository
    follow symlinks = yes
    writeable = no
@@ -68,7 +68,7 @@ EXPECTED_CONF = f"""
 
 [opsi_logs]
    available = yes
-   comment = opsi logs share (ro)
+   comment = OPSI logs share (ro)
    path = /var/log/opsi
    follow symlinks = yes
    writeable = no
@@ -95,7 +95,7 @@ def test_setup_samba_add(tmp_path: Path, version_string: str, samba3: bool) -> N
 	with (
 		patch("opsiconfd.setup.samba.run", PropertyMock(return_value=Proc())),
 		patch("opsiconfd.setup.samba.SMB_CONF", str(smb_conf)),
-		patch("opsiconfd.utils.user.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
+		patch("opsiconfd.utils.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
 		assert is_samba3() == samba3
 		setup_samba()
@@ -117,7 +117,7 @@ def test_setup_samba_keep_settings(tmp_path: Path) -> None:
 		"[opsi_depot]\n"
 		"  available = yes\n"
 		"  directory mask = 0777\n"
-		"  comment = opsi depot share (ro)\n"
+		"  comment = OPSI depot share (ro)\n"
 		"  path = /var/lib/opsi/depot\n"
 		"  follow symlinks = no\n"
 		"  writeable = no\n"

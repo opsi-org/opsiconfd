@@ -97,7 +97,7 @@ def test_check_opsi_config_checkmk(test_client: OpsiconfdTestClient) -> None:  #
 	checkmk = result.to_checkmk()
 	assert checkmk.startswith("0")
 	assert result.check.name in checkmk
-	assert "No issues found in the opsi configuration." in checkmk
+	assert "No issues found in the OPSI configuration." in checkmk
 	assert "Configuration opsiclientd.global.verify_server_cert is set to default." in checkmk
 
 	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [False]]}
@@ -131,7 +131,7 @@ def test_check_opsi_config_nagios_and_zabbix(test_client: OpsiconfdTestClient) -
 	nagios = result.to_nagios()
 	assert nagios.startswith("OK")
 	assert result.check.name in nagios
-	assert "No issues found in the opsi configuration." in nagios
+	assert "No issues found in the OPSI configuration." in nagios
 	assert "Configuration opsiclientd.global.verify_server_cert is set to default." in nagios
 
 	rpc = {"id": 1, "method": "config_createBool", "params": ["opsiclientd.global.verify_server_cert", "", [False]]}

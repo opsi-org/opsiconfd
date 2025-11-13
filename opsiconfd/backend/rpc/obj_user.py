@@ -9,23 +9,40 @@ opsiconfd.backend.rpc.user
 
 from __future__ import annotations
 
+import pwd
+import secrets
 from io import StringIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+from opsiconfd.backend.auth import RPCACE
 import pyotp
 from opsicommon.exceptions import BackendMissingDataError
+from opsicommon.logging import secret_filter
 from opsicommon.objects import User
-from opsicommon.types import forceList
+from opsicommon.types import forceHostId, forceList
 from qrcode import QRCode  # type: ignore[import]
 
 from opsiconfd.config import get_configserver_id
-from opsiconfd.utils import get_opsi_config
-from opsiconfd.utils.user import user_get_credentials, user_set_credentials
+from opsiconfd.logging import logger
+from opsiconfd.utils import get_opsi_config, set_system_user_password
+from opsiconfd.utils.cryptography import HashingAlgorithm, blowfish_encrypt, create_password_hash, decrypt, encrypt
 
 from . import rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
+
+
+def create_auth_token() -> tuple[str, str]:
+	"""
+	Create a new authentication token and return the token and its hash.
+	"""
+	token = secrets.token_hex(32)
+	secret_filter.add_secrets(token)
+	token_hash = create_password_hash(token, algorithm=HashingAlgorithm.SHA512, rounds=1000)
+	secret_filter.add_secrets(token_hash)
+	return token, token_hash
 
 
 class RPCUserMixin(Protocol):
@@ -65,6 +82,14 @@ class RPCUserMixin(Protocol):
 			for user in forceList(users):
 				self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=False, session=session)
 
+	def _user_getObjects(
+		self: BackendProtocol,
+		ace: list[RPCACE] | None = None,
+		attributes: list[str] | None = None,
+		filter: dict[str, Any] | None = None,
+	) -> list[User]:
+		return self._mysql.get_objects(table="USER", ace=ace, object_type=User, attributes=attributes, filter=filter)
+
 	@rpc_method(check_acl=False)
 	def user_getObjects(
 		self: BackendProtocol,
@@ -72,7 +97,7 @@ class RPCUserMixin(Protocol):
 		**filter: Any,
 	) -> list[User]:
 		ace = self._get_ace("user_getObjects")
-		return self._mysql.get_objects(table="USER", ace=ace, object_type=User, attributes=attributes, filter=filter)
+		return self._user_getObjects(ace=ace, attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def user_getIdents(
@@ -153,8 +178,7 @@ class RPCUserMixin(Protocol):
 	@rpc_method
 	def user_getCredentials(self: BackendProtocol, username: str | None = None, hostId: str | None = None) -> dict[str, str]:
 		"""
-		Get the credentials of an opsi user.
-		The information is stored in ``/etc/opsi/passwd``.
+		Get the credentials of the depot user.
 
 		:param hostId: Optional value that should be the calling host.
 		:return: Dict with the keys *password* and *rsaPrivateKey*.
@@ -168,13 +192,53 @@ class RPCUserMixin(Protocol):
 		if username != depot_user:
 			raise ValueError(f"Invalid user: {username!r}")
 
-		return user_get_credentials(username, hostId)
+		result = {"password": "", "rsaPrivateKey": ""}
+		users = self._user_getObjects(ace=None, attributes=["encryptedPassword"], filter={"id": depot_user})
+		if not users:
+			raise BackendMissingDataError(f"User {depot_user!r} not found")
+
+		if not users[0].encryptedPassword:
+			raise BackendMissingDataError(f"User {depot_user!r} has no encrypted password")
+
+		result["password"] = decrypt(users[0].encryptedPassword)
+		secret_filter.add_secrets(result["password"])
+
+		try:
+			id_rsa = Path(pwd.getpwnam(username)[5]) / ".ssh" / "id_rsa"
+			result["rsaPrivateKey"] = id_rsa.read_text(encoding="utf-8")
+		except Exception as err:
+			logger.debug(err)
+
+		if hostId:
+			hostId = forceHostId(hostId)
+			host = self.host_getObjects(id=hostId, attributes=["opsiHostKey"])
+			try:
+				host = host[0]
+			except IndexError as err:
+				raise BackendMissingDataError(f"Host '{hostId}' not found in backend") from err
+
+			result["password"] = blowfish_encrypt(host.opsiHostKey, result["password"])
+			if result["rsaPrivateKey"]:
+				result["rsaPrivateKey"] = blowfish_encrypt(host.opsiHostKey, result["rsaPrivateKey"])
+
+		return result
 
 	@rpc_method
 	def user_setCredentials(self: BackendProtocol, username: str, password: str) -> None:
 		"""
 		Set the password of an opsi user.
-		The information is stored in ``/etc/opsi/passwd``.
-		The password will be encrypted with the opsi host key of the depot where the method is.
 		"""
-		user_set_credentials(username, password)
+		depot_user = get_opsi_config().get("depot_user", "username")
+		if not username or username == "pcpatch":
+			username = depot_user
+
+		if username != depot_user:
+			raise ValueError(f"Invalid user: {username!r}")
+
+		if '"' in password:
+			raise ValueError("Character '\"' not allowed in password")
+
+		user = User(id=username, encryptedPassword=encrypt(password), passwordHash=create_password_hash(password))
+		self.user_updateObjects([user])
+
+		set_system_user_password(username, password)

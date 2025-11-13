@@ -57,7 +57,7 @@ def get_available_product_versions(product_ids: Iterable[str], min_age_seconds: 
 class OpsiProductsOnDepotsCheck(Check):
 	id: str = "products_on_depots"
 	name: str = "Products On Depots"
-	description: str = "Check opsi package versions on depots"
+	description: str = "Check OPSI package versions on depots"
 	documentation: str = f"""
 		## {name} [{id}]
 
@@ -184,7 +184,7 @@ class OpsiProductsOnDepotsCheck(Check):
 class OpsiProductsOnClientsCheck(Check):
 	id: str = "products_on_clients"
 	name: str = "Products On Clients"
-	description: str = "Check opsi package versions on clients"
+	description: str = "Check OPSI package versions on clients"
 	documentation: str = f"""
 		## {name} [{id}]
 

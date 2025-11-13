@@ -1,7 +1,7 @@
 [project]
 name = "opsiconfd"
-version = "4.3.44.1"
-description = "opsi configuration service"
+version = "4.3.45.1"
+description = "OPSI configuration service"
 readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
@@ -58,6 +58,8 @@ dependencies = [
 	"yappi>=1.4; platform_machine == 'x86_64'",
 	"lz4>=4.4.5",
 	"pam>=0.2.0",
+	"crypt-r>=3.13.1",
+	"bcrypt>=5.0.0",
 ]
 
 [[project.authors]]

@@ -17,7 +17,7 @@ from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_e
 class OpsiUserCheck(Check):
 	id: str = "opsi_user"
 	name: str = "OPSI User"
-	description: str = "Check opsi user."
+	description: str = "Check OPSI user."
 	depot_check: bool = True
 	user: str = ""
 	login_allowed: bool = False
@@ -27,7 +27,7 @@ class OpsiUserCheck(Check):
 		super().__post_init__()
 		self.id = f"opsi_user:{self.user}"
 		self.name = f"OPSI User: {self.user}"
-		self.description = f"Check opsi user '{self.user}'."
+		self.description = f"Check OPSI user '{self.user}'."
 
 	def _check(self) -> CheckResult:
 		result = CheckResult(
@@ -46,33 +46,33 @@ class OpsiUserCheck(Check):
 		for user_info in user_details:
 			if uid != -1 and uid == user_info.uid:
 				result.check_status = CheckStatus.WARNING
-				result.message = f"opsi user '{self.user}' found multiple times with the same ID: {uid} == {user_info.uid}"
+				result.message = f"OPSI user '{self.user}' found multiple times with the same ID: {uid} == {user_info.uid}"
 				break
 			elif uid != -1 and uid != user_info.uid:
 				result.check_status = CheckStatus.ERROR
-				result.message = f"opsi user '{self.user}' with different UIDs found: {uid} != {user_info.uid}"
+				result.message = f"OPSI user '{self.user}' with different UIDs found: {uid} != {user_info.uid}"
 				break
 			result.details = {k: str(v) if isinstance(v, Path) else v for k, v in asdict(user_info).items()}
 			uid = user_info.uid
 			if not self.login_allowed and str(user_info.shell) not in ("/bin/false", "/sbin/nologin", "/usr/sbin/nologin"):
 				result.check_status = CheckStatus.WARNING
-				result.message = f"opsi user '{self.user}' has a login shell configured: {user_info.shell}"
+				result.message = f"OPSI user '{self.user}' has a login shell configured: {user_info.shell}"
 
 			if user_info.home.exists():
 				stat = user_info.home.stat()
 				if self.must_own_home and stat.st_uid != user_info.uid:
 					result.check_status = CheckStatus.ERROR
 					result.message = (
-						f"opsi user '{self.user}' has a home directory '{user_info.home}' "
+						f"OPSI user '{self.user}' has a home directory '{user_info.home}' "
 						f"not owned by the user (uid: {stat.st_uid} != {user_info.uid})"
 					)
 				if os.geteuid() == user_info.uid:
 					if not os.access(user_info.home, os.R_OK | os.W_OK | os.X_OK):
 						result.check_status = CheckStatus.ERROR
-						result.message = f"opsi user '{self.user}' cannot access its home directory: '{user_info.home}'"
+						result.message = f"OPSI user '{self.user}' cannot access its home directory: '{user_info.home}'"
 			else:
 				result.check_status = CheckStatus.ERROR
-				result.message = f"opsi user '{self.user}' has a non existing home directory configured: '{user_info.home}'"
+				result.message = f"OPSI user '{self.user}' has a non existing home directory configured: '{user_info.home}'"
 
 		if result.check_status != CheckStatus.OK:
 			return result
@@ -86,7 +86,7 @@ class OpsiUserCheck(Check):
 			# User is only local, but a non local service was found in /etc/nsswitch.conf
 			result.check_status = CheckStatus.WARNING
 			result.message = (
-				f"opsi user '{self.user}' (uid: {local_infos[0].uid}) is a local system user (service: '{local_infos[0].service}'), "
+				f"OPSI user '{self.user}' (uid: {local_infos[0].uid}) is a local system user (service: '{local_infos[0].service}'), "
 				f"but found a domain service in /etc/nsswitch.conf (passwd services: {[str(s) for s in passwd_services]}). "
 				"Please check if this is intended."
 			)
@@ -98,7 +98,7 @@ class OpsiUserCheck(Check):
 class OpsiUsersCheck(Check):
 	id: str = "opsi_users"
 	name: str = "OPSI Users"
-	description: str = "Check opsi users."
+	description: str = "Check OPSI users."
 	documentation: str = f"""
 		## {name} [{id}]
 
@@ -111,7 +111,7 @@ class OpsiUsersCheck(Check):
 	def _check(self) -> CheckResult:
 		result = CheckResult(
 			check=self,
-			message="No problems found with opsi users.",
+			message="No problems found with OPSI users.",
 			check_status=CheckStatus.OK,
 		)
 

@@ -23,6 +23,7 @@
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 		var multiFactorAuth = '{{multi_factor_auth}}';
 		var availableModules = JSON.parse('{{available_modules|tojson}}');
+		var databaseAuth = JSON.parse('{{database_auth|tojson}}');
 
 		function onLoad() {
 			const serverRole = localStorage.getItem("serverRole") || "configserver";
@@ -150,7 +151,7 @@
 <body onload="onLoad();">
 	<div class="header">
 		<div>
-			<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
+			<img id="interface-logo" src="/static/opsi_logo.png" alt="OPSI logo">
 		</div>
 		<div>
 			<div style="">
@@ -282,7 +283,7 @@
 				<div id="user-table-div">
 					loading...
 				</div>
-				<div id="mfa-instructions"></div>
+				<div id="user-instructions"></div>
 			</div>
 		</div>
 

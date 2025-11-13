@@ -17,6 +17,7 @@ import functools
 import gzip
 import json
 import os
+import pwd
 import random
 import re
 import secrets
@@ -38,17 +39,20 @@ from json import JSONEncoder
 from logging import DEBUG, INFO  # type: ignore[import]
 from pathlib import Path
 from socket import AF_INET, AF_INET6
+from subprocess import run
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
 
 import lz4.frame  # type: ignore[import]
 import psutil
 import requests
+from opsicommon.logging import secret_filter
 from opsicommon.logging.logging import OPSILogger
 from opsicommon.system.info import is_ucs
 from opsicommon.types import forceStringLower
 from opsicommon.utils import prepare_proxy_environment
 
 from opsiconfd import __version__
+from opsiconfd.utils.ucs import get_server_role as get_ucs_server_role
 
 config = None
 opsi_config = None
@@ -859,6 +863,110 @@ def get_passwd_services() -> list[NameService]:
 				passwd_service = [NameService(service) for service in line.split()[1:]]
 				break
 	return passwd_service
+
+
+def create_auth_token() -> tuple[str, str]:
+	"""
+	Create a new authentication token and return the token and its hash.
+	"""
+	from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash
+
+	token = secrets.token_hex(32)
+	secret_filter.add_secrets(token)
+	token_hash = create_password_hash(token, algorithm=HashingAlgorithm.SHA512, rounds=1000)
+	secret_filter.add_secrets(token_hash)
+	return token, token_hash
+
+
+def set_ucs_user_password(username: str, password: str) -> None:
+	logger = get_logger()
+	univention_server_role = get_ucs_server_role()
+
+	logger.debug("Running on univention %s", univention_server_role)
+	if univention_server_role not in ("domaincontroller_prim", "domaincontroller_master", "domaincontroller_backup"):
+		logger.warning("Did not change the password for %r, please change it on the master server.", username)
+		return
+
+	user_dn = ""
+	cmd = ["univention-admin", "users/user", "list", "--filter", f"(uid={username})"]
+	logger.debug("Executing: %s", cmd)
+	out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5).stdout
+	logger.debug(out)
+	for line in out.strip().splitlines():
+		line = line.strip()
+		if line.startswith("DN"):
+			user_dn = line.split(" ")[1]
+			break
+
+	if not user_dn:
+		raise RuntimeError(f"Failed to get DN for user {username}")
+
+	escaped_password = password.replace("'", "\\'")
+	cmd = [
+		"univention-admin",
+		"users/user",
+		"modify",
+		"--dn",
+		user_dn,
+		"--set",
+		f"password={escaped_password}",
+		"--set",
+		"overridePWLength=1",
+		"--set",
+		"overridePWHistory=1",
+	]
+	logger.debug("Executing: %s", cmd)
+	out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+	logger.debug(out)
+
+
+def set_system_user_password(username: str, password: str) -> None:
+	logger = get_logger()
+	if is_ucs():
+		try:
+			set_ucs_user_password(username, password)
+		except Exception as err:
+			logger.error("Failed to set UCS user password for %r: %s", username, err)
+		return
+
+	try:
+		pwd.getpwnam(username)
+	except KeyError:
+		logger.error("System user %r not found", username)
+		return
+
+	try:
+		# smbldap
+		cmd = ["smbldap-passwd", username]
+		logger.debug("Executing: %s", cmd)
+		inp = f"{password}\n{password}\n"
+		out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
+		logger.debug(out)
+		return
+	except Exception as err:
+		logger.debug("Setting password using smbldap failed: %s", err)
+
+	if not is_local_user(username):
+		logger.warning("The user %r is not a local user, please change password also in Active Directory", username)
+		return
+
+	try:
+		cmd = ["chpasswd"]
+		logger.debug("Executing: %s", cmd)
+		inp = f"{username}:{password}\n"
+		out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
+		logger.debug(out)
+	except Exception as err:
+		logger.debug("Setting password using chpasswd failed: %s", err)
+
+	try:
+		cmd = ["smbpasswd", "-a", "-s", username]
+		logger.debug("Executing: %s", cmd)
+		inp = f"{password}\n{password}\n"
+		out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
+		logger.debug(out)
+	except Exception as err:
+		logger.debug("Setting password using smbpasswd failed: %s", err)
 
 
 class DataclassCapableJSONEncoder(JSONEncoder):

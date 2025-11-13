@@ -178,20 +178,20 @@ def setup_ucs_users_and_groups(interactive: bool = False) -> bool:
 	try:
 		grp.getgrnam(admingroup)
 	except KeyError:
-		create_ucs_group(admingroup, "opsi admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+		create_ucs_group(admingroup, "OPSI admin group", ucs_root_dn, ucs_admin_dn, ucs_password)
 	try:
 		grp.getgrnam(fileadmingroup)
 	except KeyError:
-		create_ucs_group(fileadmingroup, "opsi fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
+		create_ucs_group(fileadmingroup, "OPSI fileadmin group", ucs_root_dn, ucs_admin_dn, ucs_password)
 	try:
 		grp.getgrnam(depot_user)
 	except KeyError:
-		create_ucs_user(depot_user, "opsi depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
+		create_ucs_user(depot_user, "OPSI depot user", "/var/lib/opsi", fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password)
 	try:
 		grp.getgrnam(opsiconfd_user)
 	except KeyError:
 		create_ucs_user(
-			opsiconfd_user, "opsi configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password
+			opsiconfd_user, "OPSI configuration daemon user", OPSICONFD_HOME, fileadmingroup, ucs_root_dn, None, ucs_admin_dn, ucs_password
 		)
 	return True
 
@@ -261,25 +261,6 @@ def setup_users_and_groups(interactive: bool = False, backend_available: bool = 
 					)
 		except KeyError:
 			logger.debug("Group not found: %s", groupname)
-
-	server_role = get_server_role()
-	if server_role != "configserver":
-		return
-
-	if not backend_available:
-		return
-
-	from opsiconfd.backend import get_unprotected_backend
-
-	backend = get_unprotected_backend()
-	username = opsi_config.get("depot_user", "username")
-	try:
-		backend.user_getCredentials(username)
-	except Exception as err:
-		logger.warning("Failed to get credentials for user %s: %s, setting new random password", username, err)
-		backend.user_setCredentials(
-			username, get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
-		)
 
 
 def systemd_running() -> bool:

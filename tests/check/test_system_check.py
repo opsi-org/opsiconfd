@@ -147,7 +147,7 @@ def test_check_system_packages_open_suse() -> None:
 		"S  | Name                 | Typ   | Version             | Arch   | Repository",
 		"---+----------------------+-------+---------------------+--------+------------------------------",
 	] + [
-		f"i  | {name}            | Paket | {version} | x86_64 | opsi 4.2 (openSUSE_Leap_15.2)"
+		f"i  | {name}            | Paket | {version} | x86_64 | OPSI 4.2 (openSUSE_Leap_15.2)"
 		for name, version in installed_versions.items()
 	]
 
@@ -232,7 +232,7 @@ def test_check_system_repos() -> None:
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
-					== "System and opsi repositories are incompatible. System 'debian 10' using repository: https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11"
+					== "System and OPSI repositories are incompatible. System 'debian 10' using repository: https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Debian_11"
 				)
 
 		with mock.patch("opsiconfd.check.system.run") as mock_run:
@@ -268,14 +268,14 @@ def test_check_system_repos() -> None:
 						"epel-cisco-openh264        Extra Packages for Enterprise Linux 9 openh264 (From Cisco) - x86_64\n"
 						"extras                     Rocky Linux 9 - Extras\n"
 						"grafana                    grafana\n"
-						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_8)\n"
+						"home_uibmz_opsi_4.3_stable OPSI 4.3 stable (RockyLinux_8)\n"
 					)
 				)
 				result = check_manager.get("system_repositories").run(clear_cache=True)
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
-					== "System and opsi repositories are incompatible. System 'rocky 9' using repository: home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_8)"
+					== "System and OPSI repositories are incompatible. System 'rocky 9' using repository: home_uibmz_opsi_4.3_stable OPSI 4.3 stable (RockyLinux_8)"
 				)
 			with mock.patch("opsiconfd.check.system.run") as mock_run:
 				mock_run.return_value = Mock(
@@ -287,7 +287,7 @@ def test_check_system_repos() -> None:
 						"epel-cisco-openh264        Extra Packages for Enterprise Linux 9 openh264 (From Cisco) - x86_64\n"
 						"extras                     Rocky Linux 9 - Extras\n"
 						"grafana                    grafana\n"
-						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (RockyLinux_9)\n"
+						"home_uibmz_opsi_4.3_stable OPSI 4.3 stable (RockyLinux_9)\n"
 					)
 				)
 				result = check_manager.get("system_repositories").run(clear_cache=True)
@@ -303,7 +303,7 @@ def test_check_system_repos() -> None:
 					stdout=(
 						"Paketquellenkennung              Paketquellenname\n"
 						"grafana                          grafana\n"
-						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (OracleLinux_8)\n"
+						"home_uibmz_opsi_4.3_stable OPSI 4.3 stable (OracleLinux_8)\n"
 						"ol9_UEKR7                        Oracle Linux 9 UEK Release 7 (x86_64)\n"
 						"ol9_appstream                    Oracle Linux 9 Application Stream Packages (x86_64)\n"
 						"ol9_baseos_latest                Oracle Linux 9 BaseOS Latest (x86_64)\n"
@@ -314,14 +314,14 @@ def test_check_system_repos() -> None:
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
-					== "System and opsi repositories are incompatible. System 'ol 9' using repository: home_uibmz_opsi_4.3_stable opsi 4.3 stable (OracleLinux_8)"
+					== "System and OPSI repositories are incompatible. System 'ol 9' using repository: home_uibmz_opsi_4.3_stable OPSI 4.3 stable (OracleLinux_8)"
 				)
 			with mock.patch("opsiconfd.check.system.run") as mock_run:
 				mock_run.return_value = Mock(
 					stdout=(
 						"Paketquellenkennung              Paketquellenname\n"
 						"grafana                          grafana\n"
-						"home_uibmz_opsi_4.3_stable opsi 4.3 stable (OracleLinux_9)\n"
+						"home_uibmz_opsi_4.3_stable OPSI 4.3 stable (OracleLinux_9)\n"
 						"ol9_UEKR7                        Oracle Linux 9 UEK Release 7 (x86_64)\n"
 						"ol9_appstream                    Oracle Linux 9 Application Stream Packages (x86_64)\n"
 						"ol9_baseos_latest                Oracle Linux 9 BaseOS Latest (x86_64)\n"
@@ -344,7 +344,7 @@ def test_check_system_repos() -> None:
 						"#  | Alias                               | Name                                                         | Enabled | GPG Check | Refresh\n"
 						"---+-------------------------------------+--------------------------------------------------------------+---------+-----------+--------\n"
 						"1 | grafana                             | grafana                                                      | Ja      | (r ) Ja   | Nein\n"
-						"2 | home_uibmz_opsi_4.3_stable          | opsi 4.3 stable (openSUSE_Leap_15.4)                         | Ja      | ( p) Ja   | Nein\n"
+						"2 | home_uibmz_opsi_4.3_stable          | OPSI 4.3 stable (openSUSE_Leap_15.4)                         | Ja      | ( p) Ja   | Nein\n"
 						"3 | http-download.opensuse.org-0b97f368 | openSUSE 15.5-update-non-oss                                 | Ja      | (r ) Ja   | Ja\n"
 						"4 | http-download.opensuse.org-1152c701 | openSUSE 15.5-update-oss                                     | Ja      | (r ) Ja   | Ja\n"
 						"5 | non-oss-addon-15.5-0                | openSUSE 15.5-non-oss                                        | Ja      | (r ) Ja   | Ja\n"
@@ -357,7 +357,7 @@ def test_check_system_repos() -> None:
 				assert result.check_status == CheckStatus.ERROR
 				assert (
 					result.message
-					== "System and opsi repositories are incompatible. System 'opensuse-leap 15.5' using repository: opsi 4.3 stable (openSUSE_Leap_15.4)"
+					== "System and OPSI repositories are incompatible. System 'opensuse-leap 15.5' using repository: OPSI 4.3 stable (openSUSE_Leap_15.4)"
 				)
 			with mock.patch("opsiconfd.check.system.run") as mock_run:
 				mock_run.return_value = Mock(
@@ -367,7 +367,7 @@ def test_check_system_repos() -> None:
 						"#  | Alias                               | Name                                                         | Enabled | GPG Check | Refresh\n"
 						"---+-------------------------------------+--------------------------------------------------------------+---------+-----------+--------\n"
 						"1 | grafana                             | grafana                                                      | Ja      | (r ) Ja   | Nein\n"
-						"2 | home_uibmz_opsi_4.3_stable          | opsi 4.3 stable (openSUSE_Leap_15.5)                         | Ja      | ( p) Ja   | Nein\n"
+						"2 | home_uibmz_opsi_4.3_stable          | OPSI 4.3 stable (openSUSE_Leap_15.5)                         | Ja      | ( p) Ja   | Nein\n"
 						"3 | http-download.opensuse.org-0b97f368 | openSUSE 15.5-update-non-oss                                 | Ja      | (r ) Ja   | Ja\n"
 						"4 | http-download.opensuse.org-1152c701 | openSUSE 15.5-update-oss                                     | Ja      | (r ) Ja   | Ja\n"
 						"5 | non-oss-addon-15.5-0                | openSUSE 15.5-non-oss                                        | Ja      | (r ) Ja   | Ja\n"

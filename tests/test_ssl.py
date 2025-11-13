@@ -186,7 +186,7 @@ def test_store_load_cert(tmp_path: Path) -> None:
 				certs = load_certs(ssl_ca_cert)
 				assert len(certs) == 1
 				assert certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "other CA"
-				with pytest.raises(RuntimeError, match="Failed to load 'opsi CA' from.*"):
+				with pytest.raises(RuntimeError, match="Failed to load '(OPSI|opsi) CA' from.*"):
 					load_opsi_ca_cert()
 				assert (
 					load_cert(ssl_ca_cert, subject_cn="other CA").subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
@@ -648,7 +648,7 @@ def test_letsencrypt_certificate_chain(tmp_path: Path) -> None:
 
 				ca_certs = get_ca_certs()
 				assert len(ca_certs) == 1
-				ca_certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
+				assert ca_certs[0].subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
 				with pytest.raises(
 					verification.VerificationError,
@@ -681,7 +681,7 @@ def test_letsencrypt_certificate_chain(tmp_path: Path) -> None:
 				store_opsi_ca_cert(root_ca_crt)
 				store_opsi_ca_cert(letsencrypt_ca_crt)
 
-				# Must recreate opsi CA and not change server cert
+				# Must recreate OPSI CA and not change server cert
 				setup_ssl()
 				ca_certs = get_ca_certs()
 				assert len(ca_certs) == 3
@@ -763,7 +763,7 @@ def test_intermediate_ca(tmp_path: Path) -> None:
 				assert isinstance(srv_crt, x509.Certificate)
 				assert srv_crt.issuer == opsi_ca_crt.subject
 
-				# Try to renew opsi CA which must fail
+				# Try to renew OPSI CA which must fail
 				(opsi_ca_crt, opsi_ca_key) = create_ca(
 					subject=opsi_ca_subject, valid_days=conf.ssl_ca_cert_renew_days - 10, ca_key=ca_key, ca_cert=ca_crt
 				)
@@ -772,7 +772,7 @@ def test_intermediate_ca(tmp_path: Path) -> None:
 				with pytest.raises(
 					RuntimeError,
 					match=(
-						r"opsi CA needs to be renewed and is an intermediate CA \(issuer='ACME Root CA'\)\. "
+						r"OPSI CA needs to be renewed and is an intermediate CA \(issuer='ACME Root CA'\)\. "
 						r"Please update the current CA certificate.*and key.*manually\."
 					),
 				):
@@ -852,7 +852,7 @@ def test_keep_uib_opsi_ca_server_cert(tmp_path: Path) -> None:
 				ssl_ca_key.unlink()
 				setup_opsi_ca()
 				setup_server_cert()
-				# Keep server cert issued by "uib opsi CA"
+				# Keep server cert issued by "uib OPSI CA"
 				assert cert.issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "uib opsi CA"
 
 

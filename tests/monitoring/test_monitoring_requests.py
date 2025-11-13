@@ -573,7 +573,7 @@ def test_check_depot_sync_status(
 @pytest.mark.parametrize(
 	"cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result",
 	[
-		({"critical": 100, "warning": 100}, None, False, 99, {"message": "OK: Opsi Webservice has no Problem.", "state": 0}),
+		({"critical": 100, "warning": 100}, None, False, 99, {"message": "OK: OPSI Webservice has no Problem.", "state": 0}),
 		({"critical": 100, "warning": 50}, None, False, 99, {"message": "WARNING: CPU-Usage over 50%", "state": 1}),
 		(
 			{"critical": 70, "warning": 50},

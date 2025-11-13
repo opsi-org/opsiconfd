@@ -110,11 +110,11 @@ class DepotserverCheck(Check):
 	id: str = "depotservers"
 	name: str = "Depotserver"
 	description: str = (
-		"The opsi repository, workbench and depot must be located under /var/lib/opsi/. If this is not the case, an error will be reported."
+		"The OPSI repository, workbench and depot must be located under /var/lib/opsi/. If this is not the case, an error will be reported."
 	)
 	documentation: str = f"""
 		## {name} [{id}]
-		The opsi repository, workbench and depot must be located under /var/lib/opsi/.
+		The OPSI repository, workbench and depot must be located under /var/lib/opsi/.
 		If this is not the case, an error will be reported.
 	"""
 

@@ -53,7 +53,7 @@ def aes_encrypt_with_password(plaintext: bytes, password: str) -> tuple[bytes, b
 
 def aes_decrypt_with_password(ciphertext: bytes, key_salt: bytes, mac_tag: bytes, nonce: bytes, password: str) -> bytes:
 	if not isinstance(ciphertext, bytes):
-		raise TypeError("Plaintext must be bytes")
+		raise TypeError("Ciphertext must be bytes")
 	if not isinstance(password, str):
 		raise TypeError("Password must be string")
 	key = aes_encryption_key_from_password(password, salt=key_salt)
@@ -133,7 +133,7 @@ class EncryptionAlgorithm(StrEnum):
 def encrypt(value: str | bytes, *, key_id: str | None = None, algorithm: EncryptionAlgorithm = EncryptionAlgorithm.AESGCM) -> str:
 	"""
 	Encrypts a string using the specified algorithm.
-	Returns a string with format: ENCv1[ALG=<algorithm>|KID=<key_id>]:base64(nonce+ciphertext)
+	Returns a string with format: ENCv1[ALG=<algorithm>|KID=<key_id>]base64(nonce+ciphertext)
 	"""
 	if not isinstance(algorithm, EncryptionAlgorithm):
 		algorithm = EncryptionAlgorithm(algorithm)
@@ -147,7 +147,7 @@ def encrypt(value: str | bytes, *, key_id: str | None = None, algorithm: Encrypt
 		nonce = randbytes(12)
 		ciphertext = cipher.encrypt(nonce, value, None)
 		b64_encoded = base64.b64encode(nonce + ciphertext).decode("utf-8")
-		return f"ENCv1[ALG={algorithm.value}|KID={key_id}]:{b64_encoded}"
+		return f"ENCv1[ALG={algorithm.value}|KID={key_id}]{b64_encoded}"
 
 	raise ValueError(f"Unsupported algorithm: {algorithm!r}")
 
@@ -162,17 +162,15 @@ def decrypt(value: str, *, return_type: Type[bytes], ignore_unencrypted: bool = 
 
 def decrypt(value: str, *, return_type: Type[str] | Type[bytes] = str, ignore_unencrypted: bool = False) -> str | bytes:
 	"""
-	Decrypts a string formatted as ENCv1[ALG|KID=key_id]:base64(nonce+ciphertext)
+	Decrypts a string formatted as ENCv1[ALG|KID=key_id]base64(nonce+ciphertext)
 	Returns the decrypted value as bytes or str depending on return_type.
 	If ignore_unencrypted is True, non-encrypted values are returned as-is.
 	"""
 	try:
-		if ":" not in value:
+		if not value or "]" not in value:
 			raise ValueError(f"Invalid encrypted format: {value!r}")
-		prefix, b64_data = value.split(":", 1)
-		if "[" not in prefix or "]" not in prefix:
-			raise ValueError(f"Invalid encrypted format: {prefix!r}")
-		enc_version, info = prefix.rstrip("]").split("[", 1)
+		prefix, b64_data = value.split("]", 1)
+		enc_version, info = prefix.split("[", 1)
 		if enc_version != "ENCv1":
 			raise ValueError(f"Unsupported encryption version: {enc_version!r}")
 	except ValueError:
@@ -222,7 +220,7 @@ class HashingAlgorithm(StrEnum):
 		raise ValueError(f"Unsupported hashing algorithm {identifier!r}")
 
 
-def create_password_hash(password: str, *, algorithm: HashingAlgorithm = HashingAlgorithm.SHA512, rounds: int | None = None) -> str:
+def create_password_hash(password: str, *, algorithm: HashingAlgorithm = HashingAlgorithm.BCRYPT, rounds: int | None = None) -> str:
 	"""
 	Encode a password using the specified algorithm and return a hash string.
 	"""

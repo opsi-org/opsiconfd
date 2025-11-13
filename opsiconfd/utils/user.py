@@ -55,7 +55,7 @@ def migrate_opsi_passwd_file() -> None:
 				continue
 			username = match.group(1)
 			blowfish_encrypted_password = match.group(2)
-			if username in user_ids:
+			if username in user_ids and username != depot_user and username != "monitoring":
 				continue
 
 			logger.info("Migrating user %r to backend", username)
@@ -66,13 +66,13 @@ def migrate_opsi_passwd_file() -> None:
 			try:
 				password = blowfish_decrypt(depot.opsiHostKey, blowfish_encrypted_password)
 			except Exception as err:
-				logger.warning("Failed to decrypt password for user %r: %s", username, err)
-				if username == depot_user:
-					logger.notice("Creating a new random password for depot user %r", depot_user)
-					password = get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
+				logger.warning("Failed to decrypt password for user %r (%s), creating new random password", username, err)
+				password = get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
 
 			if username == depot_user:
+				# Only store encrypted password for depot user, login not required
 				encrypted_password = encrypt(password) if password else None
+				password = None
 
 			backend.user_insertObject(
 				User(

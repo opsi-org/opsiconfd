@@ -218,7 +218,7 @@ def test_encrypt_decrypt() -> None:
 	):
 		plaintext = "This is a test string."
 		encrypted_value = encrypt(plaintext)
-		assert encrypted_value.startswith("ENCv1[ALG=AESGCM|KID=2025-01]:")
+		assert encrypted_value.startswith("ENCv1[ALG=AESGCM|KID=2025-01]")
 
 		decrypted_str = decrypt(encrypted_value, return_type=str)
 		assert isinstance(decrypted_str, str)
@@ -230,7 +230,7 @@ def test_encrypt_decrypt() -> None:
 
 		# Test with specific key_id
 		encrypted_value = encrypt(plaintext.encode("utf-8"), key_id="2024-12")
-		assert encrypted_value.startswith("ENCv1[ALG=AESGCM|KID=2024-12]:")
+		assert encrypted_value.startswith("ENCv1[ALG=AESGCM|KID=2024-12]")
 		decrypted_str = decrypt(encrypted_value)
 		assert decrypted_str == plaintext
 
@@ -244,23 +244,23 @@ def test_encrypt_decrypt() -> None:
 			encrypt(plaintext, key_id="2000-01")
 
 		with pytest.raises(ValueError, match="Encryption key with id '2000-01' not found"):
-			decrypt("ENCv1[ALG=AESGCM|KID=2000-01]:")
+			decrypt("ENCv1[ALG=AESGCM|KID=2000-01]")
 
 		# Test with unsupported algorithm
 		with pytest.raises(ValueError, match="'UnsupportedAlg' is not a valid EncryptionAlgorithm"):
 			encrypt(plaintext, algorithm="UnsupportedAlg")  # type: ignore[arg-type]
 
 		# Test decryption with unsupported algorithm
-		invalid_encrypted_value = "ENCv1[ALG=UnsupportedAlg|KID=2025-01]:abcd"
+		invalid_encrypted_value = "ENCv1[ALG=UnsupportedAlg|KID=2025-01]abcd"
 		with pytest.raises(ValueError, match="'UnsupportedAlg' is not a valid EncryptionAlgorithm"):
 			decrypt(invalid_encrypted_value)
 
 		# Test decryption with invalid format
 		invalid_formats = [
 			"InvalidFormatWithoutColon",
-			"ENCv1ALG=AESGCM|KID=2025-01]:abcd",
+			"ENCv1ALG=AESGCM|KID=2025-01]abcd",
 			"ENCv1[ALG=AESGCM|KID=2025-01abcd",
-			"ENCv2[ALG=AESGCM|KID=2025-01]:abcd",
+			"ENCv2[ALG=AESGCM|KID=2025-01]abcd",
 		]
 		for invalid_value in invalid_formats:
 			with pytest.raises(ValueError):
@@ -275,7 +275,7 @@ def test_encrypt_decrypt() -> None:
 		assert result == plain_value
 
 		with pytest.raises(ValueError, match="Decryption failed"):
-			decrypt("ENCv1[ALG=AESGCM|KID=2024-12]:invalid", ignore_unencrypted=True)
+			decrypt("ENCv1[ALG=AESGCM|KID=2024-12]invalid", ignore_unencrypted=True)
 
 
 @pytest.mark.parametrize(
@@ -370,13 +370,12 @@ def test_migrate_opsi_passwd_file(tmp_path: Path, backend: UnprotectedBackend) -
 
 			if username == depot_user:
 				assert user_obj.encryptedPassword is not None
+				assert user_obj.passwordHash is None
 			else:
 				assert user_obj.encryptedPassword is None
+				assert user_obj.passwordHash is not None
 
-			if not broken_passwords or username == depot_user:
-				assert user_obj.passwordHash
-
-			if not broken_passwords:
+			if not broken_passwords and username != depot_user:
 				assert user_obj.passwordHash and verify_password(password, user_obj.passwordHash)
 
 		assert not passwd_file.exists()

@@ -340,7 +340,7 @@ CREATE TABLE IF NOT EXISTS `USER` (
 	`passwordHash` varchar(128) DEFAULT NULL,
 	`encryptedPassword` varchar(128) DEFAULT NULL,
 	`tokenHash` varchar(128) DEFAULT NULL,
-	`groups` varchar(256) DEFAULT NULL,
+	`groups` varchar(1024) DEFAULT NULL,
 	PRIMARY KEY (`userId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -1438,7 +1438,7 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				ADD `passwordHash` varchar(128) DEFAULT NULL,
 				ADD `encryptedPassword` varchar(128) DEFAULT NULL,
 				ADD `tokenHash` varchar(128) DEFAULT NULL,
-				ADD `groups` varchar(256) DEFAULT NULL
+				ADD `groups` varchar(1024) DEFAULT NULL
 			""")
 
 		# Be sure to update MySQLConnection.schema_version as well when changing this function.

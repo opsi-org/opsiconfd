@@ -84,7 +84,7 @@ SESSION_COOKIE_NAME = "opsiconfd-session"
 SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
 MESSAGEBUS_IN_USE_TIMEOUT = 60
 HARDWARE_ADDRESS_RE = re.compile(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$")
-HOST_ID_RE = re.compile(r"^[^.]+\.[^.]+\.\S+$")
+HOST_ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,63}\.((\w+\-+)|(\w+\.))*\w{1,63}\.\w{2,16}\.?$")
 AUTH_TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
 # Zsync2 will send "curl/<curl-version>" as User-Agent.
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
@@ -1178,7 +1178,7 @@ async def authenticate_host(scope: Scope) -> None:
 		auth_method = AuthenticationMethod.SYSTEM_UUID
 	else:
 		logger.debug("Trying to authenticate host by host id and OPSI host key")
-		session.username = session.username.rstrip(".")
+		session.username = session.username.replace("{host_id}", "").rstrip(".")
 		host_filter["id"] = session.username
 		auth_method = AuthenticationMethod.HOST_ID
 
@@ -1347,11 +1347,11 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 
 	if (
 		not session.username
+		or session.username.startswith("{host_id}")
 		or session.username.startswith("{hardware_address}")
 		or session.username.startswith("{system_uuid}")
 		or HOST_ID_RE.search(session.username)
 		or HARDWARE_ADDRESS_RE.search(session.username)
-		or session.username.count(".") >= 2
 	):
 		# Host authentication
 		await authenticate_host(scope=scope)

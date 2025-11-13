@@ -39,7 +39,6 @@ RUN mkdir -p /usr/local/share/keyrings \
 	&& uv self update
 
 COPY files/ /
-COPY ../../opsiconfd_data/etc/ /etc/opsi/
 
 RUN chmod +x /entrypoint.sh /healthcheck.sh \
 	&& (getent group opsifileadmins || groupadd opsifileadmins) \

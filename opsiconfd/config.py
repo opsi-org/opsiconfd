@@ -1292,7 +1292,19 @@ class Config(metaclass=Singleton):
 			default=False,
 			help=self._help(
 				"opsiconfd",
-				"Enable SAML 2.0 client signatures and decryption of assertions.",
+				"Enable signining of messages and assertions.",
+			),
+		)
+		self._parser.add(
+			"--saml-encrypted-assertions",
+			env_var="OPSICONFD_SAML_ENCRYPTED_ASSERTIONS",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"opsiconfd",
+				"Enable encrypted assertions.",
 			),
 		)
 		self._parser.add(

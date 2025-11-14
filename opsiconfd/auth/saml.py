@@ -89,6 +89,7 @@ def get_saml_settings(
 			"wantMessagesSigned": False,
 			# Indicates a requirement for the <saml:Assertion> elements received by
 			# this SP to be signed. [Metadata of the SP will offer this info]
+			# This setting is not needed if document is already being signed.
 			"wantAssertionsSigned": False,
 		},
 		# Identity Provider
@@ -96,7 +97,7 @@ def get_saml_settings(
 			"entityId": config.saml_idp_entity_id,
 			"singleSignOnService": {
 				"url": config.saml_idp_sso_url,
-				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 			},
 			"x509cert": config.saml_idp_x509_cert,
 		},
@@ -113,22 +114,25 @@ def get_saml_settings(
 	if config.saml_idp_slo_url:
 		settings["idp"]["singleLogoutService"] = {
 			"url": config.saml_idp_slo_url,
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
 		settings["sp"]["singleLogoutService"] = {
 			"url": f"{get_sp_url(logout_callback_path)}",
-			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
+			"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 		}
-	if config.saml_sp_client_signature:
+
+	if config.saml_sp_client_signature or config.saml_encrypted_assertions:
 		if not config.saml_sp_x509_cert or not config.saml_sp_private_key:
 			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
+		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
+		settings["sp"]["privateKey"] = config.saml_sp_private_key
+
+	if config.saml_sp_client_signature:
 		settings["security"]["authnRequestsSigned"] = True
 		settings["security"]["logoutRequestSigned"] = True
 		settings["security"]["logoutResponseSigned"] = True
 		settings["security"]["wantMessagesSigned"] = True
 		settings["security"]["wantAssertionsSigned"] = True
-		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
-		settings["sp"]["privateKey"] = config.saml_sp_private_key
 
 	return settings
 
@@ -217,7 +221,7 @@ def get_sp_metadata_xml(
 		metadata = OneLogin_Saml2_Metadata.add_x509_key_descriptors(
 			metadata=metadata,
 			cert=saml_settings["sp"]["x509cert"],
-			add_encryption=saml_settings["security"]["wantAssertionsSigned"],
+			add_encryption=config.saml_encrypted_assertions,
 		)
 	if isinstance(metadata, bytes):
 		metadata = metadata.decode("utf-8")
@@ -225,7 +229,7 @@ def get_sp_metadata_xml(
 	# Fix XML formatting
 	dom = xml.dom.minidom.parseString(metadata)
 	metadata = dom.toprettyxml()
-	metadata = re.sub("^\s*\n", "", metadata, flags=re.MULTILINE)
+	metadata = re.sub(r"^\s*\n", "", metadata, flags=re.MULTILINE)
 	return metadata
 
 

@@ -312,8 +312,19 @@ def test_saml_keycloak_group_membership(
 		assert session_data["auth_methods"] == {"saml"}
 
 
-@pytest.mark.parametrize("saml_sp_client_signature", (False, True))
-def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient, saml_sp_client_signature: bool) -> None:  # noqa: F811
+@pytest.mark.parametrize(
+	"saml_sp_client_signature, saml_encrypted_assertions",
+	(
+		(False, False),
+		(True, False),
+		(True, True),
+	),
+)
+def test_saml_get_sp_metadata_xml(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	saml_sp_client_signature: bool,
+	saml_encrypted_assertions: bool,
+) -> None:
 	with get_config(
 		{
 			"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
@@ -323,6 +334,7 @@ def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient, saml_sp_clie
 			"saml-sp-x509-cert": "== SP_CERT ==",
 			"saml-sp-private-key": "== SP_KEY ==",
 			"saml-sp-client-signature": saml_sp_client_signature,
+			"saml-encrypted-assertions": saml_encrypted_assertions,
 		}
 	):
 		metadata = get_sp_metadata_xml(login_callback_path="/login___callback", logout_callback_path="/logout___callback")
@@ -332,15 +344,20 @@ def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient, saml_sp_clie
 		if saml_sp_client_signature:
 			assert 'AuthnRequestsSigned="true"' in metadata
 			assert 'WantAssertionsSigned="true"' in metadata
-			assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == 2
 			assert '<md:KeyDescriptor use="signing">' in metadata
-			assert '<md:KeyDescriptor use="encryption">' in metadata
 		else:
 			assert 'AuthnRequestsSigned="false"' in metadata
 			assert 'WantAssertionsSigned="false"' in metadata
-			assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == 0
 			assert '<md:KeyDescriptor use="signing">' not in metadata
+
+		if saml_encrypted_assertions:
+			assert '<md:KeyDescriptor use="encryption">' in metadata
+		else:
 			assert '<md:KeyDescriptor use="encryption">' not in metadata
+
+		assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == int(saml_sp_client_signature) + int(
+			saml_encrypted_assertions
+		)
 
 		res = test_client.get("/auth/saml/sp-meta.xml")
 		assert res.status_code == 200

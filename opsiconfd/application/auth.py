@@ -10,6 +10,7 @@ session
 import asyncio
 import json
 import time
+from base64 import b64decode
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, FastAPI, Request, Response, status
@@ -156,12 +157,7 @@ async def saml_logout(request: Request) -> RedirectResponse:
 
 		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 		redirect_url = auth.logout()
-		try:
-			await run_in_threadpool(auth.process_slo)
-		finally:
-			if saml_logger.isEnabledFor(TRACE):
-				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
-				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
+
 	return RedirectResponse(url=redirect_url)
 
 
@@ -172,6 +168,9 @@ async def saml_callback_login(request: Request) -> Response:
 		request_data = await saml_auth_request_data(request)
 		if saml_logger.isEnabledFor(TRACE):
 			saml_logger.trace("SAML Login Callback Request data: %s", request_data)
+			saml_logger.trace(
+				"SAML Login Callback Request SAMLResponse: %s", b64decode(request_data.get("post_data", {}).get("SAMLResponse") or "")
+			)
 
 		relay_state = request_data.get("post_data", {}).get("RelayState")
 		if not relay_state:

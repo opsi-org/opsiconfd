@@ -339,6 +339,7 @@ def test_saml_get_sp_metadata_xml(
 	):
 		metadata = get_sp_metadata_xml(login_callback_path="/login___callback", logout_callback_path="/logout___callback")
 		assert metadata.startswith('<?xml version="1.0" ?>\n')
+		assert metadata.count("<?xml") == 1
 		assert "login___callback" in metadata
 		assert "logout___callback" in metadata
 		if saml_sp_client_signature:

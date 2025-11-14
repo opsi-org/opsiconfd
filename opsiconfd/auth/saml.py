@@ -11,6 +11,7 @@ import re
 import xml.dom.minidom
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from textwrap import dedent
 from typing import Any
 from urllib.parse import urlparse
 from xml.etree import ElementTree
@@ -282,11 +283,30 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 		metadata_xml = file.read_text(encoding="utf-8")
 
 	rich_print("Updating configuration")
+	rich_print(
+		dedent(
+			"""
+			Encrypted assertions are generally unnecessary because the connection to the Identity Provider is already secure.
+			If you still want to enable encrypted assertions, activate saml-encrypted-assertions in the opsiconfd configuration
+			and ensure that RSA1_5 (http://www.w3.org/2001/04/xmlenc#rsa-1_5) is set as the key transport algorithm
+			on the Service Provider side, since RSA-OAEP-11 and RSA-OAEP-MGF1P are not currently supported.
+			"""
+		)
+	)
 	update_config_from_idp_metadata_xml(metadata_xml)
 	config.update_config({"saml_sp_client_signature": True})
 	generate_client_certificate()
 	metadata_xml = get_sp_metadata_xml()
-	metadata_xml = metadata_xml.removeprefix('<?xml version="1.0"?>')
+	metadata_xml = re.sub('<\?\s*xml version="1.0"\s*\?>', "", metadata_xml)
 	rich_print(
-		f'<?xml version="1.0"?>\n<!--\nopsiconfd SP XML metadata.\nThis data is also available at: {get_sp_url("/auth/saml/sp-meta.xml")}\n-->\n{metadata_xml}'
+		dedent(
+			f"""
+			<?xml version="1.0"?>
+			<!--
+			opsiconfd SP XML metadata.
+			This data is also available at: {get_sp_url("/auth/saml/sp-meta.xml")}
+			-->
+			"""
+		).strip()
+		+ metadata_xml
 	)

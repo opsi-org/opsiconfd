@@ -297,7 +297,7 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 	config.update_config({"saml_sp_client_signature": True})
 	generate_client_certificate()
 	metadata_xml = get_sp_metadata_xml()
-	metadata_xml = re.sub('<\?\s*xml version="1.0"\s*\?>', "", metadata_xml)
+	metadata_xml = re.sub(r'<\?\s*xml version="1.0"\s*\?>', "", metadata_xml)
 	rich_print(
 		dedent(
 			f"""

@@ -41,7 +41,7 @@ from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.backend.rpc.obj_user import create_auth_token
-from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates
+from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates, opsi_config
 from opsiconfd.grafana.grafana import GRAFANA_DASHBOARD_UID, async_grafana_session, create_dashboard_user
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import CHANNEL_INFO_SUFFIX, get_websocket_connected_users
@@ -525,7 +525,11 @@ async def get_user_list() -> RESTResponse:
 		user_dict = {k: v for k, v in user.to_hash().items() if k not in ("otpSecret", "tokenHash", "passwordHash", "encryptedPassword")}
 		user_dict["token_auth"] = bool(user.tokenHash)
 		user_dict["internal_auth"] = bool(user.passwordHash)
-		user_dict["groups"] = user.groups
+		user_dict["groups"] = [
+			g
+			for g in (user.groups or [])
+			if g in ("{admingroup}", "{readonly}", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "readonly"))
+		]
 		user_list.append(user_dict)
 	return RESTResponse(user_list)
 

@@ -8,9 +8,9 @@ opsiconfd.auth.saml
 """
 
 import re
+import xml.dom.minidom
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from textwrap import dedent, indent
 from typing import Any
 from urllib.parse import urlparse
 from xml.etree import ElementTree
@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import CertificateBuilder
 from fastapi import Request
+from onelogin.saml2.metadata import OneLogin_Saml2_Metadata  # type: ignore[import-untyped]
 from opsicommon.exceptions import OpsiServiceAuthenticationError
 from rich import print as rich_print
 from rich.prompt import Prompt
@@ -74,8 +75,21 @@ def get_saml_settings(
 			# Prevent sending RequestedAuthnContext in AuthnRequest to avoid error AADSTS75011
 			# See https://learn.microsoft.com/de-de/troubleshoot/entra/entra-id/app-integration/error-code-AADSTS75011-auth-method-mismatch
 			"requestedAuthnContext": False,
+			# Indicates whether the <samlp:AuthnRequest> messages sent by this SP
+			# will be signed. [Metadata of the SP will offer this info]
 			"authnRequestsSigned": False,
+			# Indicates whether the <samlp:logoutRequest> messages sent by this SP
+			# will be signed.
 			"logoutRequestSigned": False,
+			# Indicates whether the <samlp:logoutResponse> messages sent by this SP
+			# will be signed.
+			"logoutResponseSigned": False,
+			# Indicates a requirement for the <samlp:Response>, <samlp:LogoutRequest>
+			# and <samlp:LogoutResponse> elements received by this SP to be signed.
+			"wantMessagesSigned": False,
+			# Indicates a requirement for the <saml:Assertion> elements received by
+			# this SP to be signed. [Metadata of the SP will offer this info]
+			"wantAssertionsSigned": False,
 		},
 		# Identity Provider
 		"idp": {
@@ -89,6 +103,7 @@ def get_saml_settings(
 		# Service Provider
 		"sp": {
 			"entityId": get_sp_entity_id(),
+			"NameIDFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified",
 			"assertionConsumerService": {
 				"url": f"{get_sp_url(login_callback_path)}",
 				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
@@ -109,6 +124,8 @@ def get_saml_settings(
 			raise ValueError("saml-sp-x509-cert and saml-sp-private-key must be set in config")
 		settings["security"]["authnRequestsSigned"] = True
 		settings["security"]["logoutRequestSigned"] = True
+		settings["security"]["logoutResponseSigned"] = True
+		settings["security"]["wantMessagesSigned"] = True
 		settings["security"]["wantAssertionsSigned"] = True
 		settings["sp"]["x509cert"] = config.saml_sp_x509_cert
 		settings["sp"]["privateKey"] = config.saml_sp_private_key
@@ -188,44 +205,28 @@ def get_sp_metadata_xml(
 ) -> str:
 	now = datetime.now(tz=timezone.utc)
 	valid_until = now + timedelta(days=2)
-	valid_until_str = valid_until.strftime("%Y-%m-%dT%H:%M:%SZ")
-	slo = ""
-	if config.saml_idp_slo_url:
-		slo = f'<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="{get_sp_url(logout_callback_path)}"/>'
-	signing = ""
-	if config.saml_sp_client_signature:
-		signing = indent(
-			dedent(f"""
-		<md:KeyDescriptor use="signing">
-			<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-				<ds:X509Data>
-					<ds:X509Certificate>{config.saml_sp_x509_cert}</ds:X509Certificate>
-				</ds:X509Data>
-			</ds:KeyInfo>
-		</md:KeyDescriptor>
-		<md:KeyDescriptor use="encryption">
-			<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-				<ds:X509Data>
-					<ds:X509Certificate>{config.saml_sp_x509_cert}</ds:X509Certificate>
-				</ds:X509Data>
-			</ds:KeyInfo>
-		</md:KeyDescriptor>
-		"""),
-			"\t\t\t",
-		)
 
-	metadata = f"""
-	<?xml version="1.0"?>
-	<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="{valid_until_str}" cacheDuration="PT604800S" entityID="{get_sp_entity_id()}">
-		<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-			<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
-			<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="{get_sp_url(login_callback_path)}" index="0" isDefault="true"/>
-			{slo}
-	{signing}
-		</md:SPSSODescriptor>
-	</md:EntityDescriptor>
-	"""
-	return re.sub(r"^\s*\n", "", dedent(metadata), flags=re.MULTILINE)
+	saml_settings = get_saml_settings(login_callback_path=login_callback_path, logout_callback_path=logout_callback_path)
+	metadata = OneLogin_Saml2_Metadata.builder(
+		sp=saml_settings["sp"],
+		authnsign=saml_settings["security"]["authnRequestsSigned"],
+		wsign=saml_settings["security"]["wantAssertionsSigned"],
+		valid_until=valid_until,
+	)
+	if saml_settings["sp"].get("x509cert"):
+		metadata = OneLogin_Saml2_Metadata.add_x509_key_descriptors(
+			metadata=metadata,
+			cert=saml_settings["sp"]["x509cert"],
+			add_encryption=saml_settings["security"]["wantAssertionsSigned"],
+		)
+	if isinstance(metadata, bytes):
+		metadata = metadata.decode("utf-8")
+
+	# Fix XML formatting
+	dom = xml.dom.minidom.parseString(metadata)
+	metadata = dom.toprettyxml()
+	metadata = re.sub("^\s*\n", "", metadata, flags=re.MULTILINE)
+	return metadata
 
 
 def generate_client_certificate() -> None:
@@ -281,7 +282,7 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 	config.update_config({"saml_sp_client_signature": True})
 	generate_client_certificate()
 	metadata_xml = get_sp_metadata_xml()
-	metadata_xml = metadata_xml.removeprefix("<?xml version=\"1.0\"?>")
+	metadata_xml = metadata_xml.removeprefix('<?xml version="1.0"?>')
 	rich_print(
-		f"<?xml version=\"1.0\"?>\n<!--\nopsiconfd SP XML metadata.\nThis data is also available at: {get_sp_url('/auth/saml/sp-meta.xml')}\n-->\n{metadata_xml}"
+		f'<?xml version="1.0"?>\n<!--\nopsiconfd SP XML metadata.\nThis data is also available at: {get_sp_url("/auth/saml/sp-meta.xml")}\n-->\n{metadata_xml}'
 	)

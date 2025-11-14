@@ -4,11 +4,9 @@
 # License: AGPL-3.0-only
 
 import json
-import re
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from textwrap import dedent
 from unittest.mock import patch
 
 import pytest
@@ -314,62 +312,43 @@ def test_saml_keycloak_group_membership(
 		assert session_data["auth_methods"] == {"saml"}
 
 
-def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	with (
-		patch("opsiconfd.auth.saml.get_sp_entity_id", return_value="sp-entity-id"),
-		patch("opsiconfd.auth.saml.get_sp_base_url", return_value="https://base-url:123"),
+@pytest.mark.parametrize("saml_sp_client_signature", (False, True))
+def test_saml_get_sp_metadata_xml(test_client: OpsiconfdTestClient, saml_sp_client_signature: bool) -> None:  # noqa: F811
+	with get_config(
+		{
+			"saml-idp-entity-id": "https://keycloak.opsi.test/realms/master",
+			"saml-idp-sso-url": "https://keycloak.opsi.test/realms/master/protocol/saml",
+			"saml-idp-slo-url": "https://keycloak.opsi.test/realms/master/protocol/saml",
+			"saml-idp-x509-cert": "== IDP_CERT ==",
+			"saml-sp-x509-cert": "== SP_CERT ==",
+			"saml-sp-private-key": "== SP_KEY ==",
+			"saml-sp-client-signature": saml_sp_client_signature,
+		}
 	):
-		metadata = get_sp_metadata_xml()
-		metadata = re.sub(r'validUntil="20.*Z"', 'validUntil="2024-12-06T10:10:10Z"', metadata)
-		assert (
-			metadata
-			== dedent(
-				"""
-		<?xml version="1.0"?>
-		<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="2024-12-06T10:10:10Z" cacheDuration="PT604800S" entityID="sp-entity-id">
-			<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-				<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
-				<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://base-url:123/auth/saml/callback/login" index="0" isDefault="true"/>
-			</md:SPSSODescriptor>
-		</md:EntityDescriptor>
-		"""
-			).lstrip()
+		metadata = get_sp_metadata_xml(login_callback_path="/login___callback", logout_callback_path="/logout___callback")
+		assert metadata.startswith('<?xml version="1.0" ?>\n')
+		assert "login___callback" in metadata
+		assert "logout___callback" in metadata
+		if saml_sp_client_signature:
+			assert 'AuthnRequestsSigned="true"' in metadata
+			assert 'WantAssertionsSigned="true"' in metadata
+			assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == 2
+			assert '<md:KeyDescriptor use="signing">' in metadata
+			assert '<md:KeyDescriptor use="encryption">' in metadata
+		else:
+			assert 'AuthnRequestsSigned="false"' in metadata
+			assert 'WantAssertionsSigned="false"' in metadata
+			assert metadata.count("<ds:X509Certificate>==SP_CERT==</ds:X509Certificate>") == 0
+			assert '<md:KeyDescriptor use="signing">' not in metadata
+			assert '<md:KeyDescriptor use="encryption">' not in metadata
+
+		res = test_client.get("/auth/saml/sp-meta.xml")
+		assert res.status_code == 200
+		assert res.headers["content-type"] == "application/xml"
+		metadata2 = res.text
+		assert metadata == metadata2.replace("/auth/saml/callback/login", "/login___callback").replace(
+			"/auth/saml/callback/logout", "/logout___callback"
 		)
-		with get_config({"saml-sp-client-signature": True, "saml-sp-x509-cert": "==cert==", "saml-idp-slo-url": "https://..."}):
-			res = test_client.get("/auth/saml/sp-meta.xml")
-			assert res.status_code == 200
-			assert res.headers["content-type"] == "application/xml"
-			metadata = res.text
-			metadata = re.sub(r'validUntil="20.*Z"', 'validUntil="2024-12-06T10:10:10Z"', metadata)
-			assert (
-				metadata
-				== dedent(
-					"""
-				<?xml version="1.0"?>
-				<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" validUntil="2024-12-06T10:10:10Z" cacheDuration="PT604800S" entityID="sp-entity-id">
-					<md:SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-						<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>
-						<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://base-url:123/auth/saml/callback/login" index="0" isDefault="true"/>
-						<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://base-url:123/auth/saml/callback/logout"/>
-						<md:KeyDescriptor use="signing">
-							<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-								<ds:X509Data>
-									<ds:X509Certificate>==cert==</ds:X509Certificate>
-								</ds:X509Data>
-							</ds:KeyInfo>
-						</md:KeyDescriptor>
-						<md:KeyDescriptor use="encryption">
-							<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-								<ds:X509Data>
-									<ds:X509Certificate>==cert==</ds:X509Certificate>
-								</ds:X509Data>
-							</ds:KeyInfo>
-						</md:KeyDescriptor>
-					</md:SPSSODescriptor>
-				</md:EntityDescriptor>
-				"""
-				).lstrip()
-			)
 
 
 IDP_METDATA_XML = """

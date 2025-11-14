@@ -127,13 +127,21 @@ async def saml_login(request: Request) -> RedirectResponse:
 		"session_id": session.session_id,
 		"redirect": request.query_params.get("redirect", "/admin"),
 	}
+	if saml_logger.isEnabledFor(TRACE):
+		saml_logger.trace("SAML Login RelayState data: %s", relay_state_data)
+
 	request_data = await saml_auth_request_data(request)
+	if saml_logger.isEnabledFor(TRACE):
+		saml_logger.trace("SAML Login Request data: %s", request_data)
+
 	auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 	# The value passed as return_to will be send as RelayState in the SAML request
-	redirect_url = auth.login(return_to=json.dumps(relay_state_data))
-	if saml_logger.isEnabledFor(TRACE):
-		saml_logger.trace(auth.get_last_request_xml())
-		saml_logger.trace(auth.get_last_response_xml())
+	try:
+		redirect_url = await run_in_threadpool(auth.login, return_to=json.dumps(relay_state_data))
+	finally:
+		if saml_logger.isEnabledFor(TRACE):
+			saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
+			saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
 	return RedirectResponse(url=redirect_url)
 
 
@@ -143,11 +151,17 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	redirect_url = "/"
 	if session:
 		request_data = await saml_auth_request_data(request)
+		if saml_logger.isEnabledFor(TRACE):
+			saml_logger.trace("SAML Logout Request data: %s", request_data)
+
 		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
 		redirect_url = auth.logout()
-		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace(auth.get_last_request_xml())
-			saml_logger.trace(auth.get_last_response_xml())
+		try:
+			await run_in_threadpool(auth.process_slo)
+		finally:
+			if saml_logger.isEnabledFor(TRACE):
+				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
+				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
 	return RedirectResponse(url=redirect_url)
 
 
@@ -156,6 +170,9 @@ async def saml_logout(request: Request) -> RedirectResponse:
 async def saml_callback_login(request: Request) -> Response:
 	try:
 		request_data = await saml_auth_request_data(request)
+		if saml_logger.isEnabledFor(TRACE):
+			saml_logger.trace("SAML Login Callback Request data: %s", request_data)
+
 		relay_state = request_data.get("post_data", {}).get("RelayState")
 		if not relay_state:
 			raise RuntimeError("No RelayState in SAML login callback")
@@ -166,16 +183,21 @@ async def saml_callback_login(request: Request) -> Response:
 		except Exception as err:
 			raise RuntimeError(f"Failed to parse RelayState in SAML login callback: {err}") from err
 
+		if saml_logger.isEnabledFor(TRACE):
+			saml_logger.trace("SAML Login Callback RelayState data: %s", relay_state_data)
+
 		redirect = relay_state_data.get("redirect") or "/admin"
 
 		await pre_authenticate(request.scope, session_id=session_id)
 		session: OPSISession = request.scope["session"]
 
 		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		await run_in_threadpool(auth.process_response)
-		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace(auth.get_last_request_xml())
-			saml_logger.trace(auth.get_last_response_xml())
+		try:
+			await run_in_threadpool(auth.process_response)
+		finally:
+			if saml_logger.isEnabledFor(TRACE):
+				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
+				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
 
 		errors = auth.get_errors()
 		if errors:
@@ -257,11 +279,16 @@ async def saml_callback_login(request: Request) -> Response:
 async def saml_callback_logout(request: Request) -> RedirectResponse:
 	try:
 		request_data = await saml_auth_request_data(request)
-		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
-		await run_in_threadpool(auth.process_slo)
 		if saml_logger.isEnabledFor(TRACE):
-			saml_logger.trace(auth.get_last_request_xml())
-			saml_logger.trace(auth.get_last_response_xml())
+			saml_logger.trace("SAML Logout Callback Request data: %s", request_data)
+
+		auth = OneLogin_Saml2_Auth(request_data, get_saml_settings())
+		try:
+			await run_in_threadpool(auth.process_slo)
+		finally:
+			if saml_logger.isEnabledFor(TRACE):
+				saml_logger.trace("Last request XML: %s", auth.get_last_request_xml())
+				saml_logger.trace("Last response XML: %s", auth.get_last_response_xml())
 		errors = auth.get_errors()
 		if errors:
 			saml_logger.error("Failed to process SAML SLO response: %s %s", errors, auth.get_last_error_reason())

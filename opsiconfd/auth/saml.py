@@ -281,7 +281,7 @@ def setup_saml_configuration(interactive: bool = True, unattended_configuration:
 	config.update_config({"saml_sp_client_signature": True})
 	generate_client_certificate()
 	metadata_xml = get_sp_metadata_xml()
-
+	metadata_xml = metadata_xml.removeprefix("<?xml version=\"1.0\"?>")
 	rich_print(
-		f"<!--\nopsiconfd SP XML metadata.\nThis data is also available at: {get_sp_url('/auth/saml/sp-meta.xml')}\n-->\n{metadata_xml}"
+		f"<?xml version=\"1.0\"?>\n<!--\nopsiconfd SP XML metadata.\nThis data is also available at: {get_sp_url('/auth/saml/sp-meta.xml')}\n-->\n{metadata_xml}"
 	)

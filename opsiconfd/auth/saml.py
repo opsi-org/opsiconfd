@@ -70,7 +70,8 @@ def get_saml_settings(
 
 	settings: dict[str, Any] = {
 		"strict": False,
-		"debug": True,
+		# If debug is True, xmlsec errors will be printed
+		"debug": False,
 		"security": {
 			"allowRepeatAttributeName": True,
 			# Prevent sending RequestedAuthnContext in AuthnRequest to avoid error AADSTS75011

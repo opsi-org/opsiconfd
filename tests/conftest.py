@@ -35,6 +35,7 @@ from opsiconfd.config import config as _config
 from opsiconfd.config import opsi_config
 from opsiconfd.grafana.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
+from opsiconfd.redis import reset_redis_pools
 from opsiconfd.setup import setup_backend, setup_mysql, setup_ssl
 from opsiconfd.worker import Worker
 
@@ -166,6 +167,8 @@ def pytest_pyfunc_call(pyfuncitem: Callable | Coroutine) -> Generator[None, Resu
 
 	# Reset log level
 	logging_config(stderr_level=0)
+
+	reset_redis_pools()
 
 	for wait in range(6):
 		left_over_threads = (

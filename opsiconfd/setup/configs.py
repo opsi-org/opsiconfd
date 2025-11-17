@@ -258,7 +258,7 @@ def setup_configs() -> None:
 			)
 		)
 
-	if "clientconfig.depot.user1024" not in config_ids:
+	if "clientconfig.depot.user" not in config_ids:
 		logger.info("Creating config 'clientconfig.depot.user'")
 
 		depot_user = opsi_config.get("depot_user", "username")

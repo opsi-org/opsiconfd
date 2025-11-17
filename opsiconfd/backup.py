@@ -28,7 +28,6 @@ from opsiconfd.config import (
 	FQDN,
 	OPSI_LICENSE_DIR,
 	OPSI_MODULES_FILE,
-	OPSI_PASSWD_FILE,
 	SSH_COMMANDS_CUSTOM_FILE,
 	SSH_COMMANDS_DEFAULT_FILE,
 	config,
@@ -101,7 +100,6 @@ def get_config_files() -> dict[str, Path]:
 	config_files = {
 		"opsiconfd_conf": Path(config.config_file),
 		"opsi_conf": Path(opsi_config.config_file),
-		"opsi_passwd": Path(OPSI_PASSWD_FILE),
 		"ssl_ca_key": Path(config.ssl_ca_key),
 		"ssl_ca_cert": Path(config.ssl_ca_cert),
 		"ssl_server_key": Path(config.ssl_server_key),

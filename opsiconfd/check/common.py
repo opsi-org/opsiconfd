@@ -151,7 +151,7 @@ class Check:
 		# TODO: check if check id is valid. With partial checks...
 		redis_key = f"opsiconfd:checkcache:{self.id}"
 		logger.debug("Check cache store: %s", redis_key)
-		redis_client().set(redis_key, encode(result), ex=expiration)
+		redis_client().set(redis_key, encode(result), ex=int(expiration))
 
 	def load_result_from_cache(self) -> CheckResult | None:
 		redis_key = f"opsiconfd:checkcache:{self.id}"

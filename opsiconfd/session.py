@@ -1386,11 +1386,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	if user and (user.passwordHash or user.tokenHash):
 		if "database" in config.disabled_auth_methods:
 			logger.debug("Database authentication is disabled")
-		elif not (
-			module_available("professional")
-			or module_available("enterprise")
-			or user.id in (config.monitoring_user, opsi_config.get("depot_user", "username"))
-		):
+		elif not (module_available("opsi_auth") or user.id in (config.monitoring_user, opsi_config.get("depot_user", "username"))):
 			logger.error("Database authentication not licensed")
 		else:
 			if password_is_token:

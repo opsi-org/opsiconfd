@@ -146,8 +146,7 @@ async def admin_interface_index(request: Request) -> Response:
 		"addon_install_enabled": VAR_ADDON_DIR in config.addon_dirs,
 		"multi_factor_auth": config.multi_factor_auth,
 		"saml_slo": config.saml_slo,
-		"database_auth": ("professional" in backend._available_modules or "enterprise" in backend._available_modules)
-		and "database" not in config.disabled_auth_methods,
+		"database_auth": "opsi_auth" in backend._available_modules and "database" not in config.disabled_auth_methods,
 	}
 
 	return jinja_templates().TemplateResponse(request=request, name="admininterface.html", context=context)

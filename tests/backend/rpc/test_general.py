@@ -378,6 +378,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			"local_imaging": 1000,
 			"monitoring": 1000,
 			"mysql_backend": 999999999,
+			"opsi_auth": 1000,
 			"professional": 1000,
 			"roaming_profiles": 999999999,
 			"scalability_light": 1000,

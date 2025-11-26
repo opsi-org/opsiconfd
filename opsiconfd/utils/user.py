@@ -18,6 +18,7 @@ from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.objects import User
 
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, get_random_string
 from opsiconfd.utils.cryptography import blowfish_decrypt, create_password_hash, encrypt
@@ -30,6 +31,18 @@ def get_passwd_file() -> Path:
 	from opsiconfd.config import OPSI_PASSWD_FILE
 
 	return Path(OPSI_PASSWD_FILE)
+
+
+def ensure_depot_user_credentials() -> None:
+	backend = get_unprotected_backend()
+	username = opsi_config.get("depot_user", "username")
+	try:
+		backend.user_getCredentials(username)
+	except Exception as err:
+		logger.warning("Failed to get credentials for user %s: %s, setting new random password", username, err)
+		backend.user_setCredentials(
+			username, get_random_string(32, alphabet=string.ascii_letters + string.digits, mandatory_alphabet="/^@?-")
+		)
 
 
 def migrate_opsi_passwd_file() -> None:

@@ -113,7 +113,6 @@ package:
       mkdir -p "${arch_dst}/usr/lib"
       mkdir -p "${arch_dst}/etc/opsi"
       cp -a "${arch_src}" "${arch_dst}/usr/lib/opsiconfd"
-      cp -a "${arch_src}/_internal/opsiconfd_data/grub.cfg" ${DST}/rootfs/usr/share/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/static" ${DST}/rootfs/usr/share/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/etc/"* ${DST}/rootfs/etc/opsi/
       cp -a "${arch_src}/_internal/opsiconfd_data/usr/lib/"* ${DST}/rootfs/usr/lib/opsiconfd/
@@ -159,4 +158,5 @@ package:
 
     # Setup opsiconfd
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
-    /usr/bin/opsiconfd setup --non-interactive --log-level=0 --log-level-stderr=0 --log-level-file=0 || true
+    mkdir -p /var/log/opsi/opsiconfd
+    NO_COLOR=1 /usr/bin/opsiconfd setup --non-interactive --log-mode=local --log-level-stderr=6 2>> /var/log/opsi/opsiconfd/opsiconfd.log

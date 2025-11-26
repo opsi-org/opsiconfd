@@ -52,7 +52,7 @@ from opsiconfd.setup.sudo import setup_sudoers
 from opsiconfd.setup.system import set_unprivileged_port_start, setup_limits, setup_systemd, setup_users_and_groups
 from opsiconfd.ssl import fetch_server_cert, setup_ssl, store_local_server_cert, store_local_server_key
 from opsiconfd.utils import opsiconfd_running, restart_opsiconfd
-from opsiconfd.utils.user import migrate_opsi_passwd_file
+from opsiconfd.utils.user import ensure_depot_user_credentials, migrate_opsi_passwd_file
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -433,6 +433,7 @@ def setup(explicit: bool = True) -> None:
 
 	if get_server_role() == "configserver" and backend_available:
 		migrate_opsi_passwd_file()
+		ensure_depot_user_credentials()
 
 	if explicit and (register_depot or rename_server):
 		restart_opsiconfd_if_running()

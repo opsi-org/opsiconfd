@@ -1682,6 +1682,7 @@ dependencies = [
     { name = "py3dns" },
     { name = "pydantic" },
     { name = "pydantic-core" },
+    { name = "pydantic-extra-types" },
     { name = "pympler" },
     { name = "pymysql" },
     { name = "pyotp" },
@@ -1760,13 +1761,14 @@ requires-dist = [
     { name = "py3dns", specifier = ">=4.0" },
     { name = "pydantic", specifier = ">=2.12.0a1" },
     { name = "pydantic-core", specifier = ">=2.18" },
+    { name = "pydantic-extra-types", specifier = ">=2.10.6" },
     { name = "pympler", specifier = ">=1.0" },
     { name = "pymysql", specifier = ">=1.1" },
     { name = "pyotp", specifier = ">=2.8" },
     { name = "python-magic", specifier = ">=0.4" },
     { name = "python-multipart", specifier = ">=0.0" },
     { name = "python-opsi", specifier = ">=4.3.6,<4.4" },
-    { name = "python-opsi-common", specifier = ">=4.3.29,<4.4" },
+    { name = "python-opsi-common", specifier = ">=4.3.44.1,<4.4" },
     { name = "python-opsi-system", specifier = ">=4.3.2.1,<4.4" },
     { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
@@ -2185,6 +2187,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pydantic-extra-types"
+version = "2.10.6"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3a/10/fb64987804cde41bcc39d9cd757cd5f2bb5d97b389d81aa70238b14b8a7e/pydantic_extra_types-2.10.6.tar.gz", hash = "sha256:c63d70bf684366e6bbe1f4ee3957952ebe6973d41e7802aea0b770d06b116aeb", size = 141858, upload-time = "2025-10-08T13:47:49.483Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/04/5c918669096da8d1c9ec7bb716bd72e755526103a61bc5e76a3e4fb23b53/pydantic_extra_types-2.10.6-py3-none-any.whl", hash = "sha256:6106c448316d30abf721b5b9fecc65e983ef2614399a24142d689c7546cc246a", size = 40949, upload-time = "2025-10-08T13:47:48.268Z" },
+]
+
+[[package]]
 name = "pydevd"
 version = "3.4.1"
 source = { registry = "https://pypi.uib.gmbh/simple" }
@@ -2464,9 +2479,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.44.1.tar.gz", hash = "sha256:847e8e7fe60acd63f0cb292f5aec2ef11b124edb7f2e06baef613e44f6054049" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.44.1.tar.gz", hash = "sha256:9b5fbce6c4da1992d7d675ab348a8ce3878003e854eb875dd6c5152aad794fa1" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.44.1-py3-none-any.whl", hash = "sha256:d8cc2793603231c1d9df7fd03d3f48cdf634dce89dab66d326862d715e38f9a1" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.44.1-py3-none-any.whl", hash = "sha256:965db1e3673bb1e33d864221a8541f4a37c2b268a4f7b6b1ae061932c6e004c8" },
 ]
 
 [[package]]

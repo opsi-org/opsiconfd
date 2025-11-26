@@ -236,7 +236,6 @@ class NodeMetricsCollector(MetricsCollector):
 					logger.warning("Failed to get MySQL metrics: %s", err)
 		return num_queries, num_processes
 
-
 	async def _fetch_values(self) -> None:
 		if "node:avg_load" in self._metrics:
 			await self.add_value("node:avg_load", psutil.getloadavg()[0])

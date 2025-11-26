@@ -18,6 +18,7 @@ from opsicommon.objects import User
 
 from opsiconfd.config import opsi_config
 from opsiconfd.utils import (
+	FileCache,
 	NameService,
 	create_auth_token,
 	get_file_md5sum,
@@ -28,7 +29,7 @@ from opsiconfd.utils import (
 	timed_lru_cache,
 )
 from opsiconfd.utils.cryptography import (
-	HashingAlgorithm,
+	PasswordHashFormat,
 	aes_decrypt_with_password,
 	aes_encrypt_with_password,
 	blowfish_encrypt,
@@ -279,32 +280,45 @@ def test_encrypt_decrypt() -> None:
 
 
 @pytest.mark.parametrize(
-	"password, algorithm, rounds, expected_exception, expected_exception_message",
+	"password, algorithm, rounds, format, expected_exception, expected_exception_message",
 	(
-		(r"?z!W!@pmvU;7-|`}P7rb]Xz@VZ", "BCRYPT", 13, None, None),
-		(r"7ERlz[I|12by1ycIqe?ES6t`2r<F,y", "BCRYPT", None, None, None),
-		(r'Eg$l5;]g\&yW)lC9)*WI"0dOI]XV', "BCRYPT", None, None, None),
-		("x" * 65, "BCRYPT", None, ValueError, "Password cannot be longer than 64 bytes"),
-		(r"o~'UaGQ,negIb_nf7_}(SrFC)\"", "SHA512", 5000, None, None),
-		(r"5&|F{#(OO+y?z`Zg];AL&TIJ;", "SHA512", None, None, None),
-		(r"c5e9b99b0e4a4d3f8a6722b2e91a8cd4d274a923e56d43f4d2b1187b9b09f6a3", "SHA512", None, None, None),
-		("x" * 65, "SHA512", None, ValueError, "Password cannot be longer than 64 bytes"),
+		(r"?z!W!@pmvU;7-|`}P7rb]Xz@VZ", "BCRYPT", 13, "SHADOW", None, None),
+		(r"7ERlz[I|12by1ycIqe?ES6t`2r<F,y", "BCRYPT", None, None, None, None),
+		(r'Eg$l5;]g\&yW)lC9)*WI"0dOI]XV', "BCRYPT", None, None, None, None),
+		("x" * 65, "BCRYPT", None, "SHADOW", ValueError, "Password cannot be longer than 64 bytes"),
+		(r"o~'UaGQ,negIb_nf7_}(SrFC)\"", "SHA512", 5000, "SHADOW", None, None),
+		(r"5&|F{#(OO+y?z`Zg];AL&TIJ;", "SHA512", None, "SHADOW", None, None),
+		(r"c5e9b99b0e4a4d3f8a6722b2e91a8cd4d274a923e56d43f4d2b1187b9b09f6a3", "SHA512", None, "SHADOW", None, None),
+		("x" * 65, "SHA512", None, "SHADOW", ValueError, "Password cannot be longer than 64 bytes"),
+		("secret", "PBKDF2_SHA512", None, "GRUB", None, None),
+		("secret", "PBKDF2_SHA512", None, "SHADOW", ValueError, "PBKDF2_SHA512 only supported with GRUB format"),
+		("secret", "BCRYPT", None, "GRUB", ValueError, "BCRYPT only supported with SHADOW format"),
+		("secret", "SHA512", None, "GRUB", ValueError, "SHA512 only supported with SHADOW format"),
+		("secret", "MD5", None, None, ValueError, "Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported"),
 	),
 )
 def test_password_hashing(
 	password: str,
 	algorithm: str,
 	rounds: int | None,
+	format: str | None,
 	expected_exception: type[Exception] | None,
 	expected_exception_message: str | None,
 ) -> None:
+	kwargs = {"password": password, "algorithm": algorithm, "rounds": rounds}
+	if format:
+		kwargs["format"] = PasswordHashFormat(format)
+
 	if expected_exception:
 		with pytest.raises(expected_exception, match=expected_exception_message):
-			create_password_hash(password, algorithm=HashingAlgorithm(algorithm), rounds=rounds)
+			create_password_hash(**kwargs)  # type: ignore[arg-type]
 		return
 
-	hash = create_password_hash(password, algorithm=HashingAlgorithm(algorithm), rounds=rounds)
-	print(hash)
+	hash = create_password_hash(**kwargs)  # type: ignore[arg-type]
+	if algorithm == "PBKDF2_SHA512":
+		assert hash.startswith("grub.pbkdf2.sha512")
+		return
+
 	assert len(hash) <= 128
 	assert hash.startswith("$")
 	parts = hash.split("$")
@@ -315,6 +329,7 @@ def test_password_hashing(
 		assert parts[1] == "6"
 		if rounds:
 			assert parts[2] == f"rounds={rounds}"
+
 	assert verify_password(password, hash)
 	assert not verify_password("wrong_password", hash)
 
@@ -384,3 +399,40 @@ def test_migrate_opsi_passwd_file(tmp_path: Path, backend: UnprotectedBackend) -
 		backend.user_deleteObjects(user_objs)
 		user_objs = backend.user_getObjects()
 		assert len(user_objs) == 0
+
+
+def test_file_cache(tmp_path: Path) -> None:
+	orig_read_text = Path.read_text
+
+	read_text_called = 0
+
+	def read_text(self: Path, encoding: str | None = None, errors: str | None = None, newline: str | None = None) -> str:
+		nonlocal read_text_called
+		read_text_called += 1
+		return orig_read_text(self, encoding=encoding, errors=errors, newline=newline)
+
+	with mock.patch("opsiconfd.utils.Path.read_text", read_text):
+		file_cache = FileCache()
+
+		test_file = tmp_path / "test_file_cache.txt"
+		test_file.write_text("Initial content", encoding="utf-8")
+
+		content = file_cache.get_file_content(test_file)
+		assert content == "Initial content"
+		assert read_text_called == 1
+
+		content = file_cache.get_file_content(test_file)
+		assert content == "Initial content"
+		assert read_text_called == 1  # Cached, so read_text should not be called
+
+		time.sleep(1)
+		test_file.write_text("Updated content", encoding="utf-8")
+
+		content = file_cache.get_file_content(test_file)
+		assert content == "Updated content"
+		assert read_text_called == 2
+		content = file_cache.get_file_content(test_file)
+		assert content == "Updated content"
+		assert read_text_called == 2  # Cached again
+
+		assert file_cache.get_file_content(tmp_path / "non_existent_file.txt") is None

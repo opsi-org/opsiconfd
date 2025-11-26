@@ -1039,3 +1039,31 @@ def patch_markupsafe() -> None:
 	markupsafe._escape_inner = _escape_inner
 	if markupsafe._escape_inner.__module__ != "markupsafe._native":
 		raise RuntimeError("Failed to patch markupsafe")
+
+
+@dataclass
+class FileCacheEntry:
+	path: Path
+	mtime: float
+	content: str
+
+
+class FileCache:
+	def __init__(self) -> None:
+		self._cache: dict[Path, FileCacheEntry] = {}
+		self._cache_lock: threading.Lock = threading.Lock()
+
+	def get_file_content(self, file_path: Path) -> str | None:
+		with self._cache_lock:
+			try:
+				mtime = file_path.stat().st_mtime
+			except FileNotFoundError:
+				return None
+
+			entry = self._cache.get(file_path)
+			if entry and entry.mtime == mtime:
+				return entry.content
+
+			content = file_path.read_text(encoding="utf-8")
+			self._cache[file_path] = FileCacheEntry(path=file_path, mtime=mtime, content=content)
+			return content

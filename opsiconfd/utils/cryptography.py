@@ -10,6 +10,9 @@ utils
 from __future__ import annotations
 
 import base64
+import binascii
+import hashlib
+import os
 import re
 from enum import StrEnum
 from functools import lru_cache
@@ -200,9 +203,31 @@ def decrypt(value: str, *, return_type: Type[str] | Type[bytes] = str, ignore_un
 	raise ValueError(f"Unsupported algorithm: {algorithm!r}")
 
 
+class PasswordHashFormat(StrEnum):
+	SHADOW = "SHADOW"
+	GRUB = "GRUB"
+
+	@classmethod
+	def _missing_(cls, value: object) -> PasswordHashFormat:
+		value = str(value).upper()
+		for member in cls:
+			if member.value == value:
+				return member
+		raise ValueError(f"{value!r} is not a valid {cls.__name__}")
+
+
 class HashingAlgorithm(StrEnum):
 	SHA512 = "SHA512"
 	BCRYPT = "BCRYPT"
+	PBKDF2_SHA512 = "PBKDF2_SHA512"
+
+	@classmethod
+	def _missing_(cls, value: object) -> HashingAlgorithm:
+		value = str(value).upper().replace("-", "_")
+		for member in cls:
+			if member.value == value:
+				return member
+		raise ValueError(f"{value!r} is not a valid {cls.__name__}")
 
 	def identifier(self) -> str:
 		if self == HashingAlgorithm.SHA512:
@@ -220,7 +245,13 @@ class HashingAlgorithm(StrEnum):
 		raise ValueError(f"Unsupported hashing algorithm {identifier!r}")
 
 
-def create_password_hash(password: str, *, algorithm: HashingAlgorithm = HashingAlgorithm.BCRYPT, rounds: int | None = None) -> str:
+def create_password_hash(
+	password: str,
+	*,
+	algorithm: HashingAlgorithm = HashingAlgorithm.BCRYPT,
+	rounds: int | None = None,
+	format: PasswordHashFormat = PasswordHashFormat.SHADOW,
+) -> str:
 	"""
 	Encode a password using the specified algorithm and return a hash string.
 	"""
@@ -230,14 +261,27 @@ def create_password_hash(password: str, *, algorithm: HashingAlgorithm = Hashing
 		raise ValueError("Password cannot be longer than 64 bytes")
 
 	if algorithm == HashingAlgorithm.SHA512:
+		if format != PasswordHashFormat.SHADOW:
+			raise ValueError("SHA512 only supported with SHADOW format")
 		salt = crypt_r.mksalt(method=crypt_r.METHOD_SHA512, rounds=rounds or 500_000)
 		return crypt_r.crypt(password, salt=salt)
 
 	if algorithm == HashingAlgorithm.BCRYPT:
+		if format != PasswordHashFormat.SHADOW:
+			raise ValueError("BCRYPT only supported with SHADOW format")
 		salt = bcrypt.gensalt(rounds=rounds or 12)
 		return bcrypt.hashpw(encoded_password, salt).decode("utf-8")
 
-	raise ValueError("Only 'SHA512' and 'BCRYPT' methods are supported")
+	if algorithm == HashingAlgorithm.PBKDF2_SHA512:
+		if format != PasswordHashFormat.GRUB:
+			raise ValueError("PBKDF2_SHA512 only supported with GRUB format")
+
+		salt = os.urandom(16)
+		rounds = int(rounds or 10_000)
+		hash_bytes = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), os.urandom(16), rounds)
+		return f"grub.pbkdf2.sha512.{rounds}.{binascii.hexlify(salt).decode().upper()}.{binascii.hexlify(hash_bytes).decode().upper()}"
+
+	raise ValueError("Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported")
 
 
 def verify_password(password: str, hash: str) -> bool:

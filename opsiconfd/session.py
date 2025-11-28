@@ -57,7 +57,7 @@ from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task, timed_lru_cache
-from opsiconfd.utils.cryptography import verify_password
+from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, get_password_hash_algorithm, verify_password
 from opsiconfd.utils.modules import module_available
 
 if TYPE_CHECKING:
@@ -1381,8 +1381,9 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	backend = get_unprotected_backend()
 	users: list[User] = await backend.async_call("user_getObjects", id=session.username)
 	user = users[0] if users else None
-	authenticated_user: User | None = None
 
+	used_database_auth_algorithm = None
+	db_auth_success = False
 	if user and (user.passwordHash or user.tokenHash):
 		if "database" in config.disabled_auth_methods:
 			logger.debug("Database authentication is disabled")
@@ -1394,7 +1395,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 					raise OpsiServiceAuthenticationError(f"Token authentication failed for user {session.username}")
 				try:
 					if verify_password(password, user.tokenHash):
-						authenticated_user = user
+						db_auth_success = True
 						session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.TOKEN_DATABASE)
 						logger.debug("Token authentication successful for user %r", session.username)
 					else:
@@ -1406,8 +1407,9 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 					logger.debug("No password hash in database for user %s", session.username)
 				else:
 					try:
-						if verify_password(session.password, user.passwordHash):
-							authenticated_user = user
+						used_database_auth_algorithm = get_password_hash_algorithm(user.passwordHash)
+						if verify_password(session.password, user.passwordHash, algorithm=used_database_auth_algorithm):
+							db_auth_success = True
 							session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_DATABASE)
 							logger.debug("Password hash authentication successful for user %r", session.username)
 						else:
@@ -1416,7 +1418,7 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 						logger.error("Password hash verification error: %s", err)
 
 	auth_module: AuthenticationModule | None = None
-	if not authenticated_user:
+	if not db_auth_success:
 		auth_module = get_auth_module()
 		if not auth_module:
 			raise OpsiServiceAuthenticationError(f"Authentication failed for user '{session.username}'")
@@ -1446,8 +1448,11 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 	admin_groupname = opsi_config.get("groups", "admingroup").lower()
 	readonly_groupname = opsi_config.get("groups", "readonly").lower()
 	groups = set()
-	if authenticated_user:
-		for group in authenticated_user.groups or []:
+	user_updated = False
+
+	if db_auth_success:
+		assert user
+		for group in user.groups or []:
 			if group == "{readonly}":
 				if readonly_groupname:
 					group = readonly_groupname
@@ -1464,10 +1469,35 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		groups = auth_module.get_groupnames(session.username)
 		if user:
 			user.groups = list(groups)
-			await backend.async_call("user_updateObjects", users=[user])
+			user_updated = True
 
 	if config.auth_allowed_groups and not groups.intersection(config.auth_allowed_groups):
+		logger.warning("User %r groups %r not in allowed groups %r", session.username, groups, config.auth_allowed_groups)
 		raise OpsiServicePermissionError(f"User {session.username!r} not in allowed groups")
+
+	if user:
+		password_hashing_algorithm = HashingAlgorithm(config.password_hashing_method)
+		update_db_password_hash = False
+
+		if not user.passwordHash and config.password_hash_migration == "database":
+			logger.info("Creating password hash for user %r in database", session.username)
+			update_db_password_hash = True
+		elif used_database_auth_algorithm and used_database_auth_algorithm != password_hashing_algorithm:
+			logger.info(
+				"Updating password hash for user %r from algorithm %r to %r",
+				session.username,
+				used_database_auth_algorithm.value,
+				config.password_hashing_method,
+			)
+			update_db_password_hash = True
+
+		if update_db_password_hash:
+			user.passwordHash = create_password_hash(session.password, algorithm=password_hashing_algorithm)
+			user_updated = True
+
+		if user_updated:
+			await backend.async_call("user_updateObjects", users=[user])
+			logger.info("Updated password hash for user %r to algorithm %r", session.username, password_hashing_algorithm)
 
 	session.authenticated = True
 	session.user_groups = groups

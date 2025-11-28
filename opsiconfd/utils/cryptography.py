@@ -21,6 +21,8 @@ from typing import Type, overload
 
 import bcrypt
 import crypt_r  # type: ignore[import-untyped]
+from argon2 import DEFAULT_TIME_COST as ARGON2_DEFAULT_TIME_COST
+from argon2 import PasswordHasher
 from Crypto.Cipher import AES, Blowfish
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Hash import SHA256
@@ -220,6 +222,7 @@ class HashingAlgorithm(StrEnum):
 	SHA512 = "SHA512"
 	BCRYPT = "BCRYPT"
 	PBKDF2_SHA512 = "PBKDF2_SHA512"
+	ARGON2ID = "ARGON2ID"
 
 	@classmethod
 	def _missing_(cls, value: object) -> HashingAlgorithm:
@@ -230,6 +233,8 @@ class HashingAlgorithm(StrEnum):
 		raise ValueError(f"{value!r} is not a valid {cls.__name__}")
 
 	def identifier(self) -> str:
+		if self == HashingAlgorithm.ARGON2ID:
+			return "argon2id"
 		if self == HashingAlgorithm.SHA512:
 			return "6"
 		if self == HashingAlgorithm.BCRYPT:
@@ -238,6 +243,8 @@ class HashingAlgorithm(StrEnum):
 
 	@classmethod
 	def from_identifier(cls, identifier: str) -> HashingAlgorithm:
+		if identifier == "argon2id":
+			return HashingAlgorithm.ARGON2ID
 		if identifier == "6":
 			return HashingAlgorithm.SHA512
 		if identifier in ("2a", "2b", "2y"):
@@ -248,7 +255,7 @@ class HashingAlgorithm(StrEnum):
 def create_password_hash(
 	password: str,
 	*,
-	algorithm: HashingAlgorithm = HashingAlgorithm.BCRYPT,
+	algorithm: HashingAlgorithm = HashingAlgorithm.ARGON2ID,
 	rounds: int | None = None,
 	format: PasswordHashFormat = PasswordHashFormat.SHADOW,
 ) -> str:
@@ -259,6 +266,12 @@ def create_password_hash(
 	if len(encoded_password) > 64:
 		# Max for bcrypt is 72 bytes
 		raise ValueError("Password cannot be longer than 64 bytes")
+
+	if algorithm == HashingAlgorithm.ARGON2ID:
+		if format != PasswordHashFormat.SHADOW:
+			raise ValueError("ARGON2ID only supported with SHADOW format")
+		hasher = PasswordHasher(time_cost=rounds or ARGON2_DEFAULT_TIME_COST)
+		return hasher.hash(password)
 
 	if algorithm == HashingAlgorithm.SHA512:
 		if format != PasswordHashFormat.SHADOW:
@@ -281,18 +294,34 @@ def create_password_hash(
 		hash_bytes = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), os.urandom(16), rounds)
 		return f"grub.pbkdf2.sha512.{rounds}.{binascii.hexlify(salt).decode().upper()}.{binascii.hexlify(hash_bytes).decode().upper()}"
 
-	raise ValueError("Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported")
+	raise ValueError(f"Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported, not {algorithm!r}")
 
 
-def verify_password(password: str, hash: str) -> bool:
+def get_password_hash_algorithm(hash: str) -> HashingAlgorithm:
 	"""
-	Verify a password against a given hash string.
+	Get the hashing algorithm used for a given hash string.
 	"""
 	if hash.count("$") < 3:
 		raise ValueError("Invalid shadow hash format")
 
 	identifier = hash.split("$", 2)[1]
-	algorithm = HashingAlgorithm.from_identifier(identifier)
+	return HashingAlgorithm.from_identifier(identifier)
+
+
+def verify_password(password: str, hash: str, algorithm: HashingAlgorithm | None = None) -> bool:
+	"""
+	Verify a password against a given hash string.
+	"""
+	if not algorithm:
+		algorithm = get_password_hash_algorithm(hash)
+
+	if algorithm == HashingAlgorithm.ARGON2ID:
+		hasher = PasswordHasher()
+		try:
+			return hasher.verify(hash, password)
+		except Exception:
+			return False
+
 	if algorithm == HashingAlgorithm.SHA512:
 		return crypt_r.crypt(password, hash) == hash
 

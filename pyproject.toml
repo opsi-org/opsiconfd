@@ -62,6 +62,7 @@ dependencies = [
 	"crypt-r>=3.13.1",
 	"bcrypt>=5.0.0",
 	"pydantic-extra-types>=2.10.6",
+	"argon2-cffi>=25.1.0",
 ]
 
 [[project.authors]]

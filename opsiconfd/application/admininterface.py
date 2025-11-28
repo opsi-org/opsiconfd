@@ -50,7 +50,7 @@ from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
 from opsiconfd.utils import get_manager_process
-from opsiconfd.utils.cryptography import create_password_hash, encrypt
+from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, encrypt
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -566,7 +566,7 @@ async def set_internal_user_password(request: Request) -> RESTResponse:
 		except Exception as err:
 			return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
-		user.passwordHash = create_password_hash(password)
+		user.passwordHash = create_password_hash(password, algorithm=HashingAlgorithm(config.password_hashing_method))
 		if user.encryptedPassword:
 			user.encryptedPassword = encrypt(password)
 	else:
@@ -634,7 +634,9 @@ async def create_user(request: Request) -> RESTResponse:
 		groups.append("{admingroup}")
 	elif params.get("readonly"):
 		groups.append("{readonly}")
-	user = User(id=params.get("user_id"), passwordHash=create_password_hash(password), groups=groups)
+	user = User(
+		id=params.get("user_id"), passwordHash=create_password_hash(password, algorithm=config.password_hashing_method), groups=groups
+	)
 	await backend.async_call("user_createObjects", users=[user])
 
 	return RESTResponse("ok")

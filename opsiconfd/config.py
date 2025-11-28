@@ -1228,8 +1228,25 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--password-hash-migration",
+			env_var="OPSICONFD_PASSWORD_HASH_MIGRATION",
+			type=str_lower,
+			default=None,
+			help=self._help("opsiconfd", "Migrate password hashes to the specified method on successful authentication."),
+			choices=("database",),
+		)
+		self._parser.add(
+			"--password-hashing-method",
+			env_var="OPSICONFD_PASSWORD_HASHING_METHOD",
+			type=str_lower,
+			default="argon2id",
+			help=self._help("opsiconfd", "Password hashing method to use."),
+			choices=("sha512", "bcrypt", "argon2id"),
+		)
+		self._parser.add(
 			"--multi-factor-auth",
 			env_var="OPSICONFD_MULTI_FACTOR_AUTH",
+			type=str_lower,
 			default="inactive",
 			help=self._help("opsiconfd", "The multi factor authentication mode to use."),
 			choices=("inactive", "totp_optional", "totp_mandatory"),

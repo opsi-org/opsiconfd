@@ -34,7 +34,7 @@ from opsiconfd.auth.saml import check_if_saml_available
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession
 from opsiconfd.utils import create_auth_token
-from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash
+from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, get_password_hash_algorithm, verify_password
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -115,7 +115,7 @@ def test_x_opsi_user_id_header(
 				(hostId, type, opsiHostKey)
 			VALUES
 				("client1.opsi.test", "OpsiClient", "08508cd947c5e22f020dcde519d9ec04");
-		"""
+			"""
 		)
 
 	try:
@@ -1105,6 +1105,7 @@ def test_pam_authentication_concurrency() -> None:
 	(
 		("SHA512", ["{admingroup}"]),
 		("BCRYPT", ["{readonly}"]),
+		("ARGON2ID", ["{admingroup}"]),
 		("BCRYPT", ["other-group"]),
 		("SHA512", ["opsi-admin-group", "opsi-readonly-group"]),
 		("SHA512", ["other-group", "opsi-readonly-group"]),
@@ -1226,3 +1227,50 @@ def test_database_token_authentication(
 		assert res.status_code == expected_status
 		if expected_status == 200:
 			assert res.json()["is_admin"] is True
+
+
+def test_migrate_to_database_authentication(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	with (
+		patch("opsiconfd.auth._pam.PAMAuthentication.authenticate", return_value=True),
+		patch("opsiconfd.auth._pam.PAMAuthentication.get_groupnames", return_value={"opsi-admin-group"}),
+	):
+		for password_hash_migration in (None, "database"):
+			with (
+				get_config({"password_hash_migration": password_hash_migration, "auth_allowed_groups": ["opsi-admin-group"]}),
+			):
+				res = test_client.post("/auth/login", json={"username": "testuser1", "password": "secret123"})
+				assert res.status_code == 200
+				user = backend.user_getObjects(id="testuser1")[0]
+				if password_hash_migration:
+					assert user.passwordHash
+					assert get_password_hash_algorithm(user.passwordHash) == HashingAlgorithm.ARGON2ID
+					assert verify_password("secret123", user.passwordHash)
+				else:
+					assert user.passwordHash is None
+				test_client.reset_cookies()
+
+
+def test_migrate_hashing_algorithm(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	user = objects.User(
+		id="testuser1",
+		passwordHash=create_password_hash("secret123", algorithm=HashingAlgorithm.SHA512),
+		groups=["opsi-admin-group"],
+	)
+	backend.user_createObjects([user])
+	for hashing_method in ("sha512", "argon2id", "bcrypt", "sha512"):
+		print("Testing migration to hashing algorithm:", hashing_method)
+		with get_config({"password_hashing_method": hashing_method, "auth_allowed_groups": ["opsi-admin-group"]}):
+			res = test_client.post("/auth/login", json={"username": "testuser1", "password": "secret123"})
+			assert res.status_code == 200
+			user = backend.user_getObjects(id="testuser1")[0]
+			assert user.passwordHash
+			assert get_password_hash_algorithm(user.passwordHash) == HashingAlgorithm(hashing_method)
+			assert verify_password("secret123", user.passwordHash)
+			test_client.reset_cookies()
+			time.sleep(1)

@@ -37,6 +37,7 @@ from opsiconfd.utils.cryptography import (
 	decrypt,
 	encrypt,
 	get_encryption_key,
+	get_password_hash_algorithm,
 	verify_password,
 )
 from opsiconfd.utils.user import migrate_opsi_passwd_file
@@ -295,6 +296,9 @@ def test_encrypt_decrypt() -> None:
 		("secret", "BCRYPT", None, "GRUB", ValueError, "BCRYPT only supported with SHADOW format"),
 		("secret", "SHA512", None, "GRUB", ValueError, "SHA512 only supported with SHADOW format"),
 		("secret", "MD5", None, None, ValueError, "Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported"),
+		("secret", "ARGON2ID", 4, "SHADOW", None, None),
+		(r"7ERlz[I|12by1ycIqe?ES6t`2r<F,y", "ARGON2ID", None, None, None, None),
+		("secret", "ARGON2ID", 4, "GRUB", ValueError, "ARGON2ID only supported with SHADOW format"),
 	),
 )
 def test_password_hashing(
@@ -330,7 +334,10 @@ def test_password_hashing(
 		if rounds:
 			assert parts[2] == f"rounds={rounds}"
 
+	alg = get_password_hash_algorithm(hash)
+	assert alg.name == algorithm
 	assert verify_password(password, hash)
+	assert verify_password(password, hash, algorithm=alg)
 	assert not verify_password("wrong_password", hash)
 
 

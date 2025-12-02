@@ -932,6 +932,11 @@ def setup_server_cert(force_new: bool = False) -> bool:
 
 		if config.ssl_server_cert_type == "letsencrypt":
 			hns = {server_cn}
+		elif config.ssl_server_cert_type == "custom-ca":
+			hns = {server_cn}
+			for hn in get_hostnames():
+				if hn in cert_hns:
+					hns.add(hn)
 		else:
 			hns = get_hostnames()
 

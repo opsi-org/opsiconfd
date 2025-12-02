@@ -183,6 +183,14 @@ ALL_METRICS = [
 		grafana_config=GrafanaPanelConfig(title="Network bits received/s", unit="bps", decimals=0, stack=False),
 	),
 	NodeMetric(
+		id="node:avg_redis_connections",
+		name="Average Redis connections for {node_name}",
+		retention=2 * 3600 * 1000,
+		aggregation=AggregationType.AVG,
+		zero_if_missing=ZeroIfMissingType.CONTINUOUS,
+		grafana_config=GrafanaPanelConfig(title="Redis connections", unit="short", decimals=0, stack=False),
+	),
+	NodeMetric(
 		id="node:avg_redis_cpu_time",
 		name="Average Redis CPU time for {node_name}",
 		retention=2 * 3600 * 1000,

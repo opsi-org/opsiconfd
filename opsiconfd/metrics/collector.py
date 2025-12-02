@@ -236,6 +236,33 @@ class NodeMetricsCollector(MetricsCollector):
 					logger.warning("Failed to get MySQL metrics: %s", err)
 		return num_queries, num_processes
 
+	async def _get_redis_metrics(self) -> None:
+		redis_connections = "node:avg_redis_connections" in self._metrics
+		redis_memory_used = "node:avg_redis_memory_used" in self._metrics
+		redis_cpu_time = "node:avg_redis_cpu_time" in self._metrics
+		if not (redis_connections or redis_memory_used or redis_cpu_time):
+			return
+
+		redis = await async_redis_client()
+
+		if redis_connections:
+			info = await redis.info("clients")
+			await self.add_value("node:avg_redis_connections", info["connected_clients"])
+
+		if redis_memory_used:
+			info = await redis.info("memory")
+			await self.add_value("node:avg_redis_memory_used", info["used_memory"])
+
+		if redis_cpu_time:
+			info = await redis.info("cpu")
+			cur_redis_cpu_time = max(info["used_cpu_sys"] + info["used_cpu_user"], 0.0)
+			redis_cpu_time_diff: float | None = None
+			if self._last_redis_cpu_time is not None:
+				redis_cpu_time_diff = cur_redis_cpu_time - self._last_redis_cpu_time
+			self._last_redis_cpu_time = cur_redis_cpu_time
+			if redis_cpu_time_diff is not None:
+				await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
+
 	async def _fetch_values(self) -> None:
 		if "node:avg_load" in self._metrics:
 			await self.add_value("node:avg_load", psutil.getloadavg()[0])
@@ -252,20 +279,7 @@ class NodeMetricsCollector(MetricsCollector):
 			else:
 				logger.warning("No network stats for interface %r", self._net_interface)
 
-		if "node:avg_redis_cpu_time" in self._metrics:
-			redis = await async_redis_client()
-			cpu_info = await redis.info("cpu")
-			redis_cpu_time = max(cpu_info["used_cpu_sys"] + cpu_info["used_cpu_user"], 0.0)
-			redis_cpu_time_diff: float | None = None
-			if self._last_redis_cpu_time is not None:
-				redis_cpu_time_diff = redis_cpu_time - self._last_redis_cpu_time
-			self._last_redis_cpu_time = redis_cpu_time
-			if redis_cpu_time_diff is not None:
-				await self.add_value("node:avg_redis_cpu_time", redis_cpu_time_diff)
-
-		if "node:avg_redis_memory_used" in self._metrics:
-			memory_info = await redis.info("memory")
-			await self.add_value("node:avg_redis_memory_used", memory_info["used_memory"])
+		await self._get_redis_metrics()
 
 		if self._is_config_server:
 			mysql_queries = "node:avg_mysql_queries" in self._metrics

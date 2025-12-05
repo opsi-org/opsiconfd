@@ -366,9 +366,11 @@ class TemplateContext:
 
 @dataclass(kw_only=True, slots=True)
 class BootConfig:
+	depot_id: str
+	client_id: str | None = None
 	pxe_boot_server: str | None = None
-	pxe_boot_filename: str | None = None
-	grub_config: str | None = None
+	pxe_boot_filename: str
+	grub_config: str
 
 
 class RPCBootMixin(Protocol):
@@ -406,15 +408,6 @@ class RPCBootMixin(Protocol):
 			)
 		return context
 
-	def _get_default_boot_config(
-		self: BackendProtocol,
-		ip_version: int | None = None,
-		architecture: Literal["x86", "x64", "arm", "arm64"] | None = None,
-		firmware_type: Literal["UEFI", "BIOS"] | None = None,
-		protocol: Literal["TFTP", "HTTP"] | None = None,
-	) -> BootConfig:
-		return BootConfig(pxe_boot_server="", pxe_boot_filename="loader/opsi-netboot.pxe", grub_config="")
-
 	@rpc_method
 	def boot_getConfig(
 		self: BackendProtocol,
@@ -434,8 +427,8 @@ class RPCBootMixin(Protocol):
 		self._check_role("admin")
 		if ip_version and ip_version not in (4, 6):
 			raise ValueError("ip_version must be 4, 6, or None")
-		_architecture = Architecture(architecture) if architecture else None
-		_firmware_type = FirmwareType(firmware_type) if firmware_type else None
+		_architecture = Architecture(architecture)
+		_firmware_type = FirmwareType(firmware_type)
 		if protocol and protocol not in ("TFTP", "HTTP"):
 			raise ValueError("protocol must be 'TFTP', 'HTTP', or None")
 		boot_server_address = forceIpAddress(boot_server_address) if boot_server_address else None
@@ -554,19 +547,21 @@ class RPCBootMixin(Protocol):
 		if not content:
 			raise FileNotFoundError(f"GRUB config template file '{grub_cfg_template}' not found")
 
-		boot_config = BootConfig(
-			grub_config=Template(content).render(context.context_args()),
-			pxe_boot_server=boot_server_address or depot.getIpAddress(),
-		)
-
+		pxe_boot_server = boot_server_address or depot.getIpAddress()
 		if _firmware_type == FirmwareType.BIOS:
 			loader = f"grub.{_architecture.value.lower()}.bios"
 		else:
 			loader = f"grub-shim.{_architecture.value.lower()}.efi"
 
 		if protocol == "HTTP":
-			boot_config.pxe_boot_filename = f"http://{boot_config.pxe_boot_server}:4442/boot/opsi/loader/{loader}"
+			pxe_boot_filename = f"http://{pxe_boot_server}:4442/boot/opsi/loader/{loader}"
 		else:
-			boot_config.pxe_boot_filename = f"opsi/loader/{loader}"
+			pxe_boot_filename = f"opsi/loader/{loader}"
 
-		return boot_config
+		return BootConfig(
+			depot_id=depot.id,
+			client_id=client.id if client else None,
+			pxe_boot_server=pxe_boot_server,
+			pxe_boot_filename=pxe_boot_filename,
+			grub_config=Template(content).render(context.context_args()),
+		)

@@ -438,6 +438,7 @@ def test_boot_getConfig(
 								# print(boot_config.pxe_boot_filename)
 								# print(boot_config.grub_config)
 
+								assert boot_config.depot_id == depot_id
 								assert boot_config.pxe_boot_server == boot_server_address
 								assert boot_config.pxe_boot_filename
 								assert boot_config.grub_config
@@ -454,9 +455,10 @@ def test_boot_getConfig(
 								assert f"depot_id: {depot_id}" in boot_config.grub_config
 								if (
 									"client_id" in client_args
-									or ("hardware_address" in client_args and "mac_address" in host_identifiers)
-									or ("system_uuid" in client_args and "system_uuid" in host_identifiers)
+									or ("hardware_address" in client_args and ("mac_address" in host_identifiers or not host_identifiers))
+									or ("system_uuid" in client_args and ("system_uuid" in host_identifiers or not host_identifiers))
 								):
+									assert boot_config.client_id == client_id
 									assert f"client_id: {client_id}" in boot_config.grub_config
 
 									match = re.search(r"linux opsi-linux-bootimage/kernel.x64 (.+)", boot_config.grub_config)
@@ -476,3 +478,6 @@ def test_boot_getConfig(
 											assert cmdline.get("pckey") == client.opsiHostKey
 									else:
 										assert match is None
+								else:
+									assert boot_config.client_id is None
+									assert client_id not in boot_config.grub_config

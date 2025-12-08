@@ -370,7 +370,7 @@ class BootConfig:
 	client_id: str | None = None
 	pxe_boot_server: str | None = None
 	pxe_boot_filename: str | None = None
-	grub_config: str
+	grub_config: str | None = None
 
 
 class RPCBootMixin(Protocol):
@@ -492,6 +492,21 @@ class RPCBootMixin(Protocol):
 			depot = self.host_getObjects(type="OpsiDepotserver", id=depot_id)[0]
 		except IndexError:
 			raise BackendMissingDataError(f"Depotserver with id '{depot_id}' not found")
+
+		if not client:
+			config_state_values = (
+				self.configState_getValues(object_ids=[depot_id], config_ids=["netboot.pxe_boot_unknown_devices"])
+				.get(depot_id, {})
+				.get("netboot.pxe_boot_unknown_devices")
+			)
+			if not config_state_values or not config_state_values[0]:
+				return BootConfig(
+					depot_id=depot.id,
+					client_id=None,
+					pxe_boot_server=None,
+					pxe_boot_filename=None,
+					grub_config=None,
+				)
 
 		product_on_depot: ProductOnDepot | None = None
 		if product_on_client:

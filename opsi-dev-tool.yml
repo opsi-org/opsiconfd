@@ -86,6 +86,7 @@ package:
     mkdir -p ${DST}/rootfs/usr/bin
     mkdir -p ${DST}/rootfs/usr/lib/opsiconfd
     mkdir -p ${DST}/rootfs/usr/share/opsiconfd
+    mkdir -p ${DST}/rootfs/usr/share/doc/opsiconfd
     mkdir -p ${DST}/rootfs/var/lib/opsi/depot
     mkdir -p ${DST}/rootfs/var/lib/opsi/ntfs-images
     mkdir -p ${DST}/rootfs/var/lib/opsi/public
@@ -113,6 +114,7 @@ package:
       mkdir -p "${arch_dst}/usr/lib"
       mkdir -p "${arch_dst}/etc/opsi"
       cp -a "${arch_src}" "${arch_dst}/usr/lib/opsiconfd"
+      mv "${arch_dst}/usr/lib/opsiconfd/sbom.cyclonedx.json" ${DST}/rootfs/usr/share/doc/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/grub.cfg" ${DST}/rootfs/usr/share/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/static" ${DST}/rootfs/usr/share/opsiconfd/
       cp -a "${arch_src}/_internal/opsiconfd_data/etc/"* ${DST}/rootfs/etc/opsi/
@@ -128,7 +130,6 @@ package:
       [[ $file = */_internal ]] || \
       [[ $file = */addons ]] || \
       [[ $file = */opsiconfd ]] || \
-      [[ $file = */opsiconfd-pre-start ]] || \
         rm -r "$file" || true
     done
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true

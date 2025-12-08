@@ -483,7 +483,9 @@ def test_boot_getConfig(
 											assert boot_config.client_id == client_id
 											assert f"client_id: {client_id}" in (boot_config.grub_config or "")
 
-											match = re.search(r"linux opsi-linux-bootimage/kernel.x64 (.+)", boot_config.grub_config)
+											match = re.search(
+												r"linux opsi-linux-bootimage/kernel.x64 (.+)", (boot_config.grub_config or "")
+											)
 											if use_product_on_client:
 												assert match
 												cmdline = {

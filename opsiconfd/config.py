@@ -59,6 +59,7 @@ LOG_SIZE_HARD_LIMIT = 10000000
 BOOT_DIR = "/tftpboot"
 if not os.path.exists(BOOT_DIR) and os.path.exists("/var/lib/tftpboot"):
 	BOOT_DIR = "/var/lib/tftpboot"
+OPSI_BOOT_DIR = BOOT_DIR + "/opsi"
 TMP_DIR = "/var/lib/opsi/tmp"
 DEPOT_DIR = "/var/lib/opsi/depot"
 BACKUP_DIR = "/var/lib/opsi/backup"
@@ -90,7 +91,7 @@ MANAGER_THREAD_POOL_WORKERS = 8
 REDIS_LOG_ADAPTER_THREAD_POOL_WORKERS = 4
 REDIS_CONECTION_TIMEOUT = 30
 GRUB_CFG_TEMPLATE = "/usr/share/opsiconfd/grub.cfg"
-DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE = f"{BOOT_DIR}/opsi-linux-bootimage/grub.cfg"
+DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE = f"{OPSI_BOOT_DIR}/opsi-linux-bootimage/grub.cfg"
 
 
 SKIP_SETUP_ACTIONS = [

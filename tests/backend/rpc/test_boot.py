@@ -446,10 +446,6 @@ def test_boot_getConfig(
 											**client_args,
 										)
 
-										# print(boot_config.pxe_boot_server)
-										# print(boot_config.pxe_boot_filename)
-										# print(boot_config.grub_config)
-
 										expect_client_found = (
 											"client_id" in client_args
 											or (
@@ -501,8 +497,10 @@ def test_boot_getConfig(
 												else:
 													assert "otp" not in cmdline
 													assert cmdline.get("pckey") == client.opsiHostKey
+												assert boot_config.product_id == product_id
 											else:
 												assert match is None
+												assert boot_config.product_id is None
 										else:
 											assert boot_config.client_id is None
 											assert bool(boot_config.pxe_boot_server) is pxe_boot_unknown_devices

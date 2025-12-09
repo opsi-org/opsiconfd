@@ -368,6 +368,7 @@ class TemplateContext:
 class BootConfig:
 	depot_id: str
 	client_id: str | None = None
+	product_id: str | None = None
 	pxe_boot_server: str | None = None
 	pxe_boot_filename: str | None = None
 	grub_config: str | None = None
@@ -500,13 +501,7 @@ class RPCBootMixin(Protocol):
 				.get("netboot.pxe_boot_unknown_devices")
 			)
 			if not config_state_values or not config_state_values[0]:
-				return BootConfig(
-					depot_id=depot.id,
-					client_id=None,
-					pxe_boot_server=None,
-					pxe_boot_filename=None,
-					grub_config=None,
-				)
+				return BootConfig(depot_id=depot.id)
 
 		product_on_depot: ProductOnDepot | None = None
 		if product_on_client:
@@ -578,6 +573,7 @@ class RPCBootMixin(Protocol):
 		return BootConfig(
 			depot_id=depot.id,
 			client_id=client.id if client else None,
+			product_id=product.id if product else None,
 			pxe_boot_server=pxe_boot_server,
 			pxe_boot_filename=pxe_boot_filename,
 			grub_config=Template(content).render(context.context_args()),

@@ -69,7 +69,7 @@ def test_ldap_auth() -> None:
 			console.print(f"  LDAP URL from opsi.conf:\n  {ldap_url}", highlight=False)
 		input = (Prompt.ask("  Enter LDAP URL", default=ldap_url or None) or "").strip()
 		try:
-			uri = ldap3.utils.uri.parse_uri(input)  # type: ignore[no-untyped-call]
+			uri = ldap3.utils.uri.parse_uri(input)  # type: ignore[no-untyped-call,attr-defined]
 			if not uri:
 				raise ValueError("Parse error")
 			ldap_url = input

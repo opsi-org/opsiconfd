@@ -67,14 +67,14 @@ def memory_tracemalloc_snapshot_new(num_stats: int = 25) -> JSONResponse:
 		"prev": {"size": 0, "stats": []},
 	}
 	for num, stat in enumerate(current.statistics("filename"), 1):
-		data["start"]["size"] += stat.size
+		data["start"]["size"] += stat.size  # type: ignore[index]
 		if num <= num_stats:
-			data["start"]["stats"].append(str(stat))
+			data["start"]["stats"].append(str(stat))  # type: ignore[index]
 
 	for num, stat_diff in enumerate(current.compare_to(tracemalloc_prev_snapshot, "filename"), 1):
-		data["prev"]["size"] += stat_diff.size_diff
+		data["prev"]["size"] += stat_diff.size_diff  # type: ignore[index]
 		if num <= num_stats:
-			data["prev"]["stats"].append(str(stat_diff))
+			data["prev"]["stats"].append(str(stat_diff))  # type: ignore[index]
 
 	tracemalloc_prev_snapshot = current
 	tracemalloc_rss_prev = mem_info.rss

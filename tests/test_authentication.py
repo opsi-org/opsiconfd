@@ -7,11 +7,12 @@
 login tests
 """
 
+import base64
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 from unittest.mock import patch
 
 import pyotp
@@ -33,8 +34,13 @@ from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.saml import check_if_saml_available
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession
-from opsiconfd.utils import create_auth_token
-from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, get_password_hash_algorithm, verify_password
+from opsiconfd.utils.cryptography import (
+	HashingAlgorithm,
+	create_auth_token,
+	create_password_hash,
+	get_password_hash_algorithm,
+	verify_password,
+)
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -1168,6 +1174,7 @@ def test_database_password_authentication(
 		assert "Authentication failed" in res.json()["message"]
 
 
+@pytest.mark.parametrize("method", ("API", "Bearer", "Basic", "BasicNoUsername"))
 @pytest.mark.parametrize(
 	"multi_factor_auth, mfa_state, with_totp, expected_status",
 	(
@@ -1194,6 +1201,7 @@ def test_database_password_authentication(
 def test_database_token_authentication(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811,
+	method: Literal["API", "Bearer", "Basic", "BasicNoUsername"],
 	multi_factor_auth: str,
 	mfa_state: str,
 	with_totp: str,
@@ -1223,10 +1231,33 @@ def test_database_token_authentication(
 			}
 		),
 	):
-		res = test_client.post("/auth/login", json={"username": user.id, "password": token, "mfa_otp": mfa_otp})
+		test_client.reset_cookies()
+		test_client.auth = ("", "")
+		if method == "API":
+			res = test_client.post("/auth/login", json={"username": user.id, "password": token, "mfa_otp": mfa_otp})
+		elif method == "Bearer":
+			res = test_client.get(
+				"/auth/authenticated",
+				headers={"Authorization": f"Bearer {token}", "x-opsi-mfa-otp": mfa_otp or ""},
+			)
+		elif method in ("Basic", "BasicNoUsername"):
+			use_username = user.id if method == "Basic" else ""
+			res = test_client.get(
+				"/auth/authenticated",
+				headers={
+					"Authorization": f"Basic {base64.b64encode(f'{use_username}:{token}'.encode()).decode()}",
+					"x-opsi-mfa-otp": mfa_otp or "",
+				},
+			)
 		assert res.status_code == expected_status
-		if expected_status == 200:
+		if expected_status == 200 and method == "API":
 			assert res.json()["is_admin"] is True
+
+
+def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	assert str(res.url).rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
 
 
 def test_migrate_to_database_authentication(

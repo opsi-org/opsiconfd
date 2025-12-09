@@ -20,7 +20,6 @@ from opsiconfd.config import opsi_config
 from opsiconfd.utils import (
 	FileCache,
 	NameService,
-	create_auth_token,
 	get_file_md5sum,
 	get_ip_interfaces,
 	get_primary_ip_interface,
@@ -33,7 +32,9 @@ from opsiconfd.utils.cryptography import (
 	aes_decrypt_with_password,
 	aes_encrypt_with_password,
 	blowfish_encrypt,
+	create_auth_token,
 	create_password_hash,
+	create_token_hash,
 	decrypt,
 	encrypt,
 	get_encryption_key,
@@ -280,6 +281,7 @@ def test_encrypt_decrypt() -> None:
 			decrypt("ENCv1[ALG=AESGCM|KID=2024-12]invalid", ignore_unencrypted=True)
 
 
+@pytest.mark.parametrize("generate_salt", (True, False))
 @pytest.mark.parametrize(
 	"password, algorithm, rounds, format, expected_exception, expected_exception_message",
 	(
@@ -302,6 +304,7 @@ def test_encrypt_decrypt() -> None:
 	),
 )
 def test_password_hashing(
+	generate_salt: bool,
 	password: str,
 	algorithm: str,
 	rounds: int | None,
@@ -309,7 +312,7 @@ def test_password_hashing(
 	expected_exception: type[Exception] | None,
 	expected_exception_message: str | None,
 ) -> None:
-	kwargs = {"password": password, "algorithm": algorithm, "rounds": rounds}
+	kwargs = {"password": password, "algorithm": algorithm, "rounds": rounds, "generate_salt": generate_salt}
 	if format:
 		kwargs["format"] = PasswordHashFormat(format)
 
@@ -319,6 +322,11 @@ def test_password_hashing(
 		return
 
 	hash = create_password_hash(**kwargs)  # type: ignore[arg-type]
+	hash2 = create_password_hash(**kwargs)  # type: ignore[arg-type]
+	if generate_salt:
+		assert hash != hash2
+	else:
+		assert hash == hash2
 	if algorithm == "PBKDF2_SHA512":
 		assert hash.startswith("grub.pbkdf2.sha512")
 		return
@@ -339,6 +347,17 @@ def test_password_hashing(
 	assert verify_password(password, hash)
 	assert verify_password(password, hash, algorithm=alg)
 	assert not verify_password("wrong_password", hash)
+
+
+def test_create_token_hash() -> None:
+	with pytest.raises(ValueError, match="Token must be 64 characters long"):
+		assert create_token_hash("short")
+	token = "a" * 64
+	token_hash = create_token_hash(token)
+	assert token_hash.startswith("$6$rounds=1000$................$")
+	assert len(token_hash) == 118
+	# Test that the same token produces the same hash
+	assert create_token_hash(token) == token_hash
 
 
 def test_create_auth_token() -> None:

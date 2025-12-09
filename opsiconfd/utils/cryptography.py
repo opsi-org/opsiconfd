@@ -14,6 +14,7 @@ import binascii
 import hashlib
 import os
 import re
+import secrets
 from enum import StrEnum
 from functools import lru_cache
 from random import randbytes
@@ -21,8 +22,14 @@ from typing import Type, overload
 
 import bcrypt
 import crypt_r  # type: ignore[import-untyped]
+from argon2 import DEFAULT_HASH_LENGTH as ARGON2_DEFAULT_HASH_LENGTH
+from argon2 import DEFAULT_MEMORY_COST as ARGON2_DEFAULT_MEMORY_COST
+from argon2 import DEFAULT_PARALLELISM as ARGON2_DEFAULT_PARALLELISM
+from argon2 import DEFAULT_RANDOM_SALT_LENGTH as ARGON2_DEFAULT_SALT_LENGTH
 from argon2 import DEFAULT_TIME_COST as ARGON2_DEFAULT_TIME_COST
 from argon2 import PasswordHasher
+from argon2.low_level import Type as Argon2Type
+from argon2.low_level import hash_secret as argon2_hash_secret
 from Crypto.Cipher import AES, Blowfish
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Hash import SHA256
@@ -31,7 +38,7 @@ from Crypto.Random import get_random_bytes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from opsiconfd.config import config
-from opsiconfd.logging import logger
+from opsiconfd.logging import logger, secret_filter
 
 ENCRYPTION_KEY_ID_REGEX = re.compile(r"^[0-9a-z\-\_]{1,16}$")
 ENCRYPTION_KEY_REGEX = re.compile(r"^[0-9a-f]{64}$")
@@ -258,11 +265,14 @@ def create_password_hash(
 	algorithm: HashingAlgorithm = HashingAlgorithm.ARGON2ID,
 	rounds: int | None = None,
 	format: PasswordHashFormat = PasswordHashFormat.SHADOW,
+	generate_salt: bool = True,
 ) -> str:
 	"""
 	Encode a password using the specified algorithm and return a hash string.
 	"""
 	encoded_password = password.encode("utf-8")
+	if rounds is not None:
+		rounds = int(rounds)
 	if len(encoded_password) > 64:
 		# Max for bcrypt is 72 bytes
 		raise ValueError("Password cannot be longer than 64 bytes")
@@ -270,28 +280,37 @@ def create_password_hash(
 	if algorithm == HashingAlgorithm.ARGON2ID:
 		if format != PasswordHashFormat.SHADOW:
 			raise ValueError("ARGON2ID only supported with SHADOW format")
-		hasher = PasswordHasher(time_cost=rounds or ARGON2_DEFAULT_TIME_COST)
-		return hasher.hash(password)
+		return argon2_hash_secret(
+			secret=password.encode("utf-8"),
+			salt=os.urandom(ARGON2_DEFAULT_SALT_LENGTH) if generate_salt else b"................",
+			time_cost=ARGON2_DEFAULT_TIME_COST,
+			memory_cost=ARGON2_DEFAULT_MEMORY_COST,
+			parallelism=ARGON2_DEFAULT_PARALLELISM,
+			hash_len=ARGON2_DEFAULT_HASH_LENGTH,
+			type=Argon2Type.ID,
+		).decode("ascii")
 
 	if algorithm == HashingAlgorithm.SHA512:
 		if format != PasswordHashFormat.SHADOW:
 			raise ValueError("SHA512 only supported with SHADOW format")
-		salt = crypt_r.mksalt(method=crypt_r.METHOD_SHA512, rounds=rounds or 500_000)
+		rounds = rounds or 5000
+		salt = crypt_r.mksalt(method=crypt_r.METHOD_SHA512, rounds=rounds) if generate_salt else f"$6$rounds={rounds}$................$"
 		return crypt_r.crypt(password, salt=salt)
 
 	if algorithm == HashingAlgorithm.BCRYPT:
 		if format != PasswordHashFormat.SHADOW:
 			raise ValueError("BCRYPT only supported with SHADOW format")
-		salt = bcrypt.gensalt(rounds=rounds or 12)
+		rounds = rounds or 12
+		salt = bcrypt.gensalt(rounds=rounds) if generate_salt else f"$2b${rounds}$......................$".encode("utf-8")
 		return bcrypt.hashpw(encoded_password, salt).decode("utf-8")
 
 	if algorithm == HashingAlgorithm.PBKDF2_SHA512:
 		if format != PasswordHashFormat.GRUB:
 			raise ValueError("PBKDF2_SHA512 only supported with GRUB format")
 
-		salt = os.urandom(16)
-		rounds = int(rounds or 10_000)
-		hash_bytes = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), os.urandom(16), rounds)
+		salt = os.urandom(16) if generate_salt else b"................"
+		rounds = rounds or 10_000
+		hash_bytes = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, rounds)
 		return f"grub.pbkdf2.sha512.{rounds}.{binascii.hexlify(salt).decode().upper()}.{binascii.hexlify(hash_bytes).decode().upper()}"
 
 	raise ValueError(f"Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported, not {algorithm!r}")
@@ -329,3 +348,20 @@ def verify_password(password: str, hash: str, algorithm: HashingAlgorithm | None
 		return bcrypt.checkpw(password.encode("utf-8"), hash.encode("utf-8"))
 
 	raise ValueError("Only 'SHA512' and 'BCRYPT' methods are supported")
+
+
+def create_token_hash(token: str) -> str:
+	if len(token) != 64:
+		raise ValueError("Token must be 64 characters long")
+	return create_password_hash(token, algorithm=HashingAlgorithm.SHA512, rounds=1000, generate_salt=False)
+
+
+def create_auth_token() -> tuple[str, str]:
+	"""
+	Create a new authentication token and return the token and its hash.
+	"""
+	token = secrets.token_hex(32)
+	secret_filter.add_secrets(token)
+	token_hash = create_token_hash(token)
+	secret_filter.add_secrets(token_hash)
+	return token, token_hash

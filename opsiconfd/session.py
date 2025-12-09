@@ -14,7 +14,7 @@ import base64
 import re
 import time
 import uuid
-from collections import namedtuple
+from dataclasses import dataclass
 from functools import lru_cache
 from ipaddress import ip_network
 from socket import getaddrinfo
@@ -57,7 +57,13 @@ from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task, timed_lru_cache
-from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, get_password_hash_algorithm, verify_password
+from opsiconfd.utils.cryptography import (
+	HashingAlgorithm,
+	create_password_hash,
+	create_token_hash,
+	get_password_hash_algorithm,
+	verify_password,
+)
 from opsiconfd.utils.modules import module_available
 
 if TYPE_CHECKING:
@@ -97,13 +103,23 @@ depot_addresses: dict[str, float] = {}
 session_data_msgpack_encoder = msgspec.msgpack.Encoder()
 session_data_msgpack_decoder = msgspec.msgpack.Decoder()
 
-BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 AUTH_HEADERS = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 
 logger = get_logger("opsiconfd.session")
 
 
-def get_basic_auth(headers: Headers) -> BasicAuth:
+@dataclass
+class BasicAuth:
+	username: str
+	password: str
+
+
+@dataclass
+class BearerAuth:
+	token: str
+
+
+def get_header_auth(headers: Headers) -> BasicAuth | BearerAuth:
 	auth_header = headers.get("authorization")
 
 	headers_401 = {}
@@ -117,25 +133,31 @@ def get_basic_auth(headers: Headers) -> BasicAuth:
 			headers=headers_401,
 		)
 
-	if not auth_header.startswith("Basic "):
-		raise HTTPException(
-			status_code=status.HTTP_401_UNAUTHORIZED,
-			detail="Authorization method unsupported",
-			headers=headers_401,
-		)
+	if auth_header.startswith("Basic "):
+		encoded_auth = auth_header[6:]  # Stripping "Basic "
+		secret_filter.add_secrets(encoded_auth)
+		auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
 
-	encoded_auth = auth_header[6:]  # Stripping "Basic "
-	secret_filter.add_secrets(encoded_auth)
-	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
+		if auth.count(":") == 6:
+			# Seems to be a mac address as username
+			username, password = auth.rsplit(":", 1)
+		else:
+			username, password = auth.split(":", 1)
+		secret_filter.add_secrets(password)
 
-	if auth.count(":") == 6:
-		# Seems to be a mac address as username
-		username, password = auth.rsplit(":", 1)
-	else:
-		username, password = auth.split(":", 1)
-	secret_filter.add_secrets(password)
+		return BasicAuth(username, password)
 
-	return BasicAuth(username, password)
+	if auth_header.startswith("Bearer "):
+		token = auth_header[7:]
+		secret_filter.add_secrets(token)
+
+		return BearerAuth(token)
+
+	raise HTTPException(
+		status_code=status.HTTP_401_UNAUTHORIZED,
+		detail="Authorization method unsupported",
+		headers=headers_401,
+	)
 
 
 class SessionMiddleware:
@@ -254,8 +276,13 @@ class SessionMiddleware:
 
 			if do_auth and (not session or not session.username or not session.authenticated):
 				try:
-					auth = get_basic_auth(connection.headers)
-					await authenticate(connection.scope, auth.username, auth.password)
+					auth = get_header_auth(connection.headers)
+					await authenticate(
+						scope=connection.scope,
+						username="" if isinstance(auth, BearerAuth) else auth.username,
+						password=auth.token if isinstance(auth, BearerAuth) else auth.password,
+						password_is_token=isinstance(auth, BearerAuth),
+					)
 				except Exception as err:
 					if required_access_role != ACCESS_ROLE_PUBLIC:
 						raise err
@@ -1274,9 +1301,9 @@ async def _post_failed_authenticate(scope: Scope) -> None:
 	await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
 
 
-async def authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
+async def authenticate(*, scope: Scope, username: str, password: str, password_is_token: bool = False, mfa_otp: str | None = None) -> None:
 	try:
-		await _authenticate(scope, username, password, mfa_otp)
+		await _authenticate(scope=scope, username=username, password=password, password_is_token=password_is_token, mfa_otp=mfa_otp)
 	except OpsiServiceAuthenticationError:
 		await _post_failed_authenticate(scope)
 		await asyncio.sleep(0.2)
@@ -1332,20 +1359,22 @@ async def post_authenticate(scope: Scope) -> None:
 	await check_admin_networks(session)
 
 
-async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str | None = None) -> None:
+async def _authenticate(*, scope: Scope, username: str, password: str, password_is_token: bool = False, mfa_otp: str | None = None) -> None:
 	await pre_authenticate(scope)
 
 	session: OPSISession = scope["session"]
 
 	username = session.username = (username or "").lower()
 	password = session.password = password or ""
+	if not password_is_token:
+		password_is_token = bool(AUTH_TOKEN_RE.match(password))
 
 	logger.info("Start authentication of client %s", session.client_addr)
 
 	if not session.password:
 		raise OpsiServiceAuthenticationError("No password specified")
 
-	if (
+	if not password_is_token and (
 		not session.username
 		or session.username.startswith("{host_id}")
 		or session.username.startswith("{hardware_address}")
@@ -1358,7 +1387,6 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		await post_authenticate(scope)
 		return
 
-	password_is_token = bool(AUTH_TOKEN_RE.match(password))
 	if config.multi_factor_auth in ("totp_mandatory", "totp_optional"):
 		if not mfa_otp:
 			mfa_otp = scope["request_headers"].get("x-opsi-mfa-otp")
@@ -1379,7 +1407,10 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 
 	backend = get_unprotected_backend()
-	users: list[User] = await backend.async_call("user_getObjects", id=session.username)
+	if password_is_token and not session.username:
+		users: list[User] = await backend.async_call("user_getObjects", tokenHash=create_token_hash(password))
+	else:
+		users: list[User] = await backend.async_call("user_getObjects", id=session.username)
 	user = users[0] if users else None
 
 	used_database_auth_algorithm = None
@@ -1396,7 +1427,10 @@ async def _authenticate(scope: Scope, username: str, password: str, mfa_otp: str
 				try:
 					if verify_password(password, user.tokenHash):
 						db_auth_success = True
-						session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.TOKEN_DATABASE)
+						session.add_auth_methods(AuthenticationMethod.TOKEN_DATABASE)
+						if session.username:
+							session.add_auth_methods(AuthenticationMethod.USERNAME)
+						session.username = user.id
 						logger.debug("Token authentication successful for user %r", session.username)
 					else:
 						logger.debug("Token verification failed for user %r", session.username)

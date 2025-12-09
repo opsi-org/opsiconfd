@@ -45,7 +45,6 @@ from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
 import lz4.frame  # type: ignore[import]
 import psutil
 import requests
-from opsicommon.logging import secret_filter
 from opsicommon.logging.logging import OPSILogger
 from opsicommon.system.info import is_ucs
 from opsicommon.types import forceStringLower
@@ -863,19 +862,6 @@ def get_passwd_services() -> list[NameService]:
 				passwd_service = [NameService(service) for service in line.split()[1:]]
 				break
 	return passwd_service
-
-
-def create_auth_token() -> tuple[str, str]:
-	"""
-	Create a new authentication token and return the token and its hash.
-	"""
-	from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash
-
-	token = secrets.token_hex(32)
-	secret_filter.add_secrets(token)
-	token_hash = create_password_hash(token, algorithm=HashingAlgorithm.SHA512, rounds=1000)
-	secret_filter.add_secrets(token_hash)
-	return token, token_hash
 
 
 def set_ucs_user_password(username: str, password: str) -> None:

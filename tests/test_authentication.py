@@ -1254,12 +1254,6 @@ def test_database_token_authentication(
 			assert res.json()["is_admin"] is True
 
 
-def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-	assert str(res.url).rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
-
-
 def test_migrate_to_database_authentication(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811

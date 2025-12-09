@@ -1407,10 +1407,11 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 
 	backend = get_unprotected_backend()
+	users: list[User] = []
 	if password_is_token and not session.username:
-		users: list[User] = await backend.async_call("user_getObjects", tokenHash=create_token_hash(password))
+		users = await backend.async_call("user_getObjects", tokenHash=create_token_hash(password))
 	else:
-		users: list[User] = await backend.async_call("user_getObjects", id=session.username)
+		users = await backend.async_call("user_getObjects", id=session.username)
 	user = users[0] if users else None
 
 	used_database_auth_algorithm = None

@@ -114,14 +114,15 @@ def opsiconfd_main() -> None:
 				user = pwd.getpwnam(config.run_as_user)
 				gids = os.getgrouplist(user.pw_name, user.pw_gid)
 				logger.debug("Set uid=%r, gid=%r, groups=%r", user.pw_uid, user.pw_gid, gids)
-				if getattr(sys, "frozen", False) and os.path.isdir(user.pw_dir):
-					logger.debug("Changing working directory to %r", user.pw_dir)
-					try:
-						os.chdir(user.pw_dir)
-					except Exception as err:
-						logger.warning("Failed to change working directory to %r: %s", user.pw_dir, err)
-				else:
-					logger.warning("Home directory %r of user %r does not exist, not changing working directory", user.pw_dir, user.pw_name)
+				if getattr(sys, "frozen", False):
+					if os.path.isdir(user.pw_dir):
+						logger.debug("Changing working directory to %r", user.pw_dir)
+						try:
+							os.chdir(user.pw_dir)
+						except Exception as err:
+							logger.warning("Failed to change working directory to %r: %s", user.pw_dir, err)
+					else:
+						logger.warning("Home directory %r of user %r does not exist, not changing working directory", user.pw_dir, user.pw_name)
 				os.setgid(user.pw_gid)
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)

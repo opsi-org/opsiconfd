@@ -108,14 +108,17 @@ def opsiconfd_main() -> None:
 
 		setup(explicit=bool(config.setup))
 
-		# os.chdir("/tmp")
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)
 			try:
 				user = pwd.getpwnam(config.run_as_user)
 				gids = os.getgrouplist(user.pw_name, user.pw_gid)
-				logger.debug("Set uid=%s, gid=%s, groups=%s", user.pw_uid, user.pw_gid, gids)
-				# os.chdir(user.pw_dir)
+				logger.debug("Set uid=%r, gid=%r, groups=%r", user.pw_uid, user.pw_gid, gids)
+				if os.path.isdir(user.pw_dir):
+					logger.debug("Changing working directory to %r", user.pw_dir)
+					os.chdir(user.pw_dir)
+				else:
+					logger.warning("Home directory %r of user %r does not exist, not changing working directory", user.pw_dir, user.pw_name)
 				os.setgid(user.pw_gid)
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)

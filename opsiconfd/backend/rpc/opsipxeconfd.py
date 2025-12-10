@@ -209,6 +209,13 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 	def opsipxeconfd_product_on_clients_updated(
 		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
+		logger.debug(
+			"opsipxeconfd_product_on_clients_updated called: opsipxeconfd_control_enabled=%r events_enabled=%r product_on_clients=%r",
+			self._opsipxeconfd_control_enabled,
+			self.events_enabled,
+			product_on_clients,
+		)
+
 		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 

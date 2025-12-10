@@ -114,7 +114,7 @@ def opsiconfd_main() -> None:
 				user = pwd.getpwnam(config.run_as_user)
 				gids = os.getgrouplist(user.pw_name, user.pw_gid)
 				logger.debug("Set uid=%r, gid=%r, groups=%r", user.pw_uid, user.pw_gid, gids)
-				if os.path.isdir(user.pw_dir):
+				if getattr(sys, "frozen", False) and os.path.isdir(user.pw_dir):
 					logger.debug("Changing working directory to %r", user.pw_dir)
 					try:
 						os.chdir(user.pw_dir)

@@ -1511,10 +1511,10 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 		raise OpsiServicePermissionError(f"User {session.username!r} not in allowed groups")
 
 	if user:
-		password_hashing_algorithm = HashingAlgorithm(config.password_hashing_method)
+		password_hashing_algorithm = HashingAlgorithm(config.database_password_hashing_method)
 		update_db_password_hash = False
 
-		if not user.passwordHash and config.password_hash_migration == "database":
+		if not user.passwordHash and config.database_password_hash_migration == "database":
 			logger.info("Creating password hash for user %r in database", session.username)
 			update_db_password_hash = True
 		elif used_database_auth_algorithm and used_database_auth_algorithm != password_hashing_algorithm:
@@ -1522,7 +1522,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 				"Updating password hash for user %r from algorithm %r to %r",
 				session.username,
 				used_database_auth_algorithm.value,
-				config.password_hashing_method,
+				config.database_password_hashing_method,
 			)
 			update_db_password_hash = True
 

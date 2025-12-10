@@ -1229,19 +1229,19 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
-			"--password-hash-migration",
-			env_var="OPSICONFD_PASSWORD_HASH_MIGRATION",
+			"--database-password-hash-migration",
+			env_var="OPSICONFD_DATABASE_PASSWORD_HASH_MIGRATION",
 			type=str_lower,
 			default=None,
-			help=self._help("opsiconfd", "Migrate password hashes to the specified method on successful authentication."),
+			help=self._help("opsiconfd", "Migrate database password hashes to the specified method on successful authentication."),
 			choices=("database",),
 		)
 		self._parser.add(
-			"--password-hashing-method",
-			env_var="OPSICONFD_PASSWORD_HASHING_METHOD",
+			"--database-password-hashing-method",
+			env_var="OPSICONFD_DATABASE_PASSWORD_HASHING_METHOD",
 			type=str_lower,
 			default="argon2id",
-			help=self._help("opsiconfd", "Password hashing method to use."),
+			help=self._help("opsiconfd", "Database password hashing method to use."),
 			choices=("sha512", "bcrypt", "argon2id"),
 		)
 		self._parser.add(

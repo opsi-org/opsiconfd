@@ -241,7 +241,7 @@ class RPCUserMixin(Protocol):
 		user = User(
 			id=username,
 			encryptedPassword=encrypt(password),
-			passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.password_hashing_method)),
+			passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method)),
 		)
 		self.user_updateObjects([user])
 

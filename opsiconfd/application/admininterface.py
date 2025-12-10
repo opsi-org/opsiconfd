@@ -566,7 +566,7 @@ async def set_internal_user_password(request: Request) -> RESTResponse:
 		except Exception as err:
 			return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
-		user.passwordHash = create_password_hash(password, algorithm=HashingAlgorithm(config.password_hashing_method))
+		user.passwordHash = create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method))
 		if user.encryptedPassword:
 			user.encryptedPassword = encrypt(password)
 	else:
@@ -635,7 +635,7 @@ async def create_user(request: Request) -> RESTResponse:
 	elif params.get("readonly"):
 		groups.append("{readonly}")
 	user = User(
-		id=params.get("user_id"), passwordHash=create_password_hash(password, algorithm=config.password_hashing_method), groups=groups
+		id=params.get("user_id"), passwordHash=create_password_hash(password, algorithm=config.database_password_hashing_method), groups=groups
 	)
 	await backend.async_call("user_createObjects", users=[user])
 

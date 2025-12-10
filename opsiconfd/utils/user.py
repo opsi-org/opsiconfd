@@ -90,7 +90,7 @@ def migrate_opsi_passwd_file() -> None:
 			backend.user_insertObject(
 				User(
 					id=username,
-					passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.password_hashing_method))
+					passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method))
 					if password
 					else None,
 					encryptedPassword=encrypted_password,

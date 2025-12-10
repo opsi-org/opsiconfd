@@ -1262,14 +1262,14 @@ def test_migrate_to_database_authentication(
 		patch("opsiconfd.auth._pam.PAMAuthentication.authenticate", return_value=True),
 		patch("opsiconfd.auth._pam.PAMAuthentication.get_groupnames", return_value={"opsi-admin-group"}),
 	):
-		for password_hash_migration in (None, "database"):
+		for database_password_hash_migration in (None, "database"):
 			with (
-				get_config({"password_hash_migration": password_hash_migration, "auth_allowed_groups": ["opsi-admin-group"]}),
+				get_config({"database_password_hash_migration": database_password_hash_migration, "auth_allowed_groups": ["opsi-admin-group"]}),
 			):
 				res = test_client.post("/auth/login", json={"username": "testuser1", "password": "secret123"})
 				assert res.status_code == 200
 				user = backend.user_getObjects(id="testuser1")[0]
-				if password_hash_migration:
+				if database_password_hash_migration:
 					assert user.passwordHash
 					assert get_password_hash_algorithm(user.passwordHash) == HashingAlgorithm.ARGON2ID
 					assert verify_password("secret123", user.passwordHash)
@@ -1290,7 +1290,7 @@ def test_migrate_hashing_algorithm(
 	backend.user_createObjects([user])
 	for hashing_method in ("sha512", "argon2id", "bcrypt", "sha512"):
 		print("Testing migration to hashing algorithm:", hashing_method)
-		with get_config({"password_hashing_method": hashing_method, "auth_allowed_groups": ["opsi-admin-group"]}):
+		with get_config({"database_password_hashing_method": hashing_method, "auth_allowed_groups": ["opsi-admin-group"]}):
 			res = test_client.post("/auth/login", json={"username": "testuser1", "password": "secret123"})
 			assert res.status_code == 200
 			user = backend.user_getObjects(id="testuser1")[0]

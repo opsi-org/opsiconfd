@@ -116,7 +116,10 @@ def opsiconfd_main() -> None:
 				logger.debug("Set uid=%r, gid=%r, groups=%r", user.pw_uid, user.pw_gid, gids)
 				if os.path.isdir(user.pw_dir):
 					logger.debug("Changing working directory to %r", user.pw_dir)
-					os.chdir(user.pw_dir)
+					try:
+						os.chdir(user.pw_dir)
+					except Exception as err:
+						logger.warning("Failed to change working directory to %r: %s", user.pw_dir, err)
 				else:
 					logger.warning("Home directory %r of user %r does not exist, not changing working directory", user.pw_dir, user.pw_name)
 				os.setgid(user.pw_gid)

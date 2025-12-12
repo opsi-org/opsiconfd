@@ -160,6 +160,5 @@ package:
     [ -e /usr/lib64/libcrypto.so.1.1 ] && cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/_internal/libcrypto.so.1.1
 
     # Setup opsiconfd
-    grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
     mkdir -p /var/log/opsi/opsiconfd
     NO_COLOR=1 /usr/bin/opsiconfd setup --non-interactive --log-mode=local --log-level-stderr=6 2>> /var/log/opsi/opsiconfd/opsiconfd.log

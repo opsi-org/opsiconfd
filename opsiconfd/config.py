@@ -9,7 +9,6 @@ global config
 
 from __future__ import annotations
 
-import getpass
 import ipaddress
 import os
 import re
@@ -744,7 +743,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--run-as-user",
 			env_var="OPSICONFD_RUN_AS_USER",
-			default=getpass.getuser(),
+			default="opsiconfd",
 			metavar="USER",
 			help=self._help("opsiconfd", "Run service as USER."),
 		)

@@ -90,7 +90,7 @@ class TestManager:
 
 	async def run_test(self) -> dict[str, int]:
 		self.request_stats = []
-		test_clients = [TestClient(self, f"client{c}.opsi.test") for c in range(min(self.args.clients, 100))]
+		test_clients = [TestClient(self, f"client{c}.opsi.test") for c in self.args.clients]
 		async with httpx.AsyncClient(
 			auth=(self.args.username, self.args.username),
 			verify=False,

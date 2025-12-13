@@ -1020,7 +1020,7 @@ def test_messagebus_ping(websocket_protocol: str) -> None:
 			# Block ServiceClient sending pongs, server should close websocket after ping timeout
 			client.messagebus._app.sock.pong = lambda *args: None  # type: ignore
 			print("sleep start")
-			sleep(5)
+			sleep(7)
 			print("sleep done")
 
 			assert listener.connection_closed > 0

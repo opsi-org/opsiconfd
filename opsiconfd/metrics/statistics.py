@@ -15,7 +15,7 @@ from opsiconfd.backend import get_unprotected_backend
 try:
 	import yappi  # type: ignore[import]
 except ImportError:
-	yappi = None
+	yappi = None  # type: ignore[assignment]
 from fastapi import FastAPI
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders

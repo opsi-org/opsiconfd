@@ -23,7 +23,7 @@ from threading import RLock
 from time import sleep, time
 from typing import Generator, Literal
 
-from opsicommon.system import lock_file
+from opsicommon.system import lock_file  # type: ignore[possibly-missing-import]
 from opsicommon.types import (
 	forceBool,
 	forceDict,
@@ -51,7 +51,7 @@ def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
 				os.chmod(dhcpd_lock_file, 0o666)
 			except PermissionError:
 				pass
-			with lock_file(lock_fh, lock_method=config._file_lock_method, timeout=10.0):
+			with lock_file(lock_fh, lock_method=config._file_lock_method, timeout=10.0):  # type: ignore[arg-type]
 				lock_fh.seek(0)
 				lines = lock_fh.readlines()
 				if len(lines) >= 100:
@@ -393,7 +393,7 @@ class DHCPDConfFile:
 	def generate(self) -> None:
 		with self._file_rlock:
 			with open(self.file_path, "r+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):
+				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):  # type: ignore[arg-type]
 					file.seek(0)
 					file.truncate()
 					file.write(self._global_block.as_text())
@@ -641,7 +641,7 @@ class DHCPDConfFile:
 		# Split the block definition at whitespace
 		# The first value is the block type
 		# Example: subnet 194.31.185.0 netmask 255.255.255.0 => type is subnet
-		splitted_data = data.split()
+		splitted_data: list[str] = str(data).split()
 		block = DHCPDConfBlock(
 			start_line=self._current_line, parent_block=self._current_block, type=splitted_data[0].strip(), settings=splitted_data
 		)

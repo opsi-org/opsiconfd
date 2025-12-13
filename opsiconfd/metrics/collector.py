@@ -268,7 +268,7 @@ class NodeMetricsCollector(MetricsCollector):
 			await self.add_value("node:avg_load", psutil.getloadavg()[0])
 
 		if "node:sum_network_bits_sent" in self._metrics or "node:sum_network_bits_received" in self._metrics:
-			stats = (await run_in_threadpool(psutil.net_io_counters, pernic=True, nowrap=True)).get(self._net_interface)
+			stats = (await run_in_threadpool(psutil.net_io_counters, pernic=True, nowrap=True)).get(self._net_interface)  # type: ignore[call-arg]
 			if stats:
 				if self._last_bytes_sent:
 					await self.add_value("node:sum_network_bits_sent", (stats.bytes_sent - self._last_bytes_sent) * 8)

@@ -119,7 +119,7 @@ def get_uvicorn_config() -> Config:
 			options["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
 			options["ssl_ca_certs"] = config.ssl_ca_cert
 
-	return Config("opsiconfd.application:app", **options)
+	return Config("opsiconfd.application:app", **options)  # type: ignore[invalid-argument-type]
 
 
 class WorkerState(StrEnum):

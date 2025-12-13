@@ -14,6 +14,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
 from types import FrameType
+from typing import cast
 
 import psutil
 from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
@@ -225,6 +226,8 @@ class WorkerManager:
 	def stop_worker(self, workers: list[Worker] | Worker, force: bool = False, wait: bool = True, remove_worker: bool = True) -> None:
 		if not isinstance(workers, list):
 			workers = [workers]
+
+		workers = cast(list[Worker], workers)
 		for worker in workers:
 			worker.worker_state = WorkerState.STOPPING
 			if worker.process and worker.process.is_alive():

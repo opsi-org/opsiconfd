@@ -27,9 +27,10 @@ from typing import TYPE_CHECKING, Any, Callable, TextIO
 
 import colorlog
 import msgspec
-from aiofiles.threadpool.text import AsyncTextIOWrapper  # type: ignore[import]
-from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
-from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
+from aiofiles.threadpool.text import AsyncTextIOWrapper
+from aiologger.handlers.base import LogRecord as AioLogRecord
+from aiologger.handlers.files import AsyncFileHandler
+from aiologger.handlers.streams import AsyncStreamHandler
 from opsicommon.logging import (
 	DATETIME_FORMAT,
 	LOG_COLORS,
@@ -101,7 +102,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 		self.active_lifetime = active_lifetime
 		self._max_bytes = max_bytes
 		self._keep_rotated = keep_rotated
-		self.formatter = formatter
+		self.formatter = formatter  # type: ignore[assignment]
 		self._rollover_lock = asyncio.Lock()
 		self._rollover_error: Exception | None = None
 		self._error_handler = error_handler
@@ -112,8 +113,8 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 	async def _close_stream(self) -> None:
 		try:
 			if self.stream:
-				await self.stream.flush()
-				await self.stream.close()
+				await self.stream.flush()  # type: ignore[unresolved-attribute]
+				await self.stream.close()  # type: ignore[unresolved-attribute]
 		except Exception:
 			pass
 		self.stream = None
@@ -151,7 +152,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 	async def do_rollover(self) -> None:
 		loop = get_running_loop()
 		if self.stream:
-			await self.stream.close()
+			await self.stream.close()  # type: ignore[unresolved-attribute]
 		if self._keep_rotated > 0:
 			for num in range(self._keep_rotated, 0, -1):
 				src_file_path = self.absolute_file_path
@@ -193,12 +194,12 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 		except Exception as err:
 			logger.warning(err)
 
-	async def emit(self, record: LogRecord) -> None:
+	async def emit(self, record: AioLogRecord) -> None:
 		async with self._rollover_lock:
 			self.last_used = time.time()
 			return await super().emit(record)
 
-	async def handle_error(self, record: LogRecord, exception: Exception) -> None:
+	async def handle_error(self, record: AioLogRecord, exception: Exception) -> None:
 		if self._error_handler:
 			await self._error_handler(self, record, exception)
 
@@ -218,7 +219,7 @@ class AsyncRedisLogAdapter:
 		self._read_config()
 		self._loop = get_running_loop()
 		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
-		self._file_logs: dict[str, AsyncFileHandler] = {}
+		self._file_logs: dict[str, AsyncRotatingFileHandler] = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
@@ -246,11 +247,11 @@ class AsyncRedisLogAdapter:
 		self._set_log_format_stderr()
 
 		for file_handler in self._file_logs.values():
-			file_handler.formatter = ContextSecretFormatter(
+			file_handler.formatter = ContextSecretFormatter(  # type: ignore[arg-type]
 				Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT)
 			)
-			file_handler.max_bytes = self._max_log_file_size
-			file_handler.keep_rotated = self._keep_rotated_log_files
+			file_handler._max_bytes = self._max_log_file_size
+			file_handler._keep_rotated = self._keep_rotated_log_files
 
 	def _read_config(self) -> None:
 		self._log_file_template = config.log_file
@@ -275,10 +276,11 @@ class AsyncRedisLogAdapter:
 			console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
 		if not self._stderr_handler:
 			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file)
-		assert self._stderr_handler
-		self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
-		self._stderr_handler.formatter.secret_filter_enabled = False  # Secrets are filtered before records are written to redis
-		self._stderr_handler.add_filter(context_filter.filter)
+		assert isinstance(self._stderr_handler, AsyncStreamHandler)
+		self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)  # type: ignore[arg-type]
+		# Secrets are filtered before records are written to redis
+		self._stderr_handler.formatter.secret_filter_enabled = False  # type: ignore[unresolved-attribute]
+		self._stderr_handler.add_filter(context_filter.filter)  # type: ignore[invalid-argument-type]
 
 	def _log_format_no_color(self, log_format: str) -> str:
 		return log_format.replace("%(log_color)s", "").replace("%(reset)s", "")
@@ -332,7 +334,7 @@ class AsyncRedisLogAdapter:
 					)
 					if client and self._symlink_client_log_files:
 						asyncio_create_task(self._create_client_log_file_symlink(client), self._loop)
-				self._file_logs[filename].add_filter(context_filter.filter)
+				self._file_logs[filename].add_filter(context_filter.filter)  # type: ignore[invalid-argument-type]
 				return self._file_logs[filename]
 		except Exception as exc:
 			if filename in self._file_logs:
@@ -397,7 +399,7 @@ class AsyncRedisLogAdapter:
 						client = entry[1].get(b"client_address", b"").decode("utf-8")
 						record_dict = msgpack_decoder.decode(entry[1][b"record"])
 						record_dict.update({"scope": None, "exc_info": None, "args": None})
-						record = pylogging.makeLogRecord(record_dict)
+						record = AioLogRecord(**record_dict)
 
 						if record.levelno >= self._log_level_file:
 							file_handler = self.get_file_handler(client)

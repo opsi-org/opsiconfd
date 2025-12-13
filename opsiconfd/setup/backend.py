@@ -211,7 +211,7 @@ def file_mysql_migration() -> None:
 
 	logger.notice("Converting File to MySQL backend, please wait...")
 	config_server_id = opsi_config.get("host", "id")
-	OPSI.Backend.File.getfqdn = lambda: config_server_id
+	OPSI.Backend.File.getfqdn = lambda: config_server_id  # type: ignore[invalid-assignment]
 
 	file_backend = OPSI.Backend.File.FileBackend()
 	config_servers = file_backend.host_getObjects(type="OpsiConfigserver")

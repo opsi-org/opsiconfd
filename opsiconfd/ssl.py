@@ -725,6 +725,7 @@ def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x50
 	def build_trust_chain(trust_chain: list[x509.Certificate]) -> bool:
 		cert = trust_chain[0]
 		for ca_cert in ca_certs:
+			assert isinstance(ca_cert, x509.Certificate)
 			if cert.issuer == ca_cert.subject:
 				try:
 					cert.verify_directly_issued_by(ca_cert)

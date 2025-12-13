@@ -35,7 +35,7 @@ class InputBuffer:
 			self._queue.put(data)
 		return len(data)
 
-	def read(self, size: int) -> bytes:
+	def read(self, size: int) -> bytes | memoryview:
 		if self._read_pos == 0:
 			if self._end_of_data and self._queue.empty():
 				return b""
@@ -54,7 +54,7 @@ class InputBuffer:
 
 		return memoryview(self._buffer)[start:end]
 
-	def readline(self) -> bytes:
+	def readline(self) -> bytes | memoryview:
 		return self.read(16 * 1024)
 
 	def close(self) -> None:
@@ -120,8 +120,8 @@ def build_environ(scope: Scope) -> dict:
 			corrected_name = f"HTTP_{name}".upper().replace("-", "_")
 		# HTTPbis say only ASCII chars are allowed in headers, but we latin1 just in case
 		value = value.decode("latin1")
-		if corrected_name in environ:
-			value = environ[corrected_name] + "," + value
+		if val := environ.get(corrected_name):
+			value = f"{val},{value}"
 		environ[corrected_name] = value
 
 	# wsgidav.util.parse_xml_body() uses lxml.etree.fromstring() which does not support memoryview

@@ -60,7 +60,7 @@ def aes_encrypt_with_password(plaintext: bytes, password: str) -> tuple[bytes, b
 	cipher = AES.new(key=key, mode=AES.MODE_GCM)
 	assert isinstance(cipher, GcmMode)
 	ciphertext, mac_tag = cipher.encrypt_and_digest(plaintext=plaintext)
-	return ciphertext, key_salt, mac_tag, cipher.nonce
+	return ciphertext, key_salt, mac_tag, bytes(cipher.nonce)
 
 
 def aes_decrypt_with_password(ciphertext: bytes, key_salt: bytes, mac_tag: bytes, nonce: bytes, password: str) -> bytes:
@@ -298,7 +298,14 @@ def create_password_hash(
 		if format != PasswordHashFormat.SHADOW:
 			raise ValueError("SHA512 only supported with SHADOW format")
 		rounds = rounds or 5000
-		salt = crypt_r.mksalt(method=crypt_r.METHOD_SHA512, rounds=rounds) if generate_salt else f"$6$rounds={rounds}$................$"
+		salt = (
+			crypt_r.mksalt(
+				method=crypt_r.METHOD_SHA512,  # type: ignore[unresolved-attribute]
+				rounds=rounds,
+			)
+			if generate_salt
+			else f"$6$rounds={rounds}$................$"
+		)
 		return crypt_r.crypt(password, salt=salt)
 
 	if algorithm == HashingAlgorithm.BCRYPT:

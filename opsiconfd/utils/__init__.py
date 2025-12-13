@@ -960,10 +960,10 @@ class DataclassCapableJSONEncoder(JSONEncoder):
 	JSON encoder capable of handling dataclasses.
 	"""
 
-	def default(self, obj: Any) -> Any:
-		if not isinstance(obj, type) and dataclasses.is_dataclass(obj):
-			return dataclasses.asdict(obj)
-		return super().default(obj)
+	def default(self, o: Any) -> Any:
+		if not isinstance(o, type) and dataclasses.is_dataclass(o):
+			return dataclasses.asdict(o)
+		return super().default(o)
 
 
 def get_requests_session(hostname: str) -> requests.Session:

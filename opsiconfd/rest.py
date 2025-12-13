@@ -221,14 +221,14 @@ def create_link_header(total: int, commons: dict[str, Any], url: URL) -> dict:
 
 
 def rest_api(default_error_status_code: Callable | int | None = None) -> Callable:
-	_func = None
+	_func: Callable | None = None
 	if callable(default_error_status_code):
 		# Decorator used as @rest_api not @rest_api(...)
 		_func = default_error_status_code
 		default_error_status_code = None
 
 	def decorator(func: Callable) -> Callable:
-		name = func.__qualname__
+		name = getattr(func, "__qualname__", str(func))
 
 		async def exec_func(func: Callable, *args: Any, **kwargs: Any) -> Any:
 			if asyncio.iscoroutinefunction(func):
@@ -293,7 +293,7 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 				session = contextvar_client_session.get()
 				if not session or not session.is_admin:
 					del content["details"]
-				return JSONResponse(content=content, status_code=content["status"])
+				return JSONResponse(content=content, status_code=content["status"])  # type: ignore[invalid-argument-type]
 
 		return create_response
 

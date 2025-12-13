@@ -4,7 +4,7 @@ version = "4.3.46.18"
 description = "OPSI configuration service"
 readme = "README.md"
 license = "AGPL-3.0-only"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
 	"acme>=3.0",
 	"aiofiles>=24.1",
@@ -91,6 +91,7 @@ dev = [
 	"pytest-retry>=1.6",
 	"pytest-subprocess>=1.5",
 	"ruff>=0.9",
+	"ty>=0.0.1a34",
 	"types-certifi>=2021.10",
 	"types-ldap3>=2.9",
 	"types-psutil>=7.0",

@@ -40,7 +40,7 @@ class Metric:
 		zero_if_missing: ZeroIfMissingType = ZeroIfMissingType.NONE,
 		time_related: bool = False,
 		grafana_config: GrafanaPanelConfig | None = None,
-		downsampling: list | None = None,
+		downsampling: tuple[tuple[str, int, AggregationType], ...] | None = None,
 	):
 		"""
 		Metric constructor
@@ -77,11 +77,11 @@ class Metric:
 		self.zero_if_missing = zero_if_missing
 		self.time_related = time_related
 		self.grafana_config = grafana_config
-		self.downsampling = downsampling or [
-			["minute", 24 * 3600 * 1000, AggregationType.AVG],
-			["hour", 60 * 24 * 3600 * 1000, AggregationType.AVG],
-			["day", 4 * 365 * 24 * 3600 * 1000, AggregationType.AVG],
-		]
+		self.downsampling = downsampling or (
+			("minute", 24 * 3600 * 1000, AggregationType.AVG),
+			("hour", 60 * 24 * 3600 * 1000, AggregationType.AVG),
+			("day", 4 * 365 * 24 * 3600 * 1000, AggregationType.AVG),
+		)
 		self._redis_key_prefix: str | None = None
 		self._redis_key: str | None = None
 

@@ -271,11 +271,15 @@ def create_password_hash(
 	Encode a password using the specified algorithm and return a hash string.
 	"""
 	encoded_password = password.encode("utf-8")
-	if rounds is not None:
-		rounds = int(rounds)
 	if len(encoded_password) > 64:
 		# Max for bcrypt is 72 bytes
 		raise ValueError("Password cannot be longer than 64 bytes")
+	if not isinstance(algorithm, HashingAlgorithm):
+		algorithm = HashingAlgorithm(algorithm)
+	if rounds is not None:
+		rounds = int(rounds)
+	if not isinstance(format, PasswordHashFormat):
+		format = PasswordHashFormat(format)
 
 	if algorithm == HashingAlgorithm.ARGON2ID:
 		if format != PasswordHashFormat.SHADOW:

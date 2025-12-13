@@ -635,7 +635,9 @@ async def create_user(request: Request) -> RESTResponse:
 	elif params.get("readonly"):
 		groups.append("{readonly}")
 	user = User(
-		id=params.get("user_id"), passwordHash=create_password_hash(password, algorithm=config.database_password_hashing_method), groups=groups
+		id=params.get("user_id"),
+		passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method)),
+		groups=groups,
 	)
 	await backend.async_call("user_createObjects", users=[user])
 

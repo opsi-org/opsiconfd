@@ -137,4 +137,4 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 
 
 def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:  # noqa: F811
-	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)
+	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)  # type: ignore[invalid-argument-type]

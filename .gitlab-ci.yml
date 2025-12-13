@@ -69,7 +69,7 @@ test:lint-and-test:
       )
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run ruff check opsiconfd tests perftest
-    - $DOCKER_COMPOSE exec opsiserver43-dev uv run mypy opsiconfd tests perftest
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run ty check opsiconfd tests perftest
 
     - echo -e "${TXT_HEAD}Run pytest${TXT_CLEAR}"
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run pytest -x --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests

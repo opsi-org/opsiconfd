@@ -65,7 +65,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
-		requests += float(redis_result[1])
+		requests += float(redis_result[1])  # type: ignore[non-subscriptable]
 	return requests / len(workers) * 100
 
 
@@ -90,7 +90,7 @@ async def get_thread_count(redis: StrictRedis) -> float:
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
-		threads += float(redis_result[1])
+		threads += float(redis_result[1])  # type: ignore[non-subscriptable]
 	return threads
 
 
@@ -105,5 +105,5 @@ async def get_mem_allocated(redis: StrictRedis) -> float:
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
-		mem_allocated += float(redis_result[1])
+		mem_allocated += float(redis_result[1])  # type: ignore[non-subscriptable]
 	return mem_allocated

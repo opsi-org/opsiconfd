@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager, nullcontext
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from threading import Event
-from typing import Any, AsyncGenerator, Callable, Type, TypeVar
+from typing import Any, AsyncGenerator, Callable, Type, TypeVar, cast
 
 from fastapi import FastAPI
 from msgspec import msgpack
@@ -73,7 +73,7 @@ class AppState:
 				_cls = ShutdownState  # type: ignore[assignment]
 			else:
 				raise ValueError(f"Invalid AppState type {_type!r}")
-		return _cls(**data)
+		return cast(AppStateT, _cls(**data))
 
 
 @dataclass(slots=True, kw_only=True)

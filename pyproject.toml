@@ -81,7 +81,6 @@ dev = [
 	"idna>=3.3",
 	"lxml-stubs>=0.5",
 	"mock>=5.0",
-	"mypy>=1.4",
 	"pydevd>=3.0",
 	"pyinstaller>=6.12",
 	"pyinstaller-hooks-contrib>=2025.1",
@@ -116,12 +115,6 @@ extra-index-url = ["https://pypi.uib.gmbh/simple"]
 index-strategy = "unsafe-best-match"
 package = true
 no-binary-package = ["lxml", "xmlsec"]
-
-[tool.mypy]
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-follow_imports = "silent"
 
 [tool.ruff]
 line-length = 140

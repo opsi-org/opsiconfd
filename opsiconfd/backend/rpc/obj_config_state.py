@@ -239,7 +239,7 @@ class RPCConfigStateMixin(Protocol):
 		depotIds = self.host_getIdents(type="OpsiDepotserver", id=depotIds)
 		if not depotIds:
 			return []
-		depotIds = set(depotIds)  # type: ignore[assignment]
+		depotIds: set[str] = set(depotIds)
 
 		clientIds = forceHostIdList(clientIds)
 		clientIds = self.host_getIdents(type="OpsiClient", id=clientIds)

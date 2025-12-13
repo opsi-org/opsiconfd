@@ -44,6 +44,7 @@ class CheckStatus(StrEnum):
 			return 1
 		if self == CheckStatus.ERROR:
 			return 2
+		raise ValueError(f"Unknown CheckStatus: {self}")
 
 	def checkmk_status(self) -> str:
 		return str(self.return_code())
@@ -55,6 +56,7 @@ class CheckStatus(StrEnum):
 			return "WARNING"
 		if self == CheckStatus.ERROR:
 			return "CRITICAL"
+		raise ValueError(f"Unknown CheckStatus: {self}")
 
 
 @dataclass(init=False)

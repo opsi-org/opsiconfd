@@ -7,6 +7,8 @@
 webdav
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 
@@ -42,18 +44,20 @@ BLOCK_SIZE = 64 * 1024
 
 # Set file buffer size for reading and writing.
 # Sent message chunks will have the same body size.
-wsgidav.fs_dav_provider.BUFFER_SIZE = BLOCK_SIZE
+wsgidav.fs_dav_provider.BUFFER_SIZE = BLOCK_SIZE  # type: ignore[invalid-assignment]
 
 
 # Prevent warning in log
-def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info: str) -> bool:
+def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info: str) -> bool:  # type: ignore[possibly-missing-attribute]
 	return False
 
 
-wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
+wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous  # type: ignore[possibly-missing-attribute]
 
 
 class OpsiconfdFolderResource(FolderResource):
+	provider: OpsiconfdFilesystemProvider
+
 	def create_empty_resource(self, name: str) -> FileResource:
 		# Override to set permissions for new files
 		resource: FileResource = super().create_empty_resource(name)
@@ -126,7 +130,7 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 
 		return util.to_unicode_safe(file_path.as_posix())
 
-	def get_resource_inst(self, path: str, environ: dict) -> FileResource:
+	def get_resource_inst(self, path: str, environ: dict) -> FileResource | OpsiconfdFolderResource | None:  # type: ignore[invalid-method-override]
 		"""Return info dictionary for path.
 
 		See DAVProvider.get_resource_inst()
@@ -144,9 +148,9 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 
 
 class VirtualRootFilesystemCollection(DAVCollection):
-	def __init__(self, environ: dict[str, str], provider: DAVProvider) -> None:
+	def __init__(self, environ: dict[str, str], provider: VirtualRootFilesystemProvider) -> None:
 		DAVCollection.__init__(self, "/", environ)
-		self.provider = provider
+		self.provider: VirtualRootFilesystemProvider = provider
 
 	def get_member_names(self) -> list[str]:
 		return [name.lstrip("/") for name in self.provider.provider_mapping if name != "/"]

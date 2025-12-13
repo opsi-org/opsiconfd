@@ -101,12 +101,12 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 		obj_types = sorted(new_ids.items(), key=lambda item: len(item[1]), reverse=True)
 
 		for obj_type, ids in obj_types:
-			if len(data["new_ids"]) >= max_obj_types:
+			if len(data["new_ids"]) >= max_obj_types:  # type: ignore[invalid-argument-type]
 				break
 			if len(ids) == 0:
 				continue
 			logger.debug("obj_type: %s", obj_type)
-			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}
+			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}  # type: ignore[invalid-argument-type]
 			for num, addr in enumerate(ids):
 				if num >= max_obj:
 					break
@@ -114,7 +114,7 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 				repr_obj = repr(obj)
 				if len(repr_obj) > 250:
 					repr_obj = repr_obj[:249] + "…"
-				data["new_ids"][obj_type]["objects"][addr] = {
+				data["new_ids"][obj_type]["objects"][addr] = {  # type: ignore[invalid-argument-type]
 					"size": sys.getsizeof(obj),
 					"repr": repr_obj,
 				}

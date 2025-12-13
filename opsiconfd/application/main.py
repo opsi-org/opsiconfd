@@ -163,11 +163,11 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 					num_records += 1
 					message += record
 					if len(message) >= self._max_message_size:
-						await websocket.send_bytes(message)
+						await websocket.send_bytes(bytes(message))
 						message = message_header.copy()
 						num_records = 0
 				if num_records > 0:
-					await websocket.send_bytes(message)
+					await websocket.send_bytes(bytes(message))
 		except WebSocketDisconnect:
 			pass
 		except Exception as err:
@@ -229,7 +229,7 @@ def application_setup() -> None:
 			module = route.endpoint.__module__
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
-			routes[route.path] = f"{module}.{route.endpoint.__qualname__}"
+			routes[route.path] = f"{module}.{getattr(route.endpoint, '__qualname__', '?')}"
 		elif hasattr(route, "path"):
 			routes[getattr(route, "path", "")] = route.__class__.__name__
 	for path in sorted(routes):

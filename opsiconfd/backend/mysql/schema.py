@@ -617,8 +617,8 @@ def get_foreign_keys(session: Session, database: str, table: str) -> list[OpsiFo
 				table=table,
 				ref_table=row[0],
 				name=row[1],
-				f_keys=(row[2] or "").split(","),
-				ref_keys=(row[3] or "").split(","),
+				f_keys=(str(row[2] or "")).split(","),
+				ref_keys=(str(row[3] or "")).split(","),
 				update_rule=row[4],
 				delete_rule=row[5],
 			)

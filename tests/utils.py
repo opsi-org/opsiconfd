@@ -471,7 +471,7 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 	server_config = defaults
 
 	# Use use_logging_config to return to the previous log level
-	with use_logging_config(stderr_level=server_config["log_level_stderr"]):
+	with use_logging_config(stderr_level=server_config["log_level_stderr"]):  # type: ignore[invalid-argument-type]
 		with get_config(server_config, with_env=False) as conf:
 			setup_opsi_ca()
 			setup_server_cert()

@@ -20,7 +20,7 @@ from ..mysql.cleanup import remove_orphans_product_property_state
 from . import rpc_method
 
 if TYPE_CHECKING:
-	from ..mysql import Session
+	from ..mysql import MySQLSession
 	from .protocol import BackendProtocol, IdentType
 
 
@@ -31,7 +31,7 @@ class RPCProductPropertyMixin(Protocol):
 		ace: list[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		session: Session | None = None,
+		session: MySQLSession | None = None,
 		lock: bool = True,
 	) -> None:
 		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)

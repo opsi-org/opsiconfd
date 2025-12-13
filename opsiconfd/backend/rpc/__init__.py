@@ -120,7 +120,7 @@ def get_method_interface(
 		deprecated = True
 
 	return MethodInterface(
-		name=func.__name__,
+		name=getattr(func, "__name__", str(func)),
 		params=params,
 		args=args,
 		varargs=spec.varargs,
@@ -146,29 +146,30 @@ def rpc_method(
 	clear_cache: str | None = None,
 ) -> Callable:
 	def decorator(func: Callable) -> Callable:
+		func_name = getattr(func, "__name__", str(func))
 		if not func.__doc__:
-			if func.__name__.endswith("_insertObject"):
+			if func_name.endswith("_insertObject"):
 				func.__doc__ = DOC_INSERT_OBJECT
-			elif func.__name__.endswith("_updateObject"):
+			elif func_name.endswith("_updateObject"):
 				func.__doc__ = DOC_UPDATE_OBJECT
-			elif func.__name__.endswith("_createObjects"):
+			elif func_name.endswith("_createObjects"):
 				func.__doc__ = DOC_CREATE_OBJECTS
-			elif func.__name__.endswith("_updateObjects"):
+			elif func_name.endswith("_updateObjects"):
 				func.__doc__ = DOC_UPDATE_OBJECTS
-			elif func.__name__.endswith("_getObjects"):
+			elif func_name.endswith("_getObjects"):
 				func.__doc__ = DOC_GET_OBJECTS
-			elif func.__name__.endswith("_getHashes"):
+			elif func_name.endswith("_getHashes"):
 				func.__doc__ = DOC_GET_HASHES
-			elif func.__name__.endswith("_getIdents"):
+			elif func_name.endswith("_getIdents"):
 				func.__doc__ = DOC_GET_IDENTS
-			elif func.__name__.endswith("_deleteObjects"):
+			elif func_name.endswith("_deleteObjects"):
 				func.__doc__ = DOC_DELETE_OBJECTS
-			elif func.__name__.endswith("_delete"):
+			elif func_name.endswith("_delete"):
 				func.__doc__ = DOC_DELETE
 
 		check_name = None
 		if check_acl:
-			check_name = check_acl if isinstance(check_acl, str) else func.__name__
+			check_name = check_acl if isinstance(check_acl, str) else func_name
 
 		@wraps(func)
 		def wrapper(*args: Any, **kwargs: Any) -> Any:

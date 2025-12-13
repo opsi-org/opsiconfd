@@ -172,7 +172,7 @@ class TestCase:
 			await client.execute_jsonrpc_request(  # type: ignore[index]
 				client.jsonrpc_request("host_getIdents", ["str", {"type": "OpsiConfigserver"}])
 			)
-		)[0]["result"]
+		)[0]["result"]  # type: ignore[non-subscriptable]
 		self.server_id = server_ids[0]  # type: ignore[assignment]
 		await client.cleanup()
 

@@ -172,13 +172,13 @@ class TemplateContextStates(dict[str, T]):
 
 
 class TemplateContextConfigStates(TemplateContextStates):
-	def __missing__(self, id: str) -> TemplateContextConfigState:
-		return TemplateContextConfigState(id=id, _exists=False)
+	def __missing__(self, config_id: str) -> TemplateContextConfigState:
+		return TemplateContextConfigState(id=config_id, _exists=False)
 
 
 class TemplateContextProductPropertyStates(TemplateContextStates):
-	def __missing__(self, id: str) -> TemplateContextProductPropertyState:
-		return TemplateContextProductPropertyState(id=id, _exists=False)
+	def __missing__(self, config_id: str) -> TemplateContextProductPropertyState:
+		return TemplateContextProductPropertyState(id=config_id, _exists=False)
 
 
 @dataclass

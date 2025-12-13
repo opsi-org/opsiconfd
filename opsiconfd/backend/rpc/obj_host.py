@@ -794,7 +794,7 @@ class RPCHostMixin(Protocol):
 					device_type = "server"
 				else:
 					device_type = "other"
-				clients[row[0]].device_type = cast(DEVICE_TYPE, device_type)
+				clients[row[0]].device_type = device_type
 
 			for row in session.execute(
 				"""

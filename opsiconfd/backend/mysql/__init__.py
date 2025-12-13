@@ -83,7 +83,7 @@ class MySQLSession(Session):
 	retry_on_lock_wait_timeout = 10
 	query_log: Callable | None = None
 
-	def execute(self, statement: str, params: Any | None = None) -> Result:
+	def execute(self, statement: str, params: Any | None = None) -> Result:  # type: ignore[invalid-method-override]
 		attempt = 0
 		retry_wait = 0.01
 		with server_timing("database") as timing:

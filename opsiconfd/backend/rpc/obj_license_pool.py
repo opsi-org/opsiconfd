@@ -19,7 +19,7 @@ from ..auth import RPCACE
 from . import rpc_method
 
 if TYPE_CHECKING:
-	from ..mysql import Session
+	from ..mysql import MySQLSession
 	from .protocol import BackendProtocol, IdentType
 
 
@@ -30,7 +30,7 @@ class RPCLicensePoolMixin(Protocol):
 		ace: list[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		session: Session | None = None,
+		session: MySQLSession | None = None,
 		lock: bool = True,
 	) -> None:
 		query, data = self._mysql.insert_query(table="LICENSE_POOL", obj=license_pool, ace=ace, create=create, set_null=set_null)

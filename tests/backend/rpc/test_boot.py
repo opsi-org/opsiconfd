@@ -8,6 +8,7 @@ test opsiconfd.backend.rpc.depot
 """
 
 import re
+import shutil
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
@@ -337,7 +338,7 @@ def test_boot_getConfig(
 	depot_id = get_depotserver_id()
 
 	grub_cfg = tmp_path / "grub.cfg"
-	Path("tests/data/boot/grub.cfg").copy(grub_cfg)
+	shutil.copy("tests/data/boot/grub.cfg", grub_cfg)
 
 	backend.config_createObjects(
 		[

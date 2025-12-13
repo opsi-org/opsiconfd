@@ -256,7 +256,7 @@ def test_check_disk_usage(
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
 		result = check_opsi_disk_usage(thresholds=thresholds, opsiresource=opsiresource)
 
-	assert expected_result == json.loads(result.body)
+	assert expected_result == json.loads(result.body)  # type: ignore[invalid-argument-type]
 
 
 @pytest.mark.parametrize("return_value", [(None), ({}), ([])])
@@ -270,15 +270,21 @@ def test_check_disk_usage_no_result(
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.get_disk_usage", get_disk_usage):
 		result = check_opsi_disk_usage(opsiresource=["not-a-resource"])
 
-	assert json.loads(result.body) == {"message": ("UNKNOWN: No disk usage results, nothing to check."), "state": 3}
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
+		"message": ("UNKNOWN: No disk usage results, nothing to check."),
+		"state": 3,
+	}
 
 
 def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F811
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test"])
-	assert json.loads(result.body) == {"message": "OK: No products locked on depots: pytest-test-depot.opsi.test", "state": 0}
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
+		"message": "OK: No products locked on depots: pytest-test-depot.opsi.test",
+		"state": 0,
+	}
 
 	result = check_locked_products(backend, depot_ids=[])
-	assert json.loads(result.body) == {
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
 		"message": (f"OK: No products locked on depots: {get_depotserver_id()},pytest-test-depot.opsi.test,pytest-test-depot2.opsi.test"),
 		"state": 0,
 	}
@@ -296,7 +302,7 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 	time.sleep(2)
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test"])
-	assert json.loads(result.body) == {
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
 		"message": (
 			"WARNING: 2 products are in locked state.\n"
 			"Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test\n"
@@ -306,7 +312,7 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 	}
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test", get_depotserver_id()])
-	assert json.loads(result.body) == {
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
 		"message": (
 			"WARNING: 2 products are in locked state.\n"
 			"Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test\n"
@@ -316,13 +322,13 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 	}
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.opsi.test", get_depotserver_id()], product_ids=["pytest-prod-2"])
-	assert json.loads(result.body) == {
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
 		"message": ("WARNING: 1 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.opsi.test"),
 		"state": 1,
 	}
 
 	result = check_locked_products(backend, depot_ids=[], product_ids=None)
-	assert json.loads(result.body) == {
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
 		"message": (
 			"WARNING: 2 products are in locked state.\n"
 			"Product pytest-prod-2 locked on depot pytest-test-depot.opsi.test\n"
@@ -332,13 +338,13 @@ def test_check_locked_products(backend: UnprotectedBackend) -> None:  # noqa: F8
 	}
 
 	result = check_locked_products(backend, depot_ids=None, product_ids=["pytest-prod-2"])
-	assert json.loads(result.body) == {
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
 		"message": ("WARNING: 1 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.opsi.test"),
 		"state": 1,
 	}
 
 	result = check_locked_products(backend, depot_ids=["all"], product_ids=["pytest-prod-2"])
-	assert json.loads(result.body) == {
+	assert json.loads(result.body) == {  # type: ignore[invalid-argument-type]
 		"message": ("WARNING: 1 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.opsi.test"),
 		"state": 1,
 	}
@@ -427,7 +433,7 @@ def test_check_short_product_status(
 	expected_result: Any,
 ) -> None:
 	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
-	assert json.loads(result.body) == expected_result
+	assert json.loads(result.body) == expected_result  # type: ignore[invalid-argument-type]
 
 
 @pytest.mark.parametrize(
@@ -499,4 +505,4 @@ def test_check_client_plugin(
 		timeout=int(params.get("timeout", 0)),
 	)
 
-	assert json.loads(result.body) == expected_result
+	assert json.loads(result.body) == expected_result  # type: ignore[invalid-argument-type]

@@ -61,7 +61,7 @@ class AddonImporter(BuiltinImporter):
 		init_path = os.path.join(addon_path, "python", "__init__.py")
 		if not exists(init_path):
 			return None
-		return importlib.util.spec_from_file_location(fullname, init_path)
+		return importlib.util.spec_from_file_location(fullname, init_path)  # type: ignore[possibly-missing-attribute]
 
 
 sys.meta_path.append(AddonImporter)  # type: ignore[arg-type]

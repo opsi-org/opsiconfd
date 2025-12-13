@@ -303,7 +303,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 		patch("opsiconfd.backend.rpc.general.get_default_opsi_license_pool", mock_get_default_opsi_license_pool),
 		patch("opsicommon.license.get_signature_public_key_schema_version_2", lambda: public_key),
 	):
-		today_str = date.today().strftime("%Y-%m-%d")
+		today = date.today()
 		lic1 = OpsiLicense(
 			id="0ca84826-8f54-4bda-a476-0ee66a6f6dec",
 			type="standard",
@@ -314,9 +314,9 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			customer_address="Test Street 1",
 			module_id="professional",
 			client_number=1000,
-			issued_at=today_str,
-			valid_from=today_str,
-			valid_until=today_str,
+			issued_at=today,
+			valid_from=today,
+			valid_until=today,
 		)
 		lic1.sign(private_key)
 		lic2 = OpsiLicense(
@@ -329,9 +329,9 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			customer_address="Test Street 1",
 			module_id="2fa",
 			client_number=500,
-			issued_at=today_str,
-			valid_from=today_str,
-			valid_until=today_str,
+			issued_at=today,
+			valid_from=today,
+			valid_until=today,
 		)
 		lic2.sign(private_key)
 		lic3 = OpsiLicense(
@@ -344,9 +344,9 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			customer_address="Test Street 1",
 			module_id="linux_agent",
 			client_number=1500,
-			issued_at=today_str,
-			valid_from=today_str,
-			valid_until=today_str,
+			issued_at=today,
+			valid_from=today,
+			valid_until=today,
 		)
 		lic3.sign(private_key)
 		lic4 = OpsiLicense(
@@ -359,9 +359,9 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 			customer_address="Test Street 1",
 			module_id="sso",
 			client_number=100,
-			issued_at=today_str,
-			valid_from=today_str,
-			valid_until=today_str,
+			issued_at=today,
+			valid_from=today,
+			valid_until=today,
 		)
 		lic4.sign(private_key)
 

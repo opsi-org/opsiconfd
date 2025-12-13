@@ -12,8 +12,8 @@ git:
     pre-push: |
       echo "Running ruff..."
       uv run ruff check opsiconfd tests perftest
-      echo "Running mypy..."
-      uv run mypy opsiconfd tests perftest
+      echo "Running ty..."
+      uv run ty check opsiconfd tests perftest
 
 transifex:
   upload_resources:

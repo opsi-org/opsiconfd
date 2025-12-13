@@ -28,9 +28,9 @@ from typing import TYPE_CHECKING, Any, Callable, TextIO
 import colorlog
 import msgspec
 from aiofiles.threadpool.text import AsyncTextIOWrapper
-from aiologger.handlers.base import LogRecord as AioLogRecord
-from aiologger.handlers.files import AsyncFileHandler
-from aiologger.handlers.streams import AsyncStreamHandler
+from aiologger.handlers.base import LogRecord as AioLogRecord  # type: ignore[import-untyped]
+from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import-untyped]
+from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import-untyped]
 from opsicommon.logging import (
 	DATETIME_FORMAT,
 	LOG_COLORS,

@@ -92,6 +92,7 @@ dev = [
 	"pytest-subprocess>=1.5",
 	"ruff>=0.9",
 	"ty>=0.0.1a34",
+	"types-aiofiles>=25.1.0.20251011",
 	"types-certifi>=2021.10",
 	"types-ldap3>=2.9",
 	"types-psutil>=7.0",

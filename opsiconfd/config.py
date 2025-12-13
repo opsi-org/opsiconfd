@@ -28,7 +28,7 @@ import DNS  # type: ignore[import]
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.ssl.linux import get_system_ca_cert_info
-from opsicommon.system import lock_file
+from opsicommon.system import lock_file  # type: ignore[possibly-missing-import]
 from opsicommon.system.network import get_fqdn
 from opsicommon.types import forceDomain
 from opsicommon.utils import ip_address_in_network
@@ -247,11 +247,11 @@ def str2version(value: str) -> Version:
 
 
 def format_help_without_msg(parser: configargparse.ArgumentParser) -> str:
-	return parser.orig_format_help().rsplit("\n\n", 1)[0]
+	return parser.orig_format_help().rsplit("\n\n", 1)[0]  # type: ignore[unresolved-attribute]
 
 
 setattr(configargparse.ArgumentParser, "orig_format_help", configargparse.ArgumentParser.format_help)
-configargparse.ArgumentParser.format_help = format_help_without_msg
+configargparse.ArgumentParser.format_help = format_help_without_msg  # type: ignore[invalid-assignment]
 
 
 class OpsiconfdHelpFormatter(HelpFormatter):
@@ -351,7 +351,7 @@ class Config(metaclass=Singleton):
 
 		self._args: list[str] = []
 		self._ex_help = False
-		self._parser: configargparse.ArgParser | None = None
+		self._parser: configargparse.ArgumentParser | None = None
 		self._sub_command = None
 		self._config = configargparse.Namespace()
 		self._config.config_file = DEFAULT_CONFIG_FILE
@@ -397,7 +397,7 @@ class Config(metaclass=Singleton):
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
 				self._file_lock_method = "flock"
 				try:
-					with lock_file(file, lock_method=self._file_lock_method):
+					with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
 						pass
 				except Exception:
 					self._file_lock_method = "lockf"
@@ -556,10 +556,10 @@ class Config(metaclass=Singleton):
 			return self._config.redis_prefix
 		return f"{self._config.redis_prefix}:{prefix_type}"
 
-	def get_parser(self) -> configargparse.ArgParser:
+	def get_parser(self) -> configargparse.ArgumentParser:
 		if not self._parser:
 			self._init_parser()
-		assert self._parser
+		assert isinstance(self._parser, configargparse.ArgumentParser)
 		return self._parser
 
 	def reload(self) -> None:
@@ -607,7 +607,7 @@ class Config(metaclass=Singleton):
 
 				try:
 					if isinstance(value, list):
-						value = [action.type(v) for v in value]
+						value = [action.type(v) for v in value]  # type: ignore[arg-type]
 					else:
 						value = action.type(value) if action.type else str(value)
 				except ValueError as err:
@@ -700,7 +700,7 @@ class Config(metaclass=Singleton):
 	def _config_file_contents(self) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):
+				with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
 					conf = self._parse_config_file(file)
 					masked_config_file_arguments: tuple[str, ...] = tuple()
 					if self._sub_command:
@@ -710,7 +710,7 @@ class Config(metaclass=Singleton):
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):
+				with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
 					conf = self._parse_config_file(file)
 					conf[arg] = value
 					return self._generate_config_file(file, conf)
@@ -718,17 +718,17 @@ class Config(metaclass=Singleton):
 	def _update_config_file(self) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):
+				with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
 					conf = self._parse_config_file(file)
 					for deprecated in DEPRECATED:
 						conf.pop(deprecated, None)
 					return self._generate_config_file(file, conf)
 
 	def _init_parser(self) -> None:
-		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))
-		assert self._parser
+		self._parser = configargparse.ArgumentParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))
+		assert isinstance(self._parser, configargparse.ArgumentParser)
 
-		self._parser.add(
+		self._parser.add_argument(
 			"-c",
 			"--config-file",
 			env_var="OPSICONFD_CONFIG_FILE",
@@ -737,24 +737,24 @@ class Config(metaclass=Singleton):
 			default=DEFAULT_CONFIG_FILE,
 			help=self._help("opsiconfd", "Path to config file."),
 		)
-		self._parser.add("--version", action="store_true", help=self._help("opsiconfd", "Show version info and exit."))
-		self._parser.add("--python-info", action="store_true", help=self._help("opsiconfd", "Show python info and exit."))
-		self._parser.add("--setup", action="store_true", help=self._help("opsiconfd", "Run full setup tasks on start."))
-		self._parser.add(
+		self._parser.add_argument("--version", action="store_true", help=self._help("opsiconfd", "Show version info and exit."))
+		self._parser.add_argument("--python-info", action="store_true", help=self._help("opsiconfd", "Show python info and exit."))
+		self._parser.add_argument("--setup", action="store_true", help=self._help("opsiconfd", "Run full setup tasks on start."))
+		self._parser.add_argument(
 			"--run-as-user",
 			env_var="OPSICONFD_RUN_AS_USER",
 			default="opsiconfd",
 			metavar="USER",
 			help=self._help("opsiconfd", "Run service as USER."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--workers",
 			env_var="OPSICONFD_WORKERS",
 			type=int,
 			default=1,
 			help=self._help("opsiconfd", "Number of workers to fork."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--worker-stop-timeout",
 			env_var="OPSICONFD_WORKER_STOP_TIMEOUT",
 			type=int,
@@ -766,43 +766,43 @@ class Config(metaclass=Singleton):
 				"After the timeout expires the worker will be forced to stop.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--backend-config-dir",
 			env_var="OPSICONFD_BACKEND_CONFIG_DIR",
 			default="/etc/opsi/backends",
 			help=self._help("opsiconfd", "Location of the backend config dir."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--dispatch-config-file",
 			env_var="OPSICONFD_DISPATCH_CONFIG_FILE",
 			default="/etc/opsi/backendManager/dispatch.conf",
 			help=self._help("opsiconfd", "Location of the backend dispatcher config file."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--extension-config-dir",
 			env_var="OPSICONFD_EXTENSION_CONFIG_DIR",
 			default="/etc/opsi/backendManager/extend.d",
 			help=self._help("opsiconfd", "Location of the backend extension config dir."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--acl-file",
 			env_var="OPSICONFD_ACL_FILE",
 			default="/etc/opsi/backendManager/acl.conf",
 			help=self._help("opsiconfd", "Location of the acl file."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--opsi-config",
 			env_var="OPSICONFD_OPSI_CONFIG",
 			default="/etc/opsi/opsi.conf",
 			help=self._help("expert", "Location of the opsi.conf."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--static-dir",
 			env_var="OPSICONFD_STATIC_DIR",
 			default="/usr/share/opsiconfd/static",
 			help=self._help("opsiconfd", "Location of the static files."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--networks",
 			nargs="*",
 			env_var="OPSICONFD_NETWORKS",
@@ -810,7 +810,7 @@ class Config(metaclass=Singleton):
 			type=network_address_or_domain,
 			help=self._help("opsiconfd", "A list of network addresses or domain names from which connections are allowed."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--admin-networks",
 			nargs="*",
 			env_var="OPSICONFD_ADMIN_NETWORKS",
@@ -818,7 +818,7 @@ class Config(metaclass=Singleton):
 			type=network_address_or_domain,
 			help=self._help("opsiconfd", "A list of network addresses or domain names from which administrative connections are allowed."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--trusted-proxies",
 			nargs="*",
 			env_var="OPSICONFD_TRUSTED_PROXIES",
@@ -826,14 +826,14 @@ class Config(metaclass=Singleton):
 			type=network_address,
 			help=self._help("opsiconfd", "A list of trusted reverse proxy addresses."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-mode",
 			env_var="OPSICONFD_LOG_MODE",
 			default="redis",
 			choices=("redis", "local"),
 			help=self._help("opsiconfd", "Set the logging mode. 'redis': use centralized redis logging, 'local': local logging."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-level",
 			env_var="OPSICONFD_LOG_LEVEL",
 			type=int,
@@ -846,7 +846,7 @@ class Config(metaclass=Singleton):
 				"6: infos, 7: debug messages, 8: trace messages, 9: secrets",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-levels",
 			env_var="OPSICONFD_LOG_LEVELS",
 			type=str,
@@ -861,7 +861,7 @@ class Config(metaclass=Singleton):
 				r'Example: --log-levels="opsi.*:4,opsiconfd\.headers:8"',
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-file",
 			env_var="OPSICONFD_LOG_FILE",
 			default=f"{LOG_DIR}/opsiconfd/%m.log",
@@ -870,7 +870,7 @@ class Config(metaclass=Singleton):
 				"The macro %%m can be used to create use a separate log file for each client. %%m will be replaced by <client-ip>",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--symlink-logs",
 			env_var="OPSICONFD_SYMLINK_LOGS",
 			type=str2bool,
@@ -885,7 +885,7 @@ class Config(metaclass=Singleton):
 				"as the log files but %%m will be replaced by <client-fqdn>.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--max-log-size",
 			env_var="OPSICONFD_MAX_LOG_SIZE",
 			type=float,
@@ -898,14 +898,14 @@ class Config(metaclass=Singleton):
 				"so that your disk does not get filled by the logs.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--keep-rotated-logs",
 			env_var="OPSICONFD_KEEP_ROTATED_LOGS",
 			type=int,
 			default=1,
 			help=self._help("opsiconfd", "Number of rotated log files to keep."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-level-file",
 			env_var="OPSICONFD_LOG_LEVEL_FILE",
 			type=int,
@@ -918,13 +918,13 @@ class Config(metaclass=Singleton):
 				"6: infos, 7: debug messages, 8: trace messages, 9: secrets",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-format-file",
 			env_var="OPSICONFD_LOG_FORMAT_FILE",
 			default="[%(opsilevel)d] [%(asctime)s.%(msecs)03d] [%(contextstring)-15s] %(message)s   (%(filename)s:%(lineno)d)",
 			help=self._help("opsiconfd", "Set the log format for logfiles."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"-l",
 			"--log-level-stderr",
 			env_var="OPSICONFD_LOG_LEVEL_STDERR",
@@ -938,7 +938,7 @@ class Config(metaclass=Singleton):
 				"6: infos, 7: debug messages, 8: trace messages, 9: secrets",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-format-stderr",
 			env_var="OPSICONFD_LOG_FORMAT_STDERR",
 			default=(
@@ -947,14 +947,14 @@ class Config(metaclass=Singleton):
 			),
 			help=self._help("opsiconfd", "Set the log format for stder."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-max-msg-len",
 			env_var="OPSICONFD_LOG_MAX_MSG_LEN",
 			type=int,
 			default=5000,
 			help=self._help("expert", "Set maximum log message length."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-filter",
 			env_var="OPSICONFD_LOG_FILTER",
 			help=self._help(
@@ -963,15 +963,19 @@ class Config(metaclass=Singleton):
 				'Example: --log-filter="client_address=192.168.20.101"',
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--monitoring-user",
 			env_var="OPSICONFD_MONITORING_USER",
 			default="monitoring",
 			help=self._help("opsiconfd", "The User for opsi-Nagios-Connector."),
 		)
-		self._parser.add("--internal-url", env_var="OPSICONFD_INTERNAL_URL", help=self._help("opsiconfd", "The internal base url."))
-		self._parser.add("--external-url", env_var="OPSICONFD_EXTERNAL_URL", help=self._help("opsiconfd", "The external base url."))
-		self._parser.add(
+		self._parser.add_argument(
+			"--internal-url", env_var="OPSICONFD_INTERNAL_URL", help=self._help("opsiconfd", "The internal base url.")
+		)
+		self._parser.add_argument(
+			"--external-url", env_var="OPSICONFD_EXTERNAL_URL", help=self._help("opsiconfd", "The external base url.")
+		)
+		self._parser.add_argument(
 			"--interface",
 			type=ip_address,
 			env_var="OPSICONFD_INTERFACE",
@@ -983,14 +987,14 @@ class Config(metaclass=Singleton):
 				"Use :: to listen on all ipv6 (and ipv4) interfaces.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--port",
 			env_var="OPSICONFD_PORT",
 			type=int,
 			default=4447,
 			help=self._help("opsiconfd", "The port where opsiconfd will listen for https requests."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--database-encryption-keys",
 			env_var="OPSICONFD_DATABASE_ENCRYPTION_KEYS",
 			nargs="*",
@@ -1007,7 +1011,7 @@ class Config(metaclass=Singleton):
 		ca_cert_path = get_system_ca_cert_info().ca_cert_path
 		if not ca_cert_path.exists():
 			ca_cert_path = Path(certifi.where())
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-trusted-certs",
 			env_var="OPSICONFD_SSL_TRUSTED_CERTS",
 			default=str(ca_cert_path),
@@ -1017,7 +1021,7 @@ class Config(metaclass=Singleton):
 		# iPXE 1.20.1 supports these TLS v1.2 cipher suites:
 		# AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)
 		# AES256-SHA256 (TLS_RSA_WITH_AES_256_CBC_SHA256, 0x003d)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ciphers",
 			env_var="OPSICONFD_SSL_CIPHERS",
 			default="TLSv1.2",
@@ -1026,53 +1030,53 @@ class Config(metaclass=Singleton):
 				"TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.1.1/man1/ciphers.html).",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ca-subject-cn",
 			env_var="OPSICONFD_SSL_CA_SUBJECT_CN",
 			# Do not change to OPSI CA to keep backward compatibility
 			default="opsi CA",
 			help=self._help("opsiconfd", "The common name to use in the OPSI CA subject."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ca-key",
 			env_var="OPSICONFD_SSL_CA_KEY",
 			default="/etc/opsi/ssl/opsi-ca-key.pem",
 			help=self._help("expert", "The location of the OPSI ssl ca key."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ca-key-passphrase",
 			env_var="OPSICONFD_SSL_CA_KEY_PASSPHRASE",
 			default=CA_KEY_DEFAULT_PASSPHRASE,
 			help=self._help("opsiconfd", "Passphrase to use to encrypt CA key."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ca-cert",
 			env_var="OPSICONFD_SSL_CA_CERT",
 			default="/etc/opsi/ssl/opsi-ca-cert.pem",
 			help=self._help("expert", "The location of the OPSI ssl ca certificate."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
 			type=int,
 			default=730,
 			help=self._help("expert", "The period of validity of the OPSI ssl ca certificate in days."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ca-cert-renew-days",
 			env_var="OPSICONFD_SSL_CA_CERT_RENEW_DAYS",
 			type=int,
 			default=700,
 			help=self._help("expert", "The CA will be renewed if the validity falls below the specified number of days."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-ca-permitted-domains",
 			env_var="OPSICONFD_SSL_CA_PERMITTED_DOMAINS",
 			nargs="*",
 			default=[],
 			help=self._help("opsiconfd", "The CA will be limited to these domains (X.509 Name Constraints)."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-cert-type",
 			env_var="OPSICONFD_SSL_SERVER_CERT_TYPE",
 			choices=("opsi-ca", "letsencrypt", "custom-ca"),
@@ -1085,19 +1089,19 @@ class Config(metaclass=Singleton):
 				"custom-ca: Use custom certificates.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--letsencrypt-directory-url",
 			env_var="OPSICONFD_LETSENCRYPT_DIRECTORY_URL",
 			default="https://acme-v02.api.letsencrypt.org/directory",
 			help=self._help("expert", "The URL of the Let's Encrypt directory."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--letsencrypt-contact-email",
 			env_var="OPSICONFD_LETSENCRYPT_CONTACT_EMAIL",
 			default="",
 			help=self._help("expert", "The contact e-mail for the Let's Encrypt account."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl",
 			env_var="OPSICONFD_SSL",
 			type=str2bool,
@@ -1109,32 +1113,32 @@ class Config(metaclass=Singleton):
 				"If enabled, SSL will be used.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-key",
 			env_var="OPSICONFD_SSL_SERVER_KEY",
 			default="/etc/opsi/ssl/opsiconfd-key.pem",
 			help=self._help("expert", "The location of the ssl server key."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-key-passphrase",
 			env_var="OPSICONFD_SSL_SERVER_KEY_PASSPHRASE",
 			default=SERVER_KEY_DEFAULT_PASSPHRASE,
 			help=self._help("opsiconfd", "Passphrase to use to encrypt server key."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-cert",
 			env_var="OPSICONFD_SSL_SERVER_CERT",
 			default="/etc/opsi/ssl/opsiconfd-cert.pem",
 			help=self._help("expert", "The location of the ssl server certificate."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-cert-valid-days",
 			env_var="OPSICONFD_SSL_SERVER_CERT_VALID_DAYS",
 			type=int,
 			default=90,
 			help=self._help("expert", "The period of validity of the server certificate in days."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-cert-renew-days",
 			env_var="OPSICONFD_SSL_SERVER_CERT_RENEW_DAYS",
 			type=int,
@@ -1144,21 +1148,21 @@ class Config(metaclass=Singleton):
 				"The server certificate will be renewed if the validity falls below the specified number of days.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-cert-sans",
 			nargs="*",
 			env_var="OPSICONFD_SSL_SERVER_CERT_SANS",
 			default=[],
 			help=self._help("opsiconfd", "Subject alternative names for the OPSI server certificate."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-client-cert-valid-days",
 			env_var="OPSICONFD_SSL_CLIENT_CERT_VALID_DAYS",
 			type=int,
 			default=360,
 			help=self._help("expert", "The period of validity of a client certificate in days."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--ssl-server-cert-check-interval",
 			env_var="OPSICONFD_SSL_SERVER_CERT_CHECK_INTERVAL",
 			type=int,
@@ -1168,7 +1172,7 @@ class Config(metaclass=Singleton):
 				"The interval in seconds at which the server certificate is checked for validity.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--update-ip",
 			env_var="OPSICONFD_UPDATE_IP",
 			type=str2bool,
@@ -1181,28 +1185,28 @@ class Config(metaclass=Singleton):
 				"when the client connects to the service and authentication is successful.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--session-lifetime",
 			env_var="OPSICONFD_SESSION_LIFETIME",
 			type=int,
 			default=120,
 			help=self._help("opsiconfd", "The interval in seconds after an inactive session expires."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--max-auth-failures",
 			env_var="OPSICONFD_MAX_AUTH_FAILURES",
 			type=int,
 			default=10,
 			help=self._help("opsiconfd", "The maximum number of authentication failures before a client ip is blocked."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--auth-failures-interval",
 			env_var="OPSICONFD_AUTH_FAILURES_INTERVAL",
 			type=int,
 			default=120,
 			help=self._help("opsiconfd", "The time window in seconds in which max auth failures are counted."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--auth-allowed-groups",
 			env_var="OPSICONFD_AUTH_ALLOWED_GROUPS",
 			type=str_lower,
@@ -1215,7 +1219,7 @@ class Config(metaclass=Singleton):
 				"Placeholders in the form of {groupname} can be used to refer to groups from /etc/opsi/opsi.conf.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--disabled-auth-methods",
 			env_var="OPSICONFD_DISABLED_AUTH_METHODS",
 			type=str_lower,
@@ -1227,7 +1231,7 @@ class Config(metaclass=Singleton):
 				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed. opsi_passwd is obsolete\n",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--database-password-hash-migration",
 			env_var="OPSICONFD_DATABASE_PASSWORD_HASH_MIGRATION",
 			type=str_lower,
@@ -1235,7 +1239,7 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Migrate database password hashes to the specified method on successful authentication."),
 			choices=("database",),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--database-password-hashing-method",
 			env_var="OPSICONFD_DATABASE_PASSWORD_HASHING_METHOD",
 			type=str_lower,
@@ -1243,7 +1247,7 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "Database password hashing method to use."),
 			choices=("sha512", "bcrypt", "argon2id"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--multi-factor-auth",
 			env_var="OPSICONFD_MULTI_FACTOR_AUTH",
 			type=str_lower,
@@ -1251,14 +1255,14 @@ class Config(metaclass=Singleton):
 			help=self._help("opsiconfd", "The multi factor authentication mode to use."),
 			choices=("inactive", "totp_optional", "totp_mandatory"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--totp-tolerance",
 			env_var="OPSICONFD_TOTP_TOLERANCE",
 			type=int,
 			default=0,
 			help=self._help("opsiconfd", 'The number of "past" and "future" passwords that are valid during TOTP validation.'),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--client-cert-auth",
 			env_var="OPSICONFD_CLIENT_CERT_AUTH",
 			nargs="*",
@@ -1266,7 +1270,7 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "HTTPS client certificate authentication settings."),
 			choices=("client", "depot", "user"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-idp-entity-id",
 			env_var="OPSICONFD_SAML_IDP_ENTITY_ID",
 			default=None,
@@ -1275,7 +1279,7 @@ class Config(metaclass=Singleton):
 				"Entity ID of the SAML Identity Provider (IdP)\nExample:\nhttps://keycloak.my.corp/realms/master\n",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-idp-x509-cert",
 			env_var="OPSICONFD_SAML_IDP_X509_CERT",
 			default=None,
@@ -1284,7 +1288,7 @@ class Config(metaclass=Singleton):
 				"Public X.509 certificate of the SAML Identity Provider (IdP) as Base64 encoded string.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-idp-sso-url",
 			env_var="OPSICONFD_SAML_IDP_SSO_URL",
 			default=None,
@@ -1294,7 +1298,7 @@ class Config(metaclass=Singleton):
 				"Example:\nhttps://keycloak.my.corp/realms/master/protocol/saml\n",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-idp-slo-url",
 			env_var="OPSICONFD_SAML_IDP_SLO_URL",
 			default=None,
@@ -1304,7 +1308,7 @@ class Config(metaclass=Singleton):
 				"Example:\nhttps://keycloak.my.corp/realms/master/protocol/saml\n",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-sp-client-signature",
 			env_var="OPSICONFD_SAML_SP_CLIENT_SIGNATURE",
 			type=str2bool,
@@ -1316,7 +1320,7 @@ class Config(metaclass=Singleton):
 				"Enable signining of messages and assertions.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-encrypted-assertions",
 			env_var="OPSICONFD_SAML_ENCRYPTED_ASSERTIONS",
 			type=str2bool,
@@ -1328,7 +1332,7 @@ class Config(metaclass=Singleton):
 				"Enable encrypted assertions.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-sp-x509-cert",
 			env_var="OPSICONFD_SAML_SP_X509_CERT",
 			default=None,
@@ -1337,7 +1341,7 @@ class Config(metaclass=Singleton):
 				"Public X.509 certificate of the SAML Service Provider (SP) as Base64 encoded string.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-sp-private-key",
 			env_var="OPSICONFD_SAML_SP_PRIVATE_KEY",
 			default=None,
@@ -1346,14 +1350,14 @@ class Config(metaclass=Singleton):
 				"Private key of the SAML Service Provider (SP) as Base64 encoded string.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-role-group-mappings",
 			nargs="*",
 			env_var="OPSICONFD_SAML_ROLE_GROUP_MAPPINGS",
 			default=[],
 			help=self._help("opsiconfd", "Map SAML roles to OPSI groups (<role> = <group>)."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--saml-slo",
 			env_var="OPSICONFD_SAML_SLO",
 			type=str2bool,
@@ -1365,42 +1369,42 @@ class Config(metaclass=Singleton):
 				"If enabled, SAML Single Logout (SLO) will be triggered on logout.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--client-block-time",
 			env_var="OPSICONFD_CLIENT_BLOCK_TIME",
 			type=int,
 			default=120,
 			help=self._help("opsiconfd", "Time in seconds for which the client is blocked after max auth failures."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--max-session-per-ip",
 			env_var="OPSICONFD_MAX_SESSIONS_PER_IP",
 			type=int,
 			default=30,
 			help=self._help("opsiconfd", "The maximum number of sessions that can be opened through one ip address."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--max-sessions-excludes",
 			nargs="*",
 			env_var="OPSICONFD_MAX_SESSIONS_EXCLUDES",
 			default=["127.0.0.1", "::1"],
 			help=self._help("expert", "Allow unlimited sessions for these addresses."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--min-configed-version",
 			env_var="OPSICONFD_MIN_CONFIGED_VERSION",
 			type=str,
 			default="4.3.2.18",
 			help=self._help("opsiconfd", "Minimum opsi-configed version allowed to connect."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--allowed-user-agents",
 			nargs="*",
 			env_var="OPSICONFD_ALLOWED_USER_AGENTS",
 			default=[],
 			help=self._help("opsiconfd", "List of user agents that are allowed to connect. If empty, all user agents are allowed."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--collect-metrics",
 			env_var="OPSICONFD_COLLECT_METRICS",
 			type=str2bool,
@@ -1413,7 +1417,7 @@ class Config(metaclass=Singleton):
 			),
 		)
 		metric_ids = [m.id for m in ALL_METRICS]
-		self._parser.add(
+		self._parser.add_argument(
 			"--disabled-metrics",
 			nargs="*",
 			env_var="OPSICONFD_DISABLED_METRICS",
@@ -1424,7 +1428,7 @@ class Config(metaclass=Singleton):
 			),
 			choices=metric_ids,
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--check-running",
 			env_var="OPSICONFD_CHECK_RUNNING",
 			type=str2bool,
@@ -1436,7 +1440,7 @@ class Config(metaclass=Singleton):
 				"Check if other opsiconfd manager instance already running on startup.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--skip-setup",
 			nargs="*",
 			env_var="OPSICONFD_SKIP_SETUP",
@@ -1448,7 +1452,7 @@ class Config(metaclass=Singleton):
 			choices=["all"] + SKIP_SETUP_ACTIONS,
 		)
 
-		self._parser.add(
+		self._parser.add_argument(
 			"--checks",
 			nargs="*",
 			env_var="OPSICONFD_CHECKS",
@@ -1459,7 +1463,7 @@ class Config(metaclass=Singleton):
 			),
 		)
 
-		self._parser.add(
+		self._parser.add_argument(
 			"--skip-checks",
 			nargs="*",
 			env_var="OPSICONFD_SKIP_CHECKS",
@@ -1469,19 +1473,19 @@ class Config(metaclass=Singleton):
 				"A list of checks to skip.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--list",
 			action="store_true",
 			help=self._help("health-check", "List all available checks."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--format",
 			env_var="OPSICONFD_HEALTH_CHECK_FORMAT",
 			default="cli",
 			help=self._help(("opsiconfd", "health-check"), "Health-Check output format."),
 			choices=("cli", "checkmk", "nagios", "zabbix", "json"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--health-check-interval",
 			env_var="OPSICONFD_HEALTH_CHECK_INTERVAL",
 			type=int,
@@ -1489,7 +1493,7 @@ class Config(metaclass=Singleton):
 			help=self._help(("opsiconfd", "health-check"), "The interval in seconds at which the health check is executed."),
 		)
 
-		self._parser.add(
+		self._parser.add_argument(
 			"--mysql-internal-url",
 			env_var="OPSICONFD_MYSQL_INTERNAL_URL",
 			default=None,
@@ -1502,7 +1506,7 @@ class Config(metaclass=Singleton):
 				"mysql://<username>:<password>@mysql-server\n",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--redis-internal-url",
 			env_var="OPSICONFD_REDIS_INTERNAL_URL",
 			default="redis://localhost",
@@ -1513,25 +1517,25 @@ class Config(metaclass=Singleton):
 				"unix:///var/run/redis/redis-server.sock",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--redis-prefix",
 			env_var="OPSICONFD_REDIS_PREFIX",
 			default="opsiconfd",
 			help=self._help("expert", "Prefix for redis keys"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--grafana-internal-url",
 			env_var="OPSICONFD_GRAFANA_INTERNAL_URL",
 			default="http://localhost:3000",
 			help=self._help("opsiconfd", "Grafana base url for internal use."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--grafana-external-url",
 			env_var="OPSICONFD_GRAFANA_EXTERNAL_URL",
 			default="/grafana",
 			help=self._help("opsiconfd", "External grafana base url."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--grafana-verify-cert",
 			env_var="OPSICONFD_GRAFANA_VERIFY_CERT",
 			type=str2bool,
@@ -1540,41 +1544,41 @@ class Config(metaclass=Singleton):
 			default=True,
 			help=self._help("opsiconfd", "If enabled, opsiconfd will check the tls certificate when connecting to grafana."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--grafana-data-source-url",
 			env_var="OPSICONFD_GRAFANA_DATA_SOURCE_URL",
 			help=self._help("opsiconfd", "Grafana data source base url."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--restart-worker-mem",
 			env_var="OPSICONFD_RESTART_WORKER_MEM",
 			type=int,
 			default=0,
 			help=self._help("opsiconfd", "Restart worker if allocated process memory (rss) exceeds this value (in MB)."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--max-backup-age",
 			env_var="OPSICONFD_MAX_BACKUP_AGE",
 			type=int,
 			default=24,
 			help=self._help("opsiconfd", "The maximum age of the last successful backup in hours."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--welcome-page",
 			env_var="OPSICONFD_WELCOME_PAGE",
 			type=str2bool,
 			default=True,
 			help=self._help("opsiconfd", "Show welcome page on index."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--zeroconf",
 			env_var="OPSICONFD_ZEROCONF",
 			type=str2bool,
 			default=True,
 			help=self._help("opsiconfd", "Publish opsiconfd service via zeroconf."),
 		)
-		self._parser.add("--ex-help", action="store_true", help=self._help("expert", "Show expert help message and exit."))
-		self._parser.add(
+		self._parser.add_argument("--ex-help", action="store_true", help=self._help("expert", "Show expert help message and exit."))
+		self._parser.add_argument(
 			"--debug-options",
 			nargs="*",
 			env_var="OPSICONFD_DEBUG_OPTIONS",
@@ -1585,7 +1589,7 @@ class Config(metaclass=Singleton):
 			),
 			choices=("asyncio", "rpc-log", "rpc-error-log", "prod-dep-log"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--development-options",
 			nargs="*",
 			env_var="OPSICONFD_DEVELOPMENT_OPTIONS",
@@ -1596,7 +1600,7 @@ class Config(metaclass=Singleton):
 			),
 			choices=("delay-get-session", "markupsafe-native", "no-memory-cleanup"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--profiler",
 			nargs="*",
 			env_var="OPSICONFD_PROFILER",
@@ -1604,41 +1608,41 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "Turn profilers on. This will slow down requests, never use in production."),
 			choices=("yappi", "tracemalloc"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--node-name",
 			env_var="OPSICONFD_NODE_NAME",
 			help=self._help("expert", "Node name to use."),
 			default=DEFAULT_NODE_NAME,
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--executor-workers",
 			env_var="OPSICONFD_EXECUTOR_WORKERS",
 			type=int,
 			default=16,
 			help=self._help("expert", "Maximum number of anyio threads running in a worker."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--websocket-protocol",
 			env_var="OPSICONFD_WEBSOCKET_PROTOCOL",
 			default="wsproto_opsiconfd",
 			help=self._help("expert", "Set the websocket protocol."),
 			choices=("wsproto_opsiconfd", "websockets_opsiconfd", "wsproto", "websockets", "websockets-sansio"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--websocket-open-timeout",
 			env_var="OPSICONFD_WEBSOCKET_OPEN_TIMEOUT",
 			type=int,
 			default=30,
 			help=self._help("expert", "Set the websocket open timeout, in seconds."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--websocket-queue-size",
 			env_var="OPSICONFD_WEBSOCKET_QUEUE_SIZE",
 			type=int,
 			default=32,
 			help=self._help("expert", "Maximum number of incoming messages in websockets receive buffer."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--websocket-ping-interval",
 			env_var="OPSICONFD_WEBSOCKET_PING_INTERVAL",
 			type=int,
@@ -1648,7 +1652,7 @@ class Config(metaclass=Singleton):
 				"Set the websocket ping interval, in seconds.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--websocket-ping-timeout",
 			env_var="OPSICONFD_WEBSOCKET_PING_TIMEOUT",
 			type=int,
@@ -1656,7 +1660,7 @@ class Config(metaclass=Singleton):
 			help=self._help("expert", "Set the websocket ping timeout, in seconds."),
 		)
 		# https://www.getpagespeed.com/server-setup/nginx/maximizing-nginx-performance-a-comprehensive-guide-to-tuning-the-backlog-and-net-core-somaxconn-parameters
-		self._parser.add(
+		self._parser.add_argument(
 			"--socket-backlog",
 			env_var="OPSICONFD_SOCKET_BACKLOG",
 			type=int,
@@ -1666,7 +1670,7 @@ class Config(metaclass=Singleton):
 				"Limit for the queue of incoming connections (SOMAXCONN).",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--rlimit-nofile",
 			env_var="OPSICONFD_RLIMIT_NOFILE",
 			type=int,
@@ -1676,7 +1680,7 @@ class Config(metaclass=Singleton):
 				"Set process RLIMIT_NOFILE (soft and hard).",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--log-slow-async-callbacks",
 			env_var="OPSICONFD_LOG_SLOW_ASYNC_CALLBACKS",
 			type=float,
@@ -1684,21 +1688,21 @@ class Config(metaclass=Singleton):
 			metavar="THRESHOLD",
 			help=self._help("expert", "Log asyncio callbacks which takes THRESHOLD seconds or more."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--addon-dirs",
 			nargs="*",
 			env_var="OPSICONFD_ADDON_DIRS",
 			default=[ADDON_DIR, VAR_ADDON_DIR],
 			help=self._help("expert", "A list of addon directories"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--jsonrpc-time-to-cache",
 			env_var="OPSICONFD_JSONRPC_TIME_TO_CACHE",
 			default=0.5,
 			type=float,
 			help=self._help("expert", "Minimum time in seconds that a jsonrpc must take before the data is cached."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--disabled-features",
 			nargs="*",
 			env_var="OPSICONFD_DISABLED_FEATURES",
@@ -1720,13 +1724,13 @@ class Config(metaclass=Singleton):
 				"messagebus_execute_process_client",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--admin-interface-terminal-shell",
 			env_var="OPSICONFD_ADMIN_INTERFACE_TERMINAL_SHELL",
 			default="/bin/bash",
 			help=self._help("opsiconfd", "Shell command for admin interface terminal"),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--allow-host-key-only-auth",
 			env_var="OPSICONFD_ALLOW_HOST_KEY_ONLY_AUTH",
 			type=str2bool,
@@ -1735,7 +1739,7 @@ class Config(metaclass=Singleton):
 			default=False,
 			help=self._help("expert", "Clients are allowed to login with the host key only."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--recover-clients",
 			env_var="OPSICONFD_RECOVER_CLIENTS",
 			type=str2bool,
@@ -1751,14 +1755,14 @@ class Config(metaclass=Singleton):
 				),
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--maintenance",
 			nargs="*",
 			env_var="OPSICONFD_MAINTENANCE",
 			default=False,
 			help=self._help("opsiconfd", "Start opsiconfd in maintenance mode, except for these addresses."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--delete-locks",
 			env_var="OPSICONFD_DELETE_LOCKS",
 			type=str2bool,
@@ -1767,7 +1771,7 @@ class Config(metaclass=Singleton):
 			default=False,
 			help=self._help(("opsiconfd", "setup", "backup", "restore"), "Delete all locks on startup."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--provide-deprecated-methods",
 			env_var="OPSICONFD_PROVIDE_DEPRECATED_METHODS",
 			type=str2bool,
@@ -1776,7 +1780,7 @@ class Config(metaclass=Singleton):
 			default=True,
 			help=self._help("opsiconfd", "Provide deprecated methods in API."),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--http-security-headers",
 			env_var="OPSICONFD_HTTP_SECURITY_HEADERS",
 			type=str2bool,
@@ -1788,7 +1792,7 @@ class Config(metaclass=Singleton):
 				"If enabled, opsiconfd will send security headers in http responses.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--cors-origin",
 			env_var="OPSICONFD_CORS_ORIGIN",
 			default=None,
@@ -1797,7 +1801,7 @@ class Config(metaclass=Singleton):
 				"Access-Control-Allow-Origin header value. If not set, will be automatically determined.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--shared-service-connection",
 			env_var="OPSICONFD_SHARED_SERVICE_CONNECTION",
 			type=str2bool,
@@ -1809,7 +1813,7 @@ class Config(metaclass=Singleton):
 				"Shared use of a single service connection per worker process for all purposes.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--admin-user",
 			env_var="OPSICONFD_SETUP_ADMIN_USER",
 			default=None,
@@ -1818,7 +1822,7 @@ class Config(metaclass=Singleton):
 				"Admin user to use for setup.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--admin-password",
 			env_var="OPSICONFD_SETUP_ADMIN_PASSWORD",
 			default=None,
@@ -1827,7 +1831,7 @@ class Config(metaclass=Singleton):
 				"Admin password to use for setup.",
 			),
 		)
-		self._parser.add(
+		self._parser.add_argument(
 			"--clear-cache",
 			nargs="?",
 			const=True,
@@ -1838,7 +1842,7 @@ class Config(metaclass=Singleton):
 			),
 		)
 
-		self._parser.add(
+		self._parser.add_argument(
 			"--add-config-files",
 			env_var="OPSICONFD_ADD_CONFIG_FILES",
 			nargs="*",
@@ -1850,11 +1854,11 @@ class Config(metaclass=Singleton):
 		)
 
 		if self._pytest or self._pyinstaller_scan:
-			self._parser.add("args", nargs="*")
+			self._parser.add_argument("args", nargs="*")
 			return
 
 		if not self._sub_command:
-			self._parser.add(
+			self._parser.add_argument(
 				"action",
 				nargs=None if self._sub_command else "?",
 				choices=OPSICONFD_ACTIONS,
@@ -1885,17 +1889,17 @@ class Config(metaclass=Singleton):
 			return
 
 		if self._sub_command == "setup":
-			self._parser.add(
+			self._parser.add_argument(
 				"--non-interactive", action="store_true", help=self._help("setup", "Run non interactive, do not ask questions.")
 			)
 
-			self._parser.add("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
-			self._parser.add(
+			self._parser.add_argument("--configure-mysql", action="store_true", help=self._help("setup", "Configure MySQL connection."))
+			self._parser.add_argument(
 				"--configure-saml",
 				action="store_true",
 				help=self._help("setup", "Configure SAML authentication.\nPossible unattended config parameters are: idp_metadata_url."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--register-depot",
 				action="store_true",
 				help=self._help(
@@ -1906,7 +1910,7 @@ class Config(metaclass=Singleton):
 					"For security reasons, these options should preferably be set via environment variables.",
 				),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--unattended",
 				metavar="UNATTENDED_CONFIG",
 				nargs="?",
@@ -1915,7 +1919,7 @@ class Config(metaclass=Singleton):
 				default=False,
 				help=self._help("setup", 'Pass unattended config for --register-depot or --configure-saml as \'{"key":"value"}\''),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--set-depot-user-password",
 				nargs="?",
 				const=True,
@@ -1923,7 +1927,7 @@ class Config(metaclass=Singleton):
 				default=None,
 				help=self._help("setup", "Set password for user."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--rename-server",
 				metavar="NEW_SERVER_ID",
 				nargs="?",
@@ -1933,8 +1937,8 @@ class Config(metaclass=Singleton):
 			)
 
 		if self._sub_command == "health-check":
-			self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))
-			self._parser.add(
+			self._parser.add_argument("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))
+			self._parser.add_argument(
 				"--upgrade-check",
 				nargs="?",
 				const=True,
@@ -1944,7 +1948,7 @@ class Config(metaclass=Singleton):
 					"Check for upgrade issues only. If a version number is specified, the check is performed for that specific version.",
 				),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--documentation",
 				"--docs",
 				action="store_true",
@@ -1952,7 +1956,7 @@ class Config(metaclass=Singleton):
 			)
 
 		if self._sub_command == "diagnostic-data":
-			self._parser.add(
+			self._parser.add_argument(
 				"target",
 				nargs="?",
 				default=None,
@@ -1969,7 +1973,7 @@ class Config(metaclass=Singleton):
 			)
 
 		if self._sub_command in ("backup", "backup-info", "backup-extract", "restore"):
-			self._parser.add(
+			self._parser.add_argument(
 				"--password",
 				nargs="?",
 				default=False,
@@ -1981,7 +1985,7 @@ class Config(metaclass=Singleton):
 			)
 
 		if self._sub_command in ("diagnostic-data", "backup", "backup-extract", "restore"):
-			self._parser.add(
+			self._parser.add_argument(
 				"--quiet",
 				action="store_true",
 				help=self._help(
@@ -1990,27 +1994,27 @@ class Config(metaclass=Singleton):
 			)
 
 		if self._sub_command == "backup":
-			self._parser.add(
+			self._parser.add_argument(
 				"--no-maintenance",
 				action="store_true",
 				help=self._help("backup", "Run backup without maintenance mode."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--no-config-files",
 				action="store_true",
 				help=self._help("backup", "Do not add config files to backup."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--no-redis-data",
 				action="store_true",
 				help=self._help("backup", "Do not add redis data to backup."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--overwrite",
 				action="store_true",
 				help=self._help("backup", "Overwrite existing backup file."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"backup_target",
 				nargs="?",
 				default=None,
@@ -2030,56 +2034,56 @@ class Config(metaclass=Singleton):
 			)
 
 		if self._sub_command == "backup-info":
-			self._parser.add(
+			self._parser.add_argument(
 				"backup_file",
 				metavar="BACKUP_FILE",
 				help=self._help("backup-info", "The BACKUP_FILE for which the information is to be displayed."),
 			)
 
 		if self._sub_command == "backup-extract":
-			self._parser.add(
+			self._parser.add_argument(
 				"backup_file",
 				metavar="BACKUP_FILE",
 				help=self._help("backup-extract", "The BACKUP_FILE to extract contents from."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"extract_dir",
 				metavar="EXTRACT_DIR",
 				help=self._help("backup-extract", "The directory to extract backup contents to."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--overwrite",
 				action="store_true",
 				help=self._help("backup-extract", "Overwrite existing files in extract directory."),
 			)
 
 		if self._sub_command == "restore":
-			self._parser.add(
+			self._parser.add_argument(
 				"--config-files",
 				action="store_true",
 				help=self._help("restore", "Restore config files from backup."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--redis-data",
 				action="store_true",
 				help=self._help("restore", "Restore redis data from backup."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--ignore-errors",
 				action="store_true",
 				help=self._help("restore", "Continue on errors."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--no-hw-audit",
 				action="store_true",
 				help=self._help("restore", "Do not restore hardware audit data."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--no-sw-audit",
 				action="store_true",
 				help=self._help("restore", "Do not restore software audit data."),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"--server-id",
 				env_var="OPSICONFD_SERVER_ID",
 				default="backup",
@@ -2092,14 +2096,14 @@ class Config(metaclass=Singleton):
 					),
 				),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"backup_file",
 				metavar="BACKUP_FILE",
 				help=self._help("restore", "The BACKUP_FILE to restore from."),
 			)
 
 		if self._sub_command == "test":
-			self._parser.add(
+			self._parser.add_argument(
 				"test_function",
 				choices=("pam_auth", "ldap_auth"),
 				metavar="TEST_FUNCTION",
@@ -2110,7 +2114,7 @@ class Config(metaclass=Singleton):
 			)
 
 		if self._sub_command == "set-config":
-			self._parser.add(
+			self._parser.add_argument(
 				"--on-change",
 				choices=("reload", "restart"),
 				default=None,
@@ -2118,7 +2122,7 @@ class Config(metaclass=Singleton):
 					"set-config", "Restart or reload opsiconfd if the configuration has been changed and opsiconfd is running."
 				),
 			)
-			self._parser.add(
+			self._parser.add_argument(
 				"set_configs",
 				metavar="CONFIG",
 				# Do not use nargs="+", this will break the cmdline parsing.

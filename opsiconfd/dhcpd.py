@@ -341,7 +341,7 @@ class DHCPDConfFile:
 
 		with self._file_rlock:
 			with open(self.file_path, "r", encoding="utf-8") as file:
-				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):
+				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):  # type: ignore[arg-type]
 					self._lines = file.readlines()
 
 		self._current_block = self._global_block = DHCPDConfGlobalBlock()

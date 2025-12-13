@@ -9,8 +9,8 @@ from unittest.mock import patch
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	FileChunkMessage,
+	FileDownloadInformationMessage,
 	FileDownloadRequestMessage,
-	FileDownloadResponseMessage,
 )
 
 from opsiconfd.config import get_configserver_id
@@ -47,7 +47,7 @@ def test_messagebus_filetransfer(tmp_path: Path, test_client: OpsiconfdTestClien
 		websocket.send_bytes(file_download_request.to_msgpack())
 		reader.wait_for_message(count=5)
 		message = next(reader.get_messagbus_messages())
-		assert isinstance(message, FileDownloadResponseMessage)
+		assert isinstance(message, FileDownloadInformationMessage)
 		for _ in range(5):
 			message = next(reader.get_messagbus_messages())
 			assert isinstance(message, FileChunkMessage)

@@ -213,7 +213,7 @@ def subprocess_started(
 
 
 class Worker(WorkerInfo, UvicornServer):
-	_instance = None
+	_instance: Worker | None = None
 
 	def __init__(self, node_name: str, worker_num: int) -> None:
 		WorkerInfo.__init__(self, node_name, worker_num, time.time())

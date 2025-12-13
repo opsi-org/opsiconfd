@@ -305,10 +305,10 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 		name="opsiconfd pytest metric",
 		retention=24 * 3600 * 1000,
 		grafana_config=None,
-		downsampling=[
-			["minute", 2 * 24 * 3600 * 1000, AggregationType.AVG],
-			["hour", 60 * 24 * 3600 * 1000, AggregationType.AVG],
-		],  # keep minutes longer
+		downsampling=(
+			("minute", 2 * 24 * 3600 * 1000, AggregationType.AVG),
+			("hour", 60 * 24 * 3600 * 1000, AggregationType.AVG),
+		),  # keep minutes longer
 	)
 	metric.redis_key_prefix = f"{base_key}:stats"
 	metrics_registry = MetricsRegistry()

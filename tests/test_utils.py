@@ -297,7 +297,7 @@ def test_encrypt_decrypt() -> None:
 		("secret", "PBKDF2_SHA512", None, "SHADOW", ValueError, "PBKDF2_SHA512 only supported with GRUB format"),
 		("secret", "BCRYPT", None, "GRUB", ValueError, "BCRYPT only supported with SHADOW format"),
 		("secret", "SHA512", None, "GRUB", ValueError, "SHA512 only supported with SHADOW format"),
-		("secret", "MD5", None, None, ValueError, "Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported"),
+		("secret", "MD5", None, None, ValueError, "'MD5' is not a valid HashingAlgorithm"),
 		("secret", "ARGON2ID", 4, "SHADOW", None, None),
 		(r"7ERlz[I|12by1ycIqe?ES6t`2r<F,y", "ARGON2ID", None, None, None, None),
 		("secret", "ARGON2ID", 4, "GRUB", ValueError, "ARGON2ID only supported with SHADOW format"),

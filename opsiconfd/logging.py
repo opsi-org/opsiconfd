@@ -399,15 +399,15 @@ class AsyncRedisLogAdapter:
 						client = entry[1].get(b"client_address", b"").decode("utf-8")
 						record_dict = msgpack_decoder.decode(entry[1][b"record"])
 						record_dict.update({"scope": None, "exc_info": None, "args": None})
-						record = AioLogRecord(**record_dict)
+						record = pylogging.makeLogRecord(record_dict)
 
 						if record.levelno >= self._log_level_file:
 							file_handler = self.get_file_handler(client)
 							if file_handler:
-								await file_handler.handle(record)
+								await file_handler.handle(record)  # type: ignore[argument-type]
 
 						if self._stderr_handler and record.levelno >= self._log_level_stderr:
-							await self._stderr_handler.handle(record)
+							await self._stderr_handler.handle(record)  # type: ignore[argument-type]
 
 			except (KeyboardInterrupt, SystemExit):
 				raise

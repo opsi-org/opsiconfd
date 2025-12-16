@@ -1264,7 +1264,9 @@ def test_migrate_to_database_authentication(
 	):
 		for database_password_hash_migration in (None, "database"):
 			with (
-				get_config({"database_password_hash_migration": database_password_hash_migration, "auth_allowed_groups": ["opsi-admin-group"]}),
+				get_config(
+					{"database_password_hash_migration": database_password_hash_migration, "auth_allowed_groups": ["opsi-admin-group"]}
+				),
 			):
 				res = test_client.post("/auth/login", json={"username": "testuser1", "password": "secret123"})
 				assert res.status_code == 200

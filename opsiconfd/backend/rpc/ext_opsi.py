@@ -51,7 +51,7 @@ class RPCExtOpsiMixin(Protocol):
 		"""
 		productId = forceProductId(productId)
 		clientId = forceHostId(clientId)
-		actionRequest = forceActionRequest(actionRequest)
+		actionRequest = forceActionRequest(actionRequest) or "none"
 		depotId = self.getDepotId(clientId=clientId)
 		product_on_depot = self.productOnDepot_getObjects(depotId=depotId, productId=productId)
 		if not product_on_depot:

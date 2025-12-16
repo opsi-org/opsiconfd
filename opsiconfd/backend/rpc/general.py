@@ -442,6 +442,7 @@ class RPCGeneralMixin(Protocol):
 			omf = OpsiModulesFile(self.opsi_modules_file)
 			omf.read()
 			for lic in omf.licenses:
+				assert lic.customer_name and lic.signature
 				modules["valid"] = modules[lic.module_id] = lic.get_state() == OPSI_LICENSE_STATE_VALID
 				modules["customer"] = lic.customer_name
 				modules["expires"] = "never" if lic.valid_until == OPSI_LICENSE_DATE_UNLIMITED else str(lic.valid_until)

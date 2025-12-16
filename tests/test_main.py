@@ -167,7 +167,7 @@ def test_diagnostic_data(capsys: CaptureFixture[str], tmp_path: Path) -> None:
 		with pytest.raises(SystemExit, match="0"):
 			main()
 	captured = capsys.readouterr()
-	assert f"Diagnostic data file '{target}' successfully created.".replace("\n", "") in captured.out
+	assert f"Diagnostic data file '{target}' successfully created." in captured.out.replace("\n", "")
 	assert target.exists()
 	data = json.loads(target.read_text(encoding="utf-8"))
 	assert data["opsiconfd_version"] == f"{__version__} [python-opsi-common={python_opsi_common_version}]"

@@ -152,10 +152,22 @@ def test_reload() -> None:
 
 
 def test_force_stop() -> None:
-	mpid = get_manager_process()[0]
+	mpid: int | None = get_manager_process()[0]
 	if mpid:
 		with patch("os.kill") as mock_kill:
 			with get_config({"action": "force-stop"}):
 				main()
 				mock_kill.assert_called_with(mpid, signal.SIGINT)
 				assert mock_kill.call_count == 2
+
+
+def test_diagnostic_data(capsys: CaptureFixture[str], tmp_path: Path) -> None:
+	target = tmp_path / "diagnostic_data.json"
+	with get_config({"action": "diagnostic-data", "quiet": False, "target": str(target)}):
+		with pytest.raises(SystemExit, match="0"):
+			main()
+	captured = capsys.readouterr()
+	assert f"Diagnostic data file '{target}' successfully created." in captured.out
+	assert target.exists()
+	data = json.loads(target.read_text(encoding="utf-8"))
+	assert data["opsiconfd_version"] == f"{__version__} [python-opsi-common={python_opsi_common_version}]"

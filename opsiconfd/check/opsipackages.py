@@ -116,7 +116,7 @@ class OpsiProductsOnDepotsCheck(Check):
 			return result
 
 		for depot_id in depot_ids:
-			if not any(product_id.endswith("client-agent") for product_id in product_on_depot[depot_id]):
+			if not any(product_id.endswith("client-agent") for product_id in product_on_depot.get(depot_id, {})):
 				mandatory_not_installed += 1
 				result.add_partial_result(
 					CheckResult(

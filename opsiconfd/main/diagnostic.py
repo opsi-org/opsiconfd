@@ -49,8 +49,7 @@ def diagnostic_data_main() -> None:
 			if data_file.exists() and data_file.is_dir():
 				data_file = data_file / data_filename()
 
-			loop = asyncio.get_event_loop()
-			diagnostic_data = loop.run_until_complete(get_diagnostic_data())
+			diagnostic_data = asyncio.run(get_diagnostic_data())
 			data = json.dumps(diagnostic_data, cls=DataclassCapableJSONEncoder, indent=2).encode("utf-8")
 			if (suffix := data_file.suffix.strip(".").lower()) in ("lz4", "gz"):
 				data = compress_data(data, compression=suffix)

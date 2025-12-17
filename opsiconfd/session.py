@@ -92,11 +92,12 @@ MESSAGEBUS_IN_USE_TIMEOUT = 60
 HARDWARE_ADDRESS_RE = re.compile(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$")
 HOST_ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,63}\.((\w+\-+)|(\w+\.))*\w{1,63}\.\w{2,16}\.?$")
 AUTH_TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
-# Zsync2 will send "curl/<curl-version>" as User-Agent.
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
+# openSUSE / SLES package manager will send "ZYpp <version> (curl <curl-version>)".
 # Do not keep sessions because they will never send a cookie (session id).
 # If we keep the session, we may reach the maximum number of sessions per ip.
-SESSION_UNAWARE_USER_AGENTS = ("libdnf", "curl")
+# If User-Agent starts with one of those, we do not keep the session.
+SESSION_UNAWARE_USER_AGENTS = ("libdnf", "ZYpp")
 # Store ip addresses of depots with last access time
 depot_addresses: dict[str, float] = {}
 

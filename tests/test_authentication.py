@@ -146,7 +146,26 @@ def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # n
 def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
+	assert "opsiconfd-session" in res.headers["set-cookie"]
 	assert str(res.url).rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
+
+
+@pytest.mark.parametrize(
+	"user_agent, expect_session",
+	(
+		("opsiclientd/4.3.1.1", True),
+		("ZYpp 17.37.18 (curl 8.6.0)", False),
+		("libdnf (AlmaLinux 9)", False),
+		("curl 8.6.0)", True),
+	),
+)
+def test_session_unaware_client(test_client: OpsiconfdTestClient, user_agent: str, expect_session: bool) -> None:  # noqa: F811
+	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS), headers={"User-Agent": user_agent})
+	assert res.status_code == 200
+	if expect_session:
+		assert "set-cookie" in res.headers
+	else:
+		assert "set-cookie" not in res.headers
 
 
 @pytest.mark.parametrize("base_path", ("/auth", "/session"))  # /session is deprecated
@@ -970,7 +989,7 @@ def test_client_certificate(
 def test_recover_clients(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811
 	res = test_client.post(
 		"/rpc",
-		headers={"User-Agent": "opsiclientd/4.3.1.1"},
+		headers={"": "opsiclientd/4.3.1.1"},
 		auth=("testclient.uib.gmbh", "08508cd947c5e22f020dcde519d9ec04"),
 		json={"id": 1, "method": "host_getIdents", "params": []},
 	)

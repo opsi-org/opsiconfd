@@ -940,7 +940,10 @@ class OPSISession:
 				await redis.srem(ip_key, *sids_to_remove)
 
 			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:
-				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}"
+				error = (
+					f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}, "
+					f"session-unaware: {self.user_agent.startswith(SESSION_UNAWARE_USER_AGENTS)}"
+				)
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
 		except ConnectionRefusedError as err:

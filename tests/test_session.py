@@ -97,7 +97,7 @@ async def test_session_manager_max_age() -> None:
 		manager = SessionManager(session_check_interval=1)
 		asyncio_create_task(manager.manager_task())
 
-		headers = Headers()
+		headers = Headers({"User-Agent": "test-agent"})
 		sess = await manager.get_session("172.10.11.12", headers=headers)
 		assert sess.max_age == 10
 
@@ -105,7 +105,7 @@ async def test_session_manager_max_age() -> None:
 		await sess.load()
 		assert sess.max_age == 10
 
-		headers = Headers({"x-opsi-session-lifetime": "5"})
+		headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "5"})
 		sess = await manager.get_session("172.10.11.12", headers=headers)
 		assert sess.max_age == 5
 
@@ -142,7 +142,7 @@ async def test_session_refresh() -> None:
 	manager = SessionManager(session_check_interval=1)
 	asyncio_create_task(manager.manager_task())
 
-	sess = await manager.get_session("172.10.11.12")
+	sess = await manager.get_session("172.10.11.12", headers=Headers({"User-Agent": "test-agent"}))
 	sess.username = "testuser"
 	await sess.store()
 	assert sess.version
@@ -180,7 +180,7 @@ async def test_session_manager_store_session() -> None:
 	manager = SessionManager(session_check_interval=1, session_store_interval_min=60)
 	asyncio_create_task(manager.manager_task())
 
-	sess1 = await manager.get_session("172.10.11.11")
+	sess1 = await manager.get_session("172.10.11.11", headers=Headers({"User-Agent": "test-agent"}))
 	await sess1.store()
 
 	await sleep(2)
@@ -201,7 +201,7 @@ async def test_session_manager_remove_expired_session() -> None:
 	manager = SessionManager(session_check_interval=1)
 	asyncio_create_task(manager.manager_task())
 
-	headers = Headers({"x-opsi-session-lifetime": "5"})
+	headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "5"})
 	sess = await manager.get_session("172.10.11.12", headers=headers)
 	sess.authenticated = True
 	await sess.store()
@@ -223,7 +223,7 @@ async def test_session_multi_manager_remove_expired_session() -> None:
 	asyncio_create_task(manager1.manager_task())
 	asyncio_create_task(manager2.manager_task())
 
-	headers = Headers({"x-opsi-session-lifetime": "5"})
+	headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "5"})
 	sess1 = await manager1.get_session("172.10.11.12", headers=headers)
 	sess1.authenticated = True
 	await sess1.store()
@@ -256,7 +256,7 @@ async def test_session_manager_remove_deleted_session() -> None:
 	manager = SessionManager(session_check_interval=1, session_store_interval_min=1)
 	asyncio_create_task(manager.manager_task())
 
-	sess = await manager.get_session("172.10.11.12")
+	sess = await manager.get_session("172.10.11.12", headers=Headers({"User-Agent": "test-agent"}))
 	sess.authenticated = True
 	await sess.store()
 
@@ -273,9 +273,9 @@ async def test_session_manager_changed_client_addr() -> None:
 	manager = SessionManager(session_check_interval=1)
 	asyncio_create_task(manager.manager_task())
 
-	sess1 = await manager.get_session("172.10.11.12")
+	sess1 = await manager.get_session("172.10.11.12", headers=Headers({"User-Agent": "test-agent"}))
 	assert sess1
-	sess2 = await manager.get_session("172.10.11.13", session_id=sess1.session_id)
+	sess2 = await manager.get_session("172.10.11.13", headers=Headers({"User-Agent": "test-agent"}), session_id=sess1.session_id)
 	assert sess2
 	assert sess1.session_id != sess2.session_id
 	await manager.stop(wait=True)
@@ -289,14 +289,14 @@ async def test_session_manager_concurrent() -> None:
 	asyncio_create_task(manager1.manager_task())
 	asyncio_create_task(manager2.manager_task())
 
-	headers = Headers({"x-opsi-session-lifetime": "5"})
+	headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "5"})
 	sess1 = await manager1.get_session("172.10.11.12", headers=headers)
 	await sess1.store()
 
 	res = await redis.hgetall(sess1.redis_key)
 	assert res
 
-	headers = Headers({"x-opsi-session-lifetime": "10"})
+	headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "10"})
 	sess2 = await manager2.get_session("172.10.11.12", headers=headers, session_id=sess1.session_id)
 	assert sess2.session_id == sess1.session_id
 	assert sess2.created == sess1.created
@@ -310,7 +310,11 @@ async def test_session_manager_concurrent() -> None:
 	res = await redis.hgetall(sess1.redis_key)
 	assert not res
 
-	sess1 = await manager1.get_session("172.10.11.12", session_id=sess1.session_id)
+	sess1 = await manager1.get_session(
+		"172.10.11.12",
+		headers=Headers({"User-Agent": "test-agent"}),
+		session_id=sess1.session_id,
+	)
 	# New session
 	assert sess1.session_id != sess2.session_id
 

@@ -75,10 +75,10 @@ HTTP_PROTOCOLS["h11_opsiconfd"] = H11ProtocolOpsiconfd  # type: ignore
 
 def memory_cleanup() -> None:
 	if "no-memory-cleanup" in config.development_options:
-		logger.info("Skipping memory cleanup")
+		logger.debug("Skipping memory cleanup")
 		return
 
-	logger.info("Running memory cleanup")
+	logger.debug("Running memory cleanup")
 	gc.collect()
 	ctypes.CDLL("libc.so.6").malloc_trim(0)
 

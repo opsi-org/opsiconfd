@@ -157,6 +157,7 @@ def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		("ZYpp 17.37.18 (curl 8.6.0)", False),
 		("libdnf (AlmaLinux 9)", False),
 		("curl 8.6.0)", True),
+		("", False),
 	),
 )
 def test_session_unaware_client(test_client: OpsiconfdTestClient, user_agent: str, expect_session: bool) -> None:  # noqa: F811

@@ -109,6 +109,18 @@ AUTH_HEADERS = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 logger = get_logger("opsiconfd.session")
 
 
+@lru_cache(maxsize=128)
+def is_session_unaware_user_agent(user_agent: str) -> bool:
+	if not user_agent:
+		# No user agent, consider session unaware
+		return True
+	user_agent_l = user_agent.lower()
+	for ua in SESSION_UNAWARE_USER_AGENTS:
+		if user_agent_l.startswith(ua.lower()):
+			return True
+	return False
+
+
 @dataclass
 class BasicAuth:
 	username: str
@@ -587,7 +599,7 @@ class SessionManager:
 			await session.init()
 			assert session.client_addr == client_addr
 
-			if session.user_agent and session.user_agent.startswith(SESSION_UNAWARE_USER_AGENTS):
+			if is_session_unaware_user_agent(session.user_agent):
 				session.persistent = False
 				logger.debug("Not keeping session for client %s (%s)", client_addr, session.user_agent)
 			else:
@@ -942,7 +954,7 @@ class OPSISession:
 			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:
 				error = (
 					f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}, "
-					f"session-unaware: {self.user_agent.startswith(SESSION_UNAWARE_USER_AGENTS)}"
+					f"session-unaware: {is_session_unaware_user_agent(self.user_agent)}"
 				)
 				logger.warning(error)
 				raise ConnectionRefusedError(error)

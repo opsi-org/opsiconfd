@@ -75,6 +75,11 @@ async def index_head() -> Response:
 	return Response()
 
 
+@app.get("/robots.txt")
+async def robots_txt() -> Response:
+	return Response(content="User-agent: *\nDisallow: /", media_type="text/plain")
+
+
 @app.get("/login")
 @app.post("/login")
 async def login_index(request: Request) -> Response:
@@ -284,16 +289,17 @@ def setup_app() -> None:
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 
 	public_path = [
-		"/favicon.ico",
-		"/login",
-		"/auth/wait_authenticated",
 		"/auth/login",
 		"/auth/logout",
-		"/auth/session_id",
 		"/auth/saml",
 		"/auth/saml/sp-meta.xml",
-		"/ssl/opsi-ca-cert.pem",
+		"/auth/session_id",
+		"/auth/wait_authenticated",
+		"/favicon.ico",
+		"/login",
+		"/robots.txt",
 		"/ssl/ca-certs.pem",
+		"/ssl/opsi-ca-cert.pem",
 		"/static",
 		"/welcome",
 	]

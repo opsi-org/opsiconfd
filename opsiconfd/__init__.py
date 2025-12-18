@@ -9,7 +9,7 @@ The opsi configuration service.
 
 from __future__ import annotations
 
-__version__ = "4.3.46.11"
+__version__ = "4.3.46.22"
 
 
 from contextlib import contextmanager

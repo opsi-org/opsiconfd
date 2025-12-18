@@ -95,3 +95,9 @@ def test_trusted_proxy(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		test_client.get("/", headers={"x-forwarded-for": "192.168.200.1"})
 		# x-forwarded-for must be accepted from trusted proxy
 		assert test_client.context and test_client.context.get(contextvar_client_address) == "192.168.200.1"
+
+
+def test_robots_txt(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	res = test_client.get("/robots.txt")
+	assert res.status_code == 200
+	assert res.text == "User-agent: *\nDisallow: /"

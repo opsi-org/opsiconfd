@@ -126,7 +126,6 @@ package:
 
   postinst_script: |
     # Remove obsolete files
-    set -x
     cd /usr/lib/opsiconfd
     for file in /usr/lib/opsiconfd/*; do
       [[ $file = */_internal ]] || \
@@ -162,6 +161,6 @@ package:
 
     # Setup opsiconfd
     mkdir -p /var/log/opsi/opsiconfd
-    NO_COLOR=1 /usr/bin/opsiconfd setup --non-interactive --log-mode=local --log-level-stderr=6 2>> /var/log/opsi/opsiconfd/opsiconfd.log
+    NO_COLOR=1 /usr/bin/opsiconfd setup --non-interactive --log-mode=local --log-level-stderr=6 2>> /var/log/opsi/opsiconfd/opsiconfd.log || true
 
     exit 0

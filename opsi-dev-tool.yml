@@ -126,6 +126,7 @@ package:
 
   postinst_script: |
     # Remove obsolete files
+    set -x
     cd /usr/lib/opsiconfd
     for file in /usr/lib/opsiconfd/*; do
       [[ $file = */_internal ]] || \

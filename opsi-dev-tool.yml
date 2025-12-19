@@ -162,3 +162,5 @@ package:
     # Setup opsiconfd
     mkdir -p /var/log/opsi/opsiconfd
     NO_COLOR=1 /usr/bin/opsiconfd setup --non-interactive --log-mode=local --log-level-stderr=6 2>> /var/log/opsi/opsiconfd/opsiconfd.log
+
+    exit 0

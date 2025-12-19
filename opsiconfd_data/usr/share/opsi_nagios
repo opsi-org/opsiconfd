@@ -12,7 +12,7 @@
 # opsiconfd health-check --format nagios --checks mysql
 # Information on this can be found in the opsiconfd help 'opsiconfd health-check --help' and 'opsiconfd health-check --documentation'
 #
-# Copy this script to /usr/lib/nagios/plugins/opsi_opsi and make it executable.
+# Copy this script to /usr/lib/nagios/plugins/opsi and make it executable.
 
 
 if [ -z "$1" ]; then

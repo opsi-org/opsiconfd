@@ -221,7 +221,7 @@ class Worker(WorkerInfo, UvicornServer):
 		self._metrics_collector: WorkerMetricsCollector | None = None
 		self.process: SpawnProcess | None = None
 		self.app_state = app._app_state.type
-		self.connection_close_wait_timeout = 10.0
+		self.connection_close_wait_timeout = 5.0
 		self.socket: socket.socket | None = None
 
 	def start_server_process(self) -> None:

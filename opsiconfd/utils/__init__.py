@@ -53,6 +53,8 @@ from opsicommon.utils import prepare_proxy_environment
 from opsiconfd import __version__
 from opsiconfd.utils.ucs import get_server_role as get_ucs_server_role
 
+NSSWITCH_CONF = Path("/etc/nsswitch.conf")
+
 config = None
 opsi_config = None
 
@@ -850,16 +852,19 @@ def get_passwd_services() -> list[NameService]:
 	Returns:
 		list[NameService]: The list of name services.
 	"""
-	nsswitch_conf = Path("/etc/nsswitch.conf")
-	if not nsswitch_conf.is_file():
+	if not NSSWITCH_CONF.is_file():
 		return []
 
 	passwd_service = []
 
-	with open(nsswitch_conf, "r", encoding="utf-8") as handle:
+	with open(NSSWITCH_CONF, "r", encoding="utf-8") as handle:
 		for line in handle:
 			if line.startswith("passwd:"):
-				passwd_service = [NameService(service) for service in line.split()[1:]]
+				for service in line.split()[1:]:
+					try:
+						passwd_service.append(NameService(service))
+					except ValueError:
+						get_logger().info("Unknown name service %r in '%s'", service, NSSWITCH_CONF)
 				break
 	return passwd_service
 

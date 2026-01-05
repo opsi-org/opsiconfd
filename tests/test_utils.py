@@ -22,6 +22,7 @@ from opsiconfd.utils import (
 	NameService,
 	get_file_md5sum,
 	get_ip_interfaces,
+	get_passwd_services,
 	get_primary_ip_interface,
 	get_user_passwd_details,
 	running_in_docker,
@@ -42,8 +43,22 @@ from opsiconfd.utils.cryptography import (
 	verify_password,
 )
 from opsiconfd.utils.user import migrate_opsi_passwd_file
+from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
 
 from .utils import UnprotectedBackend, backend, get_config  # noqa: F401
+
+
+def test_get_passwd_services(tmp_path: Path) -> None:
+	nsswitch_conf = tmp_path / "nsswitch.conf"
+	with mock.patch("opsiconfd.utils.NSSWITCH_CONF", nsswitch_conf):
+		nsswitch_conf.write_text("passwd:     files sss winbind\n# passwd:     files ldap\n")
+		assert get_passwd_services() == [NameService.FILES, NameService.SSS, NameService.WINBIND]
+
+		nsswitch_conf.write_text("passwd: files vas4 sss\n")
+		assert get_passwd_services() == [NameService.FILES, NameService.SSS]
+
+		nsswitch_conf.unlink()
+		assert get_passwd_services() == []
 
 
 @pytest.mark.parametrize("family", (None, AF_INET, AF_INET6, [AF_INET, AF_INET6]))

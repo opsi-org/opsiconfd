@@ -14,8 +14,8 @@ from unittest import mock
 
 from opsiconfd.check.common import CheckStatus, check_manager
 from opsiconfd.check.register import register_checks
-from opsiconfd.check.users import opsi_users_check
-from opsiconfd.utils import NameService, UserInfo
+from opsiconfd.check.users import opsi_users_check,
+from opsiconfd.utils import NameService, UserInfo, get_passwd_services
 from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
 
 

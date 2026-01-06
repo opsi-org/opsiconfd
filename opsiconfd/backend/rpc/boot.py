@@ -560,10 +560,7 @@ class RPCBootMixin(Protocol):
 		pxe_boot_server = boot_server_address or depot.getIpAddress()
 		pxe_boot_filename = None
 		if _firmware_type and _architecture:
-			if _firmware_type == FirmwareType.BIOS:
-				loader = f"grub.{_architecture.value.lower()}.bios"
-			else:
-				loader = f"grub-shim.{_architecture.value.lower()}.efi"
+			loader = f"opsi-netboot.{_architecture.value.lower()}.{'bios' if _firmware_type == FirmwareType.BIOS else 'efi'}"
 
 			if protocol == "HTTP":
 				pxe_boot_filename = f"http://{pxe_boot_server}:4442/boot/opsi/loader/{loader}"

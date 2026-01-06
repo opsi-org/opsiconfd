@@ -466,9 +466,9 @@ def test_boot_getConfig(
 											assert boot_config.grub_config
 
 											if firmware_type == "UEFI":
-												assert boot_config.pxe_boot_filename.endswith(f"/grub-shim.{architecture}.efi")
+												assert boot_config.pxe_boot_filename.endswith(f"/opsi-netboot.{architecture}.efi")
 											else:
-												assert boot_config.pxe_boot_filename.endswith(f"/grub.{architecture}.bios")
+												assert boot_config.pxe_boot_filename.endswith(f"/opsi-netboot.{architecture}.bios")
 											if protocol == "TFTP":
 												boot_config.pxe_boot_filename.startswith("/opsi/")
 											else:

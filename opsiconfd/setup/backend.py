@@ -245,7 +245,7 @@ def file_mysql_migration() -> None:
 		update_database(mysql, force=True)
 
 		with mysql.disable_unique_hardware_addresses(), mysql.disable_unique_systemUUIDs():
-			backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)
+			backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)  # type: ignore[invalid-argument-type]
 			backend_replicator.replicate(audit=False)
 
 		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))

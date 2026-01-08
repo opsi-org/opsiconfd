@@ -9,7 +9,6 @@ grafana
 
 from __future__ import annotations
 
-import codecs
 import datetime
 import hashlib
 import os
@@ -280,7 +279,7 @@ def setup_grafana() -> None:
 	if os.path.exists(PLUGIN_DIR):
 		manifest = os.path.join(PLUGIN_DIR, PLUGIN_ID, "MANIFEST.txt")
 		if os.path.exists(manifest):
-			with codecs.open(manifest, "r", "utf-8") as file:
+			with open(manifest, "r", encoding="utf-8") as file:
 				match = re.search(r'"version"\s*:\s*"([^"]+)"', file.read())
 				if match:
 					plugin_version = match.group(1)

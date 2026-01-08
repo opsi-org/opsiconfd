@@ -1054,7 +1054,7 @@ class MySQLConnection:
 		if query:
 			with self.session(session) as session:
 				result = session.execute(query, params=params)
-				return result.lastrowid
+				return result.lastrowid  # type: ignore[unresolved-attribute]
 		return None
 
 	def bulk_insert_objects(

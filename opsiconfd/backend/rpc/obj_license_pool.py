@@ -42,7 +42,7 @@ class RPCLicensePoolMixin(Protocol):
 					"DELETE FROM `PRODUCT_ID_TO_LICENSE_POOL` WHERE licensePoolId = :id",
 					params=data,
 				)
-				if session.execute(query, params=data).rowcount > 0:
+				if session.execute(query, params=data).rowcount > 0:  # type: ignore[unresolved-attribute]
 					for value in data["productIds"] or []:
 						session.execute(
 							"""

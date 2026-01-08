@@ -538,13 +538,14 @@ def configure_loggers() -> None:
 	loggers = {
 		getattr(logger_, "name"): logger_ for logger_ in list(pylogging.Logger.manager.loggerDict.values()) if hasattr(logger_, "name")
 	}
-	logger_level_configs = {}
-	for entry in [entry.strip() for entry in config.log_levels.split(",") if entry.strip()]:
+	logger_level_configs: dict[str, int] = {}
+	for entry in [str(entry).strip() for entry in config.log_levels.split(",") if entry.strip()]:
 		logger_re, level = entry.rsplit(":", 1)
 		logger_level_configs[logger_re.strip()] = int(level.strip())
 
 	# Sort by regex length so the closest match will be applied at last
 	for logger_re in sorted(logger_level_configs, key=len):
+		logger_re = str(logger_re)
 		level = logger_level_configs[logger_re]
 		logger_re = re.compile(logger_re)
 		for logger_name in sorted(loggers):

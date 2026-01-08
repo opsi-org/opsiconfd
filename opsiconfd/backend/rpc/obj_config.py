@@ -48,7 +48,7 @@ class RPCConfigMixin(Protocol):
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():
 				if modify_values:
 					session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
-				if session.execute(query, params=data).rowcount > 0 and modify_values:
+				if session.execute(query, params=data).rowcount > 0 and modify_values:  # type: ignore[unresolved-attribute]
 					for value in data["possibleValues"] or []:
 						session.execute(
 							"INSERT INTO `CONFIG_VALUE` (configId, value, isDefault) VALUES (:configId, :value, :isDefault)",

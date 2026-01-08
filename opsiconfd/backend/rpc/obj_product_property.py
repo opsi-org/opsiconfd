@@ -48,7 +48,7 @@ class RPCProductPropertyMixin(Protocol):
 					""",
 					params=data,
 				)
-				if session.execute(query, params=data).rowcount > 0:
+				if session.execute(query, params=data).rowcount > 0:  # type: ignore[unresolved-attribute]
 					for value in data["possibleValues"] or []:
 						session.execute(
 							"""

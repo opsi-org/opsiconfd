@@ -8,7 +8,9 @@ opsiconfd main.diagnostic
 """
 
 import asyncio
+import getpass
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -20,14 +22,24 @@ from opsiconfd.check.cli import console_health_check
 from opsiconfd.config import config, configure_warnings
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import init_logging, logger
-from opsiconfd.utils import DataclassCapableJSONEncoder, compress_data
+from opsiconfd.utils import DataclassCapableJSONEncoder, compress_data, switch_to_user
 
 patch_popen()
 configure_warnings()
 
 
+def _switch_to_run_as_user() -> None:
+	if not config.run_as_user or getpass.getuser() == config.run_as_user or os.geteuid() != 0:
+		return
+	try:
+		switch_to_user(config.run_as_user)
+	except Exception:
+		pass
+
+
 def health_check_main() -> None:
 	init_logging(log_mode="local")
+	_switch_to_run_as_user()
 	sys.exit(console_health_check())
 
 
@@ -41,6 +53,7 @@ def diagnostic_data_main() -> None:
 	try:
 		with console.status("Generating diagnostic data", spinner="arrow3"):
 			init_logging(log_mode="rich", console=console)
+			_switch_to_run_as_user()
 
 			data_file = Path(config.target if config.target else data_filename())
 			if not data_file.is_absolute():

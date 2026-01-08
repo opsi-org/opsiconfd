@@ -11,7 +11,6 @@ import gc
 import getpass
 import json
 import os
-import pwd
 import signal
 import sys
 import threading
@@ -34,7 +33,7 @@ from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.manager import Manager
 from opsiconfd.redis import delete_locks, redis_client
 from opsiconfd.setup import setup
-from opsiconfd.utils import get_manager_process, get_python_info, log_config, log_python_info
+from opsiconfd.utils import get_manager_process, get_python_info, log_config, log_python_info, switch_to_user
 
 patch_popen()
 configure_warnings()
@@ -110,27 +109,7 @@ def opsiconfd_main() -> None:
 
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)
-			try:
-				user = pwd.getpwnam(config.run_as_user)
-				gids = os.getgrouplist(user.pw_name, user.pw_gid)
-				logger.debug("Set uid=%r, gid=%r, groups=%r", user.pw_uid, user.pw_gid, gids)
-				if getattr(sys, "frozen", False):
-					if os.path.isdir(user.pw_dir):
-						logger.debug("Changing working directory to %r", user.pw_dir)
-						try:
-							os.chdir(user.pw_dir)
-						except Exception as err:
-							logger.warning("Failed to change working directory to %r: %s", user.pw_dir, err)
-					else:
-						logger.warning(
-							"Home directory %r of user %r does not exist, not changing working directory", user.pw_dir, user.pw_name
-						)
-				os.setgid(user.pw_gid)
-				os.setgroups(gids)
-				os.setuid(user.pw_uid)
-				os.environ["HOME"] = user.pw_dir
-			except Exception as err:
-				raise RuntimeError(f"Failed to run as user '{config.run_as_user}': {err}") from err
+			switch_to_user(config.run_as_user)
 
 		# Subprocesses will inherit file descriptors
 		# Redirectring sys.stdin to prevent S_ISFIFO(stdin) to return true

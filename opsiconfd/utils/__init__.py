@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import functools
+import getpass
 import gzip
 import json
 import os
@@ -312,6 +313,36 @@ def reload_opsiconfd_if_running() -> None:
 		get_logger().info("opsiconfd not running")
 		return
 	os.kill(manager_pid, signal.SIGHUP)
+
+
+def switch_to_user(username: str) -> None:
+	if not username:
+		raise ValueError("Username is empty")
+
+	if getpass.getuser() == username:
+		return
+
+	logger = get_logger()
+	logger.debug("Switching to user %s", username)
+	try:
+		user = pwd.getpwnam(username)
+		gids = os.getgrouplist(user.pw_name, user.pw_gid)
+		logger.debug("Set uid=%r, gid=%r, groups=%r", user.pw_uid, user.pw_gid, gids)
+		if getattr(sys, "frozen", False):
+			if os.path.isdir(user.pw_dir):
+				logger.debug("Changing working directory to %r", user.pw_dir)
+				try:
+					os.chdir(user.pw_dir)
+				except Exception as err:
+					logger.warning("Failed to change working directory to %r: %s", user.pw_dir, err)
+			else:
+				logger.warning("Home directory %r of user %r does not exist, not changing working directory", user.pw_dir, user.pw_name)
+		os.setgid(user.pw_gid)
+		os.setgroups(gids)
+		os.setuid(user.pw_uid)
+		os.environ["HOME"] = user.pw_dir
+	except Exception as err:
+		raise RuntimeError(f"Failed to switch to user '{username}': {err}") from err
 
 
 def normalize_ip_address(address: str, exploded: bool = False) -> str:

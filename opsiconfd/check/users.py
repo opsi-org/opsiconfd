@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import DEPOT_DIR, config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_passwd_services, get_user_passwd_details, user_exists
 
@@ -90,6 +90,12 @@ class OpsiUserCheck(Check):
 				f"but found a domain service in /etc/nsswitch.conf (passwd services: {[str(s) for s in passwd_services]}). "
 				"Please check if this is intended."
 			)
+
+		depot_dir = Path(DEPOT_DIR)
+		if os.geteuid() == user_info.uid and depot_dir.exists():
+			if os.access(depot_dir, os.R_OK | os.W_OK | os.X_OK):
+				result.check_status = CheckStatus.ERROR
+				result.message = f"OPSI user '{self.user}' does not have full access to depot directory '{depot_dir}'"
 
 		return result
 

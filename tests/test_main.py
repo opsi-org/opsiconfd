@@ -7,6 +7,7 @@
 test main
 """
 
+import getpass
 import json
 import signal
 import threading
@@ -163,7 +164,7 @@ def test_force_stop() -> None:
 
 def test_diagnostic_data(capsys: CaptureFixture[str], tmp_path: Path) -> None:
 	target = tmp_path / "diagnostic_data.json"
-	with get_config({"action": "diagnostic-data", "quiet": False, "target": str(target)}):
+	with get_config({"action": "diagnostic-data", "quiet": False, "target": str(target), "run_as_user": getpass.getuser()}):
 		with pytest.raises(SystemExit, match="0"):
 			main()
 	captured = capsys.readouterr()

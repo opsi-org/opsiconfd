@@ -93,7 +93,7 @@ class OpsiUserCheck(Check):
 
 		depot_dir = Path(DEPOT_DIR)
 		if os.geteuid() == user_info.uid and depot_dir.exists():
-			if os.access(depot_dir, os.R_OK | os.W_OK | os.X_OK):
+			if not os.access(depot_dir, os.R_OK | os.W_OK | os.X_OK):
 				result.check_status = CheckStatus.ERROR
 				result.message = f"OPSI user '{self.user}' does not have full access to depot directory '{depot_dir}'"
 

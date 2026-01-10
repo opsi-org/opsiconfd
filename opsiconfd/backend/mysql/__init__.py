@@ -78,6 +78,7 @@ def join_values_with_comma(values: list[str]) -> str:
 
 class MySQLSession(Session):
 	retry_on_server_has_gone_away = 3
+	retry_on_lost_connection = 10
 	retry_on_deadlock = 3
 	retry_on_concurrent_ddl = 10
 	retry_on_lock_wait_timeout = 10
@@ -109,6 +110,10 @@ class MySQLSession(Session):
 					elif "server has gone away" in str_err:
 						max_attempts = self.retry_on_server_has_gone_away + 1
 						rollback = True
+					elif "lost connection to server" in str_err:
+						max_attempts = self.retry_on_lost_connection + 1
+						rollback = True
+						retry_wait = 5.0
 					elif "concurrent ddl statement" in str_err:
 						max_attempts = self.retry_on_concurrent_ddl + 1
 						retry_wait = 1.0

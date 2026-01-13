@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import CertificateBuilder
 from fastapi import Request
-from onelogin.saml2.metadata import OneLogin_Saml2_Metadata  # type: ignore[import-untyped]
+from onelogin.saml2.metadata import OneLogin_Saml2_Metadata
 from opsicommon.exceptions import OpsiServiceAuthenticationError
 from rich import print as rich_print
 from rich.prompt import Prompt

@@ -27,13 +27,13 @@ from opsicommon.logging import secret_filter
 from opsicommon.logging.constants import TRACE
 from opsicommon.objects import OBJECT_CLASSES, BaseObject, BaseObjectT, get_ident_attributes, get_object_type, get_possible_class_attributes
 from opsicommon.utils import compare_versions
-from sqlalchemy import create_engine  # type: ignore[import]
-from sqlalchemy.engine.base import Connection  # type: ignore[import]
-from sqlalchemy.engine.result import Result  # type: ignore[import]
-from sqlalchemy.engine.row import Row  # type: ignore[import]
-from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import DatabaseError, OperationalError  # type: ignore[import]
-from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
+from sqlalchemy import create_engine
+from sqlalchemy.engine.base import Connection
+from sqlalchemy.engine.result import Result
+from sqlalchemy.engine.row import Row
+from sqlalchemy.event import listen
+from sqlalchemy.exc import DatabaseError, OperationalError
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.config import config
@@ -769,7 +769,7 @@ class MySQLConnection:
 		except KeyError:
 			pass
 
-		possible_attributes = get_possible_class_attributes(object_type)  # type: ignore
+		possible_attributes = get_possible_class_attributes(object_type)
 
 		if aggregates:
 			self._process_aggregates(data, aggregates)
@@ -778,7 +778,7 @@ class MySQLConnection:
 
 		res = {attr: val for attr, val in data.items() if attr in possible_attributes}
 		if ident_type:
-			ident_attributes = get_ident_attributes(object_type)  # type: ignore
+			ident_attributes = get_ident_attributes(object_type)
 			res["ident"] = self.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type)
 
 		return res
@@ -864,7 +864,7 @@ class MySQLConnection:
 
 		ident_attributes: tuple[str, ...] = tuple()
 		if return_type == "ident" or attributes or aggregates:
-			ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
+			ident_attributes = get_ident_attributes(object_type)
 
 		if return_type == "ident":
 			attributes = ident_attributes
@@ -909,7 +909,7 @@ class MySQLConnection:
 						for row in result
 					]
 
-				conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
+				conversions = self._get_read_conversions(object_type)
 				if return_type == "dict":
 					return [
 						self._row_to_object(
@@ -938,10 +938,10 @@ class MySQLConnection:
 		ident_type: IdentType = "str",
 		filter: dict[str, Any] | None = None,
 	) -> list[dict]:
-		ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
+		ident_attributes = get_ident_attributes(object_type)
 		if not ident_attributes:
 			raise ValueError(f"Failed to get ident attributes for {object_type}")
-		return self.get_objects(  # type: ignore[call-overload]
+		return self.get_objects(
 			table=table,
 			ace=ace,
 			object_type=object_type,
@@ -970,7 +970,7 @@ class MySQLConnection:
 		if not create:
 			ident_attrs = list(obj.getIdent("dict"))
 		columns = self.get_columns([table], ace=ace)
-		conversions = self._get_write_conversions(type(obj))  # type: ignore[arg-type]
+		conversions = self._get_write_conversions(type(obj))
 
 		allowed_client_ids = self.get_allowed_client_ids(ace)
 
@@ -1072,7 +1072,7 @@ class MySQLConnection:
 			raise RuntimeError("Not connected to MySQL server")
 		obj_type = type(objs[0]) if isinstance(objs[0], BaseObject) else OBJECT_CLASSES[objs[0]["type"]]
 		columns = self.get_columns([table], ace=[])
-		conversions = self._get_write_conversions(obj_type)  # type: ignore[arg-type]
+		conversions = self._get_write_conversions(obj_type)
 
 		cols = []
 		vals = []
@@ -1108,7 +1108,7 @@ class MySQLConnection:
 		obj: list[BaseObjectT] | BaseObjectT | list[dict[str, Any]] | dict[str, Any],
 		ace: list[RPCACE],
 	) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
-		ident_attributes = get_ident_attributes(object_type)  # type: ignore[arg-type]
+		ident_attributes = get_ident_attributes(object_type)
 		columns = self.get_columns(tables=[table], ace=ace, attributes=ident_attributes)
 		if len(columns) < len(ident_attributes):
 			raise OpsiServicePermissionError("No permission")

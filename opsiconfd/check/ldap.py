@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-import ldap3  # type: ignore[import]
+import ldap3
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import opsi_config
@@ -48,7 +48,7 @@ class LdapConnectionCheck(Check):
 					result.details["error"] = str(error)
 				finally:
 					if ldap_connection:
-						ldap_connection.unbind()  # type: ignore[no-untyped-call]
+						ldap_connection.unbind()
 			else:
 				result.check_status = CheckStatus.ERROR
 				result.message = "LDAP authentication is configured, but the Directory Connector module is not licensed."

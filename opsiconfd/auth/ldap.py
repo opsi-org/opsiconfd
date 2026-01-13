@@ -54,7 +54,7 @@ class LDAPAuthentication(AuthenticationModule):
 		super().__init__()
 
 		self._ldap_url = ldap_url
-		self._uri = parse_uri(self._ldap_url)  # type: ignore[no-untyped-call]
+		self._uri = parse_uri(self._ldap_url)
 		self._group_filter = group_filter or None
 		self._use_member_of_rdn = use_member_of_rdn
 		self._ldap: ldap3.Connection | None = None
@@ -207,6 +207,6 @@ class LDAPAuthentication(AuthenticationModule):
 	def __del__(self) -> None:
 		if self._ldap:
 			try:
-				self._ldap.unbind()  # type: ignore[no-untyped-call]
+				self._ldap.unbind()
 			except Exception as err:
 				logger.warning(err)

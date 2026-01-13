@@ -109,7 +109,7 @@ def test_auditHardware_create_get_delete(
 	assert "error" not in res
 
 	ahs = deserialize(res["result"])
-	assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(audit_hardwares, key=lambda a: a.getIdent())  # type: ignore
+	assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(audit_hardwares, key=lambda a: a.getIdent())
 
 	# Test getObjects with filter
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardware_getObjects", "params": [[], {"hardwareClass": "NETWORK_CONTROLLER"}]}
@@ -120,7 +120,7 @@ def test_auditHardware_create_get_delete(
 	assert len(ahs) == 10
 	assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(
 		by_hardware_class["NETWORK_CONTROLLER"],
-		key=lambda a: a.getIdent(),  # type: ignore
+		key=lambda a: a.getIdent(),
 	)
 
 	# Test deleteObjects
@@ -156,13 +156,13 @@ def test_auditHardware_create_get_delete(
 
 		ahs = deserialize(res["result"])
 		assert len(ahs) == len(del_hws)
-		assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(del_hws, key=lambda a: a.getIdent())  # type: ignore
+		assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(del_hws, key=lambda a: a.getIdent())
 
 	# Test delete one by one
 	del_hws = by_hardware_class["PCI_DEVICE"]
 	while del_hws:
 		ident = del_hws.pop().getIdent("dict")
-		del ident["hardwareClass"]  # type: ignore
+		del ident["hardwareClass"]
 		rpc = {
 			"jsonrpc": "2.0",
 			"id": 1,
@@ -178,4 +178,4 @@ def test_auditHardware_create_get_delete(
 
 		ahs = deserialize(res["result"])
 		assert len(ahs) == len(del_hws)
-		assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(del_hws, key=lambda a: a.getIdent())  # type: ignore
+		assert sorted(ahs, key=lambda a: a.getIdent()) == sorted(del_hws, key=lambda a: a.getIdent())

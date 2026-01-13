@@ -249,8 +249,8 @@ async def _unblock_all_clients() -> dict:
 				client = ip_address_from_redis_key(key_str.split(":")[-1])
 				clients.add(client)
 				logger.debug("redis key to delete: %s", key_str)
-				await pipe.delete(key)  # type: ignore[attr-defined]
-		await pipe.execute()  # type: ignore[attr-defined]
+				await pipe.delete(key)
+		await pipe.execute()
 	return {"clients": list(clients), "redis-keys": list(deleted_keys)}
 
 
@@ -336,7 +336,7 @@ async def get_depot_list() -> RESTResponse:
 				"opsiHostKey": depot.opsiHostKey,
 				"max_product_sync_transfer_slots": max_slots.get(depot.id, 0),
 				"used_product_sync_transfer_slots": int(
-					redis.eval(  # type: ignore[no-untyped-call]
+					redis.eval(
 						"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
 						0,
 						f"{slot_key}:{depot.id}:*",
@@ -879,7 +879,7 @@ async def license_upload(files: list[UploadFile]) -> RESTResponse:
 				raise ValueError(f"Invalid filename {file.filename!r}")
 			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))
 			assert olf.filename
-			olf.read_string((await file.read()).decode("utf-8"))  # type: ignore[union-attr]
+			olf.read_string((await file.read()).decode("utf-8"))
 			if not olf.licenses:
 				raise ValueError(f"No license found in {file.filename!r}")
 			logger.notice("Writing OPSI license file %r", olf.filename)

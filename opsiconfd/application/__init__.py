@@ -64,13 +64,13 @@ class AppState:
 		_type = data.pop("type", None)
 		if _cls is AppState:
 			if _type == "startup":
-				_cls = StartupState  # type: ignore[assignment]
+				_cls = StartupState
 			elif _type == "normal":
-				_cls = NormalState  # type: ignore[assignment]
+				_cls = NormalState
 			elif _type == "maintenance":
-				_cls = MaintenanceState  # type: ignore[assignment]
+				_cls = MaintenanceState
 			elif _type == "shutdown":
-				_cls = ShutdownState  # type: ignore[assignment]
+				_cls = ShutdownState
 			else:
 				raise ValueError(f"Invalid AppState type {_type!r}")
 		return cast(AppStateT, _cls(**data))
@@ -272,7 +272,7 @@ class OpsiconfdApp(FastAPI):
 					init_app_state = (init_app_state,)
 				if not app_state or app_state.type not in [a.type for a in init_app_state]:
 					app_state = init_app_state[0]
-					await self.async_store_app_state_in_redis(app_state)  # type: ignore[arg-type]
+					await self.async_store_app_state_in_redis(app_state)
 				if app_state:
 					self._app_state = app_state
 

@@ -213,7 +213,7 @@ class RPCLicenseOnClientMixin(Protocol):
 			)
 			license_on_client = license_on_clients[0]
 		else:
-			(software_license_id, license_key) = self._get_usable_software_license(clientId, licensePoolId)  # type: ignore[arg-type]
+			(software_license_id, license_key) = self._get_usable_software_license(clientId, licensePoolId)
 			if not license_key:
 				logger.info("License available but no license key found")
 

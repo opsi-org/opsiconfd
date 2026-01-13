@@ -126,8 +126,8 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				reader.wait_for_message()
 				raw_data = next(reader.get_raw_messages())
 				if compression:
-					raw_data = decompress_data(raw_data, compression)  # type: ignore[arg-type]
-				jsonrpc_response_message = Message.from_msgpack(raw_data)  # type: ignore[arg-type]
+					raw_data = decompress_data(raw_data, compression)
+				jsonrpc_response_message = Message.from_msgpack(raw_data)
 
 				assert isinstance(jsonrpc_response_message, JSONRPCResponseMessage)
 				assert jsonrpc_response_message.rpc_id == jsonrpc_request_message.rpc_id
@@ -340,9 +340,9 @@ def test_messagebus_multi_client_session_and_user_channel(
 					for reader, _websocket in ((reader1, websocket1), (reader2, websocket2)):
 						reader.wait_for_message(count=1)
 						messages = list(reader.get_messages())
-						assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-						assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
-						assert channel in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
+						assert messages[0]["type"] == "channel_subscription_event"
+						assert len(messages[0]["subscribed_channels"]) == 2
+						assert channel in messages[0]["subscribed_channels"]
 
 					wait_for_reader_count(redis, channel, 2)
 					message = Message(
@@ -365,7 +365,7 @@ def test_messagebus_multi_client_session_and_user_channel(
 							messages = list(reader3.get_messages())
 							assert messages[0]["type"] == "channel_subscription_event"
 							assert len(messages[0]["subscribed_channels"]) == 2
-							assert channel in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
+							assert channel in messages[0]["subscribed_channels"]
 
 							wait_for_reader_count(redis, channel, 3)
 							message = Message(
@@ -379,8 +379,8 @@ def test_messagebus_multi_client_session_and_user_channel(
 								reader.wait_for_message(count=1)
 								messages = list(reader.get_messages())
 								assert len(messages) == 1
-								assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
-								assert messages[0]["id"] == "00000000-0000-4000-8000-000000000002"  # type: ignore[call-overload]
+								assert messages[0]["type"] == "test_multi_client"
+								assert messages[0]["id"] == "00000000-0000-4000-8000-000000000002"
 
 					wait_for_reader_count(redis, channel, 2)
 
@@ -403,8 +403,8 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 				for reader, websocket in ((reader1, websocket1), (reader2, websocket2), (reader3, websocket3)):
 					reader.wait_for_message(count=1)
 					messages = list(reader.get_messages())
-					assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-					assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
+					assert messages[0]["type"] == "channel_subscription_event"
+					assert len(messages[0]["subscribed_channels"]) == 2
 
 					message = ChannelSubscriptionRequestMessage(
 						sender=CONNECTION_USER_CHANNEL, channel="service:messagebus", channels=["service:config:jsonrpc"], operation="add"
@@ -413,8 +413,8 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 
 					reader.wait_for_message(count=1)
 					messages = list(reader.get_messages())
-					assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-					assert len(messages[0]["subscribed_channels"]) == 3  # type: ignore[call-overload]
+					assert messages[0]["type"] == "channel_subscription_event"
+					assert len(messages[0]["subscribed_channels"]) == 3
 
 				print("Initialization completed, sending messages")
 
@@ -454,8 +454,8 @@ def test_messagebus_multi_client_service_channel(test_client: OpsiconfdTestClien
 				for reader, websocket in ((reader1, websocket1), (reader2, websocket2), (reader3, websocket3)):
 					reader.wait_for_message(count=1)
 					messages = list(reader.get_messages())
-					assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-					assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
+					assert messages[0]["type"] == "channel_subscription_event"
+					assert len(messages[0]["subscribed_channels"]) == 2
 
 					# All messages are ACKed, no new messages expected
 					with pytest.raises(RuntimeError, match="Timed out while waiting"):
@@ -473,7 +473,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 					reader.running.wait(3.0)
 					sleep(2)
 					reader.wait_for_message(count=1)
-					assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+					assert next(reader.get_messages())["type"] == "channel_subscription_event"
 					jsonrpc_request_message1 = JSONRPCRequestMessage(
 						sender=CONNECTION_USER_CHANNEL,
 						channel="service:config:jsonrpc",
@@ -508,7 +508,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 
 					reader.wait_for_message(count=4, timeout=10.0)
 
-					responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+					responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 					# for res in responses:
 					# 	print(res.to_dict())
 
@@ -567,7 +567,7 @@ def test_messagebus_message_type_access(
 			with client.websocket_connect("/messagebus/v1") as websocket:
 				with WebSocketMessageReader(websocket, print_raw_data=256) as reader:
 					reader.wait_for_message(count=10, timeout=5.0, error_on_timeout=False)
-					assert any(msg["type"] == "channel_subscription_event" for msg in list(reader.get_messages()))  # type: ignore[call-overload]
+					assert any(msg["type"] == "channel_subscription_event" for msg in list(reader.get_messages()))
 
 					_check_message_type_access.cache_clear()
 					with patch("opsiconfd.backend.rpc.main.Backend._module_available", mock_vpn_module_available):
@@ -579,7 +579,7 @@ def test_messagebus_message_type_access(
 								).to_msgpack()
 							)
 							reader.wait_for_message(count=1, timeout=5.0, error_on_timeout=False)
-							responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+							responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 							if is_admin:
 								assert not responses
 							else:
@@ -603,7 +603,7 @@ def test_messagebus_message_type_access(
 							).to_msgpack()
 						)
 						reader.wait_for_message(count=1, timeout=5.0, error_on_timeout=False)
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						if is_admin:
 							assert isinstance(responses[0], FileTransferErrorMessage)
 							assert responses[0].error.message == "File bogus-path/testfile.txt does not exist"
@@ -625,7 +625,7 @@ def test_messagebus_message_type_access(
 							).to_msgpack()
 						)
 						reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						if is_admin:
 							assert isinstance(responses[0], ProcessStartEventMessage)
 						else:
@@ -639,7 +639,7 @@ def test_messagebus_message_type_access(
 							).to_msgpack()
 						)
 						reader.wait_for_message(count=1, timeout=10.0)
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						assert isinstance(responses[0], GeneralErrorMessage)
 						assert (
 							responses[0].error.message
@@ -655,7 +655,7 @@ def test_messagebus_message_type_access(
 						)
 						reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
 
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						print(responses[0])
 						assert isinstance(responses[0], GeneralErrorMessage)
 						if is_admin:
@@ -679,7 +679,7 @@ def test_messagebus_message_type_access(
 						)
 						reader.wait_for_message(count=1, timeout=10.0)
 
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						print(responses[0])
 						assert isinstance(responses[0], GeneralErrorMessage)
 						if is_admin:
@@ -699,7 +699,7 @@ def test_messagebus_message_type_access(
 							).to_msgpack()
 						)
 						reader.wait_for_message(count=5, timeout=3.0, error_on_timeout=False)
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						if is_admin:
 							assert isinstance(responses[0], ProcessStartEventMessage)
 						else:
@@ -713,7 +713,7 @@ def test_messagebus_message_type_access(
 							).to_msgpack()
 						)
 						reader.wait_for_message(count=1, timeout=10.0)
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						assert isinstance(responses[0], GeneralErrorMessage)
 						assert (
 							responses[0].error.message
@@ -734,7 +734,7 @@ def test_messagebus_message_type_access(
 						)
 						reader.wait_for_message(count=5, timeout=10.0, error_on_timeout=False)
 
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						print(responses[0])
 						if is_admin:
 							assert isinstance(responses[0], TerminalOpenEventMessage)
@@ -754,7 +754,7 @@ def test_messagebus_message_type_access(
 						)
 						reader.wait_for_message(count=1, timeout=10.0)
 
-						responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+						responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 						print(responses[0])
 						assert isinstance(responses[0], GeneralErrorMessage)
 						assert (
@@ -781,7 +781,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa:
 				websocket.send_bytes(terminal_open_request.to_msgpack())
 
 				reader.wait_for_message(count=2)
-				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+				responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 				assert isinstance(responses[0], TerminalOpenEventMessage)
 				assert responses[0].rows
 				assert responses[0].cols
@@ -813,7 +813,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # noqa:
 				websocket.send_bytes(terminal_resize_request.to_msgpack())
 
 				reader.wait_for_message(count=2)
-				responses = [Message.from_dict(msg) for msg in reader.get_messages()]  # type: ignore[arg-type,attr-defined]
+				responses = [Message.from_dict(msg) for msg in reader.get_messages()]
 
 				resize_message = [msg for msg in responses if isinstance(msg, TerminalResizeEventMessage)][0]
 				data_message = [msg for msg in responses if isinstance(msg, TerminalDataReadMessage)][0]
@@ -1018,7 +1018,7 @@ def test_messagebus_ping(websocket_protocol: str) -> None:
 
 			print("Block pong")
 			# Block ServiceClient sending pongs, server should close websocket after ping timeout
-			client.messagebus._app.sock.pong = lambda *args: None  # type: ignore
+			client.messagebus._app.sock.pong = lambda *args: None
 			print("sleep start")
 			sleep(7)
 			print("sleep done")

@@ -618,7 +618,7 @@ async def test_check_opsi_webservice_cpu(
 	for _ in range(200):
 		timestamp += 1
 		for worker in workers:
-			await redis.execute_command(  # type: ignore[no-untyped-call]
+			await redis.execute_command(
 				f"TS.ADD {config.redis_key('stats')}:worker:avg_cpu_percent:{worker} {timestamp * 1000} {cpu_value} ON_DUPLICATE LAST"
 			)
 

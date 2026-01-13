@@ -9,7 +9,7 @@ zeroconf tests
 
 import asyncio
 
-from aiozeroconf import (  # type: ignore[import]
+from aiozeroconf import (
 	ServiceBrowser,
 	ServiceStateChange,
 	Zeroconf,

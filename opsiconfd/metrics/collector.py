@@ -164,15 +164,15 @@ class MetricsCollector:
 
 		redis = await async_redis_client()
 		if len(cmd) == 1:
-			return await redis.execute_command(str_cmd(cmd[0]))  # type: ignore[no-untyped-call]
+			return await redis.execute_command(str_cmd(cmd[0]))
 
 		async with redis.pipeline(transaction=False) as pipe:
 			for a_cmd in cmd:
 				a_cmd = str_cmd(a_cmd)
 				logger.trace("Adding redis command to pipe: %s", a_cmd)
-				await pipe.execute_command(a_cmd)  # type: ignore[attr-defined]
+				await pipe.execute_command(a_cmd)
 			logger.trace("Executing redis pipe (%d commands)", len(cmd))
-			return await pipe.execute()  # type: ignore[attr-defined]
+			return await pipe.execute()
 
 
 class NodeMetricsCollector(MetricsCollector):
@@ -305,7 +305,7 @@ class DepotMetricsCollector(MetricsCollector):
 		if "depot:avg_product_data_transfer_slots" in self._metrics:
 			redis = await async_redis_client()
 			slot_key = config.redis_key("slot")
-			used_slots = await redis.eval(  # type: ignore[no-untyped-call]
+			used_slots = await redis.eval(
 				"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
 				0,
 				f"{slot_key}:{self._depot_id}:*",

@@ -37,13 +37,13 @@ from functools import lru_cache
 from hashlib import md5
 from ipaddress import IPv4Interface, IPv4Network, IPv6Address, IPv6Interface, ip_address
 from json import JSONEncoder
-from logging import DEBUG, INFO  # type: ignore[import]
+from logging import DEBUG, INFO
 from pathlib import Path
 from socket import AF_INET, AF_INET6
 from subprocess import run
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
 
-import lz4.frame  # type: ignore[import]
+import lz4.frame
 import psutil
 import requests
 from opsicommon.logging.logging import OPSILogger
@@ -62,8 +62,8 @@ opsi_config = None
 if TYPE_CHECKING:
 	from config import Config, OpsiConfig  # type: ignore[import]
 
-	config: "Config" | None = None  # type: ignore[no-redef]
-	opsi_config: "OpsiConfig" | None = None  # type: ignore[no-redef]
+	config: "Config" | None = None
+	opsi_config: "OpsiConfig" | None = None
 
 
 @lru_cache
@@ -88,7 +88,7 @@ def get_config() -> Config:
 	"""
 	global config
 	if not config:
-		from opsiconfd.config import config  # type: ignore[assignment]
+		from opsiconfd.config import config
 	return config
 
 
@@ -101,7 +101,7 @@ def get_opsi_config() -> OpsiConfig:
 	"""
 	global opsi_config
 	if not opsi_config:
-		from opsiconfd.config import opsi_config  # type: ignore[assignment]
+		from opsiconfd.config import opsi_config
 	return opsi_config
 
 

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-import aiofiles  # type: ignore[import]
+import aiofiles
 from fastapi import APIRouter, FastAPI, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
 from opsicommon.utils import unix_timestamp

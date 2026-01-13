@@ -14,8 +14,8 @@ import time
 from pathlib import Path
 from socket import AF_INET, AF_INET6
 
-import OPSI.Backend.File  # type: ignore[import-untyped]
-from OPSI.Backend.Replicator import BackendReplicator  # type: ignore[import-untyped]
+import OPSI.Backend.File
+from OPSI.Backend.Replicator import BackendReplicator
 from opsicommon.objects import OpsiConfigserver
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt

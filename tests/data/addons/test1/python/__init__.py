@@ -14,7 +14,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from opsicommon.exceptions import (  # type: ignore[import]
+from opsicommon.exceptions import (
 	OpsiServiceAuthenticationError,
 	OpsiServicePermissionError,
 )

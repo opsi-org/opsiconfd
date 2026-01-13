@@ -300,9 +300,9 @@ async def async_delete_recursively(redis_key: str, piped: bool = True) -> None:
 	if piped:
 		async with client.pipeline() as pipe:
 			for key in delete_keys:
-				pipe.unlink(key)  # type: ignore[attr-defined]
-			pipe.unlink(redis_key)  # type: ignore[attr-defined]
-			await pipe.execute()  # type: ignore[attr-defined]
+				pipe.unlink(key)
+			pipe.unlink(redis_key)
+			await pipe.execute()
 	else:
 		await client.unlink(redis_key)
 
@@ -375,15 +375,15 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 			while True:
 				try:
 					# Redis will only perform the transaction if the watched keys were not modified.
-					await pipe.watch(redis_key)  # type: ignore[attr-defined]
-					if await pipe.get(redis_key) == identifier_b:  # type: ignore[attr-defined]
+					await pipe.watch(redis_key)
+					if await pipe.get(redis_key) == identifier_b:
 						# Release lock
-						pipe.multi()  # type: ignore[attr-defined]
-						pipe.delete(redis_key)  # type: ignore[attr-defined]
-						await pipe.execute()  # type: ignore[attr-defined]
+						pipe.multi()
+						pipe.delete(redis_key)
+						await pipe.execute()
 					else:
 						# Different identifier, not our lock
-						await pipe.unwatch()  # type: ignore[attr-defined]
+						await pipe.unwatch()
 					break
 				except WatchError:
 					pass
@@ -420,7 +420,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 		try:
 			command = f"MEMORY USAGE {key}"
 			key_info[matched_key_type]["memory"] += (  # type: ignore[union-attr,operator]
-				await client.execute_command(command)  # type: ignore[no-untyped-call]
+				await client.execute_command(command)
 			) or 0
 		except ResponseError as err:
 			from opsiconfd.logging import logger
@@ -428,7 +428,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 			logger.error("Redis command %r failed: %s", command, err, exc_info=True)
 		try:
 			key_info[matched_key_type]["entries"] += (  # type: ignore[union-attr,operator]
-				await client.execute_command(f"XLEN {key}")  # type: ignore[no-untyped-call]
+				await client.execute_command(f"XLEN {key}")
 			) or 0
 		except ResponseError:
 			# Wrong key type
@@ -455,7 +455,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 
 	redis_info: dict[str, dict[str, Any]] = {}
 	section = None
-	for line in decode_redis_result(await client.execute_command("INFO ALL")).split("\n"):  # type: ignore[no-untyped-call]
+	for line in decode_redis_result(await client.execute_command("INFO ALL")).split("\n"):
 		line = line.strip()
 		if not line:
 			continue

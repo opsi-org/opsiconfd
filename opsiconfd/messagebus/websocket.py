@@ -349,7 +349,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					if type(r) is MessageReader
 				]
 				if msr:
-					await msr[0].add_channels(message_reader_channels)  # type: ignore[arg-type]
+					await msr[0].add_channels(message_reader_channels)
 				else:
 					reader = MessageReader(name=f"{self._messagebus_user_id}/{self._session_channel}")
 					await reader.set_channels(message_reader_channels)  # type: ignore[arg-type]

@@ -322,7 +322,7 @@ def read_backup_file_data(backup_file: Path, progress: Progress | None = None, p
 	if progress:
 		progress.console.print(f"Decoding {encoding} data")
 	decode = json.decode if encoding == "json" else msgpack.decode
-	data = decode(bdata)  # type: ignore[operator]
+	data = decode(bdata)
 	if progress:
 		progress.update(file_task, total=1, completed=True)
 	return data

@@ -1443,7 +1443,7 @@ class RPCExtLegacyMixin(Protocol):
 				new_properties[forceProductPropertyId(property_id)] = new_value
 			elif issubclass(property_type, BoolProductProperty):
 				logger.debug("Property %s is bool.", property_id)
-				new_properties[forceProductPropertyId(property_id)] = forceBool(value)  # type: ignore[assignment]
+				new_properties[forceProductPropertyId(property_id)] = forceBool(value)
 			else:
 				raise ValueError(f"Property type of {property_type!r} currently unhandled")
 

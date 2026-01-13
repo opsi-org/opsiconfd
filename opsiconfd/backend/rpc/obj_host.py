@@ -694,7 +694,7 @@ class RPCHostMixin(Protocol):
 			key_b = cast(bytes, key_b)
 			key = key_b.decode("utf-8")
 			if f":{cur_hostname}:" in key or key.endswith(f":{cur_hostname}"):
-				redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))  # type: ignore[no-untyped-call]
+				redis.rename(key, key.replace(f":{cur_hostname}", f":{new_hostname}"))
 		setup_metric_downsampling()
 
 	@rpc_method(check_acl=False)

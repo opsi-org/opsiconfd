@@ -13,7 +13,7 @@ from unittest import mock
 
 import pytest
 from _pytest.capture import CaptureFixture
-from MySQLdb import OperationalError  # type: ignore[import]
+from MySQLdb import OperationalError
 from opsicommon.objects import ConfigState, OpsiClient
 from redis.exceptions import ConnectionError as RedisConnectionError
 

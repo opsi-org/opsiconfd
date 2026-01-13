@@ -71,7 +71,7 @@ def test_manager_signals() -> None:
 
 		test_reload = False
 		manager._last_reload = int(time.time())
-		manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
+		manager.orig_signal_handler(signal.SIGHUP, None)
 		assert test_reload is False
 
 		test_stop = ""
@@ -81,11 +81,11 @@ def test_manager_signals() -> None:
 			test_stop = "force" if force else "normal"
 
 		setattr(manager._worker_manager, "stop", stop)
-		manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
+		manager.orig_signal_handler(signal.SIGKILL, None)
 		assert manager._should_stop is True
 		assert test_stop == "normal"
 		time.sleep(0.1)
-		manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
+		manager.orig_signal_handler(signal.SIGKILL, None)
 		assert manager._should_stop is True
 		assert test_stop == "force"
 

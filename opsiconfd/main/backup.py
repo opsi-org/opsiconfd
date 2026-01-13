@@ -104,8 +104,8 @@ def backup_main() -> None:
 					config_files=not config.no_config_files,
 					redis_data=not config.no_redis_data,
 					backup_file=backup_file,
-					file_encoding=encoding,  # type: ignore[arg-type]
-					file_compression=compression,  # type: ignore[arg-type]
+					file_encoding=encoding,
+					file_compression=compression,
 					password=config.password,
 					maintenance=maintenance,
 					progress=progress,

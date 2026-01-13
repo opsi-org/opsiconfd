@@ -652,7 +652,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	cookie = list(test_client.cookies.jar)[0]
 	session_id = cookie.value
 	assert res.status_code == 200
-	remain = cookie.expires - time.time()  # type: ignore[operator]
+	remain = cookie.expires - time.time()
 	assert remain <= lifetime
 	assert remain >= lifetime - 2
 
@@ -665,7 +665,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert res.status_code == 200
 	assert session_id != cookie.value
 
-	remain = cookie.expires - time.time()  # type: ignore[operator]
+	remain = cookie.expires - time.time()
 	assert remain <= lifetime
 	assert remain >= lifetime - 2
 
@@ -694,7 +694,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]
 		session_id = cookie.value
-		remain = cookie.expires - time.time()  # type: ignore[operator]
+		remain = cookie.expires - time.time()
 		print(remain)
 		assert remain <= lifetime
 
@@ -703,7 +703,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		res = test_client.get("/admin/", headers=lt_headers)
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]
-		remain = cookie.expires - time.time()  # type: ignore[operator]
+		remain = cookie.expires - time.time()
 		print(remain)
 		assert remain <= lifetime
 		assert remain >= lifetime - 5
@@ -722,7 +722,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		res = test_client.get("/admin/")
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]
-		remain = cookie.expires - time.time()  # type: ignore[operator]
+		remain = cookie.expires - time.time()
 		print(remain)
 		assert remain <= lifetime
 		assert remain >= lifetime - 5

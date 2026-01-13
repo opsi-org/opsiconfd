@@ -30,7 +30,7 @@ from typing import Any, AsyncGenerator, Optional, Type, Union
 from urllib.parse import urlparse
 
 import aiohttp
-import lz4.frame  # type: ignore[import]
+import lz4.frame
 import uvloop
 from msgspec import json, msgpack
 from opsicommon.messagebus.message import (
@@ -113,7 +113,7 @@ class Perftest:
 		loop = asyncio.get_event_loop()
 		signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
 		for sig in signals:
-			loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(self.signal_handler(sig)))  # type: ignore[misc]
+			loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(self.signal_handler(sig)))
 
 		for test_case in self.test_cases:
 			await test_case.run()
@@ -169,11 +169,9 @@ class TestCase:
 	async def run(self) -> None:
 		client = Client(self)
 		server_ids = (
-			await client.execute_jsonrpc_request(  # type: ignore[index]
-				client.jsonrpc_request("host_getIdents", ["str", {"type": "OpsiConfigserver"}])
-			)
+			await client.execute_jsonrpc_request(client.jsonrpc_request("host_getIdents", ["str", {"type": "OpsiConfigserver"}]))
 		)[0]["result"]  # type: ignore[non-subscriptable]
-		self.server_id = server_ids[0]  # type: ignore[assignment]
+		self.server_id = server_ids[0]
 		await client.cleanup()
 
 		width = shutil.get_terminal_size((80, 20))[0]  # fallback: 100, 40

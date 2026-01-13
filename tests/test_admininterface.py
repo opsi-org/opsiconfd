@@ -257,7 +257,7 @@ async def test_delete_client_sessions(
 	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	redis = redis_client()
-	session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
+	session = dict(res.cookies.items()).get("opsiconfd-session")
 	sessions = []
 	local_ip = None
 	for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000):

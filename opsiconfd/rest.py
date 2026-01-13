@@ -23,8 +23,8 @@ from opsicommon.exceptions import (
 	OpsiServicePermissionError,
 )
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import asc, column, desc  # type: ignore[import]
-from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
+from sqlalchemy import asc, column, desc
+from sqlalchemy.orm import Query as SQLQuery
 from starlette.datastructures import URL, MutableHeaders
 
 from opsiconfd import contextvar_client_session

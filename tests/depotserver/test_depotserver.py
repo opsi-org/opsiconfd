@@ -153,9 +153,9 @@ def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
 		return subprocess.CompletedProcess(cmd, 0, b"", b"")
 
 	with patch("opsicommon.ssl.linux.execute", execute), depotserver_setup(tmp_path) as conf:
-		ssl_ca_cert = Path(conf.ssl_ca_cert)  # type: ignore[attr-defined]
-		ssl_server_cert = Path(conf.ssl_server_cert)  # type: ignore[attr-defined]
-		ssl_server_key = Path(conf.ssl_server_key)  # type: ignore[attr-defined]
+		ssl_ca_cert = Path(conf.ssl_ca_cert)
+		ssl_server_cert = Path(conf.ssl_server_cert)
+		ssl_server_key = Path(conf.ssl_server_key)
 
 		assert ssl_ca_cert.exists()
 		assert ssl_server_cert.exists()

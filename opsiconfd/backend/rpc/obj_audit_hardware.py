@@ -158,10 +158,10 @@ def get_audit_hardware_config(
 def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]:
 	audit_hardware_config: dict[str, dict[str, dict[str, str]]] = {}
 	for conf in get_audit_hardware_config():
-		hw_class = conf["Class"]["Opsi"]  # type: ignore[call-overload]
+		hw_class = conf["Class"]["Opsi"]
 		audit_hardware_config[hw_class] = {}
 		for value in conf["Values"]:
-			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore[index]
+			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}
 	return audit_hardware_config
 
 
@@ -301,14 +301,10 @@ class RPCAuditHardwareMixin(Protocol):
 					if return_type == "object":
 						results.append(AuditHardware(hardwareClass=hardware_class, **data))
 					elif return_type == "ident":
-						results.append(
-							self._mysql.get_ident(  # type: ignore[arg-type]
-								data=data, ident_attributes=ident_attributes, ident_type=ident_type
-							)
-						)
+						results.append(self._mysql.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type))
 					else:
-						results.append(data)  # type: ignore[arg-type]
-		return results  # type: ignore[return-value]
+						results.append(data)
+		return results
 
 	@rpc_method(check_acl=False)
 	def auditHardware_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditHardware]:

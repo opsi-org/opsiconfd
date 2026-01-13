@@ -23,7 +23,7 @@ from threading import RLock
 from time import sleep, time
 from typing import Generator, Literal
 
-from opsicommon.system import lock_file  # type: ignore[possibly-missing-import]
+from opsicommon.system import lock_file
 from opsicommon.types import (
 	forceBool,
 	forceDict,
@@ -51,7 +51,7 @@ def dhcpd_lock(lock_type: str = "") -> Generator[None, None, None]:
 				os.chmod(dhcpd_lock_file, 0o666)
 			except PermissionError:
 				pass
-			with lock_file(lock_fh, lock_method=config._file_lock_method, timeout=10.0):  # type: ignore[arg-type]
+			with lock_file(lock_fh, lock_method=config._file_lock_method, timeout=10.0):
 				lock_fh.seek(0)
 				lines = lock_fh.readlines()
 				if len(lines) >= 100:
@@ -341,7 +341,7 @@ class DHCPDConfFile:
 
 		with self._file_rlock:
 			with open(self.file_path, "r", encoding="utf-8") as file:
-				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):  # type: ignore[arg-type]
+				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):
 					self._lines = file.readlines()
 
 		self._current_block = self._global_block = DHCPDConfGlobalBlock()
@@ -393,7 +393,7 @@ class DHCPDConfFile:
 	def generate(self) -> None:
 		with self._file_rlock:
 			with open(self.file_path, "r+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):  # type: ignore[arg-type]
+				with lock_file(file, lock_method=config._file_lock_method, timeout=self._lock_timeout):
 					file.seek(0)
 					file.truncate()
 					file.write(self._global_block.as_text())

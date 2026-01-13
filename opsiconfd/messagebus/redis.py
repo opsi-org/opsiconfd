@@ -192,7 +192,7 @@ async def send_message(message: Message, context: Any = None) -> None:
 		f"{config.redis_key('messagebus')}:channels:{message.channel}",
 		maxlen=MAX_STREAM_LENGTH,
 		approximate=True,
-		fields=fields,  # type: ignore[arg-type]
+		fields=fields,
 	)
 
 
@@ -206,7 +206,7 @@ def sync_send_message(message: Message, context: Any = None) -> None:
 		f"{config.redis_key('messagebus')}:channels:{message.channel}",
 		maxlen=MAX_STREAM_LENGTH,
 		approximate=True,
-		fields=fields,  # type: ignore[arg-type]
+		fields=fields,
 	)
 
 
@@ -298,7 +298,7 @@ async def get_websocket_connected_users(
 		end;
 		return user_ids;
 	"""
-	res: list[bytes] = await redis.eval(  # type: ignore[no-untyped-call]
+	res: list[bytes] = await redis.eval(
 		lua_script,
 		0,
 		*search_key,
@@ -655,4 +655,4 @@ class ConsumerGroupMessageReader(MessageReader):
 		stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
 		if stream_key not in self._streams:
 			raise ValueError(f"Invalid channel: {channel!r}")
-		await redis.xack(stream_key, self._consumer_group, redis_msg_id)  # type: ignore[no-untyped-call]
+		await redis.xack(stream_key, self._consumer_group, redis_msg_id)

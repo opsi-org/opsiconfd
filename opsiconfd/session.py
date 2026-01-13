@@ -1008,7 +1008,7 @@ class OPSISession:
 				# So this is for backwards compatibility and can be removed later
 				# TODO: Remove
 				if val and isinstance(val, bytes):
-					host = Host.fromHash(msgspec.msgpack.decode(val))  # type: ignore
+					host = Host.fromHash(msgspec.msgpack.decode(val))
 					des["host_id"] = host.id
 					des["host_type"] = host.getType()
 				continue
@@ -1026,7 +1026,7 @@ class OPSISession:
 	@classmethod
 	def from_serialized(cls, data: dict[str, float | int | bytes | str]) -> OPSISession:
 		data = cls.deserialize(data)  # type: ignore
-		obj = cls(data["client_addr"])  # type: ignore
+		obj = cls(data["client_addr"])
 		for attr, val in data.items():
 			try:
 				setattr(obj, attr, val)
@@ -1314,7 +1314,7 @@ async def _post_failed_authenticate(scope: Scope) -> None:
 	)
 	logger.trace(cmd)
 	redis = await async_redis_client()
-	await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
+	await redis.execute_command(cmd)
 
 
 async def authenticate(*, scope: Scope, username: str, password: str, password_is_token: bool = False, mfa_otp: str | None = None) -> None:
@@ -1629,7 +1629,7 @@ async def check_blocked(ip_address: str) -> None:
 	)
 	logger.debug(cmd)
 	try:
-		data = await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
+		data = await redis.execute_command(cmd)
 		num_failed_auth = int(data[-1][1])
 		logger.debug("num_failed_auth: %s", num_failed_auth)
 	except RedisResponseError as err:

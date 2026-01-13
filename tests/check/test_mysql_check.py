@@ -10,7 +10,7 @@ check tests
 import time
 from unittest import mock
 
-from MySQLdb import OperationalError  # type: ignore[import]
+from MySQLdb import OperationalError
 from opsicommon.objects import OpsiClient
 from rich.console import Console
 

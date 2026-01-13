@@ -15,12 +15,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-import mock  # type: ignore[import]
+import mock
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509 import verification  # type: ignore[attr-defined]
+from cryptography.x509 import verification
 from opsicommon.ssl.linux import SystemCACertInfo
 
 import opsiconfd.ssl
@@ -202,11 +202,11 @@ def test_store_load_cert(tmp_path: Path) -> None:
 				cert = load_opsi_ca_cert()
 				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
-				response = get_ssl_opsi_ca_cert(None)  # type: ignore
+				response = get_ssl_opsi_ca_cert(None)
 				body = response.body.tobytes() if isinstance(response.body, memoryview) else response.body
 				assert body.decode("ascii") == as_pem(cert)
 
-				response = get_ssl_ca_certs(None)  # type: ignore
+				response = get_ssl_ca_certs(None)
 				body = response.body.tobytes() if isinstance(response.body, memoryview) else response.body
 				assert body.decode("ascii") == "".join(as_pem(c) for c in certs)
 

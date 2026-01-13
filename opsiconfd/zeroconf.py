@@ -12,7 +12,7 @@ import ipaddress
 import socket
 
 import netifaces  # type: ignore[import]
-from aiozeroconf import ServiceInfo, Zeroconf  # type: ignore[import]
+from aiozeroconf import ServiceInfo, Zeroconf
 
 from opsiconfd import __version__
 from opsiconfd.config import FQDN, config, get_server_role
@@ -37,9 +37,7 @@ async def register_opsi_services() -> None:
 			iface = netifaces.interfaces()[0]
 			for _iface in netifaces.interfaces():
 				for addr_type in (netifaces.AF_INET, netifaces.AF_INET6):
-					for addr in netifaces.ifaddresses(_iface).get(  # type: ignore
-						addr_type, []
-					):
+					for addr in netifaces.ifaddresses(_iface).get(addr_type, []):
 						try:
 							if if_address == ipaddress.ip_address(addr["addr"]):
 								iface = _iface

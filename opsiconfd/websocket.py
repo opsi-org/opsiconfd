@@ -17,7 +17,7 @@ from asyncio import sleep as asyncio_sleep
 from asyncio.events import AbstractEventLoop
 from typing import Any
 
-from uvicorn.config import Config  # type: ignore[import]
+from uvicorn.config import Config
 from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
 from uvicorn.protocols.websockets.wsproto_impl import ConnectionState, WSProtocol
 from uvicorn.server import ServerState

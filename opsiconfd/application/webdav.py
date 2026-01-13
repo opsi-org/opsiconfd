@@ -12,18 +12,18 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import wsgidav.fs_dav_provider  # type: ignore[import]
+import wsgidav.fs_dav_provider
 from fastapi import FastAPI
 from fastapi.routing import Mount
-from wsgidav import util  # type: ignore[import]
-from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError  # type: ignore[import]
-from wsgidav.dav_provider import (  # type: ignore[import]
+from wsgidav import util
+from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError
+from wsgidav.dav_provider import (
 	DAVCollection,
 	DAVProvider,
 	_DAVResource,
 )
 from wsgidav.fs_dav_provider import FileResource, FilesystemProvider, FolderResource
-from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
+from wsgidav.wsgidav_app import WsgiDAVApp
 
 from opsiconfd import __version__
 from opsiconfd.config import (
@@ -266,7 +266,7 @@ def webdav_setup(app: FastAPI) -> None:
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
 		)
 		app_config["mount_path"] = f"/{name}"
-		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))  # type: ignore[arg-type]
+		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))
 
 	# Virtual filesystem /dav
 	app_config = app_config_template.copy()
@@ -278,4 +278,4 @@ def webdav_setup(app: FastAPI) -> None:
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
 	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
 	app_config["mount_path"] = "/dav"
-	app.routes.append(Mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config))))  # type: ignore[arg-type]
+	app.routes.append(Mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config))))

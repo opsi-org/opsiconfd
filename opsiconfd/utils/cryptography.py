@@ -21,7 +21,7 @@ from random import randbytes
 from typing import Type, overload
 
 import bcrypt
-import crypt_r  # type: ignore[import-untyped]
+import crypt_r
 from argon2 import DEFAULT_HASH_LENGTH as ARGON2_DEFAULT_HASH_LENGTH
 from argon2 import DEFAULT_MEMORY_COST as ARGON2_DEFAULT_MEMORY_COST
 from argon2 import DEFAULT_PARALLELISM as ARGON2_DEFAULT_PARALLELISM
@@ -189,7 +189,7 @@ def decrypt(value: str, *, return_type: Type[str] | Type[bytes] = str, ignore_un
 		if not ignore_unencrypted:
 			raise
 		if return_type is str:
-			return value  # type: ignore[return-value]
+			return value
 		raise TypeError("Value is not encrypted and not a string")
 
 	info_dict = {k: v for part in info.split("|") for k, v in [part.split("=", 1)]}
@@ -204,8 +204,8 @@ def decrypt(value: str, *, return_type: Type[str] | Type[bytes] = str, ignore_un
 			cipher = AESGCM(key)
 			result = cipher.decrypt(nonce, ciphertext, None)
 			if return_type is str:
-				return result.decode("utf-8")  # type: ignore[return-value]
-			return result  # type: ignore[return-value]
+				return result.decode("utf-8")
+			return result
 		except Exception as err:
 			raise ValueError(f"Decryption failed: {err}") from err
 

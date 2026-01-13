@@ -23,12 +23,12 @@ from typing import TYPE_CHECKING, Any, Iterable, Literal, TextIO
 from urllib.parse import unquote, urlparse
 
 import certifi
-import configargparse  # type: ignore[import]
-import DNS  # type: ignore[import]
+import configargparse
+import DNS
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.ssl.linux import get_system_ca_cert_info
-from opsicommon.system import lock_file  # type: ignore[possibly-missing-import]
+from opsicommon.system import lock_file
 from opsicommon.system.network import get_fqdn
 from opsicommon.types import forceDomain
 from opsicommon.utils import ip_address_in_network
@@ -159,7 +159,7 @@ opsi_config = OpsiConfig()
 def configure_warnings() -> None:
 	# Disable sqlalchemy 2.0 deprecation warnings
 	# Import here because import is slow
-	import sqlalchemy.util.deprecations  # type: ignore[import]
+	import sqlalchemy.util.deprecations
 
 	sqlalchemy.util.deprecations.SILENCE_UBER_WARNING = True
 	warnings.filterwarnings(
@@ -379,7 +379,7 @@ class Config(metaclass=Singleton):
 			# Pre-parse command line / env to get sub_command and ex-help (may fail)
 			self._init_parser()
 			assert self._parser
-			# type: ignore[union-attr]
+
 			conf, _unknown = self._parser.parse_known_args(self._args, ignore_help_args=True, config_file_contents="")
 			self._config.config_file = conf.config_file
 			self._ex_help = conf.ex_help
@@ -397,7 +397,7 @@ class Config(metaclass=Singleton):
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
 				self._file_lock_method = "flock"
 				try:
-					with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
+					with lock_file(file, lock_method=self._file_lock_method):
 						pass
 				except Exception:
 					self._file_lock_method = "lockf"
@@ -700,7 +700,7 @@ class Config(metaclass=Singleton):
 	def _config_file_contents(self) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
+				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					masked_config_file_arguments: tuple[str, ...] = tuple()
 					if self._sub_command:
@@ -710,7 +710,7 @@ class Config(metaclass=Singleton):
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
+				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					conf[arg] = value
 					return self._generate_config_file(file, conf)
@@ -718,7 +718,7 @@ class Config(metaclass=Singleton):
 	def _update_config_file(self) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):  # type: ignore[arg-type]
+				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					for deprecated in DEPRECATED:
 						conf.pop(deprecated, None)

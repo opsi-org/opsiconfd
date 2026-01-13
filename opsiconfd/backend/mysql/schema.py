@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Callable, Literal
 
-from sqlalchemy.exc import OperationalError  # type: ignore[import]
+from sqlalchemy.exc import OperationalError
 
 from opsiconfd.backend.mysql.cleanup import (
 	remove_orphans_config_value,

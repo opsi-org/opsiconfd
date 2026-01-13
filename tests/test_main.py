@@ -16,7 +16,7 @@ from logging import LogRecord
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest  # type: ignore[import]
+import pytest
 from _pytest.capture import CaptureFixture
 from opsicommon import __version__ as python_opsi_common_version
 

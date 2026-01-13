@@ -10,7 +10,7 @@ check tests
 from unittest import mock
 
 import requests
-from mock import Mock  # type: ignore[import]
+from mock import Mock
 from rich.console import Console
 
 from opsiconfd.check.cache import check_cache_clear

@@ -305,7 +305,7 @@ async def grafana_query(
 		# Aggregate results into time buckets, duration of each bucket in milliseconds is bucket_duration_ms
 		cmd = ("TS.RANGE", redis_key, from_ms, to_ms, "AGGREGATION", "avg", bucket_duration_ms)
 		try:
-			rows = await redis.execute_command(*cmd)  # type: ignore[no-untyped-call]
+			rows = await redis.execute_command(*cmd)
 		except RedisResponseError as err:
 			logger.warning("%s %s", cmd, err)
 			rows = []
@@ -313,9 +313,9 @@ async def grafana_query(
 		res = {"target": target.target, "datapoints": []}
 		if metric.time_related and metric.aggregation == AggregationType.SUM:
 			# Time series data is stored aggregated in 5 second intervals
-			res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
+			res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]
 		else:
-			res["datapoints"] = [[float(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
+			res["datapoints"] = [[float(r[1]), align_timestamp(r[0])] for r in rows]
 		logger.trace("Grafana query result: %s", res)
 		results.append(res)
 	return results

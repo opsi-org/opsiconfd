@@ -10,9 +10,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import xmlsec  # type: ignore[import]
+import xmlsec
 from _pytest.capture import CaptureFixture
-from lxml.etree import Element  # type: ignore[import]
+from lxml.etree import Element
 from opsicommon.testing.helpers import http_test_server
 
 from opsiconfd.auth.saml import get_sp_metadata_xml, update_config_from_idp_metadata_xml

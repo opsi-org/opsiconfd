@@ -20,7 +20,7 @@ from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import secret_filter
 from opsicommon.objects import User
 from opsicommon.types import forceHostId, forceList
-from qrcode import QRCode  # type: ignore[import]
+from qrcode import QRCode
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import config, get_configserver_id
@@ -97,7 +97,7 @@ class RPCUserMixin(Protocol):
 		**filter: Any,
 	) -> list[User]:
 		ace = self._get_ace("user_getObjects")
-		return self._user_getObjects(ace=ace, attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._user_getObjects(ace=ace, attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
 	def user_getIdents(

@@ -17,7 +17,7 @@ from threading import Lock
 
 from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.system.info import linux_distro_id_like_contains
-from pam import PamAuthenticator  # type: ignore[import]
+from pam import PamAuthenticator
 
 from ..config import config
 from ..logging import logger

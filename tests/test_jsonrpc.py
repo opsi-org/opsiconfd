@@ -12,7 +12,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 
-import msgpack  # type: ignore[import]
+import msgpack
 import pytest
 from opsicommon.objects import OpsiClient
 

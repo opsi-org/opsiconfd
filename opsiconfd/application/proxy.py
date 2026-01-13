@@ -71,8 +71,8 @@ class ReverseProxy:
 		if forward_response_headers is None:
 			forward_response_headers = ["Content-Type", "Content-Length", "Content-Encoding", "Last-Modified"]
 		self.forward_response_headers = [h.lower() for h in forward_response_headers]
-		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, list(methods))  # type: ignore[attr-defined]
-		app.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
+		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, list(methods))
+		app.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)
 
 	def _get_path(self, path: str) -> str | None:
 		_path = self.base_path + "/" + path[len(self.mount_path) :].lstrip("/")

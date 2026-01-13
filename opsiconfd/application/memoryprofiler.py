@@ -16,14 +16,14 @@ import tracemalloc
 from typing import Any
 
 import msgspec
-import objgraph  # type: ignore[import]
+import objgraph
 import psutil
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from opsicommon.utils import unix_timestamp
-from pympler import classtracker, tracker  # type: ignore[import]
-from pympler.classtracker import Snapshot  # type: ignore[import]
-from pympler.classtracker_stats import ConsoleStats  # type: ignore[import]
+from pympler import classtracker, tracker
+from pympler.classtracker import Snapshot
+from pympler.classtracker_stats import ConsoleStats
 from starlette.responses import Response
 
 from opsiconfd.config import config
@@ -163,9 +163,9 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 async def memory_info() -> JSONResponse:
 	global MEMORY_TRACKER
 	if not MEMORY_TRACKER:
-		MEMORY_TRACKER = tracker.SummaryTracker()  # type: ignore[no-untyped-call]
+		MEMORY_TRACKER = tracker.SummaryTracker()
 
-	memory_summary = MEMORY_TRACKER.create_summary()  # type: ignore[no-untyped-call]
+	memory_summary = MEMORY_TRACKER.create_summary()
 	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
 
 	redis = await async_redis_client()
@@ -175,9 +175,9 @@ async def memory_info() -> JSONResponse:
 	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
 		value = msgspec.msgpack.encode({"memory_summary": memory_summary, "timestamp": timestamp})
-		await pipe.lpush(f"{redis_prefix_stats}:memory:summary:{node}", value)  # type: ignore[attr-defined]
-		await pipe.ltrim(f"{redis_prefix_stats}:memory:summary:{node}", 0, 9)  # type: ignore[attr-defined]
-		redis_result = await pipe.execute()  # type: ignore[attr-defined]
+		await pipe.lpush(f"{redis_prefix_stats}:memory:summary:{node}", value)
+		await pipe.ltrim(f"{redis_prefix_stats}:memory:summary:{node}", 0, 9)
+		redis_result = await pipe.execute()
 	logger.debug("redis lpush memory summary: %s", redis_result)
 
 	total_size = 0
@@ -217,7 +217,7 @@ async def delte_memory_snapshot() -> JSONResponse:
 async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 	global MEMORY_TRACKER
 	if not MEMORY_TRACKER:
-		MEMORY_TRACKER = tracker.SummaryTracker()  # type: ignore[no-untyped-call]
+		MEMORY_TRACKER = tracker.SummaryTracker()
 
 	redis_prefix_stats = config.redis_key("stats")
 
@@ -239,7 +239,7 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	snapshot1 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")
 	redis_result = await redis.lindex(f"{redis_prefix_stats}:memory:summary:{node}", end)
 	snapshot2 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")
-	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)  # type: ignore[no-untyped-call]
+	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 
 	count = 0
 	total_size = 0

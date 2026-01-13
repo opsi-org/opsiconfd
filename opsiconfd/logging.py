@@ -28,9 +28,9 @@ from typing import TYPE_CHECKING, Any, Callable, TextIO
 import colorlog
 import msgspec
 from aiofiles.threadpool.text import AsyncTextIOWrapper
-from aiologger.handlers.base import LogRecord as AioLogRecord  # type: ignore[import-untyped]
-from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import-untyped]
-from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import-untyped]
+from aiologger.handlers.base import LogRecord as AioLogRecord
+from aiologger.handlers.files import AsyncFileHandler
+from aiologger.handlers.streams import AsyncStreamHandler
 from opsicommon.logging import (
 	DATETIME_FORMAT,
 	LOG_COLORS,
@@ -113,8 +113,8 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 	async def _close_stream(self) -> None:
 		try:
 			if self.stream:
-				await self.stream.flush()  # type: ignore[unresolved-attribute]
-				await self.stream.close()  # type: ignore[unresolved-attribute]
+				await self.stream.flush()
+				await self.stream.close()
 		except Exception:
 			pass
 		self.stream = None
@@ -152,7 +152,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 	async def do_rollover(self) -> None:
 		loop = get_running_loop()
 		if self.stream:
-			await self.stream.close()  # type: ignore[unresolved-attribute]
+			await self.stream.close()
 		if self._keep_rotated > 0:
 			for num in range(self._keep_rotated, 0, -1):
 				src_file_path = self.absolute_file_path
@@ -441,7 +441,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 		self.start()
 
 	@property
-	def name(self) -> str:  # type: ignore[override]
+	def name(self) -> str:
 		return self._name
 
 	def run(self) -> None:

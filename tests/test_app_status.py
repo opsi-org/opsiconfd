@@ -9,7 +9,7 @@ test application status
 
 from unittest import mock
 
-from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version
 
 from opsiconfd import __version__
 

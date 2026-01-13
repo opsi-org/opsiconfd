@@ -37,7 +37,7 @@ def get_version_string() -> str:
 
 def get_contextvars() -> dict[str, Any]:
 	return {
-		var.name: var.get()  # type: ignore[attr-defined]
+		var.name: var.get()
 		for var in (
 			contextvar_request_id,
 			contextvar_client_session,

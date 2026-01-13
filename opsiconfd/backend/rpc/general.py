@@ -217,8 +217,8 @@ class RPCGeneralMixin(Protocol):
 			config_files=config_files,
 			redis_data=redis_data,
 			backup_file=backup_file,
-			file_encoding=file_encoding,  # type: ignore[arg-type]
-			file_compression=file_compression,  # type: ignore[arg-type]
+			file_encoding=file_encoding,
+			file_compression=file_compression,
 			password=password,
 			maintenance=maintenance_mode,
 			maintenance_address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr],

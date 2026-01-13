@@ -28,7 +28,7 @@ from urllib.parse import urlparse
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509 import verification  # type: ignore[attr-defined]
+from cryptography.x509 import verification
 from opsicommon.server.rights import DirPermission, FilePermission, PermissionRegistry, set_rights
 from opsicommon.ssl import (
 	as_pem,
@@ -320,7 +320,7 @@ def _clear_ca_certs_cache(lock: bool = True) -> None:
 	"""
 	Clear the cache for the CA certificates.
 	"""
-	with _check_certs_modified_lock if lock else nullcontext():  # type: ignore[attr-defined]
+	with _check_certs_modified_lock if lock else nullcontext():
 		global _opsi_ca_cert_modification_date
 		_opsi_ca_cert_modification_date = 0.0
 		_load_opsi_ca_cert.cache_clear()

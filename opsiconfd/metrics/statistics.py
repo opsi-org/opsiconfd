@@ -13,7 +13,7 @@ import time
 from opsiconfd.backend import get_unprotected_backend
 
 try:
-	import yappi  # type: ignore[import]
+	import yappi
 except ImportError:
 	yappi = None  # type: ignore[assignment]
 from fastapi import FastAPI

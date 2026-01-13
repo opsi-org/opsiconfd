@@ -32,7 +32,7 @@ async def redis_command(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
 	request_body = await request.json()
 	redis_cmd = request_body.get("cmd")
-	redis_result = await redis.execute_command(redis_cmd)  # type: ignore[no-untyped-call]
+	redis_result = await redis.execute_command(redis_cmd)
 	return RESTResponse({"result": decode_redis_result(redis_result)})
 
 
@@ -103,8 +103,8 @@ async def delete_deprecated_calls() -> RESTResponse:
 			key_str = key.decode("utf8")
 			deleted_keys.add(key_str)
 			logger.debug("redis key to delete: %s", key_str)
-			await pipe.delete(key)  # type: ignore[attr-defined]
-		await pipe.execute()  # type: ignore[attr-defined]
+			await pipe.delete(key)
+		await pipe.execute()
 	return RESTResponse({"redis-keys": list(deleted_keys)})
 
 

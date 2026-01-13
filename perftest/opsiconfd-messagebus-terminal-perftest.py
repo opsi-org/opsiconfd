@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import aiohttp
-import lz4.frame  # type: ignore[import]
+import lz4.frame
 from opsicommon.messagebus.message import (
 	Message,
 	TerminalCloseRequestMessage,

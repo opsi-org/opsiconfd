@@ -83,9 +83,7 @@ async def check_opsi_webservice(
 		cpu = 0.0
 		for worker in workers:
 			redis_result = decode_redis_result(
-				await redis.execute_command(  # type: ignore[no-untyped-call]
-					f"TS.GET {config.redis_key('stats')}:worker:avg_cpu_percent:{worker}:minute"
-				)
+				await redis.execute_command(f"TS.GET {config.redis_key('stats')}:worker:avg_cpu_percent:{worker}:minute")
 			)
 			cpu += float(redis_result[1]) if redis_result else 0.0
 		cpu_avg = cpu / len(workers)

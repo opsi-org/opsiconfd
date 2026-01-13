@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from cryptography.x509 import verification  # type: ignore[attr-defined]
+from cryptography.x509 import verification
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config, get_server_role

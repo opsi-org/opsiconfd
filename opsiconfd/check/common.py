@@ -17,11 +17,11 @@ from textwrap import dedent
 from typing import Any, Iterator
 
 from msgspec.msgpack import decode, encode
-from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
+from MySQLdb import OperationalError as MySQLdbOperationalError
 from opsicommon.license import get_default_opsi_license_pool
 from opsicommon.utils import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
-from sqlalchemy.exc import OperationalError  # type: ignore[import]
+from sqlalchemy.exc import OperationalError
 
 from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.config import OPSI_LICENSE_DIR, OPSI_MODULES_FILE, config, get_server_role
@@ -305,7 +305,7 @@ def get_json_result(results: Iterator[CheckResult]) -> dict[str, CheckResult]:
 		if CheckStatus(result.check_status).return_code() > CheckStatus(json_result["check_status"]).return_code():
 			json_result["check_status"] = result.check_status
 		summary[result.check_status] += 1
-	json_result["summary"] = summary  # type: ignore
+	json_result["summary"] = summary
 	return json_result
 
 

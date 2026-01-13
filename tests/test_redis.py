@@ -87,16 +87,16 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 		coroutines.append(redis.get(base_key))
 
 	assert len(await asyncio.gather(*coroutines)) == num_connections
-	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == 0
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(await pool.get_connection(None))  # type: ignore[call-arg]
+		connections.append(await pool.get_connection(None))
 	assert len(connections) == num_connections
-	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == num_connections
 
 	await asyncio.gather(*[pool.release(con) for con in connections])
-	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == 0
 
 
 def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
@@ -109,30 +109,30 @@ def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 		assert redis.connection_pool is pool
 		redis.get(base_key)
 
-	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == 0
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(pool.get_connection(None))  # type: ignore[call-arg]
+		connections.append(pool.get_connection(None))
 	assert len(connections) == num_connections
-	assert len(pool._in_use_connections) == num_connections  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == num_connections
 
 	for con in connections:
 		pool.release(con)
-	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == 0
 
 
 async def test_async_redis_client(config: Config) -> None:  # noqa: F811
 	base_key = config.redis_key()
 	num_connections = 10
 	pool = (await async_redis_client()).connection_pool
-	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == 0
 	for _ in range(num_connections):
 		client = await async_redis_client()
 		assert client.connection_pool is pool
 		await client.get(base_key)
 		# Connection is released automatically
-		assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+		assert len(pool._in_use_connections) == 0
 
 
 def test_sync_redis_client(config: Config) -> None:  # noqa: F811
@@ -140,20 +140,20 @@ def test_sync_redis_client(config: Config) -> None:  # noqa: F811
 	num_connections = 10
 	redis_client()
 	pool = redis_client().connection_pool
-	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+	assert len(pool._in_use_connections) == 0
 	for _ in range(num_connections):
 		client = redis_client()
 		assert client.connection_pool is pool
 		client.get(base_key)
 		# Connection is released automatically
-		assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]
+		assert len(pool._in_use_connections) == 0
 
 
 async def test_async_redis_pipeline(config: Config) -> None:  # noqa: F811
 	redis = await async_redis_client()
 	async with redis.pipeline() as pipe:
-		pipe.scan_iter(f"{config.redis_key()}:*", count=1000)  # type: ignore[attr-defined]
-		await pipe.execute()  # type: ignore[attr-defined]
+		pipe.scan_iter(f"{config.redis_key()}:*", count=1000)
+		await pipe.execute()
 
 
 @pytest.mark.parametrize(
@@ -344,7 +344,7 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 			num_found += 1
 			assert isinstance(key_b, bytes)
 			key = key_b.decode("utf-8")
-			res = await client.execute_command("TS.INFO", key)  # type: ignore[no-untyped-call]
+			res = await client.execute_command("TS.INFO", key)
 			info = {k.decode("utf-8"): v for k, v in dict(zip(res[::2], res[1::2])).items()}
 			# print(key, info)
 
@@ -356,7 +356,7 @@ async def test_dump_restore(config: Config) -> None:  # noqa: F811
 
 			cmd = ("TS.RANGE", key, start_ts, now_ts, "AGGREGATION", "avg", 1000)
 			# print(cmd)
-			vals = await client.execute_command(*cmd)  # type: ignore[no-untyped-call]
+			vals = await client.execute_command(*cmd)
 			# print(len(vals))
 			if key.endswith(":hour"):
 				assert len(vals) == 1

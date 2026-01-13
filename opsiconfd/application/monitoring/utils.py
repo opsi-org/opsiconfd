@@ -59,9 +59,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 	requests = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis.execute_command(  # type: ignore[no-untyped-call]
-				f"TS.GET {config.redis_key('stats')}:worker:sum_http_request_number:{worker}:minute"
-			)
+			await redis.execute_command(f"TS.GET {config.redis_key('stats')}:worker:sum_http_request_number:{worker}:minute")
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
@@ -71,7 +69,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 
 async def get_session_count(redis: StrictRedis) -> int:
 	return int(
-		await redis.eval(  # type: ignore[no-untyped-call]
+		await redis.eval(
 			"return #redis.call('SCAN', 0, 'MATCH', ARGV[1], 'COUNT', 1000000)[2]",
 			0,
 			f"{config.redis_key('session')}:*",
@@ -84,9 +82,7 @@ async def get_thread_count(redis: StrictRedis) -> float:
 	threads = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis.execute_command(  # type: ignore[no-untyped-call]
-				f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute"
-			)
+			await redis.execute_command(f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute")
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
@@ -99,9 +95,7 @@ async def get_mem_allocated(redis: StrictRedis) -> float:
 	mem_allocated = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis.execute_command(  # type: ignore[no-untyped-call]
-				f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute"
-			)
+			await redis.execute_command(f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute")
 		)
 		if len(redis_result) == 0:
 			redis_result = 0

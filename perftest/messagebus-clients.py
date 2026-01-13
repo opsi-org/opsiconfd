@@ -18,7 +18,7 @@ from asyncio import create_task, get_event_loop
 from urllib.parse import urlparse
 
 import aiohttp
-import lz4.frame  # type: ignore[import]
+import lz4.frame
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionRequestMessage,
 	EventMessage,

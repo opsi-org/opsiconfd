@@ -126,8 +126,8 @@ def test_get_primary_ip_interface() -> None:
 	),
 )
 def test_aes_encrypt_decrypt(password: str, plaintext: bytes, exc: type[Exception | None]) -> None:
-	ctx = pytest.raises(exc) if exc else nullcontext()  # type: ignore[type-var]
-	with ctx:  # type: ignore[attr-defined]
+	ctx = pytest.raises(exc) if exc else nullcontext()
+	with ctx:
 		ciphertext, key_salt, mac_tag, nonce = aes_encrypt_with_password(plaintext=plaintext, password=password)
 		decytped_data = aes_decrypt_with_password(ciphertext=ciphertext, key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password)
 		assert decytped_data == plaintext

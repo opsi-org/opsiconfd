@@ -189,13 +189,13 @@ class Backend(
 			self._depot_server_init()
 
 		licensing_info = self.backend_getLicensingInfo(licenses=True)
-		self._available_modules = licensing_info["available_modules"]  # type: ignore[misc]
+		self._available_modules = licensing_info["available_modules"]
 
 		self._module_available.cache_clear()
 
 		for base in Backend.__bases__:
 			logger.debug("Init %s", base)
-			base.__init__(self)  # type: ignore[misc]
+			base.__init__(self)
 
 		if self.server_role == "configserver":
 			self._interface = describe_interface(self)

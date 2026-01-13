@@ -12,7 +12,7 @@ from typing import Generator
 
 import pytest
 from opsicommon.objects import BoolConfig, HostGroup, OpsiDepotserver, ProductGroup, UnicodeConfig
-from sqlalchemy.orm import Session  # type: ignore
+from sqlalchemy.orm import Session
 
 from opsiconfd.auth.role import Role
 from opsiconfd.auth.user import User, create_user_roles

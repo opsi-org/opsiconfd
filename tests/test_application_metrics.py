@@ -108,7 +108,7 @@ async def create_ts_data(conf: Config, postfix: str, start: int, end: int, inter
 			"worker_num",
 			1,
 		)
-		await redis.execute_command(" ".join([str(x) for x in cmd]))  # type: ignore[no-untyped-call]
+		await redis.execute_command(" ".join([str(x) for x in cmd]))
 		timestamp += interval
 
 

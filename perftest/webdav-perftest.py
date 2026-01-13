@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 
-from OPSI.System import mount, umount  # type: ignore[import]
+from OPSI.System import mount, umount
 
 
 def main() -> None:

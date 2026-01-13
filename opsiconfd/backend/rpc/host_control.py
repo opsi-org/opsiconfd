@@ -369,7 +369,7 @@ class RPCHostControlMixin(Protocol):
 						running_threads += 1
 				else:
 					time_running = round(time.time() - rpct.started)
-					if time_running >= timeout + 5:  # type: ignore[operator]
+					if time_running >= timeout + 5:
 						# thread still alive 5 seconds after timeout
 						logger.warning(
 							"RPC to host %s (address: %s) did not complete after %0.2f seconds",

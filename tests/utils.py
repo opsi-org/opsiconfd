@@ -24,7 +24,7 @@ from typing import Any, Callable, Generator, Type
 from unittest.mock import patch
 from uuid import uuid4
 
-import msgpack  # type: ignore[import]
+import msgpack
 import pytest
 from anyio import EndOfStream
 from fastapi.testclient import TestClient
@@ -81,7 +81,7 @@ class OpsiconfdTestClient(TestClient):
 		super().__enter__()
 		return self
 
-	@property  # type: ignore[override]
+	@property
 	def auth(self) -> tuple[str, str] | None:
 		if self._username is None or self._password is None:
 			return None
@@ -510,7 +510,7 @@ class WebSocketMessageReader(Thread):
 	def __exit__(
 		self, exc_type: Type[BaseException] | None, exc_value: BaseException | None, traceback: types.TracebackType | None
 	) -> None:
-		self.stop()  # type: ignore[no-untyped-call]
+		self.stop()
 
 	def run(self) -> None:
 		while not self.should_stop:

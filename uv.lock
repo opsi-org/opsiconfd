@@ -1295,7 +1295,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.47.6"
+version = "4.3.47.7"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },
@@ -2000,7 +2000,7 @@ wheels = [
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.49.3"
+version = "4.3.51.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -2011,7 +2011,7 @@ dependencies = [
     { name = "dnspython" },
     { name = "lz4" },
     { name = "mailbits" },
-    { name = "msgpack" },
+    { name = "msgpack", marker = "sys_platform == 'win32'" },
     { name = "msgspec", marker = "sys_platform != 'win32'" },
     { name = "netifaces" },
     { name = "packaging" },
@@ -2030,9 +2030,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.49.3.tar.gz", hash = "sha256:61f11fbf06cd59e6adc5ae3b4c4fed80af2fa9b9663742b49e03dea403e6c45b" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.51.0.tar.gz", hash = "sha256:df6e2c50c3d76334be2cba54450b4fd33fb8af45dde67abbcce562a9b2e16fa1" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.49.3-py3-none-any.whl", hash = "sha256:b893187483dcd36b8d721454060e886211b9507a13d5db290d917bd770b6e3bc" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.51.0-py3-none-any.whl", hash = "sha256:46337c3d3fd6d06e551c5118400949d1e1871c54968860ded606f58021cedb01" },
 ]
 
 [[package]]

@@ -9,7 +9,7 @@ Tests for the opsiconfd monitoring module
 
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Generator
 from unittest import mock
 
@@ -133,7 +133,7 @@ def create_check_data(test_client: OpsiconfdTestClient, config: Config) -> Gener
 
 	mysql = MySQLConnection()
 
-	now = datetime.now()
+	now = datetime.now(tz=timezone.utc)
 	with mysql.connection():
 		with mysql.session() as session:
 			res = session.execute("SELECT * FROM HOST WHERE type != 'OpsiClient'").fetchall()

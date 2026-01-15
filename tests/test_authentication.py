@@ -194,9 +194,9 @@ def test_login_endpoint(test_client: OpsiconfdTestClient, base_path: str) -> Non
 	resp = res.json()
 	assert "error" not in resp
 	assert resp["result"][0]["id"] == ADMIN_USER
-	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["created"], "%Y-%m-%d %H:%M:%S")
+	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["created"] + " +00:00", "%Y-%m-%d %H:%M:%S %z")
 	assert abs(diff.total_seconds()) < 5
-	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["lastLogin"], "%Y-%m-%d %H:%M:%S")
+	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["lastLogin"] + " +00:00", "%Y-%m-%d %H:%M:%S %z")
 	assert abs(diff.total_seconds()) < 5
 
 
@@ -398,7 +398,7 @@ def test_update_client_object(
 
 		with database_connection.session() as session:
 			last_seen, ip_address = session.execute(f"SELECT lastSeen, ipAddress FROM HOST WHERE hostId = '{host_id}'").fetchone()
-		delta = last_seen - datetime.now()
+		delta = last_seen.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)
 		assert abs(delta.total_seconds()) < 3
 		assert ip_address == client_addr
 

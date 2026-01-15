@@ -8,7 +8,7 @@ check tests
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
@@ -210,7 +210,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert sorted(hosts) == sorted(enabled_hosts)
 
 	# set downtime for client 1 for tomorrow and check if it is disabled
-	tomorrow = datetime.now() + timedelta(days=1)
+	tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
 	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[tomorrow.isoformat()])
 	rpc = {
 		"id": 1,
@@ -223,7 +223,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert len(hosts) > len(enabled_hosts)
 
 	# set downtime for client 1 from yesterday to tomorrow and check if it is disabled
-	yesterday = datetime.now() - timedelta(days=1)
+	yesterday = datetime.now(timezone.utc) - timedelta(days=1)
 	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[tomorrow.isoformat()])
 	rpc = {
 		"id": 1,
@@ -236,7 +236,7 @@ def test_check_downtime(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert len(hosts) > len(enabled_hosts)
 
 	# set downtime for client 1 from tomorrow to 2 days from now and check if it is enabled
-	two_days = datetime.now() + timedelta(days=2)
+	two_days = datetime.now(timezone.utc) + timedelta(days=2)
 	downtime = ConfigState(configId="opsi.check.downtime.end", objectId=client.id, values=[two_days.isoformat()])
 	rpc = {
 		"id": 1,

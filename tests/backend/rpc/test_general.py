@@ -10,7 +10,7 @@ test opsiconfd.backend.rpc.general
 import os
 import pwd
 import shutil
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -54,7 +54,7 @@ def test_get_client_info(  # noqa: F811
 	hosts = backend.host_getIdents(type="OpsiClient")
 	assert len(hosts) == 0
 
-	now = datetime.now()
+	now = datetime.now(tz=timezone.utc)
 	now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 	last_seen = now - timedelta(days=last_seen_days)
 	last_seen_str = last_seen.strftime("%Y-%m-%d %H:%M:%S")

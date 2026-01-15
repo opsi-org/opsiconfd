@@ -7,7 +7,7 @@
 client check tests
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
 
@@ -89,7 +89,7 @@ def test_opsi_active_clients_check(test_client: OpsiconfdTestClient) -> None:  #
 
 	assert result.check_status == CheckStatus.WARNING
 
-	now = datetime.now()
+	now = datetime.now(timezone.utc)
 	client.lastSeen = now.strftime("%Y-%m-%d %H:%M:%S")
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client.to_hash()]]}
 	res = test_client.post("/rpc", json=rpc).json()

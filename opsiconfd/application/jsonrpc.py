@@ -9,7 +9,6 @@ jsonrpc
 
 from __future__ import annotations
 
-import asyncio
 import re
 import tempfile
 import time
@@ -18,6 +17,7 @@ import urllib.parse
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from inspect import iscoroutinefunction
 from os import makedirs
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, AsyncGenerator, cast
@@ -343,7 +343,7 @@ async def execute_rpc(request: JSONRPC20Request | JSONRPCRequest, backend: Unpro
 
 	method = getattr(backend, method_name)
 	with server_timing("method_execution"):
-		if asyncio.iscoroutinefunction(method):
+		if iscoroutinefunction(method):
 			result = await method(*params, **keywords)
 		else:
 			result = await run_in_threadpool(method, *params, **keywords)

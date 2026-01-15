@@ -7,11 +7,11 @@
 opsiconfd rest utils
 """
 
-import asyncio
 import math
 import traceback
 import warnings
 from functools import wraps
+from inspect import iscoroutinefunction
 from types import NoneType
 from typing import Any, Callable
 
@@ -231,7 +231,7 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 		name = getattr(func, "__qualname__", str(func))
 
 		async def exec_func(func: Callable, *args: Any, **kwargs: Any) -> Any:
-			if asyncio.iscoroutinefunction(func):
+			if iscoroutinefunction(func):
 				return await func(*args, **kwargs)
 			return func(*args, **kwargs)
 

@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import re
 import socket  # Needed for backends/dhcpd.conf  # noqa: F401
-from asyncio import iscoroutinefunction
 from dataclasses import asdict, dataclass
 from functools import wraps
-from inspect import getfullargspec, signature
+from inspect import getfullargspec, iscoroutinefunction, signature
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Callable

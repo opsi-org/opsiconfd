@@ -38,7 +38,7 @@ from opsicommon.exceptions import (
 from opsicommon.logging import secret_filter, set_context
 from opsicommon.objects import Host, OpsiClient, User
 from opsicommon.types import forceHardwareAddress, forceUUIDString
-from opsicommon.utils import ip_address_in_network, timestamp, unix_timestamp
+from opsicommon.utils import ip_address_in_network, unix_timestamp, utc_timestamp
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
@@ -1294,7 +1294,7 @@ async def authenticate_host(scope: Scope) -> None:
 
 	if host_type == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
-		host.setLastSeen(timestamp())
+		host.setLastSeen(utc_timestamp())
 		if config.update_ip and session.client_addr not in (None, "127.0.0.1", "::1", host.ipAddress):
 			host.setIpAddress(session.client_addr)
 		else:
@@ -1353,10 +1353,10 @@ async def post_user_authenticate(scope: Scope) -> None:
 	backend = get_unprotected_backend()
 
 	if users := await backend.async_call("user_getObjects", id=session.username):
-		users[0].lastLogin = timestamp()
+		users[0].lastLogin = utc_timestamp()
 		await backend.async_call("user_updateObject", user=users[0])
 	else:
-		await backend.async_call("user_insertObject", user=User(id=session.username, created=timestamp(), lastLogin=timestamp()))
+		await backend.async_call("user_insertObject", user=User(id=session.username, created=utc_timestamp(), lastLogin=utc_timestamp()))
 
 	if session.is_admin:
 		create_user_roles(session.username, session.user_groups)

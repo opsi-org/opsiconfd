@@ -93,11 +93,11 @@ def test_restresponse_toral_error() -> None:
 			{
 				"message": "This is a error message.",
 				"details": ValueError("Test Value error"),
-				"http_status": status.HTTP_422_UNPROCESSABLE_ENTITY,
+				"http_status": status.HTTP_422_UNPROCESSABLE_CONTENT,
 			},
 			{
 				"total": None,
-				"http_status": status.HTTP_422_UNPROCESSABLE_ENTITY,
+				"http_status": status.HTTP_422_UNPROCESSABLE_CONTENT,
 				"headers": {},
 				"code": None,
 				"error_class": "ValueError",

@@ -35,5 +35,6 @@ class RPCExtWANMixin(Protocol):
 		for client_id in forceHostIdList(clientIds):
 			self.configState_create("opsiclientd.event_gui_startup.active", client_id, not enabled)
 			self.configState_create("opsiclientd.event_gui_startup{user_logged_in}.active", client_id, not enabled)
-			self.configState_create("opsiclientd.event_net_connection.active", client_id, enabled)
 			self.configState_create("opsiclientd.event_timer.active", client_id, enabled)
+			if not enabled:
+				self.configState_create("opsiclientd.event_net_connection.active", client_id, enabled)

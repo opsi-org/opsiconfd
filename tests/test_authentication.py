@@ -194,9 +194,9 @@ def test_login_endpoint(test_client: OpsiconfdTestClient, base_path: str) -> Non
 	resp = res.json()
 	assert "error" not in resp
 	assert resp["result"][0]["id"] == ADMIN_USER
-	diff = datetime.now() - datetime.strptime(resp["result"][0]["created"], "%Y-%m-%d %H:%M:%S")
+	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["created"], "%Y-%m-%d %H:%M:%S")
 	assert abs(diff.total_seconds()) < 5
-	diff = datetime.now() - datetime.strptime(resp["result"][0]["lastLogin"], "%Y-%m-%d %H:%M:%S")
+	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["lastLogin"], "%Y-%m-%d %H:%M:%S")
 	assert abs(diff.total_seconds()) < 5
 
 

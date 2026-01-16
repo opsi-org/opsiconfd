@@ -50,18 +50,12 @@
 				"charliermarsh.ruff",
 				"astral-sh.ty"
 			],
-			"chat.promptFiles": true,
 			"chat.promptFilesLocations": {
 				".github/prompts": true
 			},
 			"chat.instructionsFilesLocations": {
 				".github/instructions": true
 			},
-			"github.copilot.chat.codeGeneration.instructions": [
-				{
-					"file": ".github/instructions/python-coding-style.instructions.md"
-				}
-			],
 			"github.copilot.chat.commitMessageGeneration.instructions": [
 				{
 					"file": ".github/instructions/git-commit-message.instructions.md"
@@ -71,11 +65,6 @@
 			"github.copilot.chat.reviewSelection.instructions": [
 				{
 					"file": ".github/instructions/python-coding-style.instructions.md"
-				}
-			],
-			"github.copilot.chat.testGeneration.instructions": [
-				{
-					"file": ".github/instructions/pytest.instructions.md"
 				}
 			]
 		}

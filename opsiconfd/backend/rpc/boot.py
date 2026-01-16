@@ -421,6 +421,7 @@ class RPCBootMixin(Protocol):
 		client_id: str | None = None,
 		system_uuid: str | None = None,
 		hardware_address: str | None = None,
+		usage: Literal["DHCP", "FILE_LOAD"] | None = None,
 	) -> BootConfig:
 		"""
 		Get the boot configuration for a client.
@@ -567,11 +568,20 @@ class RPCBootMixin(Protocol):
 			else:
 				pxe_boot_filename = f"opsi/loader/{loader}"
 
+		grub_config = None
+		if usage != "DHCP":
+			grub_config = Template(content).render(context.context_args())
+		if usage == "FILE_LOAD" and product_on_client:
+			product_on_client.setActionProgress("pxe boot configuration read")
+			if product_on_client.actionRequest != "always":
+				product_on_client.setActionRequest("none")
+			self.productOnClient_updateObjects([product_on_client])
+
 		return BootConfig(
 			depot_id=depot.id,
 			client_id=client.id if client else None,
 			product_id=product.id if product else None,
 			pxe_boot_server=pxe_boot_server,
 			pxe_boot_filename=pxe_boot_filename,
-			grub_config=Template(content).render(context.context_args()),
+			grub_config=grub_config,
 		)

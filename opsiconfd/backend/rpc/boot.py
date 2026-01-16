@@ -571,7 +571,7 @@ class RPCBootMixin(Protocol):
 		grub_config = None
 		if usage != "DHCP":
 			grub_config = Template(content).render(context.context_args())
-		if usage == "FILE_LOAD" and product_on_client:
+		if usage == "FILE_LOAD" and product_on_client and client:
 			product_on_client.setActionProgress("pxe boot configuration read")
 			if product_on_client.actionRequest != "always":
 				product_on_client.setActionRequest("none")

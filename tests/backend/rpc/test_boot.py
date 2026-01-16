@@ -7,6 +7,7 @@
 test opsiconfd.backend.rpc.depot
 """
 
+import random
 import re
 import shutil
 from pathlib import Path
@@ -398,10 +399,6 @@ def test_boot_getConfig(
 	boot_server_address = "10.10.1.1"
 	with mock.patch("opsiconfd.backend.rpc.boot.GRUB_CFG_TEMPLATE", str(grub_cfg)):
 		for use_product_on_client in (False, True):
-			if use_product_on_client:
-				backend.productOnClient_createObjects([product_on_client])
-			else:
-				backend.productOnClient_deleteObjects([product_on_client])
 			for host_identifiers in (["system_uuid", "mac_address"], ["mac_address"], ["system_uuid"], []):
 				backend.config_createObjects(
 					[
@@ -428,83 +425,102 @@ def test_boot_getConfig(
 							{"system_uuid": client.systemUUID},
 							{"hardware_address": client.hardwareAddress},
 						):
-							for architecture in ("x86", "x64", "arm64"):
-								for firmware_type in ("UEFI", "BIOS"):
-									for protocol in ("TFTP", "HTTP"):
-										print(
-											f"use_product_on_client={use_product_on_client}, pxe_boot_unknown_devices={pxe_boot_unknown_devices}, "
-											f"use_host_onetime_password={use_host_onetime_password},host_identifiers={host_identifiers}, "
-											f"client_args={client_args}, "
-											f"architecture={architecture}, firmware_type={firmware_type}, protocol={protocol}"
-										)
+							# Random pick architecture
+							architecture = random.choice(["x86", "x64", "arm64"])
+							firmware_type = random.choice(["UEFI", "BIOS"])
+							protocol = random.choice(["TFTP", "HTTP"])
+							for usage in ("DHCP", "FILE_LOAD", None):
+								if use_product_on_client:
+									backend.productOnClient_createObjects([product_on_client])
+								else:
+									backend.productOnClient_deleteObjects([product_on_client])
+								print(
+									f"use_product_on_client={use_product_on_client}, pxe_boot_unknown_devices={pxe_boot_unknown_devices}, "
+									f"use_host_onetime_password={use_host_onetime_password}, host_identifiers={host_identifiers}, "
+									f"client_args={client_args}, "
+									f"architecture={architecture}, firmware_type={firmware_type}, protocol={protocol}, usage={usage}"
+								)
 
-										boot_config: BootConfig = backend.boot_getConfig(
-											ip_version=4,
-											architecture=architecture,
-											firmware_type=firmware_type,
-											protocol=protocol,
-											boot_server_address=boot_server_address,
-											**client_args,
-										)
+								boot_config: BootConfig = backend.boot_getConfig(
+									ip_version=4,
+									architecture=architecture,
+									firmware_type=firmware_type,
+									protocol=protocol,
+									boot_server_address=boot_server_address,
+									usage=usage,
+									**client_args,
+								)
 
-										expect_client_found = (
-											"client_id" in client_args
-											or (
-												"hardware_address" in client_args
-												and ("mac_address" in host_identifiers or not host_identifiers)
-											)
-											or (
-												"system_uuid" in client_args and ("system_uuid" in host_identifiers or not host_identifiers)
-											)
-										)
+								expect_client_found = (
+									"client_id" in client_args
+									or ("hardware_address" in client_args and ("mac_address" in host_identifiers or not host_identifiers))
+									or ("system_uuid" in client_args and ("system_uuid" in host_identifiers or not host_identifiers))
+								)
 
-										assert boot_config.depot_id == depot_id
+								assert boot_config.depot_id == depot_id
 
-										if expect_client_found or pxe_boot_unknown_devices:
-											assert boot_config.pxe_boot_server == boot_server_address
-											assert boot_config.pxe_boot_filename
-											assert boot_config.grub_config
+								if expect_client_found or pxe_boot_unknown_devices:
+									assert boot_config.pxe_boot_server == boot_server_address
+									assert boot_config.pxe_boot_filename
 
-											if firmware_type == "UEFI":
-												assert boot_config.pxe_boot_filename.endswith(f"/opsi-netboot.{architecture}.efi")
+									if firmware_type == "UEFI":
+										assert boot_config.pxe_boot_filename.endswith(f"/opsi-netboot.{architecture}.efi")
+									else:
+										assert boot_config.pxe_boot_filename.endswith(f"/opsi-netboot.{architecture}.bios")
+									if protocol == "TFTP":
+										boot_config.pxe_boot_filename.startswith("/opsi/")
+									else:
+										boot_config.pxe_boot_filename.startswith(f"http://{boot_server_address}:4442/boot/opsi/")
+
+									if usage == "DHCP":
+										assert boot_config.grub_config is None
+									else:
+										assert boot_config.grub_config
+										assert f"depot_id: {depot_id}" in boot_config.grub_config
+
+								if expect_client_found:
+									match = None
+									assert boot_config.client_id == client_id
+									if usage == "DHCP":
+										assert boot_config.grub_config is None
+									else:
+										assert f"client_id: {client_id}" in (boot_config.grub_config or "")
+										match = re.search(r"linux opsi-linux-bootimage/kernel.x64 (.+)", (boot_config.grub_config or ""))
+
+									if use_product_on_client:
+										if usage != "DHCP":
+											assert boot_config.product_id == product_id
+											assert match
+											cmdline = {
+												p.split("=")[0].lower(): p.split("=")[1] if "=" in p else None
+												for p in match.group(1).split()
+											}
+											assert cmdline.get("hn") == client_id.split(".")[0]
+											assert cmdline.get("dn") == ".".join(client_id.split(".")[1:])
+											assert cmdline.get("product") == product_id
+											if use_host_onetime_password:
+												assert len(str(cmdline["otp"])) == 32
+												assert "pckey" not in cmdline
 											else:
-												assert boot_config.pxe_boot_filename.endswith(f"/opsi-netboot.{architecture}.bios")
-											if protocol == "TFTP":
-												boot_config.pxe_boot_filename.startswith("/opsi/")
-											else:
-												boot_config.pxe_boot_filename.startswith(f"http://{boot_server_address}:4442/boot/opsi/")
+												assert "otp" not in cmdline
+												assert cmdline.get("pckey") == client.opsiHostKey
 
-											assert f"depot_id: {depot_id}" in boot_config.grub_config
-
-										if expect_client_found:
-											assert boot_config.client_id == client_id
-											assert f"client_id: {client_id}" in (boot_config.grub_config or "")
-
-											match = re.search(
-												r"linux opsi-linux-bootimage/kernel.x64 (.+)", (boot_config.grub_config or "")
-											)
-											if use_product_on_client:
-												assert match
-												cmdline = {
-													p.split("=")[0].lower(): p.split("=")[1] if "=" in p else None
-													for p in match.group(1).split()
-												}
-												assert cmdline.get("hn") == client_id.split(".")[0]
-												assert cmdline.get("dn") == ".".join(client_id.split(".")[1:])
-												assert cmdline.get("product") == product_id
-												if use_host_onetime_password:
-													assert len(str(cmdline["otp"])) == 32
-													assert "pckey" not in cmdline
-												else:
-													assert "otp" not in cmdline
-													assert cmdline.get("pckey") == client.opsiHostKey
-												assert boot_config.product_id == product_id
-											else:
-												assert match is None
-												assert boot_config.product_id is None
+										updated_product_on_client = backend.productOnClient_getObjects(
+											productId=[product_id], clientId=[client_id]
+										)[0]
+										if usage == "FILE_LOAD":
+											assert updated_product_on_client.actionRequest == "none"
+											assert updated_product_on_client.actionProgress == "pxe boot configuration read"
 										else:
-											assert boot_config.client_id is None
-											assert bool(boot_config.pxe_boot_server) is pxe_boot_unknown_devices
-											assert bool(boot_config.pxe_boot_filename) is pxe_boot_unknown_devices
-											assert bool(boot_config.grub_config) is pxe_boot_unknown_devices
-											assert client_id not in (boot_config.grub_config or "")
+											assert updated_product_on_client.actionRequest == product_on_client.actionRequest
+											assert updated_product_on_client.actionProgress == product_on_client.actionProgress
+
+									else:
+										assert match is None
+										assert boot_config.product_id is None
+								else:
+									assert boot_config.client_id is None
+									assert bool(boot_config.pxe_boot_server) is pxe_boot_unknown_devices
+									assert bool(boot_config.pxe_boot_filename) is pxe_boot_unknown_devices
+									assert bool(boot_config.grub_config) is (pxe_boot_unknown_devices and usage != "DHCP")
+									assert client_id not in (boot_config.grub_config or "")

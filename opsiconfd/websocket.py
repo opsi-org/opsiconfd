@@ -99,7 +99,7 @@ class WSProtocolOpsiconfd(WSProtocol):
 			elif isinstance(event, events.Pong):
 				self.handle_pong(event)
 
-	def connection_made(self, transport: asyncio.Transport) -> None:  # type: ignore[override]
+	def connection_made(self, transport: asyncio.Transport) -> None:
 		super().connection_made(transport)
 		if self._ping_interval > 0 and self._ping_timeout > 0:
 			task = self.loop.create_task(self._ping_pong_task())

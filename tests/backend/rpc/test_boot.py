@@ -22,8 +22,6 @@ from opsicommon.objects import BoolConfig, NetbootProduct, OpsiClient, OpsiDepot
 from opsiconfd.backend.rpc.boot import (
 	BootConfig,
 	Template,
-	# get_template_context,
-	# render_grub_cfg,
 	TemplateContext,
 	TemplateContextConfigState,
 	TemplateContextConfigStates,

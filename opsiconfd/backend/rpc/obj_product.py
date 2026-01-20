@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Any, Protocol
 from opsicommon.objects import Product
 from opsicommon.types import forceList, forceObjectClass
 
+from opsiconfd.logging import logger
+
 from ..mysql.cleanup import (
 	remove_orphans_object_to_group_product,
 	remove_orphans_product_on_client,
@@ -104,3 +106,39 @@ class RPCProductMixin(Protocol):
 		idents = self.product_getIdents(returnType="dict", id=id)
 		if idents:
 			self.product_deleteObjects(idents)
+
+	@rpc_method(check_acl=False)
+	def product_purge(self: BackendProtocol, id: list[str] | str) -> None:
+		"""
+		Purge product metadata for given product IDs.
+		If no product IDs are given, metadata for all products will be purged.
+		"""
+		product_ids = [p["id"] for p in self.product_getIdents(returnType="dict", id=id or [])]
+
+		# Get all client_ids by depot
+		client_ids_by_depot = {}
+		for c2d in self.configState_getClientToDepotserver():
+			if c2d["depotId"] not in client_ids_by_depot:
+				client_ids_by_depot[c2d["depotId"]] = []
+			client_ids_by_depot[c2d["depotId"]].append(c2d["clientId"])
+
+		for product_id in product_ids:
+			# Get all depots where the product is installed
+			depot_ids_where_installed = [pod["depotId"] for pod in self.productOnDepot_getIdents(returnType="dict", productId=[product_id])]
+
+			# Get all clients of the depots where the product is not installed
+			client_ids_for_purge = []
+			for depot_id, client_ids in client_ids_by_depot.items():
+				if depot_id not in depot_ids_where_installed:
+					client_ids_for_purge.extend(client_ids)
+			if not client_ids_for_purge:
+				continue
+
+			logger.debug("Deleting ProductOnClients for product '%s' on clients: %s", product_id, client_ids_for_purge)
+			self.productOnClient_delete(productId=[product_id], clientId=client_ids_for_purge)
+			logger.debug("Deleting InstallationStatus for product '%s' on clients: %s", product_id, client_ids_for_purge)
+			self.productPropertyState_delete(productId=[product_id], propertyId=[], objectId=client_ids_for_purge)
+
+			if not depot_ids_where_installed:
+				logger.debug("Deleting Product '%s'", product_id)
+				self.product_delete(id=[product_id])

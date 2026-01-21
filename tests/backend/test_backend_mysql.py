@@ -300,12 +300,20 @@ def test_config_mysql_internal_url(tmp_path: Path, mysql_internal_url: str, expe
 			return None
 
 		class MockResult:
+			def __init__(self, result: list[str]) -> None:
+				self.result = result
+
 			def fetchone(self) -> list[str]:
-				return ["MariaDB 10.1"]
+				return self.result
 
 		class MockSession:
+			count = 0
+
 			def execute(self, query: str) -> MockResult:
-				return MockResult()
+				self.count += 1
+				if self.count == 1:
+					return MockResult(["MariaDB 10.1"])
+				return MockResult(["2024-01-01 00:00:00"])
 
 		@contextmanager
 		def session(self: MySQLConnection) -> Generator[MockSession, None, None]:

@@ -13,6 +13,7 @@ import math
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from functools import lru_cache
 from inspect import signature
 from json import JSONDecodeError, dumps, loads
@@ -435,6 +436,18 @@ class MySQLConnection:
 					)
 					logger.error(error)
 					raise RuntimeError(error)
+
+			db_time = session.execute("SELECT CURRENT_TIMESTAMP()").fetchone()[0]
+			db_time_utc = datetime.fromisoformat(str(db_time).replace(" ", "T") + "+00:00")
+			now = datetime.now(tz=timezone.utc)
+			time_diff = abs((db_time_utc - now).total_seconds())
+			log = logger.info if time_diff < 30 else logger.warning
+			log(
+				"Database time is %s (UTC), server time is %s (UTC), time difference is %d seconds",
+				db_time_utc.strftime("%Y-%m-%d %H:%M:%S"),
+				now.strftime("%Y-%m-%d %H:%M:%S"),
+				time_diff,
+			)
 
 	@contextmanager
 	def connection(self) -> Generator[None, None, None]:

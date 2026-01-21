@@ -14,10 +14,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.exceptions import BackendPermissionDeniedError
-from opsicommon.objects import (
-	AuditHardware,
-	AuditHardwareOnHost,
-)
+from opsicommon.objects import AuditHardware, AuditHardwareOnHost
 from opsicommon.types import forceList
 
 from opsiconfd.backend.auth import RPCACE, RPCACE_ALLOW_ALL

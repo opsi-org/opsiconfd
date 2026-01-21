@@ -8,6 +8,7 @@ test opsiconfd.backend.rpc.test_obj_audit_hardware_on_host
 """
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -35,7 +36,7 @@ def test_hwaudit(
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [clients]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
-
+	now = datetime.now(tz=timezone.utc)
 	audit_hardware_on_hosts_by_ident = {}
 	for host_id, host_key in ((host_id1, host_key1), (host_id2, host_key2)):
 		test_client.reset_cookies()
@@ -62,6 +63,14 @@ def test_hwaudit(
 		rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditHardwareOnHost_getObjects", "params": [[], {"hostId": host_id}]}
 		res = test_client.post("/rpc", json=rpc).json()
 		assert "error" not in res
+
+		for x in res["result"]:
+			first_seen = datetime.fromisoformat(x["firstseen"].replace(" ", "T") + "+00:00")
+			last_seen = datetime.fromisoformat(x["lastseen"].replace(" ", "T") + "+00:00")
+			assert first_seen.tzname() == "UTC"
+			assert last_seen.tzname() == "UTC"
+			assert abs((now - last_seen).total_seconds()) < 10
+			assert abs((now - first_seen).total_seconds()) < 10
 
 		by_ident = {a["ident"]: a for a in res["result"]}
 		assert sorted(audit_hardware_on_hosts_by_ident[host_id]) == sorted(by_ident)

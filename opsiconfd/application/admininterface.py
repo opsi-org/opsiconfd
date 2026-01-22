@@ -773,27 +773,29 @@ async def open_grafana(request: Request) -> RedirectResponse:
 @rest_api
 def get_confd_conf(all: bool = False) -> RESTResponse:
 	keys_to_remove = (
-		"version",
-		"setup",
-		"action",
-		"ex_help",
-		"log_max_msg_len",
-		"debug",
-		"profiler",
-		"server_type",
-		"node_name",
-		"executor_workers",
-		"log_slow_async_callbacks",
-		"ssl_ca_key_passphrase",
-		"ssl_server_key_passphrase",
+		[]
+		if all
+		else [
+			"version",
+			"setup",
+			"action",
+			"ex_help",
+			"log_max_msg_len",
+			"debug",
+			"profiler",
+			"server_type",
+			"node_name",
+			"executor_workers",
+			"log_slow_async_callbacks",
+			"ssl_ca_key_passphrase",
+			"ssl_server_key_passphrase",
+			"database_encryption_keys",
+			"admin_user",
+			"admin_password",
+		]
 	)
 
-	current_config = config.items().copy()
-	if not all:
-		for key in keys_to_remove:
-			if key in current_config:
-				del current_config[key]
-	current_config = {key.replace("_", "-"): value for key, value in sorted(current_config.items())}
+	current_config = {key.replace("_", "-"): value for key, value in sorted(config.items().copy().items()) if key not in keys_to_remove}
 
 	return RESTResponse({"config": current_config})
 

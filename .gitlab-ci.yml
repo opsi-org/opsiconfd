@@ -27,7 +27,6 @@ test:lint-and-test:
     - cp docker/opsiconfd-dev/common.env docker/opsiconfd-dev/.env
     - echo "UV_PYTHON_INSTALL_DIR=/workspace/.uv_python" >> docker/opsiconfd-dev/.env
     - echo "OPSILICSRV_TOKEN=${OPSILICSRV_TOKEN}" >> docker/opsiconfd-dev/.env
-    #- echo "LOCAL_WORKSPACE_DIR=../.." >> docker/opsiconfd-dev/.env
     - echo "LOCAL_WORKSPACE_DIR=${LOCAL_WORKSPACE_DIR}" >> docker/opsiconfd-dev/.env
     - echo "OPSISERVER_DEV_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
     - echo "OPSISERVER_CS_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env

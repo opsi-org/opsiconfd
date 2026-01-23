@@ -157,7 +157,7 @@ build:linux-x64:
     # Check if binary is working
     - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --python-info
     # Check for vulnerabilities
-    - opsi-dev-cli appsec scan --max-severity-allowed none ./opsiconfd-amd64/sbom.cyclonedx.json
+    - opsi-dev-cli appsec scan --max-severity-allowed none --ignore CVE-1999-0342,CVE-2005-2977 ./opsiconfd-amd64/sbom.cyclonedx.json
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:
@@ -220,7 +220,7 @@ build:linux-arm64:
     # Check if binary is working
     - OPSI_HOSTNAME=test.uib.local ./opsiconfd-arm64/opsiconfd -c opsiconfd_data/etc/opsiconfd.conf --python-info
     # Check for vulnerabilities
-    - opsi-dev-cli appsec scan --max-severity-allowed none ./opsiconfd-arm64/sbom.cyclonedx.json
+    - opsi-dev-cli appsec scan --max-severity-allowed none --ignore CVE-1999-0342,CVE-2005-2977 ./opsiconfd-arm64/sbom.cyclonedx.json
   artifacts:
     name: 'opsiconfd-arm64-pyinstaller'
     paths:

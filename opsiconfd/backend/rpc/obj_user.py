@@ -23,7 +23,7 @@ from opsicommon.types import forceHostId, forceList
 from qrcode import QRCode
 
 from opsiconfd.backend.auth import RPCACE
-from opsiconfd.config import config, get_configserver_id
+from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, set_system_user_password
 from opsiconfd.utils.cryptography import HashingAlgorithm, blowfish_encrypt, create_password_hash, decrypt, encrypt
@@ -238,11 +238,7 @@ class RPCUserMixin(Protocol):
 		if '"' in password:
 			raise ValueError("Character '\"' not allowed in password")
 
-		user = User(
-			id=username,
-			encryptedPassword=encrypt(password),
-			passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method)),
-		)
+		user = User(id=username, encryptedPassword=encrypt(password))
 		self.user_updateObjects([user])
 
 		set_system_user_password(username, password)

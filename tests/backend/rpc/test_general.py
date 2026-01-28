@@ -20,7 +20,7 @@ import pytest
 from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicense, OpsiLicensePool, generate_key_pair, get_default_opsi_license_pool
 from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient, User
 
-from opsiconfd.utils.cryptography import decrypt, verify_password
+from opsiconfd.utils.cryptography import decrypt
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
@@ -168,7 +168,7 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 		backend.user_setCredentials("pcpatch", "password")
 		user: User = backend.user_getObjects(id="pcpatch")[0]
 		assert user.encryptedPassword and decrypt(user.encryptedPassword) == "password"
-		assert user.passwordHash and verify_password("password", user.passwordHash)
+		assert not user.passwordHash
 		cmds = list(proc.test_input)
 		assert cmds == ["smbldap-passwd pcpatch"]
 		assert backend.user_getCredentials("pcpatch") == {"password": "password", "rsaPrivateKey": ""}
@@ -178,7 +178,7 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 		backend.user_setCredentials("pcpatch", "password2")
 		user = backend.user_getObjects(id="pcpatch")[0]
 		assert user.encryptedPassword and decrypt(user.encryptedPassword) == "password2"
-		assert user.passwordHash and verify_password("password2", user.passwordHash)
+		assert not user.passwordHash
 		cmds = list(proc.test_input)
 		assert cmds == ["smbldap-passwd pcpatch", "chpasswd", "smbpasswd -a -s pcpatch"]
 		assert backend.user_getCredentials("pcpatch") == {"password": "password2", "rsaPrivateKey": ""}

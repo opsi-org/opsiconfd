@@ -966,6 +966,18 @@ wheels = [
 ]
 
 [[package]]
+name = "ldap3"
+version = "2.9.1"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+dependencies = [
+    { name = "pyasn1" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/ac/96bd5464e3edbc61595d0d69989f5d9969ae411866427b2500a8e5b812c0/ldap3-2.9.1.tar.gz", hash = "sha256:f3e7fc4718e3f09dda568b57100095e0ce58633bcabbed8667ce3f8fbaa4229f", size = 398830, upload-time = "2021-07-18T06:34:21.786Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/f6/71d6ec9f18da0b2201287ce9db6afb1a1f637dedb3f0703409558981c723/ldap3-2.9.1-py2.py3-none-any.whl", hash = "sha256:5869596fc4948797020d3f03b7939da938778a0f9e2009f7a072ccf92b8e8d70", size = 432192, upload-time = "2021-07-18T06:34:12.905Z" },
+]
+
+[[package]]
 name = "lxml"
 version = "6.0.2"
 source = { registry = "https://pypi.uib.gmbh/simple" }
@@ -1360,6 +1372,7 @@ dependencies = [
     { name = "hiredis" },
     { name = "httpx" },
     { name = "itsdangerous" },
+    { name = "ldap3" },
     { name = "lxml" },
     { name = "lz4" },
     { name = "mysqlclient" },
@@ -1441,6 +1454,7 @@ requires-dist = [
     { name = "hiredis", specifier = ">=3.1" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "itsdangerous", specifier = ">=2.0" },
+    { name = "ldap3", specifier = ">=2.9.1" },
     { name = "lxml" },
     { name = "lz4", specifier = ">=4.4.5" },
     { name = "mysqlclient", specifier = ">=2.0,<2.2" },

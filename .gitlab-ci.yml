@@ -16,8 +16,6 @@ test:lint-and-test:
     variables:
       - $SKIP_TESTS
   image: docker
-  artifacts:
-    when: always
   before_script:
     - TXT_HEAD="\e[46m\e[1;37m" && TXT_ERROR="\e[1;31m" && TXT_CLEAR="\e[0m"
     # https://gitlab.com/gitlab-org/gitlab-foss/-/issues/41227
@@ -128,6 +126,7 @@ test:lint-and-test:
     - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --if-branch "$CI_COMMIT_REF_NAME" --else-if-branch "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --else-if-branch main --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
+    when: always
     name: 'opsiconfd_test'
     paths:
       - coverage.xml

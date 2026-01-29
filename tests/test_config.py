@@ -137,12 +137,21 @@ def test_help() -> None:
 		with pytest.raises(SystemExit):
 			with get_config(["--help"]):
 				pass
+
+		# Assert that extended help options does not appear in normal help
 		assert "Set maximum log message length" not in text
+		# Assert that choices are shown in help
+		assert "{inactive,totp_optional,totp_mandatory}" in text
+		# Assert thate env vars are shown in help
+		assert "[env var: OPSICONFD_ADMIN_NETWORKS]" in text
+		# Assert that default values are shown in help
+		assert "(default: ['127.0.0.1/32', '::1/128'])" in text
 
 		text = ""
 		with pytest.raises(SystemExit):
 			with get_config(["--ex-help"]):
 				pass
+		# Assert that extended help options appear in extended help
 		assert "Set maximum log message length" in text
 
 

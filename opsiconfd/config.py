@@ -16,10 +16,11 @@ import socket
 import sys
 import threading
 import warnings
-from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter, _MutuallyExclusiveGroup
+from _colorize import ANSIColors, Theme, can_colorize  # type: ignore[import]
+from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Literal, TextIO
+from typing import TYPE_CHECKING, Any, Literal, TextIO
 from urllib.parse import unquote, urlparse
 
 import certifi
@@ -255,28 +256,25 @@ configargparse.ArgumentParser.format_help = format_help_without_msg  # type: ign
 
 
 class OpsiconfdHelpFormatter(HelpFormatter):
-	CN = ""
-	CB = ""
-	CC = ""
-	CW = ""
-	if sys.stdout.isatty():
-		CN = "\033[0;0;0m"
-		CB = "\033[1;34;49m"
-		CC = "\033[1;36;49m"
-		CW = "\033[1;39;49m"
-		CY = "\033[0;33;49m"
+	RE_DEFAULT = re.compile(r"\(default: (.*)\)")
+	RE_ENV_VAR: re.Pattern = re.compile(r"\[env var: ([^\]]*)\]")
+	_theme: Theme
 
 	def __init__(self, sub_command: str | None = None) -> None:
 		super().__init__("opsiconfd", max_help_position=10, width=100)
 		self._sub_command = sub_command
+		self._color = can_colorize()
 
 	def _split_lines(self, text: str, width: int) -> list[str]:
 		# The textwrap module is used only for formatting help.
 		# Delay its import for speeding up the common usage of argparse.
-		text = text.replace("[env var: ", "\n[env var: ")
-		text = text.replace("(default: ", "\n(default: ")
-		lines = []
 		from textwrap import wrap
+
+		t = self._theme
+		c = self._color
+		text = self.RE_ENV_VAR.sub(f"\n{ANSIColors.BOLD if c else ''}[env var: \g<1>]{t.reset if c else ''}", text)
+		text = self.RE_DEFAULT.sub(f"\n{ANSIColors.BOLD if c else ''}(default: \g<1>){t.reset if c else ''}", text)
+		lines = []
 
 		for line in text.split("\n"):
 			lines += wrap(line, width)
@@ -301,33 +299,9 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 		return text
 
-	def _format_usage(
-		self, usage: str | None, actions: Iterable[Action], groups: Iterable[_MutuallyExclusiveGroup], prefix: str | None
-	) -> str:
-		text = super()._format_usage(usage, actions, groups, prefix)
-		sub = f" {self._sub_command}" if self._sub_command else ""
-		text = re.sub(r"usage:\s+(\S+)\s+", rf"Usage: {self.CW}\g<1>{sub}{self.CN} ", text)
-		return text
-
-	def _format_actions_usage(self, actions: Iterable[Action], groups: Iterable) -> str:
-		text = HelpFormatter._format_actions_usage(self, actions, groups)
-		text = re.sub(r"(--?\S+)", rf"{self.CW}\g<1>{self.CN}", text)
-		text = re.sub(r"([A-Z_]{2,})", rf"{self.CC}\g<1>{self.CN}", text)
-		return text
-
-	def _format_action_invocation(self, action: Action) -> str:
-		text = HelpFormatter._format_action_invocation(self, action)
-		text = re.sub(r"(--?\S+)", rf"{self.CW}\g<1>{self.CN}", text)
-		text = re.sub(r"([A-Z_]{2,})", rf"{self.CC}\g<1>{self.CN}", text)
-		return text
-
-	def _format_args(self, action: Action, default_metavar: str) -> str:
-		text = HelpFormatter._format_args(self, action, default_metavar)
-		return f"{self.CC}{text}{self.CN}"
-
 	def _get_help_string(self, action: Action) -> str:
 		text = action.help or ""
-		if "passphrase" not in action.dest and "%(default)" not in (action.help or ""):
+		if "%(default)" not in (action.help or ""):
 			if action.default is not SUPPRESS:
 				defaulting_nargs = (OPTIONAL, ZERO_OR_MORE)
 				if action.dest == "config_file":

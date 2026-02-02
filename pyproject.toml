@@ -4,7 +4,7 @@ version = "4.3.49.1"
 description = "OPSI configuration service"
 readme = "README.md"
 license = "AGPL-3.0-only"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
 	"acme>=3.0",
 	"aiofiles>=24.1",

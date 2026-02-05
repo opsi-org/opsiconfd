@@ -76,7 +76,7 @@ package:
   depends:
     - libmariadb3 | mariadb-connector-c
     - librsync | librsync2 | librsync1
-    - libcrypt1 | libxcrypt (<< 4.4) | libxcrypt-compat
+    - libcrypt1 | libxcrypt (<< 4.4) | libxcrypt-compat | libc6 (<< 2.29)
     - pigz
   conflicts:
     - opsi-server (<< 4.3)

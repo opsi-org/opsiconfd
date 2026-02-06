@@ -616,7 +616,7 @@ async def update_multi_factor_auth(request: Request) -> RESTResponse:
 @rest_api
 async def create_user(request: Request) -> RESTResponse:
 	params = await request.json()
-	if not params.get("user_id") or not params.get("password"):
+	if not params.get("user_id"):
 		return RESTErrorResponse(message="Invalid request", http_status=status.HTTP_400_BAD_REQUEST)
 
 	backend = get_unprotected_backend()
@@ -624,11 +624,11 @@ async def create_user(request: Request) -> RESTResponse:
 	if users:
 		return RESTErrorResponse(message="User already exists", http_status=status.HTTP_409_CONFLICT)
 
-	password = params.get("password") or ""
-	try:
-		check_password_strength(password)
-	except Exception as err:
-		return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
+	if password := params.get("password"):
+		try:
+			check_password_strength(password)
+		except Exception as err:
+			return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 	groups = []
 	if params.get("admin"):
@@ -637,7 +637,9 @@ async def create_user(request: Request) -> RESTResponse:
 		groups.append("{readonly}")
 	user = User(
 		id=params.get("user_id"),
-		passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method)),
+		passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method))
+		if password
+		else None,
 		groups=groups,
 	)
 	await backend.async_call("user_createObjects", users=[user])

@@ -9,7 +9,7 @@ function createUUID() {
 }
 
 
-function showNotifcation(message, group = "", type = "success", seconds = 10) {
+function showNotification(message, group = "", type = "success", seconds = 10) {
 	// type: success / warning / error
 	const notifications = document.getElementById("notifications");
 	const notifcation = document.createElement("div");
@@ -93,7 +93,7 @@ function setAppState(type, button) {
 			button.classList.remove("loading");
 		}
 		console.error(error);
-		showNotifcation(`Error setting application state: ${error.message}`, "app-state", "error", 10);
+		showNotification(`Error setting application state: ${error.message}`, "app-state", "error", 10);
 	});
 }
 
@@ -109,10 +109,10 @@ function createBackup() {
 	req.then((response) => {
 		console.debug(response);
 		if (response.error) {
-			showNotifcation(`Failed to create backup: ${response.error.message}`, "backup", "error", 30);
+			showNotification(`Failed to create backup: ${response.error.message}`, "backup", "error", 30);
 		}
 		else {
-			showNotifcation("Backup successfully created", "backup", "success", 5);
+			showNotification("Backup successfully created", "backup", "success", 5);
 			const link = document.createElement('a');
 			link.setAttribute('href', `/file-transfer/${response.result}?delete=true`);
 			link.style.display = 'none';
@@ -123,7 +123,7 @@ function createBackup() {
 		button.classList.remove("loading");
 	}, (error) => {
 		console.error(error);
-		showNotifcation(`Failed to create backup: ${error.message || JSON.stringify(error)}`, "backup", "error", 30);
+		showNotification(`Failed to create backup: ${error.message || JSON.stringify(error)}`, "backup", "error", 30);
 		button.classList.remove("loading");
 	});
 }
@@ -132,7 +132,7 @@ function createBackup() {
 function restoreBackup() {
 	const file = document.getElementById("restore-backup-file").files[0];
 	if (!file) {
-		showNotifcation("Backup file not provided", "restore", "error", 3);
+		showNotification("Backup file not provided", "restore", "error", 3);
 		return;
 	}
 
@@ -142,7 +142,7 @@ function restoreBackup() {
 		serverID = serverIDSelect;
 	}
 	if (!serverID) {
-		showNotifcation("Server ID not provided", "restore", "error", 3);
+		showNotification("Server ID not provided", "restore", "error", 3);
 		return;
 	}
 	const password = document.getElementById("restore-backup-password").value;
@@ -164,16 +164,16 @@ function restoreBackup() {
 		req.then((response) => {
 			console.debug(response);
 			if (response.error) {
-				showNotifcation(`Failed to restore backup: ${response.error.message}`, "restore", "error", 30);
+				showNotification(`Failed to restore backup: ${response.error.message}`, "restore", "error", 30);
 			}
 			else {
-				showNotifcation("Backup successfully restored", "restore", "success", 5);
+				showNotification("Backup successfully restored", "restore", "success", 5);
 			}
 			button.classList.remove("loading");
 		});
 	}, (error) => {
 		console.error(error);
-		showNotifcation(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "restore", "error", 30);
+		showNotification(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "restore", "error", 30);
 		button.classList.remove("loading");
 	});
 }
@@ -253,7 +253,7 @@ function createDepot() {
 		loadDepotTable();
 	}, (error) => {
 		console.error(error);
-		showNotifcation(`Failed to create depot: ${error.message}`, "create-depot", "error", 10);
+		showNotification(`Failed to create depot: ${error.message}`, "create-depot", "error", 10);
 	});
 }
 
@@ -333,43 +333,142 @@ function loadRPCTable(sortKey, sort) {
 	});
 }
 
-function clearUserInstructions() {
-	document.getElementById('user-instructions').innerHTML = "";
+
+let confirmOverlayState = {
+	onConfirm: null,
+	onCancel: null
+};
+
+function initConfirmOverlay() {
+	const overlay = document.getElementById("confirm-overlay");
+	if (!overlay) {
+		return;
+	}
+	const cancelButton = document.getElementById("confirm-overlay-cancel");
+	const confirmButton = document.getElementById("confirm-overlay-confirm");
+
+	overlay.addEventListener("click", (event) => {
+		if (event.target === overlay) {
+			hideConfirmOverlay("cancel");
+		}
+	});
+
+	cancelButton.addEventListener("click", () => {
+		hideConfirmOverlay("cancel");
+	});
+
+	confirmButton.addEventListener("click", () => {
+		hideConfirmOverlay("confirm");
+	});
+
+	document.addEventListener("keydown", (event) => {
+		if (event.key === "Escape" && overlay.classList.contains("active")) {
+			hideConfirmOverlay("cancel");
+		}
+	});
+}
+
+function showDialogOverlay({ title, bodyHtml, confirmLabel = "Confirm", cancelLabel = "Cancel", onConfirm, onCancel }) {
+	const overlay = document.getElementById("confirm-overlay");
+	const titleEl = document.getElementById("confirm-overlay-title");
+	const messageEl = document.getElementById("confirm-overlay-message");
+	const bodyEl = document.getElementById("confirm-overlay-body");
+	const cancelButton = document.getElementById("confirm-overlay-cancel");
+	const confirmButton = document.getElementById("confirm-overlay-confirm");
+
+	if (!overlay || !titleEl || !messageEl || !bodyEl || !cancelButton || !confirmButton) {
+		return;
+	}
+
+	confirmOverlayState = {
+		onConfirm: onConfirm || null,
+		onCancel: onCancel || null
+	};
+
+	titleEl.textContent = title || "Confirm";
+	messageEl.textContent = "";
+	bodyEl.innerHTML = bodyHtml || "";
+	if (cancelLabel) {
+		cancelButton.textContent = cancelLabel;
+	}
+	else {
+		cancelButton.style.display = "none";
+	}
+
+	if (confirmLabel) {
+		confirmButton.textContent = confirmLabel;
+	}
+	else {
+		confirmButton.style.display = "none";
+	}
+
+	overlay.classList.add("active");
+}
+
+function hideConfirmOverlay(action = "cancel") {
+	const overlay = document.getElementById("confirm-overlay");
+	if (!overlay) {
+		return;
+	}
+
+	overlay.classList.remove("active");
+
+	const onConfirm = confirmOverlayState.onConfirm;
+	const onCancel = confirmOverlayState.onCancel;
+	confirmOverlayState = { onConfirm: null, onCancel: null };
+
+	if (action === "confirm" && onConfirm) {
+		onConfirm();
+	}
+	else if (action === "cancel" && onCancel) {
+		onCancel();
+	}
 }
 
 
 function updateMultiFactorAuth(userId, type) {
-	clearUserInstructions();
 	let req = ajaxRequest("POST", "/admin/update-multi-factor-auth", { "user_id": userId, "type": type });
 	req.then((result) => {
 		if (result) {
-			let html = `<pre id="user-instructions" style="line-height: 1.0;">${result}</pre>`;
+			let html = `<div style="line-height: 1.0;">${result}</div>`;
 			html += "<p>Your multi-factor secret has been changed.<br>";
-			html += "Please use an app like Google Authenticator and scan the QR code displayed.<br>"
-			html += "The app will then generate a new one-time password every 30 seconds.<br>"
-			html += "Without this password you will not be able to log in to the OPSI server anymore.</p>"
-			html += '<button onClick="clearUserInstructions();">All done, hide instructions and QR code.</button>';
-			document.getElementById("user-instructions").innerHTML = html;
+			html += "Please use an app like Google Authenticator and scan the QR code displayed.<br>";
+			html += "The app will then generate a new one-time password every 30 seconds.<br>";
+			html += "Without this password you will not be able to log in to the OPSI server anymore.</p>";
+			showDialogOverlay({
+				title: `Multi-factor authentication for ${userId}`,
+				bodyHtml: html,
+				confirmLabel: "Done",
+				cancelLabel: null
+			});
 		}
 		loadUserTable();
 	});
 }
 
 function showPasswordInstructions(userId, errorMessage = null) {
-	let html = `<h4>Change password</h4>`;
+	let html = "";
 	if (errorMessage) {
 		html += `<p style="color:red;">${errorMessage}</p>`;
 	}
 	html += `<form action="javascript:void(0);">`;
-	html += `<label for="username" style="width: 150px; display: inline-block;">Username:</label>`;
-	html += `<input type="text" id="username" autocomplete="username" value="${userId}" /><br/>`;
-	html += `<label for="new-password" style="width: 150px; display: inline-block;">New password:</label>`;
-	html += `<input type="password" id="new-password" autocomplete="new-password" /><br/>`;
-	html += `<label for="confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
-	html += `<input type="password" id="confirm-password" autocomplete="new-password" /><br/>`;
-	html += `<button onclick="changeInternalUserPassword('${userId}', document.getElementById('new-password').value, document.getElementById('confirm-password').value);">Change password</button>`;
+	html += `<label for="change-password-new-password" style="width: 150px; display: inline-block;">New password:</label>`;
+	html += `<input type="password" id="change-password-new-password" /><br/>`;
+	html += `<label for="change-password-confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
+	html += `<input type="password" id="change-password-confirm-password" /><br/>`;
 	html += `</form>`;
-	document.getElementById("user-instructions").innerHTML = html;
+
+	showDialogOverlay({
+		title: `Change password of user ${userId}`,
+		bodyHtml: html,
+		confirmLabel: "Change password",
+		cancelLabel: "Cancel",
+		onConfirm: () => changeInternalUserPassword(
+			userId,
+			document.getElementById('change-password-new-password').value,
+			document.getElementById('change-password-confirm-password').value,
+		)
+	});
 }
 
 function changeInternalUserPassword(userId, password = null, confirmPassword = null) {
@@ -383,13 +482,12 @@ function changeInternalUserPassword(userId, password = null, confirmPassword = n
 	else {
 		let req = ajaxRequest("POST", "/admin/set-internal-user-password", { "user_id": userId, "password": password });
 		req.then((result) => {
-			showNotifcation("New password successfully set", "user-edit", "success", 3);
-			clearUserInstructions();
+			showNotification("New password successfully set", "user-edit", "success", 3);
 			loadUserTable();
 		}, (error) => {
 			let errorMessage = `Failed to set user password: ${error.message || error.detail || JSON.stringify(error)}`;
 			showPasswordInstructions(userId, errorMessage);
-			showNotifcation(errorMessage, "user-edit", "error", 10);
+			showNotification(errorMessage, "user-edit", "error", 10);
 			loadUserTable();
 		});
 	}
@@ -398,47 +496,60 @@ function changeInternalUserPassword(userId, password = null, confirmPassword = n
 function updateUserTokenAuth(userId, enable) {
 	let req = ajaxRequest("POST", "/admin/update-user-token-auth", { "user_id": userId, "enable": enable });
 	req.then((result) => {
-		showNotifcation(`Token authentication ${enable ? "enabled" : "disabled"} successfully`, "user-edit", "success", 3);
+		showNotification(`Token authentication ${enable ? "enabled" : "disabled"} successfully`, "user-edit", "success", 3);
 		if (enable) {
 			let html = "<p>Token authentication is now enabled.<br>";
 			html += "Please store the following token securely as it will not be shown again:<br><br>";
 			html += `<strong>${result}</strong></p>`;
-			html += '<button onClick="clearUserInstructions();">Done, hide token</button>';
-			document.getElementById("user-instructions").innerHTML = html;
-		}
-		else {
-			clearUserInstructions();
+			showDialogOverlay({
+				title: `Token authentication for ${userId}`,
+				bodyHtml: html,
+				confirmLabel: "Done",
+				cancelLabel: null
+			});
 		}
 		loadUserTable();
 	}, (error) => {
 		let errorMessage = `Failed to update token authentication: ${error.message || error.detail || JSON.stringify(error)}`;
-		showNotifcation(errorMessage, "user-edit", "error", 10);
+		showNotification(errorMessage, "user-edit", "error", 10);
 		loadUserTable();
 	});
 }
 
 
 function showNewUserInstructions(userId, admin, readonly, errorMessage = null) {
-	let html = `<h4>Create new user</h4>`;
+	let html = "";
 	if (errorMessage) {
 		html += `<p style="color:red;">${errorMessage}</p>`;
 	}
 	html += `<form action="javascript:void(0);">`;
-	html += `<label for="username" style="width: 150px; display: inline-block;">Username:</label>`;
-	html += `<input type="text" id="username" autocomplete="username" value="${userId || ''}" /><br/>`;
-	html += `<label for="new-password" style="width: 150px; display: inline-block;">Password:</label>`;
-	html += `<input type="password" id="new-password" autocomplete="new-password" /><br/>`;
-	html += `<label for="confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
-	html += `<input type="password" id="confirm-password" autocomplete="new-password" /><br/>`;
-	html += `<input type="checkbox" id="admin" ${admin ? "checked" : ""} onchange="document.getElementById('readonly').checked = !this.checked;" /> Admin<br/>`;
-	html += `<input type="checkbox" id="readonly" ${readonly ? "checked" : ""} onchange="document.getElementById('admin').checked = !this.checked;" /> Readonly<br/>`;
-	html += `<button onclick="createUser(document.getElementById('username').value, document.getElementById('new-password').value, document.getElementById('confirm-password').value, document.getElementById('admin').checked, document.getElementById('readonly').checked);">Create user</button>`;
+	html += `<label for="new-user-username" style="width: 150px; display: inline-block;">Username:</label>`;
+	html += `<input type="text" id="new-user-username" autocomplete="username" value="${userId || ''}" /><br/>`;
+	html += `<label for="new-user-new-password" style="width: 150px; display: inline-block;">Password:</label>`;
+	html += `<input type="password" id="new-user-new-password" autocomplete="new-password" /><br/>`;
+	html += `<label for="new-user-confirm-password" style="width: 150px; display: inline-block;">Confirm password:</label>`;
+	html += `<input type="password" id="new-user-confirm-password" autocomplete="new-password" /><br/>`;
+	html += `<input type="checkbox" id="new-user-admin" ${admin ? "checked" : ""} onchange="document.getElementById('new-user-readonly').checked = !this.checked;" /> Admin<br/>`;
+	html += `<input type="checkbox" id="new-user-readonly" ${readonly ? "checked" : ""} onchange="document.getElementById('new-user-admin').checked = !this.checked;" /> Readonly<br/>`;
 	html += `</form>`;
-	document.getElementById("user-instructions").innerHTML = html;
+
+	showDialogOverlay({
+		title: "Create new user",
+		bodyHtml: html,
+		confirmLabel: "Create user",
+		cancelLabel: "Cancel",
+		onConfirm: () => createUser(
+			document.getElementById('new-user-username').value,
+			document.getElementById('new-user-new-password').value,
+			document.getElementById('new-user-confirm-password').value,
+			document.getElementById('new-user-admin').checked,
+			document.getElementById('new-user-readonly').checked
+		)
+	});
 }
 
 function createUser(userId = null, password = null, confirmPassword = null, admin = true, readonly = false) {
-	if (!userId || !password || password !== confirmPassword) {
+	if (!userId || password !== confirmPassword) {
 		let errorMessage = null;
 		if (password !== confirmPassword) {
 			errorMessage = "The provided passwords do not match. Please try again.";
@@ -448,13 +559,12 @@ function createUser(userId = null, password = null, confirmPassword = null, admi
 	else {
 		let req = ajaxRequest("POST", "/admin/create-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly });
 		req.then((result) => {
-			showNotifcation("New user successfully created", "user-edit", "success", 3);
-			clearUserInstructions();
+			showNotification("New user successfully created", "user-edit", "success", 3);
 			loadUserTable();
 		}, (error) => {
 			let errorMessage = `Failed to create user: ${error.message || error.detail || JSON.stringify(error)}`;
 			showNewUserInstructions(userId, admin, readonly, errorMessage);
-			showNotifcation(errorMessage, "user-edit", "error", 10);
+			showNotification(errorMessage, "user-edit", "error", 10);
 			loadUserTable();
 		});
 	}
@@ -463,29 +573,67 @@ function createUser(userId = null, password = null, confirmPassword = null, admi
 
 function deleteUser(userId, confirmed = false) {
 	if (!confirmed) {
-		let html = `<h4>Delete user ${userId}</h4>`;
-		html += `<p>Are you sure you want to delete the user <strong>${userId}</strong>?`;
-		html += `<br />This action cannot be undone.</p>`;
-		html += `<form action="javascript:void(0);">`;
-		html += `<button onclick="clearUserInstructions()">Cancel</button> `;
-		html += `<button onclick="deleteUser('${userId}', true)">Delete user</button>`;
-		html += `</form>`;
-		document.getElementById("user-instructions").innerHTML = html;
+		showDialogOverlay({
+			title: `Delete user ${userId}?`,
+			message: `Are you sure you want to delete the user ${userId}? This action cannot be undone.`,
+			confirmLabel: "Delete user",
+			cancelLabel: "Cancel",
+			onConfirm: () => deleteUser(userId, true)
+		});
 	}
 	else {
 		let req = ajaxRequest("POST", "/admin/delete-user", { "user_id": userId });
 		req.then((result) => {
-			showNotifcation("User successfully deleted", "user-edit", "success", 3);
-			clearUserInstructions();
+			showNotification("User successfully deleted", "user-edit", "success", 3);
 			loadUserTable();
 		}, (error) => {
 			let errorMessage = `Failed to delete user: ${error.message || error.detail || JSON.stringify(error)}`;
-			showNotifcation(errorMessage, "user-edit", "error", 10);
-			clearUserInstructions();
+			showNotification(errorMessage, "user-edit", "error", 10);
 			loadUserTable();
 		});
 	}
 }
+
+function closeAllActionMenus() {
+	document.querySelectorAll(".action-menu-items").forEach(element => {
+		element.style.display = "none";
+	});
+}
+
+function closeActionMenu(menuId) {
+	const menu = document.getElementById(menuId);
+	if (!menu) {
+		return;
+	}
+	menu.style.display = "none";
+}
+
+function toggleActionMenu(menuId) {
+	const menu = document.getElementById(menuId);
+	if (!menu) {
+		return;
+	}
+	const isOpen = menu.style.display === "block";
+	closeAllActionMenus();
+	menu.style.display = isOpen ? "none" : "block";
+}
+
+function buildActionMenu(menuId, actions) {
+	let html = `<div class="action-menu" style="position: relative; display: inline-block;">`;
+	html += `<button type="button" class="action-menu-button" onclick="toggleActionMenu('${menuId}')">Actions</button>`;
+	html += `<div id="${menuId}" class="action-menu-items">`;
+	actions.forEach(action => {
+		html += `<div class="action-menu-item" role="menuitem" tabindex="0" onclick="${action.onclick}; closeActionMenu('${menuId}');">${action.label}</div>`;
+	});
+	html += "</div></div>";
+	return html;
+}
+
+document.addEventListener("click", (event) => {
+	if (!event.target.closest(".action-menu")) {
+		closeAllActionMenus();
+	}
+});
 
 
 function printUserTable(data, htmlId) {
@@ -507,6 +655,9 @@ function printUserTable(data, htmlId) {
 		htmlStr += "<th class='user-th'>Actions</th>";
 		htmlStr += "</tr>";
 		data.forEach(user => {
+			if (!user.mfaState) {
+				user.mfaState = "inactive";
+			}
 			let actions = [];
 			htmlStr += "<tr>" +
 				`<td class="user-td">${user.id}</td>` +
@@ -515,13 +666,11 @@ function printUserTable(data, htmlId) {
 				`<td class="user-td">${user.internal_auth ? "yes" : "no"}</td>` +
 				`<td class="user-td">${user.token_auth ? "yes" : "no"}</td>`;
 			if (databaseAuth) {
-				if (user.internal_auth) {
-					actions.push(`<input type="button" onclick="changeInternalUserPassword('${user.id}')" value="Change password"></input>`);
-				}
+				actions.push({ label: "Change password", onclick: `changeInternalUserPassword('${user.id}')` });
 				if (user.token_auth) {
-					actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', false)" value="Remove Authentication Token"></input>`);
+					actions.push({ label: "Remove Authentication Token", onclick: `updateUserTokenAuth('${user.id}', false)` });
 				}
-				actions.push(`<input type="button" onclick="updateUserTokenAuth('${user.id}', true)" value="New Authentication Token"></input>`);
+				actions.push({ label: "New Authentication Token", onclick: `updateUserTokenAuth('${user.id}', true)` });
 			}
 			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
 				let cls = "mfa-" + (user.mfaState == "inactive" ? "inactive" : "active");
@@ -529,19 +678,25 @@ function printUserTable(data, htmlId) {
 					cls += "-warn";
 				}
 				htmlStr += `<td class="user-td ${cls}">${user.mfaState}</td>`;
-				actions.push(`<input type="button" onclick="updateMultiFactorAuth('${user.id}', 'totp')" value="Generate new secret and activate TOTP"></input>`);
+				actions.push({ label: "Generate new secret and activate TOTP", onclick: `updateMultiFactorAuth('${user.id}', 'totp')` });
 				if (multiFactorAuth == "totp_optional" && user.mfaState != "inactive") {
-					actions.push(`<input type="button" onclick="updateMultiFactorAuth('${user.id}', 'inactive')" value="Deactivate MFA"></input>`);
+					actions.push({ label: "Deactivate MFA", onclick: `updateMultiFactorAuth('${user.id}', 'inactive')` });
 				}
 			}
 			if (databaseAuth) {
-				actions.push(`<input type="button" onclick="deleteUser('${user.id}')" value="Delete user"></input>`);
+				actions.push({ label: "Delete user", onclick: `deleteUser('${user.id}')` });
 			}
 			let connected = messagebusConnectedUsers.includes(user.id);
 			let cls = "user-" + (connected ? "connected" : "not-connected");
 			htmlStr += `<td class="user-td ${cls}"id="user-messagebus-state-${user.id}" data-user-id="${user.id}">` +
 				`${connected ? 'connected' : 'not connected'}</td >`;
-			htmlStr += `<td class="user-td">${actions.join(" ")}</td>`;
+			if (actions.length > 0) {
+				const menuId = `user-actions-${user.id}`;
+				htmlStr += `<td class="user-td">${buildActionMenu(menuId, actions)}</td>`;
+			}
+			else {
+				htmlStr += `<td class="user-td">-</td>`;
+			}
 			htmlStr += "</tr>";
 		});
 		htmlStr += "</table>";
@@ -582,7 +737,7 @@ function loadFailedAddons() {
 function installAddon() {
 	const file = document.getElementById("addon-file").files[0];
 	if (!file) {
-		showNotifcation(`Addon file not provided`, "addon", "error", 3);
+		showNotification(`Addon file not provided`, "addon", "error", 3);
 		return;
 	}
 
@@ -601,14 +756,14 @@ function installAddon() {
 			button.classList.remove("loading");
 		}
 		loadAddons();
-		showNotifcation("Addon successfully installed", "addon", "success", 3);
+		showNotification("Addon successfully installed", "addon", "success", 3);
 	}, (error) => {
 		if (button) {
 			button.classList.remove("loading");
 		}
 		console.log(error);
 		console.warn(error.status, error.details);
-		showNotifcation(`Failed to install addon: ${error.message || JSON.stringify(error)}`, "addon", "error", 30);
+		showNotification(`Failed to install addon: ${error.message || JSON.stringify(error)}`, "addon", "error", 30);
 	});
 }
 
@@ -765,7 +920,7 @@ function callJSONRPC() {
 
 		if (!value && name.substring(0, 1) != "*") {
 			const error = `Mandatory field '${inputs[i].name}' is empty`;
-			showNotifcation(error, "jsonrpc", "error", 3);
+			showNotification(error, "jsonrpc", "error", 3);
 			return {
 				"error": error
 			};
@@ -901,7 +1056,7 @@ function ValidateIPaddress(ipaddress) {
 		.test(ipaddress)) {
 		return (true)
 	}
-	showNotifcation("You have entered an invalid IP address.", "", "error", 3);
+	showNotification("You have entered an invalid IP address.", "", "error", 3);
 	return (false)
 }
 
@@ -1312,7 +1467,7 @@ function getMessagebusChannelInfo() {
 function messagebusConnect() {
 	const serverRole = localStorage.getItem("serverRole") || "configserver";
 	if (serverRole != "configserver") {
-		showNotifcation(`Messagebus unavailable on ${serverRole}`, "messagebus", "error", 10);
+		showNotification(`Messagebus unavailable on ${serverRole}`, "messagebus", "error", 10);
 		return;
 	}
 	messagebusAutoReconnect = true;
@@ -1329,7 +1484,7 @@ function messagebusConnect() {
 	messagebusWS.binaryType = 'arraybuffer';
 	messagebusWS.onopen = function () {
 		console.log("Messagebus websocket opened");
-		showNotifcation("Connected to messagebus", "messagebus", "success", 2);
+		showNotification("Connected to messagebus", "messagebus", "success", 2);
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Disconnect";
 		let dataMessage = {
 			type: "channel_subscription_request",
@@ -1364,10 +1519,10 @@ function messagebusConnect() {
 	messagebusWS.onclose = function () {
 		console.log("Messagebus websocket closed");
 		if (messagebusAutoReconnect) {
-			showNotifcation("Messagebus connection lost", "messagebus", "error", 10);
+			showNotification("Messagebus connection lost", "messagebus", "error", 10);
 		}
 		else {
-			showNotifcation("Messagebus connection closed", "messagebus", "success", 2);
+			showNotification("Messagebus connection closed", "messagebus", "success", 2);
 		}
 		messagebusWS = null;
 		if (messagebusAutoReconnect) {
@@ -1378,7 +1533,7 @@ function messagebusConnect() {
 	messagebusWS.onerror = function (error) {
 		const err = `Messagebus websocket connection error: ${JSON.stringify(error)}`;
 		console.error(err);
-		//showNotifcation(err, "messagebus", "error", 5);
+		//showNotification(err, "messagebus", "error", 5);
 		messagebusWS = null;
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	}
@@ -1463,7 +1618,7 @@ function messagebusConnect() {
 					if (message.error.details) {
 						notificationText += "\n" + message.error.details;
 					}
-					showNotifcation(notificationText, "", "error", 10);
+					showNotification(notificationText, "", "error", 10);
 				}
 			}
 		}
@@ -1489,7 +1644,7 @@ function messagebusConnect() {
 		}
 		else if (message.type == "general_error" || message.type == "file_transfer_error") {
 			console.error(message.error);
-			showNotifcation(message.error.message + "\n" + message.error.details, "", "error", 10);
+			showNotification(message.error.message + "\n" + message.error.details, "", "error", 10);
 			if (message.type == "general_error" || message.type == "file_transfer_error") {
 				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 				if ((message.type == "file_transfer_error") && message.file_id && fileUploads[message.file_id]) {
@@ -1576,7 +1731,7 @@ function messagebusInsertMessageTemplate() {
 function messagebusSend(message) {
 	console.debug(message);
 	if (!messagebusWS) {
-		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
+		showNotification("Messagebus not connected.", "messagebus", "error", 3);
 		return;
 	}
 	if (
@@ -1591,14 +1746,14 @@ function messagebusSend(message) {
 
 	}
 	if (message.expires && message.expires <= Date.now()) {
-		showNotifcation("Sending expired message", "messagebus", "warning", 5);
+		showNotification("Sending expired message", "messagebus", "warning", 5);
 	}
 	try {
 		messagebusWS.send(msgpack.serialize(message));
 	}
 	catch (error) {
 		console.error(error);
-		showNotifcation(error, "messagebus", "error", 10);
+		showNotification(error, "messagebus", "error", 10);
 	}
 }
 
@@ -1744,12 +1899,12 @@ const debouncedMessagebusTerminalResize = debounce(messagebusTerminalResize, 250
 
 function messagebusConnectTerminal() {
 	if (!messagebusWS) {
-		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
+		showNotification("Messagebus not connected.", "messagebus", "error", 3);
 		return;
 	}
 	let terminalChannel = document.getElementById("terminal-channel").value;
 	if (!terminalChannel) {
-		showNotifcation("Invalid channel.", "messagebus", "error", 3);
+		showNotification("Invalid channel.", "messagebus", "error", 3);
 		return;
 	}
 

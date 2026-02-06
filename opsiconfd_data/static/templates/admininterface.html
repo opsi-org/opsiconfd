@@ -30,6 +30,7 @@
 			if (serverRole == "configserver") {
 				messagebusConnect();
 			}
+			initConfirmOverlay();
 
 			let input = document.getElementById("redis-cmd");
 
@@ -154,7 +155,7 @@
 			<img id="interface-logo" src="/static/opsi_logo.png" alt="OPSI logo">
 		</div>
 		<div>
-			<div style="">
+			<div>
 				<h1>opsiconfd {{opsi_version}} running on {{node_name}} ({{username}})</h1>
 			</div>
 		</div>
@@ -278,12 +279,11 @@
 		</div>
 
 		<div id="tab-users" class="tabcontent">
-			<div class="adminpage-box" id="users">
+			<div class="adminpage-box" id="users" style="overflow: visible;">
 				<h4>Users:</h4>
 				<div id="user-table-div">
 					loading...
 				</div>
-				<div id="user-instructions"></div>
 			</div>
 		</div>
 
@@ -798,6 +798,17 @@
 						forum</a>.
 				</li>
 			</ul>
+		</div>
+	</div>
+	<div id="confirm-overlay" class="overlay-backdrop" aria-hidden="true">
+		<div class="overlay-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-overlay-title">
+			<h4 id="confirm-overlay-title" class="overlay-title">Confirm</h4>
+			<p id="confirm-overlay-message" class="overlay-message"></p>
+			<div id="confirm-overlay-body" class="overlay-body"></div>
+			<div class="overlay-actions">
+				<button type="button" id="confirm-overlay-cancel">Cancel</button>
+				<button type="button" id="confirm-overlay-confirm">Confirm</button>
+			</div>
 		</div>
 	</div>
 </body>

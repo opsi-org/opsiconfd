@@ -247,7 +247,8 @@ function loadDepotTable() {
 function createDepot() {
 	const depotId = document.getElementById("create-depot-id").value;
 	const depotDescription = document.getElementById("create-depot-description").value;
-	let req = ajaxRequest("POST", "/admin/depot-create", { "id": depotId, "description": depotDescription });
+	const masterDepot = document.getElementById("create-depot-master").checked;
+	let req = ajaxRequest("POST", "/admin/depot-create", { "id": depotId, "description": depotDescription, "master": masterDepot });
 	req.then((result) => {
 		loadDepotTable();
 	}, (error) => {
@@ -1072,7 +1073,8 @@ function printDepotTable(data, htmlId) {
 			"<tr>" +
 			"<th class='host-th'>Depot ID</th>" +
 			"<th class='host-th'>Description</th>" +
-			"<th class='host-th'>Opsi host key</th>" +
+			"<th class='host-th'>OPSI host key</th>" +
+			"<th class='host-th'>Is master</th>" +
 			"<th class='host-th'>Messagebus</th>" +
 			"<th class='host-th'>Transfer slots</th>" +
 			"</tr>";
@@ -1084,6 +1086,7 @@ function printDepotTable(data, htmlId) {
 			htmlStr += "<td class=\"host-td\">" + depot.description + "</td>";
 			htmlStr += "<td class=\"host-td\" style=\"cursor: pointer; text-security: disc; -webkit-text-security: disc;\"";
 			htmlStr += " onclick = 'toggleTextSecurityVisibility(this)' > " + depot.opsiHostKey + "</td > ";
+			htmlStr += `<td class=\"host-td\" style=\"text-align: center\"><input type="checkbox" disabled ${depot.isMasterDepot ? 'checked' : ''}></td>`;
 			htmlStr += `<td id="depot-messagebus-state-${depot.id}" data-depot-id="${depot.id}" data-configserver="${depot.configserver}" class="host-td ${cls}">`
 			htmlStr += connected ? 'connected' : 'not connected';
 			htmlStr += "</td >";

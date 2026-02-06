@@ -334,6 +334,7 @@ async def get_depot_list() -> RESTResponse:
 				"configserver": depot.getType() == "OpsiConfigserver",
 				"description": depot.description,
 				"opsiHostKey": depot.opsiHostKey,
+				"isMasterDepot": depot.isMasterDepot,
 				"max_product_sync_transfer_slots": max_slots.get(depot.id, 0),
 				"used_product_sync_transfer_slots": int(
 					redis.eval(
@@ -361,7 +362,7 @@ async def create_depot(request: Request) -> RESTResponse:
 	if backend.host_getIdents(id=depot_id):
 		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_CONTENT, message="Depot already exists")
 
-	depot = OpsiDepotserver(id=depot_id, description=request_body.get("description"))
+	depot = OpsiDepotserver(id=depot_id, description=request_body.get("description"), isMasterDepot=request_body.get("master", True))
 	auto_fill_depotserver_urls(depot)
 	backend.host_createObjects(depot)
 	return RESTResponse("ok")

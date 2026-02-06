@@ -342,8 +342,11 @@
 				<div id="depots-table-div">
 					loading...
 				</div>
-				<input type="text" id="create-depot-id" placeholder="New depot ID" value="">
-				<input type="text" id="create-depot-description" placeholder="New depot description" value="">
+				<input type="text" id="create-depot-id" placeholder="New depot ID" value="" style="width: 20em;">
+				<input type="text" id="create-depot-description" placeholder="New depot description" value=""
+					style="width: 20em;">
+				<label for="create-depot-master" style="margin-left: 10px;">Master depot:</label>
+				<input type="checkbox" id="create-depot-master" checked="checked" />
 				<input type="button" onclick="createDepot()" value="Create depot">
 			</div>
 

@@ -10,6 +10,7 @@ opsiconfd rest utils
 import math
 import traceback
 import warnings
+from builtins import type as Type
 from functools import wraps
 from inspect import iscoroutinefunction
 from types import NoneType
@@ -115,7 +116,7 @@ class RESTResponse(Response):
 		self._headers = MutableHeaders(headers or {})
 
 	@property
-	def type(self) -> type:
+	def type(self) -> Type:
 		return self._content_type
 
 	def to_jsonresponse(self) -> JSONResponse:

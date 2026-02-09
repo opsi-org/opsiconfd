@@ -39,6 +39,7 @@ pyinstaller:
       - ipaddress
       - colorsys
       - OPSI.Util.WIM
+      - rich._unicode_data.unicode17-0-0
   collect_all:
     - opsiconfd_data
   collect_submodules:
@@ -52,6 +53,9 @@ pyinstaller:
     # Collecting both modules so that they can be used depending on the configuration
     - websockets
     - wsproto
+    # Collect rich unicode data modules to prevent ModuleNotFoundError
+    - rich._unicode_data
+    - rich
   scripts:
     - script: opsiconfd/__main__.py
       binaries:

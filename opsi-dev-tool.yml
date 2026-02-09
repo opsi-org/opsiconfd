@@ -52,6 +52,8 @@ pyinstaller:
     # Collecting both modules so that they can be used depending on the configuration
     - websockets
     - wsproto
+    # Collect rich to prevent ModuleNotFoundError in health check
+    - rich
   scripts:
     - script: opsiconfd/__main__.py
       binaries:

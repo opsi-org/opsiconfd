@@ -67,14 +67,14 @@ def memory_tracemalloc_snapshot_new(num_stats: int = 25) -> JSONResponse:
 		"prev": {"size": 0, "stats": []},
 	}
 	for num, stat in enumerate(current.statistics("filename"), 1):
-		data["start"]["size"] += stat.size  # type: ignore[index]
+		data["start"]["size"] += stat.size
 		if num <= num_stats:
-			data["start"]["stats"].append(str(stat))  # type: ignore[index]
+			data["start"]["stats"].append(str(stat))
 
 	for num, stat_diff in enumerate(current.compare_to(tracemalloc_prev_snapshot, "filename"), 1):
-		data["prev"]["size"] += stat_diff.size_diff  # type: ignore[index]
+		data["prev"]["size"] += stat_diff.size_diff
 		if num <= num_stats:
-			data["prev"]["stats"].append(str(stat_diff))  # type: ignore[index]
+			data["prev"]["stats"].append(str(stat_diff))
 
 	tracemalloc_prev_snapshot = current
 	tracemalloc_rss_prev = mem_info.rss
@@ -101,12 +101,12 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 		obj_types = sorted(new_ids.items(), key=lambda item: len(item[1]), reverse=True)
 
 		for obj_type, ids in obj_types:
-			if len(data["new_ids"]) >= max_obj_types:  # type: ignore[invalid-argument-type]
+			if len(data["new_ids"]) >= max_obj_types:
 				break
 			if len(ids) == 0:
 				continue
 			logger.debug("obj_type: %s", obj_type)
-			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}  # type: ignore[invalid-argument-type]
+			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}
 			for num, addr in enumerate(ids):
 				if num >= max_obj:
 					break
@@ -114,7 +114,7 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 				repr_obj = repr(obj)
 				if len(repr_obj) > 250:
 					repr_obj = repr_obj[:249] + "…"
-				data["new_ids"][obj_type]["objects"][addr] = {  # type: ignore[invalid-argument-type]
+				data["new_ids"][obj_type]["objects"][addr] = {
 					"size": sys.getsizeof(obj),
 					"repr": repr_obj,
 				}

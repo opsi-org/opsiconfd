@@ -166,7 +166,7 @@ def get_redis_connection(
 			if new_pool or test_connection:
 				client.ping()
 			return client
-		except (RedisConnectionError, BusyLoadingError):
+		except RedisConnectionError, BusyLoadingError:
 			if timeout and time.time() - start >= timeout:
 				raise
 			time.sleep(2)
@@ -195,7 +195,7 @@ async def get_async_redis_connection(
 			if new_pool or test_connection:
 				await client.ping()
 			return client
-		except (RedisConnectionError, BusyLoadingError):
+		except RedisConnectionError, BusyLoadingError:
 			if timeout and time.time() - start >= timeout:
 				raise
 			await asyncio.sleep(2)

@@ -177,7 +177,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		start_id = "$"
 		try:
 			start_time = int(start_time or 0)
-		except (ValueError, TypeError):
+		except ValueError, TypeError:
 			start_time = 0
 		if start_time > 0:
 			start_id = str(start_time * 1000)

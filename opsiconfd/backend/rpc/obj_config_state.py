@@ -254,7 +254,7 @@ class RPCConfigStateMixin(Protocol):
 				depotId = configs["clientconfig.depot.id"][0]
 				if not depotId:
 					raise IndexError("Missing value")
-			except (KeyError, IndexError):
+			except KeyError, IndexError:
 				logger.error("No depot server configured for client %s", client_id)
 				continue
 

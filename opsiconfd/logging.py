@@ -409,11 +409,11 @@ class AsyncRedisLogAdapter:
 						if self._stderr_handler and record.levelno >= self._log_level_stderr:
 							await self._stderr_handler.handle(record)  # type: ignore[argument-type]
 
-			except (KeyboardInterrupt, SystemExit):
+			except KeyboardInterrupt, SystemExit:
 				raise
-			except (EOFError, CancelledError):
+			except EOFError, CancelledError:
 				break
-			except (RedisConnectionError, RedisBusyLoadingError):
+			except RedisConnectionError, RedisBusyLoadingError:
 				pass
 			except Exception as err:
 				handle_log_exception(err, stderr=True, temp_file=True)
@@ -507,7 +507,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 				entry = dict(context)
 			entry["record"] = self._msgpack_encoder.encode(self.log_record_to_dict(record))
 			self._queue.put(entry)
-		except (KeyboardInterrupt, SystemExit):
+		except KeyboardInterrupt, SystemExit:
 			raise
 		except Exception as exc:
 			handle_log_exception(exc, record, stderr=True, temp_file=True)

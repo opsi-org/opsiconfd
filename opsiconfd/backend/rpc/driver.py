@@ -169,7 +169,7 @@ def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | Non
 	try:
 		image_index = int(image_name)  # type: ignore[arg-type]
 		image_name = ""
-	except (ValueError, TypeError):
+	except ValueError, TypeError:
 		pass
 
 	logger.debug("Image index: %r, image name: %r", image_index, image_name)

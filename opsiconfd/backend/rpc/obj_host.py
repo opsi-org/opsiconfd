@@ -596,7 +596,7 @@ class RPCHostMixin(Protocol):
 				some_list.remove(cur_server_id)
 				some_list.append(new_server_id)
 				return True
-			except (ValueError, AttributeError):
+			except ValueError, AttributeError:
 				return False
 
 		logger.info("Processing ProductProperties...")

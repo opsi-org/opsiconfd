@@ -158,10 +158,10 @@ def get_audit_hardware_config(
 def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]:
 	audit_hardware_config: dict[str, dict[str, dict[str, str]]] = {}
 	for conf in get_audit_hardware_config():
-		hw_class = conf["Class"]["Opsi"]
+		hw_class = conf["Class"]["Opsi"]  # type: ignore[invalid-argument-type]
 		audit_hardware_config[hw_class] = {}
 		for value in conf["Values"]:
-			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}
+			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore[invalid-argument-type]
 	return audit_hardware_config
 
 

@@ -354,7 +354,7 @@ class Backend(
 		"""This method returns the depot a client is assigned to."""
 		try:
 			return self.configState_getClientToDepotserver(clientIds=[client_id])[0]["depotId"]
-		except (IndexError, KeyError):
+		except IndexError, KeyError:
 			return None
 
 	def _send_messagebus_event(self, event: str, data: dict[str, Any]) -> None:

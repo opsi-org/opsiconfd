@@ -356,7 +356,7 @@ class SystemPackagesCheck(Check):
 					partial_result.message = f"Package {package!r} is not installed."
 					partial_result.upgrade_issue = __version__
 				not_installed = not_installed + 1
-			elif compare_versions(available_version or "0", ">", details["version"]):  # type: ignore[arg-type]
+			elif compare_versions(available_version or "0", ">", details["version"]):
 				outdated = outdated + 1
 				partial_result.check_status = CheckStatus.WARNING
 				partial_result.message = (

@@ -204,7 +204,7 @@ def get_system_info() -> dict:
 	product_name = Path("/sys/devices/virtual/dmi/id/product_name")
 	try:
 		result["product_name"] = product_name.read_text(encoding="utf-8").strip()
-	except (FileNotFoundError, PermissionError):
+	except FileNotFoundError, PermissionError:
 		logger.warning("Could not read '%s'", product_name)
 		result["product_name"] = None
 
@@ -217,7 +217,7 @@ def get_system_info() -> dict:
 		result.update(
 			{key_value[0].strip(): key_value[1].strip() for line in hostnamectl.split("\n") if len(key_value := line.split(":", 1)) == 2}
 		)
-	except (FileNotFoundError, CalledProcessError):
+	except FileNotFoundError, CalledProcessError:
 		logger.warning("hostnamectl command not found.")
 
 	return result

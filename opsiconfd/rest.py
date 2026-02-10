@@ -294,7 +294,7 @@ def rest_api(default_error_status_code: Callable | int | None = None) -> Callabl
 				session = contextvar_client_session.get()
 				if not session or not session.is_admin:
 					del content["details"]
-				return JSONResponse(content=content, status_code=content["status"])  # type: ignore[invalid-argument-type]
+				return JSONResponse(content=content, status_code=content["status"])
 
 		return create_response
 

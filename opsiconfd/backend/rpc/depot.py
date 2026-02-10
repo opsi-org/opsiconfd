@@ -203,7 +203,7 @@ class RPCDepotserverMixin(Protocol):
 					with open(hash_file, encoding="utf-8") as file:
 						md5_sum = file.read()
 					logger.info("Using pre-calculated MD5sum from '%s'.", hash_file)
-				except (OSError, IOError):
+				except OSError, IOError:
 					pass
 
 			if not md5_sum:

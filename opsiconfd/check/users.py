@@ -7,6 +7,8 @@ import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from opsicommon.system.info import is_ucs
+
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import DEPOT_DIR, config, opsi_config
 from opsiconfd.logging import logger
@@ -92,7 +94,7 @@ class OpsiUserCheck(Check):
 			)
 
 		depot_dir = Path(DEPOT_DIR)
-		if os.geteuid() == user_info.uid and depot_dir.exists():
+		if os.geteuid() == uid and depot_dir.exists():
 			if not os.access(depot_dir, os.R_OK | os.W_OK | os.X_OK):
 				result.check_status = CheckStatus.ERROR
 				result.message = f"OPSI user '{self.user}' does not have full access to depot directory '{depot_dir}'"
@@ -130,4 +132,9 @@ class OpsiUsersCheck(Check):
 
 
 opsi_users_check = OpsiUsersCheck()
-check_manager.register(opsi_users_check)
+
+# getent passwd does not work on UCS systems for LDAP users
+# and univention-ldapsearch is only available for root
+# so we skip the opsi users check on UCS systems
+if not is_ucs():
+	check_manager.register(opsi_users_check)

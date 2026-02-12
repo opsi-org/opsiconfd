@@ -789,10 +789,6 @@ def get_user_passwd_details(username: str) -> list[UserInfo]:
 		list[UserInfo]: A list of user information.
 	"""
 	user_details = []
-	if is_ucs():
-		ucs_details = get_ucs_user_details(username)
-		if ucs_details:
-			user_details.append(ucs_details)
 	services = get_passwd_services()
 	for service in services:
 		cmd = ["getent", "passwd", "--service", service.value, username]
@@ -821,6 +817,7 @@ def get_user_passwd_details(username: str) -> list[UserInfo]:
 	return user_details
 
 
+# This Method requires the univention-ldapsearch command, which is only available on UCS systems as root.
 def get_ucs_user_details(username: str) -> UserInfo | None:
 	"""
 	Get user details from UCS LDAP.

@@ -432,9 +432,11 @@ class Config(metaclass=Singleton):
 		else:
 			self._config.ssl_ca_permitted_domains = []
 
-		secret_filter.add_secrets(
-			self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase, self._config.saml_sp_private_key
-		)
+		secret_filter.add_secrets(self._config.saml_sp_private_key)
+		if self._config.ssl_ca_key_passphrase:
+			secret_filter.add_secrets(self._config.ssl_ca_key_passphrase)
+		if self._config.ssl_server_key_passphrase:
+			secret_filter.add_secrets(self._config.ssl_server_key_passphrase)
 
 		try:
 			if self._config.password:

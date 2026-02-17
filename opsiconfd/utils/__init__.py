@@ -336,7 +336,9 @@ def switch_to_user(username: str) -> None:
 				except Exception as err:
 					logger.warning("Failed to change working directory to %r: %s", user.pw_dir, err)
 			else:
-				logger.warning("Home directory %r of user %r does not exist, not changing working directory", user.pw_dir, user.pw_name)
+				logger.warning("Home directory %r of user %r does not exist, changing working directory to /", user.pw_dir, user.pw_name)
+				os.chdir("/")
+
 		os.setgid(user.pw_gid)
 		os.setgroups(gids)
 		os.setuid(user.pw_uid)

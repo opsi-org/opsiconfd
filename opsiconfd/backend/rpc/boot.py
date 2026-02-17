@@ -188,6 +188,9 @@ class TemplateContextGRUB:
 
 	def menu_entries(self, config_id: str | None = None) -> list[str]:
 		entries = self.primary_menu_entries
+		product_grub_cfg = file_cache.get_file_content(Path(DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE))
+		if product_grub_cfg:
+			entries.append(product_grub_cfg)
 		if config_id:
 			entries.extend([str(entry) for entry in self._context.config_states[config_id].values if entry])
 		return [Template(entry).render(self._context.context_args()) for entry in entries]

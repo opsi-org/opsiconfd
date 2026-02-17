@@ -282,7 +282,7 @@ def test_render_grub_cfg(tmp_path: Path) -> None:
 		assert 'if [ "$grub_platform" = "efi" ]; then menuentry \'efi\' { echo "efi" }; fi' in data
 		assert "menuentry 'Primary Entry' { echo 'client1.opsi.test'; }" in data
 		assert "menuentry 'Entry 1' { echo 'client1.opsi.test'; }" in data
-		assert "DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE" not in data
+		assert "DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE" in data
 
 
 def test_TemplateContext_product_property_state_cmdline(

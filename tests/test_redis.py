@@ -22,6 +22,7 @@ from opsiconfd.metrics.metric import AggregationType, NodeMetric
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import (
+	AsyncConnection,
 	AsyncConnectionPool,
 	AsyncRedis,
 	Connection,
@@ -36,21 +37,15 @@ from opsiconfd.redis import (
 	dump,
 	get_redis_connections,
 	get_redis_version,
+	pool_disconnect_connections,
 	redis_client,
 	redis_lock,
 	redis_supports_xtrim_minid,
 	restore,
 )
+from opsiconfd.utils import asyncio_create_task
 
 from .utils import Config, config  # noqa: F401
-
-
-def test_connection_repr() -> None:
-	client = redis_client()
-	assert re.match(
-		r"<redis.client.Redis\(<redis.connection.ConnectionPool\(<redis.connection.Connection\(host=.*,port=\d+,db=\d+,id=\d+\)>\)>\)>",
-		repr(client),
-	)
 
 
 def test_get_redis_connections(config: Config) -> None:  # noqa: F811
@@ -66,6 +61,8 @@ def test_get_redis_connections(config: Config) -> None:  # noqa: F811
 	Thread(target=reader, args=[client1], daemon=True).start()
 	Thread(target=reader, args=[client2], daemon=True).start()
 
+	time.sleep(1)
+
 	new_connections = [c for c in get_redis_connections() if c not in connections]
 	assert len(new_connections) == 2
 	for con in new_connections:
@@ -74,6 +71,32 @@ def test_get_redis_connections(config: Config) -> None:  # noqa: F811
 	time.sleep(3)
 	new_connections = [c for c in get_redis_connections() if c not in connections]
 	assert len(new_connections) == 0
+
+
+async def test_get_async_redis_connections(config: Config) -> None:  # noqa: F811
+	key = config.redis_key("test_get_async_redis_connections")
+	connections = get_redis_connections()
+
+	client1 = await async_redis_client()
+	client2 = await async_redis_client()
+
+	asyncio_create_task(client1.xread(streams={key: "0"}, block=2000, count=1))
+	asyncio_create_task(client2.xread(streams={key: "0"}, block=2000, count=1))
+
+	await asyncio.sleep(1)
+	await pool_disconnect_connections(inuse_connections=False)
+
+	new_connections = [c for c in get_redis_connections() if c not in connections]
+	assert len(new_connections) == 2
+	for con in new_connections:
+		assert isinstance(con, AsyncConnection)
+
+	await asyncio.sleep(3)
+	new_connections = [c for c in get_redis_connections() if c not in connections]
+	assert len(new_connections) == 0
+
+	await pool_disconnect_connections(inuse_connections=True)
+	assert len(get_redis_connections()) == 0
 
 
 async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
@@ -91,7 +114,7 @@ async def test_async_redis_pool(config: Config) -> None:  # noqa: F811
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(await pool.get_connection(None))
+		connections.append(await pool.get_connection())
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections
 
@@ -113,7 +136,7 @@ def test_sync_redis_pool(config: Config) -> None:  # noqa: F811
 
 	connections = []
 	for _ in range(num_connections):
-		connections.append(pool.get_connection(None))
+		connections.append(pool.get_connection())
 	assert len(connections) == num_connections
 	assert len(pool._in_use_connections) == num_connections
 

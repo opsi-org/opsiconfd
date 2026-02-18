@@ -39,13 +39,6 @@ redis_connection_pool: dict[str, ConnectionPool] = {}
 async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
 
 
-def repr_pieces(self: Connection | AsyncConnection) -> list[tuple[str, str | int]]:
-	pieces: list[tuple[str, str | int]] = [("host", self.host), ("port", self.port), ("db", self.db), ("id", id(self))]
-	if self.client_name:
-		pieces.append(("client_name", self.client_name))
-	return pieces
-
-
 def __con_del__(self: AbstractConnection) -> None:
 	try:
 		self._close()  # type: ignore[attr-defined]
@@ -53,8 +46,6 @@ def __con_del__(self: AbstractConnection) -> None:
 		pass
 
 
-AsyncConnection.repr_pieces = repr_pieces  # type: ignore[method-assign]
-Connection.repr_pieces = repr_pieces  # type: ignore[method-assign]
 AbstractConnection.__del__ = __con_del__  # type: ignore[method-assign,attr-defined]
 
 
@@ -84,7 +75,7 @@ def reset_redis_pools() -> None:
 def get_redis_connections() -> list[Connection | AsyncConnection]:
 	connections = []
 	for spool in redis_connection_pool.values():
-		connections.extend(spool._in_use_connections)  # type: ignore[attr-defined]
+		connections.extend(spool._get_in_use_connections())  # type: ignore[attr-defined]
 	for apool in async_redis_connection_pool.values():
 		connections.extend(apool._in_use_connections)  # type: ignore[attr-defined]
 	return connections

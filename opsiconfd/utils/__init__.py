@@ -232,7 +232,10 @@ def get_manager_process(ignore_self: bool = False, ignore_parents: bool = False)
 		ignore_pids += [p.pid for p in our_proc.parents()]
 
 	for proc in psutil.process_iter():
-		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
+		try:
+			if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
+				continue
+		except psutil.NoSuchProcess, psutil.AccessDenied:
 			continue
 
 		running_in_container_pid = 0

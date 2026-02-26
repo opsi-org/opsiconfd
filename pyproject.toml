@@ -113,11 +113,6 @@ index-strategy = "unsafe-best-match"
 package = true
 no-binary-package = ["lxml", "xmlsec"]
 
-
-[tool.uv.sources]
-# https://github.com/redis/redis-py/issues/3957
-redis = { git = "https://github.com/Bojun-Feng/redis-py.git", branch = "add-port-feature-for-unix-socket" }
-
 [tool.ruff]
 line-length = 140
 target-version = "py314"

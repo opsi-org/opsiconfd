@@ -1203,7 +1203,7 @@ requires-dist = [
     { name = "python-opsi-system", specifier = ">=4.3.2.1,<4.4" },
     { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
-    { name = "redis", git = "https://github.com/Bojun-Feng/redis-py.git?branch=add-port-feature-for-unix-socket" },
+    { name = "redis", specifier = ">=7.2" },
     { name = "rich", specifier = ">=13.0" },
     { name = "six", specifier = ">=1.16" },
     { name = "starlette", specifier = ">=0.46" },
@@ -1870,8 +1870,12 @@ wheels = [
 
 [[package]]
 name = "redis"
-version = "7.1.1"
-source = { git = "https://github.com/Bojun-Feng/redis-py.git?branch=add-port-feature-for-unix-socket#32d364b7345ccc04c2ae70e154977ef46b6e1d1f" }
+version = "7.2.1"
+source = { registry = "https://pypi.uib.gmbh/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/31/1476f206482dd9bc53fdbbe9f6fbd5e05d153f18e54667ce839df331f2e6/redis-7.2.1.tar.gz", hash = "sha256:6163c1a47ee2d9d01221d8456bc1c75ab953cbda18cfbc15e7140e9ba16ca3a5", size = 4906735, upload-time = "2026-02-25T20:05:18.171Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ca/98/1dd1a5c060916cf21d15e67b7d6a7078e26e2605d5c37cbc9f4f5454c478/redis-7.2.1-py3-none-any.whl", hash = "sha256:49e231fbc8df2001436ae5252b3f0f3dc930430239bfeb6da4c7ee92b16e5d33", size = 396057, upload-time = "2026-02-25T20:05:16.533Z" },
+]
 
 [[package]]
 name = "requests"

@@ -1534,3 +1534,23 @@ def test_host_updateClients(backend: UnprotectedBackend) -> None:  # noqa: F811
 	client = backend.host_getClients(id=client2["id"])[0]
 	assert client.wan_vpn is True
 	assert client.smart_cache is False
+
+	# Test other
+	backend.host_updateClients(
+		{
+			"id": client2["id"],
+			"smart_cache": True,
+			"install_on_shutdown": True,
+			"monitoring": True,
+		}
+	)
+	client = backend.host_getClients(id=client2["id"])[0]
+	assert client.smart_cache is True
+	assert client.install_on_shutdown is True
+	assert client.monitoring is True
+
+	backend.host_updateClients({"id": client2["id"], "description": "new descrition"})
+	client = backend.host_getClients(id=client2["id"])[0]
+	assert client.smart_cache is True
+	assert client.install_on_shutdown is True
+	assert client.monitoring is True

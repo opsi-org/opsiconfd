@@ -118,10 +118,10 @@ class OpsiClientExtendedUpdate:
 	created: str | None = None
 	lastSeen: str | None = None
 	systemUUID: str | None = None
-	monitoring: bool = False
-	wan_vpn: bool = False
-	smart_cache: bool = False
-	install_on_shutdown: bool = False
+	monitoring: bool | None = None
+	wan_vpn: bool | None = None
+	smart_cache: bool | None = None
+	install_on_shutdown: bool | None = None
 
 	def to_opsi_client(self) -> OpsiClient:
 		"""Convert to OpsiClient object."""

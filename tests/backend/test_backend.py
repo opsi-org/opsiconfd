@@ -9,7 +9,7 @@ webdav tests
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from OPSI.Backend.Replicator import BackendReplicator
+from opsi_legacy.Backend.Replicator import BackendReplicator
 
 from opsiconfd.backend import (
 	get_mysql,

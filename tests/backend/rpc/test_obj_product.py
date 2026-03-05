@@ -8,8 +8,8 @@ test opsiconfd.backend.rpc.obj_product
 """
 
 import pytest
-from OPSI.Object import ConfigState
 from opsicommon.objects import (
+	ConfigState,
 	LocalbootProduct,
 	OpsiClient,
 	OpsiDepotserver,

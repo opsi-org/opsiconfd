@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 
-from OPSI.System import mount, umount
+from opsi_legacy.System import mount, umount
 
 
 def main() -> None:

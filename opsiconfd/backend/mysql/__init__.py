@@ -204,7 +204,7 @@ class MySQLConnection:
 		self.unique_hardware_addresses = True
 		self.unique_system_uuids = True
 
-		self._Session: scoped_session | None = lambda: None
+		self._Session: scoped_session | None = None
 		self._session_factory = None
 		self._engine = None
 

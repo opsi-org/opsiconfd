@@ -36,7 +36,10 @@ GET_LATENCY_INFORMATION_FUNCTION = '''
 
 		Depots that can't be reached in time will not be included.
 		"""
-		from OPSI.Util.Ping import ping
+		try:
+			from opsi_legacy.Util.Ping import ping
+		except ImportError:
+			from OPSI.Util.Ping import ping
 		from urllib.parse import urlparse
 
 		latency = []

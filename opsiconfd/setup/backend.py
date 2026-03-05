@@ -14,8 +14,8 @@ import time
 from pathlib import Path
 from socket import AF_INET, AF_INET6
 
-import OPSI.Backend.File
-from OPSI.Backend.Replicator import BackendReplicator
+import opsi_legacy.Backend.File
+from opsi_legacy.Backend.Replicator import BackendReplicator
 from opsicommon.objects import OpsiConfigserver
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
@@ -211,9 +211,9 @@ def file_mysql_migration() -> None:
 
 	logger.notice("Converting File to MySQL backend, please wait...")
 	config_server_id = opsi_config.get("host", "id")
-	OPSI.Backend.File.getfqdn = lambda: config_server_id  # type: ignore[invalid-assignment]
+	opsi_legacy.Backend.File.getfqdn = lambda: config_server_id  # type: ignore[invalid-assignment]
 
-	file_backend = OPSI.Backend.File.FileBackend()
+	file_backend = opsi_legacy.Backend.File.FileBackend()
 	config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
 
 	if not config_servers:

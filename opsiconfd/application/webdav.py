@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import wsgidav.fs_dav_provider
 from fastapi import FastAPI
@@ -181,7 +182,7 @@ def webdav_setup(app: FastAPI) -> None:
 		logger.warning("%s, WebDAV disabled.", err)
 		return
 
-	app_config_template = {
+	app_config_template: dict[str, Any] = {
 		"simple_dc": {"user_mapping": {"*": True}},  # Anonymous access
 		"hotfixes": {
 			"re_encode_path_info": True,
@@ -261,8 +262,8 @@ def webdav_setup(app: FastAPI) -> None:
 
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()
-		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
-		app_config["provider_mapping"]["/"] = OpsiconfdFilesystemProvider(  # type: ignore[index]
+		app_config["dir_browser"]["davmount_links"] = True
+		app_config["provider_mapping"]["/"] = OpsiconfdFilesystemProvider(
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
 		)
 		app_config["mount_path"] = f"/{name}"
@@ -271,11 +272,11 @@ def webdav_setup(app: FastAPI) -> None:
 	# Virtual filesystem /dav
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
-		app_config["dir_browser"]["davmount_links"] = True  # type: ignore[index]
-		app_config["provider_mapping"][f"/{name}"] = OpsiconfdFilesystemProvider(  # type: ignore[index]
+		app_config["dir_browser"]["davmount_links"] = True
+		app_config["provider_mapping"][f"/{name}"] = OpsiconfdFilesystemProvider(
 			conf["path"], readonly=conf["read_only"], fs_opts={"follow_symlinks": True, "ignore_case": conf["ignore_case"]}
 		)
-	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
-	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
+	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])
+	app_config["provider_mapping"]["/"] = virt_root_provider
 	app_config["mount_path"] = "/dav"
 	app.routes.append(Mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config))))

@@ -513,7 +513,7 @@ class RPCHostControlMixin(Protocol):
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
-		params = [message, mode, addTimestamp]
+		params: list[str | bool | int] = [message, mode, addTimestamp]
 		if displaySeconds is not None:
 			params.append(forceInt(displaySeconds))
 

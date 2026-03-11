@@ -95,7 +95,7 @@ def test_host_insertObject(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client1 = {
+	client1: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
@@ -104,7 +104,7 @@ def test_host_insertObject(
 		"oneTimePassword": "secret",
 		"systemUUID": str(uuid4()),
 	}
-	client2 = {
+	client2: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-2.opsi.test",
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
@@ -132,7 +132,7 @@ def test_host_insertObject(
 	# Update client 1 with null values
 	client1["description"] = "new"
 	client1["notes"] = ""
-	client1["oneTimePassword"] is None
+	client1["oneTimePassword"] = None
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
@@ -167,7 +167,7 @@ def test_host_updateObject(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client1 = {
+	client1: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
@@ -175,7 +175,7 @@ def test_host_updateObject(
 		"notes": "notes",
 		"oneTimePassword": "secret",
 	}
-	client2 = {
+	client2: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-2.opsi.test",
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
@@ -205,7 +205,7 @@ def test_host_updateObject(
 
 	# Update client 1
 	client1["description"] = "new"
-	client1["oneTimePassword"] is None
+	client1["oneTimePassword"] = None
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
@@ -266,7 +266,7 @@ def test_host_updateObject_systemUUID(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client1 = {
+	client1: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
@@ -283,7 +283,7 @@ def test_host_updateObject_systemUUID(
 
 	# Update client 1
 	client1["description"] = "new"
-	client1["oneTimePassword"] is None
+	client1["oneTimePassword"] = None
 	client1["systemUUID"] = ""
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
@@ -315,7 +315,7 @@ def test_host_updateObject_systemUUID(
 	assert client["systemUUID"] == "9f3f1c96-1821-413c-b850-0507a17c7e47"
 
 	# Update client 1
-	client1["systemUUID"] is None
+	client1["systemUUID"] = None
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
@@ -333,7 +333,7 @@ def test_host_updateObject_ip_mac(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client1 = {
+	client1: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
@@ -352,7 +352,7 @@ def test_host_updateObject_ip_mac(
 
 	# Update client 1
 	client1["description"] = "new"
-	client1["oneTimePassword"] is None
+	client1["oneTimePassword"] = None
 	client1["hardwareAddress"] = ""
 	client1["ipAddress"] = ""
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
@@ -390,8 +390,8 @@ def test_host_updateObject_ip_mac(
 	assert client["hardwareAddress"] == "aa:ff:ee:aa:ff:ee"
 
 	# Update client 1
-	client1["hardwareAddress"] is None
-	client1["ipAddress"] is None
+	client1["hardwareAddress"] = None
+	client1["ipAddress"] = None
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
@@ -412,7 +412,7 @@ def test_host_createObjects(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client1 = {
+	client1: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
@@ -420,7 +420,7 @@ def test_host_createObjects(
 		"notes": "notes",
 		"oneTimePassword": "secret",
 	}
-	client2 = {
+	client2: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-2.opsi.test",
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
@@ -446,10 +446,10 @@ def test_host_createObjects(
 	assert clients[1]["oneTimePassword"] == "secret"
 
 	# Recreate clients
-	client1["oneTimePassword"] is None
+	client1["oneTimePassword"] = None
 	client1["notes"] = ""
 	del client1["description"]
-	client2["oneTimePassword"] is None
+	client2["oneTimePassword"] = None
 	client2["notes"] = ""
 	del client2["description"]
 
@@ -604,7 +604,7 @@ def test_host_updateObjects(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	client1 = {
+	client1: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
@@ -612,7 +612,7 @@ def test_host_updateObjects(
 		"notes": "notes",
 		"oneTimePassword": "secret",
 	}
-	client2 = {
+	client2: dict[str, str | None] = {
 		"type": "OpsiClient",
 		"id": "test-backend-rpc-host-2.opsi.test",
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
@@ -651,9 +651,9 @@ def test_host_updateObjects(
 	assert len(clients) == 1
 
 	# Update client1, create client2
-	client1["oneTimePassword"] is None
+	client1["oneTimePassword"] = None
 	client1["description"] = "new desc"
-	client2["oneTimePassword"] is None
+	client2["oneTimePassword"] = None
 	client2["description"] = "new desc"
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client1, client2]]}

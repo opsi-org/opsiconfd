@@ -341,9 +341,10 @@ class RPCGeneralMixin(Protocol):
 						(l.productId IS NOT NULL) AS linux
 					FROM HOST AS h
 					LEFT JOIN PRODUCT_ON_CLIENT AS m
-					ON m.clientId = h.hostId AND m.productId = "opsi-mac-client-agent" AND m.installationStatus = "installed"
+						ON m.clientId = h.hostId AND m.productId = "opsi-mac-client-agent" AND m.installationStatus = "installed"
 					LEFT JOIN PRODUCT_ON_CLIENT AS l
-					ON l.clientId = h.hostId AND l.productId = "opsi-linux-client-agent" AND l.installationStatus = "installed"
+						ON l.clientId = h.hostId AND l.productId = "opsi-linux-client-agent" AND l.installationStatus = "installed"
+					WHERE h.type = "OpsiClient"
 				) AS c
 			""",
 				params={"inactive_after": OPSI_CLIENT_INACTIVE_AFTER},

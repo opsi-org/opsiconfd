@@ -451,9 +451,14 @@ def test_check_system_distro_eol() -> None:
 	with mock.patch("opsiconfd.check.system.linux_distro_id") as mock_distro_id:
 		mock_distro_id.return_value = "debian"
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
-			mock_distro_version.return_value = "12"
+			mock_distro_version.return_value = "13"
 			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
 			assert result.check_status == CheckStatus.OK
+			assert result.message == "Version 13 of distribution debian is supported until 2028-09-09."
+		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
+			mock_distro_version.return_value = "12"
+			result = check_manager.get("linux_distro_eol").run(clear_cache=True)
+			assert result.check_status == CheckStatus.WARNING
 			assert result.message == "Version 12 of distribution debian is supported until 2026-06-10."
 		with mock.patch("opsiconfd.check.system.linux_distro_version_id") as mock_distro_version:
 			mock_distro_version.return_value = "11"

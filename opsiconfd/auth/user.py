@@ -65,7 +65,7 @@ class User(Rights):
 
 		# if a role is set, all values are set by the role
 		if role:
-			logger.debug(f"Creating user {name} with role {role}")
+			logger.debug("Creating user %s with role %s", name, role)
 			user_role = Role(name=role)
 			self.role = role
 			self.read_only = user_role.read_only
@@ -93,37 +93,37 @@ class User(Rights):
 				description="Which role should determine this users configuration.",
 			)
 		else:
-			logger.debug(f"Creating user {name}")
+			logger.debug("Creating user %s", name)
 			self.read_configs()
 			if self.role:
-				logger.debug(f"User {name} has role {self.role}")
+				logger.debug("User %s has role %s", name, self.role)
 		self.create_configs()
 
 
 def create_user_roles(name: str, groups: set = set()) -> None:
 	from opsiconfd.backend import get_unprotected_backend
 
-	logger.debug(f"Creating user {name} with groups {groups}")
+	logger.debug("Creating user %s with groups %s", name, groups)
 	backend = get_unprotected_backend()
 
 	user_register = backend.config_getObjects(configId="user.{}.register")
-	if not user_register or not backend.config_getObjects(configId="user.{}.register")[0].defaultValues[0]:
+	if not user_register or not user_register[0].defaultValues or not user_register[0].defaultValues[0]:
 		return
 	role = ""
 	try:
-		role = backend.config_getObjects(configId="user.{{{}}}.has_role".format(name))[0].defaultValues[0]
+		role = backend.config_getObjects(configId=f"user.{{{name}}}.has_role")[0].defaultValues[0]
 	except IndexError:
-		logger.debug(f"No role configured for user {name}")
-	logger.debug(f"Configured role for user {name}: {role}")
+		logger.debug("No role configured for user %s", name)
+	logger.debug("Configured role for user %s: %s", name, role)
 	groups_to_import = backend.config_getObjects(configId="opsi.roles")
 	if groups_to_import and not role:
-		logger.debug(f"Importing groups for user {name}")
-		logger.debug(f"Groups to import: {groups_to_import}")
+		logger.debug("Importing groups for user %s", name)
+		logger.debug("Groups to import: %s", groups_to_import)
 		for group in groups:
-			logger.debug(f"Checking group {group}")
+			logger.debug("Checking group %s", group)
 			if group in groups_to_import[0].defaultValues:
 				# use first match as role and skip other groups
-				logger.debug(f"Use group {group} as role for user {name}.")
+				logger.debug("Use group %s as role for user %s.", group, name)
 				role = str(group)
 				break
 

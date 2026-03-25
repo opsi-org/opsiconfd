@@ -145,7 +145,7 @@ build:linux-x64:
     - docker-x64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
-    - export UV_PYTHON="3.14.2"
+    - export UV_PYTHON="3.14"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - apt update
@@ -210,7 +210,7 @@ build:linux-arm64:
     - docker-arm64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
-    - export UV_PYTHON="3.14.2"
+    - export UV_PYTHON="3.14"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - opsi-dev-cli self upgrade

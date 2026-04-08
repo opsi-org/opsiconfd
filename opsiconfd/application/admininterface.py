@@ -609,6 +609,7 @@ async def update_multi_factor_auth(request: Request) -> RESTResponse:
 
 	backend = get_unprotected_backend()
 	res = await backend.async_call("user_updateMultiFactorAuth", userId=params.get("user_id"), type=params.get("type"), returnType="qrcode")
+	logger.devel("update_multi_factor_auth result: %s", res)
 	return RESTResponse(res)
 
 

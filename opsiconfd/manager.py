@@ -8,6 +8,9 @@ manager
 """
 
 import asyncio
+
+# NICHT PROD
+import multiprocessing
 import os
 import signal
 import time
@@ -40,6 +43,8 @@ from opsiconfd.utils import Singleton, asyncio_create_task, log_config
 from opsiconfd.utils.modules import module_available
 from opsiconfd.worker import Worker, WorkerInfo, WorkerState
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
+
+multiprocessing.set_start_method("fork")
 
 
 class WorkerManager:

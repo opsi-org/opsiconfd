@@ -55,6 +55,12 @@ if TYPE_CHECKING:
 
 multiprocessing.allow_connection_pickling()
 spawn = multiprocessing.get_context("spawn")
+# Pre-import popen modules so they are cached in sys.modules before any
+# potential user switch (switch_to_user). The Python installation may reside
+# in a location not accessible to the service user (e.g. ~/.local), and these
+# modules are only loaded lazily at spawn time - which would be too late.
+# import multiprocessing.popen_fork  # noqa: E402
+# import multiprocessing.popen_spawn_posix  # noqa: E402
 
 
 class H11ProtocolOpsiconfd(H11Protocol):

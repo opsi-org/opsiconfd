@@ -140,12 +140,12 @@ test:lint-and-test:
 
 build:linux-x64:
   stage: build
-  image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
+  image: docker.uib.gmbh/opsi/dev/pybuilder:deb9
   tags:
     - docker-x64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
-    - export UV_PYTHON="3.14"
+    - export UV_PYTHON="3.14.4"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - apt update
@@ -174,7 +174,7 @@ build:linux-x64-debug:
     - docker-x64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
-    - export UV_PYTHON="3.14"
+    - export UV_PYTHON="3.14.4"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - apt update
@@ -210,7 +210,7 @@ build:linux-arm64:
     - docker-arm64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
-    - export UV_PYTHON="3.14"
+    - export UV_PYTHON="3.14.4"
     - TRANSIFEX_MIN_REVIEW_RATE=0.0
     - '[ "$CI_COMMIT_TAG" = "" ] || TRANSIFEX_MIN_REVIEW_RATE=1.0'
     - opsi-dev-cli self upgrade

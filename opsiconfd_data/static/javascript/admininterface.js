@@ -430,7 +430,7 @@ function updateMultiFactorAuth(userId, type) {
 	let req = ajaxRequest("POST", "/admin/update-multi-factor-auth", { "user_id": userId, "type": type });
 	req.then((result) => {
 		if (result) {
-			let html = `<div style="line-height: 1.0;">${result}</div>`;
+			let html = `<div style="line-height: 1.0; font-family: monospace; white-space: pre;">${result}</div>`;
 			html += "<p>Your multi-factor secret has been changed.<br>";
 			html += "Please use an app like Google Authenticator and scan the QR code displayed.<br>";
 			html += "The app will then generate a new one-time password every 30 seconds.<br>";

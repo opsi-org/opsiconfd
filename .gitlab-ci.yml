@@ -53,7 +53,7 @@ test:lint-and-test:
   script:
     - 'echo "CI_CONCURRENT_ID: $CI_CONCURRENT_ID"'
     - echo -e "${TXT_HEAD}Fetch bencher${TXT_CLEAR}"
-    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.6.2/bencher-v0.6.2-linux-x86-64 -O bencher
+    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.6.1/bencher-v0.6.1-linux-x86-64 -O bencher
     - chmod +x bencher
 
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"

@@ -124,8 +124,9 @@ test:lint-and-test:
       )
 
     - BRANCH="${CI_COMMIT_REF_NAME:-${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}}"
-
-    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --start-point "$BRANCH" --err --adapter json --file bencher-results.json
+    - echo $BRANCH
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run cat bencher-results.json
+    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --benchmark opsiconfd-perftest --start-point "$BRANCH" --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     when: always

@@ -1079,7 +1079,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.50.7"
+version = "4.3.50.8"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },
@@ -1809,7 +1809,7 @@ wheels = [
 [[package]]
 name = "pywinpty"
 version = "3.0.3"
-source = { registry = "https://pypi.uib.gmbh/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f7/54/37c7370ba91f579235049dc26cd2c5e657d2a943e01820844ffc81f32176/pywinpty-3.0.3.tar.gz", hash = "sha256:523441dc34d231fb361b4b00f8c99d3f16de02f5005fd544a0183112bcc22412", size = 31309, upload-time = "2026-02-04T21:51:09.524Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/28/88/2ff917caff61e55f38bcdb27de06ee30597881b2cae44fbba7627be015c4/pywinpty-3.0.3-cp314-cp314-win_amd64.whl", hash = "sha256:d4b6b7b0fe0cdcd02e956bd57cfe9f4e5a06514eecf3b5ae174da4f951b58be9", size = 2113282, upload-time = "2026-02-04T21:52:08.188Z" },

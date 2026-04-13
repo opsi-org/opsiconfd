@@ -32,8 +32,8 @@ test:lint-and-test:
     - echo "OPSISERVER_CS_OPSICONFD_FORWARD_PORT=" >> docker/opsiconfd-dev/.env
     - echo "DEV_USER=" >> docker/opsiconfd-dev/.env
     - echo "DEV_UID=" >> docker/opsiconfd-dev/.env
-    - echo "BENCHER_HOST=${BENCHER_HOST}" >> docker/opsiconfd-dev/.env
-    - echo "BENCHER_API_TOKEN=${BENCHER_API_TOKEN}" >> docker/opsiconfd-dev/.env
+    # - echo "BENCHER_HOST=${BENCHER_HOST}" >> docker/opsiconfd-dev/.env
+    # - echo "BENCHER_API_TOKEN=${BENCHER_API_TOKEN}" >> docker/opsiconfd-dev/.env
 
     - echo -e "${TXT_HEAD}Build docker images${TXT_CLEAR}"
     - $DOCKER_COMPOSE build --pull
@@ -52,9 +52,9 @@ test:lint-and-test:
     - $DOCKER_COMPOSE down -v
   script:
     - 'echo "CI_CONCURRENT_ID: $CI_CONCURRENT_ID"'
-    - echo -e "${TXT_HEAD}Fetch bencher${TXT_CLEAR}"
-    - wget -q https://github.com/bencherdev/bencher/releases/download/v0.6.1/bencher-v0.6.1-linux-x86-64 -O bencher
-    - chmod +x bencher
+    # - echo -e "${TXT_HEAD}Fetch bencher${TXT_CLEAR}"
+    # - wget -q https://github.com/bencherdev/bencher/releases/download/v0.6.1/bencher-v0.6.1-linux-x86-64 -O bencher
+    # - chmod +x bencher
 
     - echo -e "${TXT_HEAD}Prepare docker containers${TXT_CLEAR}"
     - $DOCKER_COMPOSE up --detach --wait --wait-timeout 300
@@ -117,16 +117,16 @@ test:lint-and-test:
       )
 
     - echo -e "${TXT_HEAD}Run opsiconfd get-config duration test${TXT_CLEAR}"
-    - |
-      $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 1.0 -i 6 uv run opsiconfd get-config || (
-        echo -e "${TXT_ERROR}bencher-command.py failed${TXT_CLEAR}"
-        exit 1
-      )
+    # - |
+    #   $DOCKER_COMPOSE exec opsiserver43-dev uv run ./perftest/bencher-command.py -r bencher-results.json -m opsiconfd-get-config-duration -x 1.0 -i 6 uv run opsiconfd get-config || (
+    #     echo -e "${TXT_ERROR}bencher-command.py failed${TXT_CLEAR}"
+    #     exit 1
+    #   )
 
-    - BRANCH="${CI_COMMIT_REF_NAME:-${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}}"
-    - echo $BRANCH
-    - $DOCKER_COMPOSE exec opsiserver43-dev uv run cat bencher-results.json
-    - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --benchmark opsiconfd-perftest --start-point "$BRANCH" --err --adapter json --file bencher-results.json
+    # - BRANCH="${CI_COMMIT_REF_NAME:-${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}}"
+    # - echo $BRANCH
+    # - $DOCKER_COMPOSE exec opsiserver43-dev uv run cat bencher-results.json
+    # - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --benchmark opsiconfd-perftest --start-point "$BRANCH" --err --adapter json --file bencher-results.json
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     when: always

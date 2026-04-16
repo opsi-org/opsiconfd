@@ -36,7 +36,7 @@ from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.metrics.metric import ALL_METRICS
-from opsiconfd.utils import Singleton, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker
+from opsiconfd.utils import Singleton, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker, running_under_systemd
 
 if TYPE_CHECKING:
 	from fastapi.templating import Jinja2Templates
@@ -315,6 +315,7 @@ class Config(metaclass=Singleton):
 	_initialized = False
 
 	def __init__(self) -> None:
+
 		if self._initialized:
 			return
 		self._initialized = True
@@ -638,6 +639,14 @@ class Config(metaclass=Singleton):
 				return "[" + ", ".join(str(v) for v in val) + "]"
 			return str(val)
 
+		# Get file size before writing
+		file.seek(0, 2)  # Seek to end
+		size_before = file.tell()
+
+		# Get process and thread information
+		pid = os.getpid()
+		thread_name = threading.current_thread().name
+
 		conf = conf.copy()
 		data = ""
 		file.seek(0)
@@ -671,6 +680,19 @@ class Config(metaclass=Singleton):
 		file.seek(0)
 		file.truncate()
 		file.write(data)
+
+		# Get file size after writing
+		size_after = len(data.encode("utf-8"))
+
+		# Log the config file write operation - with fallback for early startup
+
+		if running_under_systemd():
+			log_msg = (
+				f"Configuration file '{self._config.config_file}' written by PID {pid} ({thread_name}): "
+				f"size changed from {size_before} to {size_after} bytes"
+			)
+			print(log_msg, file=sys.stderr)
+
 		return data
 
 	def _config_file_contents(self) -> str:
@@ -683,22 +705,60 @@ class Config(metaclass=Singleton):
 						masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
 					return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
 
+	def _get_config_update_metadata(self) -> dict[str, int | str]:
+		"""Get metadata for config file updates including file size and process information.
+
+		Returns:
+			Dictionary containing size_before, pid, and thread_name.
+		"""
+		# Get file size before writing
+		if os.path.exists(self._config.config_file):
+			size_before = os.path.getsize(self._config.config_file)
+		else:
+			size_before = 0
+		# Get process and thread information
+		pid = os.getpid()
+		thread_name = threading.current_thread().name
+
+		return {"size_before": size_before, "pid": pid, "thread_name": thread_name}
+
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with self._config_file_lock:
+			metadata = self._get_config_update_metadata()
+
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
 				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					conf[arg] = value
 					return self._generate_config_file(file, conf)
+			size_after = os.path.getsize(self._config.config_file)
+
+			if running_under_systemd():
+				log_msg = (
+					f"Config option '{arg}' set to '{value}' in configuration file '{self._config.config_file}' by PID {metadata['pid']} ({metadata['thread_name']}): "
+					f"size changed from {metadata['size_before']} to {size_after} bytes"
+				)
+				print(log_msg, file=sys.stderr)
 
 	def _update_config_file(self) -> str:
 		with self._config_file_lock:
+			metadata = self._get_config_update_metadata()
+
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
 				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
 					for deprecated in DEPRECATED:
 						conf.pop(deprecated, None)
 					return self._generate_config_file(file, conf)
+
+			size_after = os.path.getsize(self._config.config_file)
+
+			if running_under_systemd():
+				log_msg = (
+					f"Configuration file '{self._config.config_file}' updated by PID {metadata['pid']} ({metadata['thread_name']}): "
+					f"size changed from {metadata['size_before']} to {size_after} bytes"
+				)
+				print(log_msg, file=sys.stderr)
 
 	def _init_parser(self) -> None:
 		self._parser = configargparse.ArgumentParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))

@@ -268,6 +268,21 @@ def systemd_running() -> bool:
 	return False
 
 
+def running_under_systemd():
+	return True
+	if "INVOCATION_ID" in os.environ:
+		return True
+
+	try:
+		with open("/proc/self/cgroup") as f:
+			if "systemd" in f.read():
+				return True
+	except Exception:
+		pass
+
+	return False
+
+
 def opsiconfd_running() -> bool:
 	"""
 	Check if opsiconfd is running.

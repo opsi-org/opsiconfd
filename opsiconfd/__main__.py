@@ -7,18 +7,12 @@
 opsiconfd.__main__
 """
 
-# NICHT PROD
-# import multiprocessing
 import os
 import sys
 import traceback
+from multiprocessing import freeze_support
 
-# from multiprocessing import freeze_support
-
-# multiprocessing.set_start_method("fork")
-
-
-# freeze_support()
+freeze_support()
 
 if not getattr(sys, "frozen", False):
 	package_base = os.path.dirname(__file__)

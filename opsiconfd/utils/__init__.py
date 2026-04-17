@@ -269,7 +269,6 @@ def systemd_running() -> bool:
 
 
 def running_under_systemd():
-	return True
 	if "INVOCATION_ID" in os.environ:
 		return True
 

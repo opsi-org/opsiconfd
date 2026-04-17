@@ -157,6 +157,11 @@ DEFAULT_NODE_NAME = FQDN.split(".", 1)[0]
 opsi_config = OpsiConfig()
 
 
+def print_log(message: str) -> None:
+	if running_under_systemd():
+		print(message, file=sys.stderr)
+
+
 def configure_warnings() -> None:
 	# Disable sqlalchemy 2.0 deprecation warnings
 	# Import here because import is slow
@@ -686,12 +691,11 @@ class Config(metaclass=Singleton):
 
 		# Log the config file write operation - with fallback for early startup
 
-		if running_under_systemd():
-			log_msg = (
-				f"Configuration file '{self._config.config_file}' written by PID {pid} ({thread_name}): "
-				f"size changed from {size_before} to {size_after} bytes"
-			)
-			print(log_msg, file=sys.stderr)
+		log_msg = (
+			f"Configuration file '{self._config.config_file}' written by PID {pid} ({thread_name}): "
+			f"size changed from {size_before} to {size_after} bytes"
+		)
+		print_log(log_msg)
 
 		return data
 
@@ -733,12 +737,11 @@ class Config(metaclass=Singleton):
 					return self._generate_config_file(file, conf)
 			size_after = os.path.getsize(self._config.config_file)
 
-			if running_under_systemd():
-				log_msg = (
-					f"Config option '{arg}' set to '{value}' in configuration file '{self._config.config_file}' by PID {metadata['pid']} ({metadata['thread_name']}): "
-					f"size changed from {metadata['size_before']} to {size_after} bytes"
-				)
-				print(log_msg, file=sys.stderr)
+			log_msg = (
+				f"Config option '{arg}' set to '{value}' in configuration file '{self._config.config_file}' by PID {metadata['pid']} ({metadata['thread_name']}): "
+				f"size changed from {metadata['size_before']} to {size_after} bytes"
+			)
+			print_log(log_msg)
 
 	def _update_config_file(self) -> str:
 		with self._config_file_lock:
@@ -753,12 +756,11 @@ class Config(metaclass=Singleton):
 
 			size_after = os.path.getsize(self._config.config_file)
 
-			if running_under_systemd():
-				log_msg = (
-					f"Configuration file '{self._config.config_file}' updated by PID {metadata['pid']} ({metadata['thread_name']}): "
-					f"size changed from {metadata['size_before']} to {size_after} bytes"
-				)
-				print(log_msg, file=sys.stderr)
+			log_msg = (
+				f"Configuration file '{self._config.config_file}' updated by PID {metadata['pid']} ({metadata['thread_name']}): "
+				f"size changed from {metadata['size_before']} to {size_after} bytes"
+			)
+			print_log(log_msg)
 
 	def _init_parser(self) -> None:
 		self._parser = configargparse.ArgumentParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))

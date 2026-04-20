@@ -26,6 +26,7 @@ from urllib.parse import unquote, urlparse
 import certifi
 import configargparse
 import DNS
+import psutil
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter
 from opsicommon.ssl.linux import get_system_ca_cert_info
@@ -38,6 +39,7 @@ from packaging.version import Version
 from opsiconfd.metrics.metric import ALL_METRICS
 from opsiconfd.utils import (
 	Singleton,
+	is_manager,
 	reload_opsiconfd_if_running,
 	restart_opsiconfd_if_running,
 	running_in_docker,
@@ -390,7 +392,9 @@ class Config(metaclass=Singleton):
 
 		self._init_parser()
 
-		if action in ("start", "setup"):
+		current_pid = os.getpid()
+		current_proc = psutil.Process(current_pid)
+		if action in ("start", "setup") and is_manager(current_proc):
 			self._update_config_file()
 
 		self._parse_args()
@@ -695,8 +699,6 @@ class Config(metaclass=Singleton):
 		# Get file size after writing
 		size_after = len(data.encode("utf-8"))
 
-		# Log the config file write operation - with fallback for early startup
-
 		log_msg = (
 			f"Configuration file '{self._config.config_file}' written by PID {pid} ({thread_name}): "
 			f"size changed from {size_before} to {size_after} bytes"
@@ -715,57 +717,28 @@ class Config(metaclass=Singleton):
 						masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
 					return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
 
-	def _get_config_update_metadata(self) -> dict[str, int | str]:
-		"""Get metadata for config file updates including file size and process information.
-
-		Returns:
-			Dictionary containing size_before, pid, and thread_name.
-		"""
-		# Get file size before writing
-		if os.path.exists(self._config.config_file):
-			size_before = os.path.getsize(self._config.config_file)
-		else:
-			size_before = 0
-		# Get process and thread information
-		pid = os.getpid()
-		thread_name = threading.current_thread().name
-
-		return {"size_before": size_before, "pid": pid, "thread_name": thread_name}
-
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
 				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
-					metadata = self._get_config_update_metadata()
 					conf = self._parse_config_file(file)
 					conf[arg] = value
 					result = self._generate_config_file(file, conf)
-			size_after = os.path.getsize(self._config.config_file)
 
-			log_msg = (
-				f"Config option '{arg}' set to '{value}' in configuration file '{self._config.config_file}' by PID {metadata['pid']} ({metadata['thread_name']}): "
-				f"size changed from {metadata['size_before']} to {size_after} bytes"
-			)
-			print_log(log_msg)
+			pid = os.getpid()
+			print_log(f"Config option '{arg}' set to '{value}' in configuration file '{self._config.config_file}' by PID {pid}.")
 			return result
 
 	def _update_config_file(self) -> str:
+		print_log("Configuration file update. Try to acquire lock for configuration file update...")
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
 				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
-					metadata = self._get_config_update_metadata()
+					print_log("Lock acquired for configuration file update.")
 					conf = self._parse_config_file(file)
 					for deprecated in DEPRECATED:
 						conf.pop(deprecated, None)
 					result = self._generate_config_file(file, conf)
-
-			size_after = os.path.getsize(self._config.config_file)
-
-			log_msg = (
-				f"Configuration file '{self._config.config_file}' updated by PID {metadata['pid']} ({metadata['thread_name']}): "
-				f"size changed from {metadata['size_before']} to {size_after} bytes"
-			)
-			print_log(log_msg)
 			return result
 
 	def _init_parser(self) -> None:

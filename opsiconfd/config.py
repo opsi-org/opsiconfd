@@ -36,7 +36,13 @@ from opsicommon.utils import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.metrics.metric import ALL_METRICS
-from opsiconfd.utils import Singleton, reload_opsiconfd_if_running, restart_opsiconfd_if_running, running_in_docker, running_under_systemd
+from opsiconfd.utils import (
+	Singleton,
+	reload_opsiconfd_if_running,
+	restart_opsiconfd_if_running,
+	running_in_docker,
+	running_under_systemd,
+)
 
 if TYPE_CHECKING:
 	from fastapi.templating import Jinja2Templates
@@ -728,13 +734,12 @@ class Config(metaclass=Singleton):
 
 	def set_config_in_config_file(self, arg: str, value: Any) -> str:
 		with self._config_file_lock:
-			metadata = self._get_config_update_metadata()
-
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):
+				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
+					metadata = self._get_config_update_metadata()
 					conf = self._parse_config_file(file)
 					conf[arg] = value
-					return self._generate_config_file(file, conf)
+					result = self._generate_config_file(file, conf)
 			size_after = os.path.getsize(self._config.config_file)
 
 			log_msg = (
@@ -742,17 +747,17 @@ class Config(metaclass=Singleton):
 				f"size changed from {metadata['size_before']} to {size_after} bytes"
 			)
 			print_log(log_msg)
+			return result
 
 	def _update_config_file(self) -> str:
 		with self._config_file_lock:
-			metadata = self._get_config_update_metadata()
-
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
-				with lock_file(file, lock_method=self._file_lock_method):
+				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
+					metadata = self._get_config_update_metadata()
 					conf = self._parse_config_file(file)
 					for deprecated in DEPRECATED:
 						conf.pop(deprecated, None)
-					return self._generate_config_file(file, conf)
+					result = self._generate_config_file(file, conf)
 
 			size_after = os.path.getsize(self._config.config_file)
 
@@ -761,6 +766,7 @@ class Config(metaclass=Singleton):
 				f"size changed from {metadata['size_before']} to {size_after} bytes"
 			)
 			print_log(log_msg)
+			return result
 
 	def _init_parser(self) -> None:
 		self._parser = configargparse.ArgumentParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))

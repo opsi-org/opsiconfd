@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,7 +7,7 @@
 opsiconfd.auth.user
 """
 
-from opsicommon.objects import UnicodeConfig
+from opsi.opsi.service.model.object import UnicodeConfig
 
 from opsiconfd.auth.rights import MessageTypes, Rights, Terminals
 from opsiconfd.auth.role import Role

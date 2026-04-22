@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.types import forceList
+from opsi.opsi.service.model.type import to_list
 from pydantic import (
 	BaseModel,
 	field_validator,
@@ -51,7 +51,7 @@ class SSHCommand(BaseModel):
 			raise ValueError("'commands' has to be a non empty list")
 		return value
 
-	@model_validator(mode="after")  # type: ignore[arg-type]
+	@model_validator(mode="after")  # ty: ignore[invalid-argument-type]
 	def validate_id(cls, cmd: SSHCommand) -> SSHCommand:
 		cmd.id = cmd.menuText.strip().lower().replace(" ", "_")
 		return cmd
@@ -142,7 +142,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 	@rpc_method
 	def SSHCommand_createObjects(self: BackendProtocol, commandList: list[dict[str, Any]]) -> None:
 		commands = self._read_ssh_commands_files()
-		for cmd_dict in forceList(commandList):
+		for cmd_dict in to_list(commandList):
 			cmd = SSHCommand.model_validate(cmd_dict)
 			commands[cmd.menuText] = cmd
 		self._write_custom_ssh_command_file(list(commands.values()))
@@ -194,7 +194,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 	def SSHCommand_updateObjects(self: BackendProtocol, commandList: list[dict[str, Any]]) -> None:
 		ssh_commands = self._read_ssh_commands_files()
 		modified = False
-		for cmd_dict in forceList(commandList):
+		for cmd_dict in to_list(commandList):
 			if "menuText" not in cmd_dict:
 				raise ValueError("Key 'menuText' missing")
 			menu_text = cmd_dict["menuText"]
@@ -214,7 +214,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 	@rpc_method
 	def SSHCommand_deleteObjects(self: BackendProtocol, menuTextList: list[str]) -> None:
 		ssh_commands = self._read_ssh_commands_files()
-		for menu_text in forceList(menuTextList):
+		for menu_text in to_list(menuTextList):
 			if menu_text in ssh_commands:
 				del ssh_commands[menu_text]
 		self._write_custom_ssh_command_file(list(ssh_commands.values()))

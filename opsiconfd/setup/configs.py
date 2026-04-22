@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,12 +12,12 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from functools import lru_cache
-from subprocess import run
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from opsicommon.license import OPSI_FREE_MODULE_IDS, OPSI_MODULE_IDS, OPSI_OBSOLETE_MODULE_IDS
-from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
+from opsi.opsi.licensing import OPSI_FREE_MODULE_IDS, OPSI_MODULE_IDS, OPSI_OBSOLETE_MODULE_IDS
+from opsi.opsi.service.model.object import BoolConfig, ConfigState, UnicodeConfig
+from opsi.process import run_command
 
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import config, get_configserver_id, get_server_role, opsi_config
@@ -52,7 +52,7 @@ def _get_windows_domain() -> str | None:
 	try:
 		# Could not fetch domain SID => exitcode 1
 		# Do not check exitcode
-		out = run(["net", "getdomainsid"], capture_output=True, check=False, encoding="utf-8").stdout
+		out = run_command(["net", "getdomainsid"], timeout=10).get_stdout_text()
 		match = re.search(r"SID for domain (\S+) is", out, flags=re.IGNORECASE)
 		if not match:
 			match = re.search(r"SID for local machine (\S+) is", out, flags=re.IGNORECASE)

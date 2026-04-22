@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,12 +12,12 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ProductPropertyState
-from opsicommon.types import (
-	forceObjectClass,
-	forceObjectClassList,
-	forceObjectIdList,
-	forceUnicodeList,
+from opsi.opsi.service.model.object import ProductPropertyState
+from opsi.opsi.service.model.type import (
+	to_object_class,
+	to_object_class_list,
+	to_object_id_list,
+	to_string_list,
 )
 
 from opsiconfd.backend.auth import RPCACE
@@ -56,10 +56,10 @@ class RPCProductPropertyStateMixin(Protocol):
 		object_ids: list[str] | str | None = None,
 		with_defaults: bool = True,
 	) -> dict[str, dict[str, dict[str, list[Any]]]]:
-		product_ids = forceUnicodeList(product_ids or [])
-		property_ids = forceUnicodeList(property_ids or [])
+		product_ids = to_string_list(product_ids or [])
+		property_ids = to_string_list(property_ids or [])
 		# object_ids can contain depot IDs!
-		object_ids = forceObjectIdList(object_ids or [])
+		object_ids = to_object_id_list(object_ids or [])
 		if client_id := self._get_client_id():
 			object_ids = [client_id]
 
@@ -96,7 +96,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		self: BackendProtocol,
 		productPropertyStates: list[dict] | list[ProductPropertyState],
 	) -> None:
-		self._mysql.bulk_insert_objects(table="PRODUCT_PROPERTY_STATE", objs=productPropertyStates)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="PRODUCT_PROPERTY_STATE", objs=productPropertyStates)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_insertObject(
@@ -104,7 +104,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		productPropertyState: dict | ProductPropertyState,
 	) -> None:
 		ace = self._get_ace("productPropertyState_insertObject")
-		productPropertyState = forceObjectClass(productPropertyState, ProductPropertyState)
+		productPropertyState = to_object_class(productPropertyState, ProductPropertyState)
 		self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=productPropertyState, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
@@ -113,7 +113,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		productPropertyState: dict | ProductPropertyState,
 	) -> None:
 		ace = self._get_ace("productPropertyState_updateObject")
-		productPropertyState = forceObjectClass(productPropertyState, ProductPropertyState)
+		productPropertyState = to_object_class(productPropertyState, ProductPropertyState)
 		self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=productPropertyState, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -122,7 +122,7 @@ class RPCProductPropertyStateMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productPropertyState_createObjects")
 
-		productPropertyStates = forceObjectClassList(productPropertyStates, ProductPropertyState)
+		productPropertyStates = to_object_class_list(productPropertyStates, ProductPropertyState)
 		newProductPropertyStates = [
 			productPropertyState for productPropertyState in productPropertyStates if productPropertyState.values != [None]
 		]
@@ -147,7 +147,7 @@ class RPCProductPropertyStateMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productPropertyState_updateObjects")
 
-		productPropertyStates = forceObjectClassList(productPropertyStates, ProductPropertyState)
+		productPropertyStates = to_object_class_list(productPropertyStates, ProductPropertyState)
 		newProductPropertyStates = [
 			productPropertyState for productPropertyState in productPropertyStates if productPropertyState.values != [None]
 		]

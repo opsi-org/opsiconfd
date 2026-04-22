@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -45,15 +45,15 @@ BLOCK_SIZE = 64 * 1024
 
 # Set file buffer size for reading and writing.
 # Sent message chunks will have the same body size.
-wsgidav.fs_dav_provider.BUFFER_SIZE = BLOCK_SIZE  # type: ignore[invalid-assignment]
+wsgidav.fs_dav_provider.BUFFER_SIZE = BLOCK_SIZE  # ty: ignore[invalid-assignment]
 
 
 # Prevent warning in log
-def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info: str) -> bool:  # type: ignore[possibly-missing-attribute]
+def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info: str) -> bool:  # ty: ignore[possibly-missing-submodule]
 	return False
 
 
-wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous  # type: ignore[possibly-missing-attribute]
+wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous  # ty: ignore[possibly-missing-submodule]
 
 
 class OpsiconfdFolderResource(FolderResource):
@@ -131,7 +131,7 @@ class OpsiconfdFilesystemProvider(FilesystemProvider):
 
 		return util.to_unicode_safe(file_path.as_posix())
 
-	def get_resource_inst(self, path: str, environ: dict) -> FileResource | OpsiconfdFolderResource | None:  # type: ignore[invalid-method-override]
+	def get_resource_inst(self, path: str, environ: dict) -> FileResource | OpsiconfdFolderResource | None:  # ty: ignore[invalid-method-override]
 		"""Return info dictionary for path.
 
 		See DAVProvider.get_resource_inst()

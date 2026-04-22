@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -22,7 +22,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import CertificateBuilder
 from fastapi import Request
 from onelogin.saml2.metadata import OneLogin_Saml2_Metadata
-from opsicommon.exceptions import OpsiServiceAuthenticationError
+from opsi.exception import OpsiServiceAuthenticationError
 from rich import print as rich_print
 from rich.prompt import Prompt
 

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,7 +16,7 @@ import socket
 import sys
 import threading
 import warnings
-from _colorize import ANSIColors, Theme, can_colorize  # type: ignore[import]
+from _colorize import ANSIColors, Theme, can_colorize  # ty: ignore[unresolved-import]
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError, HelpFormatter
 from functools import lru_cache
 from pathlib import Path
@@ -26,18 +26,17 @@ from urllib.parse import unquote, urlparse
 import certifi
 import configargparse
 import DNS
-from opsicommon.config import OpsiConfig
-from opsicommon.logging import secret_filter
-from opsicommon.ssl.linux import get_system_ca_cert_info
-from opsicommon.system import lock_file
-from opsicommon.system.network import get_fqdn
-from opsicommon.types import forceDomain
-from opsicommon.utils import ip_address_in_network
+from opsi.logging import secret_filter
+from opsi.opsi.service.model.type import to_domain
+from opsi.opsi.service.server import OpsiConfig
+from opsi.system.certificate_store._linux import get_system_ca_cert_info
+from opsi.system.file.lock import lock_file
+from opsi.system.network import get_fqdn
+from opsi.util.network import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.metrics.metric import ALL_METRICS
 from opsiconfd.utils import (
-	Singleton,
 	reload_opsiconfd_if_running,
 	restart_opsiconfd_if_running,
 	running_in_docker,
@@ -231,7 +230,7 @@ def network_address_or_domain(value: str) -> str:
 		return ipaddress.ip_network(value).compressed
 	except ValueError:
 		try:
-			return forceDomain(value)
+			return to_domain(value)
 		except ValueError:
 			pass
 	raise ArgumentTypeError(f"Neither a valid network address nor a valid domain name: {value!r}")
@@ -259,11 +258,11 @@ def str2version(value: str) -> Version:
 
 
 def format_help_without_msg(parser: configargparse.ArgumentParser) -> str:
-	return parser.orig_format_help().rsplit("\n\n", 1)[0]  # type: ignore[unresolved-attribute]
+	return parser.orig_format_help().rsplit("\n\n", 1)[0]  # ty: ignore[unresolved-attribute]
 
 
 setattr(configargparse.ArgumentParser, "orig_format_help", configargparse.ArgumentParser.format_help)
-configargparse.ArgumentParser.format_help = format_help_without_msg  # type: ignore[invalid-assignment]
+configargparse.ArgumentParser.format_help = format_help_without_msg  # ty: ignore[invalid-assignment]
 
 
 class OpsiconfdHelpFormatter(HelpFormatter):
@@ -283,8 +282,8 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 		t = self._theme
 		c = self._color
-		text = self.RE_ENV_VAR.sub(f"\n{ANSIColors.BOLD if c else ''}[env var: \g<1>]{t.reset if c else ''}", text)
-		text = self.RE_DEFAULT.sub(f"\n{ANSIColors.BOLD if c else ''}(default: \g<1>){t.reset if c else ''}", text)
+		text = self.RE_ENV_VAR.sub(f"\n{ANSIColors.BOLD if c else ''}[env var: \\g<1>]{t.reset if c else ''}", text)
+		text = self.RE_DEFAULT.sub(f"\n{ANSIColors.BOLD if c else ''}(default: \\g<1>){t.reset if c else ''}", text)
 		lines = []
 
 		for line in text.split("\n"):
@@ -322,12 +321,16 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		return text
 
 
-class Config(metaclass=Singleton):
-	_initialized = False
+class Config:
+	_instance: Config | None = None
+
+	def __new__(cls, *args: Any, **kwargs: Any) -> Config:
+		if cls._instance is None:
+			cls._instance = super().__new__(cls)
+		return cls._instance
 
 	def __init__(self) -> None:
-
-		if self._initialized:
+		if getattr(self, "_initialized", False):
 			return
 		self._initialized = True
 
@@ -595,9 +598,9 @@ class Config(metaclass=Singleton):
 
 				try:
 					if isinstance(value, list):
-						value = [action.type(v) for v in value]  # type: ignore[arg-type]
+						value = [action.type(v) for v in value]  # ty: ignore[call-non-callable]
 					else:
-						value = action.type(value) if action.type else str(value)  # type: ignore[arg-type]
+						value = action.type(value) if action.type else str(value)  # ty: ignore[call-non-callable]
 				except ValueError as err:
 					raise ValueError(f"Option {option!r}: {err}") from err
 				options[option] = value

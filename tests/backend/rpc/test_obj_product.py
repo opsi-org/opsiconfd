@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -8,7 +8,7 @@ test opsiconfd.backend.rpc.obj_product
 """
 
 import pytest
-from opsicommon.objects import (
+from opsi.opsi.service.model.object import (
 	ConfigState,
 	LocalbootProduct,
 	OpsiClient,

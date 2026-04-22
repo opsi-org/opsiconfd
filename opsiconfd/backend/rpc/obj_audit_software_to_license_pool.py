@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import AuditSoftwareToLicensePool
-from opsicommon.types import forceList
+from opsi.opsi.service.model.object import AuditSoftwareToLicensePool
+from opsi.opsi.service.model.type import to_list
 
 from . import rpc_method
 
@@ -24,7 +24,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 	def auditSoftwareToLicensePool_bulkInsertObjects(
 		self: BackendProtocol, auditSoftwareToLicensePools: list[dict] | list[AuditSoftwareToLicensePool]
 	) -> None:
-		self._mysql.bulk_insert_objects(table="AUDIT_SOFTWARE_TO_LICENSE_POOL", objs=auditSoftwareToLicensePools)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="AUDIT_SOFTWARE_TO_LICENSE_POOL", objs=auditSoftwareToLicensePools)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareToLicensePool_insertObject(
@@ -52,7 +52,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("auditSoftwareToLicensePool_createObjects")
 		with self._mysql.session() as session:
-			for auditSoftwareToLicensePool in forceList(auditSoftwareToLicensePools):
+			for auditSoftwareToLicensePool in to_list(auditSoftwareToLicensePools):
 				self._mysql.insert_object(
 					table="AUDIT_SOFTWARE_TO_LICENSE_POOL",
 					obj=auditSoftwareToLicensePool,
@@ -69,7 +69,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("auditSoftwareToLicensePool_updateObjects")
 		with self._mysql.session() as session:
-			for auditSoftwareToLicensePool in forceList(auditSoftwareToLicensePools):
+			for auditSoftwareToLicensePool in to_list(auditSoftwareToLicensePools):
 				self._mysql.insert_object(
 					table="AUDIT_SOFTWARE_TO_LICENSE_POOL",
 					obj=auditSoftwareToLicensePool,

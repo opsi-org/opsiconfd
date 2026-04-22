@@ -1,5 +1,5 @@
-# opsiconfd is part of the device management solution OPSI http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# opsiconfd is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -9,13 +9,12 @@ opsiconfd.setup.samba
 
 import os
 import re
-import subprocess
 from functools import lru_cache
 from pathlib import Path
-from subprocess import CalledProcessError, run
 
 from configupdater import ConfigUpdater
-from opsicommon.system.info import is_ucs
+from opsi.process import ProcessError, run_command
+from opsi.system.info import is_ucs
 
 from opsiconfd.config import FQDN, SMB_CONF, config, opsi_config, str2bool
 from opsiconfd.logging import logger, secret_filter
@@ -84,13 +83,8 @@ SHARES = {
 @lru_cache
 def is_samba3() -> bool:
 	try:
-		return (
-			run(["smbd", "-V"], shell=False, text=True, encoding="utf-8", check=False, capture_output=True)
-			.stdout.strip()
-			.lower()
-			.startswith("version 3")
-		)
-	except FileNotFoundError:
+		return run_command(["smbd", "-V"], timeout=10).get_stdout_text().strip().lower().startswith("version 3")
+	except ProcessError:
 		return False
 
 
@@ -99,13 +93,11 @@ def get_smbd_service_name() -> str:
 	try:
 		possible_names = ("samba", "smb", "smbd")
 		pattern = re.compile(r"^\s*([a-z]+)\@?\.service")
-		for line in run(
-			["systemctl", "list-unit-files"], shell=False, text=True, encoding="utf-8", check=True, capture_output=True
-		).stdout.split("\n"):
+		for line in run_command(["systemctl", "list-unit-files"], timeout=10).get_stdout_lines():
 			match = pattern.match(line)
 			if match and match.group(1) in possible_names:
 				return match.group(1)
-	except (FileNotFoundError, PermissionError, CalledProcessError) as err:
+	except ProcessError as err:
 		logger.info("Failed to get samba service name: %s", err)
 
 	return "smbd"
@@ -115,10 +107,8 @@ def reload_samba() -> None:
 	service_name = get_smbd_service_name()
 	logger.notice("Reloading Samba service %s", service_name)
 	try:
-		run(["systemctl", "reload", service_name], shell=False, text=True, encoding="utf-8", check=True, capture_output=True)
-	except CalledProcessError as err:
-		logger.warning("%s %s %s", err, err.stdout, err.stderr)
-	except FileNotFoundError as err:
+		run_command(["systemctl", "reload", service_name], timeout=10)
+	except ProcessError as err:
 		logger.warning("Failed to reload samba service %r: %s", service_name, err)
 
 
@@ -238,10 +228,9 @@ def setup_ucs_samba_share(
 		cmd.append(ucs_admin_dn)
 		cmd.append("--bindpwd")
 		cmd.append(ucs_password)
-	logger.debug(subprocess.list2cmdline(cmd))
 	try:
-		subprocess.check_output(cmd, timeout=10)
-	except subprocess.CalledProcessError as err:
+		run_command(cmd, timeout=10)
+	except ProcessError as err:
 		logger.error("Failed to create container for samba shares: %s", err)
 
 	# remove existing share
@@ -251,10 +240,9 @@ def setup_ucs_samba_share(
 		cmd.append(ucs_admin_dn)
 		cmd.append("--bindpwd")
 		cmd.append(ucs_password)
-	logger.debug(subprocess.list2cmdline(cmd))
 	try:
-		subprocess.check_output(cmd, timeout=10)
-	except subprocess.CalledProcessError as err:
+		run_command(cmd, timeout=10)
+	except ProcessError as err:
 		logger.error("Failed to remove samba share %r: %s", name, err)
 
 	# create samba share
@@ -307,10 +295,9 @@ def setup_ucs_samba_share(
 		cmd.append("--bindpwd")
 		cmd.append(ucs_password)
 
-	logger.debug(subprocess.list2cmdline(cmd))
 	try:
-		subprocess.check_output(cmd, timeout=10)
-	except subprocess.CalledProcessError as err:
+		run_command(cmd, timeout=10)
+	except ProcessError as err:
 		logger.error("Failed to create samba share %r: %s", name, err)
 
 	return True

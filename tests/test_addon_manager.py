@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -113,7 +113,7 @@ def test_reload_addon(
 	addon_manager.reload_addon("test1")
 	assert len(addon_manager.addons) == 1
 	assert addon_manager.addons[0].name == "NEW NAME"
-	response = addon_manager.addons[0].api_router.routes[0].endpoint()  # type: ignore[attr-defined]
+	response = addon_manager.addons[0].api_router.routes[0].endpoint()  # ty: ignore[unresolved-attribute]
 	assert response.body.decode() == '"TEST1 NEW"'
 
 	with pytest.raises(ValueError):

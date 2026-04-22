@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 from functools import lru_cache
 from uuid import UUID
 
-from opsicommon.types import forceHostId, forceStringLower, forceUnsignedInt, forceUserId
+from opsi.opsi.service.model.type import to_host_id, to_string_lower, to_unsigned_int, to_user_id
 
 from opsiconfd.config import get_configserver_id
 from opsiconfd.utils import force_nodename
@@ -25,21 +25,21 @@ def get_messagebus_worker_id() -> str:
 
 
 def get_user_id_for_host(host_id: str) -> str:
-	return f"host:{forceHostId(host_id)}"
+	return f"host:{to_host_id(host_id)}"
 
 
 def get_user_id_for_user(user_id: str) -> str:
-	return f"user:{forceUserId(user_id)}"
+	return f"user:{to_user_id(user_id)}"
 
 
 @lru_cache
 def get_user_id_for_service_node(node_name: str) -> str:
-	return f"service_node:{forceStringLower(node_name)}"
+	return f"service_node:{to_string_lower(node_name)}"
 
 
 @lru_cache
 def get_user_id_for_service_worker(worker_id: str) -> str:
-	return f"service_worker:{forceStringLower(worker_id)}"
+	return f"service_worker:{to_string_lower(worker_id)}"
 
 
 @lru_cache
@@ -73,7 +73,7 @@ def check_channel_name(channel: str) -> str:
 			if parts[3] not in ("jsonrpc", "terminal", "process", "filetransfer"):
 				raise ValueError(f"Invalid service channel: {channel!r}")
 			try:
-				parts[2] = forceHostId(parts[2])
+				parts[2] = to_host_id(parts[2])
 			except ValueError as err:
 				raise ValueError(f"Invalid service channel: {channel!r}") from err
 			return ":".join(parts)
@@ -85,7 +85,7 @@ def check_channel_name(channel: str) -> str:
 		if len(parts) < 2:
 			raise ValueError(f"Invalid host channel: {channel!r}")
 		try:
-			parts[1] = forceHostId(parts[1])
+			parts[1] = to_host_id(parts[1])
 			return ":".join(parts)
 		except ValueError as err:
 			raise ValueError(f"Invalid host channel: {channel!r}") from err
@@ -96,7 +96,7 @@ def check_channel_name(channel: str) -> str:
 		if len(parts) < 2:
 			raise ValueError(f"Invalid user channel: {channel!r}")
 		try:
-			parts[1] = forceUserId(parts[1])
+			parts[1] = to_user_id(parts[1])
 			return ":".join(parts)
 		except ValueError as err:
 			raise ValueError(f"Invalid user channel: {channel!r}") from err
@@ -119,7 +119,7 @@ def check_channel_name(channel: str) -> str:
 			raise ValueError(f"Invalid service_worker channel: {channel!r}")
 		try:
 			parts[1] = force_nodename(parts[1])
-			parts[2] = str(forceUnsignedInt(parts[2]))
+			parts[2] = str(to_unsigned_int(parts[2]))
 			return ":".join(parts)
 		except ValueError as err:
 			raise ValueError(f"Invalid service_worker channel: {channel!r}") from err

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -9,7 +9,7 @@ setup tests
 
 from unittest.mock import PropertyMock, patch
 
-from opsicommon.objects import (
+from opsi.opsi.service.model.object import (
 	ConfigState,
 	LocalbootProduct,
 	OpsiClient,
@@ -20,21 +20,31 @@ from opsicommon.objects import (
 )
 
 from opsiconfd.setup.configs import _auto_correct_depot_urls, _cleanup_product_on_clients, _get_windows_domain, setup_configs
-from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
+from tests.utils import MockProcess, UnprotectedBackend, backend, clean_mysql  # noqa: F401
 
 
 def test_get_windows_domain() -> None:
-	class Proc:
-		stdout = ""
-
-	with patch("opsiconfd.setup.configs.run", PropertyMock(return_value=Proc())):
-		Proc.stdout = (
-			"SID for local machine MACHINE is: S-1-5-21-3621911554-2635998167-701618891\n"
-			"SID for domain DOMAIN is: S-1-5-21-3621911554-701618891-2635998167\n"
-		)
+	with patch(
+		"opsiconfd.setup.configs.run_command",
+		PropertyMock(
+			return_value=MockProcess(
+				stdout=(
+					"SID for local machine MACHINE is: S-1-5-21-3621911554-2635998167-701618891\n"
+					"SID for domain DOMAIN is: S-1-5-21-3621911554-701618891-2635998167\n"
+				)
+			)
+		),
+	):
 		assert _get_windows_domain() == "DOMAIN"
 
-		Proc.stdout = "SID for local machine MACHINE is: S-1-5-21-3621911554-2635998167-701618891\nCould not fetch domain SID\n"
+	with patch(
+		"opsiconfd.setup.configs.run_command",
+		PropertyMock(
+			return_value=MockProcess(
+				stdout=("SID for local machine MACHINE is: S-1-5-21-3621911554-2635998167-701618891\nCould not fetch domain SID\n")
+			)
+		),
+	):
 		assert _get_windows_domain() == "MACHINE"
 
 

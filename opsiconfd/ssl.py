@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -29,18 +29,17 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import verification
-from opsicommon.server.rights import DirPermission, FilePermission, PermissionRegistry, set_rights
-from opsicommon.ssl import (
+from opsi.crypt.ssl import (
 	as_pem,
 	create_ca,
 	create_server_cert,
 	create_server_cert_signing_request,
-	install_ca,
 	is_self_signed,
-	load_ca,
 	load_key,
 	x509_name_to_dict,
 )
+from opsi.opsi.service.server import DirPermission, FilePermission, PermissionRegistry, set_rights
+from opsi.system.certificate_store import install_ca, load_ca
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from opsiconfd.backend import get_unprotected_backend
@@ -60,7 +59,7 @@ from opsiconfd.utils import get_ip_interfaces
 from opsiconfd.utils.modules import module_available
 
 if TYPE_CHECKING:
-	from opsicommon.client.opsiservice import ServiceClient
+	from opsi.opsi.service.client import ServiceClient
 
 	from opsiconfd.backend.rpc.main import Backend
 
@@ -802,7 +801,7 @@ def fetch_server_cert(backend: ServiceClient | Backend, server_id: str | None = 
 	"""
 	Fetch a new server certificate from the OPSI service.
 	"""
-	pem = backend.host_getTLSCertificate(server_id or get_depotserver_id())  # type: ignore[union-attr]
+	pem = backend.host_getTLSCertificate(server_id or get_depotserver_id())  # ty: ignore[unresolved-attribute]
 	pem_bytes = pem.encode("utf-8")
 	srv_crt = x509.load_pem_x509_certificate(pem_bytes)
 	srv_key = serialization.load_pem_private_key(pem_bytes, password=None)

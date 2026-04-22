@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,18 +12,9 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import (
-	LicenseConfigurationError,
-	LicenseMissingError,
-)
-from opsicommon.objects import LicenseOnClient
-from opsicommon.types import (
-	forceHostId,
-	forceLicensePoolId,
-	forceList,
-	forceProductId,
-	forceUnicode,
-)
+from opsi.exception import OpsiLicenseConfigurationError, OpsiLicenseMissingError
+from opsi.opsi.service.model.object import LicenseOnClient
+from opsi.opsi.service.model.type import to_host_id, to_license_pool_id, to_list, to_product_id, to_string
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.logging import logger
@@ -36,7 +27,7 @@ if TYPE_CHECKING:
 
 class RPCLicenseOnClientMixin(Protocol):
 	def licenseOnClient_bulkInsertObjects(self: BackendProtocol, licenseOnClients: list[dict] | list[LicenseOnClient]) -> None:
-		self._mysql.bulk_insert_objects(table="LICENSE_ON_CLIENT", objs=licenseOnClients)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="LICENSE_ON_CLIENT", objs=licenseOnClients)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_insertObject(self: BackendProtocol, licenseOnClient: dict | LicenseOnClient) -> None:
@@ -54,7 +45,7 @@ class RPCLicenseOnClientMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("licenseOnClient_createObjects")
 		with self._mysql.session() as session:
-			for licenseOnClient in forceList(licenseOnClients):
+			for licenseOnClient in to_list(licenseOnClients):
 				self._mysql.insert_object(
 					table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=True, session=session
 				)
@@ -65,7 +56,7 @@ class RPCLicenseOnClientMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("licenseOnClient_updateObjects")
 		with self._mysql.session() as session:
-			for licenseOnClient in forceList(licenseOnClients):
+			for licenseOnClient in to_list(licenseOnClients):
 				self._mysql.insert_object(
 					table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=False, session=session
 				)
@@ -161,17 +152,17 @@ class RPCLicenseOnClientMixin(Protocol):
 		productId: str | None = None,
 		windowsSoftwareId: str | None = None,
 	) -> LicenseOnClient:
-		clientId = forceHostId(clientId)
+		clientId = to_host_id(clientId)
 		if licensePoolId:
-			licensePoolId = forceLicensePoolId(licensePoolId)
+			licensePoolId = to_license_pool_id(licensePoolId)
 		elif productId or windowsSoftwareId:
 			license_pool_ids = []
 			if productId:
-				productId = forceProductId(productId)
+				productId = to_product_id(productId)
 				license_pool_ids = self.licensePool_getIdents(productIds=productId, returnType="unicode")
 			elif windowsSoftwareId:
 				license_pool_ids = []
-				windowsSoftwareId = forceUnicode(windowsSoftwareId)
+				windowsSoftwareId = to_string(windowsSoftwareId)
 
 				audit_softwares = self.auditSoftware_getObjects(windowsSoftwareId=windowsSoftwareId)
 				for auditSoftware in audit_softwares:
@@ -186,11 +177,11 @@ class RPCLicenseOnClientMixin(Protocol):
 						license_pool_ids.append(audit_software_to_license_pools[0].licensePoolId)
 
 			if len(license_pool_ids) < 1:
-				raise LicenseConfigurationError(
+				raise OpsiLicenseConfigurationError(
 					f"No license pool for product id '{productId}', windowsSoftwareId '{windowsSoftwareId}' found"
 				)
 			if len(license_pool_ids) > 1:
-				raise LicenseConfigurationError(
+				raise OpsiLicenseConfigurationError(
 					f"Multiple license pools for product id '{productId}', "
 					f"windowsSoftwareId '{windowsSoftwareId}' found: {license_pool_ids}"
 				)
@@ -199,7 +190,7 @@ class RPCLicenseOnClientMixin(Protocol):
 			raise ValueError("You have to specify one of: licensePoolId, productId, windowsSoftwareId")
 
 		if not self.licensePool_getIdents(id=licensePoolId):
-			raise LicenseConfigurationError(f"License pool '{licensePoolId}' not found")
+			raise OpsiLicenseConfigurationError(f"License pool '{licensePoolId}' not found")
 
 		# Test if a license is already used by the host
 		license_on_client = None
@@ -245,7 +236,7 @@ class RPCLicenseOnClientMixin(Protocol):
 
 		software_license_to_license_pools = self.softwareLicenseToLicensePool_getObjects(licensePoolId=license_pool_id)
 		if not software_license_to_license_pools:
-			raise LicenseMissingError(f"No licenses in pool '{license_pool_id}'")
+			raise OpsiLicenseMissingError(f"No licenses in pool '{license_pool_id}'")
 
 		software_license_ids = [
 			softwareLicenseToLicensePool.softwareLicenseId for softwareLicenseToLicensePool in software_license_to_license_pools
@@ -273,7 +264,7 @@ class RPCLicenseOnClientMixin(Protocol):
 				logger.info("Found available license for pool '%s' and client '%s': %s", license_pool_id, client_id, software_license_id)
 
 		if not software_license_id:
-			raise LicenseMissingError(
+			raise OpsiLicenseMissingError(
 				f"No license available for pool '{license_pool_id}' and client '{client_id}',"
 				" or all remaining licenses are bound to a different host."
 			)

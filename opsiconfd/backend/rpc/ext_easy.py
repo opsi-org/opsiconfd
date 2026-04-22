@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,12 +12,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.types import (
-	forceActionRequestList,
-	forceHostIdList,
-	forceInstallationStatus,
-	forceProductIdList,
-)
+from opsi.opsi.service.model.type import to_action_request_list, to_host_id_list, to_installation_status, to_product_id_list
 
 from . import rpc_method
 
@@ -82,7 +77,7 @@ class RPCExtEasyMixin(Protocol):
 		:type depotIds: [str, ]
 		:rtype: list
 		"""
-		depotIds = forceHostIdList(depotIds)
+		depotIds = to_host_id_list(depotIds)
 		if not depotIds:
 			raise ValueError("No depotIds given")
 
@@ -105,7 +100,7 @@ class RPCExtEasyMixin(Protocol):
 		:type installationStatus: str
 		:rtype: [str, ]
 		"""
-		productIds = forceProductIdList(productIds)
+		productIds = to_product_id_list(productIds)
 		if not productIds:
 			raise ValueError("Missing product ids")
 
@@ -113,7 +108,7 @@ class RPCExtEasyMixin(Protocol):
 			"productId": productIds,
 		}
 		if installationStatus is not None:
-			poc_filter["installationStatus"] = forceInstallationStatus(installationStatus)
+			poc_filter["installationStatus"] = to_installation_status(installationStatus)
 
 		return list({poc.clientId for poc in self.productOnClient_getObjects(**poc_filter)})
 
@@ -127,7 +122,7 @@ class RPCExtEasyMixin(Protocol):
 		:type actionRequests: str or [str, ]
 		:rtype: [str, ]
 		"""
-		actionRequests = [request for request in forceActionRequestList(actionRequests) if request]
+		actionRequests = [request for request in to_action_request_list(actionRequests) if request]
 		if not actionRequests:
 			raise ValueError("Missing action requests")
 

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -25,7 +25,6 @@ import secrets
 import shlex
 import signal
 import string
-import subprocess
 import sys
 import sysconfig
 import threading
@@ -40,16 +39,16 @@ from json import JSONEncoder
 from logging import DEBUG, INFO
 from pathlib import Path
 from socket import AF_INET, AF_INET6
-from subprocess import run
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
 
 import lz4.frame
 import psutil
 import requests
-from opsicommon.logging.logging import OPSILogger
-from opsicommon.system.info import is_ucs
-from opsicommon.types import forceStringLower
-from opsicommon.utils import prepare_proxy_environment
+from opsi.logging import OPSILogger
+from opsi.opsi.service.model.type import to_string_lower
+from opsi.process import ProcessError, run_command, run_script
+from opsi.system.info import is_ucs
+from opsi.system.network import prepare_proxy_environment
 
 from opsiconfd import __version__
 from opsiconfd.utils.ucs import get_server_role as get_ucs_server_role
@@ -60,10 +59,10 @@ config = None
 opsi_config = None
 
 if TYPE_CHECKING:
-	from config import Config, OpsiConfig  # type: ignore[import]
+	from opsiconfd.config import Config, OpsiConfig
 
-	config: "Config" | None = None
-	opsi_config: "OpsiConfig" | None = None
+	config: Config | None = None
+	opsi_config: OpsiConfig | None = None
 
 
 @lru_cache
@@ -103,19 +102,6 @@ def get_opsi_config() -> OpsiConfig:
 	if not opsi_config:
 		from opsiconfd.config import opsi_config
 	return opsi_config
-
-
-class Singleton(type):
-	"""
-	Metaclass for implementing the Singleton design pattern.
-	"""
-
-	_instances: dict[type, type] = {}
-
-	def __call__(cls: "Singleton", *args: Any, **kwargs: Any) -> type:
-		if cls not in cls._instances:
-			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-		return cls._instances[cls]
 
 
 def log_config(log_level: int = INFO) -> None:
@@ -293,8 +279,8 @@ def opsiconfd_running() -> bool:
 		get_logger().debug("Systemd not running")
 		return False
 	try:
-		return subprocess.run(["systemctl", "is-active", "--quiet", "opsiconfd"], check=False).returncode == 0
-	except FileNotFoundError as err:
+		return run_command(["systemctl", "is-active", "--quiet", "opsiconfd"], success_exit_codes=None).exit_code == 0
+	except ProcessError as err:
 		get_logger().debug("systemctl not found: %s", err)
 		return False
 
@@ -306,7 +292,7 @@ def restart_opsiconfd() -> None:
 	if not systemd_running():
 		get_logger().debug("Systemd not running")
 		return
-	subprocess.run("systemctl --no-pager --lines 0 restart opsiconfd &", shell=True, check=False)
+	run_script("systemctl --no-pager --lines 0 restart opsiconfd &", success_exit_codes=None)
 
 
 def restart_opsiconfd_if_running() -> None:
@@ -704,7 +690,7 @@ def force_nodename(var: Any) -> str:
 	Raises:
 		ValueError: If the nodename is invalid.
 	"""
-	var = forceStringLower(var)
+	var = to_string_lower(var)
 	if not _NODENAME_REGEX.search(var):
 		raise ValueError(f"Bad nodename: '{var}'")
 	return var
@@ -783,8 +769,8 @@ def user_exists(username: str) -> bool:
 		bool: True if the user exists, False otherwise.
 	"""
 	try:
-		subprocess.run(["id", username], check=True, capture_output=True, timeout=5)
-	except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as err:
+		run_command(["id", username], timeout=5)
+	except ProcessError as err:
 		get_logger().debug("id %s failed: %s", username, err)
 		return False
 	return True
@@ -812,12 +798,9 @@ def get_user_passwd_details(username: str) -> list[UserInfo]:
 	for service in services:
 		cmd = ["getent", "passwd", "--service", service.value, username]
 		try:
-			getent_result = subprocess.run(cmd, check=True, capture_output=True, timeout=5).stdout.decode("utf-8")
-		except (subprocess.CalledProcessError, FileNotFoundError) as err:
+			getent_result = run_command(cmd, timeout=5).get_stdout_text().strip()
+		except ProcessError as err:
 			get_logger().info("Command %s failed: %s", cmd, err)
-			continue
-		except subprocess.TimeoutExpired as err:
-			get_logger().warning("Command %s timed out: %s", cmd, err)
 			continue
 		if getent_result:
 			user_info = getent_result.strip().split(":")
@@ -849,7 +832,7 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 	"""
 	try:
 		result = (
-			subprocess.run(
+			run_command(
 				[
 					"univention-ldapsearch",
 					"-LLL",
@@ -861,11 +844,9 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 					"homeDirectory",
 					"loginShell",
 				],
-				check=True,
-				capture_output=True,
 				timeout=10,
 			)
-			.stdout.decode("utf-8")
+			.get_stdout_text()
 			.strip()
 		)
 
@@ -884,11 +865,8 @@ def get_ucs_user_details(username: str) -> UserInfo | None:
 			shell=Path(ldap_data.get("loginShell", "")),
 			service=NameService.LDAP,
 		)
-	except (subprocess.CalledProcessError, FileNotFoundError) as err:
+	except ProcessError as err:
 		get_logger().warning("univention-ldapsearch failed: %s", err)
-		return None
-	except subprocess.TimeoutExpired as err:
-		get_logger().warning("univention-ldapsearch timed out: %s", err)
 		return None
 
 
@@ -926,11 +904,7 @@ def set_ucs_user_password(username: str, password: str) -> None:
 		return
 
 	user_dn = ""
-	cmd = ["univention-admin", "users/user", "list", "--filter", f"(uid={username})"]
-	logger.debug("Executing: %s", cmd)
-	out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=5).stdout
-	logger.debug(out)
-	for line in out.strip().splitlines():
+	for line in run_command(["univention-admin", "users/user", "list", "--filter", f"(uid={username})"], timeout=5).get_stdout_lines():
 		line = line.strip()
 		if line.startswith("DN"):
 			user_dn = line.split(" ")[1]
@@ -953,9 +927,7 @@ def set_ucs_user_password(username: str, password: str) -> None:
 		"--set",
 		"overridePWHistory=1",
 	]
-	logger.debug("Executing: %s", cmd)
-	out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-	logger.debug(out)
+	run_command(cmd, timeout=10)
 
 
 def set_system_user_password(username: str, password: str) -> None:
@@ -975,11 +947,7 @@ def set_system_user_password(username: str, password: str) -> None:
 
 	try:
 		# smbldap
-		cmd = ["smbldap-passwd", username]
-		logger.debug("Executing: %s", cmd)
-		inp = f"{password}\n{password}\n"
-		out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-		logger.debug(out)
+		run_command(["smbldap-passwd", username], timeout=10, stdin=f"{password}\n{password}\n")
 		return
 	except Exception as err:
 		logger.debug("Setting password using smbldap failed: %s", err)
@@ -989,20 +957,12 @@ def set_system_user_password(username: str, password: str) -> None:
 		return
 
 	try:
-		cmd = ["chpasswd"]
-		logger.debug("Executing: %s", cmd)
-		inp = f"{username}:{password}\n"
-		out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-		logger.debug(out)
+		run_command(["chpasswd"], timeout=10, stdin=f"{username}:{password}\n")
 	except Exception as err:
 		logger.debug("Setting password using chpasswd failed: %s", err)
 
 	try:
-		cmd = ["smbpasswd", "-a", "-s", username]
-		logger.debug("Executing: %s", cmd)
-		inp = f"{password}\n{password}\n"
-		out = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10, input=inp).stdout
-		logger.debug(out)
+		run_command(["smbpasswd", "-a", "-s", username], timeout=10, stdin=f"{password}\n{password}\n")
 	except Exception as err:
 		logger.debug("Setting password using smbpasswd failed: %s", err)
 

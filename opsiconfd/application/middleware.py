@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,8 +14,8 @@ from time import time
 from urllib.parse import urlparse
 
 from fastapi import FastAPI
-from opsicommon.logging.constants import TRACE
-from opsicommon.utils import ip_address_in_network
+from opsi.logging import TRACE
+from opsi.util.network import ip_address_in_network
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 

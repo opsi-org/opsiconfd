@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,7 +15,7 @@ from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, FastAPI
-from opsicommon.utils import unix_timestamp
+from opsi.time import unix_timestamp
 from pydantic import BaseModel, ConfigDict, Field
 from redis import ResponseError as RedisResponseError
 
@@ -92,18 +92,18 @@ def get_panel(panel_config: GrafanaPanelConfig, panel_id: int = 1, pos_x: int = 
 		template = GRAFANA_HEATMAP_PANEL_TEMPLATE
 	panel = copy.deepcopy(template)
 	panel["id"] = panel_id
-	panel["gridPos"]["x"] = pos_x  # type: ignore[index]
-	panel["gridPos"]["y"] = pos_y  # type: ignore[index]
+	panel["gridPos"]["x"] = pos_x  # ty: ignore[invalid-assignment]
+	panel["gridPos"]["y"] = pos_y  # ty: ignore[invalid-assignment]
 	panel["title"] = panel_config.title
 	if panel_config.type == "timeseries":
 		if panel_config.stack:
-			panel["fieldConfig"]["defaults"]["custom"]["stacking"]["mode"] = "normal"  # type: ignore[index]
-		panel["fieldConfig"]["defaults"]["decimals"] = panel_config.decimals  # type: ignore[index]
-		panel["fieldConfig"]["defaults"]["unit"] = panel_config.unit  # type: ignore[index]
+			panel["fieldConfig"]["defaults"]["custom"]["stacking"]["mode"] = "normal"  # ty: ignore[not-subscriptable,invalid-assignment,invalid-argument-type]
+		panel["fieldConfig"]["defaults"]["decimals"] = panel_config.decimals  # ty: ignore[not-subscriptable,invalid-assignment,invalid-argument-type]
+		panel["fieldConfig"]["defaults"]["unit"] = panel_config.unit  # ty: ignore[not-subscriptable,invalid-assignment,invalid-argument-type]
 	elif panel_config.type == "heatmap":
-		panel["options"]["yAxis"]["format"] = panel_config.unit  # type: ignore[index]
+		panel["options"]["yAxis"]["format"] = panel_config.unit  # ty: ignore[not-subscriptable,invalid-assignment,invalid-argument-type]
 	if panel_config.yaxis_min != "auto":
-		panel["fieldConfig"]["defaults"]["min"] = panel_config.yaxis_min  # type: ignore[index]
+		panel["fieldConfig"]["defaults"]["min"] = panel_config.yaxis_min  # ty: ignore[not-subscriptable,invalid-assignment,invalid-argument-type]
 	return panel
 
 

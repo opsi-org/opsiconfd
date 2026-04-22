@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -31,9 +31,9 @@ from fastapi.testclient import TestClient
 from httpx._auth import BasicAuth
 from httpx._models import Cookies
 from httpx._types import AuthTypes
-from opsicommon.logging import LOG_NONE, LOG_WARNING, get_logger, use_logging_config
-from opsicommon.messagebus.message import Message
-from opsicommon.objects import LocalbootProduct, ProductOnDepot, deserialize, serialize
+from opsi.logging import LOG_NONE, LOG_WARNING, get_logger, use_logging_config
+from opsi.opsi.messagebus import Message
+from opsi.opsi.service.model.object import LocalbootProduct, ProductOnDepot, deserialize, serialize
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
 
@@ -54,19 +54,12 @@ from opsiconfd.manager import Manager
 from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import session_manager
 from opsiconfd.ssl import setup_opsi_ca, setup_server_cert
-from opsiconfd.utils import Singleton
 from opsiconfd.worker import Worker
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
 
 logger = get_logger()
-
-
-def reset_singleton(cls: Singleton) -> None:
-	"""Constructor will create a new instance afterwards"""
-	if cls in cls._instances:
-		del cls._instances[cls]
 
 
 class OpsiconfdTestClient(TestClient):
@@ -182,7 +175,7 @@ def get_opsi_config(values: list[dict[str, Any]]) -> Generator[OpsiConfig, None,
 			_opsi_config.set(value["category"], value["config"], value=value["value"])
 		yield _opsi_config
 	finally:
-		reset_singleton(OpsiConfig)  # type: ignore[arg-type]
+		OpsiConfig.reset_singleton()
 		_opsi_config.read_config_file()
 
 
@@ -471,12 +464,12 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 	server_config = defaults
 
 	# Use use_logging_config to return to the previous log level
-	with use_logging_config(stderr_level=server_config["log_level_stderr"]):  # type: ignore[invalid-argument-type]
+	with use_logging_config(stderr_level=server_config["log_level_stderr"]):  # ty: ignore[invalid-argument-type]
 		with get_config(server_config, with_env=False) as conf:
 			setup_opsi_ca()
 			setup_server_cert()
 			session_manager.reset()
-			reset_singleton(Manager)
+			Manager.reset_singleton()
 			manager = Manager(install_signal_handlers=False)
 			thread = Thread(target=opsiconfd_main, daemon=True)
 			thread.start()
@@ -487,7 +480,7 @@ def opsiconfd_server(server_config: dict[str, Any] | None = None) -> Generator[C
 			finally:
 				manager.stop()
 				thread.join(10)
-				reset_singleton(Manager)
+				Manager.reset_singleton()
 
 
 class WebSocketMessageReader(Thread):
@@ -707,3 +700,22 @@ def default_acl() -> Generator[dict[str, list[RPCACE]], None, None]:
 	finally:
 		# Restore original ACL
 		protected_backend._read_acl_file()
+
+
+class MockProcess:
+	def __init__(self, exit_code: int = 0, stdout: str | bytes = "", stderr: str | bytes = "") -> None:
+		self.exit_code = exit_code
+		self.stdout = stdout.decode() if isinstance(stdout, bytes) else stdout
+		self.stderr = stderr.decode() if isinstance(stderr, bytes) else stderr
+
+	def get_stdout_text(self) -> str:
+		return self.stdout
+
+	def get_stdout_lines(self) -> list[str]:
+		return self.stdout.splitlines()
+
+	def get_stderr_text(self) -> str:
+		return self.stderr
+
+	def get_stderr_lines(self) -> list[str]:
+		return self.stderr.splitlines()

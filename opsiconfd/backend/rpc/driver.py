@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -94,11 +94,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Protocol
 
-from opsicommon.exceptions import BackendError, BackendMissingDataError
-from opsicommon.package.wim import wim_info
-from opsicommon.types import forceHostId as typeForceHostId
-from opsicommon.types import forceProductId as typeForceProductId
-from opsisystem.inffile import Architecture, DeviceType, INFFile, INFTargetOSVersion
+from opsi.archive.wim import wim_info
+from opsi.exception import BackendError, BackendMissingDataError
+from opsi.file.inf import DeviceType, INFFile, INFTargetOSVersion
+from opsi.opsi.service.model.type import Architecture, to_host_id, to_product_id
 
 from opsiconfd.config import DEPOT_DIR
 from opsiconfd.logging import logger
@@ -167,7 +166,7 @@ def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | Non
 	image_index = -1
 	image_name = image_name_or_index
 	try:
-		image_index = int(image_name)  # type: ignore[arg-type]
+		image_index = int(image_name)  # ty: ignore[invalid-argument-type]
 		image_name = ""
 	except ValueError, TypeError:
 		pass
@@ -178,7 +177,7 @@ def get_target_os_versions(wim_image: Path, image_name_or_index: int | str | Non
 		if not image.windows_info or (image_index > -1 and image.index != image_index) or (image_name and image.name != image_name):
 			continue
 		tov = INFTargetOSVersion(
-			Architecture=Architecture.from_string(image.windows_info.architecture),
+			Architecture=Architecture(image.windows_info.architecture),
 			OSMajorVersion=image.windows_info.major_version,
 			OSMinorVersion=image.windows_info.minor_version,
 			BuildNumber=image.windows_info.build,
@@ -195,7 +194,7 @@ class RPCDriverMixin(Protocol):
 		"""
 		Creation of the driver integration structure in the product's depot directory.
 		"""
-		product_id = typeForceProductId(productId)
+		product_id = to_product_id(productId)
 		client_data_dir = Path(DEPOT_DIR) / product_id
 		search_bases = [client_data_dir / "images", client_data_dir / "installfiles/sources"]
 		wim_files = find_wim_files(search_bases, exclude=re.compile(r"^boot.wim$", re.IGNORECASE))
@@ -328,8 +327,8 @@ class RPCDriverMixin(Protocol):
 		"""
 		Get drivers for product and client.
 		"""
-		product_id = typeForceProductId(productId)
-		client_id = typeForceHostId(clientId)
+		product_id = to_product_id(productId)
+		client_id = to_host_id(clientId)
 		depot_dir = Path(DEPOT_DIR)
 		client_data_dir = depot_dir / product_id
 
@@ -352,7 +351,7 @@ class RPCDriverMixin(Protocol):
 		if not osVersion:
 			raise BackendError("Missing OS version")
 
-		tov = INFTargetOSVersion(Architecture=Architecture.from_string(architecture))
+		tov = INFTargetOSVersion(Architecture=Architecture(architecture))
 		version_parts = osVersion.split(".")
 		if len(version_parts) >= 1:
 			tov.OSMajorVersion = int(version_parts[0])

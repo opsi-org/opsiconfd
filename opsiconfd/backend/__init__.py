@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,7 +14,7 @@ from functools import lru_cache
 from threading import Lock
 from typing import TYPE_CHECKING
 
-from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
+from opsi.opsi.service.client import MessagebusListener, ServiceClient
 
 from opsiconfd import __version__
 from opsiconfd.config import config, get_depotserver_id, opsi_config

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Generator
 
 import pytest
-from opsicommon.objects import ConfigState, OpsiClient, OpsiDepotserver, UnicodeConfig
+from opsi.opsi.service.model.object import ConfigState, OpsiClient, OpsiDepotserver, UnicodeConfig
 
 from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 from opsiconfd.config import get_configserver_id
@@ -48,7 +48,7 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 
 def _create_clients_and_depot(
 	test_client: OpsiconfdTestClient,  # noqa: F811
-) -> tuple(list[dict[str, str], dict[str, str]]):  # type: ignore[valid-type]
+) -> tuple[list[dict[str, str]], dict[str, str]]:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	clients = [

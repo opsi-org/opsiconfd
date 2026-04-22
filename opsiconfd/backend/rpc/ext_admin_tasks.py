@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,9 +12,9 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.objects import ProductOnClient
-from opsicommon.types import forceActionRequest, forceProductId
+from opsi.exception import BackendMissingDataError
+from opsi.opsi.service.model.object import ProductOnClient
+from opsi.opsi.service.model.type import to_action_request, to_product_id
 
 from opsiconfd.logging import logger
 
@@ -40,8 +40,8 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: The IDs of clients where the actionRequest has been set.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
-		action_request = forceActionRequest(actionRequest)
+		product_id = to_product_id(productId)
+		action_request = to_action_request(actionRequest)
 
 		if not self.product_getObjects(id=product_id):
 			raise BackendMissingDataError(f"No product with id {product_id!r}")
@@ -62,7 +62,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: The IDs of clients with an outdated version installed.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
+		product_id = to_product_id(productId)
 
 		depot_to_clients = defaultdict(set)
 		for client_to_depot in self.configState_getClientToDepotserver():
@@ -102,8 +102,8 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: The IDs of clients where the actionRequest has been set.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
-		action_request = forceActionRequest(actionRequest)
+		product_id = to_product_id(productId)
+		action_request = to_action_request(actionRequest)
 
 		if not self.product_getObjects(id=product_id):
 			raise BackendMissingDataError(f"No product with id {product_id!r}")
@@ -126,7 +126,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: the ID of all clients that have been processed.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
+		product_id = to_product_id(productId)
 
 		products = frozenset(self.product_getObjects(id=product_id))
 		if not products:
@@ -181,7 +181,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: the ID of all clients that have been processed.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
+		product_id = to_product_id(productId)
 
 		products = self.product_getObjects(id=product_id)
 		if not products:
@@ -229,7 +229,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: the ID of all clients that have been processed.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
+		product_id = to_product_id(productId)
 
 		products = self.product_getObjects(id=product_id)
 		if not products:
@@ -276,7 +276,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: the ID of all clients that have been processed.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
+		product_id = to_product_id(productId)
 
 		products = self.product_getObjects(id=productId)
 		if not products:
@@ -328,7 +328,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		:return: the ID of all clients that have been processed.
 		:rtype: set
 		"""
-		product_id = forceProductId(productId)
+		product_id = to_product_id(productId)
 
 		products = self.product_getObjects(id=product_id)
 		if not products:

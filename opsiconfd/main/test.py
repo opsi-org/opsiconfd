@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -69,7 +69,7 @@ def test_ldap_auth() -> None:
 			console.print(f"  LDAP URL from opsi.conf:\n  {ldap_url}", highlight=False)
 		input = (Prompt.ask("  Enter LDAP URL", default=ldap_url or None) or "").strip()
 		try:
-			uri = ldap3.utils.uri.parse_uri(input)  # type: ignore[no-untyped-call,attr-defined]
+			uri = ldap3.utils.uri.parse_uri(input)  # ty: ignore[possibly-missing-submodule]
 			if not uri:
 				raise ValueError("Parse error")
 			ldap_url = input

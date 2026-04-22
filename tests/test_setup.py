@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,7 +18,7 @@ from unittest.mock import patch
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from opsicommon import objects
+from opsi.opsi.service.model import object
 
 from opsiconfd.application.jsonrpc import store_deprecated_call
 from opsiconfd.auth.saml import setup_saml
@@ -42,10 +42,10 @@ def test_setup_limits() -> None:
 
 def test_setup_file_permissions() -> None:
 	with (
-		patch("opsicommon.server.rights.FilePermission.chmod") as mock_file_chmod,
-		patch("opsicommon.server.rights.FilePermission.chown") as mock_file_chown,
-		patch("opsicommon.server.rights.DirPermission.chmod"),
-		patch("opsicommon.server.rights.DirPermission.chown"),
+		patch("opsi.opsi.service.server._permission.FilePermission.chmod") as mock_file_chmod,
+		patch("opsi.opsi.service.server._permission.FilePermission.chown") as mock_file_chown,
+		patch("opsi.opsi.service.server._permission.DirPermission.chmod"),
+		patch("opsi.opsi.service.server._permission.DirPermission.chown"),
 	):
 		setup_file_permissions()
 		mock_file_chmod.assert_called()
@@ -77,7 +77,6 @@ def mock_all() -> Generator[dict, None, None]:
 	with (
 		patch("opsiconfd.setup.setup_limits") as mock_setup_limits,
 		patch("opsiconfd.setup.setup_backend") as mock_setup_backend,
-		patch("opsiconfd.setup.system.po_setup_users_and_groups") as mock_po_setup_users_and_groups,
 		patch("opsiconfd.setup.setup_users_and_groups") as mock_setup_users_and_groups,
 		patch("opsiconfd.setup.setup_files") as mock_setup_files,
 		patch("opsiconfd.setup.setup_systemd") as mock_setup_systemd,
@@ -94,7 +93,6 @@ def mock_all() -> Generator[dict, None, None]:
 		yield {
 			"setup_limits": mock_setup_limits,
 			"setup_backend": mock_setup_backend,
-			"po_setup_users_and_groups": mock_po_setup_users_and_groups,
 			"setup_users_and_groups": mock_setup_users_and_groups,
 			"setup_files": mock_setup_files,
 			"setup_systemd": mock_setup_systemd,
@@ -128,7 +126,6 @@ def test_setup_skip_users_and_files() -> None:
 	with mock_all() as funcs:
 		with get_config({"skip_setup": ["users", "files"]}):
 			opsiconfd_setup(explicit=True)
-			funcs["po_setup_users_and_groups"].assert_not_called()
 			funcs["setup_users_and_groups"].assert_not_called()
 			funcs["setup_files"].assert_not_called()
 			funcs["setup_ssl"].assert_called()
@@ -161,8 +158,8 @@ def test_rename_server() -> None:
 
 	old_server_id = backend.host_getIdents(type="OpsiConfigserver")[0]
 
-	config1 = objects.UnicodeConfig(id="test1")
-	config_state1 = objects.ConfigState(configId="test1", objectId=old_server_id, values=["configserver-value"])
+	config1 = object.UnicodeConfig(id="test1")
+	config_state1 = object.ConfigState(configId="test1", objectId=old_server_id, values=["configserver-value"])
 	backend.config_createObjects([config1])
 	backend.configState_createObjects([config_state1])
 

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,12 +16,12 @@ from threading import Lock, Thread
 from time import sleep
 from typing import TYPE_CHECKING, Generator, Protocol
 
-from opsicommon.objects import ConfigState, ProductOnClient
-from opsicommon.types import (
-	forceBool,
-	forceHostId,
-	forceHostIdList,
-	forceObjectClassList,
+from opsi.opsi.service.model.object import ConfigState, ProductOnClient
+from opsi.opsi.service.model.type import (
+	to_bool,
+	to_host_id,
+	to_host_id_list,
+	to_object_class_list,
 )
 
 from opsiconfd.config import config
@@ -129,7 +129,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 		for key, val in read_backend_config_file(dhcpd_control_conf).items():
 			attr = "_opsipxeconfd_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr in ("_opsipxeconfd_control_opsipxeconfd_on_depot", "_opsipxeconfd_control_enabled"):
-				val = forceBool(val)
+				val = to_bool(val)
 
 			if hasattr(self, attr):
 				setattr(self, attr, val)
@@ -196,14 +196,14 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
-		for host_id in forceHostIdList(host_ids):
+		for host_id in to_host_id_list(host_ids):
 			self._update_pxe_boot_configuration(host_id)
 
 	def opsipxeconfd_hosts_deleted(self: BackendProtocol, host_ids: list[str]) -> None:
 		if not self._opsipxeconfd_control_enabled or not self.events_enabled:
 			return
 
-		for host_id in forceHostIdList(host_ids):
+		for host_id in to_host_id_list(host_ids):
 			self._delete_pxe_boot_configuration(host_id)
 
 	def opsipxeconfd_product_on_clients_updated(
@@ -220,7 +220,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 			return
 
 		client_ids = set()
-		for poc in forceObjectClassList(product_on_clients, ProductOnClient):
+		for poc in to_object_class_list(product_on_clients, ProductOnClient):
 			if poc.productType == "NetbootProduct" and poc.actionRequest:
 				client_ids.add(poc.clientId)
 
@@ -234,7 +234,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 			return
 
 		client_ids = set()
-		for poc in forceObjectClassList(product_on_clients, ProductOnClient):
+		for poc in to_object_class_list(product_on_clients, ProductOnClient):
 			if poc.productType == "NetbootProduct":
 				client_ids.add(poc.clientId)
 
@@ -248,7 +248,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 			return
 
 		object_ids = set()
-		for config_state in forceObjectClassList(config_states, ConfigState):
+		for config_state in to_object_class_list(config_states, ConfigState):
 			if config_state.configId != "clientconfig.depot.id":
 				continue
 			if config_state.objectId:
@@ -281,7 +281,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 		self._opsipxeconfd_updatePXEBootConfiguration(client_id)
 
 	def _opsipxeconfd_updatePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:
-		client_id = forceHostId(client_id)
+		client_id = to_host_id(client_id)
 		logger.debug("Updating PXE boot config of %s", client_id)
 
 		command = f"update {client_id}"
@@ -292,7 +292,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):
 		self._opsipxeconfd_deletePXEBootConfiguration(client_id)
 
 	def _opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:
-		client_id = forceHostId(client_id)
+		client_id = to_host_id(client_id)
 		logger.debug("Deleting PXE boot config of %s", client_id)
 		command = f"remove {client_id}"
 

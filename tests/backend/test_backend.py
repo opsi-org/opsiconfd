@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -137,4 +137,4 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 
 
 def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:  # noqa: F811
-	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)  # type: ignore[invalid-argument-type]
+	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)  # ty: ignore[invalid-argument-type]

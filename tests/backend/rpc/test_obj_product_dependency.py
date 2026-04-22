@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -8,11 +8,13 @@ test opsiconfd.backend.rpc.obj_product_dependency
 """
 
 from itertools import permutations
+from typing import cast
 
 import pytest
-from opsicommon.objects import ConfigState, LocalbootProduct, ProductDependency, ProductOnClient, ProductOnDepot
+from opsi.opsi.service.model.object import ConfigState, LocalbootProduct, ProductDependency, ProductOnClient, ProductOnDepot
 
 from opsiconfd.backend.rpc.obj_product_dependency import OpsiProductNotAvailableOnDepotError
+from opsiconfd.backend.rpc.protocol import BackendProtocol
 from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -281,7 +283,7 @@ def test_get_product_action_groups_1(
 	)
 
 	for pocs in permutations([product_on_client_1, product_on_client_2, product_on_client_3, product_on_client_4]):
-		res = backend.get_product_action_groups(list(pocs))[client_id]  # type: ignore[misc]
+		res = backend.get_product_action_groups(list(pocs))[client_id]  # ty: ignore[invalid-argument-type]
 		assert len(res) == 4
 
 		assert res[0].priority == 95
@@ -394,7 +396,7 @@ def test_get_product_action_groups_1(
 		installationStatus="not_installed",
 		actionRequest="none",
 	)
-	res = backend.get_product_action_groups(  # type: ignore[misc]
+	res = backend.get_product_action_groups(  # ty: ignore[invalid-argument-type]
 		[product_on_client_1, product_on_client_2],
 	)[client_id]
 
@@ -436,7 +438,7 @@ def test_get_product_action_groups_1(
 	)
 	backend.productOnClient_createObjects([product_on_client_be_2])
 
-	res = backend.get_product_action_groups(  # type: ignore[misc]
+	res = backend.get_product_action_groups(  # ty: ignore[invalid-argument-type]
 		[product_on_client_3, product_on_client_1, product_on_client_2],
 	)[client_id]
 
@@ -448,10 +450,11 @@ def test_get_product_action_groups_1(
 
 	with pytest.raises(
 		OpsiProductNotAvailableOnDepotError,
-		match=r"Product not available on depot: Product 'not-available' \(version: 1\.0-1\) not found on depot.*",
+		match=r"Product 'not-available' \(version: 1\.0-1\) not found on depot.*",
 	):
-		backend.get_product_action_groups(  # type: ignore[misc]
-			[product_on_client_3, product_on_client_4, product_on_client_1, product_on_client_2], ignore_unavailable_products=False
+		backend.get_product_action_groups(  # ty: ignore[invalid-argument-type]
+			[product_on_client_3, product_on_client_4, product_on_client_1, product_on_client_2],
+			ignore_unavailable_products=False,
 		)
 
 	product_on_client_1 = ProductOnClient(
@@ -603,7 +606,8 @@ def test_get_product_action_groups_no_dep_always_update(
 		actionRequest="update",
 	)
 
-	res = backend.get_product_action_groups(  # type: ignore[misc]
+	backend_protocol = cast(BackendProtocol, backend)
+	res = backend_protocol.get_product_action_groups(
 		[product_on_client_1, product_on_client_2],
 	)[client_id]
 
@@ -758,7 +762,7 @@ def test_get_product_action_groups_messe(
 	)
 
 	for pocs in permutations([product_on_client_1, product_on_client_2, product_on_client_3]):
-		res = backend.get_product_action_groups(list(pocs))[client_id]  # type: ignore[misc]
+		res = backend.get_product_action_groups(list(pocs))[client_id]  # ty: ignore[invalid-argument-type]
 
 		assert len(res) == 4
 
@@ -1156,7 +1160,7 @@ def test_get_product_action_groups_vmware(
 		# customize-startmenu (-1)   not_installed setup
 		# vmware-osot (-80)          not_installed setup
 
-		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
+		res = backend.get_product_action_groups(product_on_clients)[client_id]  # ty: ignore[invalid-argument-type]
 
 		assert len(res) == 1
 		assert res[0].priority == 94
@@ -1319,7 +1323,7 @@ def test_get_product_action_groups_meta_ubuntu(
 	)
 
 	for pocs in permutations([product_on_client_1, product_on_client_2, product_on_client_3, product_on_client_4]):
-		res = backend.get_product_action_groups(list(pocs))[client_id]  # type: ignore[misc]
+		res = backend.get_product_action_groups(list(pocs))[client_id]  # ty: ignore[invalid-argument-type]
 
 		assert len(res) == 1
 		assert res[0].priority == -90
@@ -1422,7 +1426,7 @@ def test_get_product_action_groups_installation_manager(
 		actionRequest="setup",
 	)
 
-	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # ty: ignore[invalid-argument-type]
 
 	assert len(res) == 1
 	assert res[0].priority == priority
@@ -1442,7 +1446,7 @@ def test_get_product_action_groups_installation_manager(
 		actionRequest="uninstall",
 	)
 
-	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # ty: ignore[invalid-argument-type]
 
 	assert len(res) == 1
 	assert res[0].priority == priority * -1
@@ -1469,7 +1473,7 @@ def test_get_product_action_groups_installation_manager(
 		actionRequest="uninstall",
 	)
 
-	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # ty: ignore[invalid-argument-type]
 
 	assert len(res) == 1
 	assert res[0].priority == priority * -1
@@ -1498,7 +1502,7 @@ def test_get_product_action_groups_installation_manager(
 		actionRequest="uninstall",
 	)
 
-	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # ty: ignore[invalid-argument-type]
 
 	assert len(res) == 1
 	assert res[0].priority == priority * -1
@@ -1744,7 +1748,7 @@ def test_get_product_action_groups_installation_manager_rfc(
 				)
 			)
 
-		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
+		res = backend.get_product_action_groups(product_on_clients)[client_id]  # ty: ignore[invalid-argument-type]
 
 		action_pocs = []
 		for action_group in res:
@@ -2001,7 +2005,7 @@ def test_get_product_action_groups_installation_novm_rfc(
 				)
 			)
 
-		res = backend.get_product_action_groups(product_on_clients)[client_id]  # type: ignore[misc]
+		res = backend.get_product_action_groups(product_on_clients)[client_id]  # ty: ignore[invalid-argument-type]
 
 		action_pocs = []
 		for action_group in res:
@@ -2222,7 +2226,7 @@ def test_get_product_action_groups_sql(
 		[product_on_client_4, product_on_client_2],
 		[product_on_client_1, product_on_client_2, product_on_client_3, product_on_client_4, product_on_client_5],
 	):
-		res = backend.get_product_action_groups(list(pocs))[client_id]  # type: ignore[misc]
+		res = backend.get_product_action_groups(list(pocs))[client_id]  # ty: ignore[invalid-argument-type]
 		assert len(res) == 1
 
 		assert res[0].priority == -28
@@ -2363,7 +2367,7 @@ def test_uninstall_priority(
 		actionRequest="setup",
 	)
 
-	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # ty: ignore[invalid-argument-type]
 
 	assert len(res) == 2
 
@@ -2382,7 +2386,7 @@ def test_uninstall_priority(
 	product_on_client_1.actionRequest = "uninstall"
 	product_on_client_2.actionRequest = "uninstall"
 
-	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # type: ignore[misc]
+	res = backend.get_product_action_groups([product_on_client_1, product_on_client_2])[client_id]  # ty: ignore[invalid-argument-type]
 
 	assert len(res) == 2
 

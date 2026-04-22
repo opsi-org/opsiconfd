@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ import time
 import uuid
 from asyncio import sleep
 
-from opsicommon.utils import unix_timestamp
+from opsi.time import unix_timestamp
 from starlette.datastructures import Headers
 
 from opsiconfd.application import app

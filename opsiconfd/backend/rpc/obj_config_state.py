@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,15 +12,15 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ConfigState, ProductOnDepot
-from opsicommon.types import (
-	forceBool,
-	forceHostIdList,
-	forceObjectClass,
-	forceObjectClassList,
-	forceObjectIdList,
-	forceProductIdList,
-	forceUnicodeList,
+from opsi.opsi.service.model.object import ConfigState, ProductOnDepot
+from opsi.opsi.service.model.type import (
+	to_bool,
+	to_host_id_list,
+	to_object_class,
+	to_object_class_list,
+	to_object_id_list,
+	to_product_id_list,
+	to_string_list,
 )
 
 from opsiconfd.backend.auth import RPCACE
@@ -41,9 +41,9 @@ class RPCConfigStateMixin(Protocol):
 		object_ids: list[str] | str | None = None,
 		with_defaults: bool = True,
 	) -> dict[str, dict[str, list[Any]]]:
-		config_ids = forceUnicodeList(config_ids or [])
+		config_ids = to_string_list(config_ids or [])
 		# object_ids can contain depot IDs!
-		object_ids = forceObjectIdList(object_ids or [])
+		object_ids = to_object_id_list(object_ids or [])
 		if client_id := self._get_client_id():
 			object_ids = [client_id]
 
@@ -79,27 +79,27 @@ class RPCConfigStateMixin(Protocol):
 		return res
 
 	def configState_bulkInsertObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState]) -> None:
-		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="CONFIG_STATE", objs=configStates)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:
 		ace = self._get_ace("configState_insertObject")
-		configState = forceObjectClass(configState, ConfigState)
+		configState = to_object_class(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
-		self._send_messagebus_event("configState_created", data=configState.getIdent("dict"))  # type: ignore[arg-type]
+		self._send_messagebus_event("configState_created", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method(check_acl=False)
 	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObject")
-		configState = forceObjectClass(configState, ConfigState)
+		configState = to_object_class(configState, ConfigState)
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
-		self._send_messagebus_event("configState_updated", data=configState.getIdent("dict"))  # type: ignore[arg-type]
+		self._send_messagebus_event("configState_updated", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 		self.opsipxeconfd_config_states_updated(configState)
 		self.dhcpd_control_config_states_updated(configState)
 
@@ -107,7 +107,7 @@ class RPCConfigStateMixin(Protocol):
 	def configState_createObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_createObjects")
 
-		configStates = forceObjectClassList(configStates, ConfigState)
+		configStates = to_object_class_list(configStates, ConfigState)
 		newConfigStates = [configState for configState in configStates if configState.values != [None]]
 		if len(newConfigStates) != len(configStates):
 			logger.warning("Removed %d [null] values from configStates", len(configStates) - len(newConfigStates))
@@ -122,7 +122,7 @@ class RPCConfigStateMixin(Protocol):
 		if not self.events_enabled:
 			return
 		for configState in configStates:
-			self._send_messagebus_event("configState_created", data=configState.getIdent("dict"))  # type: ignore[arg-type]
+			self._send_messagebus_event("configState_created", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)
 
@@ -130,7 +130,7 @@ class RPCConfigStateMixin(Protocol):
 	def configState_updateObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:
 		ace = self._get_ace("configState_updateObjects")
 
-		configStates = forceObjectClassList(configStates, ConfigState)
+		configStates = to_object_class_list(configStates, ConfigState)
 		newConfigStates = [configState for configState in configStates if configState.values != [None]]
 		if len(newConfigStates) != len(configStates):
 			logger.warning("Removed %d [null] values from configStates", len(configStates) - len(newConfigStates))
@@ -145,7 +145,7 @@ class RPCConfigStateMixin(Protocol):
 		if not self.events_enabled:
 			return
 		for configState in configStates:
-			self._send_messagebus_event("configState_updated", data=configState.getIdent("dict"))  # type: ignore[arg-type]
+			self._send_messagebus_event("configState_updated", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 		self.opsipxeconfd_config_states_updated(configStates)
 		self.dhcpd_control_config_states_updated(configStates)
 
@@ -182,9 +182,9 @@ class RPCConfigStateMixin(Protocol):
 		self._mysql.delete_objects(table="CONFIG_STATE", object_type=ConfigState, obj=configStates, ace=ace)
 		if not self.events_enabled:
 			return
-		configStates = forceObjectClassList(configStates, ConfigState)
+		configStates = to_object_class_list(configStates, ConfigState)
 		for configState in configStates:
-			self._send_messagebus_event("configState_deleted", data=configState.getIdent("dict"))  # type: ignore[arg-type]
+			self._send_messagebus_event("configState_deleted", data=configState.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 		self.opsipxeconfd_config_states_deleted(configStates)
 
 	@rpc_method(check_acl=False)
@@ -231,8 +231,8 @@ class RPCConfigStateMixin(Protocol):
 		clientIds = clientIds or []
 		productIds = productIds or []
 
-		depotIds = forceHostIdList(depotIds)
-		productIds = forceProductIdList(productIds)
+		depotIds = to_host_id_list(depotIds)
+		productIds = to_product_id_list(productIds)
 
 		config_server_id = self.host_getIdents(type="OpsiConfigserver")[0]
 
@@ -241,7 +241,7 @@ class RPCConfigStateMixin(Protocol):
 			return []
 		depotIds: set[str] = set(depotIds)
 
-		clientIds = forceHostIdList(clientIds)
+		clientIds = to_host_id_list(clientIds)
 		clientIds = self.host_getIdents(type="OpsiClient", id=clientIds)
 		if not clientIds:
 			return []
@@ -269,7 +269,7 @@ class RPCConfigStateMixin(Protocol):
 			used_depot_ids.add(config_server_id)
 			result += [{"depotId": config_server_id, "clientId": client_id, "alternativeDepotIds": []} for client_id in clientIds]
 
-		if forceBool(masterOnly):
+		if to_bool(masterOnly):
 			return result
 
 		po_depots_by_depot_id_and_product_id: dict[str, dict[str, ProductOnDepot]] = {}

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,8 +16,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
-from opsicommon.logging.constants import TRACE
-from opsicommon.utils import unix_timestamp
+from opsi.logging import TRACE
+from opsi.time import unix_timestamp
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 

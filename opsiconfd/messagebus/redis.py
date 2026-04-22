@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -17,13 +17,8 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal
 from uuid import UUID, uuid4
 
 import msgspec
-from opsicommon.logging.constants import TRACE
-from opsicommon.messagebus.message import (
-	Message,
-	TraceRequestMessage,
-	TraceResponseMessage,
-	timestamp,
-)
+from opsi.logging import TRACE
+from opsi.opsi.messagebus import Message, TraceRequestMessage, TraceResponseMessage, messagebus_timestamp
 from redis.exceptions import ResponseError
 from redis.typing import StreamIdT
 
@@ -109,7 +104,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 	stream_keys -= remove_keys
 	# Remove info keys for non-existing streams
 	remove_keys.update(k for k in channel_info_keys if k.removesuffix(channel_info_suffix) not in stream_keys)
-	minid = int(timestamp() - STREAM_RECORD_MAX_AGE_SECONDS * 1000) if redis_supports_xtrim_minid() else None
+	minid = int(messagebus_timestamp() - STREAM_RECORD_MAX_AGE_SECONDS * 1000) if redis_supports_xtrim_minid() else None
 	if remove_keys or stream_keys:
 		pipeline = redis.pipeline()
 		for key in remove_keys:
@@ -129,7 +124,7 @@ async def cleanup_channels(full: bool = False, trim_approximate: bool = True) ->
 		await pipeline.execute()
 
 	if full:
-		now_ts = timestamp()  # Current unix timestamp in milliseconds
+		now_ts = messagebus_timestamp()  # Current unix timestamp in milliseconds
 		for obj in ("host", "user", "event"):
 			key = f"{channel_prefix}{obj}"
 			remove_keys = set()
@@ -174,7 +169,7 @@ _context_encoder = msgspec.msgpack.Encoder()
 def _prepare_send_message(message: Message, context: Any = None) -> dict[str, bytes]:
 	if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 		message.trace = message.trace or {}
-		message.trace["broker_redis_send"] = timestamp()
+		message.trace["broker_redis_send"] = messagebus_timestamp()
 	fields = {"message": message.to_msgpack()}
 	if context:
 		fields["context"] = _context_encoder.encode(context)
@@ -228,7 +223,7 @@ async def create_channel(channel: str, *, info: dict[str, str | int] | None = No
 		# Add one message to create the stream, the message will be ignored by the reader
 		pipeline.xadd(stream_key, fields={"ignore": ""})
 		if info:
-			pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping=info)  # type: ignore[arg-type]
+			pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, mapping=info)  # ty: ignore[invalid-argument-type]
 		await pipeline.execute()
 	return channel
 
@@ -461,7 +456,7 @@ class MessageReader:
 			_logger.debug("%s: getting messages", self)
 
 			redis = await async_redis_client()
-			last_message_ts = timestamp()
+			last_message_ts = messagebus_timestamp()
 			while not self._should_stop:
 				try:
 					if not self._streams:
@@ -469,7 +464,7 @@ class MessageReader:
 					stream_entries = await self._get_stream_entries(redis, timeout)
 					_logger.trace("%r message data from redis: %r", self, stream_entries)
 
-					now_ts = timestamp()  # Current unix timestamp in milliseconds
+					now_ts = messagebus_timestamp()  # Current unix timestamp in milliseconds
 					if not stream_entries:
 						if self._should_stop:
 							break
@@ -501,7 +496,7 @@ class MessageReader:
 								continue
 							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):
 								msg.trace = msg.trace or {}
-								msg.trace["broker_redis_receive"] = timestamp()
+								msg.trace["broker_redis_receive"] = messagebus_timestamp()
 							yield redis_msg_id, msg, context
 
 						# Update the ID in self._streams[stream_key] which will be

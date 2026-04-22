@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,15 +15,15 @@ import time
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Generator, Protocol
 
-from opsicommon.exceptions import (
+from opsi.exception import (
 	BackendAuthenticationError,
 	BackendBadValueError,
 	BackendConfigurationError,
 	BackendMissingDataError,
 	BackendUnaccomplishableError,
-	LicenseConfigurationError,
+	OpsiLicenseConfigurationError,
 )
-from opsicommon.objects import (
+from opsi.opsi.service.model.object import (
 	AuditHardwareOnHost,
 	AuditSoftware,
 	AuditSoftwareOnClient,
@@ -44,17 +44,17 @@ from opsicommon.objects import (
 	UnicodeProductProperty,
 	VolumeSoftwareLicense,
 )
-from opsicommon.types import (
-	forceBool,
-	forceDomain,
-	forceFqdn,
-	forceHardwareAddress,
-	forceHostId,
-	forceHostname,
-	forceObjectId,
-	forceProductId,
-	forceProductPropertyId,
-	forceUnicodeList,
+from opsi.opsi.service.model.type import (
+	to_bool,
+	to_domain,
+	to_fqdn,
+	to_hardware_address,
+	to_host_id,
+	to_hostname,
+	to_object_id,
+	to_product_id,
+	to_product_property_id,
+	to_string_list,
 )
 
 from opsiconfd.config import opsi_config
@@ -175,7 +175,7 @@ class RPCExtLegacyMixin(Protocol):
 	@rpc_method(deprecated=True, alternative_method="configState_getObjects", check_acl=False)
 	def getGeneralConfig_hash(self: BackendProtocol, objectId: str | None = None) -> dict[str, str]:
 		if objectId:
-			objectId = forceFqdn(objectId)
+			objectId = to_fqdn(objectId)
 			if objectId in self.host_getIdents(type="OpsiDepotserver", returnType="unicode"):
 				objectId = None
 
@@ -193,7 +193,7 @@ class RPCExtLegacyMixin(Protocol):
 	@rpc_method(deprecated=True, alternative_method="configState_create", check_acl=False)
 	def setGeneralConfig(self: BackendProtocol, config: dict[str, str], objectId: str | None = None) -> None:
 		if objectId:
-			objectId = forceFqdn(objectId)
+			objectId = to_fqdn(objectId)
 			if objectId in self.host_getIdents(type="OpsiDepotserver", returnType="unicode"):
 				objectId = None
 			elif objectId not in self.host_getIdents(type="OpsiClient", returnType="unicode"):
@@ -213,7 +213,7 @@ class RPCExtLegacyMixin(Protocol):
 			for config_id, value in config.items():
 				if has_no_object_id or config_id not in known_config_ids:
 					if value.lower() in bool_values:
-						yield BoolConfig(id=config_id, defaultValues=[forceBool(value)])
+						yield BoolConfig(id=config_id, defaultValues=[to_bool(value)])
 					else:
 						yield UnicodeConfig(id=config_id, defaultValues=[value], possibleValues=[value], editable=True, multiValue=False)
 
@@ -221,7 +221,7 @@ class RPCExtLegacyMixin(Protocol):
 			if objectId is not None:
 				for config_id, value in config.items():
 					if value.lower() in bool_values:
-						yield ConfigState(configId=config_id, objectId=objectId, values=[forceBool(value)])
+						yield ConfigState(configId=config_id, objectId=objectId, values=[to_bool(value)])
 					else:
 						yield ConfigState(configId=config_id, objectId=objectId, values=[value])
 
@@ -236,7 +236,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="configState_delete", check_acl=False)
 	def deleteGeneralConfig(self: BackendProtocol, objectId: str) -> None:
-		return self.configState_delete(configId=[], objectId=forceObjectId(objectId))
+		return self.configState_delete(configId=[], objectId=to_object_id(objectId))
 
 	@rpc_method(deprecated=True, alternative_method="configState_create", check_acl=False)
 	def setNetworkConfig(self: BackendProtocol, config: dict[str, str], objectId: str | None = None) -> None:
@@ -332,7 +332,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
 	def getIpAddress(self: BackendProtocol, hostId: str) -> str:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(attributes=["ipAddress"], id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host {hostId!r} not found")
@@ -351,13 +351,13 @@ class RPCExtLegacyMixin(Protocol):
 		ipAddress = ipAddress or None
 		hardwareAddress = hardwareAddress or None
 
-		client_id = forceHostId(f"{forceHostname(clientName)}.{forceDomain(domain)}")
+		client_id = to_host_id(f"{to_hostname(clientName)}.{to_domain(domain)}")
 		self.host_createOpsiClient(id=client_id, description=description, notes=notes, ipAddress=ipAddress, hardwareAddress=hardwareAddress)
 		return client_id
 
 	@rpc_method(deprecated=True, alternative_method="host_updateObject", check_acl=False)
 	def setHostDescription(self: BackendProtocol, hostId: str, description: str) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host '{hostId}' not found")
@@ -366,7 +366,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_updateObject", check_acl=False)
 	def setHostNotes(self: BackendProtocol, hostId: str, notes: str) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host '{hostId}' not found")
@@ -452,7 +452,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_updateObjects", check_acl=False)
 	def setSoftwareInformation(self: BackendProtocol, hostId: str, info: dict) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		self.auditSoftwareOnClient_delete(name=[], version=[], subVersion=[], language=[], architecture=[], clientId=hostId)
 
 		for windows_software_id, value in info.items():
@@ -502,7 +502,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_delete", check_acl=False)
 	def deleteSoftwareInformation(self: BackendProtocol, hostId: str) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		self.auditSoftwareOnClient_delete(clientId=hostId, name=[], version=[], subVersion=[], language=[], architecture=[])
 
 	@rpc_method(deprecated=True, alternative_method="auditHardware_getConfig", check_acl=False)
@@ -511,7 +511,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects", check_acl=False)
 	def getHardwareInformation_hash(self: BackendProtocol, hostId: str) -> dict:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		info: dict[str, list[dict[str, Any]]] = {}
 		scantime = time.strptime("2000-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 		for audit_hardware_on_host in self.auditHardwareOnHost_getObjects(hostId=hostId, state=1):
@@ -530,7 +530,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_updateObjects", check_acl=False)
 	def setHardwareInformation(self: BackendProtocol, hostId: str, info: dict) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		self.auditHardwareOnHost_setObsolete(hostId)
 		audit_hardware_on_hosts = []
 		for hardware_class, devices in info.items():
@@ -546,12 +546,12 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_delete", check_acl=False)
 	def deleteHardwareInformation(self: BackendProtocol, hostId: str) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		self.auditHardwareOnHost_delete(hostId=hostId, hardwareClass=[])
 
 	@rpc_method(deprecated=True, alternative_method="host_getObject", check_acl=False)
 	def getHost_hash(self: BackendProtocol, hostId: str) -> dict:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host {hostId!r} not found")
@@ -571,7 +571,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_getIdents", check_acl=False)
 	def getClientIdByMac(self: BackendProtocol, mac: str) -> str:
-		hosts = self.host_getObjects(attributes=["id"], type="OpsiClient", hardwareAddress=forceHardwareAddress(mac))
+		hosts = self.host_getObjects(attributes=["id"], type="OpsiClient", hardwareAddress=to_hardware_address(mac))
 		if not hosts:
 			return ""
 		return hosts[0].id
@@ -598,7 +598,7 @@ class RPCExtLegacyMixin(Protocol):
 		notes: str | None = None,
 		maxBandwidth: int = 0,
 	) -> str:
-		depot_id = forceHostId(forceHostname(depotName) + "." + forceDomain(domain))
+		depot_id = to_host_id(to_hostname(depotName) + "." + to_domain(domain))
 		self.host_createOpsiDepotserver(
 			id=depot_id,
 			depotLocalUrl=depotLocalUrl,
@@ -620,7 +620,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_getObjects", check_acl=False)
 	def getDepot_hash(self: BackendProtocol, depotId: str) -> dict:
-		depotId = forceHostId(depotId)
+		depotId = to_host_id(depotId)
 		depots = self.host_getObjects(id=depotId)
 		if not depots:
 			raise BackendMissingDataError(f"Depot {depotId!r} not found")
@@ -636,7 +636,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=False, alternative_method="configState_getClientToDepotserver", check_acl=False)
 	def getDepotId(self: BackendProtocol, clientId: str) -> str:
-		clientId = forceHostId(clientId)
+		clientId = to_host_id(clientId)
 
 		for client_to_depotserver in self.configState_getClientToDepotserver(clientIds=clientId):
 			if client_to_depotserver["clientId"] == clientId:
@@ -647,7 +647,7 @@ class RPCExtLegacyMixin(Protocol):
 	def getOpsiHostKey(self: BackendProtocol, hostId: str) -> str:
 		if not hostId:
 			raise ValueError("No host id given")
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(attributes=["opsiHostKey"], id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host {hostId!r} not found")
@@ -655,7 +655,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_updateObject", check_acl=False)
 	def setOpsiHostKey(self: BackendProtocol, hostId: str, opsiHostKey: str) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host {hostId!r} not found")
@@ -664,7 +664,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_getObject", check_acl=False)
 	def getMacAddresses_list(self: BackendProtocol, hostId: str) -> list[str]:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host {hostId!r} not found")
@@ -674,7 +674,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_updateObject", check_acl=False)
 	def setMacAddresses(self: BackendProtocol, hostId: str, macs: list[str]) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host {hostId!r} not found")
@@ -923,7 +923,7 @@ class RPCExtLegacyMixin(Protocol):
 			product_type = "NetbootProduct"
 
 		if objectId:
-			objectId = forceHostId(objectId)
+			objectId = to_host_id(objectId)
 			hosts = self.host_getObjects(id=objectId)
 			if not hosts:
 				raise BackendMissingDataError(f"Host {objectId!r} not found")
@@ -1011,7 +1011,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="productOnClient_getObjects", check_acl=False)
 	def getProductInstallationStatus_hash(self: BackendProtocol, productId: str, objectId: str) -> dict[str, Any]:
-		productId = forceProductId(productId)
+		productId = to_product_id(productId)
 		product_on_clients = self.productOnClient_getObjects(productId=productId, clientId=objectId)
 		if not product_on_clients:
 			return {"installationStatus": "not_installed", "productId": productId}
@@ -1075,7 +1075,7 @@ class RPCExtLegacyMixin(Protocol):
 		productActionProgress = productActionProgress or None
 		action_result = None
 
-		client_id = forceHostId(objectId)
+		client_id = to_host_id(objectId)
 		depot_id = None
 		for client_to_depotserver in self.configState_getClientToDepotserver(clientIds=[client_id]):
 			if client_to_depotserver["clientId"] == client_id:
@@ -1255,14 +1255,14 @@ class RPCExtLegacyMixin(Protocol):
 				if not product_property.getEditable() or (
 					product_property.getPossibleValues() and len(product_property.getPossibleValues()) > 1
 				):
-					values = forceUnicodeList(product_property.getPossibleValues())
+					values = to_string_list(product_property.getPossibleValues())
 
 				result[product_id].append(
 					{
 						"name": product_property.getPropertyId(),
 						"description": product_property.getDescription(),
 						"values": values,
-						"default": ",".join(forceUnicodeList(defaults)),
+						"default": ",".join(to_string_list(defaults)),
 					}
 				)
 		return result
@@ -1295,14 +1295,14 @@ class RPCExtLegacyMixin(Protocol):
 				if not productProperty.getEditable() or (
 					productProperty.getPossibleValues() and len(productProperty.getPossibleValues()) > 1
 				):
-					values = forceUnicodeList(productProperty.getPossibleValues())
+					values = to_string_list(productProperty.getPossibleValues())
 
 				result.append(
 					{
 						"name": productProperty.getPropertyId(),
 						"description": productProperty.getDescription(),
 						"values": values,
-						"default": ",".join(forceUnicodeList(defaults)),
+						"default": ",".join(to_string_list(defaults)),
 					}
 				)
 
@@ -1397,7 +1397,7 @@ class RPCExtLegacyMixin(Protocol):
 			return {ppd["name"]: ppd["default"] for ppd in self.getProductPropertyDefinitions_listOfHashes(productId=productId)}
 
 		return {
-			p: ",".join(forceUnicodeList(v))
+			p: ",".join(to_string_list(v))
 			for p, v in self.productPropertyState_getValues(
 				product_ids=[productId], property_ids=[], object_ids=[objectId], with_defaults=True
 			)
@@ -1419,7 +1419,7 @@ class RPCExtLegacyMixin(Protocol):
 		:param properties: <property-id> <value> pairs of properties to set.
 		:param objectId: ID of the object to set the values for or `None`.
 		"""
-		property_ids = set(forceProductPropertyId(ppi) for ppi in properties)
+		property_ids = set(to_product_property_id(ppi) for ppi in properties)
 		property_classes = {}
 		property_multi_value = {}
 		for prop in self.productProperty_getObjects(productId=productId, propertyId=property_ids):
@@ -1434,16 +1434,16 @@ class RPCExtLegacyMixin(Protocol):
 
 			if issubclass(property_type, UnicodeProductProperty):
 				logger.debug("Property %s is unicode.", property_id)
-				new_value = forceUnicodeList(value)
+				new_value = to_string_list(value)
 
 				logger.debug("New values for property %s: %s", property_id, new_value)
 				if not property_multi_value[property_id] and len(new_value) > 1:
 					raise ValueError(f"Property {property_id!r} is not multivalue but new values {new_value!r} are!")
 
-				new_properties[forceProductPropertyId(property_id)] = new_value
+				new_properties[to_product_property_id(property_id)] = new_value
 			elif issubclass(property_type, BoolProductProperty):
 				logger.debug("Property %s is bool.", property_id)
-				new_properties[forceProductPropertyId(property_id)] = forceBool(value)
+				new_properties[to_product_property_id(property_id)] = to_bool(value)
 			else:
 				raise ValueError(f"Property type of {property_type!r} currently unhandled")
 
@@ -1820,7 +1820,7 @@ class RPCExtLegacyMixin(Protocol):
 					architecture=aus.architecture,
 					licensePoolId=licensePoolId,
 				)
-				for aus in self.auditSoftware_getObjects(windowsSoftwareId=forceUnicodeList(windowsSoftwareIds))
+				for aus in self.auditSoftware_getObjects(windowsSoftwareId=to_string_list(windowsSoftwareIds))
 			]
 			self.auditSoftwareToLicensePool_createObjects(audit_software_to_license_pools)
 
@@ -1913,7 +1913,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="licensePool_updateObject", check_acl=False)
 	def addProductIdsToLicensePool(self: BackendProtocol, productIds: list[str], licensePoolId: str) -> None:
-		productIds = forceUnicodeList(productIds)
+		productIds = to_string_list(productIds)
 		license_pools = self.licensePool_getObjects(id=licensePoolId)
 		if not license_pools:
 			raise BackendMissingDataError(f"License pool {licensePoolId!r} does not exist")
@@ -1923,7 +1923,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="licensePool_updateObject", check_acl=False)
 	def removeProductIdsFromLicensePool(self: BackendProtocol, productIds: list[str], licensePoolId: str) -> None:
-		productIds = forceUnicodeList(productIds)
+		productIds = to_string_list(productIds)
 		licensePools = self.licensePool_getObjects(id=licensePoolId)
 		if not licensePools:
 			raise BackendMissingDataError(f"License pool {licensePoolId!r} does not exist")
@@ -1933,7 +1933,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareToLicensePool_createObjects", check_acl=False)
 	def setWindowsSoftwareIdsToLicensePool(self: BackendProtocol, windowsSoftwareIds: list[str], licensePoolId: str) -> None:
-		windowsSoftwareIds = forceUnicodeList(windowsSoftwareIds)
+		windowsSoftwareIds = to_string_list(windowsSoftwareIds)
 		license_pool_ids = self.licensePool_getIdents(id=licensePoolId, returnType="unicode")
 		if not license_pool_ids:
 			raise BackendMissingDataError(f"License pool {licensePoolId!r} does not exist")
@@ -1951,7 +1951,7 @@ class RPCExtLegacyMixin(Protocol):
 				architecture=auditSoftware.architecture,
 				licensePoolId=licensePoolId,
 			)
-			for auditSoftware in self.auditSoftware_getObjects(windowsSoftwareId=forceUnicodeList(windowsSoftwareIds))
+			for auditSoftware in self.auditSoftware_getObjects(windowsSoftwareId=to_string_list(windowsSoftwareIds))
 		]
 		self.auditSoftwareToLicensePool_createObjects(audit_software_to_license_pools)
 
@@ -1961,7 +1961,7 @@ class RPCExtLegacyMixin(Protocol):
 			raise BackendBadValueError("Neither product id nor windows software id given.")
 		idents = []
 		if productId:
-			productId = forceProductId(productId)
+			productId = to_product_id(productId)
 			idents = self.licensePool_getIdents(productIds=productId, returnType="unicode")
 		elif windowsSoftwareId:
 			windowsSoftwareId = str(windowsSoftwareId)
@@ -1978,9 +1978,11 @@ class RPCExtLegacyMixin(Protocol):
 				if audit_software_to_license_pools:
 					idents.append(audit_software_to_license_pools[0].licensePoolId)
 		if len(idents) < 1:
-			raise LicenseConfigurationError(f"No license pool for product id {productId!r}, windowsSoftwareId {windowsSoftwareId!r} found")
+			raise OpsiLicenseConfigurationError(
+				f"No license pool for product id {productId!r}, windowsSoftwareId {windowsSoftwareId!r} found"
+			)
 		if len(idents) > 1:
-			raise LicenseConfigurationError(
+			raise OpsiLicenseConfigurationError(
 				f"Multiple license pools for product id {productId!r}, windowsSoftwareId {windowsSoftwareId!r} found"
 			)
 		return idents[0]
@@ -2166,7 +2168,7 @@ class RPCExtLegacyMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_updateObject", check_acl=False)
 	def setHostInventoryNumber(self: BackendProtocol, hostId: str, inventoryNumber: str) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host {hostId!r} not found")

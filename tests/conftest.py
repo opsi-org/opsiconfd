@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -23,7 +23,7 @@ from unittest.mock import patch
 from _pytest.logging import LogCaptureHandler
 from _pytest.main import Session
 from _pytest.nodes import Item
-from opsicommon.logging import logging_config
+from opsi.logging import logging_config
 from pluggy._result import Result
 from pytest import hookimpl, skip
 
@@ -52,15 +52,15 @@ def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:
 
 # Set a different redis key prefix to not interfere with running tests
 app.app_state_redis_key = "pytest:main_application:app_state"
-Manager.orig_signal_handler = Manager.signal_handler  # type: ignore[attr-defined]
-Manager.signal_handler = signal_handler  # type: ignore[assignment]
+Manager.orig_signal_handler = Manager.signal_handler  # ty: ignore[unresolved-attribute]
+Manager.signal_handler = signal_handler  # ty: ignore[invalid-assignment]
 
 
 def emit(*args: Any, **kwargs: Any) -> None:
 	pass
 
 
-LogCaptureHandler.emit = emit  # type: ignore[assignment]
+LogCaptureHandler.emit = emit  # ty: ignore[invalid-assignment]
 
 
 @hookimpl()
@@ -98,14 +98,14 @@ def pytest_sessionstart(session: Session) -> None:
 		print("Running item:", running_item, file=sys.stderr)
 		traceback.print_stack(file=sys.stderr)
 
-	sys.stderr.close = stderr_close  # type: ignore[method-assign]
+	sys.stderr.close = stderr_close  # ty: ignore[invalid-assignment]
 
 	def stdout_close() -> None:
 		print("sys.stdout.close called!", file=sys.stderr)
 		print("Running item:", running_item, file=sys.stderr)
 		traceback.print_stack(file=sys.stderr)
 
-	sys.stdout.close = stdout_close  # type: ignore[method-assign]
+	sys.stdout.close = stdout_close  # ty: ignore[invalid-assignment]
 
 	# return
 	print("Drop database")

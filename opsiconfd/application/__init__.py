@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -20,7 +20,7 @@ from typing import Any, AsyncGenerator, Callable, Type, TypeVar, cast
 
 from fastapi import FastAPI
 from msgspec import msgpack
-from opsicommon.messagebus.message import EventMessage
+from opsi.opsi.messagebus import EventMessage
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp

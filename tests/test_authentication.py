@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,10 +18,10 @@ from unittest.mock import patch
 import pyotp
 import pytest
 from fastapi import status
-from opsicommon import objects
-from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
-from opsicommon.exceptions import OpsiServiceAuthenticationError
-from opsicommon.logging import LOG_TRACE, use_logging_config
+from opsi.exception import OpsiServiceAuthenticationError
+from opsi.logging import LOG_TRACE, use_logging_config
+from opsi.opsi.service.client import ServiceClient, ServiceVerificationFlags
+from opsi.opsi.service.model import object
 
 from opsiconfd import (
 	contextvar_client_session,
@@ -481,7 +481,7 @@ def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa:
 	with get_config({"auth_allowed_groups": ["some-group"]}):
 		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == status.HTTP_401_UNAUTHORIZED
-		assert res.json()["message"] == f"Opsi service permission error: User '{ADMIN_USER}' not in allowed groups"
+		assert res.json()["message"] == f"User '{ADMIN_USER}' not in allowed groups"
 		test_client.reset_cookies()
 
 	with get_config({"auth_allowed_groups": []}):
@@ -652,7 +652,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	cookie = list(test_client.cookies.jar)[0]
 	session_id = cookie.value
 	assert res.status_code == 200
-	remain = cookie.expires - time.time()
+	remain = cookie.expires - time.time()  # ty: ignore[unsupported-operator]
 	assert remain <= lifetime
 	assert remain >= lifetime - 2
 
@@ -665,7 +665,7 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	assert res.status_code == 200
 	assert session_id != cookie.value
 
-	remain = cookie.expires - time.time()
+	remain = cookie.expires - time.time()  # ty: ignore[unsupported-operator]
 	assert remain <= lifetime
 	assert remain >= lifetime - 2
 
@@ -694,7 +694,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]
 		session_id = cookie.value
-		remain = cookie.expires - time.time()
+		remain = cookie.expires - time.time()  # ty: ignore[unsupported-operator]
 		print(remain)
 		assert remain <= lifetime
 
@@ -703,7 +703,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		res = test_client.get("/admin/", headers=lt_headers)
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]
-		remain = cookie.expires - time.time()
+		remain = cookie.expires - time.time()  # ty: ignore[unsupported-operator]
 		print(remain)
 		assert remain <= lifetime
 		assert remain >= lifetime - 5
@@ -722,7 +722,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient, config: Config) -> No
 		res = test_client.get("/admin/")
 		assert res.status_code == 200
 		cookie = list(test_client.cookies.jar)[0]
-		remain = cookie.expires - time.time()
+		remain = cookie.expires - time.time()  # ty: ignore[unsupported-operator]
 		print(remain)
 		assert remain <= lifetime
 		assert remain >= lifetime - 5
@@ -773,7 +773,7 @@ def test_auth_system_uuid_hardware_address_and_hostkey(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
-	opsi_client = objects.OpsiClient(
+	opsi_client = object.OpsiClient(
 		id="onlyhostkey.opsi.test",
 		opsiHostKey="f020dcde5108508cd947c5e229d9ec04",
 		systemUUID="69bdfe1a-55df-4392-95ab-85715cd0e77e",
@@ -835,7 +835,7 @@ def test_auth_only_hostkey(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
-	opsi_client = objects.OpsiClient(id="onlyhostkey.opsi.test", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
+	opsi_client = object.OpsiClient(id="onlyhostkey.opsi.test", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
@@ -947,7 +947,7 @@ def test_client_certificate(
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	client_cert_file = tmp_path / "client-cert.pem"
-	opsi_client = objects.OpsiClient(id="client1.opsi.test", opsiHostKey="cde58508cc5e229d9ec04d94710f020d")
+	opsi_client = object.OpsiClient(id="client1.opsi.test", opsiHostKey="cde58508cc5e229d9ec04d94710f020d")
 	backend.host_createObjects([opsi_client])
 	sess = OPSISession("localhost")
 	sess.is_admin = True
@@ -1074,7 +1074,7 @@ def test_disabled_auth_methods(
 			check_if_saml_available()
 
 	password = "secret"
-	user = objects.User(
+	user = object.User(
 		id="test_user_123",
 		passwordHash=create_password_hash(password),
 		groups=["{admingroup}"],
@@ -1144,7 +1144,7 @@ def test_database_password_authentication(
 	groups: list[str],
 ) -> None:
 	password = "securepassword"
-	user = objects.User(
+	user = object.User(
 		id="dbpasswordtest",
 		passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(hash_algorithm)),
 		groups=groups,
@@ -1175,7 +1175,7 @@ def test_database_password_authentication(
 
 		if "opsi-admin-group" not in groups and "opsi-readonly-group" not in groups:
 			assert res.status_code == 401
-			assert res.json()["message"] == f"Opsi service permission error: User '{user.id}' not in allowed groups"
+			assert res.json()["message"] == f"User '{user.id}' not in allowed groups"
 		else:
 			assert res.status_code == 200
 			assert res.json()["is_admin"] == ("opsi-admin-group" in groups)
@@ -1228,7 +1228,7 @@ def test_database_token_authentication(
 	expected_status: int,
 ) -> None:
 	token, token_hash = create_auth_token()
-	user = objects.User(
+	user = object.User(
 		id="dbtokentest",
 		mfaState=mfa_state,
 		tokenHash=token_hash,
@@ -1304,7 +1304,7 @@ def test_migrate_hashing_algorithm(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
-	user = objects.User(
+	user = object.User(
 		id="testuser1",
 		passwordHash=create_password_hash("secret123", algorithm=HashingAlgorithm.SHA512),
 		groups=["opsi-admin-group"],

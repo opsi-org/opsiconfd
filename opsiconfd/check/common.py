@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,8 +18,8 @@ from typing import Any, Iterator
 
 from msgspec.msgpack import decode, encode
 from MySQLdb import OperationalError as MySQLdbOperationalError
-from opsicommon.license import get_default_opsi_license_pool
-from opsicommon.utils import compare_versions
+from opsi.opsi.licensing import get_default_opsi_license_pool
+from opsi.util.version import compare_versions
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.exc import OperationalError
 
@@ -27,7 +27,6 @@ from opsiconfd.check.cache import check_cache_clear
 from opsiconfd.config import OPSI_LICENSE_DIR, OPSI_MODULES_FILE, config, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.redis import redis_client
-from opsiconfd.utils import Singleton
 
 CACHE_EXPIRATION = 24 * 3600  # In seconds
 
@@ -175,11 +174,20 @@ class Check:
 		return None
 
 
-class CheckManager(metaclass=Singleton):
+class CheckManager:
+	_instance: CheckManager | None = None
 	_checks: dict[str, Check] = {}
 	_possible_checks: dict[str, Check] = {}
 
+	def __new__(cls, *args: Any, **kwargs: Any) -> CheckManager:
+		if not cls._instance:
+			cls._instance = super().__new__(cls, *args, **kwargs)
+		return cls._instance
+
 	def __init__(self) -> None:
+		if getattr(self, "_initialized", False):
+			return
+		self._initialized = True
 		self._checks = {}
 
 	def register(self, *checks: Check) -> None:

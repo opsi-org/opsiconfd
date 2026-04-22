@@ -1,11 +1,11 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
 from dataclasses import dataclass
 
-from opsicommon.license import OPSI_MODULE_BUNDLES, OPSI_OBSOLETE_MODULE_IDS, OPSI_STAGING_MODULE_IDS
+from opsi.opsi.licensing import OPSI_MODULE_BUNDLES, OPSI_OBSOLETE_MODULE_IDS, OPSI_STAGING_MODULE_IDS
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager

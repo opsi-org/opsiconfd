@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,11 +13,11 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from subprocess import CalledProcessError, run
 from typing import Any
 
 import psutil
-from opsicommon.utils import prepare_proxy_environment
+from opsi.process import ProcessError, run_command
+from opsi.system.network import prepare_proxy_environment
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import get_version_string
@@ -50,9 +50,7 @@ def get_lsb_release() -> dict[str, str]:
 	logger.debug("get_lsb_release")
 	data: dict[str, str] = {}
 	try:
-		lines = run(
-			LSB_RELASE_COMMAND, shell=False, check=False, text=True, encoding="utf-8", capture_output=True, timeout=5
-		).stdout.splitlines()
+		lines = run_command(LSB_RELASE_COMMAND, timeout=5.0).get_stdout_lines()
 	except Exception as err:
 		logger.debug("lsb_release not available: %s", err)
 		return data
@@ -64,9 +62,7 @@ def get_lsb_release() -> dict[str, str]:
 		data[key.strip().upper().replace(" ", "_")] = val.strip()
 
 	if data["DISTRIBUTOR_ID"] == "Univention":
-		data["UCS_ROLE"] = run(
-			["ucr", "get", "server/role"], shell=False, check=False, text=True, encoding="utf-8", capture_output=True, timeout=5
-		).stdout.strip()
+		data["UCS_ROLE"] = run_command(["ucr", "get", "server/role"], timeout=5.0).get_stdout_text().strip()
 	return data
 
 
@@ -212,12 +208,11 @@ def get_system_info() -> dict:
 	result["docker"] = docker
 
 	try:
-		cmd = ["hostnamectl", "status"]
-		hostnamectl = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout.strip()
+		hostnamectl = run_command(["hostnamectl", "status"], timeout=10).get_stdout_text().strip()
 		result.update(
 			{key_value[0].strip(): key_value[1].strip() for line in hostnamectl.split("\n") if len(key_value := line.split(":", 1)) == 2}
 		)
-	except FileNotFoundError, CalledProcessError:
+	except ProcessError:
 		logger.warning("hostnamectl command not found.")
 
 	return result

@@ -1,12 +1,12 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
-from opsicommon.utils import compare_versions
+from opsi.util.version import compare_versions
 
 from opsiconfd.check.common import Check, CheckResult, CheckStatus, check_manager
 from opsiconfd.config import config

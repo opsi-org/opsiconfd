@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -20,7 +20,7 @@ import objgraph
 import psutil
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from opsicommon.utils import unix_timestamp
+from opsi.time import unix_timestamp
 from pympler import classtracker, tracker
 from pympler.classtracker import Snapshot
 from pympler.classtracker_stats import ConsoleStats

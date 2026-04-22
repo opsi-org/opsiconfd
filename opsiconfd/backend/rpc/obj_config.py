@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,8 +12,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from opsicommon.objects import BoolConfig, Config, UnicodeConfig
-from opsicommon.types import forceObjectClass, forceObjectClassList
+from opsi.opsi.service.model.object import BoolConfig, Config, UnicodeConfig
+from opsi.opsi.service.model.type import to_object_class, to_object_class_list
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.auth.role import Role
@@ -41,14 +41,14 @@ class RPCConfigMixin(Protocol):
 		session: MySQLSession | None = None,
 		lock: bool = True,
 	) -> None:
-		config = forceObjectClass(config, Config)
+		config = to_object_class(config, Config)
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
 		modify_values = create or data.get("possibleValues") is not None
 		with self._mysql.session(session) as session:
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():
 				if modify_values:
 					session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
-				if session.execute(query, params=data).rowcount > 0 and modify_values:  # type: ignore[unresolved-attribute]
+				if session.execute(query, params=data).rowcount > 0 and modify_values:  # ty: ignore[unresolved-attribute]
 					for value in data["possibleValues"] or []:
 						session.execute(
 							"INSERT INTO `CONFIG_VALUE` (configId, value, isDefault) VALUES (:configId, :value, :isDefault)",
@@ -58,25 +58,25 @@ class RPCConfigMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def config_insertObject(self: BackendProtocol, config: dict | Config) -> None:
 		ace = self._get_ace("config_insertObject")
-		config = forceObjectClass(config, Config)
+		config = to_object_class(config, Config)
 		self._config_insert_object(config=config, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
-		self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
+		self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def config_updateObject(self: BackendProtocol, config: dict | Config) -> None:
 		ace = self._get_ace("config_updateObject")
-		config = forceObjectClass(config, Config)
+		config = to_object_class(config, Config)
 		self._config_insert_object(config=config, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
-		self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # type: ignore[arg-type]
+		self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def config_createObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_createObjects")
-		configs = forceObjectClassList(configs, Config)
+		configs = to_object_class_list(configs, Config)
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
 				for config in configs:
@@ -84,12 +84,12 @@ class RPCConfigMixin(Protocol):
 		if not self.events_enabled:
 			return
 		for config in configs:
-			self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # type: ignore[arg-type]
+			self._send_messagebus_event("config_created", data=config.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def config_updateObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:
 		ace = self._get_ace("config_updateObjects")
-		configs = forceObjectClassList(configs, Config)
+		configs = to_object_class_list(configs, Config)
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
 				for config in configs:
@@ -97,7 +97,7 @@ class RPCConfigMixin(Protocol):
 		if not self.events_enabled:
 			return
 		for config in configs:
-			self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # type: ignore[arg-type]
+			self._send_messagebus_event("config_updated", data=config.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 
 	def _config_get(
 		self: BackendProtocol,
@@ -127,7 +127,7 @@ class RPCConfigMixin(Protocol):
 		**filter: Any,
 	) -> list[Config]:
 		ace = self._get_ace("config_getObjects")
-		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(deprecated=True, alternative_method="config_getObjects", check_acl=False)
 	def config_getHashes(
@@ -136,7 +136,7 @@ class RPCConfigMixin(Protocol):
 		**filter: Any,
 	) -> list[dict]:
 		ace = self._get_ace("config_getObjects")
-		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(check_acl=False)
 	def config_getIdents(
@@ -158,9 +158,9 @@ class RPCConfigMixin(Protocol):
 			remove_orphans_config_state(session)
 		if not self.events_enabled:
 			return
-		configs = forceObjectClassList(configs, Config)
+		configs = to_object_class_list(configs, Config)
 		for config in configs:
-			self._send_messagebus_event("config_deleted", data=config.getIdent("dict"))  # type: ignore[arg-type]
+			self._send_messagebus_event("config_deleted", data=config.getIdent("dict"))  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def config_create(

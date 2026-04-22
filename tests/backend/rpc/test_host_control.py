@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
-from opsicommon.objects import LocalbootProduct, OpsiClient, ProductDependency, ProductOnClient, ProductOnDepot
+from opsi.opsi.service.model.object import LocalbootProduct, OpsiClient, ProductDependency, ProductOnClient, ProductOnDepot
 
 from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # noqa: F401

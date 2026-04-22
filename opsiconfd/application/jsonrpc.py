@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -26,23 +26,19 @@ import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
-from opsicommon.client.opsiservice import Messagebus, MessagebusListener
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
 )
-from opsicommon.objects import deserialize, serialize
+from opsi.opsi.service.client import Messagebus, MessagebusListener
+from opsi.opsi.service.model.object import deserialize, serialize
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
-from opsiconfd.backend import (
-	get_protected_backend,
-	get_service_client,
-	get_unprotected_backend,
-)
+from opsiconfd.backend import get_protected_backend, get_service_client, get_unprotected_backend
 from opsiconfd.config import DEPRECATED_RPC_CALL_EXPIRE_SECONDS, RPC_DEBUG_DIR, config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_messagebus_worker_id

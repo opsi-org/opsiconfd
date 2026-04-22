@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -9,7 +9,7 @@ worker check tests
 
 from datetime import datetime, timezone
 
-from opsicommon.objects import OpsiClient
+from opsi.opsi.service.model.object import OpsiClient
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.common import CheckStatus, check_manager

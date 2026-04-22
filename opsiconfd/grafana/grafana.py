@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,7 +15,6 @@ import os
 import re
 import sqlite3
 import string
-import subprocess
 import time
 from contextlib import asynccontextmanager, contextmanager
 from ssl import create_default_context
@@ -25,6 +24,7 @@ from urllib.parse import quote, unquote, urlparse
 import aiohttp
 import requests
 from configupdater import ConfigUpdater, DuplicateSectionError
+from opsi.process import ProcessError, run_command
 from packaging.version import Version
 from requests.auth import AuthBase, HTTPBasicAuth
 
@@ -300,11 +300,10 @@ def setup_grafana() -> None:
 				["chown", "-R", "grafana:grafana", PLUGIN_DIR],
 				["service", "grafana-server", "restart"],
 			):
-				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
-				logger.debug("output of command %s: %s", cmd, out)
+				run_command(cmd, timeout=20)
 			# Wait for grafana-server to restart
 			time.sleep(5)
-		except subprocess.CalledProcessError as err:
+		except ProcessError as err:
 			logger.warning("Failed to %s grafana plugin %r via grafana-cli: %s", plugin_action, PLUGIN_ID, err)
 
 	if urlparse(config.grafana_internal_url).username is not None:
@@ -457,9 +456,8 @@ def set_grafana_root_url() -> None:
 
 	logger.notice("Restart grafana server")
 	try:
-		proc = subprocess.run(["systemctl", "is-active", "--quiet", "grafana-server.service"], shell=False, check=False)
-		if proc.returncode == 0:
+		if run_command(["systemctl", "is-active", "--quiet", "grafana-server.service"], timeout=10, success_exit_codes=None).exit_code == 0:
 			# grafana-server is running
-			proc = subprocess.run(["systemctl", "restart", "grafana-server.service"], shell=False, check=True)
-	except (FileNotFoundError, subprocess.CalledProcessError) as err:
+			run_command(["systemctl", "restart", "grafana-server.service"], timeout=10)
+	except ProcessError as err:
 		logger.warning(err)

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,9 +11,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import BackendReferentialIntegrityError
-from opsicommon.objects import AuditSoftwareOnClient
-from opsicommon.types import forceList
+from opsi.exception import BackendReferentialIntegrityError
+from opsi.opsi.service.model.object import AuditSoftwareOnClient
+from opsi.opsi.service.model.type import to_list
 
 from ..auth import RPCACE
 from . import rpc_method
@@ -30,7 +30,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		create: bool,
 		set_null: bool,
 	) -> None:
-		for audit_software_on_client in forceList(audit_software_on_clients):
+		for audit_software_on_client in to_list(audit_software_on_clients):
 			if not isinstance(audit_software_on_client, AuditSoftwareOnClient):
 				audit_software_on_client = AuditSoftwareOnClient.fromHash(audit_software_on_client)
 
@@ -151,7 +151,7 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 	) -> None:
 		if not auditSoftwareOnClients:
 			return
-		for audit_software_on_client in forceList(auditSoftwareOnClients):
+		for audit_software_on_client in to_list(auditSoftwareOnClients):
 			if not isinstance(audit_software_on_client, AuditSoftwareOnClient):
 				audit_software_on_client = AuditSoftwareOnClient.fromHash(audit_software_on_client)
 			with self._mysql.session() as session:
@@ -237,4 +237,4 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: list[str] | str) -> None:
 		with self._mysql.session() as session:
-			session.execute("DELETE FROM `SOFTWARE_CONFIG` WHERE `clientId` in :client_ids", params={"client_ids": forceList(clientId)})
+			session.execute("DELETE FROM `SOFTWARE_CONFIG` WHERE `clientId` in :client_ids", params={"client_ids": to_list(clientId)})

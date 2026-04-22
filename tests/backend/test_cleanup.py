@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,7 +7,7 @@
 cleanup backend
 """
 
-from opsicommon.objects import BoolConfig, UnicodeConfig
+from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
 
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import convert_config_objects, remove_orphans_clientconfig_depot_id

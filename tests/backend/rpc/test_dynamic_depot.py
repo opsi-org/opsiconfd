@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,8 +7,8 @@
 test opsiconfd.backend.rpc.ext_dynamic_depot
 """
 
-from opsicommon.logging import LOG_DEBUG, get_logger, use_logging_config
-from opsicommon.objects import OpsiClient, OpsiDepotserver, UnicodeConfig
+from opsi.logging import LOG_DEBUG, get_logger, use_logging_config
+from opsi.opsi.service.model.object import OpsiClient, OpsiDepotserver, UnicodeConfig
 
 from tests.utils import OpsiconfdTestClient, UnprotectedBackend, backend, clean_mysql, test_client  # noqa: F401
 

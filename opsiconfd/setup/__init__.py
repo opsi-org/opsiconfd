@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,11 +16,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 from uuid import UUID
 
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.exceptions import OpsiServiceConnectionError
-from opsicommon.logging import secret_filter
-from opsicommon.objects import OpsiDepotserver
-from opsicommon.types import forceHostId
+from opsi.exception import OpsiServiceConnectionError
+from opsi.logging import secret_filter
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import OpsiDepotserver
+from opsi.opsi.service.model.type import to_host_id
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
@@ -190,7 +190,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 					inp = Prompt.ask("Enter ID of the depot", default=depot.id, show_default=True) or ""
 				depot.setId(inp)
 
-				hosts = service.host_getObjects(id=depot.id)  # type: ignore[attr-defined]
+				hosts = service.host_getObjects(id=depot.id)  # ty: ignore[unresolved-attribute]
 				if hosts:
 					depot = hosts[0]
 					if depot.getType() != "OpsiDepotserver":
@@ -218,7 +218,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 					logger.debug(err)
 
 				rich_print("[b]Registering depot[/b]")
-				service.host_createObjects([depot])  # type: ignore[attr-defined]
+				service.host_createObjects([depot])  # ty: ignore[unresolved-attribute]
 				service.fetch_ca_certs(force_write_ca_cert_file=True)
 				(srv_crt, srv_key) = fetch_server_cert(service, server_id=depot.id)
 				store_local_server_key(srv_key)
@@ -226,7 +226,7 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 
 				rich_print("[b][green]Depot succesfully registered[/green][/b]")
 
-				depot = service.host_getObjects(id=depot.id)[0]  # type: ignore[attr-defined]
+				depot = service.host_getObjects(id=depot.id)[0]  # ty: ignore[unresolved-attribute]
 
 				opsi_config.set("host", "server-role", "depotserver")
 				opsi_config.set("host", "id", depot.id)
@@ -234,10 +234,10 @@ def setup_depotserver(interactive: bool = True, unattended_configuration: dict[s
 				opsi_config.set("service", "url", service.base_url)
 				opsi_config.write_config_file()
 
-				configs = service.config_getObjects(id="clientconfig.depot.id")  # type: ignore[attr-defined]
+				configs = service.config_getObjects(id="clientconfig.depot.id")  # ty: ignore[unresolved-attribute]
 				if configs and depot.id not in configs[0].defaultValues:
 					configs[0].defaultValues.append(depot.id)
-					service.config_updateObjects(configs)  # type: ignore[attr-defined]
+					service.config_updateObjects(configs)  # ty: ignore[unresolved-attribute]
 
 				return True
 			except KeyboardInterrupt:
@@ -272,7 +272,7 @@ def setup(explicit: bool = True) -> None:
 		if "backend" in config.skip_setup:
 			config.skip_setup.remove("backend")
 		if isinstance(rename_server, str):
-			new_server_id = forceHostId(rename_server)
+			new_server_id = to_host_id(rename_server)
 		else:
 			new_server_id = opsi_config.get("host", "id")
 

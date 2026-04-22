@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -150,9 +150,12 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 	import ipaddress
 	try:
-		from opsicommon.utils import ip_address_in_network
+		from opsi.util.network import ip_address_in_network
 	except ImportError:
-		from OPSI.Util import ipAddressInNetwork as ip_address_in_network
+		try:
+			from opsicommon.utils import ip_address_in_network
+		except ImportError:
+			from OPSI.Util import ipAddressInNetwork as ip_address_in_network
 
 	for depot in sorted([d for d in ([masterDepot] + alternativeDepots) if d.networkAddress], key=lambda x: ipaddress.ip_network(x.networkAddress).prefixlen, reverse=True):
 		if ip_address_in_network(clientConfig['ipAddress'], depot.networkAddress):

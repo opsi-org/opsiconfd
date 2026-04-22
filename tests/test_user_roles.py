@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Generator
 
 import pytest
-from opsicommon.objects import BoolConfig, HostGroup, OpsiDepotserver, ProductGroup, UnicodeConfig
+from opsi.opsi.service.model.object import BoolConfig, HostGroup, OpsiDepotserver, ProductGroup, UnicodeConfig
 from sqlalchemy.orm import Session
 
 from opsiconfd.auth.role import Role
@@ -433,7 +433,7 @@ def test_create_user_function(backend: UnprotectedBackend) -> None:  # noqa: F81
 				print(config.id)
 				assert config.defaultValues == expected_config.defaultValues
 				if config.id == "user.{admin}.privilege.host.groupaccess.hostgroups":
-					assert expected_config.possibleValues[0] in config.possibleValues  # type: ignore
+					assert expected_config.possibleValues[0] in config.possibleValues  # ty: ignore
 
 
 def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  # noqa: F811
@@ -491,7 +491,7 @@ def test_create_user_function_with_role(backend: UnprotectedBackend) -> None:  #
 				print(config.id)
 				assert config.defaultValues == expected_config.defaultValues
 				if config.id == "user.{admin}.privilege.host.groupaccess.hostgroups":
-					assert expected_config.possibleValues[0] in config.possibleValues  # type: ignore
+					assert expected_config.possibleValues[0] in config.possibleValues  # ty: ignore
 
 	expected_configs = [
 		UnicodeConfig(id="user.role.{admin}.has_role", defaultValues=[""]),

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
-from opsicommon.types import forceList
+from opsi.opsi.service.model.type import to_list
 
 from opsiconfd.logging import logger
 
@@ -35,7 +35,7 @@ def check_plugin_on_client(
 ) -> JSONResponse:
 	state = State.OK
 	message = ""
-	host_ids = forceList(host_id)
+	host_ids = to_list(host_id)
 
 	try:
 		result = backend.hostControlSafe_reachable(hostIds=host_ids)

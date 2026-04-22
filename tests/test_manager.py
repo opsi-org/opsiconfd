@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -28,7 +28,6 @@ from .utils import (  # noqa: F401
 	clean_health_check_cache,
 	clean_redis,
 	get_config,
-	reset_singleton,
 	sync_clean_health_check_cache,
 	sync_clean_redis,
 )
@@ -42,7 +41,7 @@ def run_manager(interval: None | int = None) -> Generator[Manager, None, None]:
 		patch("opsiconfd.manager.register_opsi_services", lambda *args, **kwargs: asyncio.sleep(0.1)),
 		patch("opsiconfd.manager.unregister_opsi_services", lambda *args, **kwargs: asyncio.sleep(0.1)),
 	):
-		reset_singleton(Manager)
+		Manager.reset_singleton()
 		man = Manager()
 		if interval is not None:
 			man._interval = interval
@@ -51,7 +50,7 @@ def run_manager(interval: None | int = None) -> Generator[Manager, None, None]:
 			yield man
 		finally:
 			man.stop()
-			reset_singleton(Manager)
+			Manager.reset_singleton()
 
 
 def test_manager_signals() -> None:
@@ -66,7 +65,7 @@ def test_manager_signals() -> None:
 		setattr(manager, "reload", reload)
 
 		manager._last_reload = 0
-		manager.orig_signal_handler(signal.SIGHUP, None)  # type: ignore[attr-defined]
+		manager.orig_signal_handler(signal.SIGHUP, None)  # ty: ignore[unresolved-attribute]
 		assert test_reload is True
 
 		test_reload = False
@@ -146,7 +145,7 @@ def test_worker_manager_and_workers() -> None:
 	redis = redis_client()
 	with get_config({"port": 4444, "workers": 2}) as config:
 		worker_manager = WorkerManager()
-		worker_manager.init_logging = lambda *args: None  # type: ignore[assignment]
+		worker_manager.init_logging = lambda *args: None  # ty: ignore[invalid-assignment]
 		worker_manager.worker_restart_gap = 0.0
 		worker_manager.worker_check_interval = 2.0
 		worker_manager_thread = threading.Thread(target=worker_manager.run, daemon=True)

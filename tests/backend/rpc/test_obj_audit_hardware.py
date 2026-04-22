@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 from unittest import mock
 
-from opsicommon.objects import AuditHardware, deserialize, serialize
+from opsi.opsi.service.model.object import AuditHardware, deserialize, serialize
 
 from opsiconfd.backend.rpc.obj_audit_hardware import get_audit_hardware_config
 from tests.utils import (  # noqa: F401

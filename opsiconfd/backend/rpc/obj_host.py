@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,13 +18,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 from urllib.parse import urlparse
 
-from opsicommon.exceptions import (
+from opsi.exception import (
 	BackendError,
 	BackendMissingDataError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.objects import ConfigState, Host, OpsiClient, OpsiConfigserver, OpsiDepotserver
-from opsicommon.types import forceHostId, forceList, forceObjectClass, forceObjectClassList
+from opsi.opsi.service.model.object import ConfigState, Host, OpsiClient, OpsiConfigserver, OpsiDepotserver
+from opsi.opsi.service.model.type import to_host_id, to_list, to_object_class, to_object_class_list
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.backend.rpc import rpc_method
@@ -174,12 +174,12 @@ class RPCHostMixin(Protocol):
 				raise ValueError(f"System UUID {host.systemUUID!r} is already used by host {res[0]!r}")
 
 	def host_bulkInsertObjects(self: BackendProtocol, hosts: list[dict] | list[Host]) -> None:
-		self._mysql.bulk_insert_objects(table="HOST", objs=hosts)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="HOST", objs=hosts)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:
 		ace = self._get_ace("host_insertObject")
-		host = forceObjectClass(host, Host)
+		host = to_object_class(host, Host)
 		self._host_check_duplicate_hardware_address(host)
 		self._host_check_unique_system_uuids(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
@@ -194,7 +194,7 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:
 		ace = self._get_ace("host_updateObject")
-		host = forceObjectClass(host, Host)
+		host = to_object_class(host, Host)
 		self._host_check_duplicate_hardware_address(host)
 		self._host_check_unique_system_uuids(host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
@@ -210,7 +210,7 @@ class RPCHostMixin(Protocol):
 		if self._server_role == "depotserver":
 			return
 
-		host = forceObjectClass(host, Host)
+		host = to_object_class(host, Host)
 		self._mysql.insert_object(table="HOST", obj=host, ace=[], create=False, set_null=False)
 		if not self.events_enabled:
 			return
@@ -220,7 +220,7 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		ace = self._get_ace("host_createObjects")
-		hosts = forceObjectClassList(hosts, Host)
+		hosts = to_object_class_list(hosts, Host)
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
@@ -241,7 +241,7 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		ace = self._get_ace("host_updateObjects")
-		hosts = forceObjectClassList(hosts, Host)
+		hosts = to_object_class_list(hosts, Host)
 		with self._mysql.session() as session:
 			for host in hosts:
 				self._host_check_duplicate_hardware_address(host)
@@ -441,8 +441,8 @@ class RPCHostMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def host_renameOpsiClient(self: BackendProtocol, id: str, newId: str) -> None:
-		cur_client_id = forceHostId(id)
-		new_client_id = forceHostId(newId)
+		cur_client_id = to_host_id(id)
+		new_client_id = to_host_id(newId)
 
 		logger.info("Renaming client %s to %s...", cur_client_id, new_client_id)
 
@@ -558,8 +558,8 @@ class RPCHostMixin(Protocol):
 		:param oldId: New ID.
 		:type newId: str
 		"""
-		cur_server_id = forceHostId(oldId)
-		new_server_id = forceHostId(newId)
+		cur_server_id = to_host_id(oldId)
+		new_server_id = to_host_id(newId)
 		cur_hostname = cur_server_id.split(".")[0]
 		new_hostname = new_server_id.split(".")[0]
 
@@ -818,7 +818,7 @@ class RPCHostMixin(Protocol):
 	) -> None:
 		opsi_clients: list[OpsiClient] = []
 		opsi_clients_extended: list[OpsiClientExtendedUpdate] = []
-		for client in forceList(clients):
+		for client in to_list(clients):
 			if isinstance(client, dict):
 				client = OpsiClientExtendedUpdate(**client)
 			opsi_clients_extended.append(client)

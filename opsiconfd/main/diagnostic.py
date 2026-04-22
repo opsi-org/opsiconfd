@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,7 +15,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from opsicommon.utils import patch_popen
 from rich.console import Console
 
 from opsiconfd.check.cli import console_health_check
@@ -24,7 +23,6 @@ from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.utils import DataclassCapableJSONEncoder, compress_data, switch_to_user
 
-patch_popen()
 configure_warnings()
 
 

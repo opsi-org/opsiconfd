@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,7 +13,7 @@ import datetime
 from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
-from opsicommon.types import forceProductIdList
+from opsi.opsi.service.model.type import to_product_id_list
 
 from .utils import State, generate_response
 
@@ -68,7 +68,7 @@ def check_client_status(backend: Backend, client_id: str, exclude_product_list: 
 	failed_products = backend.productOnClient_getObjects(clientId=client_id, actionResult="failed")
 
 	if exclude_product_list:
-		products_to_exclude = set(forceProductIdList(exclude_product_list))
+		products_to_exclude = set(to_product_id_list(exclude_product_list))
 	else:
 		products_to_exclude = set()
 

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -30,7 +30,7 @@ from argon2 import DEFAULT_TIME_COST as ARGON2_DEFAULT_TIME_COST
 from argon2 import PasswordHasher
 from argon2.low_level import Type as Argon2Type
 from argon2.low_level import hash_secret as argon2_hash_secret
-from Crypto.Cipher import AES, Blowfish
+from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
@@ -76,43 +76,6 @@ def aes_decrypt_with_password(ciphertext: bytes, key_salt: bytes, mac_tag: bytes
 	except ValueError as err:
 		raise ValueError(f"Failed to decrypt, password incorrect or file corrupted ({err})") from err
 	return plaintext
-
-
-BLOWFISH_IV = b"OPSI1234"
-
-
-def blowfish_encrypt(key: str, cleartext: str | bytes) -> str:
-	"""
-	Takes `cleartext` string, returns hex-encoded,
-	blowfish-encrypted string.
-	`key` must a string of hexadecimal numbers.
-	"""
-	if not key:
-		raise ValueError("Missing key")
-
-	bkey = bytes.fromhex(key)
-	if isinstance(cleartext, str):
-		cleartext = cleartext.encode("utf-8")
-	while len(cleartext) % 8 != 0:
-		# Fill up with \0 until length is a mutiple of 8
-		cleartext += b"\x00"
-
-	blowfish = Blowfish.new(bkey, Blowfish.MODE_CBC, BLOWFISH_IV)
-	return blowfish.encrypt(cleartext).hex()
-
-
-def blowfish_decrypt(key: str, crypt: str) -> str:
-	"""
-	Takes hex-encoded, blowfish-encrypted string, returns cleartext string.
-	"""
-	if not key:
-		raise ValueError("Missing key")
-
-	bkey = bytes.fromhex(key)
-	bcrypt = bytes.fromhex(crypt)
-	blowfish = Blowfish.new(bkey, Blowfish.MODE_CBC, BLOWFISH_IV)
-	# Remove possible \0-chars
-	return blowfish.decrypt(bcrypt).rstrip(b"\0").decode("utf-8")
 
 
 @lru_cache
@@ -300,7 +263,7 @@ def create_password_hash(
 		rounds = rounds or 5000
 		salt = (
 			crypt_r.mksalt(
-				method=crypt_r.METHOD_SHA512,  # type: ignore[unresolved-attribute]
+				method=crypt_r.METHOD_SHA512,  # ty: ignore[unresolved-attribute]
 				rounds=rounds,
 			)
 			if generate_salt

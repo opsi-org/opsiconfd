@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -63,7 +63,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
-		requests += float(redis_result[1])  # type: ignore[non-subscriptable]
+		requests += float(redis_result[1])  # ty: ignore[not-subscriptable]
 	return requests / len(workers) * 100
 
 
@@ -86,7 +86,7 @@ async def get_thread_count(redis: StrictRedis) -> float:
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
-		threads += float(redis_result[1])  # type: ignore[non-subscriptable]
+		threads += float(redis_result[1])  # ty: ignore[not-subscriptable]
 	return threads
 
 
@@ -99,5 +99,5 @@ async def get_mem_allocated(redis: StrictRedis) -> float:
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
-		mem_allocated += float(redis_result[1])  # type: ignore[non-subscriptable]
+		mem_allocated += float(redis_result[1])  # ty: ignore[not-subscriptable]
 	return mem_allocated

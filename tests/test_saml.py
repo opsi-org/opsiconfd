@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,7 +13,7 @@ import pytest
 import xmlsec
 from _pytest.capture import CaptureFixture
 from lxml.etree import Element
-from opsicommon.testing.helpers import http_test_server
+from opsi.testing.helper import http_test_server
 
 from opsiconfd.auth.saml import get_sp_metadata_xml, update_config_from_idp_metadata_xml
 from opsiconfd.redis import redis_client

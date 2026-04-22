@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -20,8 +20,9 @@ from typing import TYPE_CHECKING, Literal
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
-from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
+	CONNECTION_SESSION_CHANNEL,
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionOperation,
 	ChannelSubscriptionRequestMessage,
@@ -32,15 +33,11 @@ from opsicommon.messagebus.message import (
 	MessageType,
 	TraceRequestMessage,
 	TraceResponseMessage,
-	timestamp,
+	messagebus_timestamp,
 )
 from starlette.concurrency import run_in_threadpool
 from starlette.endpoints import WebSocketEndpoint
-from starlette.status import (
-	HTTP_401_UNAUTHORIZED,
-	WS_1000_NORMAL_CLOSURE,
-	WS_1011_INTERNAL_ERROR,
-)
+from starlette.status import HTTP_401_UNAUTHORIZED, WS_1000_NORMAL_CLOSURE, WS_1011_INTERNAL_ERROR
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from uvicorn.protocols.utils import ClientDisconnected
@@ -167,7 +164,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 	async def _send_message_to_websocket(self, websocket: WebSocket, message: Message) -> None:
 		if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 			message.trace = message.trace or {}
-			message.trace["broker_ws_send"] = timestamp()
+			message.trace["broker_ws_send"] = messagebus_timestamp()
 
 		data = message.to_msgpack()
 		if self._compression:
@@ -349,10 +346,10 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					if type(r) is MessageReader
 				]
 				if msr:
-					await msr[0].add_channels(message_reader_channels)  # type: ignore[invalid-argument-type]
+					await msr[0].add_channels(message_reader_channels)  # ty: ignore[invalid-argument-type]
 				else:
 					reader = MessageReader(name=f"{self._messagebus_user_id}/{self._session_channel}")
-					await reader.set_channels(message_reader_channels)  # type: ignore[arg-type]
+					await reader.set_channels(message_reader_channels)  # ty: ignore[invalid-argument-type]
 					self._messagebus_reader.append(reader)
 					asyncio_create_task(self.message_reader_task(websocket, reader))
 
@@ -410,7 +407,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		message_id = None
 		msg_dict = {}
 		try:
-			receive_timestamp = timestamp()
+			receive_messagebus_timestamp = messagebus_timestamp()
 			if self._compression:
 				data = await run_in_threadpool(decompress_data, data, self._compression)
 			msg_dict = self._message_decoder.decode(data)
@@ -450,7 +447,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			else:
 				if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 					message.trace = message.trace or {}
-					message.trace["broker_ws_receive"] = receive_timestamp
+					message.trace["broker_ws_receive"] = receive_messagebus_timestamp
 
 				await send_message(message, self.scope["session"].serialize())
 

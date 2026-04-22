@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -17,8 +17,9 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from opsicommon.license import OPSI_CLIENT_INACTIVE_AFTER, OpsiLicense, OpsiLicensePool, generate_key_pair, get_default_opsi_license_pool
-from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient, User
+from opsi.opsi.licensing import OpsiLicense, OpsiLicensePool, generate_key_pair, get_default_opsi_license_pool
+from opsi.opsi.licensing._licensing import OPSI_CLIENT_INACTIVE_AFTER
+from opsi.opsi.service.model.object import LocalbootProduct, OpsiClient, ProductOnClient, User
 
 from opsiconfd.utils.cryptography import decrypt
 from tests.utils import (  # noqa: F401
@@ -136,7 +137,7 @@ def test_get_client_info(  # noqa: F811
 	backend.product_createObjects([oca, olca, omca])
 	backend.productOnClient_createObjects(pocs)
 
-	info = backend._get_client_info()  # type: ignore[misc]
+	info = backend._get_client_info()  # ty: ignore[invalid-argument-type]
 	print(info)
 	assert info["macos"] == macos
 	assert info["linux"] == linux
@@ -144,14 +145,20 @@ def test_get_client_info(  # noqa: F811
 
 
 def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> None:  # noqa: F811
-	class Proc:
+	class Process:
 		test_input: dict[str, dict[str, Any]] = {}
 		test_output: dict[str, str | Exception] = {}
 		stdout: str = ""
 
-	proc = Proc()
+		def get_stdout_text(self) -> str:
+			return self.stdout
 
-	def run(cmd: list[str], **kwargs: Any) -> Proc:
+		def get_stdout_lines(self) -> list[str]:
+			return self.stdout.splitlines()
+
+	proc = Process()
+
+	def run_command(cmd: list[str], **kwargs: Any) -> Process:
 		cmd_str = " ".join(cmd)
 		proc.test_input[cmd_str] = kwargs
 		out = proc.test_output.get(cmd_str, "")
@@ -162,7 +169,7 @@ def test_user_setCredentials(backend: UnprotectedBackend, tmp_path: Path) -> Non
 
 	with (
 		patch("opsiconfd.utils.is_local_user", lambda x: True),
-		patch("opsiconfd.utils.run", run),
+		patch("opsiconfd.utils.run_command", run_command),
 		patch("opsiconfd.utils.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
 		backend.user_setCredentials("pcpatch", "password")
@@ -301,7 +308,7 @@ def test_license_bundle(backend: UnprotectedBackend) -> None:  # noqa: F811
 
 	with (
 		patch("opsiconfd.backend.rpc.general.get_default_opsi_license_pool", mock_get_default_opsi_license_pool),
-		patch("opsicommon.license.get_signature_public_key_schema_version_2", lambda: public_key),
+		patch("opsi.opsi.licensing._licensing.get_signature_public_key_schema_version_2", lambda: public_key),
 	):
 		today = date.today()
 		lic1 = OpsiLicense(

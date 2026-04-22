@@ -1,24 +1,18 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
 import re
-import subprocess
 from dataclasses import dataclass
 from datetime import date
-from subprocess import CalledProcessError, run
 from typing import Any
 from urllib.parse import urlparse
 
 import psutil
-from opsicommon.system.info import (
-	is_ucs,
-	linux_distro_id,
-	linux_distro_id_like_contains,
-	linux_distro_version_id,
-)
-from opsicommon.utils import compare_versions
+from opsi.process import ProcessError, run_command
+from opsi.system.info import is_ucs, linux_distro_id, linux_distro_id_like_contains, linux_distro_version_id
+from opsi.util.version import compare_versions
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 
@@ -152,10 +146,8 @@ def get_repo_versions() -> dict[str, str | None]:
 def get_installed_packages(packages: dict | None = None) -> dict:
 	installed_versions: dict[str, str] = {}
 	if linux_distro_id_like_contains(("rhel", "fedora")):
-		cmd = ["yum", "list", "installed"]
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
-		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-		for line in res.split("\n"):
+		for line in run_command(["yum", "list", "installed"], timeout=10).get_stdout_lines():
 			match = regex.search(line)
 			if not match:
 				continue
@@ -169,10 +161,8 @@ def get_installed_packages(packages: dict | None = None) -> dict:
 					logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
 					installed_versions[p_name] = match.group(2)
 	elif linux_distro_id_like_contains(("opensuse", "sles", "suse")):
-		cmd = ["zypper", "search", "-is", "opsi*"]
 		regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
-		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-		for line in res.split("\n"):
+		for line in run_command(["zypper", "search", "-is", "opsi*"], timeout=10).get_stdout_lines():
 			match = regex.search(line)
 			if not match:
 				continue
@@ -186,10 +176,8 @@ def get_installed_packages(packages: dict | None = None) -> dict:
 					logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
 					installed_versions[p_name] = match.group(3)
 	else:
-		cmd = ["dpkg", "-l"]
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
-		res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-		for line in res.split("\n"):
+		for line in run_command(["dpkg", "-l"], timeout=10).get_stdout_lines():
 			match = regex.search(line)
 			if not match or match.group(1) != "ii":
 				continue
@@ -262,8 +250,11 @@ class SystemEOLCheck(Check):
 		)
 		if is_ucs():
 			distro = "UCS"
-			version = subprocess.check_output(["ucr", "get", "version/version"], encoding="utf-8", timeout=10).strip()
-			version = version + "-" + subprocess.check_output(["ucr", "get", "version/patchlevel"], encoding="utf-8", timeout=10).strip()
+			version = (
+				run_command(["ucr", "get", "version/version"], timeout=10).get_stdout_text().strip()
+				+ "-"
+				+ run_command(["ucr", "get", "version/patchlevel"], timeout=10).get_stdout_text().strip()
+			)
 		else:
 			distro = linux_distro_id()
 			version = linux_distro_version_id()
@@ -470,8 +461,8 @@ class SystemRepositoriesCheck(Check):
 		if distro in ("debian", "ubuntu"):
 			cmd = ["apt-cache", "policy"]
 			try:
-				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				res = run_command(cmd, timeout=10).get_stdout_text()
+			except ProcessError as err:
 				result.check_status = CheckStatus.WARNING
 				result.message = f"Could not check system repositories: {err}"
 				return result
@@ -501,8 +492,8 @@ class SystemRepositoriesCheck(Check):
 				version = version.split(".")[0]
 			cmd = ["yum", "repolist"]
 			try:
-				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				res = run_command(cmd, timeout=10).get_stdout_text()
+			except ProcessError as err:
 				result.check_status = CheckStatus.WARNING
 				result.message = f"Could not check system repositories: {err}"
 				return result
@@ -523,8 +514,8 @@ class SystemRepositoriesCheck(Check):
 		elif distro in ("opensuse-leap", "sles"):
 			cmd = ["zypper", "repos", "-E"]
 			try:
-				res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
-			except (FileNotFoundError, CalledProcessError, TimeoutError) as err:
+				res = run_command(cmd, timeout=10).get_stdout_text()
+			except ProcessError as err:
 				result.check_status = CheckStatus.WARNING
 				result.message = f"Could not check system repositories: {err}"
 				return result

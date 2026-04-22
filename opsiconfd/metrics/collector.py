@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,7 +13,7 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 import psutil
-from opsicommon.utils import unix_timestamp
+from opsi.time import unix_timestamp
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 
@@ -268,7 +268,7 @@ class NodeMetricsCollector(MetricsCollector):
 			await self.add_value("node:avg_load", psutil.getloadavg()[0])
 
 		if "node:sum_network_bits_sent" in self._metrics or "node:sum_network_bits_received" in self._metrics:
-			stats = (await run_in_threadpool(psutil.net_io_counters, pernic=True, nowrap=True)).get(self._net_interface)  # type: ignore[call-arg]
+			stats = (await run_in_threadpool(psutil.net_io_counters, pernic=True, nowrap=True)).get(self._net_interface)  # ty: ignore[unresolved-attribute]
 			if stats:
 				if self._last_bytes_sent:
 					await self.add_value("node:sum_network_bits_sent", (stats.bytes_sent - self._last_bytes_sent) * 8)

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,15 +7,12 @@
 opsiconfd setup.main
 """
 
-from opsicommon.utils import patch_popen
-
 from opsiconfd.config import config, configure_warnings
 from opsiconfd.logging import init_logging
 from opsiconfd.redis import delete_locks
 from opsiconfd.setup import setup
 from opsiconfd.utils import log_config
 
-patch_popen()
 configure_warnings()
 
 

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -37,8 +37,8 @@ def test_extender_loading(tmp_path: Path) -> None:
 				count_rpc_methods += 1
 		assert count_rpc_methods == 3
 
-		assert extender.extend1() == 1  # type: ignore[unresolved-attribute]
-		assert extender.extend2("a") == 2  # type: ignore[unresolved-attribute]
-		assert extender.extend3("b") == 3  # type: ignore[unresolved-attribute]
+		assert extender.extend1() == 1  # ty: ignore[unresolved-attribute]
+		assert extender.extend2("a") == 2  # ty: ignore[unresolved-attribute]
+		assert extender.extend3("b") == 3  # ty: ignore[unresolved-attribute]
 
 		assert extender.ace_called == ["extend1", "extend2", "extend3"]

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -10,7 +10,7 @@ health check
 import json
 from textwrap import indent
 
-from opsicommon.utils import compare_versions
+from opsi.util.version import compare_versions
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.padding import Padding
@@ -134,7 +134,7 @@ def console_health_check() -> int:
 		status = json_result.get("check_status", CheckStatus.ERROR)
 		if isinstance(status, str):
 			status = CheckStatus(status)
-		return status.return_code()  # type: ignore[union-attr]
+		return status.return_code()  # ty: ignore[unresolved-attribute]
 
 	styles = STYLES
 	register_checks()

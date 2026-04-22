@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,10 +7,10 @@
 ucs utils
 """
 
-import subprocess
 from functools import lru_cache
 from typing import Tuple
 
+from opsi.process import ProcessError, run_command
 from rich import print as rich_print
 from rich.prompt import Prompt
 
@@ -26,8 +26,8 @@ def get_root_dn() -> str:
 	from opsiconfd.logging import logger
 
 	try:
-		return subprocess.check_output(["ucr", "get", "ldap/base"], encoding="utf-8", timeout=10).strip()
-	except subprocess.CalledProcessError as err:
+		return run_command(["ucr", "get", "ldap/base"], timeout=10).get_stdout_text().strip()
+	except ProcessError as err:
 		logger.error("Failed to get root dn: %s", err)
 		raise err
 
@@ -43,8 +43,8 @@ def get_server_role() -> str:
 	from opsiconfd.logging import logger
 
 	try:
-		return subprocess.check_output(["ucr", "get", "server/role"], encoding="utf-8", timeout=10).strip()
-	except subprocess.CalledProcessError as err:
+		return run_command(["ucr", "get", "server/role"], timeout=10).get_stdout_text().strip()
+	except ProcessError as err:
 		logger.error("Failed to get server role: %s", err)
 		raise err
 

@@ -1,12 +1,12 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
 from pathlib import Path
 from unittest.mock import patch
 
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
 	ChannelSubscriptionEventMessage,
 	FileChunkMessage,
 	FileDownloadInformationMessage,

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,10 +11,9 @@ from __future__ import annotations
 
 from queue import Empty, Queue
 
-from opsicommon.client.opsiservice import Messagebus, MessagebusListener
-from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.file_transfer import process_messagebus_message as process_file_message
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
+	CONNECTION_SESSION_CHANNEL,
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
 	FileUploadRequestMessage,
@@ -23,9 +22,12 @@ from opsicommon.messagebus.message import (
 	TerminalDataWriteMessage,
 	TerminalOpenRequestMessage,
 	TerminalResizeRequestMessage,
+	get_terminal,
+	process_file_transfer_message,
+	process_terminal_message,
+	stop_running_terminals,
 )
-from opsicommon.messagebus.terminal import process_messagebus_message as process_terminal_message
-from opsicommon.messagebus.terminal import terminals
+from opsi.opsi.service.client import Messagebus, MessagebusListener
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_service_client
@@ -52,8 +54,7 @@ async def async_terminal_shutdown() -> None:
 		await terminal_request_reader.stop()
 	if terminal_instance_reader:
 		await terminal_instance_reader.stop()
-	for terminal in list(terminals.values()):
-		await terminal.close()
+	await stop_running_terminals()
 
 
 async def messagebus_terminal_instance_worker_configserver() -> None:
@@ -72,11 +73,11 @@ async def messagebus_terminal_instance_worker_configserver() -> None:
 			elif isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
 				if isinstance(message, FileUploadRequestMessage):
 					if message.terminal_id and not message.destination_dir:
-						terminal = terminals.get(message.terminal_id)
+						terminal = get_terminal(message.terminal_id)
 						if terminal:
 							destination_dir = terminal.get_cwd()
 							message.destination_dir = str(destination_dir)
-				await process_file_message(message, redis_send_message, sender=messagebus_worker_id)
+				await process_file_transfer_message(message, redis_send_message, sender=messagebus_worker_id)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:
@@ -135,11 +136,11 @@ async def messagebus_terminal_instance_worker_depotserver() -> None:
 			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
 				if isinstance(message, FileUploadRequestMessage):
 					if message.terminal_id and not message.destination_dir:
-						terminal = terminals.get(message.terminal_id)
+						terminal = get_terminal(message.terminal_id)
 						if terminal:
 							destination_dir = terminal.get_cwd()
 							message.destination_dir = str(destination_dir)
-				await process_file_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
+				await process_file_transfer_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 			else:
 				await process_terminal_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 		except Exception as err:

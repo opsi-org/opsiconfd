@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,17 +14,11 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from opsicommon.client.opsiservice import (
-	Messagebus,
-	MessagebusListener,
-	OpsiServiceConnectionError,
-	ServiceClient,
-	ServiceVerificationFlags,
-	WebSocket,
-)
-from opsicommon.logging import get_logger
-from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.exception import OpsiServiceConnectionError
+from opsi.logging import get_logger
+from opsi.opsi.messagebus import (
+	CONNECTION_SESSION_CHANNEL,
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	FileDownloadRequestMessage,
@@ -43,9 +37,11 @@ from opsicommon.messagebus.message import (
 	TerminalResizeRequestMessage,
 	TraceRequestMessage,
 	TraceResponseMessage,
-	timestamp,
+	messagebus_timestamp,
 )
-from opsicommon.objects import OpsiClient, UnicodeConfig
+from opsi.opsi.service.client import Messagebus, MessagebusListener, ServiceClient, ServiceVerificationFlags
+from opsi.opsi.service.client._service_client import WebSocket
+from opsi.opsi.service.model.object import OpsiClient, UnicodeConfig
 
 from opsiconfd.backend.rpc.main import Backend
 from opsiconfd.config import get_configserver_id
@@ -536,7 +532,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # noqa: 
 					assert responses[3].result is None
 					assert responses[3].error == {
 						"code": 0,
-						"message": "Opsi service permission error: No permission for method 'hostControl_start'",
+						"message": "No permission for method 'hostControl_start'",
 						"data": {"class": "OpsiServicePermissionError", "details": None},
 					}
 
@@ -850,7 +846,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 				reader.wait_for_message(count=1)
 				message2 = Message.from_dict(next(reader.get_messages()))
 				assert isinstance(message2, TraceRequestMessage)
-				message2.trace["recipient_ws_receive"] = timestamp()
+				message2.trace["recipient_ws_receive"] = messagebus_timestamp()
 				assert message2.created == message1.created
 
 				message3 = TraceResponseMessage(
@@ -858,7 +854,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 					channel=CONNECTION_SESSION_CHANNEL,
 					ref_id=message2.id,
 					req_trace=message2.trace,
-					trace={"sender_ws_send": timestamp()},
+					trace={"sender_ws_send": messagebus_timestamp()},
 					payload=message2.payload,
 				)
 				logger.debug("Sending trace response to self")
@@ -869,7 +865,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 				message4 = Message.from_dict(next(reader.get_messages()))
 				assert isinstance(message4, TraceResponseMessage)
 
-				message4.trace["recipient_ws_receive"] = timestamp()
+				message4.trace["recipient_ws_receive"] = messagebus_timestamp()
 				assert message4.ref_id == message1.id
 				assert message4.payload == message1.payload
 				trc = message4.req_trace
@@ -1007,7 +1003,7 @@ def test_messagebus_ping(websocket_protocol: str) -> None:
 				nonlocal ping_received
 				ping_received += 1
 
-			client.messagebus._on_ping = on_ping  # type: ignore[method-assign]
+			client.messagebus._on_ping = on_ping  # ty: ignore[invalid-assignment]
 			client.messagebus.register_messagebus_listener(listener)
 			client.connect_messagebus()
 

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Generator, Literal
 
 from msgspec import json, msgpack
-from opsicommon.types import forceHostId
+from opsi.opsi.service.model.type import to_host_id
 from rich.progress import Progress
 
 from opsiconfd import __version__
@@ -365,7 +365,7 @@ def restore_backup(
 		elif server_id == "local":
 			server_id = str(opsi_config.get("host", "id"))
 		else:
-			server_id = forceHostId(server_id)
+			server_id = to_host_id(server_id)
 
 		with maintenance_mode(
 			message="Maintenance mode, restore in progress, please try again later",

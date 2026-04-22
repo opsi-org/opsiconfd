@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -9,7 +9,7 @@ client check tests
 
 from datetime import datetime, timezone
 
-from opsicommon.objects import LocalbootProduct, OpsiClient, ProductOnClient
+from opsi.opsi.service.model.object import LocalbootProduct, OpsiClient, ProductOnClient
 
 from opsiconfd.check.clients import failed_clients_check, last_seen_check
 from opsiconfd.check.common import CheckStatus, check_manager

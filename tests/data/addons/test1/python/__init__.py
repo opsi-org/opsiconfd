@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,10 +14,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from opsicommon.exceptions import (
-	OpsiServiceAuthenticationError,
-	OpsiServicePermissionError,
-)
+from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermissionError
 from starlette.types import Receive, Send
 
 from opsiconfd.addon import Addon

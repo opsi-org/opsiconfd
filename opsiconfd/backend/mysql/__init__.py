@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -23,11 +23,17 @@ from types import NoneType
 from typing import TYPE_CHECKING, Any, Callable, Generator, Literal, Type, overload
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
-from opsicommon.exceptions import OpsiServicePermissionError
-from opsicommon.logging import secret_filter
-from opsicommon.logging.constants import TRACE
-from opsicommon.objects import OBJECT_CLASSES, BaseObject, BaseObjectT, get_ident_attributes, get_object_type, get_possible_class_attributes
-from opsicommon.utils import compare_versions
+from opsi.exception import OpsiServicePermissionError
+from opsi.logging import TRACE, secret_filter
+from opsi.opsi.service.model.object import (
+	OBJECT_CLASSES,
+	BaseObject,
+	BaseObjectT,
+	get_ident_attributes,
+	get_object_type,
+	get_possible_class_attributes,
+)
+from opsi.util.version import compare_versions
 from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.engine.result import Result
@@ -85,7 +91,7 @@ class MySQLSession(Session):
 	retry_on_lock_wait_timeout = 10
 	query_log: Callable | None = None
 
-	def execute(self, statement: str, params: Any | None = None) -> Result:  # type: ignore[invalid-method-override]
+	def execute(self, statement: str, params: Any | None = None) -> Result:  # ty: ignore[invalid-method-override]
 		attempt = 0
 		retry_wait = 0.01
 		with server_timing("database") as timing:
@@ -810,7 +816,7 @@ class MySQLConnection:
 		if conversions:
 			self._process_conversions(data, conversions)
 
-		return object_type.fromHash(data)  # type: ignore
+		return object_type.fromHash(data)  # ty: ignore
 
 	def get_allowed_client_ids(self, ace: list[RPCACE]) -> list[str] | None:
 		allowed_client_ids: list[str] | None = None
@@ -1072,7 +1078,7 @@ class MySQLConnection:
 		if query:
 			with self.session(session) as session:
 				result = session.execute(query, params=params)
-				return result.lastrowid  # type: ignore[unresolved-attribute]
+				return result.lastrowid  # ty: ignore[unresolved-attribute]
 		return None
 
 	def bulk_insert_objects(
@@ -1137,7 +1143,7 @@ class MySQLConnection:
 				col = columns[attr]
 				val = None
 				if isinstance(entry, dict):
-					val = entry.get(attr)  # type: ignore[invalid-argument-type]
+					val = entry.get(attr)  # ty: ignore[invalid-argument-type]
 				else:
 					val = getattr(entry, attr)
 				if not val:

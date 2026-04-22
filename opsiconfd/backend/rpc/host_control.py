@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -27,25 +27,14 @@ from socket import error as socket_error
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.exceptions import (
+from opsi.exception import (
 	BackendMissingDataError,
 	BackendUnaccomplishableError,
 )
-from opsicommon.messagebus.message import (
-	JSONRPCRequestMessage,
-	JSONRPCResponseMessage,
-	timestamp,
-)
-from opsicommon.objects import Host
-from opsicommon.types import (
-	forceBool,
-	forceHostId,
-	forceHostIdList,
-	forceInt,
-	forceIpAddress,
-	forceList,
-)
+from opsi.opsi.messagebus import JSONRPCRequestMessage, JSONRPCResponseMessage, messagebus_timestamp
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import Host
+from opsi.opsi.service.model.type import to_bool, to_host_id, to_host_id_list, to_int, to_ip_address, to_list
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.config import config, get_server_role
@@ -80,10 +69,10 @@ class RpcThread(Thread):
 		params: list[Any] | None = None,
 	) -> None:
 		Thread.__init__(self, daemon=True)
-		self.host_id = forceHostId(host_id)
+		self.host_id = to_host_id(host_id)
 		self.address = str(address)
 		self.method = str(method)
-		self.params = forceList(params or [])
+		self.params = to_list(params or [])
 		self.error: str | None = None
 		self.result: Any = None
 		self.started = 0.0
@@ -117,8 +106,8 @@ class ConnectionThread(Thread):
 	def __init__(self, host_id: str, address: str, host_reachable_timeout: int, opsiclientd_port: int) -> None:
 		Thread.__init__(self)
 		self.daemon = True
-		self.host_id = forceHostId(host_id)
-		self.address = forceIpAddress(address)
+		self.host_id = to_host_id(host_id)
+		self.address = to_ip_address(address)
 		self.host_reachable_timeout = host_reachable_timeout
 		self.opsiclientd_port = opsiclientd_port
 		self.result = False
@@ -166,10 +155,10 @@ class RPCHostControlMixin(Protocol):
 				continue
 
 			if attr == "_host_control_resolve_host_address":
-				val = forceBool(val)
+				val = to_bool(val)
 			elif attr == "_host_control_use_messagebus":
 				if val != "hybrid":
-					val = forceBool(val)
+					val = to_bool(val)
 
 			if hasattr(self, attr):
 				setattr(self, attr, val)
@@ -193,7 +182,7 @@ class RPCHostControlMixin(Protocol):
 			self._host_control_broadcast_addresses[net] = {}
 			for broadcast_address, ports in broadcast_addresses.items():
 				brd = ip_address(broadcast_address)
-				self._host_control_broadcast_addresses[net][brd] = tuple(forceInt(port) for port in ports)
+				self._host_control_broadcast_addresses[net][brd] = tuple(to_int(port) for port in ports)
 
 		if old_format:
 			logger.warning(
@@ -264,7 +253,7 @@ class RPCHostControlMixin(Protocol):
 			message_reader = MessageReader(name=f"messagebus_rpc/{channel}")
 			await message_reader.set_channels({channel: "$"})
 
-			expires = timestamp(timeout)
+			expires = messagebus_timestamp(timeout)
 			coros = []
 			for client_id in connected_client_ids:
 				jsonrpc_request = JSONRPCRequestMessage(
@@ -307,12 +296,12 @@ class RPCHostControlMixin(Protocol):
 	) -> dict[str, dict[str, Any]]:
 		if not host_ids:
 			raise BackendMissingDataError("No matching host ids found")
-		host_ids = forceHostIdList(host_ids)
+		host_ids = to_host_id_list(host_ids)
 		method = str(method)
-		params = forceList(params or [])
+		params = to_list(params or [])
 		if not timeout:
 			timeout = self._host_control_host_rpc_timeout
-		timeout = forceInt(timeout)
+		timeout = to_int(timeout)
 
 		result = {}
 		rpcts = []
@@ -505,7 +494,7 @@ class RPCHostControlMixin(Protocol):
 		:param message: The message to be displayed.
 		:param hostIds: A list of hosts to show the message on.
 		:param mode: Where to put message in relation to previous messages (prepend or append).
-		:param addTimestamp: Whether to add the current timestamp to the message.
+		:param addTimestamp: Whether to add the current messagebus_timestamp to the message.
 		:param displaySeconds: Number of seconds to show the message for (default None = intinity or until manually closed).
 		:return: Dictionary containing the result of the rpc-call
 		"""
@@ -515,7 +504,7 @@ class RPCHostControlMixin(Protocol):
 			raise BackendMissingDataError("No matching host ids found")
 		params: list[str | bool | int] = [message, mode, addTimestamp]
 		if displaySeconds is not None:
-			params.append(forceInt(displaySeconds))
+			params.append(to_int(displaySeconds))
 
 		if self._host_control_use_messagebus:
 			return await self._messagebus_rpc(client_ids=hostIds, method="showPopup", params=params)
@@ -618,8 +607,8 @@ class RPCHostControlMixin(Protocol):
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
-		client_ids: list[str] = forceHostIdList(hostIds)
-		_timeout = forceInt(timeout or self._host_control_host_reachable_timeout)
+		client_ids: list[str] = to_host_id_list(hostIds)
+		_timeout = to_int(timeout or self._host_control_host_reachable_timeout)
 
 		result: dict[str, bool] = {}
 		if self._host_control_use_messagebus:

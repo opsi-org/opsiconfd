@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,13 +14,18 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
 from types import FrameType
-from typing import cast
+from typing import Any, cast
 
 import psutil
-from opsicommon.client.opsiservice import MessagebusListener, ServiceClient
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import ChannelSubscriptionEventMessage, Message, TraceRequestMessage, TraceResponseMessage
-from opsicommon.messagebus.message import timestamp as mb_timestamp
+from opsi.opsi.messagebus import (
+	CONNECTION_USER_CHANNEL,
+	ChannelSubscriptionEventMessage,
+	Message,
+	TraceRequestMessage,
+	TraceResponseMessage,
+	messagebus_timestamp,
+)
+from opsi.opsi.service.client import MessagebusListener, ServiceClient
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
@@ -36,7 +41,7 @@ from opsiconfd.metrics.metric import DepotMetric
 from opsiconfd.metrics.registry import MetricsRegistry
 from opsiconfd.redis import async_delete_locks, async_get_redis_info, async_redis_client, redis_client
 from opsiconfd.ssl import setup_ssl
-from opsiconfd.utils import Singleton, asyncio_create_task, log_config
+from opsiconfd.utils import asyncio_create_task, log_config
 from opsiconfd.utils.modules import module_available
 from opsiconfd.worker import Worker, WorkerInfo, WorkerState
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
@@ -294,7 +299,7 @@ class DepotserverManagerMessagebusListener(MessagebusListener):
 				ref_id=message.id,
 				req_trace=message.trace,
 				payload=message.payload,
-				trace={"sender_ws_send": mb_timestamp()},
+				trace={"sender_ws_send": messagebus_timestamp()},
 			)
 			assert self.messagebus
 			self.messagebus.send_message(response)
@@ -302,8 +307,19 @@ class DepotserverManagerMessagebusListener(MessagebusListener):
 			logger.debug("Channels subscription event: %s", message.to_dict())
 
 
-class Manager(metaclass=Singleton):
+class Manager:
+	_instance: Manager | None = None
+
+	def __new__(cls, *args: Any, **kwargs: Any) -> Manager:
+		if cls._instance is None:
+			cls._instance = super().__new__(cls)
+		return cls._instance
+
 	def __init__(self, install_signal_handlers: bool = True) -> None:
+		if getattr(self, "_initialized", False):
+			return
+		self._initialized = True
+
 		self._install_signal_handlers = install_signal_handlers
 		self.pid: int | None = None
 		self._async_main_stopped = Event()
@@ -334,6 +350,10 @@ class Manager(metaclass=Singleton):
 		self._service_client: ServiceClient | None = None
 		if not self._is_config_server:
 			self._service_client = get_service_client("manager")
+
+	@classmethod
+	def reset_singleton(cls) -> None:
+		cls._instance = None
 
 	@property
 	def startup_completed(self) -> Event:

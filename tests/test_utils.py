@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,7 +14,8 @@ from socket import AF_INET, AF_INET6
 from unittest import mock
 
 import pytest
-from opsicommon.objects import User
+from opsi.crypt.blowfish import blowfish_encrypt
+from opsi.opsi.service.model.object import User
 
 from opsiconfd.config import opsi_config
 from opsiconfd.utils import (
@@ -32,7 +33,6 @@ from opsiconfd.utils.cryptography import (
 	PasswordHashFormat,
 	aes_decrypt_with_password,
 	aes_encrypt_with_password,
-	blowfish_encrypt,
 	create_auth_token,
 	create_password_hash,
 	create_token_hash,
@@ -266,7 +266,7 @@ def test_encrypt_decrypt() -> None:
 
 		# Test with unsupported algorithm
 		with pytest.raises(ValueError, match="'UnsupportedAlg' is not a valid EncryptionAlgorithm"):
-			encrypt(plaintext, algorithm="UnsupportedAlg")  # type: ignore[arg-type]
+			encrypt(plaintext, algorithm="UnsupportedAlg")  # ty: ignore[invalid-argument-type]
 
 		# Test decryption with unsupported algorithm
 		invalid_encrypted_value = "ENCv1[ALG=UnsupportedAlg|KID=2025-01]abcd"
@@ -333,11 +333,11 @@ def test_password_hashing(
 
 	if expected_exception:
 		with pytest.raises(expected_exception, match=expected_exception_message):
-			create_password_hash(**kwargs)  # type: ignore[arg-type]
+			create_password_hash(**kwargs)  # ty: ignore[invalid-argument-type]
 		return
 
-	hash = create_password_hash(**kwargs)  # type: ignore[arg-type]
-	hash2 = create_password_hash(**kwargs)  # type: ignore[arg-type]
+	hash = create_password_hash(**kwargs)  # ty: ignore[invalid-argument-type]
+	hash2 = create_password_hash(**kwargs)  # ty: ignore[invalid-argument-type]
 	if generate_salt:
 		assert hash != hash2
 	else:

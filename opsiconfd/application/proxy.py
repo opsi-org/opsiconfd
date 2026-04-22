@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,7 +15,7 @@ from aiohttp import ClientConnectorError, ClientSession, ClientWebSocketResponse
 from fastapi import FastAPI, status
 from fastapi.requests import Request
 from fastapi.responses import Response, StreamingResponse
-from opsicommon.logging.constants import TRACE
+from opsi.logging import TRACE
 from starlette.background import BackgroundTask
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
@@ -71,8 +71,8 @@ class ReverseProxy:
 		if forward_response_headers is None:
 			forward_response_headers = ["Content-Type", "Content-Length", "Content-Encoding", "Last-Modified"]
 		self.forward_response_headers = [h.lower() for h in forward_response_headers]
-		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, list(methods))
-		app.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)
+		app.router.add_route(f"{mount_path}{{path:path}}", self.handle_request, list(methods))
+		app.router.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)
 
 	def _get_path(self, path: str) -> str | None:
 		_path = self.base_path + "/" + path[len(self.mount_path) :].lstrip("/")

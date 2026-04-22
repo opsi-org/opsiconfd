@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,7 +14,7 @@ from typing import Literal
 import ldap3
 from ldap3.core.exceptions import LDAPObjectClassError
 from ldap3.utils.uri import parse_uri
-from opsicommon.exceptions import OpsiServiceAuthenticationError
+from opsi.exception import OpsiServiceAuthenticationError
 
 from opsiconfd.utils import ldap3_uri_to_str
 

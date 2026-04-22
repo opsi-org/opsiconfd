@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -31,23 +31,22 @@ from aiofiles.threadpool.text import AsyncTextIOWrapper
 from aiologger.handlers.base import LogRecord as AioLogRecord
 from aiologger.handlers.files import AsyncFileHandler
 from aiologger.handlers.streams import AsyncStreamHandler
-from opsicommon.logging import (
+from opsi.logging import (
 	DATETIME_FORMAT,
 	LOG_COLORS,
+	NONE,
 	OPSI_LEVEL_TO_LEVEL,
+	SECRET,
 	SECRET_REPLACEMENT_STRING,
 	ContextSecretFormatter,
 	RichConsoleHandler,
+	add_context_filter_to_loggers,
 	context_filter,
 	get_logger,
 	handle_log_exception,
 	secret_filter,
 	set_filter_from_string,
 	set_format,
-)
-from opsicommon.logging.constants import NONE, SECRET
-from opsicommon.logging.logging import (
-	add_context_filter_to_loggers,
 )
 from redis import BusyLoadingError as RedisBusyLoadingError
 from redis import ConnectionError as RedisConnectionError
@@ -102,7 +101,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 		self.active_lifetime = active_lifetime
 		self._max_bytes = max_bytes
 		self._keep_rotated = keep_rotated
-		self.formatter = formatter  # type: ignore[assignment]
+		self.formatter = formatter  # ty: ignore[invalid-assignment]
 		self._rollover_lock = asyncio.Lock()
 		self._rollover_error: Exception | None = None
 		self._error_handler = error_handler
@@ -247,7 +246,7 @@ class AsyncRedisLogAdapter:
 		self._set_log_format_stderr()
 
 		for file_handler in self._file_logs.values():
-			file_handler.formatter = ContextSecretFormatter(  # type: ignore[arg-type]
+			file_handler.formatter = ContextSecretFormatter(  # ty: ignore[invalid-assignment]
 				Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT)
 			)
 			file_handler._max_bytes = self._max_log_file_size
@@ -277,10 +276,10 @@ class AsyncRedisLogAdapter:
 		if not self._stderr_handler:
 			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file)
 		assert isinstance(self._stderr_handler, AsyncStreamHandler)
-		self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)  # type: ignore[arg-type]
+		self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)  # ty: ignore[invalid-assignment]
 		# Secrets are filtered before records are written to redis
-		self._stderr_handler.formatter.secret_filter_enabled = False  # type: ignore[unresolved-attribute]
-		self._stderr_handler.add_filter(context_filter.filter)  # type: ignore[invalid-argument-type]
+		self._stderr_handler.formatter.secret_filter_enabled = False  # ty: ignore[unresolved-attribute]
+		self._stderr_handler.add_filter(context_filter.filter)  # ty: ignore[invalid-argument-type]
 
 	def _log_format_no_color(self, log_format: str) -> str:
 		return log_format.replace("%(log_color)s", "").replace("%(reset)s", "")
@@ -334,7 +333,7 @@ class AsyncRedisLogAdapter:
 					)
 					if client and self._symlink_client_log_files:
 						asyncio_create_task(self._create_client_log_file_symlink(client), self._loop)
-				self._file_logs[filename].add_filter(context_filter.filter)  # type: ignore[invalid-argument-type]
+				self._file_logs[filename].add_filter(context_filter.filter)  # ty: ignore[invalid-argument-type]
 				return self._file_logs[filename]
 		except Exception as exc:
 			if filename in self._file_logs:
@@ -404,10 +403,10 @@ class AsyncRedisLogAdapter:
 						if record.levelno >= self._log_level_file:
 							file_handler = self.get_file_handler(client)
 							if file_handler:
-								await file_handler.handle(record)  # type: ignore[argument-type]
+								await file_handler.handle(record)  # ty: ignore[invalid-argument-type]
 
 						if self._stderr_handler and record.levelno >= self._log_level_stderr:
-							await self._stderr_handler.handle(record)  # type: ignore[argument-type]
+							await self._stderr_handler.handle(record)  # ty: ignore[invalid-argument-type]
 
 			except KeyboardInterrupt, SystemExit:
 				raise
@@ -525,12 +524,12 @@ def enable_slow_callback_logging(slow_callback_duration: float | None = None) ->
 		if slow_callback_duration and time_diff >= slow_callback_duration:
 			logger.warning(
 				"Slow asyncio callback: %s took %.3f seconds",
-				asyncio.base_events._format_handle(self),  # type: ignore[attr-defined]
+				asyncio.base_events._format_handle(self),  # ty: ignore[unresolved-attribute]
 				time_diff,
 			)
 		return retval
 
-	asyncio.events.Handle._run = _run  # type: ignore[assignment]
+	asyncio.events.Handle._run = _run  # ty: ignore[invalid-assignment]
 
 
 def configure_loggers() -> None:

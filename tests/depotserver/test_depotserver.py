@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,25 +7,23 @@
 test depotserver
 """
 
-import subprocess
 import tomllib
 from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
-from types import EllipsisType
 from typing import Generator
 from unittest.mock import patch
 
-from opsicommon import objects
-from opsicommon.client.opsiservice import MessagebusListener, ServiceClient, ServiceVerificationFlags
-from opsicommon.logging import LOG_TRACE, get_logger, use_logging_config
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.logging import get_logger
+from opsi.opsi.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
 )
+from opsi.opsi.service.client import MessagebusListener, ServiceClient, ServiceVerificationFlags
+from opsi.opsi.service.model import object
 
 from opsiconfd.backend import get_unprotected_backend, reinit_backend
 from opsiconfd.config import get_depotserver_id
@@ -145,14 +143,11 @@ def test_messagebus_jsonrpc(tmp_path: Path, test_client: OpsiconfdTestClient) ->
 def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
 	cmds = []
 
-	def execute(
-		cmd: list[str], allow_exit_codes: list[int | EllipsisType] | tuple[int | EllipsisType] | None = None
-	) -> subprocess.CompletedProcess:
+	def run_command(cmd: list[str], timeout: float | int | None) -> None:
 		nonlocal cmds
 		cmds.append(cmd)
-		return subprocess.CompletedProcess(cmd, 0, b"", b"")
 
-	with patch("opsicommon.ssl.linux.execute", execute), depotserver_setup(tmp_path) as conf:
+	with patch("opsi.system.certificate_store._linux.run_command", run_command), depotserver_setup(tmp_path) as conf:
 		ssl_ca_cert = Path(conf.ssl_ca_cert)
 		ssl_server_cert = Path(conf.ssl_server_cert)
 		ssl_server_key = Path(conf.ssl_server_key)
@@ -180,38 +175,37 @@ def test_setup_ssl(tmp_path: Path) -> None:  # noqa: F811
 
 
 def test_rename_depotserver(tmp_path: Path) -> None:  # noqa: F811
-	with use_logging_config(stderr_level=LOG_TRACE):
-		with depotserver_setup(tmp_path) as conf:
-			opsi_config_file = Path(conf.opsi_config)
-			depot_id = get_depotserver_id()
-			new_depot_id = "new-depot-id.opsi.test"
-			config1 = objects.UnicodeConfig(id="test1")
-			config_state1 = objects.ConfigState(configId="test1", objectId=depot_id, values=["depotserver-value"])
+	with depotserver_setup(tmp_path) as conf:
+		opsi_config_file = Path(conf.opsi_config)
+		depot_id = get_depotserver_id()
+		new_depot_id = "new-depot-id.opsi.test"
+		config1 = object.UnicodeConfig(id="test1")
+		config_state1 = object.ConfigState(configId="test1", objectId=depot_id, values=["depotserver-value"])
 
-			backend = get_unprotected_backend()
-			host_ids = backend.host_getIdents()
-			assert depot_id in host_ids
-			assert new_depot_id not in host_ids
+		backend = get_unprotected_backend()
+		host_ids = backend.host_getIdents()
+		assert depot_id in host_ids
+		assert new_depot_id not in host_ids
 
-			backend.config_createObjects([config1])
-			backend.configState_createObjects([config_state1])
+		backend.config_createObjects([config1])
+		backend.configState_createObjects([config_state1])
 
-			setup_backend(new_server_id=new_depot_id)
+		setup_backend(new_server_id=new_depot_id)
 
-			opsi_conf = tomllib.loads(opsi_config_file.read_text(encoding="utf-8"))
-			assert opsi_conf["host"]["id"] == new_depot_id
+		opsi_conf = tomllib.loads(opsi_config_file.read_text(encoding="utf-8"))
+		assert opsi_conf["host"]["id"] == new_depot_id
 
-			backend = get_unprotected_backend()
-			host_ids = backend.host_getIdents()
-			assert depot_id not in host_ids
-			assert new_depot_id in host_ids
+		backend = get_unprotected_backend()
+		host_ids = backend.host_getIdents()
+		assert depot_id not in host_ids
+		assert new_depot_id in host_ids
 
-			config_states = backend.configState_getObjects(objectId=new_depot_id, configId="test1")
-			assert len(config_states) == 1
-			assert config_states[0].objectId == new_depot_id
-			assert config_states[0].values == ["depotserver-value"]
+		config_states = backend.configState_getObjects(objectId=new_depot_id, configId="test1")
+		assert len(config_states) == 1
+		assert config_states[0].objectId == new_depot_id
+		assert config_states[0].values == ["depotserver-value"]
 
-			backend.host_delete(id=new_depot_id)
+		backend.host_delete(id=new_depot_id)
 
 
 def test_install_and_uninstall_package(tmp_path: Path) -> None:  # noqa: F811

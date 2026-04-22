@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -17,6 +17,7 @@ import pytest
 
 from opsiconfd.config import opsi_config
 from opsiconfd.setup.samba import get_smbd_service_name, is_samba3, setup_samba
+from tests.utils import MockProcess  # noqa: F401
 
 EXPECTED_CONF = f"""
 [opsi_depot]
@@ -89,11 +90,8 @@ def test_setup_samba_add(tmp_path: Path, version_string: str, samba3: bool) -> N
 	smb_conf = tmp_path / "smb.conf"
 	shutil.copy("tests/data/samba/smb.conf", smb_conf)
 
-	class Proc:
-		stdout = version_string
-
 	with (
-		patch("opsiconfd.setup.samba.run", PropertyMock(return_value=Proc())),
+		patch("opsiconfd.setup.samba.run_command", PropertyMock(return_value=MockProcess(stdout=version_string))),
 		patch("opsiconfd.setup.samba.SMB_CONF", str(smb_conf)),
 		patch("opsiconfd.utils.pwd.getpwnam", lambda x: pwd.getpwuid(os.getuid())),
 	):
@@ -158,10 +156,9 @@ cloud-final.service                        enabled         enabled
 )
 def test_get_smbd_service_name(out_name: str, service_name: str) -> None:
 	get_smbd_service_name.cache_clear()
-	out = LIST_UNITS_OUT.replace("{{service_name}}", out_name)
 
-	class Proc:
-		stdout = out
-
-	with patch("opsiconfd.setup.samba.run", PropertyMock(return_value=Proc())):
+	with patch(
+		"opsiconfd.setup.samba.run_command",
+		PropertyMock(return_value=MockProcess(stdout=LIST_UNITS_OUT.replace("{{service_name}}", out_name))),
+	):
 		assert get_smbd_service_name() == service_name

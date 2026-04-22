@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,8 +15,8 @@ from grp import getgrgid
 from os import getgrouplist
 from threading import Lock
 
-from opsicommon.exceptions import OpsiServiceAuthenticationError
-from opsicommon.system.info import linux_distro_id_like_contains
+from opsi.exception import OpsiServiceAuthenticationError
+from opsi.system.info import linux_distro_id_like_contains
 from pam import PamAuthenticator
 
 from ..config import config

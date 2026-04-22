@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -20,7 +20,8 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Generator, Iterable, Literal
 from uuid import uuid4
 
-from opsicommon.utils import compare_versions, unix_timestamp
+from opsi.time import unix_timestamp
+from opsi.util.version import compare_versions
 from redis import BusyLoadingError, Connection, ConnectionPool, Redis, ResponseError, WatchError
 from redis import ConnectionError as RedisConnectionError
 from redis.asyncio import Connection as AsyncConnection
@@ -32,7 +33,7 @@ from opsiconfd.config import REDIS_CONECTION_TIMEOUT, config
 from opsiconfd.utils import normalize_ip_address
 
 if TYPE_CHECKING:
-	from opsicommon.logging.logging import OPSILogger
+	from opsi.logging import OPSILogger
 
 redis_pool_lock = threading.Lock()
 redis_connection_pool: dict[str, ConnectionPool] = {}
@@ -41,12 +42,12 @@ async_redis_connection_pool: dict[str, AsyncConnectionPool] = {}
 
 def __con_del__(self: AbstractConnection) -> None:
 	try:
-		self._close()  # type: ignore[attr-defined]
+		self._close()  # ty: ignore[unresolved-attribute]
 	except RuntimeError:
 		pass
 
 
-AbstractConnection.__del__ = __con_del__  # type: ignore[method-assign,attr-defined]
+AbstractConnection.__del__ = __con_del__  # ty: ignore[unresolved-attribute]
 
 
 @lru_cache
@@ -75,9 +76,9 @@ def reset_redis_pools() -> None:
 def get_redis_connections() -> list[Connection | AsyncConnection]:
 	connections = []
 	for spool in redis_connection_pool.values():
-		connections.extend(spool._get_in_use_connections())  # type: ignore[attr-defined]
+		connections.extend(spool._get_in_use_connections())  # ty: ignore[unresolved-attribute]
 	for apool in async_redis_connection_pool.values():
-		connections.extend(apool._in_use_connections)  # type: ignore[attr-defined]
+		connections.extend(apool._in_use_connections)  # ty: ignore[unresolved-attribute]
 	return connections
 
 
@@ -205,8 +206,8 @@ class DumpedKey:
 	@classmethod
 	def from_dict(cls, data: dict[str, str | bytes | int | None]) -> DumpedKey:
 		if isinstance(data["value"], str):
-			return DumpedKey(name=data["name"], value=base64.b64decode(data["value"]), expires=data["expires"])  # type: ignore[arg-type]
-		return DumpedKey(**data)  # type: ignore[arg-type]
+			return DumpedKey(name=data["name"], value=base64.b64decode(data["value"]), expires=data["expires"])  # ty: ignore[invalid-argument-type]
+		return DumpedKey(**data)  # ty: ignore[invalid-argument-type]
 
 
 def dump(redis_key: str, *, excludes: Iterable[str] | None = None) -> Generator[DumpedKey, None, None]:
@@ -402,15 +403,15 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 		key = key.decode("utf8")
 		matched_key_type = ""
 		for key_type, info in key_info.items():
-			for prefix in info["prefixes"]:  # type: ignore[union-attr]
+			for prefix in info["prefixes"]:  # ty: ignore[not-iterable]
 				if key.startswith(prefix):
 					matched_key_type = key_type
 					break
 		matched_key_type = matched_key_type or "misc"
-		key_info[matched_key_type]["keys"].append(key)  # type: ignore[union-attr]
+		key_info[matched_key_type]["keys"].append(key)  # ty: ignore[unresolved-attribute]
 		try:
 			command = f"MEMORY USAGE {key}"
-			key_info[matched_key_type]["memory"] += (  # type: ignore[union-attr,operator]
+			key_info[matched_key_type]["memory"] += (  # ty: ignore[unsupported-operator]
 				await client.execute_command(command)
 			) or 0
 		except ResponseError as err:
@@ -418,7 +419,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 
 			logger.error("Redis command %r failed: %s", command, err, exc_info=True)
 		try:
-			key_info[matched_key_type]["entries"] += (  # type: ignore[union-attr,operator]
+			key_info[matched_key_type]["entries"] += (  # ty: ignore[unsupported-operator]
 				await client.execute_command(f"XLEN {key}")
 			) or 0
 		except ResponseError:
@@ -460,7 +461,7 @@ async def async_get_redis_info(client: AsyncRedis) -> dict[str, Any]:
 		redis_info[section][key] = value
 
 	redis_info["key_info"] = {
-		key_type: {"keys": len(info["keys"]), "memory": info["memory"], "entries": info["entries"]}  # type: ignore[arg-type]
+		key_type: {"keys": len(info["keys"]), "memory": info["memory"], "entries": info["entries"]}  # ty: ignore[invalid-argument-type]
 		for key_type, info in key_info.items()
 	}
 

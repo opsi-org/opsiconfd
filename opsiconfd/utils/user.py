@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,14 +14,15 @@ import string
 from functools import lru_cache
 from pathlib import Path
 
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.objects import User
+from opsi.crypt.blowfish import blowfish_decrypt
+from opsi.exception import BackendMissingDataError
+from opsi.opsi.service.model.object import User
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, get_random_string
-from opsiconfd.utils.cryptography import HashingAlgorithm, blowfish_decrypt, create_password_hash, encrypt
+from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, encrypt
 
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 

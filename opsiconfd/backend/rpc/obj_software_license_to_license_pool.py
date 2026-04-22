@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import SoftwareLicenseToLicensePool
-from opsicommon.types import forceList
+from opsi.opsi.service.model.object import SoftwareLicenseToLicensePool
+from opsi.opsi.service.model.type import to_list
 
 from . import rpc_method
 
@@ -26,7 +26,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	) -> None:
 		self._mysql.bulk_insert_objects(
 			table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
-			objs=softwareLicenseToLicensePools,  # type: ignore[arg-type]
+			objs=softwareLicenseToLicensePools,  # ty: ignore[invalid-argument-type]
 		)
 
 	@rpc_method(check_acl=False)
@@ -58,7 +58,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_createObjects")
 		with self._mysql.session() as session:
-			for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
+			for softwareLicenseToLicensePool in to_list(softwareLicenseToLicensePools):
 				self._mysql.insert_object(
 					table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
 					obj=softwareLicenseToLicensePool,
@@ -78,7 +78,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_updateObjects")
 		with self._mysql.session() as session:
-			for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
+			for softwareLicenseToLicensePool in to_list(softwareLicenseToLicensePools):
 				self._mysql.insert_object(
 					table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
 					obj=softwareLicenseToLicensePool,

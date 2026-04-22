@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,16 +11,18 @@ from __future__ import annotations
 
 from queue import Empty, Queue
 
-from opsicommon.client.opsiservice import Messagebus, MessagebusListener
-from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
+	CONNECTION_SESSION_CHANNEL,
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionRequestMessage,
 	Message,
 	ProcessDataWriteMessage,
 	ProcessStartRequestMessage,
 	ProcessStopRequestMessage,
+	process_process_message,
+	stop_running_processes,
 )
-from opsicommon.messagebus.process import process_messagebus_message, stop_running_processes
+from opsi.opsi.service.client import Messagebus, MessagebusListener
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_service_client
@@ -59,7 +61,7 @@ async def messagebus_process_instance_worker_configserver() -> None:
 	async for _redis_id, message, _context in process_instance_reader.get_messages():
 		try:
 			if isinstance(message, (ProcessDataWriteMessage, ProcessStartRequestMessage, ProcessStopRequestMessage)):
-				await process_messagebus_message(message, redis_send_message, sender=messagebus_worker_id)
+				await process_process_message(message, redis_send_message, sender=messagebus_worker_id)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:
@@ -101,7 +103,7 @@ async def messagebus_process_instance_worker_depotserver() -> None:
 				message = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
 			except Empty:
 				continue
-			await process_messagebus_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
+			await process_process_message(message, service_client.messagebus.async_send_message, sender=messagebus_worker_id)
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
@@ -128,7 +130,7 @@ async def messagebus_process_start_request_worker_configserver() -> None:
 	async for redis_id, message, _context in process_request_reader.get_messages():
 		try:
 			if isinstance(message, ProcessStartRequestMessage):
-				await process_messagebus_message(
+				await process_process_message(
 					message=message,
 					send_message=redis_send_message,
 					sender=messagebus_worker_id,
@@ -170,7 +172,7 @@ async def messagebus_process_start_request_worker_depotserver() -> None:
 			start_message: ProcessStartRequestMessage = await run_in_threadpool(message_queue.get, block=True, timeout=1.0)
 		except Empty:
 			continue
-		await process_messagebus_message(
+		await process_process_message(
 			message=start_message,
 			send_message=service_client.messagebus.async_send_message,
 			sender=messagebus_worker_id,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -33,10 +33,7 @@ import aiohttp
 import lz4.frame
 import uvloop
 from msgspec import json, msgpack
-from opsicommon.messagebus.message import (
-	JSONRPCRequestMessage,
-	JSONRPCResponseMessage,
-)
+from opsi.opsi.messagebus import JSONRPCRequestMessage, JSONRPCResponseMessage
 
 executor = ProcessPoolExecutor(max_workers=25)
 
@@ -168,9 +165,9 @@ class TestCase:
 
 	async def run(self) -> None:
 		client = Client(self)
-		server_ids = (
+		server_ids = (  # ty: ignore[not-subscriptable]
 			await client.execute_jsonrpc_request(client.jsonrpc_request("host_getIdents", ["str", {"type": "OpsiConfigserver"}]))
-		)[0]["result"]  # type: ignore[non-subscriptable]
+		)[0]["result"]
 		self.server_id = server_ids[0]
 		await client.cleanup()
 

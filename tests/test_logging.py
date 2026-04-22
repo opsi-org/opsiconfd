@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,12 +15,7 @@ from logging import LogRecord
 from pathlib import Path
 from unittest.mock import patch
 
-from opsicommon.logging.constants import (
-	LOG_ERROR,
-	LOG_NONE,
-	LOG_WARNING,
-	OPSI_LEVEL_TO_LEVEL,
-)
+from opsi.logging import LOG_ERROR, LOG_NONE, LOG_WARNING, OPSI_LEVEL_TO_LEVEL
 
 from opsiconfd.logging import (
 	AsyncFileHandler,
@@ -53,7 +48,7 @@ async def test_async_rotating_file_handler_rotation(tmp_path: Path) -> None:
 		await asyncio.sleep(1)
 		for num in range(5):
 			record = LogRecord("test", 3, "pathname", 1, f"message {num}", None, None)
-			await handler.emit(record)  # type: ignore[invalid-argument-type]
+			await handler.emit(record)  # ty: ignore[invalid-argument-type]
 			await asyncio.sleep(1)
 
 		await handler.close()
@@ -83,14 +78,14 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 
 	handler = AsyncRotatingFileHandler(filename=str(log_file), formatter=Formatter("%(message)s"), error_handler=handle_file_handler_error)
 	await asyncio.sleep(1)
-	await handler.emit(LogRecord("test", 3, "pathname", 1, "message 1", None, None))  # type: ignore[invalid-argument-type]
+	await handler.emit(LogRecord("test", 3, "pathname", 1, "message 1", None, None))  # ty: ignore[invalid-argument-type]
 
 	# Closed stream will produce logging error
 	if handler.stream:
 		await handler.stream.close()
 	await asyncio.sleep(1)
 	record = LogRecord("test", 3, "pathname", 1, "message 2", None, None)
-	await handler.emit(record)  # type: ignore[invalid-argument-type]
+	await handler.emit(record)  # ty: ignore[invalid-argument-type]
 
 	await asyncio.sleep(1)
 	await handler.close()

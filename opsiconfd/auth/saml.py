@@ -102,6 +102,8 @@ def get_saml_settings(
 				"binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
 			},
 			"x509cert": config.saml_idp_x509_cert,
+			# TODO: Support separate certificates for signing and encryption?
+			# "x509certMulti": {"signing": [config.saml_idp_x509_cert], "encryption": [config.saml_idp_x509_cert]},
 		},
 		# Service Provider
 		"sp": {

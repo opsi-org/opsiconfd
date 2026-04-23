@@ -1332,7 +1332,8 @@ class Config:
 			default=None,
 			help=self._help(
 				"opsiconfd",
-				"Public X.509 certificate of the SAML Identity Provider (IdP) as Base64 encoded string.",
+				"Public X.509 certificate of the SAML Identity Provider (IdP) as Base64 encoded string.\n"
+				"This certificate is used by the SP to verify signatures from the IdP and to encrypt assertions sent to the IdP.\n",
 			),
 		)
 		self._parser.add_argument(
@@ -1385,7 +1386,8 @@ class Config:
 			default=None,
 			help=self._help(
 				"opsiconfd",
-				"Public X.509 certificate of the SAML Service Provider (SP) as Base64 encoded string.",
+				"Public X.509 certificate of the SAML Service Provider (SP) as Base64 encoded string.\n"
+				"This certificate is used by the IdP to verify signatures from the SP and to encrypt assertions sent to the SP.\n",
 			),
 		)
 		self._parser.add_argument(
@@ -1394,7 +1396,8 @@ class Config:
 			default=None,
 			help=self._help(
 				"opsiconfd",
-				"Private key of the SAML Service Provider (SP) as Base64 encoded string.",
+				"Private key of the SAML Service Provider (SP) as Base64 encoded string.\n"
+				"This key is used to sign messages and assertions sent to the IdP and to decrypt assertions sent by the IdP.\n",
 			),
 		)
 		self._parser.add_argument(

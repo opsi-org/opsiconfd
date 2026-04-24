@@ -29,6 +29,12 @@ class WebSocketProtocolOpsiconfd(WebSocketProtocol):
 		self.open_timeout = opsiconfd_config.websocket_open_timeout
 
 
-# TODO: Remove
+# Extend WSProtocol to add peer certificate information to the scope if available.
 class WSProtocolOpsiconfd(WSProtocol):
-	pass
+	async def run_asgi(self) -> None:
+		if "extensions" not in self.scope:
+			self.scope["extensions"] = {}
+		ssl_obj = self.transport.get_extra_info("ssl_object")
+		if ssl_obj:
+			self.scope["extensions"]["peer_cert"] = ssl_obj.getpeercert()
+		await super().run_asgi()

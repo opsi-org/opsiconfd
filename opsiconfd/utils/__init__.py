@@ -1065,3 +1065,17 @@ class FileCache:
 			content = file_path.read_text(encoding="utf-8")
 			self._cache[file_path] = FileCacheEntry(path=file_path, mtime=mtime, content=content)
 			return content
+
+
+# The Singleton metaclass is currently needed by some opsiconfd addons
+class Singleton(type):
+	"""
+	Metaclass for implementing the Singleton design pattern.
+	"""
+
+	_instances: dict[type, type] = {}
+
+	def __call__(cls: "Singleton", *args: Any, **kwargs: Any) -> type:
+		if cls not in cls._instances:
+			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+		return cls._instances[cls]

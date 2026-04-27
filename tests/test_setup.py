@@ -28,7 +28,7 @@ from opsiconfd.setup import cleanup_log_files, setup_file_permissions, setup_lim
 from opsiconfd.setup import setup as opsiconfd_setup
 from opsiconfd.setup.files import migrate_acl_conf_if_default
 
-from .utils import ACL_CONF_41, async_redis_client, clean_redis, get_config  # noqa: F401
+from .utils import ACL_CONF_41, MockProcess, async_redis_client, clean_redis, get_config  # noqa: F401
 
 
 def test_setup_limits() -> None:
@@ -53,8 +53,14 @@ def test_setup_file_permissions() -> None:
 
 
 def test_setup_systemd() -> None:
-	with patch("subprocess.check_output"):
+	with (
+		patch("opsiconfd.setup.system.systemd_running", return_value=True),
+		patch("opsiconfd.setup.system.run_command", return_value=MockProcess()) as mock_run,
+	):
 		setup_systemd()
+		assert mock_run.call_count == 2
+		assert mock_run.call_args_list[0][0][0] == ["systemctl", "daemon-reload"]
+		assert mock_run.call_args_list[1][0][0] == ["systemctl", "enable", "opsiconfd.service"]
 
 
 def test_cleanup_log_files(tmp_path: Path) -> None:

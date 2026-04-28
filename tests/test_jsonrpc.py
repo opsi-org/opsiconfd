@@ -10,18 +10,15 @@ jsonrpc tests
 import json
 import shutil
 from pathlib import Path
+from typing import Literal
 from unittest.mock import patch
 
 import msgpack
 import pytest
+from opsi.compression import compress, decompress
 from opsi.opsi.service.model.object import OpsiClient
 
-from opsiconfd.application.jsonrpc import (
-	compress_data,
-	decompress_data,
-	deserialize_data,
-	serialize_data,
-)
+from opsiconfd.application.jsonrpc import deserialize_data, serialize_data
 from opsiconfd.redis import redis_client
 
 from .utils import (  # noqa: F401
@@ -227,7 +224,7 @@ def test_serializations(
 def test_compression(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	content_encoding: str,
-	accept_encoding: str,
+	accept_encoding: Literal["deflate", "gzip", "lz4"],
 	status_code: int,
 ) -> None:
 	products = get_dummy_products(3)
@@ -236,7 +233,7 @@ def test_compression(
 		rpc = {"id": "compression", "method": "product_getObjects", "params": [[], {"id": product_ids}]}
 		data = serialize_data(rpc, "json")
 		if accept_encoding != "invalid":
-			data = compress_data(data, accept_encoding)
+			data = compress(data, accept_encoding)
 		res = test_client.post(
 			"/rpc",
 			auth=(ADMIN_USER, ADMIN_PASS),
@@ -251,7 +248,7 @@ def test_compression(
 		data = res.content
 		# gzip and deflate transfer-encodings are automatically decoded
 		if "lz4" in accept_encoding:
-			data = decompress_data(data, accept_encoding)
+			data = decompress(data, accept_encoding)
 		assert deserialize_data(data, "json")
 
 

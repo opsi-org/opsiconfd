@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Generator, Literal
 
 from msgspec import json, msgpack
+from opsi.compression import compress, decompress
 from opsi.opsi.service.model.type import to_host_id
 from rich.progress import Progress
 
@@ -37,7 +38,6 @@ from opsiconfd.config import (
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.redis import DumpedKey, delete_recursively, dump, redis_client, redis_lock, restore
-from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.utils.cryptography import aes_decrypt_with_password, aes_encrypt_with_password
 
 OBJECT_CLASSES = (
@@ -255,7 +255,7 @@ def create_backup(
 			logger.notice("Compressing data with %s", file_compression)
 			if progress:
 				progress.console.print(f"Compressing data with {file_compression}")
-			bdata = compress_data(bdata, compression=file_compression)
+			bdata = compress(bdata, compression=file_compression)
 
 		if password:
 			logger.notice("Encrypting data")
@@ -315,7 +315,7 @@ def read_backup_file_data(backup_file: Path, progress: Progress | None = None, p
 		logger.notice("Decomressing %s data", compression)
 		if progress:
 			progress.console.print(f"Decomressing {compression} data")
-		bdata = decompress_data(bdata, compression=compression)
+		bdata = decompress(bdata, compression=compression)
 
 	encoding = "json" if bdata.startswith(b"{") else "msgpack"
 	logger.notice("Decoding %s data", encoding)

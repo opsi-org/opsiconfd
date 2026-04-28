@@ -643,6 +643,7 @@ wheels = [
 name = "greenlet"
 version = "3.5.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3c/3f/dbf99fb14bfeb88c28f16729215478c0e265cacd6dc22270c8f31bb6892f/greenlet-3.5.0.tar.gz", hash = "sha256:d419647372241bc68e957bf38d5c1f98852155e4146bd1e4121adea81f4f01e4", size = 196995, upload-time = "2026-04-27T13:37:15.544Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/94/5e/a70f31e3e8d961c4ce589c15b28e4225d63704e431a23932a3808cbcc867/greenlet-3.5.0-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:f35807464c4c58c55f0d31dfa83c541a5615d825c2fe3d2b95360cf7c4e3c0a8", size = 285564, upload-time = "2026-04-27T12:23:08.555Z" },
     { url = "https://files.pythonhosted.org/packages/af/a6/046c0a28e21833e4086918218cfb3d8bed51c075a1b700f20b9d7861c0f4/greenlet-3.5.0-cp314-cp314-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:55fa7ea52771be44af0de27d8b80c02cd18c2c3cddde6c847ecebdf72418b6a1", size = 651166, upload-time = "2026-04-27T12:52:43.644Z" },
@@ -749,14 +750,14 @@ wheels = [
 
 [[package]]
 name = "hypothesis"
-version = "6.152.3"
+version = "6.152.4"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "sortedcontainers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/70/90/fc0b263b6f2622e5f8d2aa93f2e95ba79718a5faa7d2a74bfab10d6b0905/hypothesis-6.152.3.tar.gz", hash = "sha256:c4e5300d3755b6c8a270a28fe5abff40153e927328e89d2bb0229c1384618998", size = 466478, upload-time = "2026-04-26T17:31:07.657Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/c7/3147bd903d6b18324a016d43a259cf5b4bb4545e1ead6773dc8a0374e70a/hypothesis-6.152.4.tar.gz", hash = "sha256:31c8f9ce619716f543e2710b489b1633c833586641d9e6c94cee03f109a5afc4", size = 466444, upload-time = "2026-04-27T20:18:37.594Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/90/38/15475b91a4c12721d2be3349e9d6cf8649c76ed9bc1287e2de7c8d06c261/hypothesis-6.152.3-py3-none-any.whl", hash = "sha256:4b47f00916c858ed49cf870a2f08b04e5fff5afae0bb78f3b4a6d9c74fd6c7bc", size = 532154, upload-time = "2026-04-26T17:31:04.42Z" },
+    { url = "https://files.pythonhosted.org/packages/19/89/0f50dd0d92e8a7dffc24f69ab910ff81db89b2f082ba42682bd57695e4d2/hypothesis-6.152.4-py3-none-any.whl", hash = "sha256:e730fd93c7578182efadc7f90b3c5437ee4d55edf738930eb5043c81ac1d97e8", size = 532145, upload-time = "2026-04-27T20:18:35.043Z" },
 ]
 
 [[package]]
@@ -919,18 +920,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/10/2f/97589876ea967487978071c9042518d28b958d87b17dceb7cdc1d881f963/macholib-1.16.4.tar.gz", hash = "sha256:f408c93ab2e995cd2c46e34fe328b130404be143469e41bc366c807448979362", size = 59427, upload-time = "2025-11-22T08:28:38.373Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/d1/a9f36f8ecdf0fb7c9b1e78c8d7af12b8c8754e74851ac7b94a8305540fc7/macholib-1.16.4-py2.py3-none-any.whl", hash = "sha256:da1a3fa8266e30f0ce7e97c6a54eefaae8edd1e5f86f3eb8b95457cae90265ea", size = 38117, upload-time = "2025-11-22T08:28:36.939Z" },
-]
-
-[[package]]
-name = "mailbits"
-version = "0.2.3"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-dependencies = [
-    { name = "attrs" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/65/475d80fdcca5b780801d4c5bc28edb99e9182835817ed7fd1803f08729fd/mailbits-0.2.3.tar.gz", hash = "sha256:13140be94825d440986dee0a6e653d81d3b4df4b0059fbdb6d78ba8ccb0c4ec0", size = 29576, upload-time = "2025-11-29T12:50:52.776Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/0e/758dc5f520eaafbb360973f60d3b7f74e17a2ff8e5de6998fb55b952b532/mailbits-0.2.3-py3-none-any.whl", hash = "sha256:75082106ed1b9a19fdd86f73aee268b3662a42df5aa024a06018b1d1bedac7dc", size = 11525, upload-time = "2025-11-29T12:50:51.481Z" },
 ]
 
 [[package]]
@@ -1107,7 +1096,7 @@ wheels = [
 
 [[package]]
 name = "opsiconfd"
-version = "4.3.52.1"
+version = "4.3.52.2"
 source = { editable = "." }
 dependencies = [
     { name = "acme" },
@@ -1719,7 +1708,7 @@ wheels = [
 
 [[package]]
 name = "python-opsi"
-version = "4.3.15.13"
+version = "4.3.15.14"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1751,52 +1740,14 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.15.13.tar.gz", hash = "sha256:b3881c511e121409e698765bda14f071802449aba125dd31cf7f4ece08daa216" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.15.14.tar.gz", hash = "sha256:7d424a08c6f8dd78d425298343f02f895c4532d999b88281cf824e5c3c4ecc8c" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.15.13-py3-none-any.whl", hash = "sha256:d1b589acbd5ede548370c11a09a090c7fb2b02825eff6c49d04ada15fe11ed8b" },
-]
-
-[[package]]
-name = "python-opsi-common"
-version = "4.3.55.4"
-source = { registry = "https://pypi.uib.gmbh/simple" }
-dependencies = [
-    { name = "aiofiles" },
-    { name = "annotated-types" },
-    { name = "blake3" },
-    { name = "colorlog" },
-    { name = "cryptography" },
-    { name = "distro" },
-    { name = "dnspython" },
-    { name = "lz4" },
-    { name = "mailbits" },
-    { name = "msgpack", marker = "sys_platform == 'win32'" },
-    { name = "msgspec", marker = "sys_platform != 'win32'" },
-    { name = "netifaces" },
-    { name = "packaging" },
-    { name = "psutil" },
-    { name = "ptyprocess" },
-    { name = "pycryptodome" },
-    { name = "pydantic" },
-    { name = "pydantic-core" },
-    { name = "pywin32", marker = "sys_platform == 'win32'" },
-    { name = "pywinpty", marker = "sys_platform == 'win32'" },
-    { name = "pyzsync" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "tomlkit" },
-    { name = "websocket-client" },
-    { name = "wmi", marker = "sys_platform == 'win32'" },
-    { name = "zstandard" },
-]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.55.4.tar.gz", hash = "sha256:e26a89a0fb741107394fdcc18b066599facc875d8323b3286afb13b2a0b7c1c6" }
-wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_common-4.3.55.4-py3-none-any.whl", hash = "sha256:a3175867709f72d60e3b092e7c9ce94f157861f596c1ae354cb248dcf8ca4940" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.15.14-py3-none-any.whl", hash = "sha256:0f09ee59822ed4f8c90bba632ea72798d0650bfc5f405b6a25ac71bbc140b943" },
 ]
 
 [[package]]
 name = "python-opsi-legacy"
-version = "4.3.11.0"
+version = "4.3.12.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "colorlog" },
@@ -1810,7 +1761,7 @@ dependencies = [
     { name = "psutil" },
     { name = "pyasn1" },
     { name = "pycryptodome" },
-    { name = "python-opsi-common" },
+    { name = "python-opsi" },
     { name = "python-pam" },
     { name = "pywin32", marker = "sys_platform == 'win32'" },
     { name = "pyzsync" },
@@ -1822,9 +1773,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "wmi", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_legacy-4.3.11.0.tar.gz", hash = "sha256:e9e175f07362be77fc666e32e7bbfeadd93d347dc373b3b4fdd3087d3e6d3ffc" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi_legacy-4.3.12.0.tar.gz", hash = "sha256:4334c9b22873e4e2b85a463f5df79d4d6e4f706499b364b601b8c26fbd90946a" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi_legacy-4.3.11.0-py3-none-any.whl", hash = "sha256:c5fea68235356754ee7e33eaf43944c561d8bf7e22c4a5e286a5e1bf71042375" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi_legacy-4.3.12.0-py3-none-any.whl", hash = "sha256:335ea26b57de281fd8cdc8a808caef333caaf4235c15bcf093160285dbcedc1c" },
 ]
 
 [[package]]
@@ -1909,6 +1860,7 @@ sdist = { url = "https://pypi.uib.gmbh/packages/pyzsync-1.5.4.tar.gz", hash = "s
 wheels = [
     { url = "https://pypi.uib.gmbh/packages/pyzsync-1.5.4-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3b61de28c04fe4946a6bda9458bd6a58ec0a27fa87fde973872124df0973f84f" },
     { url = "https://pypi.uib.gmbh/packages/pyzsync-1.5.4-cp314-cp314-manylinux_2_24_x86_64.whl", hash = "sha256:938aeb540f2fa6b3032db9f6a12afebdf0aafeefde80d4c8966492d6160744fa" },
+    { url = "https://pypi.uib.gmbh/packages/pyzsync-1.5.4-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0ff2905a81792111b33c32e775edc28306724874c62a893abed919001b9925d8" },
     { url = "https://pypi.uib.gmbh/packages/pyzsync-1.5.4-cp314-cp314t-manylinux_2_24_x86_64.whl", hash = "sha256:4add9f852ebf4f4693e098bf33661b19b14cfd91a75116fd70d44de0f463ea19" },
 ]
 

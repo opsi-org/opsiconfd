@@ -15,11 +15,12 @@ from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from functools import lru_cache
 from time import time
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
+from opsi.compression import compress, decompress
 from opsi.opsi.messagebus import (
 	CONNECTION_SESSION_CHANNEL,
 	CONNECTION_USER_CHANNEL,
@@ -46,7 +47,7 @@ from wsproto.utilities import LocalProtocolError
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, get_configserver_id, get_server_role
 from opsiconfd.logging import get_logger
-from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
+from opsiconfd.utils import asyncio_create_task
 from opsiconfd.worker import Worker
 
 if TYPE_CHECKING:
@@ -145,7 +146,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		self._messagebus_worker_id = get_user_id_for_service_worker(self._worker.id)
 		self._messagebus_user_id = ""
 		self._session_channel = ""
-		self._compression: str | None = None
+		self._compression: Literal["lz4", "gzip"] | None = None
 		self._messagebus_reader: list[MessageReader] = []
 		self._manager_task: Task | None = None
 		self._message_decoder = msgspec.msgpack.Decoder()
@@ -168,7 +169,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 
 		data = message.to_msgpack()
 		if self._compression:
-			data = await run_in_threadpool(compress_data, data, self._compression)
+			data = await run_in_threadpool(compress, data, self._compression)
 
 		if websocket.client_state != WebSocketState.CONNECTED or websocket.application_state != WebSocketState.CONNECTED:
 			logger.debug("Websocket client not connected")
@@ -378,7 +379,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					status_code=status.HTTP_400_BAD_REQUEST,
 					detail=msg,
 				)
-			self._compression = compression
+			self._compression = cast(Literal["lz4", "gzip"], compression)
 
 		await self.scope["session"].update_messagebus_last_used()
 		await websocket.accept()
@@ -409,7 +410,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		try:
 			receive_messagebus_timestamp = messagebus_timestamp()
 			if self._compression:
-				data = await run_in_threadpool(decompress_data, data, self._compression)
+				data = await run_in_threadpool(decompress, data, self._compression)
 			msg_dict = self._message_decoder.decode(data)
 			if not isinstance(msg_dict, dict):
 				raise ValueError("Invalid message received")

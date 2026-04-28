@@ -14,14 +14,16 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Literal, cast
 
+from opsi.compression import compress
 from rich.console import Console
 
 from opsiconfd.check.cli import console_health_check
 from opsiconfd.config import config, configure_warnings
 from opsiconfd.diagnostic import get_diagnostic_data
 from opsiconfd.logging import init_logging, logger
-from opsiconfd.utils import DataclassCapableJSONEncoder, compress_data, switch_to_user
+from opsiconfd.utils import DataclassCapableJSONEncoder, switch_to_user
 
 configure_warnings()
 
@@ -63,7 +65,7 @@ def diagnostic_data_main() -> None:
 			diagnostic_data = asyncio.run(get_diagnostic_data())
 			data = json.dumps(diagnostic_data, cls=DataclassCapableJSONEncoder, indent=2).encode("utf-8")
 			if (suffix := data_file.suffix.strip(".").lower()) in ("lz4", "gz"):
-				data = compress_data(data, compression=suffix)
+				data = compress(data, compression=cast(Literal["lz4", "gz"], suffix))
 
 			data_file.write_bytes(data)
 			console.print(f"Diagnostic data file '{str(data_file)}' successfully created.")

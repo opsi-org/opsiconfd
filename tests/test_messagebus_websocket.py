@@ -10,10 +10,12 @@ opsiconfd.messagebus tests
 import random
 from random import randbytes
 from time import sleep, time
+from typing import Literal
 from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from opsi.compression import compress, decompress
 from opsi.exception import OpsiServiceConnectionError
 from opsi.logging import get_logger
 from opsi.opsi.messagebus import (
@@ -48,7 +50,6 @@ from opsiconfd.config import get_configserver_id
 from opsiconfd.messagebus.websocket import _check_message_type_access
 from opsiconfd.redis import Redis, async_redis_client, get_redis_connections, redis_client
 from opsiconfd.session import OPSISession, session_manager
-from opsiconfd.utils import compress_data, decompress_data
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -102,7 +103,7 @@ def test_websocket_open_timeout(websocket_protocol: str, websocket_open_timeout:
 
 
 @pytest.mark.parametrize("compression", ("", "lz4", "gzip"))
-def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: str) -> None:  # noqa: F811
+def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: Literal["lz4", "gzip"]) -> None:  # noqa: F811
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	# "with test_client" will run startup and shutdown event handler
 	# https://fastapi.tiangolo.com/advanced/testing-events/
@@ -116,13 +117,13 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				)
 				data = jsonrpc_request_message.to_msgpack()
 				if compression:
-					data = compress_data(data, compression)
+					data = compress(data, compression)
 				websocket.send_bytes(data)
 
 				reader.wait_for_message()
 				raw_data = next(reader.get_raw_messages())
 				if compression:
-					raw_data = decompress_data(raw_data, compression)
+					raw_data = decompress(raw_data, compression)
 				jsonrpc_response_message = Message.from_msgpack(raw_data)
 
 				assert isinstance(jsonrpc_response_message, JSONRPCResponseMessage)

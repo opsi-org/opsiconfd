@@ -15,7 +15,6 @@ import asyncio
 import dataclasses
 import functools
 import getpass
-import gzip
 import json
 import os
 import pwd
@@ -29,7 +28,6 @@ import sys
 import sysconfig
 import threading
 import time
-import zlib
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from functools import lru_cache
@@ -41,7 +39,6 @@ from pathlib import Path
 from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Generator, Iterable
 
-import lz4.frame
 import psutil
 import requests
 from opsi.logging import OPSILogger

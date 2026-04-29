@@ -92,7 +92,7 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 					file.write(new_data)
 
 		logger.notice("Running package script '%s'", script_path.name)
-		os.chmod(str(script_path), 0o700)
+		script_path.chmod(0o700)
 
 		sp_env = {
 			"PRODUCT_ID": opsi_package.product.getId(),
@@ -100,6 +100,7 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			"PRODUCT_VERSION": opsi_package.product.getProductVersion(),
 			"PACKAGE_VERSION": opsi_package.product.getPackageVersion(),
 			"CLIENT_DATA_DIR": str(client_data_dir),
+			"SCRIPT_PATH": str(script_path),
 			"OPSI_SERVER_VERSION": __version__,
 		}
 		sp_env.update(env)

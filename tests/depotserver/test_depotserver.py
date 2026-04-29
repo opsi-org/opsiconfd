@@ -14,6 +14,7 @@ from time import sleep
 from typing import Generator
 from unittest.mock import patch
 
+import pytest
 from opsi.logging import get_logger
 from opsi.opsi.messagebus import (
 	CONNECTION_USER_CHANNEL,
@@ -208,10 +209,15 @@ def test_rename_depotserver(tmp_path: Path) -> None:  # noqa: F811
 		backend.host_delete(id=new_depot_id)
 
 
-def test_install_and_uninstall_package(tmp_path: Path) -> None:  # noqa: F811
+@pytest.mark.parametrize("forceProductId", [None, "other_product_id"])
+def test_install_and_uninstall_package(tmp_path: Path, forceProductId: str | None) -> None:  # noqa: F811
 	package = Path("tests/data/workbench/localboot_legacy_42.0-1337.opsi").absolute()
+	product_id = forceProductId or "localboot_legacy"
+	depot_id = get_depotserver_id()
 	with depotserver_setup(tmp_path):
 		backend = get_unprotected_backend()
 		assert backend._server_role == "depotserver"
-		backend.depot_installPackage(filename=str(package), force=True)
-		backend.depot_uninstallPackage(productId="localboot_legacy")
+		backend.depot_installPackage(filename=str(package), force=True, forceProductId=forceProductId)
+		assert f"{product_id};LocalbootProduct;42.0;1337;{depot_id}" in backend.productOnDepot_getIdents()
+		backend.depot_uninstallPackage(productId=product_id)
+		assert f"{product_id};LocalbootProduct;42.0;1337;{depot_id}" not in backend.productOnDepot_getIdents()

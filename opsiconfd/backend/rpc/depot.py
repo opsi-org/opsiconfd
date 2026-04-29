@@ -248,7 +248,7 @@ class RPCDepotserverMixin(Protocol):
 		force: bool = False,
 		propertyDefaultValues: dict[str, Any] | None = None,
 		tempDir: str | None = None,
-		to_product_id: str | None = None,
+		forceProductId: str | None = None,
 		suppressPackageContentFileGeneration: bool = False,
 	) -> None:
 		"""
@@ -260,7 +260,7 @@ class RPCDepotserverMixin(Protocol):
 				force=force,
 				property_default_values=propertyDefaultValues or {},
 				temp_dir=Path(tempDir) if tempDir else None,
-				force_product_id=to_product_id,
+				force_product_id=forceProductId,
 				suppress_package_content_file_generation=suppressPackageContentFileGeneration,
 			)
 

@@ -1275,7 +1275,7 @@ class Config:
 			choices=("saml", "pam", "ldap", "database", "opsi_passwd"),
 			help=self._help(
 				"opsiconfd",
-				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed. opsi_passwd is obsolete\n",
+				"A list of authentication methods to disable.\nIf the list is empty, all authentication methods are allowed.\nopsi_passwd is obsolete!\n",
 			),
 		)
 		self._parser.add_argument(

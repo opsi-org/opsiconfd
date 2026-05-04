@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import AuditSoftware
-from opsicommon.types import forceList
+from opsi.opsi.service.model.object import AuditSoftware
+from opsi.opsi.service.model.type import to_list
 
 from . import rpc_method
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class RPCAuditSoftwareMixin(Protocol):
 	def auditSoftware_bulkInsertObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware]) -> None:
-		self._mysql.bulk_insert_objects(table="SOFTWARE", objs=auditSoftwares)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="SOFTWARE", objs=auditSoftwares)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def auditSoftware_insertObject(self: BackendProtocol, auditSoftware: dict | AuditSoftware) -> None:
@@ -38,14 +38,14 @@ class RPCAuditSoftwareMixin(Protocol):
 	def auditSoftware_createObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware) -> None:
 		ace = self._get_ace("auditSoftware_createObjects")
 		with self._mysql.session() as session:
-			for auditSoftware in forceList(auditSoftwares):
+			for auditSoftware in to_list(auditSoftwares):
 				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def auditSoftware_updateObjects(self: BackendProtocol, auditSoftwares: list[dict] | list[AuditSoftware] | dict | AuditSoftware) -> None:
 		ace = self._get_ace("auditSoftware_updateObjects")
 		with self._mysql.session() as session:
-			for auditSoftware in forceList(auditSoftwares):
+			for auditSoftware in to_list(auditSoftwares):
 				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)

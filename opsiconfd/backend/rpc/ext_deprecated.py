@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,12 +12,8 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.types import (
-	forceDomain,
-	forceHostId,
-	forceHostname,
-)
+from opsi.exception import BackendMissingDataError
+from opsi.opsi.service.model.type import to_domain, to_host_id, to_hostname
 
 from . import rpc_method
 
@@ -32,17 +28,17 @@ class RPCExtDeprecatedMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_createOpsiConfigserver", check_acl=False)
 	def createServer(self: BackendProtocol, serverName: str, domain: str, description: str | None = None, notes: str | None = None) -> str:
-		host_id = forceHostId(".".join((forceHostname(serverName), forceDomain(domain))))
+		host_id = to_host_id(".".join((to_hostname(serverName), to_domain(domain))))
 		self.host_createOpsiConfigserver(id=host_id, description=description, notes=notes)
 		return host_id
 
 	@rpc_method(deprecated=True, alternative_method="host_delete", check_acl=False)
 	def deleteClient(self: BackendProtocol, clientId: str) -> None:
-		self.host_delete(id=forceHostId(clientId))
+		self.host_delete(id=to_host_id(clientId))
 
 	@rpc_method(deprecated=True, alternative_method="host_delete", check_acl=False)
 	def deleteDepot(self: BackendProtocol, depotId: str) -> None:
-		self.host_delete(id=forceHostId(depotId))
+		self.host_delete(id=to_host_id(depotId))
 
 	@rpc_method(deprecated=True, alternative_method="group_delete", check_acl=False)
 	def deleteGroup(self: BackendProtocol, groupId: str) -> None:
@@ -74,11 +70,11 @@ class RPCExtDeprecatedMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_delete", check_acl=False)
 	def deleteServer(self: BackendProtocol, serverId: str) -> None:
-		self.host_delete(id=forceHostId(serverId))
+		self.host_delete(id=to_host_id(serverId))
 
 	@rpc_method(deprecated=True, alternative_method="host_updateObject", check_acl=False)
 	def setHostLastSeen(self: BackendProtocol, hostId: str, timestamp: str) -> None:
-		hostId = forceHostId(hostId)
+		hostId = to_host_id(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
 			raise BackendMissingDataError(f"Host '{hostId}' not found")

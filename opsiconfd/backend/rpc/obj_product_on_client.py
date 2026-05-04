@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,8 +12,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ProductOnClient
-from opsicommon.types import forceObjectClass, forceObjectClassList
+from opsi.opsi.service.model.object import ProductOnClient
+from opsi.opsi.service.model.type import to_object_class, to_object_class_list
 
 from opsiconfd.config import config
 
@@ -25,12 +25,12 @@ if TYPE_CHECKING:
 
 class RPCProductOnClientMixin(Protocol):
 	def productOnClient_bulkInsertObjects(self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient]) -> None:
-		self._mysql.bulk_insert_objects(table="PRODUCT_ON_CLIENT", objs=productOnClients)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="PRODUCT_ON_CLIENT", objs=productOnClients)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def productOnClient_insertObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:
 		ace = self._get_ace("productOnClient_insertObject")
-		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
+		productOnClient = to_object_class(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
 		if not self.events_enabled:
 			return
@@ -47,7 +47,7 @@ class RPCProductOnClientMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:
 		ace = self._get_ace("productOnClient_updateObject")
-		productOnClient = forceObjectClass(productOnClient, ProductOnClient)
+		productOnClient = to_object_class(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
 		if not self.events_enabled:
 			return
@@ -67,7 +67,7 @@ class RPCProductOnClientMixin(Protocol):
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
 		ace = self._get_ace("productOnClient_createObjects")
-		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
+		productOnClients = to_object_class_list(productOnClients, ProductOnClient)
 		with self._mysql.session() as session:
 			for productOnClient in productOnClients:
 				self._mysql.insert_object(
@@ -92,7 +92,7 @@ class RPCProductOnClientMixin(Protocol):
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
 		ace = self._get_ace("productOnClient_updateObjects")
-		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
+		productOnClients = to_object_class_list(productOnClients, ProductOnClient)
 		with self._mysql.session() as session:
 			for productOnClient in productOnClients:
 				self._mysql.insert_object(
@@ -153,7 +153,7 @@ class RPCProductOnClientMixin(Protocol):
 		self._mysql.delete_objects(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, obj=productOnClients, ace=ace)
 		if not self.events_enabled:
 			return
-		productOnClients = forceObjectClassList(productOnClients, ProductOnClient)
+		productOnClients = to_object_class_list(productOnClients, ProductOnClient)
 		for productOnClient in productOnClients:
 			data = {
 				"productId": productOnClient.productId,
@@ -286,13 +286,13 @@ class RPCProductOnClientMixin(Protocol):
 
 		action_groups: list[dict] = []
 		for group in self.get_product_action_groups(product_on_clients).get(clientId, []):
-			group.product_on_clients = [  # type: ignore[invalid-assignment]
+			group.product_on_clients = [  # ty: ignore[invalid-assignment]
 				poc.to_hash() for poc in group.product_on_clients if poc.actionRequest and poc.actionRequest != "none"
 			]
 			if group.product_on_clients:
-				group.dependencies = {  # type: ignore[invalid-assignment]
+				group.dependencies = {  # ty: ignore[invalid-assignment]
 					product_id: [d.to_hash() for d in dep] for product_id, dep in group.dependencies.items()
 				}
-				action_groups.append(group)  # type: ignore[arg-type]
+				action_groups.append(group)  # ty: ignore[invalid-argument-type]
 
 		return action_groups

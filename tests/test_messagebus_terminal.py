@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -10,7 +10,7 @@ opsiconfd.messagebus.terminal tests
 import uuid
 
 import pytest
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
 	ChannelSubscriptionEventMessage,
 	TerminalCloseEventMessage,
 	TerminalCloseRequestMessage,

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 from _pytest.capture import CaptureFixture
-from opsicommon import __version__ as python_opsi_common_version
+from opsi import __version__ as python_opsi_version
 
 from opsiconfd import __version__
 from opsiconfd.logging import RedisLogHandler
@@ -33,7 +33,7 @@ def test_version(capsys: CaptureFixture[str]) -> None:
 	with get_config({"version": True}):
 		main()
 	captured = capsys.readouterr()
-	assert captured.out == f"{__version__} [python-opsi-common={python_opsi_common_version}]\n"
+	assert captured.out == f"{__version__} [python-opsi={python_opsi_version}]\n"
 
 
 def test_get_config(capsys: CaptureFixture[str]) -> None:
@@ -171,4 +171,4 @@ def test_diagnostic_data(capsys: CaptureFixture[str], tmp_path: Path) -> None:
 	assert f"Diagnostic data file '{target}' successfully created." in captured.out.replace("\n", "")
 	assert target.exists()
 	data = json.loads(target.read_text(encoding="utf-8"))
-	assert data["opsiconfd_version"] == f"{__version__} [python-opsi-common={python_opsi_common_version}]"
+	assert data["opsiconfd_version"] == f"{__version__} [python-opsi={python_opsi_version}]"

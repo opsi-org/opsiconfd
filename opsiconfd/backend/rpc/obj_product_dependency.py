@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,21 +18,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import msgspec
-from opsicommon.exceptions import OpsiError
-from opsicommon.logging.constants import TRACE
-from opsicommon.objects import (
-	LocalbootProduct,
-	Product,
-	ProductDependency,
-	ProductOnClient,
-	ProductOnDepot,
-	serialize,
-)
-from opsicommon.types import (
-	forceList,
-	forceObjectClass,
-)
-from opsicommon.utils import unix_timestamp
+from opsi.exception import OpsiError
+from opsi.logging import TRACE
+from opsi.opsi.service.model.object import LocalbootProduct, Product, ProductDependency, ProductOnClient, ProductOnDepot, serialize
+from opsi.opsi.service.model.type import to_list, to_object_class
+from opsi.time import unix_timestamp
 
 from opsiconfd.config import PROD_DEP_DEBUG_DIR
 from opsiconfd.logging import logger
@@ -701,7 +691,7 @@ class RPCProductDependencyMixin(Protocol):
 		self: BackendProtocol,
 		productDependencies: list[dict] | list[ProductDependency],
 	) -> None:
-		self._mysql.bulk_insert_objects(table="PRODUCT_DEPENDENCY", objs=productDependencies)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="PRODUCT_DEPENDENCY", objs=productDependencies)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_insertObject(
@@ -709,7 +699,7 @@ class RPCProductDependencyMixin(Protocol):
 		productDependency: dict | ProductDependency,
 	) -> None:
 		ace = self._get_ace("productDependency_insertObject")
-		productDependency = forceObjectClass(productDependency, ProductDependency)
+		productDependency = to_object_class(productDependency, ProductDependency)
 		self._mysql.insert_object(
 			table="PRODUCT_DEPENDENCY",
 			obj=productDependency,
@@ -724,7 +714,7 @@ class RPCProductDependencyMixin(Protocol):
 		productDependency: dict | ProductDependency,
 	) -> None:
 		ace = self._get_ace("productDependency_updateObject")
-		productDependency = forceObjectClass(productDependency, ProductDependency)
+		productDependency = to_object_class(productDependency, ProductDependency)
 		self._mysql.insert_object(
 			table="PRODUCT_DEPENDENCY",
 			obj=productDependency,
@@ -740,8 +730,8 @@ class RPCProductDependencyMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productDependency_createObjects")
 		with self._mysql.session() as session:
-			for productDependency in forceList(productDependencies):
-				productDependency = forceObjectClass(productDependency, ProductDependency)
+			for productDependency in to_list(productDependencies):
+				productDependency = to_object_class(productDependency, ProductDependency)
 				self._mysql.insert_object(
 					table="PRODUCT_DEPENDENCY",
 					obj=productDependency,
@@ -758,8 +748,8 @@ class RPCProductDependencyMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productDependency_updateObjects")
 		with self._mysql.session() as session:
-			for productDependency in forceList(productDependencies):
-				productDependency = forceObjectClass(productDependency, ProductDependency)
+			for productDependency in to_list(productDependencies):
+				productDependency = to_object_class(productDependency, ProductDependency)
 				self._mysql.insert_object(
 					table="PRODUCT_DEPENDENCY",
 					obj=productDependency,

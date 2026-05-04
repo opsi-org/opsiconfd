@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
-from opsicommon.package.repo_meta import RepoMetaPackageCollection
-from opsicommon.utils import compare_versions
+from opsi.opsi.package import RepoMetaPackageCollection
+from opsi.util.version import compare_versions
 
 from opsiconfd import __version__
 from opsiconfd.backend import get_mysql, get_unprotected_backend

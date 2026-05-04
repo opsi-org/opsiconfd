@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -10,7 +10,7 @@ test opsiconfd.backend.rpc.test_obj_audit_software
 import json
 from pathlib import Path
 
-from opsicommon.objects import AuditSoftware, AuditSoftwareOnClient, OpsiClient
+from opsi.opsi.service.model.object import AuditSoftware, AuditSoftwareOnClient, OpsiClient
 
 from tests.utils import UnprotectedBackend, backend, clean_mysql, clean_redis  # noqa: F401
 

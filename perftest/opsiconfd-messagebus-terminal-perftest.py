@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -22,7 +22,7 @@ from uuid import uuid4
 
 import aiohttp
 import lz4.frame
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
 	Message,
 	TerminalCloseRequestMessage,
 	TerminalDataReadMessage,

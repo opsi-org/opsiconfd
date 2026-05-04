@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -38,10 +38,10 @@ class LdapConnectionCheck(Check):
 				ldap_connection = None
 				try:
 					result.message = "The connection to the LDAP server does work."
-					server = ldap3.Server(ldap3_uri_to_str(ldap3.utils.uri.parse_uri(ldap_conf["ldap_url"])))  # type: ignore[no-untyped-call,attr-defined]
+					server = ldap3.Server(ldap3_uri_to_str(ldap3.utils.uri.parse_uri(ldap_conf["ldap_url"])))  # ty: ignore[possibly-missing-submodule]
 					ldap_connection = ldap3.Connection(server)
 					ldap_connection.bind()
-				except ldap3.core.exceptions.LDAPException as error:  # type: ignore[attr-defined]
+				except ldap3.core.exceptions.LDAPException as error:  # ty: ignore[possibly-missing-submodule]
 					logger.debug("Could not connect to LDAP Server: %s", error)
 					result.check_status = CheckStatus.ERROR
 					result.message = "Could not connect to LDAP Server."

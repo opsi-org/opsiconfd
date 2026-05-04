@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -10,8 +10,8 @@ opsiconfd.auth.rights
 from datetime import datetime, timezone
 from enum import StrEnum
 
-from opsicommon.objects import BoolConfig, UnicodeConfig
-from opsicommon.types import forceBool
+from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
+from opsi.opsi.service.model.type import to_bool
 
 from opsiconfd.logging import get_logger
 
@@ -222,7 +222,7 @@ class Rights:
 			for current_config in current_configs:
 				if current_config.id == config.id:
 					if isinstance(config, BoolConfig):
-						setattr(self, config_name, forceBool(current_config.defaultValues[0]))
+						setattr(self, config_name, to_bool(current_config.defaultValues[0]))
 					elif config.multiValue:
 						setattr(self, config_name, current_config.defaultValues)
 					else:

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.types import forceBool
+from opsi.exception import BackendMissingDataError
+from opsi.opsi.service.model.type import to_bool
 
 from opsiconfd.logging import logger
 
@@ -135,8 +135,8 @@ class RPCExtKioskMixin(Protocol):
 				):
 					continue
 
-				product_data_record["hasSetup"] = forceBool(prod.setupScript)
-				product_data_record["hasUninstall"] = forceBool(prod.uninstallScript)
+				product_data_record["hasSetup"] = to_bool(prod.setupScript)
+				product_data_record["hasUninstall"] = to_bool(prod.uninstallScript)
 				product_data_record["productName"] = prod.name
 				product_data_record["description"] = prod.description
 				product_data_record["advice"] = prod.advice

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -67,7 +67,7 @@ def read_acl_file(acl_file: Path | str) -> list[RPCACE]:
 			if ace_type not in ("all", "self", "opsi_depotserver", "opsi_client", "sys_group", "sys_user"):
 				raise ValueError(f"Unhandled acl type: '{ace_type}' {position_text}")
 
-			ace = RPCACE(method_re=method_re, type=ace_type)  # type: ignore[arg-type]
+			ace = RPCACE(method_re=method_re, type=ace_type)  # ty: ignore[invalid-argument-type]
 			if not ace_type_params:
 				if ace_type in ("sys_group", "sys_user"):
 					raise ValueError(f"Bad formatted acl type '{ace_type}': no params given {position_text}")

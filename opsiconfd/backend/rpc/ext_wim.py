@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,10 +13,10 @@ import itertools
 import os
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.objects import ProductProperty
-from opsicommon.package.wim import wim_info
-from opsicommon.types import forceList, forceObjectClass, forceProductId
+from opsi.archive.wim import wim_info
+from opsi.exception import BackendMissingDataError
+from opsi.opsi.service.model.object import ProductProperty
+from opsi.opsi.service.model.type import to_list, to_object_class, to_product_id
 
 from opsiconfd.config import DEPOT_DIR, get_depotserver_id
 from opsiconfd.logging import logger
@@ -70,7 +70,7 @@ class RPCExtWIMMixin(Protocol):
 		If `languages` are given these will be written to the property *system_language*.
 		If an additional `default_language` is given this will be selected as the default.
 		"""
-		product_id = forceProductId(product_id)
+		product_id = to_product_id(product_id)
 		product_property = self._wim_get_product_property(product_id, "imagename")
 		product_property.possibleValues = image_names
 		if product_property.defaultValues:
@@ -81,7 +81,7 @@ class RPCExtWIMMixin(Protocol):
 			logger.info("No default values found, setting first imagename as default")
 			product_property.defaultValues = [image_names[0]]
 
-		product_property = forceObjectClass(product_property, ProductProperty)
+		product_property = to_object_class(product_property, ProductProperty)
 		self._product_property_insert_object(product_property=product_property, ace=[], create=False, set_null=False)
 		logger.notice("Wrote imagenames to property 'imagename' of product %r.", product_id)
 
@@ -94,7 +94,7 @@ class RPCExtWIMMixin(Protocol):
 			self._wim_get_product_property(product_id, "winpe_uilanguage"),
 			self._wim_get_product_property(product_id, "winpe_uilanguage_fallback"),
 		):
-			product_property.possibleValues = forceList(languages)
+			product_property.possibleValues = to_list(languages)
 			if default_language and default_language in languages:
 				logger.debug("Setting language default to %r", default_language)
 				product_property.defaultValues = [default_language]
@@ -102,7 +102,7 @@ class RPCExtWIMMixin(Protocol):
 			logger.debug(
 				"%r possibleValues=%r, defaultValues=%r", product_property, product_property.possibleValues, product_property.defaultValues
 			)
-			product_property = forceObjectClass(product_property, ProductProperty)
+			product_property = to_object_class(product_property, ProductProperty)
 			self._product_property_insert_object(product_property=product_property, ace=[], create=False, set_null=False)
 			logger.notice("Wrote languages to property %r of product %r.", product_property.propertyId, product_property.productId)
 
@@ -113,7 +113,7 @@ class RPCExtWIMMixin(Protocol):
 
 		IMPORTANT: This does only work on the configserver!
 		"""
-		product_id = forceProductId(productId)
+		product_id = to_product_id(productId)
 
 		if not self.product_getObjects(id=product_id):
 			raise BackendMissingDataError(f"No product with ID {product_id!r}")

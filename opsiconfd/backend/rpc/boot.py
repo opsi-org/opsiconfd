@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 
 from jinja2 import Template
 from jinja2.exceptions import UndefinedError
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.objects import NetbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
-from opsicommon.types import Architecture, FirmwareType, forceHardwareAddress, forceHostId, forceIpAddress, forceUUIDString
+from opsi.exception import BackendMissingDataError
+from opsi.opsi.service.model.object import NetbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
+from opsi.opsi.service.model.type import Architecture, FirmwareType, to_hardware_address, to_host_id, to_ip_address, to_uuid_string
 
 from opsiconfd.config import DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE, GRUB_CFG_TEMPLATE, get_configserver_id
 from opsiconfd.logging import logger, secret_filter
@@ -436,11 +436,11 @@ class RPCBootMixin(Protocol):
 		_firmware_type = FirmwareType(firmware_type) if firmware_type else None
 		if protocol and protocol not in ("TFTP", "HTTP"):
 			raise ValueError("protocol must be 'TFTP', 'HTTP', or None")
-		boot_server_address = forceIpAddress(boot_server_address) if boot_server_address else None
-		depot_id = forceHostId(depot_id) if depot_id else get_configserver_id()
-		client_id = forceHostId(client_id) if client_id else None
-		system_uuid = forceUUIDString(system_uuid) if system_uuid else None
-		hardware_address = forceHardwareAddress(hardware_address) if hardware_address else None
+		boot_server_address = to_ip_address(boot_server_address) if boot_server_address else None
+		depot_id = to_host_id(depot_id) if depot_id else get_configserver_id()
+		client_id = to_host_id(client_id) if client_id else None
+		system_uuid = to_uuid_string(system_uuid) if system_uuid else None
+		hardware_address = to_hardware_address(hardware_address) if hardware_address else None
 
 		def get_host_identifiers(client: OpsiClient) -> list[str]:
 			return self.configState_getValues(object_ids=[client.id], config_ids=["netboot.host_identifiers"]).get(client.id, {}).get(
@@ -449,7 +449,7 @@ class RPCBootMixin(Protocol):
 
 		client: OpsiClient | None = None
 		if client_id:
-			client_id = forceHostId(client_id)
+			client_id = to_host_id(client_id)
 			clients = self.host_getObjects(type="OpsiClient", id=client_id)
 			if clients:
 				client = clients[0]
@@ -458,7 +458,7 @@ class RPCBootMixin(Protocol):
 				logger.info("Client not found by clientId")
 
 		if not client and system_uuid:
-			system_uuid = forceUUIDString(system_uuid)
+			system_uuid = to_uuid_string(system_uuid)
 			clients = self.host_getObjects(type="OpsiClient", systemUUID=system_uuid)
 			if clients and clients[0]:
 				logger.debug("Found client by system_uuid: %r", clients[0])
@@ -470,7 +470,7 @@ class RPCBootMixin(Protocol):
 				logger.info("Client not found by system_uuid")
 
 		if not client and hardware_address:
-			hardware_address = forceHardwareAddress(hardware_address)
+			hardware_address = to_hardware_address(hardware_address)
 			clients = self.host_getObjects(type="OpsiClient", hardwareAddress=hardware_address)
 			if clients and clients[0]:
 				logger.debug("Found client by hardware_address: %r", clients[0])

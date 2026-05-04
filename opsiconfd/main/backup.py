@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,7 +16,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from opsicommon.types import forceHostId
+from opsi.opsi.service.model.type import to_host_id
 from rich.console import Console
 from rich.progress import Progress
 from rich.prompt import Prompt
@@ -187,7 +187,7 @@ def restore_main() -> None:
 
 			server_id = config.server_id
 			if server_id not in ("backup", "local"):
-				server_id = forceHostId(server_id)
+				server_id = to_host_id(server_id)
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 			progress.console.print(

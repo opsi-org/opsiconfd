@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,8 +12,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from opsicommon.objects import LicensePool
-from opsicommon.types import forceList, forceObjectClass
+from opsi.opsi.service.model.object import LicensePool
+from opsi.opsi.service.model.type import to_list, to_object_class
 
 from ..auth import RPCACE
 from . import rpc_method
@@ -42,7 +42,7 @@ class RPCLicensePoolMixin(Protocol):
 					"DELETE FROM `PRODUCT_ID_TO_LICENSE_POOL` WHERE licensePoolId = :id",
 					params=data,
 				)
-				if session.execute(query, params=data).rowcount > 0:  # type: ignore[unresolved-attribute]
+				if session.execute(query, params=data).rowcount > 0:  # ty: ignore[unresolved-attribute]
 					for value in data["productIds"] or []:
 						session.execute(
 							"""
@@ -58,7 +58,7 @@ class RPCLicensePoolMixin(Protocol):
 	def licensePool_insertObject(self: BackendProtocol, licensePool: dict | LicensePool) -> None:
 		self._assert_module("license_management")
 		ace = self._get_ace("licensePool_insertObject")
-		licensePool = forceObjectClass(licensePool, LicensePool)
+		licensePool = to_object_class(licensePool, LicensePool)
 		self._license_pool_insert_object(license_pool=licensePool, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
@@ -72,8 +72,8 @@ class RPCLicensePoolMixin(Protocol):
 		ace = self._get_ace("licensePool_createObjects")
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}):
-				for license_pool in forceList(licensePools):
-					license_pool = forceObjectClass(license_pool, LicensePool)
+				for license_pool in to_list(licensePools):
+					license_pool = to_object_class(license_pool, LicensePool)
 					self._license_pool_insert_object(
 						license_pool=license_pool, ace=ace, create=True, set_null=True, session=session, lock=False
 					)
@@ -83,8 +83,8 @@ class RPCLicensePoolMixin(Protocol):
 		ace = self._get_ace("licensePool_updateObjects")
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"LICENSE_POOL": "WRITE", "PRODUCT_ID_TO_LICENSE_POOL": "WRITE"}):
-				for license_pool in forceList(licensePools):
-					license_pool = forceObjectClass(license_pool, LicensePool)
+				for license_pool in to_list(licensePools):
+					license_pool = to_object_class(license_pool, LicensePool)
 					self._license_pool_insert_object(
 						license_pool=license_pool, ace=ace, create=True, set_null=False, session=session, lock=False
 					)
@@ -122,7 +122,7 @@ class RPCLicensePoolMixin(Protocol):
 		**filter: Any,
 	) -> list[LicensePool]:
 		ace = self._get_ace("licensePool_getObjects")
-		return self._license_pool_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._license_pool_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(deprecated=True, alternative_method="licensePool_getObjects", check_acl=False)
 	def licensePool_getHashes(
@@ -131,7 +131,7 @@ class RPCLicensePoolMixin(Protocol):
 		**filter: Any,
 	) -> list[dict]:
 		ace = self._get_ace("licensePool_getObjects")
-		return self._license_pool_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._license_pool_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(check_acl=False)
 	def licensePool_getIdents(

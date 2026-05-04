@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,25 +12,60 @@ import os
 import pwd
 import resource
 import string
-import subprocess
 from pathlib import Path
 
 import psutil
-from opsicommon.server.setup import (
-	add_user_to_group,
-	create_group,
-	create_user,
-	modify_user,
-	set_primary_group,
-)
-from opsicommon.server.setup import setup_users_and_groups as po_setup_users_and_groups
-from opsicommon.system.info import is_ucs
+from opsi.opsi.service.server import OpsiConfig
+from opsi.process import ProcessError, run_command
+from opsi.system.info import is_ucs
 from rich import print as rich_print
 
 from opsiconfd.config import OPSICONFD_HOME, config, get_server_role, opsi_config
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import get_random_string, running_in_docker
 from opsiconfd.utils.ucs import get_root_dn, get_ucs_admin_user
+
+
+def create_user(username: str, primary_groupname: str, home: str, shell: str, system: bool = False) -> None:
+	logger.notice("Creating user: %s", username)
+	cmd = ["useradd", "-g", primary_groupname, "-d", home, "-s", shell]
+	if system:
+		cmd.append("--system")
+	cmd.append(username)
+	run_command(cmd, timeout=15)
+
+
+def modify_user(username: str, home: str | None = None, shell: str | None = None) -> None:
+	if not home and not shell:
+		return
+	logger.notice("Modifying user: %s (home=%s, shell=%s)", username, home, shell)
+	cmd = ["usermod"]
+	if home:
+		cmd += ["-d", home]
+	if shell:
+		cmd += ["-s", shell]
+	cmd.append(username)
+	run_command(cmd, timeout=15)
+
+
+def create_group(groupname: str, system: bool = False) -> None:
+	logger.notice("Creating group: %s", groupname)
+	cmd = ["groupadd"]
+	if system:
+		cmd.append("--system")
+	cmd.append(groupname)
+	logger.info("Running command: %s", cmd)
+	run_command(cmd, timeout=15)
+
+
+def add_user_to_group(username: str, groupname: str) -> None:
+	logger.notice("Adding user '%s' to group '%s'", username, groupname)
+	run_command(["usermod", "-a", "-G", groupname, username], timeout=15)
+
+
+def set_primary_group(username: str, groupname: str) -> None:
+	logger.notice("Setting primary group of user '%s' to '%s'", username, groupname)
+	run_command(["usermod", "-g", groupname, username], timeout=15)
 
 
 def setup_limits() -> None:
@@ -89,8 +124,8 @@ def create_ucs_group(
 		cmd.append(ucs_pwd)
 	logger.debug(cmd)
 	try:
-		subprocess.check_output(cmd, timeout=30)
-	except subprocess.CalledProcessError as err:
+		run_command(cmd, timeout=30)
+	except ProcessError as err:
 		if interactive:
 			rich_print(f"[b][red]Could not create group: {name}[red][/b]")
 		logger.error("Could not create group: %s", name)
@@ -142,8 +177,8 @@ def create_ucs_user(
 		cmd.append(ucs_pwd)
 	logger.debug(cmd)
 	try:
-		subprocess.check_output(cmd, timeout=30)
-	except subprocess.CalledProcessError as err:
+		run_command(cmd, timeout=30)
+	except ProcessError as err:
 		if interactive:
 			rich_print(f"[b][red]Could not create user: {username}[red][/b]")
 		logger.error("Could not create user: %s", username)
@@ -205,7 +240,37 @@ def setup_users_and_groups(interactive: bool = False, backend_available: bool = 
 		if setup_ucs_users_and_groups(interactive):
 			return
 
-	po_setup_users_and_groups(ignore_errors=True)
+	opsi_config = OpsiConfig()
+	try:
+		grp.getgrnam(opsi_config.get("groups", "admingroup"))
+	except KeyError:
+		try:
+			create_group(groupname=opsi_config.get("groups", "admingroup"), system=False)
+		except Exception as err:
+			logger.info(err)
+
+	try:
+		grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))
+	except KeyError:
+		try:
+			create_group(groupname=opsi_config.get("groups", "fileadmingroup"), system=True)
+		except Exception as err:
+			logger.info(err)
+
+	try:
+		pwd.getpwnam(opsi_config.get("depot_user", "username"))
+	except KeyError:
+		try:
+			create_user(
+				username=opsi_config.get("depot_user", "username"),
+				primary_groupname=opsi_config.get("groups", "fileadmingroup"),
+				home=opsi_config.get("depot_user", "home"),
+				shell="/bin/false",
+				system=True,
+			)
+		except Exception as err:
+			logger.info(err)
+
 	if config.run_as_user == "root":
 		return
 
@@ -276,8 +341,8 @@ def setup_systemd() -> None:
 		return
 
 	logger.info("Setup systemd")
-	subprocess.check_output(["systemctl", "daemon-reload"])
-	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"])
+	run_command(["systemctl", "daemon-reload"])
+	run_command(["systemctl", "enable", "opsiconfd.service"])
 
 
 def set_unprivileged_port_start(port: int) -> None:

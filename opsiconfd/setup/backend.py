@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,8 +15,8 @@ from pathlib import Path
 from socket import AF_INET, AF_INET6
 
 import opsi_legacy.Backend.File
+from opsi.opsi.service.model.object import OpsiConfigserver
 from opsi_legacy.Backend.Replicator import BackendReplicator
-from opsicommon.objects import OpsiConfigserver
 from rich import print as rich_print
 from rich.prompt import Confirm, Prompt
 
@@ -95,6 +95,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 					continue
 				break
 
+	assert error
 	mysql_root = MySQLConnection()
 	auto_try = False
 	if not force and mysql_root.address in ("localhost", "127.0.0.1", "::1") or mysql_root.address.startswith("/"):
@@ -118,7 +119,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 	while True:
 		if not auto_try:
 			if not interactive:
-				raise error  # type: ignore[misc]
+				raise error
 			if error:
 				error_str = str(error).split("\n", 1)[0]
 				match = re.search(r"(\(\d+,\s.*)", error_str)
@@ -126,7 +127,7 @@ def setup_mysql_connection(interactive: bool = False, force: bool = False) -> No
 					error_str = match.group(1).strip("()")
 				rich_print(f"[b][red]Failed to connect to MySQL database[/red]: {error_str}[/b]")
 			if not Confirm.ask("Do you want to configure the MySQL database connection?"):
-				raise error  # type: ignore[misc]
+				raise error
 			mysql_root.address = Prompt.ask("Enter MySQL server address", default=mysql_root.address, show_default=True)
 			mysql_root.database = Prompt.ask("Enter MySQL database", default=mysql_root.database, show_default=True)
 			mysql_root.username = Prompt.ask("Enter MySQL admin username", default="root", show_default=True)
@@ -211,7 +212,7 @@ def file_mysql_migration() -> None:
 
 	logger.notice("Converting File to MySQL backend, please wait...")
 	config_server_id = opsi_config.get("host", "id")
-	opsi_legacy.Backend.File.getfqdn = lambda: config_server_id  # type: ignore[invalid-assignment]
+	opsi_legacy.Backend.File.getfqdn = lambda: config_server_id  # ty: ignore[invalid-assignment]
 
 	file_backend = opsi_legacy.Backend.File.FileBackend()
 	config_servers = file_backend.host_getObjects(type="OpsiConfigserver")
@@ -245,7 +246,7 @@ def file_mysql_migration() -> None:
 		update_database(mysql, force=True)
 
 		with mysql.disable_unique_hardware_addresses(), mysql.disable_unique_systemUUIDs():
-			backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)  # type: ignore[invalid-argument-type]
+			backend_replicator = BackendReplicator(readBackend=file_backend, writeBackend=backend, cleanupFirst=False)  # ty: ignore[invalid-argument-type]
 			backend_replicator.replicate(audit=False)
 
 		dipatch_conf.rename(dipatch_conf.with_suffix(".conf.old"))

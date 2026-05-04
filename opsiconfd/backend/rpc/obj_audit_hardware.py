@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,11 +16,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from opsicommon.objects import (
+from opsi.opsi.service.model.object import (
 	AuditHardware,
 	AuditHardwareOnHost,
 )
-from opsicommon.types import forceLanguageCode, forceList
+from opsi.opsi.service.model.type import to_language_code, to_list
 
 from opsiconfd.config import AUDIT_HARDWARE_CONFIG_FILE, AUDIT_HARDWARE_CONFIG_LOCALES_DIR
 from opsiconfd.logging import logger
@@ -70,7 +70,7 @@ def get_audit_hardware_config(
 ) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:
 	if not language:
 		language = "en"
-	language = forceLanguageCode(language).replace("-", "_")
+	language = to_language_code(language).replace("-", "_")
 
 	locale_path = Path(AUDIT_HARDWARE_CONFIG_LOCALES_DIR)
 	locale_file = locale_path / f"hwaudit_{language}.properties"
@@ -158,10 +158,10 @@ def get_audit_hardware_config(
 def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]:
 	audit_hardware_config: dict[str, dict[str, dict[str, str]]] = {}
 	for conf in get_audit_hardware_config():
-		hw_class = conf["Class"]["Opsi"]  # type: ignore[invalid-argument-type]
+		hw_class = conf["Class"]["Opsi"]  # ty: ignore[invalid-argument-type]
 		audit_hardware_config[hw_class] = {}
 		for value in conf["Values"]:
-			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore[invalid-argument-type]
+			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # ty: ignore[invalid-argument-type]
 	return audit_hardware_config
 
 
@@ -175,7 +175,7 @@ class RPCAuditHardwareMixin(Protocol):
 		self: BackendProtocol, audit_hardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
 	) -> dict[str, list[AuditHardware]]:
 		by_hardware_class = defaultdict(list)
-		for ahoh in forceList(audit_hardwares):
+		for ahoh in to_list(audit_hardwares):
 			if not isinstance(ahoh, AuditHardware):
 				ahoh = AuditHardware.fromHash(ahoh)
 			by_hardware_class[ahoh.hardwareClass].append(ahoh)
@@ -197,7 +197,7 @@ class RPCAuditHardwareMixin(Protocol):
 
 	def auditHardware_bulkInsertObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware]) -> None:
 		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
-			self._mysql.bulk_insert_objects(table=f"HARDWARE_DEVICE_{hardware_class}", objs=auh)  # type: ignore[arg-type]
+			self._mysql.bulk_insert_objects(table=f"HARDWARE_DEVICE_{hardware_class}", objs=auh)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def auditHardware_insertObject(self: BackendProtocol, auditHardware: dict | AuditHardware) -> None:
@@ -247,7 +247,7 @@ class RPCAuditHardwareMixin(Protocol):
 		hardware_classes = set()
 		hardware_class = filter.get("hardwareClass")
 		if hardware_class not in ([], None):
-			for hwc in forceList(hardware_class):
+			for hwc in to_list(hardware_class):
 				regex = re.compile(f"^{hwc.replace('*', '.*')}$")
 				for key in self._audit_hardware_database_config:
 					if regex.search(key):
@@ -309,7 +309,7 @@ class RPCAuditHardwareMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def auditHardware_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditHardware]:
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(  # type: ignore[return-value]
+		return self._audit_hardware_get(  # ty: ignore[invalid-return-type]
 			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
 		)
 

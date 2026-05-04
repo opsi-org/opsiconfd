@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -14,9 +14,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from opsicommon import objects
-from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL
-from opsicommon.messagebus.message import Message
+from opsi.opsi.messagebus import CONNECTION_SESSION_CHANNEL, Message
+from opsi.opsi.service.model import object
 
 from opsiconfd.messagebus.redis import (
 	MAX_STREAM_LENGTH,
@@ -480,7 +479,7 @@ async def test_cleanup_channels(config: Config, backend: UnprotectedBackend, red
 	messagbus_prefix = config.redis_key("messagebus")
 	redis = await async_redis_client()
 
-	opsi_client = objects.OpsiClient(id="test-client-act.opsi.org")
+	opsi_client = object.OpsiClient(id="test-client-act.opsi.org")
 	backend.host_createObjects([opsi_client])
 
 	session1_id = str(uuid4())

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,7 +13,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from opsicommon.objects import OpsiClient, OpsiDepotserver
+from opsi.opsi.service.model.object import OpsiClient, OpsiDepotserver
 
 from opsiconfd.metrics.collector import DepotMetricsCollector, NodeMetricsCollector, WorkerMetricsCollector
 from opsiconfd.metrics.metric import ALL_METRICS, AggregationType, DepotMetric, WorkerMetric, ZeroIfMissingType
@@ -30,7 +30,6 @@ from .utils import (  # noqa: F401
 	clean_redis,
 	config,
 	get_config,
-	reset_singleton,
 	test_client,
 )
 
@@ -64,7 +63,7 @@ def fixture_metrics_registry() -> MetricsRegistry:
 
 @pytest.fixture(name="reset_metrics_registry", autouse=True)
 def fixture_reset_metrics_registry() -> None:
-	reset_singleton(MetricsRegistry)
+	MetricsRegistry.reset_singleton()
 
 
 async def test_metrics_collector_add_value() -> None:
@@ -97,7 +96,7 @@ async def test_metrics_collector_add_value() -> None:
 		nonlocal cmds
 		cmds.extend(cmd)
 
-	metrics_collector._execute_redis_command = _execute_redis_command  # type: ignore[assignment]
+	metrics_collector._execute_redis_command = _execute_redis_command  # ty: ignore[invalid-assignment]
 
 	await metrics_collector.add_value("metric1", 1)
 	await metrics_collector.add_value("metric2", 1)
@@ -276,7 +275,7 @@ def test_depot_metrics_collector(config: Config, test_client: OpsiconfdTestClien
 		nonlocal cmds
 		cmds.extend(cmd)
 
-	metrics_collector._execute_redis_command = _execute_redis_command  # type: ignore[assignment]
+	metrics_collector._execute_redis_command = _execute_redis_command  # ty: ignore[invalid-assignment]
 
 	async def _test_add_values() -> None:
 		await metrics_collector.add_value("depot:avg_product_data_transfer_slots", 5)
@@ -356,25 +355,25 @@ def test_node_metrics_collector() -> None:
 
 
 def test_disable_metrics() -> None:
-	reset_singleton(MetricsRegistry)
+	MetricsRegistry.reset_singleton()
 	metrics_registry = MetricsRegistry()
 	assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS)
 
 	with get_config({"disabled_metrics": []}):
-		reset_singleton(MetricsRegistry)
+		MetricsRegistry.reset_singleton()
 		metrics_registry = MetricsRegistry()
 		assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS)
 
 	with get_config({"disabled_metrics": [ALL_METRICS[0].id]}):
-		reset_singleton(MetricsRegistry)
+		MetricsRegistry.reset_singleton()
 		metrics_registry = MetricsRegistry()
 		assert sorted(metrics_registry._metrics_by_id) == sorted(m.id for m in ALL_METRICS[1:])
 
-	reset_singleton(MetricsRegistry)
+	MetricsRegistry.reset_singleton()
 
 
 def test_setup_metric_downsampling() -> None:
-	reset_singleton(MetricsRegistry)
+	MetricsRegistry.reset_singleton()
 	metric_rgistry = MetricsRegistry()
 
 	class MockRedisClient:

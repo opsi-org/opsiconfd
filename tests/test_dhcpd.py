@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -21,6 +21,7 @@ from opsiconfd.dhcpd import (
 	get_dhcpd_service_name,
 	setup_dhcpd,
 )
+from tests.utils import MockProcess
 
 
 def test_parse_dhcpd_conf(tmp_path: Path) -> None:
@@ -165,9 +166,9 @@ xfs_scrub_all.timer                        disabled        enabled
 def test_get_dhcpd_service_name(service_name: str, state: str, expected: str) -> None:
 	get_dhcpd_service_name.cache_clear()
 
-	class Proc:
-		stdout = UNIT_FILES_OUT.replace("{{service_name}}", service_name).replace("{{state}}", state)
-
-	with patch("opsiconfd.dhcpd.run", PropertyMock(return_value=Proc())):
+	with patch(
+		"opsiconfd.dhcpd.run_command",
+		PropertyMock(return_value=MockProcess(stdout=UNIT_FILES_OUT.replace("{{service_name}}", service_name).replace("{{state}}", state))),
+	):
 		assert get_dhcpd_service_name() == expected
 		assert get_dhcpd_restart_command() == ["sudo", "systemctl", "restart", expected]

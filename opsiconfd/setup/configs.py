@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,12 +12,12 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from functools import lru_cache
-from subprocess import run
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from opsicommon.license import OPSI_FREE_MODULE_IDS, OPSI_MODULE_IDS, OPSI_OBSOLETE_MODULE_IDS
-from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
+from opsi.opsi.licensing import OPSI_FREE_MODULE_IDS, OPSI_MODULE_IDS, OPSI_OBSOLETE_MODULE_IDS
+from opsi.opsi.service.model.object import BoolConfig, ConfigState, UnicodeConfig
+from opsi.process import run_command
 
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.config import config, get_configserver_id, get_server_role, opsi_config
@@ -52,7 +52,7 @@ def _get_windows_domain() -> str | None:
 	try:
 		# Could not fetch domain SID => exitcode 1
 		# Do not check exitcode
-		out = run(["net", "getdomainsid"], capture_output=True, check=False, encoding="utf-8").stdout
+		out = run_command(["net", "getdomainsid"], timeout=10).get_stdout_text()
 		match = re.search(r"SID for domain (\S+) is", out, flags=re.IGNORECASE)
 		if not match:
 			match = re.search(r"SID for local machine (\S+) is", out, flags=re.IGNORECASE)
@@ -363,10 +363,6 @@ def setup_configs() -> None:
 	if "license-management.use" not in config_ids:
 		logger.info("Creating config 'license-management.use'")
 		add_configs.append(BoolConfig(id="license-management.use", description="Activate license management", defaultValues=[False]))
-
-	if "software-on-demand.active" not in config_ids:
-		logger.info("Creating config 'software-on-demand.active'")
-		add_configs.append(BoolConfig(id="software-on-demand.active", description="Activate software-on-demand", defaultValues=[False]))
 
 	if "software-on-demand.product-group-ids" not in config_ids:
 		logger.info("Creating config 'software-on-demand.product-group-ids'")
@@ -991,6 +987,49 @@ def setup_configs() -> None:
 			)
 		)
 
+	if "opsi.check.enabled" not in config_ids:
+		logger.info("Creating config 'opsi.check.enabled'")
+		add_configs.append(BoolConfig(id="opsi.check.enabled", description="Enable check", defaultValues=[True]))
+
+	if "opsi.check.downtime.start" not in config_ids:
+		logger.info("Creating config 'opsi.check.downtime'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi.check.downtime.start",
+				description="Check downtime start",
+				possibleValues=[],
+				defaultValues=[],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "opsi.check.downtime.end" not in config_ids:
+		logger.info("Creating config 'opsi.check.downtime'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi.check.downtime.end",
+				description="Check downtime end",
+				possibleValues=[],
+				defaultValues=[],
+				editable=True,
+				multiValue=False,
+			)
+		)
+
+	if "opsi.check.ignore_products" not in config_ids:
+		logger.info("Creating config 'opsi.check.ignore_products'")
+		add_configs.append(
+			UnicodeConfig(
+				id="opsi.check.ignore_products",
+				description="Ignore products",
+				possibleValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
+				defaultValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
+				editable=True,
+				multiValue=True,
+			)
+		)
+
 	if add_configs:
 		backend.config_createObjects(add_configs)
 	if add_config_states:
@@ -1001,58 +1040,9 @@ def setup_configs() -> None:
 		if (
 			config_id.endswith((".product_cache.outdated", ".product.cache.outdated"))
 			or config_id.startswith("configed.meta_config.wan")
-			or config_id in ("product_sort_algorithm", "clientconfig.dhcpd.filename")
+			or config_id in ("product_sort_algorithm", "clientconfig.dhcpd.filename", "software-on-demand.active")
 		):
 			logger.info("Removing config %r", config_id)
 			remove_configs.append({"id": config_id})
 	if remove_configs:
 		backend.config_deleteObjects(remove_configs)
-
-	if "opsi.check.enabled" not in config_ids:
-		logger.info("Creating config 'opsi.check.enabled'")
-		backend.config_createObjects([BoolConfig(id="opsi.check.enabled", description="Enable check", defaultValues=[True])])
-
-	if "opsi.check.downtime.start" not in config_ids:
-		logger.info("Creating config 'opsi.check.downtime'")
-		backend.config_createObjects(
-			[
-				UnicodeConfig(
-					id="opsi.check.downtime.start",
-					description="Check downtime start",
-					possibleValues=[],
-					defaultValues=[],
-					editable=True,
-					multiValue=False,
-				)
-			],
-		)
-
-	if "opsi.check.downtime.end" not in config_ids:
-		logger.info("Creating config 'opsi.check.downtime'")
-		backend.config_createObjects(
-			[
-				UnicodeConfig(
-					id="opsi.check.downtime.end",
-					description="Check downtime end",
-					possibleValues=[],
-					defaultValues=[],
-					editable=True,
-					multiValue=False,
-				)
-			],
-		)
-
-	if "opsi.check.ignore_products" not in config_ids:
-		logger.info("Creating config 'opsi.check.ignore_products'")
-		backend.config_createObjects(
-			[
-				UnicodeConfig(
-					id="opsi.check.ignore_products",
-					description="Ignore products",
-					possibleValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
-					defaultValues=CHECK_DEFAULT_IGNORE_PRODUCTS,
-					editable=True,
-					multiValue=True,
-				)
-			],
-		)

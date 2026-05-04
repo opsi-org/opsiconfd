@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,19 +13,12 @@ from contextlib import contextmanager
 from functools import lru_cache
 from inspect import getmembers, ismethod
 from types import MethodType
-from typing import Any, Generator
+from typing import Any, Generator, Self
 
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.exceptions import (
-	BackendModuleDisabledError,
-	BackendPermissionDeniedError,
-)
-from opsicommon.messagebus.message import (
-	EventMessage,
-	JSONRPCRequestMessage,
-	timestamp,
-)
-from opsicommon.objects import OpsiDepotserver, serialize
+from opsi.exception import BackendModuleDisabledError, BackendPermissionDeniedError
+from opsi.opsi.messagebus import EventMessage, JSONRPCRequestMessage, messagebus_timestamp
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import OpsiDepotserver, serialize
 from starlette.concurrency import run_in_threadpool
 
 # server_timing needed for jsonrpc_forward
@@ -149,23 +142,22 @@ class Backend(
 	RPCExtenderMixin,
 	RPCReportingMixin,
 ):
-	__instance = None
-	__initialized = False
+	_instance: Self | None = None
 	_shutting_down: bool = False
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> Backend:
-		if not cls.__instance:
-			cls.__instance = super().__new__(cls, *args, **kwargs)
-		return cls.__instance
+	def __new__(cls, *args: Any, **kwargs: Any) -> Self:
+		if not cls._instance:
+			cls._instance = super().__new__(cls, *args, **kwargs)
+		return cls._instance
 
 	@classmethod
 	def reset_singleton(cls) -> None:
-		cls.__instance = None
+		cls._instance = None
 
 	def __init__(self) -> None:
-		if self.__initialized:
+		if getattr(self, "_initialized", False):
 			return
-		self.__initialized = True
+		self._initialized = True
 		self.events_enabled = True
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
@@ -328,6 +320,9 @@ class Backend(
 		self._read_host_control_config_file()
 		self._read_opsipxeconfd_control_config_file()
 
+	def _read_acl_file(self) -> None:
+		pass
+
 	def _get_ace(self, method: str) -> list[RPCACE]:
 		return []
 
@@ -377,7 +372,7 @@ class Backend(
 		jsonrpc_request = JSONRPCRequestMessage(
 			sender=get_user_id_for_service_worker(worker.id),
 			channel=f"service:depot:{depot_id}:jsonrpc",
-			expires=timestamp(30),
+			expires=messagebus_timestamp(30),
 			method=method,
 			params=tuple(serialize(params) or []),
 		)

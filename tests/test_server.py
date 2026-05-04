@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -10,7 +10,7 @@ server tests
 import time
 from threading import Thread
 
-from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
+from opsi.opsi.service.client import ServiceClient, ServiceVerificationFlags
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,

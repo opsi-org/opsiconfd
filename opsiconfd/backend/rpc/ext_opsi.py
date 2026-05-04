@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,16 +11,12 @@ from __future__ import annotations
 
 import datetime
 import os
-import subprocess
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendMissingDataError, BackendPermissionDeniedError
-from opsicommon.objects import ProductOnClient
-from opsicommon.types import (
-	forceActionRequest,
-	forceHostId,
-	forceProductId,
-)
+from opsi.exception import BackendMissingDataError, BackendPermissionDeniedError
+from opsi.opsi.service.model.object import ProductOnClient
+from opsi.opsi.service.model.type import to_action_request, to_host_id, to_product_id
+from opsi.process import ProcessError, run_command
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
@@ -49,9 +45,9 @@ class RPCExtOpsiMixin(Protocol):
 		:param actionRequest: The request to set.
 		:type actionRequest: str
 		"""
-		productId = forceProductId(productId)
-		clientId = forceHostId(clientId)
-		actionRequest = forceActionRequest(actionRequest) or "none"
+		productId = to_product_id(productId)
+		clientId = to_host_id(clientId)
+		actionRequest = to_action_request(actionRequest) or "none"
 		depotId = self.getDepotId(clientId=clientId)
 		product_on_depot = self.productOnDepot_getObjects(depotId=depotId, productId=productId)
 		if not product_on_depot:
@@ -112,10 +108,10 @@ class RPCExtOpsiMixin(Protocol):
 			raise IOError(f"The path {path!r} does not exist")
 
 		logger.debug("Going to set rights for path %r", path)
-		call_result = subprocess.call(["sudo", "opsi-set-rights", path])
-		logger.debug("Finished setting rights. Exit code: %r", call_result)
-
-		if call_result:
-			raise RuntimeError(f"Setting rights on {path!r} failed. Did you run 'opsi-setup --patch-sudoers-file'?")
+		try:
+			run_command(["sudo", "opsi-set-rights", path])
+			logger.debug("Finished setting rights for path %r", path)
+		except ProcessError as err:
+			raise RuntimeError(f"Setting rights on {path!r} failed ({err}). Did you run 'opsi-setup --patch-sudoers-file'?") from err
 
 		return f"Changing rights at {path!r} successful."

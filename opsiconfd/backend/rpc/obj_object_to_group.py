@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ObjectToGroup
-from opsicommon.types import forceList, forceObjectClass
+from opsi.opsi.service.model.object import ObjectToGroup
+from opsi.opsi.service.model.type import to_list, to_object_class
 
 from . import rpc_method
 
@@ -22,34 +22,34 @@ if TYPE_CHECKING:
 
 class RPCObjectToGroupMixin(Protocol):
 	def objectToGroup_bulkInsertObjects(self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup]) -> None:
-		self._mysql.bulk_insert_objects(table="OBJECT_TO_GROUP", objs=objectToGroups)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="OBJECT_TO_GROUP", objs=objectToGroups)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_insertObject(self: BackendProtocol, objectToGroup: dict | ObjectToGroup) -> None:
 		ace = self._get_ace("objectToGroup_insertObject")
-		objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
+		objectToGroup = to_object_class(objectToGroup, ObjectToGroup)
 		self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_updateObject(self: BackendProtocol, objectToGroup: dict | ObjectToGroup) -> None:
 		ace = self._get_ace("objectToGroup_updateObject")
-		objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
+		objectToGroup = to_object_class(objectToGroup, ObjectToGroup)
 		self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_createObjects(self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup) -> None:
 		ace = self._get_ace("objectToGroup_createObjects")
 		with self._mysql.session() as session:
-			for objectToGroup in forceList(objectToGroups):
-				objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
+			for objectToGroup in to_list(objectToGroups):
+				objectToGroup = to_object_class(objectToGroup, ObjectToGroup)
 				self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_updateObjects(self: BackendProtocol, objectToGroups: list[dict] | list[ObjectToGroup] | dict | ObjectToGroup) -> None:
 		ace = self._get_ace("objectToGroup_updateObjects")
 		with self._mysql.session() as session:
-			for objectToGroup in forceList(objectToGroups):
-				objectToGroup = forceObjectClass(objectToGroup, ObjectToGroup)
+			for objectToGroup in to_list(objectToGroups):
+				objectToGroup = to_object_class(objectToGroup, ObjectToGroup)
 				self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)

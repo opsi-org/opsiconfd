@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,24 +12,16 @@ from __future__ import annotations
 import socket
 import threading
 from ipaddress import IPv6Address, ip_address
-from subprocess import CalledProcessError, run
 from time import sleep
 from typing import TYPE_CHECKING, Protocol
 
-from opsicommon.exceptions import BackendIOError
-from opsicommon.objects import ConfigState, Host
-from opsicommon.types import (
-	forceHostIdList,
-	forceList,
-	forceObjectClass,
-)
+from opsi.exception import BackendIOError
+from opsi.logging import logger
+from opsi.opsi.service.model.object import ConfigState, Host
+from opsi.opsi.service.model.type import to_host_id_list, to_list, to_object_class
+from opsi.process import ProcessError, run_command
 
-from opsiconfd.dhcpd import (
-	DHCPDControlConfig,
-	dhcpd_lock,
-	get_dhcpd_control_config,
-)
-from opsiconfd.logging import logger
+from opsiconfd.dhcpd import DHCPDControlConfig, dhcpd_lock, get_dhcpd_control_config
 
 from . import backend_event, rpc_method
 
@@ -66,16 +58,8 @@ class ReloadThread(threading.Thread):
 					self._reload_event.clear()
 					try:
 						logger.notice("Reloading dhcpd config using command: '%s'", self._reload_config_command)
-						run(
-							self._reload_config_command,
-							shell=False,
-							check=True,
-							capture_output=True,
-							text=True,
-							encoding="utf-8",
-							timeout=5,
-						)
-					except CalledProcessError as err:
+						run_command(self._reload_config_command, timeout=5)
+					except ProcessError as err:
 						logger.error("Failed to reload dhcpd config: %s", err.output)
 					self._is_reloading = False
 
@@ -117,7 +101,7 @@ class RPCDHCPDControlMixin(Protocol):
 
 		logger.debug("dhcpd_control_hosts_updated: %s", host_ids)
 		deleted_host_ids: list[str] = []
-		for host in self.host_getObjects(type="OpsiClient", id=forceHostIdList(host_ids)):
+		for host in self.host_getObjects(type="OpsiClient", id=to_host_id_list(host_ids)):
 			if not host.hardwareAddress:
 				deleted_host_ids.append(host.id)
 				continue
@@ -137,7 +121,7 @@ class RPCDHCPDControlMixin(Protocol):
 	def dhcpd_control_hosts_deleted(self: BackendProtocol, host_ids: list[str]) -> None:
 		if not self._dhcpd_control_config.enabled or not self.events_enabled:
 			return
-		for host_id in forceHostIdList(host_ids):
+		for host_id in to_host_id_list(host_ids):
 			if self._dhcpd_control_config.dhcpd_on_depot:
 				# Call dhcpd_deleteHost on all non local depots
 				depot_ids = [did for did in self.host_getIdents(returnType="str", type="OpsiDepotserver") if did != self._depot_id]
@@ -153,7 +137,7 @@ class RPCDHCPDControlMixin(Protocol):
 		if not self._dhcpd_control_config.enabled or not self.events_enabled:
 			return
 		object_ids = set()
-		for config_state in forceList(config_states):
+		for config_state in to_list(config_states):
 			if isinstance(config_state, ConfigState):
 				if config_state.configId != "clientconfig.depot.id":
 					continue
@@ -173,7 +157,7 @@ class RPCDHCPDControlMixin(Protocol):
 		self._dhcpd_updateHost(host)
 
 	def _dhcpd_updateHost(self: BackendProtocol, host: Host) -> None:
-		host = forceObjectClass(host, Host)
+		host = to_object_class(host, Host)
 
 		if not host.hardwareAddress:
 			logger.warning("Cannot update dhcpd configuration for client %s: hardware address unknown", host)

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,8 +12,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import ProductOnDepot
-from opsicommon.types import forceList, forceObjectClass
+from opsi.opsi.service.model.object import ProductOnDepot
+from opsi.opsi.service.model.type import to_list, to_object_class
 
 from . import rpc_method
 
@@ -23,18 +23,18 @@ if TYPE_CHECKING:
 
 class RPCProductOnDepotMixin(Protocol):
 	def productOnDepot_bulkInsertObjects(self: BackendProtocol, productOnDepots: list[dict] | list[ProductOnDepot]) -> None:
-		self._mysql.bulk_insert_objects(table="PRODUCT_ON_DEPOT", objs=productOnDepots)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="PRODUCT_ON_DEPOT", objs=productOnDepots)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_insertObject(self: BackendProtocol, productOnDepot: dict | ProductOnDepot) -> None:
 		ace = self._get_ace("productOnDepot_insertObject")
-		productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
+		productOnDepot = to_object_class(productOnDepot, ProductOnDepot)
 		self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_updateObject(self: BackendProtocol, productOnDepot: dict | ProductOnDepot) -> None:
 		ace = self._get_ace("productOnDepot_updateObject")
-		productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
+		productOnDepot = to_object_class(productOnDepot, ProductOnDepot)
 		self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
@@ -43,8 +43,8 @@ class RPCProductOnDepotMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productOnDepot_createObjects")
 		with self._mysql.session() as session:
-			for productOnDepot in forceList(productOnDepots):
-				productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
+			for productOnDepot in to_list(productOnDepots):
+				productOnDepot = to_object_class(productOnDepot, ProductOnDepot)
 				self._mysql.insert_object(
 					table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True, session=session
 				)
@@ -69,8 +69,8 @@ class RPCProductOnDepotMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productOnDepot_updateObjects")
 		with self._mysql.session() as session:
-			for productOnDepot in forceList(productOnDepots):
-				productOnDepot = forceObjectClass(productOnDepot, ProductOnDepot)
+			for productOnDepot in to_list(productOnDepots):
+				productOnDepot = to_object_class(productOnDepot, ProductOnDepot)
 				self._mysql.insert_object(
 					table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=False, session=session
 				)

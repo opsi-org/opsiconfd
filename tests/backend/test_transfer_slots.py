@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
-from opsicommon.exceptions import BackendPermissionDeniedError
+from opsi.exception import BackendPermissionDeniedError
 
 from opsiconfd.backend.rpc.depot import (
 	TRANSFER_SLOT_CONFIGS,

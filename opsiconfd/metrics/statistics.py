@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,7 +15,7 @@ from opsiconfd.backend import get_unprotected_backend
 try:
 	import yappi
 except ImportError:
-	yappi = None  # type: ignore[assignment]
+	yappi = None  # ty: ignore[invalid-assignment]
 from fastapi import FastAPI
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders

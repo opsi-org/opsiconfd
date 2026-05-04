@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,8 +18,8 @@ from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
-from opsicommon.exceptions import OpsiServicePermissionError
-from opsicommon.utils import ip_address_in_network
+from opsi.exception import OpsiServicePermissionError
+from opsi.util.network import ip_address_in_network
 from starlette.status import HTTP_403_FORBIDDEN
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
@@ -302,9 +302,9 @@ def setup_app() -> None:
 	if "public-folder" not in config.disabled_features:
 		public_path.extend(["/public", "/dav/public"])
 
-	app.add_middleware(SessionMiddleware, public_path=public_path)  # type: ignore[arg-type]
-	app.add_middleware(StatisticsMiddleware)  # type: ignore[arg-type]
-	app.add_middleware(BaseMiddleware)  # type: ignore[arg-type]
+	app.add_middleware(SessionMiddleware, public_path=public_path)  # ty: ignore[invalid-argument-type]
+	app.add_middleware(StatisticsMiddleware)  # ty: ignore[invalid-argument-type]
+	app.add_middleware(BaseMiddleware)  # ty: ignore[invalid-argument-type]
 	if os.path.isdir(config.static_dir):
 		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")
 	else:

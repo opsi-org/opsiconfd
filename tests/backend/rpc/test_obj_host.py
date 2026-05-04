@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,7 +15,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from opsicommon.objects import (
+from opsi.opsi.service.model.object import (
 	AuditHardware,
 	AuditSoftware,
 	AuditSoftwareOnClient,
@@ -756,7 +756,7 @@ def _test_host_getObjects(service_client: OpsiconfdTestClient) -> None:
 	res = service_client.post("/rpc", json=rpc).json()
 	assert "error" in res
 	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"
-	assert res["error"]["message"] == "Opsi service permission error: No permission for attribute opsiHostKey"
+	assert res["error"]["message"] == "No permission for attribute opsiHostKey"
 
 
 def test_host_getObjects_acl_file(
@@ -1084,7 +1084,7 @@ def test_host_check_duplicate_hardware_address(
 
 def _create_clients_and_depot(
 	test_client: OpsiconfdTestClient,  # noqa: F811
-) -> tuple(list[dict[str, str], dict[str, str]]):  # type: ignore[valid-type]
+) -> tuple[list[dict[str, str]], dict[str, str]]:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	clients = [

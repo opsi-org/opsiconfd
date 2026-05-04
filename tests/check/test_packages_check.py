@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,7 +11,15 @@ from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
-from opsicommon.objects import Config, ConfigState, LocalbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
+from opsi.opsi.service.model.object import (
+	Config,
+	ConfigState,
+	LocalbootProduct,
+	OpsiClient,
+	OpsiDepotserver,
+	ProductOnClient,
+	ProductOnDepot,
+)
 
 from opsiconfd import __version__
 from opsiconfd.check.common import CheckStatus, check_manager

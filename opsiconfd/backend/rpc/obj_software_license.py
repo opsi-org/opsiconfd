@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,14 +11,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import (
+from opsi.opsi.service.model.object import (
 	ConcurrentSoftwareLicense,
 	OEMSoftwareLicense,
 	RetailSoftwareLicense,
 	SoftwareLicense,
 	VolumeSoftwareLicense,
 )
-from opsicommon.types import forceList
+from opsi.opsi.service.model.type import to_list
 
 from opsiconfd.backend.auth import RPCACE
 
@@ -33,7 +33,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self: BackendProtocol,
 		softwareLicenses: list[dict] | list[SoftwareLicense],
 	) -> None:
-		self._mysql.bulk_insert_objects(table="SOFTWARE_LICENSE", objs=softwareLicenses)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="SOFTWARE_LICENSE", objs=softwareLicenses)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_insertObject(
@@ -60,7 +60,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self._assert_module("license_management")
 		ace = self._get_ace("softwareLicense_createObjects")
 		with self._mysql.session() as session:
-			for softwareLicense in forceList(softwareLicenses):
+			for softwareLicense in to_list(softwareLicenses):
 				self._mysql.insert_object(
 					table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=True, session=session
 				)
@@ -72,7 +72,7 @@ class RPCSoftwareLicenseMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("softwareLicense_updateObjects")
 		with self._mysql.session() as session:
-			for softwareLicense in forceList(softwareLicenses):
+			for softwareLicense in to_list(softwareLicenses):
 				self._mysql.insert_object(
 					table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=False, session=session
 				)

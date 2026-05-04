@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,12 +12,7 @@ import shutil
 import time
 from pathlib import Path
 
-from opsicommon.server.rights import (
-	DirPermission,
-	FilePermission,
-	PermissionRegistry,
-	set_rights,
-)
+from opsi.opsi.service.server import DirPermission, FilePermission, PermissionRegistry, set_rights
 
 from opsiconfd.backend.auth import write_default_acl_conf
 from opsiconfd.config import (

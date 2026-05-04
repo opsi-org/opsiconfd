@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsicommon.objects import LicenseContract
-from opsicommon.types import forceList
+from opsi.opsi.service.model.object import LicenseContract
+from opsi.opsi.service.model.type import to_list
 
 from . import rpc_method
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class RPCLicenseContractMixin(Protocol):
 	def licenseContract_bulkInsertObjects(self: BackendProtocol, licenseContracts: list[dict] | list[LicenseContract]) -> None:
-		self._mysql.bulk_insert_objects(table="LICENSE_CONTRACT", objs=licenseContracts)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="LICENSE_CONTRACT", objs=licenseContracts)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def licenseContract_insertObject(self: BackendProtocol, licenseContract: dict | LicenseContract) -> None:
@@ -42,7 +42,7 @@ class RPCLicenseContractMixin(Protocol):
 		self._assert_module("license_management")
 		ace = self._get_ace("licenseContract_createObjects")
 		with self._mysql.session() as session:
-			for licenseContract in forceList(licenseContracts):
+			for licenseContract in to_list(licenseContracts):
 				self._mysql.insert_object(
 					table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=True, session=session
 				)
@@ -53,7 +53,7 @@ class RPCLicenseContractMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("licenseContract_updateObjects")
 		with self._mysql.session() as session:
-			for licenseContract in forceList(licenseContracts):
+			for licenseContract in to_list(licenseContracts):
 				self._mysql.insert_object(
 					table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=False, session=session
 				)

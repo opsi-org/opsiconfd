@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -18,21 +18,14 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from socket import AF_INET
-from subprocess import CalledProcessError, run
 from threading import RLock
 from time import sleep, time
 from typing import Generator, Literal
 
-from opsicommon.system import lock_file
-from opsicommon.types import (
-	forceBool,
-	forceDict,
-	forceHardwareAddress,
-	forceHostname,
-	forceIPAddress,
-	forceStringLower,
-)
-from opsicommon.utils import ip_address_in_network
+from opsi.opsi.service.model.type import to_bool, to_dict, to_hardware_address, to_hostname, to_ip_address, to_string_lower
+from opsi.process import ProcessError, run_command
+from opsi.system.file.lock import lock_file
+from opsi.util.network import ip_address_in_network
 
 from opsiconfd.backend.rpc import read_backend_config_file
 from opsiconfd.config import OPSICONFD_DIR, config, opsi_config
@@ -402,11 +395,11 @@ class DHCPDConfFile:
 		self, hostname: str, hardware_address: str, ip_address: str, fixed_address: str, parameters: dict[str, str | bool] | None = None
 	) -> None:
 		self._assert_parsed()
-		hostname = forceHostname(hostname)
-		hardware_address = forceHardwareAddress(hardware_address)
-		ip_address = forceIPAddress(ip_address)
-		fixed_address = forceStringLower(fixed_address)
-		parameters = forceDict(parameters or {})
+		hostname = to_hostname(hostname)
+		hardware_address = to_hardware_address(hardware_address)
+		ip_address = to_ip_address(ip_address)
+		fixed_address = to_string_lower(fixed_address)
+		parameters = to_dict(parameters or {})
 
 		existing_host = None
 		for block in self._global_block.get_blocks("host", recursive=True):
@@ -490,7 +483,7 @@ class DHCPDConfFile:
 
 	def get_host(self, hostname: str, inherit: str | None = None) -> dict[str, str | bool] | None:
 		self._assert_parsed()
-		hostname = forceHostname(hostname)
+		hostname = to_hostname(hostname)
 
 		for block in self._global_block.get_blocks("host", recursive=True):
 			if block.settings[1] == hostname:
@@ -499,7 +492,7 @@ class DHCPDConfFile:
 
 	def delete_host(self, hostname: str) -> None:
 		self._assert_parsed()
-		hostname = forceHostname(hostname)
+		hostname = to_hostname(hostname)
 
 		logger.notice("Deleting host '%s' from dhcpd config file '%s'", hostname, self.file_path)
 		host_blocks = []
@@ -521,8 +514,8 @@ class DHCPDConfFile:
 
 	def modify_host(self, hostname: str, parameters: dict[str, str | bool]) -> None:
 		self._assert_parsed()
-		hostname = forceHostname(hostname)
-		parameters = forceDict(parameters)
+		hostname = to_hostname(hostname)
+		parameters = to_dict(parameters)
 
 		logger.notice("Modifying host '%s' in dhcpd config file '%s'", hostname, self.file_path)
 
@@ -674,13 +667,11 @@ def get_dhcpd_service_name() -> str:
 	try:
 		possible_names = ("dhcpd", "isc-dhcp-server", "dhcp3-server", "univention-dhcp")
 		pattern = re.compile(r"^\s*([a-z\-]+)\@?\.service\s+(\S+)\s+")
-		for line in run(
-			["systemctl", "list-unit-files"], shell=False, text=True, encoding="utf-8", check=True, capture_output=True
-		).stdout.split("\n"):
+		for line in run_command(["systemctl", "list-unit-files"], timeout=10.0).get_stdout_lines():
 			match = pattern.match(line)
 			if match and match.group(1) in possible_names and match.group(2) not in ("masked", "disabled"):
 				return match.group(1)
-	except (FileNotFoundError, PermissionError, CalledProcessError) as err:
+	except ProcessError as err:
 		logger.info("Failed to get dhcpd service name: %s", err)
 
 	return "dhcpd"
@@ -790,8 +781,8 @@ def setup_dhcpd() -> None:
 		if dhcpd_control_config.reload_config_command:
 			logger.info("Restarting DHCPD")
 			try:
-				run(dhcpd_control_config.reload_config_command, shell=False, check=True)
-			except (FileNotFoundError, CalledProcessError) as err:
+				run_command(dhcpd_control_config.reload_config_command)
+			except ProcessError as err:
 				logger.warning(err)
 		else:
 			logger.info("DHCPD config changed, but no reload command configured")
@@ -840,7 +831,7 @@ def get_dhcpd_control_config() -> DHCPDControlConfig:
 				logger.error("Bad value %r for fixedAddressFormat, possible values are IP and FQDN", val)
 				continue
 		elif attr in ("dhcpd_on_depot", "enabled"):
-			val = forceBool(val)
+			val = to_bool(val)
 		elif attr == "dhcpd_config_file":
 			val = DHCPDConfFile(val)
 		elif attr == "reload_config_command":

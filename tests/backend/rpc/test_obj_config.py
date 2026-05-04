@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -7,16 +7,16 @@
 test opsiconfd.backend.rpc.obj_config
 """
 
+import asyncio
 import time
 from pathlib import Path
 from threading import Thread
 from time import sleep
 from typing import Any, Generator
-import asyncio
 from unittest.mock import patch
 
 import pytest
-from opsicommon.objects import (
+from opsi.opsi.service.model.object import (
 	BoolConfig,
 	OpsiClient,
 	UnicodeConfig,

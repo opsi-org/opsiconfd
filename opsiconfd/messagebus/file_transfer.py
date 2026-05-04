@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,14 +12,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.file_transfer import process_messagebus_message, stop_running_file_transfers
-from opsicommon.messagebus.message import (
+from opsi.opsi.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	Error,
 	FileDownloadAbortRequestMessage,
 	FileDownloadRequestMessage,
 	FileTransferErrorMessage,
 	FileTransferMessage,
+	process_file_transfer_message,
+	stop_running_file_transfers,
 )
 
 from opsiconfd.config import LOG_DIR, get_depotserver_id
@@ -97,7 +98,7 @@ async def messagebus_filetransfer_start_request_worker() -> None:
 					send_message=redis_send_message,
 					sender=messagebus_worker_id,
 				)
-				await process_messagebus_message(
+				await process_file_transfer_message(
 					message=message,
 					send_message=redis_send_message,
 					sender=messagebus_worker_id,

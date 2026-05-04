@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,9 +13,9 @@ import re
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from opsicommon.exceptions import BackendPermissionDeniedError
-from opsicommon.objects import AuditHardware, AuditHardwareOnHost
-from opsicommon.types import forceList
+from opsi.exception import BackendPermissionDeniedError
+from opsi.opsi.service.model.object import AuditHardware, AuditHardwareOnHost
+from opsi.opsi.service.model.type import to_list
 
 from opsiconfd.backend.auth import RPCACE, RPCACE_ALLOW_ALL
 from opsiconfd.backend.rpc import rpc_method
@@ -30,7 +30,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		self: BackendProtocol, audit_hardware_on_hosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost
 	) -> dict[str, list[AuditHardwareOnHost]]:
 		by_hardware_class = defaultdict(list)
-		for ahoh in forceList(audit_hardware_on_hosts):
+		for ahoh in to_list(audit_hardware_on_hosts):
 			if not isinstance(ahoh, AuditHardwareOnHost):
 				ahoh = AuditHardwareOnHost.fromHash(ahoh)
 			by_hardware_class[ahoh.hardwareClass].append(ahoh)
@@ -149,7 +149,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		hardware_classes = set()
 		hardware_class = filter.get("hardwareClass")
 		if hardware_class not in ([], None):
-			for hwc in forceList(hardware_class):
+			for hwc in to_list(hardware_class):
 				regex = re.compile(f"^{hwc.replace('*', '.*')}$")
 				for key in self._audit_hardware_database_config:
 					if regex.search(key):
@@ -226,14 +226,14 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(
 			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
-		)  # type: ignore[return-value]
+		)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects", check_acl=False)
 	def auditHardwareOnHost_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(
 			ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter
-		)  # type: ignore[return-value]
+		)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_getIdents(
@@ -244,7 +244,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(
 			ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter
-		)  # type: ignore[return-value]
+		)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_deleteObjects(

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -54,12 +54,12 @@ def test_restresponse(data: Any, output: Any) -> None:
 
 def test_restresponse_status_error() -> None:
 	with pytest.raises(TypeError, match="RESTResponse http status must be integer."):
-		RESTResponse(http_status="test")  # type: ignore[arg-type]
+		RESTResponse(http_status="test")  # ty: ignore[invalid-argument-type]
 
 
 def test_restresponse_toral_error() -> None:
 	with pytest.raises(TypeError, match="RESTResponse total must be integer."):
-		RESTResponse(total="test")  # type: ignore[arg-type]
+		RESTResponse(total="test")  # ty: ignore[invalid-argument-type]
 
 
 @pytest.mark.parametrize(

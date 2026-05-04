@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,13 +15,15 @@ from asyncio import Task, create_task, sleep
 from dataclasses import dataclass
 from functools import lru_cache
 from time import time
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
-from opsicommon.messagebus import CONNECTION_SESSION_CHANNEL, CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.compression import compress, decompress
+from opsi.opsi.messagebus import (
+	CONNECTION_SESSION_CHANNEL,
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionOperation,
 	ChannelSubscriptionRequestMessage,
@@ -32,15 +34,11 @@ from opsicommon.messagebus.message import (
 	MessageType,
 	TraceRequestMessage,
 	TraceResponseMessage,
-	timestamp,
+	messagebus_timestamp,
 )
 from starlette.concurrency import run_in_threadpool
 from starlette.endpoints import WebSocketEndpoint
-from starlette.status import (
-	HTTP_401_UNAUTHORIZED,
-	WS_1000_NORMAL_CLOSURE,
-	WS_1011_INTERNAL_ERROR,
-)
+from starlette.status import HTTP_401_UNAUTHORIZED, WS_1000_NORMAL_CLOSURE, WS_1011_INTERNAL_ERROR
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from uvicorn.protocols.utils import ClientDisconnected
@@ -49,7 +47,7 @@ from wsproto.utilities import LocalProtocolError
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, get_configserver_id, get_server_role
 from opsiconfd.logging import get_logger
-from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
+from opsiconfd.utils import asyncio_create_task
 from opsiconfd.worker import Worker
 
 if TYPE_CHECKING:
@@ -148,7 +146,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		self._messagebus_worker_id = get_user_id_for_service_worker(self._worker.id)
 		self._messagebus_user_id = ""
 		self._session_channel = ""
-		self._compression: str | None = None
+		self._compression: Literal["lz4", "gzip"] | None = None
 		self._messagebus_reader: list[MessageReader] = []
 		self._manager_task: Task | None = None
 		self._message_decoder = msgspec.msgpack.Decoder()
@@ -167,11 +165,11 @@ class MessagebusWebsocket(WebSocketEndpoint):
 	async def _send_message_to_websocket(self, websocket: WebSocket, message: Message) -> None:
 		if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 			message.trace = message.trace or {}
-			message.trace["broker_ws_send"] = timestamp()
+			message.trace["broker_ws_send"] = messagebus_timestamp()
 
 		data = message.to_msgpack()
 		if self._compression:
-			data = await run_in_threadpool(compress_data, data, self._compression)
+			data = await run_in_threadpool(compress, data, self._compression)
 
 		if websocket.client_state != WebSocketState.CONNECTED or websocket.application_state != WebSocketState.CONNECTED:
 			logger.debug("Websocket client not connected")
@@ -349,10 +347,10 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					if type(r) is MessageReader
 				]
 				if msr:
-					await msr[0].add_channels(message_reader_channels)  # type: ignore[invalid-argument-type]
+					await msr[0].add_channels(message_reader_channels)  # ty: ignore[invalid-argument-type]
 				else:
 					reader = MessageReader(name=f"{self._messagebus_user_id}/{self._session_channel}")
-					await reader.set_channels(message_reader_channels)  # type: ignore[arg-type]
+					await reader.set_channels(message_reader_channels)  # ty: ignore[invalid-argument-type]
 					self._messagebus_reader.append(reader)
 					asyncio_create_task(self.message_reader_task(websocket, reader))
 
@@ -381,7 +379,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 					status_code=status.HTTP_400_BAD_REQUEST,
 					detail=msg,
 				)
-			self._compression = compression
+			self._compression = cast(Literal["lz4", "gzip"], compression)
 
 		await self.scope["session"].update_messagebus_last_used()
 		await websocket.accept()
@@ -410,9 +408,9 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		message_id = None
 		msg_dict = {}
 		try:
-			receive_timestamp = timestamp()
+			receive_messagebus_timestamp = messagebus_timestamp()
 			if self._compression:
-				data = await run_in_threadpool(decompress_data, data, self._compression)
+				data = await run_in_threadpool(decompress, data, self._compression)
 			msg_dict = self._message_decoder.decode(data)
 			if not isinstance(msg_dict, dict):
 				raise ValueError("Invalid message received")
@@ -450,7 +448,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			else:
 				if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 					message.trace = message.trace or {}
-					message.trace["broker_ws_receive"] = receive_timestamp
+					message.trace["broker_ws_receive"] = receive_messagebus_timestamp
 
 				await send_message(message, self.scope["session"].serialize())
 

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 from urllib.parse import urlparse
 
-from opsicommon.testing.helpers import http_test_server
+from opsi.testing.helper import http_test_server
 
 from opsiconfd.application import app
 from opsiconfd.application.proxy import ReverseProxy

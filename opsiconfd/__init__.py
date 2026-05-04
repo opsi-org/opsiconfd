@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -9,7 +9,7 @@ The opsi configuration service.
 
 from __future__ import annotations
 
-__version__ = "4.3.51.3"
+__version__ = "4.3.52.0"
 
 
 from contextlib import contextmanager
@@ -17,7 +17,7 @@ from contextvars import Context, ContextVar
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Generator
 
-from opsicommon import __version__ as python_opsi_common_version
+from opsi import __version__ as python_opsi_version
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
@@ -32,7 +32,7 @@ def get_version_string() -> str:
 	"""
 	Return the opsiconfd version string.
 	"""
-	return f"{__version__} [python-opsi-common={python_opsi_common_version}]"
+	return f"{__version__} [python-opsi={python_opsi_version}]"
 
 
 def get_contextvars() -> dict[str, Any]:

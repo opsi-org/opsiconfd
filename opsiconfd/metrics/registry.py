@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -9,23 +9,36 @@ metrics
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Type
+from typing import TYPE_CHECKING, Any, Generator, Type
 
 from opsiconfd.config import config
 from opsiconfd.metrics.metric import ALL_METRICS
-from opsiconfd.utils import Singleton
 
 if TYPE_CHECKING:
 	from opsiconfd.metrics.metric import Metric
 
 
-class MetricsRegistry(metaclass=Singleton):
+class MetricsRegistry:
+	_instance: MetricsRegistry | None = None
+
+	def __new__(cls, *args: Any, **kwargs: Any) -> MetricsRegistry:
+		if not cls._instance:
+			cls._instance = super().__new__(cls, *args, **kwargs)
+		return cls._instance
+
 	def __init__(self) -> None:
+		if getattr(self, "_initialized", False):
+			return
+		self._initialized = True
 		self._metrics_by_id: dict[str, Metric] = {}
 		for metric in ALL_METRICS:
 			if config.disabled_metrics and metric.id in config.disabled_metrics:
 				continue
 			self.register(metric)
+
+	@classmethod
+	def reset_singleton(cls) -> None:
+		cls._instance = None
 
 	def register(self, *metric: Metric) -> None:
 		for met in metric:

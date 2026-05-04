@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -28,6 +28,7 @@ from .backend.rpc.test_obj_product_on_depot import create_test_pods
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
+	MockProcess,
 	OpsiconfdTestClient,
 	clean_mysql,
 	get_config,
@@ -64,20 +65,24 @@ def test_os_release(tmp_path: Path) -> None:
 
 
 def test_lsb_release() -> None:
-	class Proc:
-		stdout = (
-			"No LSB modules are available.\n"
-			"Distributor ID:	Debian\n"
-			"Description:	Debian GNU/Linux 10 (buster)\n"
-			"Release:	10\n"
-			"Codename:	buster\n"
-		)
-
 	with patch("opsiconfd.diagnostic.LSB_RELASE_COMMAND", ["fail_command"]):
 		data = get_lsb_release()
 		assert not data
 
-	with patch("opsiconfd.diagnostic.run", PropertyMock(return_value=Proc())):
+	with patch(
+		"opsiconfd.diagnostic.run_command",
+		PropertyMock(
+			return_value=MockProcess(
+				stdout=(
+					"No LSB modules are available.\n"
+					"Distributor ID:	Debian\n"
+					"Description:	Debian GNU/Linux 10 (buster)\n"
+					"Release:	10\n"
+					"Codename:	buster\n"
+				)
+			)
+		),
+	):
 		data = get_lsb_release()
 		assert data["DISTRIBUTOR_ID"] == "Debian"
 		assert data["DESCRIPTION"] == "Debian GNU/Linux 10 (buster)"
@@ -132,7 +137,7 @@ def test_get_disk_info() -> None:
 	with patch("opsiconfd.diagnostic.get_disk_mountpoints", get_disk_mountpoints):
 		with patch("psutil.disk_usage", PropertyMock(return_value=DiskInfo())):
 			info = get_disk_info()
-			data: dict[str, Any] = info.get("/var/lib/opsi")  # type: ignore
+			data: dict[str, Any] = info.get("/var/lib/opsi")  # ty: ignore
 			assert data.get("total") == 8589934592
 			assert data["used"] == 4294967296
 			assert data["free"] == 4294967296
@@ -142,23 +147,27 @@ def test_get_disk_info() -> None:
 
 
 def test_get_system_info() -> None:
-	class Hostnamectl:
-		stdout = """
-			Static hostname: test-t590
-			Icon name: computer-laptop
-			Chassis: laptop
-			Machine ID: fooblabla
-			Boot ID: blablafoo
-			Operating System: Zorin OS 16.2
-			Kernel: Linux 5.15.0-58-generic
-			Architecture: x86-64
-		"""
-
 	def running_in_docker() -> bool:
 		return False
 
 	with (
-		patch("opsiconfd.diagnostic.run", PropertyMock(return_value=Hostnamectl())),
+		patch(
+			"opsiconfd.diagnostic.run_command",
+			PropertyMock(
+				return_value=MockProcess(
+					stdout=(
+						"Static hostname: test-t590\n"
+						"Icon name: computer-laptop\n"
+						"Chassis: laptop\n"
+						"Machine ID: fooblabla\n"
+						"Boot ID: blablafoo\n"
+						"Operating System: Zorin OS 16.2\n"
+						"Kernel: Linux 5.15.0-58-generic\n"
+						"Architecture: x86-64\n"
+					)
+				)
+			),
+		),
 		patch("opsiconfd.diagnostic.running_in_docker", running_in_docker),
 	):
 		data = get_system_info()

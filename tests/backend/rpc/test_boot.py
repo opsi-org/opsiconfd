@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -17,7 +17,15 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from opsicommon.objects import BoolConfig, NetbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot, UnicodeConfig
+from opsi.opsi.service.model.object import (
+	BoolConfig,
+	NetbootProduct,
+	OpsiClient,
+	OpsiDepotserver,
+	ProductOnClient,
+	ProductOnDepot,
+	UnicodeConfig,
+)
 
 from opsiconfd.backend.rpc.boot import (
 	BootConfig,
@@ -92,7 +100,7 @@ def test_TemplateContext_linux_cmdline() -> None:
 	)
 	context.config_states["netboot.linux-bootimage.cmdline.option1"] = TemplateContextConfigState(
 		id="netboot.linux-bootimage.cmdline.option1",
-		values=["", None],  # type: ignore
+		values=["", None],  # ty: ignore
 	)
 	context.config_states["netboot.linux-bootimage.cmdline.sub1.sub2.option2"] = TemplateContextConfigState(
 		id="netboot.linux-bootimage.cmdline.sub1.sub2.option2",
@@ -314,7 +322,7 @@ def test_TemplateContext_product_property_state_cmdline(
 		}
 
 	with patch.object(backend, "productPropertyState_getValues", mock_productPropertyState_getValues):
-		context = backend._get_boot_config_template_context(  # type: ignore[misc,call-arg]
+		context = backend._get_boot_config_template_context(  # ty: ignore[invalid-argument-type]
 			depot=OpsiDepotserver(id="depot1.opsi.test"),
 			client=OpsiClient(id=client_id),
 			product=NetbootProduct(id=product_id, productVersion="7.20", packageVersion="1", name="Memtest86+"),

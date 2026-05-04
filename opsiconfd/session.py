@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -25,20 +25,14 @@ import pyotp
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationException
 from fastapi.requests import HTTPConnection
-from fastapi.responses import (
-	JSONResponse,
-	PlainTextResponse,
-	RedirectResponse,
-	Response,
-)
-from opsicommon.exceptions import (
-	OpsiServiceAuthenticationError,
-	OpsiServicePermissionError,
-)
-from opsicommon.logging import secret_filter, set_context
-from opsicommon.objects import Host, OpsiClient, User
-from opsicommon.types import forceHardwareAddress, forceUUIDString
-from opsicommon.utils import ip_address_in_network, unix_timestamp, utc_timestamp
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
+from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermissionError
+from opsi.logging import secret_filter, set_context
+from opsi.opsi.service.model.object import Host, OpsiClient, User
+from opsi.opsi.service.model.object._object import opsi_timestamp
+from opsi.opsi.service.model.type import to_hardware_address, to_uuid_string
+from opsi.time import unix_timestamp
+from opsi.util.network import ip_address_in_network
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
@@ -1013,9 +1007,9 @@ class OPSISession:
 					des["host_type"] = host.getType()
 				continue
 			elif attr == "user_groups":
-				val = set(msgspec.msgpack.decode(val))  # type: ignore
+				val = set(msgspec.msgpack.decode(val))  # ty: ignore
 			elif attr == "auth_methods":
-				val = set(AuthenticationMethod(v) for v in msgspec.msgpack.decode(val))  # type: ignore
+				val = set(AuthenticationMethod(v) for v in msgspec.msgpack.decode(val))  # ty: ignore
 			elif attr in ("authenticated", "is_admin", "is_read_only"):
 				val = bool(int(val))
 			elif isinstance(val, bytes):
@@ -1025,7 +1019,7 @@ class OPSISession:
 
 	@classmethod
 	def from_serialized(cls, data: dict[str, float | int | bytes | str]) -> OPSISession:
-		data = cls.deserialize(data)  # type: ignore
+		data = cls.deserialize(data)  # ty: ignore
 		obj = cls(data["client_addr"])
 		for attr, val in data.items():
 			try:
@@ -1133,7 +1127,7 @@ class OPSISession:
 		if data:
 			logger.debug("Store session in redis")
 			async with redis.pipeline() as pipe:
-				pipe.hset(self.redis_key, mapping=data)  # type: ignore
+				pipe.hset(self.redis_key, mapping=data)  # ty: ignore
 				pipe.expire(self.redis_key, self._redis_expiration_seconds)
 				if first_store:
 					ip_key = f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(self.client_addr)}"
@@ -1213,11 +1207,11 @@ async def authenticate_host(scope: Scope) -> None:
 		host_filter["opsiHostKey"] = session.password
 	elif session.username.startswith("{hardware_address}") or HARDWARE_ADDRESS_RE.search(session.username):
 		logger.debug("Trying to authenticate host by mac address and OPSI host key")
-		host_filter["hardwareAddress"] = forceHardwareAddress(session.username.replace("{hardware_address}", ""))
+		host_filter["hardwareAddress"] = to_hardware_address(session.username.replace("{hardware_address}", ""))
 		auth_method = AuthenticationMethod.HARDWARE_ADDRESS
 	elif session.username.startswith("{system_uuid}"):
 		logger.debug("Trying to authenticate host by system UUID and OPSI host key")
-		host_filter["systemUUID"] = forceUUIDString(session.username.replace("{system_uuid}", ""))
+		host_filter["systemUUID"] = to_uuid_string(session.username.replace("{system_uuid}", ""))
 		auth_method = AuthenticationMethod.SYSTEM_UUID
 	else:
 		logger.debug("Trying to authenticate host by host id and OPSI host key")
@@ -1294,7 +1288,7 @@ async def authenticate_host(scope: Scope) -> None:
 
 	if host_type == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
-		host.setLastSeen(utc_timestamp())
+		host.setLastSeen(opsi_timestamp())
 		if config.update_ip and session.client_addr not in (None, "127.0.0.1", "::1", host.ipAddress):
 			host.setIpAddress(session.client_addr)
 		else:
@@ -1353,10 +1347,10 @@ async def post_user_authenticate(scope: Scope) -> None:
 	backend = get_unprotected_backend()
 
 	if users := await backend.async_call("user_getObjects", id=session.username):
-		users[0].lastLogin = utc_timestamp()
+		users[0].lastLogin = opsi_timestamp()
 		await backend.async_call("user_updateObject", user=users[0])
 	else:
-		await backend.async_call("user_insertObject", user=User(id=session.username, created=utc_timestamp(), lastLogin=utc_timestamp()))
+		await backend.async_call("user_insertObject", user=User(id=session.username, created=opsi_timestamp(), lastLogin=opsi_timestamp()))
 
 	if session.is_admin:
 		create_user_roles(session.username, session.user_groups)

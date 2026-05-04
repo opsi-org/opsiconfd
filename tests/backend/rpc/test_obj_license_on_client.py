@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -8,8 +8,8 @@ test opsiconfd.backend.rpc.obj_license_on_client
 """
 
 import pytest
-from opsicommon.exceptions import LicenseMissingError
-from opsicommon.objects import (
+from opsi.exception import OpsiLicenseMissingError
+from opsi.opsi.service.model.object import (
 	AuditSoftware,
 	AuditSoftwareToLicensePool,
 	LicenseContract,
@@ -147,7 +147,7 @@ def test_licenseOnClient_getOrCreateObject(
 							backend.licenseOnClient_deleteObjects([license_on_client])
 							# Acquire license for client4 which will fail
 							expected_error = (
-								r"License missing error: No license available for pool 'test-pool-1' and client 'test-client-4.opsi.org',"
+								r"No license available for pool 'test-pool-1' and client 'test-client-4.opsi.org',"
 								r" or all remaining licenses are bound to a different host."
 							)
 							if jsonrpc:
@@ -155,7 +155,7 @@ def test_licenseOnClient_getOrCreateObject(
 								assert res["error"]["message"] == expected_error
 							else:
 								with pytest.raises(
-									LicenseMissingError,
+									OpsiLicenseMissingError,
 									match=expected_error,
 								):
 									backend.licenseOnClient_getOrCreateObject(**kwargs)
@@ -190,16 +190,16 @@ def test_licenseOnClient_getOrCreateObject_2(
 	backend.licenseOnClient_getOrCreateObject(clientId=client1.id, licensePoolId=pool1.id)
 	backend.licenseOnClient_getOrCreateObject(clientId=client2.id, licensePoolId=pool1.id)
 	with pytest.raises(
-		LicenseMissingError,
-		match=r"License missing error: No license available for pool 'test-pool-1' and client 'test-client-3.opsi.org', or all remaining licenses are bound to a different host.",
+		OpsiLicenseMissingError,
+		match=r"No license available for pool 'test-pool-1' and client 'test-client-3.opsi.org', or all remaining licenses are bound to a different host.",
 	):
 		backend.licenseOnClient_getOrCreateObject(clientId=client3.id, licensePoolId=pool1.id)
 
 	backend.deleteSoftwareLicenseUsage(hostId=client1.id, licensePoolId=pool1.id)
 	backend.licenseOnClient_getOrCreateObject(clientId=client3.id, licensePoolId=pool1.id)
 	with pytest.raises(
-		LicenseMissingError,
-		match=r"License missing error: No license available for pool 'test-pool-1' and client 'test-client-1.opsi.org', or all remaining licenses are bound to a different host.",
+		OpsiLicenseMissingError,
+		match=r"No license available for pool 'test-pool-1' and client 'test-client-1.opsi.org', or all remaining licenses are bound to a different host.",
 	):
 		backend.licenseOnClient_getOrCreateObject(clientId=client1.id, licensePoolId=pool1.id)
 

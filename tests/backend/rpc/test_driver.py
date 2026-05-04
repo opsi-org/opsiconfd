@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,9 +11,10 @@ from typing import Iterator
 from unittest.mock import patch
 
 import pytest
-from opsicommon.exceptions import BackendError
-from opsicommon.objects import AuditHardwareOnHost, NetbootProduct, OpsiClient, ProductProperty, ProductPropertyState
-from opsisystem.inffile import Architecture, INFTargetOSVersion
+from opsi.exception import BackendError
+from opsi.file.inf import INFTargetOSVersion
+from opsi.opsi.service.model.object import AuditHardwareOnHost, NetbootProduct, OpsiClient, ProductProperty, ProductPropertyState
+from opsi.opsi.service.model.type import Architecture
 
 from opsiconfd.backend.rpc.driver import find_wim_files
 from tests.utils import UnprotectedBackend, backend, clean_mysql  # noqa: F401
@@ -169,7 +170,7 @@ def test_driver_get_architecture_and_os_version_from_wim_image(
 		patch("opsiconfd.backend.rpc.driver.get_target_os_versions", mock_get_target_os_versions),
 	):
 		try:
-			backend._get_architecture_and_os_version_from_wim_image(product_id=product.id, client_id=client.id)  # type: ignore[misc]
+			backend._get_architecture_and_os_version_from_wim_image(product_id=product.id, client_id=client.id)  # ty: ignore[invalid-argument-type]
 		except BackendError:
 			pass
 

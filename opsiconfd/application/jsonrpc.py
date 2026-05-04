@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -20,36 +20,33 @@ from datetime import datetime, timezone
 from inspect import iscoroutinefunction
 from os import makedirs
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, AsyncGenerator, cast
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Literal, cast
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
-from opsicommon.client.opsiservice import Messagebus, MessagebusListener
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.compression import compress, decompress
+from opsi.opsi.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
 )
-from opsicommon.objects import deserialize, serialize
+from opsi.opsi.service.client import Messagebus, MessagebusListener
+from opsi.opsi.service.model.object import deserialize, serialize
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
-from opsiconfd.backend import (
-	get_protected_backend,
-	get_service_client,
-	get_unprotected_backend,
-)
+from opsiconfd.backend import get_protected_backend, get_service_client, get_unprotected_backend
 from opsiconfd.config import DEPRECATED_RPC_CALL_EXPIRE_SECONDS, RPC_DEBUG_DIR, config, get_depotserver_id, get_server_role
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_messagebus_worker_id
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
 from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession
-from opsiconfd.utils import asyncio_create_task, compress_data, decompress_data
+from opsiconfd.utils import asyncio_create_task
 from opsiconfd.worker import Worker
 
 if TYPE_CHECKING:
@@ -140,7 +137,7 @@ async def async_jsonrpc_shutdown() -> None:
 		await jsonrpc_message_reader.stop()
 
 
-def get_compression(content_encoding: str) -> str | None:
+def get_compression(content_encoding: str) -> Literal["lz4", "deflate", "gzip"] | None:
 	if not content_encoding:
 		return None
 	content_encoding = content_encoding.lower()
@@ -152,16 +149,16 @@ def get_compression(content_encoding: str) -> str | None:
 		return "deflate"
 	if "gzip" in content_encoding:
 		return "gzip"
-	raise ValueError(f"Unhandled Content-Encoding {content_encoding!r}")
+	raise ValueError(f"Invalid Content-Encoding {content_encoding!r}")
 
 
-def get_request_compression(request: Request) -> str | None:
+def get_request_compression(request: Request) -> Literal["lz4", "deflate", "gzip"] | None:
 	content_encoding = request.headers.get("content-encoding", "")
 	logger.debug("Content-Encoding: %r", content_encoding)
 	return get_compression(content_encoding)
 
 
-def get_response_compression(request: Request) -> str | None:
+def get_response_compression(request: Request) -> Literal["lz4", "deflate", "gzip"] | None:
 	content_encoding = request.headers.get("accept-encoding", "")
 	logger.debug("Accept-Encoding: %r", content_encoding)
 	return get_compression(content_encoding)
@@ -507,7 +504,8 @@ async def process_request(request: Request, response: Response) -> Response:
 		if request_data:
 			if request_compression:
 				with server_timing("decompression"):
-					request_data = await run_in_threadpool(decompress_data, request_data, request_compression)
+					assert request_compression
+					request_data = await run_in_threadpool(decompress, request_data, request_compression)
 		else:
 			request_data = urllib.parse.unquote(request.url.query).encode("utf-8")
 		if not request_data:
@@ -539,12 +537,12 @@ async def process_request(request: Request, response: Response) -> Response:
 	data_len = len(data)
 	if response_compression and data_len > COMPRESS_MIN_SIZE:
 		response.headers["content-encoding"] = response_compression
-		lz4_block_linked = True
+		block_linked = True
 		if request.headers.get("user-agent", "").lower().startswith(("opsi config editor", "opsi-configed")):
 			# lz4-java - RuntimeException: Dependent block stream is unsupported (BLOCK_INDEPENDENCE must be set).
-			lz4_block_linked = False
+			block_linked = False
 		with server_timing("compression"):
-			data = await run_in_threadpool(compress_data, data, response_compression, 0, lz4_block_linked)
+			data = await run_in_threadpool(compress, data, response_compression, block_linked=block_linked)
 
 	content_length = len(data)
 	response.headers["content-length"] = str(content_length)

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,17 +16,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 import pyotp
-from opsicommon.exceptions import BackendMissingDataError
-from opsicommon.logging import secret_filter
-from opsicommon.objects import User
-from opsicommon.types import forceHostId, forceList
+from opsi.crypt.blowfish import blowfish_encrypt
+from opsi.exception import BackendMissingDataError
+from opsi.logging import secret_filter
+from opsi.opsi.service.model.object import User
+from opsi.opsi.service.model.type import to_host_id, to_list
 from qrcode import QRCode
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, set_system_user_password
-from opsiconfd.utils.cryptography import HashingAlgorithm, blowfish_encrypt, create_password_hash, decrypt, encrypt
+from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, decrypt, encrypt
 
 from . import rpc_method
 
@@ -50,7 +51,7 @@ class RPCUserMixin(Protocol):
 		self: BackendProtocol,
 		users: list[dict] | list[User],
 	) -> None:
-		self._mysql.bulk_insert_objects(table="USER", objs=users)  # type: ignore[arg-type]
+		self._mysql.bulk_insert_objects(table="USER", objs=users)  # ty: ignore[invalid-argument-type]
 
 	@rpc_method(check_acl=False)
 	def user_insertObject(self: BackendProtocol, user: dict | User) -> None:
@@ -69,7 +70,7 @@ class RPCUserMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("user_createObjects")
 		with self._mysql.session() as session:
-			for user in forceList(users):
+			for user in to_list(users):
 				self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
@@ -79,7 +80,7 @@ class RPCUserMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("user_updateObjects")
 		with self._mysql.session() as session:
-			for user in forceList(users):
+			for user in to_list(users):
 				self._mysql.insert_object(table="USER", obj=user, ace=ace, create=True, set_null=False, session=session)
 
 	def _user_getObjects(
@@ -210,7 +211,7 @@ class RPCUserMixin(Protocol):
 			logger.debug(err)
 
 		if hostId:
-			hostId = forceHostId(hostId)
+			hostId = to_host_id(hostId)
 			host = self.host_getObjects(id=hostId, attributes=["opsiHostKey"])
 			try:
 				host = host[0]

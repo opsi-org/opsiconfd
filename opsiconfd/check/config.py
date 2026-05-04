@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from opsicommon.logging.constants import LEVEL_TO_NAME, LOG_DEBUG, LOG_TRACE, OPSI_LEVEL_TO_LEVEL
+from opsi.logging import LEVEL_TO_NAME, LOG_DEBUG, LOG_TRACE, OPSI_LEVEL_TO_LEVEL
 
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.auth import read_acl_file

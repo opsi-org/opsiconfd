@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -19,12 +19,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
-from opsicommon.exceptions import (
+from opsi.exception import (
 	BackendAuthenticationError,
 	BackendBadValueError,
 	BackendPermissionDeniedError,
 )
-from opsicommon.license import (
+from opsi.opsi.licensing import (
 	OPSI_CLIENT_INACTIVE_AFTER,
 	OPSI_LICENSE_CLIENT_NUMBER_UNLIMITED,
 	OPSI_LICENSE_DATE_UNLIMITED,
@@ -35,7 +35,7 @@ from opsicommon.license import (
 	OpsiModulesFile,
 	get_default_opsi_license_pool,
 )
-from opsicommon.types import forceBool, forceObjectId
+from opsi.opsi.service.model.type import to_bool, to_object_id
 from typing_extensions import Literal
 
 from opsiconfd import __version__, contextvar_client_address, contextvar_client_session
@@ -472,8 +472,8 @@ class RPCGeneralMixin(Protocol):
 		if not objectId:
 			raise BackendBadValueError(f"Writing {log_type} log requires an objectId")
 
-		object_id = forceObjectId(objectId)
-		append = forceBool(append)
+		object_id = to_object_id(objectId)
+		append = to_bool(append)
 
 		bdata = data.encode("utf-8", "replace")
 		if len(bdata) > LOG_SIZE_HARD_LIMIT:
@@ -542,7 +542,7 @@ class RPCGeneralMixin(Protocol):
 			raise BackendBadValueError(f"Unknown log type '{log_type}'")
 
 		if objectId:
-			objectId = forceObjectId(objectId)
+			objectId = to_object_id(objectId)
 			log_file = os.path.join(LOG_DIR, log_type, f"{objectId}.log")
 		else:
 			if LOG_TYPES[log_type]:

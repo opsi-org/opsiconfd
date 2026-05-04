@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -45,7 +45,7 @@ def test_ssh_commands_file(tmp_path: Path) -> None:
 		patch("opsiconfd.backend.rpc.ext_ssh_commands.RPCExtSSHCommandsMixin.ssh_commands_custom_file", str(ssh_commands_custom_file)),
 	):
 		backend = Backend()
-		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_default_file))  # type: ignore[misc]
+		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_default_file))  # ty: ignore[invalid-argument-type]
 		assert len(cmd_list) == 2
 
 		assert cmd_list[0].position == 0
@@ -66,7 +66,7 @@ def test_ssh_commands_file(tmp_path: Path) -> None:
 		assert cmd_list[1].id == "whoami"
 		assert cmd_list[1].buildIn is True
 
-		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # type: ignore[misc]
+		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # ty: ignore[invalid-argument-type]
 		assert len(cmd_list) == 2
 
 		assert cmd_list[0].position == 3
@@ -87,7 +87,7 @@ def test_ssh_commands_file(tmp_path: Path) -> None:
 		assert cmd_list[1].id == "whoami_custom"
 		assert cmd_list[1].buildIn is False
 
-		cmd_dict = backend._read_ssh_commands_files()  # type: ignore[misc]
+		cmd_dict = backend._read_ssh_commands_files()  # ty: ignore[invalid-argument-type]
 		assert len(cmd_dict) == 3
 
 		assert cmd_dict["ls workbench"].commands == ["ls -l /var/lib/opsi/custom"]
@@ -99,7 +99,7 @@ def test_ssh_commands_file(tmp_path: Path) -> None:
 		cmd_dict[new_cmd.menuText] = new_cmd
 
 		backend._write_custom_ssh_command_file(list(cmd_dict.values()))
-		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # type: ignore[misc]
+		cmd_list = backend._read_ssh_commands_file(str(ssh_commands_custom_file))  # ty: ignore[invalid-argument-type]
 		assert len(cmd_list) == 3
 		_new_cmd = None
 		for cmd in cmd_list:

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -28,7 +28,6 @@ from opsiconfd.application import app
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client
-from opsiconfd.utils import Singleton
 
 if TYPE_CHECKING:
 	from importlib._bootstrap import ModuleSpec
@@ -61,13 +60,13 @@ class AddonImporter(BuiltinImporter):
 		init_path = os.path.join(addon_path, "python", "__init__.py")
 		if not exists(init_path):
 			return None
-		return importlib.util.spec_from_file_location(fullname, init_path)  # type: ignore[possibly-missing-attribute]
+		return importlib.util.spec_from_file_location(fullname, init_path)  # ty: ignore[possibly-missing-submodule]
 
 
-sys.meta_path.append(AddonImporter)  # type: ignore[arg-type]
+sys.meta_path.append(AddonImporter)  # ty: ignore[invalid-argument-type]
 
 
-class AddonManager(metaclass=Singleton):
+class AddonManager:
 	"""
 	Manages opsiconfd addons.
 
@@ -79,7 +78,12 @@ class AddonManager(metaclass=Singleton):
 		_addons (dict[str, Addon]): A dictionary of loaded addons, keyed by addon ID.
 	"""
 
-	_initialized = False
+	_instance: AddonManager | None = None
+
+	def __new__(cls) -> AddonManager:
+		if cls._instance is None:
+			cls._instance = super(AddonManager, cls).__new__(cls)
+		return cls._instance
 
 	def __init__(self) -> None:
 		"""
@@ -87,7 +91,7 @@ class AddonManager(metaclass=Singleton):
 
 		Ensures that the manager is initialized only once.
 		"""
-		if self._initialized:
+		if getattr(self, "_initialized", False):
 			return
 		self._initialized = True
 		self._addons: dict[str, Addon] = {}

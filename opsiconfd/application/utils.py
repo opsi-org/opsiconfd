@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -150,7 +150,7 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 		self._check_session_task: Task
 
 	async def _check_authorization(self) -> None:
-		session: OPSISession = self.scope.get("session")  # type: ignore[assignment]
+		session: OPSISession = self.scope.get("session")  # ty: ignore[invalid-assignment]
 		if not session:
 			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
 

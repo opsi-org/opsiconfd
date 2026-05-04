@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import uvloop
 from anyio import to_thread
-from opsicommon.utils import ip_address_in_network, patch_popen
+from opsi.util.network import ip_address_in_network
 from uvicorn.config import HTTP_PROTOCOLS, WS_PROTOCOLS, Config
 from uvicorn.protocols.http.h11_impl import H11Protocol
 from uvicorn.protocols.websockets.websockets_sansio_impl import WebSocketsSansIOProtocol
@@ -67,10 +67,10 @@ class H11ProtocolOpsiconfd(H11Protocol):
 		return super()._get_upgrade()
 
 
-WS_PROTOCOLS["wsproto_opsiconfd"] = WSProtocolOpsiconfd  # type: ignore
-WS_PROTOCOLS["websockets_opsiconfd"] = WebSocketProtocolOpsiconfd  # type: ignore
-WS_PROTOCOLS["websockets-sansio"] = WebSocketsSansIOProtocol  # type: ignore
-HTTP_PROTOCOLS["h11_opsiconfd"] = H11ProtocolOpsiconfd  # type: ignore
+WS_PROTOCOLS["wsproto_opsiconfd"] = WSProtocolOpsiconfd  # ty: ignore
+WS_PROTOCOLS["websockets_opsiconfd"] = WebSocketProtocolOpsiconfd  # ty: ignore
+WS_PROTOCOLS["websockets-sansio"] = WebSocketsSansIOProtocol  # ty: ignore
+HTTP_PROTOCOLS["h11_opsiconfd"] = H11ProtocolOpsiconfd  # ty: ignore
 
 
 def memory_cleanup() -> None:
@@ -119,7 +119,7 @@ def get_uvicorn_config() -> Config:
 			options["ssl_cert_reqs"] = ssl.CERT_OPTIONAL
 			options["ssl_ca_certs"] = config.ssl_ca_cert
 
-	return Config("opsiconfd.application:app", **options)  # type: ignore[invalid-argument-type]
+	return Config("opsiconfd.application:app", **options)  # ty: ignore[invalid-argument-type]
 
 
 class WorkerState(StrEnum):
@@ -316,7 +316,6 @@ class Worker(WorkerInfo, UvicornServer):
 			raise RuntimeError(f"{self} was forked with multiple threads: {', '.join(running_threads)}.")
 
 		faulthandler.enable(file=sys.stderr, all_threads=True)
-		patch_popen()
 		configure_warnings()
 		if "markupsafe-native" in config.development_options:
 			logger.info("Using markupsafe native")

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -10,7 +10,7 @@ check opsi disk usage
 from __future__ import annotations
 
 from fastapi.responses import JSONResponse
-from opsicommon.types import forceList
+from opsi.opsi.service.model.type import to_list
 
 from opsiconfd.config import DEPOT_DIR, REPOSITORY_DIR, WORKBENCH_DIR
 from opsiconfd.utils import get_disk_usage
@@ -27,7 +27,7 @@ def check_opsi_disk_usage(thresholds: dict[str, str] | None = None, opsiresource
 	dirs = {"workbench": WORKBENCH_DIR, "depot": DEPOT_DIR, "repository": REPOSITORY_DIR}
 
 	if opsiresource:
-		resources = forceList(opsiresource)
+		resources = to_list(opsiresource)
 	else:
 		resources = ["workbench", "depot", "repository"]
 		resources.sort()

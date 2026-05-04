@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -17,8 +17,6 @@ import threading
 import time
 from io import UnsupportedOperation
 
-from opsicommon.utils import patch_popen
-
 from opsiconfd import __version__
 from opsiconfd.config import (
 	GC_THRESHOLDS,
@@ -35,7 +33,6 @@ from opsiconfd.redis import delete_locks, redis_client
 from opsiconfd.setup import setup
 from opsiconfd.utils import get_manager_process, get_python_info, log_config, log_python_info, switch_to_user
 
-patch_popen()
 configure_warnings()
 
 

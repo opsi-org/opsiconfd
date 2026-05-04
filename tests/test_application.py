@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,7 +16,7 @@ import pytest
 from fastapi import status
 from fastapi.websockets import WebSocketDisconnect
 from msgspec import msgpack
-from opsicommon.logging import use_logging_config
+from opsi.logging import use_logging_config
 
 from opsiconfd.application import (
 	AppState,
@@ -96,9 +96,9 @@ def test_app_state_from_dict() -> None:
 	state_dict = state.to_dict()
 	state2 = AppState.from_dict(state_dict)
 	assert type(state) is type(state2)
-	assert state.retry_after == state2.retry_after  # type: ignore[attr-defined]
-	assert state.message == state2.message  # type: ignore[attr-defined]
-	assert state.address_exceptions == state2.address_exceptions  # type: ignore[attr-defined]
+	assert state.retry_after == state2.retry_after  # ty: ignore[unresolved-attribute]
+	assert state.message == state2.message  # ty: ignore[unresolved-attribute]
+	assert state.address_exceptions == state2.address_exceptions  # ty: ignore[unresolved-attribute]
 
 
 def test_maintenance(

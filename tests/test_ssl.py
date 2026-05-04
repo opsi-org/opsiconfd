@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -10,7 +10,6 @@ ssl tests
 import datetime
 import os
 import re
-import subprocess
 import time
 from pathlib import Path
 from typing import Any
@@ -21,7 +20,8 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509 import verification
-from opsicommon.ssl.linux import SystemCACertInfo
+from opsi.process import run_command
+from opsi.system.certificate_store._linux import SystemCACertInfo
 
 import opsiconfd.ssl
 from opsiconfd.application.main import get_ssl_ca_certs, get_ssl_opsi_ca_cert
@@ -155,7 +155,9 @@ def test_store_load_cert(tmp_path: Path) -> None:
 	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
 	with get_config({"ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key), "ssl_ca_key_passphrase": "secret"}):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				# Test one cert in file
 				setup_opsi_ca()
 
@@ -202,11 +204,11 @@ def test_store_load_cert(tmp_path: Path) -> None:
 				cert = load_opsi_ca_cert()
 				assert cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value == "opsi CA"
 
-				response = get_ssl_opsi_ca_cert(None)  # type: ignore[invalid-argument-type]
+				response = get_ssl_opsi_ca_cert(None)  # ty: ignore[invalid-argument-type]
 				body = response.body.tobytes() if isinstance(response.body, memoryview) else response.body
 				assert body.decode("ascii") == as_pem(cert)
 
-				response = get_ssl_ca_certs(None)  # type: ignore[invalid-argument-type]
+				response = get_ssl_ca_certs(None)  # ty: ignore[invalid-argument-type]
 				body = response.body.tobytes() if isinstance(response.body, memoryview) else response.body
 				assert body.decode("ascii") == "".join(as_pem(c) for c in certs)
 
@@ -217,7 +219,9 @@ def test_create_ca(tmp_path: Path) -> None:
 
 	with get_config({"ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key), "ssl_ca_key_passphrase": "secret"}) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				setup_opsi_ca()
 				assert "-----BEGIN CERTIFICATE-----" in ssl_ca_cert.read_text(encoding="utf-8")
 				assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_ca_key.read_text(encoding="utf-8")
@@ -239,22 +243,19 @@ def test_create_ca(tmp_path: Path) -> None:
 
 				info = get_opsi_ca_cert_info()
 
-				out = subprocess.check_output(["openssl", "x509", "-noout", "-text", "-in", conf.ssl_ca_cert]).decode("utf-8")
+				out = run_command(["openssl", "x509", "-noout", "-text", "-in", conf.ssl_ca_cert]).get_output_text()
 				match = re.search(r"Serial Number:\s*\n\s*([a-f0-9:]+)", out)
 				assert match
 				openssl_serial = match.group(1)
 				assert info["serial_number"].lstrip("0:") == openssl_serial.lstrip("0:").upper()
-				out = subprocess.check_output(["openssl", "x509", "-noout", "-fingerprint", "-sha256", "-in", conf.ssl_ca_cert]).decode(
-					"utf-8"
-				)
+				out = run_command(["openssl", "x509", "-noout", "-fingerprint", "-sha256", "-in", conf.ssl_ca_cert]).get_output_text()
+
 				match = re.search(r"sha256 Fingerprint=([A-F0-9:]+)", out, re.IGNORECASE)
 				assert match
 				openssl_fingerprint_sha256 = match.group(1)
 				assert info["fingerprint_sha256"].lstrip("0:") == openssl_fingerprint_sha256.lstrip("0:").upper()
 
-				out = subprocess.check_output(["openssl", "x509", "-noout", "-fingerprint", "-sha1", "-in", conf.ssl_ca_cert]).decode(
-					"utf-8"
-				)
+				out = run_command(["openssl", "x509", "-noout", "-fingerprint", "-sha1", "-in", conf.ssl_ca_cert]).get_output_text()
 				match = re.search(r"sha1 Fingerprint=([A-F0-9:]+)", out, re.IGNORECASE)
 				assert match
 				openssl_fingerprint_sha1 = match.group(1)
@@ -267,7 +268,7 @@ def test_create_ca_permitted_domains(tmp_path: Path) -> None:
 	ssl_ca_permitted_domains = ["mycompany1.tld", "mycompany2.tld"]
 	with (
 		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
-		mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
 		get_config(
 			{
 				"ssl_ca_key_passphrase": "secret",
@@ -324,7 +325,9 @@ def test_server_key_fallback(tmp_path: Path) -> None:
 		}
 	) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				setup_opsi_ca()
 
 				(srv_crt, srv_key) = create_local_server_cert(renew=False)
@@ -469,14 +472,16 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 
 		with (
 			mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
-			mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+			mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			),
 			mock.patch("opsiconfd.ssl.get_opsi_ca_subject", lambda: ca_subject),
 		):
 			if additional_certs:
 				with ssl_ca_cert.open("w", encoding="utf-8") as file:
 					file.write("\n".join(additional_certs))
 
-			with mock.patch("opsicommon.ssl.common.CertificateBuilder", MockCertificateBuilder):
+			with mock.patch("opsi.crypt.ssl._ssl.CertificateBuilder", MockCertificateBuilder):
 				setup_opsi_ca()
 				assert opsi_ca_is_self_signed()
 				setup_server_cert()
@@ -628,7 +633,9 @@ def test_letsencrypt_certificate_chain(tmp_path: Path) -> None:
 		server_subject = {"CN": server_cn, "emailAddress": "opsi@acme.org"}
 
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				configserver_setup_opsi_ca()
 
 				(root_ca_crt, root_ca_key) = create_ca(subject=root_ca_subject, valid_days=10000)
@@ -726,7 +733,9 @@ def test_intermediate_ca(tmp_path: Path) -> None:
 		opsi_ca_subject = {"CN": "opsi CA", "emailAddress": "ca@opsi.org"}
 
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				(ca_crt, ca_key) = create_ca(subject=ca_subject, valid_days=10000)
 				(opsi_ca_crt, opsi_ca_key) = create_ca(
 					subject=opsi_ca_subject, valid_days=conf.ssl_ca_cert_valid_days, ca_key=ca_key, ca_cert=ca_crt
@@ -796,7 +805,9 @@ def test_create_local_server_cert(tmp_path: Path) -> None:
 		}
 	) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				setup_opsi_ca()
 				setup_server_cert()
 				assert "-----BEGIN CERTIFICATE-----" in ssl_server_cert.read_text(encoding="utf-8")
@@ -839,7 +850,9 @@ def test_keep_uib_opsi_ca_server_cert(tmp_path: Path) -> None:
 		}
 	) as conf:
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				setup_opsi_ca()
 				setup_server_cert()
 				cert = load_local_server_cert()
@@ -873,7 +886,9 @@ def test_recreate_server_key(tmp_path: Path) -> None:
 		}
 	):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				setup_opsi_ca()
 
 				(srv_crt, srv_key) = create_local_server_cert(renew=False)
@@ -944,7 +959,9 @@ def test_change_hostname(tmp_path: Path) -> None:
 		}
 	):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				setup_opsi_ca()
 				with mock.patch("opsiconfd.ssl.get_server_cn", lambda: "host.domain.tld"):
 					assert opsiconfd.ssl.get_server_cn() == "host.domain.tld"
@@ -1028,7 +1045,9 @@ def test_change_ip(tmp_path: Path) -> None:
 		}
 	):
 		with mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None):
-			with mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)):
+			with mock.patch(
+				"opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)
+			):
 				setup_opsi_ca()
 				with mock.patch("opsiconfd.ssl.get_ips", lambda: {"127.0.0.1", "1.1.1.1"}):
 					assert opsiconfd.ssl.get_ips() == {"127.0.0.1", "1.1.1.1"}
@@ -1068,7 +1087,7 @@ def test_ca_certs_cache(tmp_path: Path) -> None:
 	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
 	with (
 		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
-		mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
 		get_config({"ssl_ca_key_passphrase": "secret", "ssl_ca_cert": str(ssl_ca_cert), "ssl_ca_key": str(ssl_ca_key)}),
 	):
 		setup_opsi_ca()
@@ -1116,7 +1135,7 @@ def test_setup_server_cert_letsencrypt(tmp_path: Path) -> None:
 			}
 		),
 		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
-		mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
 		mock.patch("opsiconfd.letsencrypt.LETSENCRYPT_DATA_DIR", str(letsecrypt_data_dir)),
 	):
 		with pytest.raises(RuntimeError, match="The provided contact URI was invalid"):
@@ -1141,7 +1160,7 @@ def test_setup_server_cert_custom_ca(tmp_path: Path) -> None:
 			}
 		),
 		mock.patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
-		mock.patch("opsicommon.ssl.linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
+		mock.patch("opsi.system.certificate_store._linux.get_system_ca_cert_info", lambda: SystemCACertInfo(tmp_path, ["echo"], tmp_path)),
 	):
 		(ca_crt, ca_key) = create_ca(subject={"CN": "Some CA", "emailAddress": "ca@acme.org"}, valid_days=1000)
 		store_opsi_ca_cert(ca_crt)

@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from opsicommon.ssl import create_server_cert_signing_request
+from opsi.crypt.ssl import create_server_cert_signing_request
 
 from opsiconfd.letsencrypt import _get_acme_client, perform_certificate_signing_request
 

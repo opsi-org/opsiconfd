@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -12,8 +12,8 @@ from __future__ import annotations
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
-from opsicommon.objects import BoolProductProperty, ProductProperty, UnicodeProductProperty
-from opsicommon.types import forceList, forceObjectClass
+from opsi.opsi.service.model.object import BoolProductProperty, ProductProperty, UnicodeProductProperty
+from opsi.opsi.service.model.type import to_list, to_object_class
 
 from ..auth import RPCACE
 from ..mysql.cleanup import remove_orphans_product_property_state
@@ -48,7 +48,7 @@ class RPCProductPropertyMixin(Protocol):
 					""",
 					params=data,
 				)
-				if session.execute(query, params=data).rowcount > 0:  # type: ignore[unresolved-attribute]
+				if session.execute(query, params=data).rowcount > 0:  # ty: ignore[unresolved-attribute]
 					for value in data["possibleValues"] or []:
 						session.execute(
 							"""
@@ -70,13 +70,13 @@ class RPCProductPropertyMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productProperty_insertObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:
 		ace = self._get_ace("productProperty_insertObject")
-		productProperty = forceObjectClass(productProperty, ProductProperty)
+		productProperty = to_object_class(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def productProperty_updateObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:
 		ace = self._get_ace("productProperty_updateObject")
-		productProperty = forceObjectClass(productProperty, ProductProperty)
+		productProperty = to_object_class(productProperty, ProductProperty)
 		self._product_property_insert_object(product_property=productProperty, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
@@ -86,8 +86,8 @@ class RPCProductPropertyMixin(Protocol):
 		ace = self._get_ace("productProperty_createObjects")
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
-				for product_property in forceList(productProperties):
-					product_property = forceObjectClass(product_property, ProductProperty)
+				for product_property in to_list(productProperties):
+					product_property = to_object_class(product_property, ProductProperty)
 					self._product_property_insert_object(
 						product_property=product_property, ace=ace, create=True, set_null=True, session=session, lock=False
 					)
@@ -148,8 +148,8 @@ class RPCProductPropertyMixin(Protocol):
 		ace = self._get_ace("productProperty_updateObjects")
 		with self._mysql.session() as session:
 			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
-				for product_property in forceList(productProperties):
-					product_property = forceObjectClass(product_property, ProductProperty)
+				for product_property in to_list(productProperties):
+					product_property = to_object_class(product_property, ProductProperty)
 					self._product_property_insert_object(
 						product_property=product_property, ace=ace, create=True, set_null=False, session=session, lock=False
 					)
@@ -188,7 +188,7 @@ class RPCProductPropertyMixin(Protocol):
 		**filter: Any,
 	) -> list[ProductProperty]:
 		ace = self._get_ace("productProperty_getObjects")
-		return self._product_property_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._product_property_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(deprecated=True, alternative_method="productProperty_getObjects", check_acl=False)
 	def productProperty_getHashes(
@@ -197,7 +197,7 @@ class RPCProductPropertyMixin(Protocol):
 		**filter: Any,
 	) -> list[dict]:
 		ace = self._get_ace("productProperty_getObjects")
-		return self._product_property_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
+		return self._product_property_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # ty: ignore[invalid-return-type]
 
 	@rpc_method(check_acl=False)
 	def productProperty_getIdents(

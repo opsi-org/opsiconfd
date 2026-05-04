@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -15,7 +15,6 @@ import os
 import random
 import re
 import shutil
-import subprocess
 import uuid
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
@@ -24,7 +23,7 @@ from pathlib import Path
 from socket import AF_INET, IPPROTO_UDP, SO_BROADCAST, SOCK_DGRAM, SOL_SOCKET, socket
 from typing import TYPE_CHECKING, Any, Generator, Literal, Protocol
 
-from opsicommon.exceptions import (
+from opsi.exception import (
 	BackendBadValueError,
 	BackendError,
 	BackendIOError,
@@ -33,14 +32,14 @@ from opsicommon.exceptions import (
 	BackendTemporaryError,
 	BackendUnaccomplishableError,
 )
-from opsicommon.logging import log_context
-from opsicommon.objects import Product, ProductOnDepot, ProductProperty, ProductPropertyState
-from opsicommon.package import OpsiPackage
-from opsicommon.package.associated_files import create_package_content_file, create_package_md5_file, create_package_zsync_file
-from opsicommon.server.rights import set_rights
-from opsicommon.types import forceBool, forceDict, forceFilename, forceHostId, forceUnicodeLower
-from opsicommon.types import forceProductId as typeForceProductId
-from opsicommon.utils import compare_versions, make_temp_dir
+from opsi.logging import log_context
+from opsi.opsi.package import OpsiPackage, create_package_content_file, create_package_md5_file, create_package_zsync_file
+from opsi.opsi.service.model.object import Product, ProductOnDepot, ProductProperty, ProductPropertyState
+from opsi.opsi.service.model.type import to_bool, to_dict, to_filename, to_host_id, to_product_id, to_string_lower
+from opsi.opsi.service.server import set_rights
+from opsi.process import run_script_file
+from opsi.system.file.temp import TempDir
+from opsi.util.version import compare_versions
 
 from opsiconfd import __version__, contextvar_client_session
 
@@ -93,7 +92,7 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 					file.write(new_data)
 
 		logger.notice("Running package script '%s'", script_path.name)
-		os.chmod(str(script_path), 0o700)
+		script_path.chmod(0o700)
 
 		sp_env = {
 			"PRODUCT_ID": opsi_package.product.getId(),
@@ -101,26 +100,18 @@ def run_package_script(opsi_package: OpsiPackage, script_path: Path, client_data
 			"PRODUCT_VERSION": opsi_package.product.getProductVersion(),
 			"PACKAGE_VERSION": opsi_package.product.getPackageVersion(),
 			"CLIENT_DATA_DIR": str(client_data_dir),
+			"SCRIPT_PATH": str(script_path),
 			"OPSI_SERVER_VERSION": __version__,
 		}
 		sp_env.update(env)
 		logger.debug("Package script env: %s", sp_env)
-		out = subprocess.run(
-			str(script_path),
-			shell=True,
-			check=True,
-			timeout=PACKAGE_SCRIPT_TIMEOUT,
-			env=sp_env,
-			encoding="utf-8",
-			stdout=subprocess.PIPE,
-			stderr=subprocess.STDOUT,
-		).stdout
+		out = run_script_file(
+			script_path, interpreter="bash", timeout=PACKAGE_SCRIPT_TIMEOUT, environment=sp_env, capture_output="combined"
+		).get_output_text()
 		logger.debug("Package script %r of package %r output: %s", script_path.name, opsi_package.product.getId(), out)
 		return out.splitlines()
 	except Exception as err:
 		str_err = str(err)
-		if isinstance(err, subprocess.CalledProcessError):
-			str_err = f"{err} - {err.stdout}"
 		logger.error(str_err, exc_info=True)
 		raise RuntimeError(
 			f"Failed to execute package script {script_path.name!r} of package {opsi_package.product.getId()!r}: {str_err}"
@@ -146,8 +137,8 @@ class TransferSlot:
 		if not self.slot_id and not self.retry_after:
 			self.retry_after = TRANSFER_SLOT_RETENTION_TIME
 		if self.slot_id:
-			self.depot_id = forceHostId(self.depot_id)
-			self.host_id = forceHostId(self.host_id)
+			self.depot_id = to_host_id(self.depot_id)
+			self.host_id = to_host_id(self.host_id)
 			self.retry_after = None
 
 	@property
@@ -218,29 +209,29 @@ class RPCDepotserverMixin(Protocol):
 	@rpc_method
 	def depot_librsyncSignature(self: BackendProtocol, filename: str) -> str:
 		try:
-			from opsicommon.utils.rsync import librsync_signature
+			from opsi.sync.rsync import rsync_signature
 
-			return librsync_signature(filename)
+			return rsync_signature(filename)
 		except Exception as err:
 			raise BackendIOError(f"Failed to get librsync signature: {err}") from err
 
 	@rpc_method
 	def depot_librsyncPatchFile(self: BackendProtocol, oldfile: str, deltafile: str, newfile: str) -> None:
 		try:
-			from opsicommon.utils.rsync import librsync_patch_file
+			from opsi.sync.rsync import rsync_patch_file
 
-			return librsync_patch_file(oldfile, deltafile, newfile)
+			return rsync_patch_file(oldfile, deltafile, newfile)
 		except Exception as err:
 			raise BackendIOError(f"Failed to patch file: {err}") from err
 
 	@rpc_method
 	def depot_librsyncDeltaFile(self: BackendProtocol, filename: str, signature: str, deltafile: str) -> None:
 		try:
-			from opsicommon.utils.rsync import librsync_delta_file
+			from opsi.sync.rsync import rsync_delta_file
 
 			# json serialisation cannot handle bytes, expecting base64 encoded string here
 			signature_bytes = base64.b64decode(signature)
-			librsync_delta_file(filename, signature_bytes, deltafile)
+			rsync_delta_file(filename, signature_bytes, deltafile)
 		except Exception as err:
 			raise BackendIOError(f"Failed to create librsync delta file: {err}") from err
 
@@ -534,7 +525,7 @@ class DepotserverPackageManager:
 			filename: str, temp_dir: Path | None, new_product_id: str | None = None
 		) -> Generator[tuple[OpsiPackage, Path], None, None]:
 			opsi_package = OpsiPackage(Path(filename), temp_dir=temp_dir)
-			with make_temp_dir(temp_dir) as temp_unpack_dir:
+			with TempDir(base_dir=temp_dir) as temp_unpack_dir:
 				if new_product_id:
 					logger.info("Forcing product id '%s'", new_product_id)
 				opsi_package.extract_package_archive(Path(filename), temp_unpack_dir, new_product_id=new_product_id)
@@ -645,17 +636,17 @@ class DepotserverPackageManager:
 								new_values.append(value)
 								continue
 
-							if product_property.getType() == "BoolProductProperty" and forceBool(value) in (
+							if product_property.getType() == "BoolProductProperty" and to_bool(value) in (
 								product_property.possibleValues or []
 							):
-								new_values.append(forceBool(value))
+								new_values.append(to_bool(value))
 								changed = True
 								continue
 
 							if product_property.getType() == "UnicodeProductProperty":
 								new_value = None
 								for possible_value in product_property.possibleValues or []:
-									if forceUnicodeLower(possible_value) == forceUnicodeLower(value):
+									if to_string_lower(possible_value) == to_string_lower(value):
 										new_value = possible_value
 										break
 
@@ -709,15 +700,15 @@ class DepotserverPackageManager:
 
 		logger.info("=================================================================================================")
 		if force_product_id:
-			force_product_id = typeForceProductId(force_product_id)
+			force_product_id = to_product_id(force_product_id)
 			logger.notice("Installing package file '%s' as '%s' on depot '%s'", filename, force_product_id, self._depot_id)
 		else:
 			logger.notice("Installing package file '%s' on depot '%s'", filename, self._depot_id)
 
 		try:
-			filename = forceFilename(filename)
-			force = forceBool(force)
-			property_default_values = forceDict(property_default_values) or {}
+			filename = to_filename(filename)
+			force = to_bool(force)
+			property_default_values = to_dict(property_default_values) or {}
 			for property_id in property_default_values:
 				if property_default_values[property_id] is None:
 					property_default_values[property_id] = []
@@ -899,12 +890,12 @@ class DepotserverPackageManager:
 		logger.info("=================================================================================================")
 		logger.notice("Uninstalling product '%s' on depot '%s'", product_id, self._depot_id)
 		try:
-			product_id = typeForceProductId(product_id)
-			force = forceBool(force)
-			delete_files = forceBool(delete_files)
+			product_id = to_product_id(product_id)
+			force = to_bool(force)
+			delete_files = to_bool(delete_files)
 			allow_remove_used = True
 			try:
-				allow_remove_used = forceBool(self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[0])
+				allow_remove_used = to_bool(self.backend.config_getObjects(id="allow_to_remove_package_in_use")[0].getDefaultValues()[0])
 			except IndexError:
 				pass
 
@@ -996,7 +987,7 @@ class DepotserverPackageManager:
 			product_on_depot = product_on_depots[0]
 			available_version = product_on_depot.getProductVersion() + "-" + product_on_depot.getPackageVersion()
 
-			if compare_versions(available_version, dependency.condition or "==", dependency.version):  # type: ignore[arg-type]
+			if compare_versions(available_version, dependency.condition or "==", dependency.version):  # ty: ignore[invalid-argument-type]
 				logger.info("Fulfilled package dependency %s (available version: %s)", dependency, available_version)
 			else:
 				raise BackendUnaccomplishableError(f"Unfulfilled package dependency {dependency} (available version: {available_version})")

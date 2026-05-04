@@ -1,5 +1,5 @@
 # opsiconfd is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2008-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -23,11 +23,11 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
-from opsicommon.exceptions import OpsiServicePermissionError
-from opsicommon.license import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
-from opsicommon.objects import OpsiDepotserver, User
-from opsicommon.system.info import linux_distro_id_like_contains
-from opsicommon.utils import ip_address_in_network
+from opsi.exception import OpsiServicePermissionError
+from opsi.opsi.licensing import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
+from opsi.opsi.service.model.object import OpsiDepotserver, User
+from opsi.system.info import linux_distro_id_like_contains
+from opsi.util.network import ip_address_in_network
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.status import HTTP_403_FORBIDDEN
@@ -325,7 +325,7 @@ async def get_depot_list() -> RESTResponse:
 	redis = redis_client()
 	backend = get_unprotected_backend()
 	depots = backend.host_getObjects(type="OpsiDepotserver")
-	max_slots = backend.get_max_transfer_slots(TransferSlotType.OPSICLIENTD_PRODUCT_SYNC, [d.id for d in depots])  # type: ignore[misc]
+	max_slots = backend.get_max_transfer_slots(TransferSlotType.OPSICLIENTD_PRODUCT_SYNC, [d.id for d in depots])  # ty: ignore[invalid-argument-type]
 	slot_key = config.redis_key("slot")
 	depot_infos = sorted(
 		[

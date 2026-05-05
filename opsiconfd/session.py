@@ -1365,14 +1365,14 @@ async def post_user_authenticate(scope: Scope) -> None:
 async def post_authenticate(scope: Scope) -> None:
 	session: OPSISession = scope["session"]
 
-	await session.store(wait=True)
-
 	if not session.username or not session.authenticated:
+		await session.store(wait=True)
 		raise OpsiServicePermissionError("Not authenticated")
 
 	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.username)
 
 	await check_admin_networks(session)
+	await session.store(wait=True)
 
 
 async def _authenticate(*, scope: Scope, username: str, password: str, password_is_token: bool = False, mfa_otp: str | None = None) -> None:
@@ -1609,6 +1609,9 @@ async def check_admin_networks(session: OPSISession) -> None:
 	):
 		session.add_auth_methods(AuthenticationMethod.ADMIN_NETWORKS)
 		return
+
+	session.is_admin = False
+	session.authenticated = False
 
 	raise ConnectionRefusedError(f"Admin user '{session.username}' is not allowed to connect from '{session.client_addr}'")
 

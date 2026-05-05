@@ -454,27 +454,53 @@ def test_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 			assert res.status_code == 200
 
 
-def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_admin_networks(test_client: OpsiconfdTestClient, config: Config) -> None:  # noqa: F811
+	def get_session_data() -> dict | None:
+		redis_key = f"{config.redis_key('session')}:*"
+		redis = redis_client()
+		session_keys = list(redis.scan_iter(redis_key, count=1000))
+		session_data = None
+		for key in session_keys:
+			session_data = OPSISession.deserialize(redis.hgetall(key))
+			redis.delete(key)
+		return session_data
+
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
+		session_data = get_session_data()
+		assert session_data
+		assert session_data["authenticated"]
+		assert session_data["is_admin"]
 
 	test_client.reset_cookies()
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["10.0.0.0/8"]}):
 		res = test_client.get("/login")
 		assert res.status_code == 403
 		assert res.text == "Permission denied"
+		session_data = get_session_data()
+		if session_data:
+			assert not session_data["authenticated"]
+			assert not session_data["is_admin"]
 
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
 		assert res.text == f"Admin user '{ADMIN_USER}' is not allowed to connect from '1.2.3.4'"
+		session_data = get_session_data()
+		if session_data:
+			assert not session_data["authenticated"]
+			assert not session_data["is_admin"]
 
 	test_client.reset_cookies()
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["allow.example.corp"]}):
 		with patch("opsiconfd.session.getaddrinfo", mock_getaddrinfo):
 			res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 			assert res.status_code == 200
+			session_data = get_session_data()
+			assert session_data
+			assert session_data["authenticated"]
+			assert session_data["is_admin"]
 
 
 def test_auth_allowed_groups(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

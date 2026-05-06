@@ -1708,7 +1708,7 @@ wheels = [
 
 [[package]]
 name = "python-opsi"
-version = "4.3.16.2"
+version = "4.3.16.4"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1740,9 +1740,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.16.2.tar.gz", hash = "sha256:af9289a7bdbfa55950de5f85dc84d1230b60173c8411ef5cf23899a2458edd64" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.16.4.tar.gz", hash = "sha256:f8a24c136d0059c808fef7539d3f6c81186fbd6c8467f5dd135d943a3762bcc6" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.16.2-py3-none-any.whl", hash = "sha256:b5c73c5aede810658b89d18fd29b2d2d91d52c536fae6a453c387132c531cf18" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.16.4-py3-none-any.whl", hash = "sha256:dfbe57edcc04c81fd3d310a5e748ed2f6b61c1c73e540d89a68e0ab1a7a024df" },
 ]
 
 [[package]]
@@ -2097,14 +2097,14 @@ wheels = [
 
 [[package]]
 name = "types-cffi"
-version = "2.0.0.20260504"
+version = "2.0.0.20260506"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "types-setuptools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/f9/6e10471a7a8fa5cbb11a7389a27233f3aa9750feb2e934c5ebc0bd74cb06/types_cffi-2.0.0.20260504.tar.gz", hash = "sha256:6d74e20d8646b2627a4d4cbaa94af6db91a8f6b4bd9143b6d1cea5ae2a22e80c", size = 17683, upload-time = "2026-05-04T05:22:53.794Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/d0/b54c7338ae45580c56daed5f7d468e359a415b73637affed164f33d83a76/types_cffi-2.0.0.20260506.tar.gz", hash = "sha256:8cf63d7006bf0fec825cc5a70fa637ed783b25ef0d0980d09f27606600123f75", size = 17718, upload-time = "2026-05-06T05:17:56.098Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/5d/7f74c961a5be35a8b830134a74c26bbbd3241e36e818315fd1f8a83a34ad/types_cffi-2.0.0.20260504-py3-none-any.whl", hash = "sha256:c2f9b881b861e24341f93643c0e6edc979b594dea899d8f1b0c423101b9b8f24", size = 20190, upload-time = "2026-05-04T05:22:52.653Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/cf/b562968181a5374c9bddaf5f543ddd857d1072c578e77f63744d8a8d3a17/types_cffi-2.0.0.20260506-py3-none-any.whl", hash = "sha256:43472f8e31f8dc7abbf0c4119828f79c3f4a048b5edcebd19538ee6cf3ca69ed", size = 20195, upload-time = "2026-05-06T05:17:54.925Z" },
 ]
 
 [[package]]

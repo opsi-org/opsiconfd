@@ -24,10 +24,10 @@ from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from opsi.exception import OpsiServicePermissionError
+from opsi.network import ip_address_in_network
 from opsi.opsi.licensing import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
 from opsi.opsi.service.model.object import OpsiDepotserver, User
 from opsi.system.info import linux_distro_id_like_contains
-from opsi.util.network import ip_address_in_network
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.status import HTTP_403_FORBIDDEN

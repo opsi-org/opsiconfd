@@ -22,10 +22,10 @@ from threading import RLock
 from time import sleep, time
 from typing import Generator, Literal
 
+from opsi.network import ip_address_in_network
 from opsi.opsi.service.model.type import to_bool, to_dict, to_hardware_address, to_hostname, to_ip_address, to_string_lower
 from opsi.process import ProcessError, run_command
 from opsi.system.file.lock import lock_file
-from opsi.util.network import ip_address_in_network
 
 from opsiconfd.backend.rpc import read_backend_config_file
 from opsiconfd.config import OPSICONFD_DIR, config, opsi_config

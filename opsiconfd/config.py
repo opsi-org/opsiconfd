@@ -28,12 +28,12 @@ import configargparse
 import DNS
 import psutil
 from opsi.logging import secret_filter
+from opsi.network import ip_address_in_network
 from opsi.opsi.service.model.type import to_domain
 from opsi.opsi.service.server import OpsiConfig
 from opsi.system.certificate_store._linux import get_system_ca_cert_info
 from opsi.system.file.lock import lock_file
 from opsi.system.network import get_fqdn
-from opsi.util.network import ip_address_in_network
 from packaging.version import Version
 
 from opsiconfd.metrics.metric import ALL_METRICS

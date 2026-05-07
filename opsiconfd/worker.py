@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import uvloop
 from anyio import to_thread
-from opsi.util.network import ip_address_in_network
+from opsi.network import ip_address_in_network
 from uvicorn.config import HTTP_PROTOCOLS, WS_PROTOCOLS, Config
 from uvicorn.protocols.http.h11_impl import H11Protocol
 from uvicorn.protocols.websockets.websockets_sansio_impl import WebSocketsSansIOProtocol

@@ -159,7 +159,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 	import ipaddress
 	try:
-		from opsi.util.network import ip_address_in_network
+		from opsi.network import ip_address_in_network
 	except ImportError:
 		try:
 			from opsicommon.utils import ip_address_in_network

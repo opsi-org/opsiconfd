@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
 from opsi.exception import OpsiServicePermissionError
-from opsi.util.network import ip_address_in_network
+from opsi.network import ip_address_in_network
 from starlette.status import HTTP_403_FORBIDDEN
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState

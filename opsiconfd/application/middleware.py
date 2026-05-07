@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from opsi.logging import TRACE
-from opsi.util.network import ip_address_in_network
+from opsi.network import ip_address_in_network
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 

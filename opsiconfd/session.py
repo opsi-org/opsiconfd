@@ -28,11 +28,11 @@ from fastapi.requests import HTTPConnection
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermissionError
 from opsi.logging import secret_filter, set_context
+from opsi.network import ip_address_in_network
 from opsi.opsi.service.model.object import Host, OpsiClient, User
 from opsi.opsi.service.model.object._object import opsi_timestamp
 from opsi.opsi.service.model.type import to_hardware_address, to_uuid_string
 from opsi.time import unix_timestamp
-from opsi.util.network import ip_address_in_network
 from packaging.version import Version
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool

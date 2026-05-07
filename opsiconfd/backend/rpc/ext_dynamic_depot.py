@@ -36,11 +36,16 @@ GET_LATENCY_INFORMATION_FUNCTION = '''
 
 		Depots that can't be reached in time will not be included.
 		"""
-		try:
-			from opsi_legacy.Util.Ping import ping
-		except ImportError:
-			from OPSI.Util.Ping import ping
 		from urllib.parse import urlparse
+		new_ping = False
+		try:
+			from opsi.network import ping
+			new_ping = True
+		except ImportError:
+			try:
+				from opsi_legacy.Util.Ping import ping
+			except ImportError:
+				from OPSI.Util.Ping import ping
 
 		latency = []
 		for depot in depots:
@@ -50,17 +55,21 @@ GET_LATENCY_INFORMATION_FUNCTION = '''
 
 			try:
 				host = urlparse(depot.depotWebdavUrl).hostname
-				# To increase the timeout (in seconds) for the ping you
-				# can implement it in the following way:
-				#  depotLatency = ping(host, timeout=5)
 				logger.info("Ping %r (host: %r)", depot, host)
-				depotLatency = ping(host)
 
-				if depotLatency is None:
+				depot_latency = None
+				if new_ping:
+					ping_result = ping(host, timeout=2, count=2)
+					logger.info("Ping result for depot %r: %r", depot, ping_result)
+					depot_latency = ping_result.rtt_avg
+				else:
+					depot_latency = ping(host, timeout=2)
+
+				if depot_latency is None:
 					logger.info("Ping to depot %s timed out.", depot)
 				else:
-					logger.info("Latency of depot %s: %0.3f ms", depot, depotLatency * 1000)
-					latency.append((depot, depotLatency))
+					logger.info("Latency of depot %s: %0.3f ms", depot, depot_latency * 1000)
+					latency.append((depot, depot_latency))
 			except Exception as err:
 				logger.warning(err)
 

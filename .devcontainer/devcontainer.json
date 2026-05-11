@@ -4,6 +4,7 @@
 	"service": "opsiserver43-dev",
 	"initializeCommand": ".devcontainer/initialize.sh",
 	"postCreateCommand": ".devcontainer/post_create.sh",
+	"postStartCommand": ".devcontainer/post_start.sh",
 	"workspaceFolder": "/workspace",
 	"remoteUser": "${localEnv:USER}",
 	"overrideCommand": false,

@@ -335,6 +335,7 @@ def restore_backup(
 	redis_data: bool = False,
 	hw_audit: bool = True,
 	sw_audit: bool = True,
+	keep_users: bool = False,
 	server_id: str = "backup",
 	password: str | None = None,
 	batch: bool = True,
@@ -373,6 +374,12 @@ def restore_backup(
 			address_exceptions=maintenance_address_exceptions or [],
 			progress=progress,
 		):
+			users = []
+			if keep_users:
+				logger.notice("Keeping current users")
+				backend = get_unprotected_backend()
+				users = [user.to_hash() for user in backend.user_getObjects()]
+
 			logger.notice("Preparing database")
 			if progress:
 				db_task = progress.add_task("Preparing database", total=3)
@@ -408,9 +415,11 @@ def restore_backup(
 			total_objects = sum(
 				len(objs)
 				for obj_class, objs in data["objects"].items()
+				if (not keep_users or obj_class != "User")
 				if (hw_audit or obj_class not in ("AuditHardware", "AuditHardwareOnHost"))
 				and (sw_audit or obj_class not in ("AuditSoftware", "AuditSoftwareOnClient"))
 			)
+			total_objects += len(users)
 
 			logger.notice("Restoring %d database objects", total_objects)
 			if progress:
@@ -423,7 +432,7 @@ def restore_backup(
 					if not sw_audit and obj_class in ("AuditSoftware", "AuditSoftwareOnClient"):
 						continue
 
-					objects = data["objects"].get(obj_class)
+					objects = users if keep_users and obj_class == "User" else data["objects"].get(obj_class)
 					if not objects:
 						continue
 

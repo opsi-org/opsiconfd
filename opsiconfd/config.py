@@ -2107,6 +2107,11 @@ class Config:
 				help=self._help("restore", "Do not restore software audit data."),
 			)
 			self._parser.add_argument(
+				"--keep-users",
+				action="store_true",
+				help=self._help("restore", "Keep current users and do not restore users from backup."),
+			)
+			self._parser.add_argument(
 				"--server-id",
 				env_var="OPSICONFD_SERVER_ID",
 				default="backup",

@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 import pytest
 
+from opsiconfd.config import config as opsiconfd_config
 from opsiconfd.config import ip_address, network_address, str2bool
 
 from .utils import (  # noqa: F401
@@ -84,6 +85,22 @@ def test_str2bool(value: Any, expected_value: bool) -> None:
 def test_cmdline(arguments: list[str], config_name: str, expected_value: Any) -> None:
 	with get_config(arguments) as conf:
 		assert getattr(conf, config_name) == expected_value
+
+
+def test_restore_cmdline_keep_users() -> None:
+	parser = opsiconfd_config._parser
+	sub_command = opsiconfd_config._sub_command
+	pytest_mode = opsiconfd_config._pytest
+	try:
+		opsiconfd_config._parser = None
+		opsiconfd_config._sub_command = "restore"
+		opsiconfd_config._pytest = False
+		conf = opsiconfd_config.get_parser().parse_args(["--keep-users", "/tmp/backup.msgpack.lz4"], config_file_contents="")
+		assert conf.keep_users is True
+	finally:
+		opsiconfd_config._parser = parser
+		opsiconfd_config._sub_command = sub_command
+		opsiconfd_config._pytest = pytest_mode
 
 
 @pytest.mark.parametrize(

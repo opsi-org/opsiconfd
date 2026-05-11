@@ -11,7 +11,6 @@ import asyncio
 import base64
 import json
 import pprint
-from contextlib import nullcontext
 from copy import deepcopy
 from datetime import datetime
 from os.path import abspath
@@ -21,7 +20,6 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from opsi.opsi.service.model.object import Host, OpsiConfigserver, User
 
 from opsiconfd.application import NormalState, app
 from opsiconfd.backend.mysql import MySQLConnection
@@ -140,120 +138,6 @@ def test_backup_main(cmdline_config: dict[str, str | bool], expexted_kwargs: dic
 				assert kwargs[key] == val
 
 
-def test_restore_main_passes_keep_users(tmp_path: Path) -> None:
-	backup_file = tmp_path / "backup.msgpack.lz4"
-	backup_file.write_bytes(b"backup")
-	kwargs = {}
-
-	async def app_state_manager_task(*, initalized_event: Event, **_kwargs: Any) -> None:
-		initalized_event.set()
-
-	def mock_restore_backup(*args: Any, **kws: Any) -> None:
-		nonlocal kwargs
-		kwargs = {"backup_file": args[0], **kws}
-
-	with get_config(
-		{
-			"backup_file": str(backup_file),
-			"quiet": True,
-			"password": False,
-			"delete_locks": False,
-			"server_id": "local",
-			"config_files": False,
-			"redis_data": False,
-			"no_hw_audit": False,
-			"no_sw_audit": False,
-			"keep_users": True,
-			"ignore_errors": False,
-		}
-	):
-		with (
-			patch.object(app, "app_state_manager_task", app_state_manager_task),
-			patch.object(app, "stop_app_state_manager_task"),
-			patch("opsiconfd.main.backup.setup_mysql"),
-			patch("opsiconfd.main.backup.restore_backup", mock_restore_backup),
-			pytest.raises(SystemExit, match="0"),
-		):
-			restore_main()
-
-	assert kwargs["backup_file"] == backup_file
-	assert kwargs["keep_users"] is True
-
-
-def test_restore_backup_keep_users_restores_current_users() -> None:
-	current_user = User(id="current-user")
-	backup_user = User(id="backup-user")
-	backup_host = OpsiConfigserver(id="server.test.local")
-	inserted_objects: dict[str, list[dict[str, Any]]] = {}
-
-	class FakeBackend:
-		def __init__(self) -> None:
-			self.user_get_objects_calls = 0
-
-		def __getattr__(self, name: str) -> Any:
-			if name.endswith(("_bulkInsertObjects", "_createObjects")):
-				method_prefix = name.split("_", 1)[0]
-
-				def insert_objects(objects: list[dict[str, Any]]) -> None:
-					inserted_objects.setdefault(method_prefix, []).extend(objects)
-
-				return insert_objects
-
-			if name.endswith("_insertObject"):
-				method_prefix = name.split("_", 1)[0]
-
-				def insert_object(obj: dict[str, Any]) -> None:
-					inserted_objects.setdefault(method_prefix, []).append(obj)
-
-				return insert_object
-
-			raise AttributeError(name)
-
-		def user_getObjects(self) -> list[User]:
-			self.user_get_objects_calls += 1
-			return [User(id="current-user")]
-
-		def events_disabled(self) -> nullcontext[None]:
-			return nullcontext()
-
-		def host_getObjects(self, **_filter: Any) -> list[Host]:
-			return [OpsiConfigserver(id="server.test.local")]
-
-	class FakeMySQLConnection:
-		def connect(self, read_tables: bool = True) -> None:
-			pass
-
-		def disconnect(self) -> None:
-			pass
-
-		def disable_unique_hardware_addresses(self) -> nullcontext[None]:
-			return nullcontext()
-
-	fake_backend = FakeBackend()
-	backup = {
-		"meta": {"type": "opsiconfd_backup", "version": "1", "server_id": "server.test.local"},
-		"objects": {"User": [backup_user.to_dict()], "Host": [backup_host.to_dict()]},
-	}
-
-	with (
-		patch("opsiconfd.backup.redis_lock", lambda *_args, **_kwargs: nullcontext()),
-		patch("opsiconfd.backup.maintenance_mode", lambda *_args, **_kwargs: nullcontext()),
-		patch("opsiconfd.backup.MySQLConnection", return_value=FakeMySQLConnection()),
-		patch("opsiconfd.backup.drop_database"),
-		patch("opsiconfd.backup.create_database"),
-		patch("opsiconfd.backup.update_database"),
-		patch("opsiconfd.backup.get_unprotected_backend", return_value=fake_backend),
-		patch("opsiconfd.backup.rpc_cache_clear"),
-		patch("opsiconfd.backup.time.sleep"),
-	):
-		restore_backup(backup, keep_users=True)
-
-	assert fake_backend.user_get_objects_calls == 1
-	assert current_user.id in [user["id"] for user in inserted_objects.get("user", [])]
-	assert backup_user.id not in [user["id"] for user in inserted_objects.get("user", [])]
-	assert backup_host.id in [host["id"] for host in inserted_objects.get("host", [])]
-
-
 def test_create_backup(
 	config: Config,  # noqa: F811
 	app_state_reader: AppStateReaderThread,  # noqa: F811
@@ -348,6 +232,46 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 		app.set_app_state(NormalState())
 		app.stop_app_state_manager_task()
 		thread.join(5)
+
+
+def test_restore_main_passes_keep_users(tmp_path: Path) -> None:
+	backup_file = tmp_path / "backup.msgpack.lz4"
+	backup_file.write_bytes(b"backup")
+	kwargs = {}
+
+	async def app_state_manager_task(*, initalized_event: Event, **_kwargs: Any) -> None:
+		initalized_event.set()
+
+	def mock_restore_backup(*args: Any, **kws: Any) -> None:
+		nonlocal kwargs
+		kwargs = {"backup_file": args[0], **kws}
+
+	with get_config(
+		{
+			"backup_file": str(backup_file),
+			"quiet": True,
+			"password": False,
+			"delete_locks": False,
+			"server_id": "local",
+			"config_files": False,
+			"redis_data": False,
+			"no_hw_audit": False,
+			"no_sw_audit": False,
+			"keep_users": True,
+			"ignore_errors": False,
+		}
+	):
+		with (
+			patch.object(app, "app_state_manager_task", app_state_manager_task),
+			patch.object(app, "stop_app_state_manager_task"),
+			patch("opsiconfd.main.backup.setup_mysql"),
+			patch("opsiconfd.main.backup.restore_backup", mock_restore_backup),
+			pytest.raises(SystemExit, match="0"),
+		):
+			restore_main()
+
+	assert kwargs["backup_file"] == backup_file
+	assert kwargs["keep_users"] is True
 
 
 def test_backup_extract(

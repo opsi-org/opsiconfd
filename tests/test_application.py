@@ -96,9 +96,9 @@ def test_app_state_from_dict() -> None:
 	state_dict = state.to_dict()
 	state2 = AppState.from_dict(state_dict)
 	assert type(state) is type(state2)
-	assert state.retry_after == state2.retry_after  # ty: ignore[unresolved-attribute]
-	assert state.message == state2.message  # ty: ignore[unresolved-attribute]
-	assert state.address_exceptions == state2.address_exceptions  # ty: ignore[unresolved-attribute]
+	assert state.retry_after == state2.retry_after
+	assert state.message == state2.message
+	assert state.address_exceptions == state2.address_exceptions
 
 
 def test_maintenance(

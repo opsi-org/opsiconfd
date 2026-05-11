@@ -32,7 +32,7 @@ from opsi.network import ip_address_in_network
 from opsi.opsi.service.model.type import to_domain
 from opsi.opsi.service.server import OpsiConfig
 from opsi.system.certificate_store._linux import get_system_ca_cert_info
-from opsi.system.file.lock import lock_file
+from opsi.system.file.lock import LockMethod, lock_file
 from opsi.system.network import get_fqdn
 from packaging.version import Version
 
@@ -347,7 +347,7 @@ class Config:
 		self._config = configargparse.Namespace()
 		self._config.config_file = DEFAULT_CONFIG_FILE
 		self._config_file_lock = threading.RLock()
-		self._file_lock_method: Literal["flock", "lockf"] = "flock"
+		self._file_lock_method: LockMethod = LockMethod.FLOCK
 		self.jinja_templates_dir = "."
 
 		self._set_args()
@@ -386,12 +386,12 @@ class Config:
 		# Prefer flock if supported by filesystem and fallback to lockf
 		with self._config_file_lock:
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
-				self._file_lock_method = "flock"
+				self._file_lock_method = LockMethod.FLOCK
 				try:
 					with lock_file(file, lock_method=self._file_lock_method):
 						pass
 				except Exception:
-					self._file_lock_method = "lockf"
+					self._file_lock_method = LockMethod.LOCKF
 
 		self._init_parser()
 

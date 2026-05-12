@@ -8,7 +8,7 @@ test opsiconfd.backend.rpc.ext_dynamic_depot
 """
 
 from opsi.logging import LOG_DEBUG, get_logger, use_logging_config
-from opsi.opsi.service.model.object import OpsiClient, OpsiDepotserver, UnicodeConfig
+from opsi.opsi.service.model.object import ConfigState, OpsiClient, OpsiDepotserver, UnicodeConfig
 
 from tests.utils import OpsiconfdTestClient, UnprotectedBackend, backend, clean_mysql, test_client  # noqa: F401
 
@@ -63,17 +63,46 @@ async def test_algorithms(
 		editable=False,
 		multiValue=False,
 	)
+	selection_mode_config_state = ConfigState(
+		configId=selection_mode_config.id,
+		objectId=client.id,
+		values=[],
+	)
 	backend.host_createObjects([client, depot1, depot2, depot4, depot5])
+	backend.config_createObjects([selection_mode_config])
+	backend.configState_createObjects([selection_mode_config_state])
+
 	assert client.opsiHostKey
 	test_client.auth = (client.id, client.opsiHostKey)
 
-	def get_code(_backend: UnprotectedBackend | OpsiconfdTestClient) -> str:
+	def get_code(_backend: UnprotectedBackend | OpsiconfdTestClient, client_id: str | None = None) -> str:
 		if isinstance(_backend, UnprotectedBackend):
-			return _backend.getDepotSelectionAlgorithm()
-		res = test_client.jsonrpc20("getDepotSelectionAlgorithm")
+			return _backend.depot_getDepotSelectionAlgorithm(clientId=client_id)
+		res = test_client.jsonrpc20("depot_getDepotSelectionAlgorithm", params={"clientId": client_id})
 		assert "error" not in res
 		return res["result"]
 
+	# Test default and client specific config values
+	selection_mode_config.defaultValues = ["random"]
+	selection_mode_config_state.values = ["network_address"]
+	backend.config_createObjects([selection_mode_config])
+	backend.configState_createObjects([selection_mode_config_state])
+
+	for _backend in backend, test_client:
+		for client_id in None, client.id:
+			code = get_code(_backend, client_id)
+			if client_id:
+				assert 'logger.notice("Choosing depot based on network address")' in code
+			else:
+				assert 'logger.notice("Choosing depot at random")' in code
+
+	# Reset to empty values for further tests
+	selection_mode_config.defaultValues = []
+	selection_mode_config_state.values = []
+	backend.config_createObjects([selection_mode_config])
+	backend.configState_createObjects([selection_mode_config_state])
+
+	# Test all algorithms
 	selection_mode_config.defaultValues = ["master_and_latency"]
 	backend.config_createObjects([selection_mode_config])
 	for _backend in backend, test_client:
@@ -110,10 +139,13 @@ async def test_algorithms(
 	selection_mode_config.defaultValues = ["random"]
 	backend.config_createObjects([selection_mode_config])
 	for _backend in backend, test_client:
-		code = get_code(_backend)
-		current_locals = locals()
-		exec(code, None, current_locals)
-		selectDepot = current_locals["selectDepot"]
-		with use_logging_config(stderr_level=LOG_DEBUG):
-			selectedDepot = selectDepot(clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5])
-		assert selectedDepot in [depot1, depot2, depot3, depot4, depot5]
+		for client_id in None, client.id:
+			code = get_code(_backend, client_id)
+			current_locals = locals()
+			exec(code, None, current_locals)
+			selectDepot = current_locals["selectDepot"]
+			with use_logging_config(stderr_level=LOG_DEBUG):
+				selectedDepot = selectDepot(
+					clientConfig=clientConfig, masterDepot=depot1, alternativeDepots=[depot2, depot3, depot4, depot5]
+				)
+			assert selectedDepot in [depot1, depot2, depot3, depot4, depot5]

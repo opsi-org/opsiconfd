@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
+from opsi.opsi.service.model.type import to_host_id
+
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -50,25 +52,25 @@ GET_LATENCY_INFORMATION_FUNCTION = '''
 		latency = []
 		for depot in depots:
 			if not depot.depotWebdavUrl:
-				logger.info("Skipping %r because depotWebdavUrl is missing", depot)
+				logger.info("Skipping %r because depotWebdavUrl is missing", depot.id)
 				continue
 
 			try:
 				host = urlparse(depot.depotWebdavUrl).hostname
-				logger.info("Ping %r (host: %r)", depot, host)
+				logger.info("Ping %r (host: %r)", depot.id, host)
 
 				depot_latency = None
 				if new_ping:
 					ping_result = ping(host, timeout=2, count=2)
-					logger.info("Ping result for depot %r: %r", depot, ping_result)
+					logger.info("Ping result for depot %r: %r", depot.id, ping_result)
 					depot_latency = ping_result.rtt_avg
 				else:
 					depot_latency = ping(host, timeout=2)
 
 				if depot_latency is None:
-					logger.info("Ping to depot %s timed out.", depot)
+					logger.info("Ping to depot %s timed out.", depot.id)
 				else:
-					logger.info("Latency of depot %s: %0.3f ms", depot, depot_latency * 1000)
+					logger.info("Latency of depot %s: %0.3f ms", depot.id, depot_latency * 1000)
 					latency.append((depot, depot_latency))
 			except Exception as err:
 				logger.warning(err)
@@ -87,12 +89,13 @@ GET_DEPOT_WITH_LOWEST_LATENCY_FUNCTION = '''
 			return None
 
 		selectedDepot, minLatency = sorted(latency, key=lambda x: x[1])[0]
-		logger.notice("Depot with lowest latency: %r (%0.3f ms)", selectedDepot, minLatency * 1000)
+		logger.notice("Depot with lowest latency: %r (%0.3f ms)", selectedDepot.id, minLatency * 1000)
 		return selectedDepot
 '''
 
 DEPOT_SELECTION_ALGORITHM_BY_MASTER_DEPOT_AND_LATENCY = f"""
 def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	logger.notice("Choosing depot based on master depot and latency")
 	{GET_LATENCY_INFORMATION_FUNCTION}
 	{GET_DEPOT_WITH_LOWEST_LATENCY_FUNCTION}
 	{SHOW_DEPOT_INFO_FUNCTION}
@@ -117,6 +120,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 DEPOT_SELECTION_ALGORITHM_BY_LATENCY = f"""
 def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	logger.notice("Choosing depot based on latency")
 	{GET_LATENCY_INFORMATION_FUNCTION}
 	{GET_DEPOT_WITH_LOWEST_LATENCY_FUNCTION}
 	{SHOW_DEPOT_INFO_FUNCTION}
@@ -137,6 +141,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 DEPOT_SELECTION_ALGORITHM_BY_RANDOM = f"""
 def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	logger.notice("Choosing depot at random")
 	{SHOW_DEPOT_INFO_FUNCTION}
 
 	showDepotInfo()
@@ -150,6 +155,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS = f"""
 def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	logger.notice("Choosing depot based on network address")
 	{SHOW_DEPOT_INFO_FUNCTION}
 
 	showDepotInfo()
@@ -168,22 +174,40 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 	for depot in sorted([d for d in ([masterDepot] + alternativeDepots) if d.networkAddress], key=lambda x: ipaddress.ip_network(x.networkAddress).prefixlen, reverse=True):
 		if ip_address_in_network(clientConfig['ipAddress'], depot.networkAddress):
-			logger.notice("Choosing depot with network address %r for client address %r", depot.networkAddress, clientConfig['ipAddress'])
+			logger.notice("Choosing depot %r with network address %r for client address %r", depot.id, depot.networkAddress, clientConfig['ipAddress'])
 			return depot
-		logger.info("IP %s does not match networkAddress %s of depot %s", clientConfig['ipAddress'], depot.networkAddress, depot)
+		logger.info("IP %s does not match networkAddress %s of depot %s", clientConfig['ipAddress'], depot.networkAddress, depot.id)
 
 	return masterDepot
 """
 
 
 class RPCExtDynamicDepotMixin(Protocol):
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="depot_getDepotSelectionAlgorithm")
 	def getDepotSelectionAlgorithm(self: BackendProtocol) -> str:
+		return self.depot_getDepotSelectionAlgorithm()
+
+	@rpc_method(check_acl=False)
+	def depot_getDepotSelectionAlgorithm(self: BackendProtocol, clientId: str | None = None) -> str:
 		"""Returns the selected depot selection algorithm."""
-		mode = "network_address"
-		configs = self.config_getObjects(id="clientconfig.depot.selection_mode")
-		if configs and configs[0].defaultValues:
-			mode = configs[0].defaultValues[0]
+		clientId = to_host_id(clientId) if clientId else None
+		logger.debug("Getting depot selection algorithm for client %r", clientId)
+		config_id = "clientconfig.depot.selection_mode"
+
+		mode = ""
+		if clientId:
+			values = self.configState_getValues(config_ids=[config_id], object_ids=[clientId], with_defaults=True)
+			mode = (values.get(clientId, {}).get(config_id) or [""])[0]
+			if mode:
+				logger.info("Using depot selection mode configured for client %r: %r", clientId, mode)
+		if not mode:
+			configs = self.config_getObjects(id="clientconfig.depot.selection_mode")
+			if configs and configs[0].defaultValues and configs[0].defaultValues[0]:
+				mode = configs[0].defaultValues[0]
+				logger.info("Using depot selection mode configured as default: %r", mode)
+		if not mode:
+			mode = "network_address"
+			logger.info("No depot selection mode configured, falling back to default '%s'", mode)
 
 		if mode == "master_and_latency":
 			return DEPOT_SELECTION_ALGORITHM_BY_MASTER_DEPOT_AND_LATENCY
@@ -194,5 +218,5 @@ class RPCExtDynamicDepotMixin(Protocol):
 		if mode == "random":
 			return DEPOT_SELECTION_ALGORITHM_BY_RANDOM
 
-		logger.error("Invalid 'clientconfig.depot.selection_mode': %r", mode)
+		logger.error("Invalid '%s': %r", config_id, mode)
 		return DEPOT_SELECTION_ALGORITHM_BY_NETWORK_ADDRESS

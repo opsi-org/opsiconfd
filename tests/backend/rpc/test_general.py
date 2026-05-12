@@ -461,7 +461,7 @@ def test_backend_getLicensingInfo(
 			"reload",
 		),
 		(
-			{"networks": ["10.10.88.0/24", "10.10.99.0/24"], "zeroconf": False},
+			{"networks": ["10.10.88.0/24", "10.10.99.0/24"], "zeroconf": False, "run_as_user": "other-user"},
 			{"networks": ["10.10.88.0/24", "10.10.99.0/24", "127.0.0.1/32"], "zeroconf": False},
 			["networks = [10.10.88.0/24, 10.10.99.0/24, 127.0.0.1/32]", "zeroconf = false"],
 			None,

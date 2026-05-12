@@ -290,14 +290,16 @@ class RPCGeneralMixin(Protocol):
 	@rpc_method
 	def service_updateConfig(self: BackendProtocol, options: dict[str, Any], on_change: str) -> None:
 		self._check_role("admin")
+		options = {k.strip().lower().strip("-").replace("-", "_"): v for k, v in options.items()}
+		# Remove options that should not be set via this method
+		options.pop("run_as_user", None)
+
 		literal_on_change: Literal["reload", "restart"] | None = None
 		if on_change == "reload":
 			literal_on_change = "reload"
 		elif on_change == "restart":
 			literal_on_change = "restart"
-		config.update_config(
-			{k.strip().lower().strip("-").replace("-", "_"): v for k, v in options.items()}, parse_values=False, on_change=literal_on_change
-		)
+		config.update_config(options, parse_values=False, on_change=literal_on_change)
 
 	@rpc_method(check_acl=False)
 	def getDomain(self: BackendProtocol) -> str:

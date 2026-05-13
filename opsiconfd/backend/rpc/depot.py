@@ -873,7 +873,8 @@ class DepotserverPackageManager:
 						elif suppress_package_content_file_generation:
 							logger.debug("Suppressed generation of package content file")
 						else:
-							create_package_content_file(product_path)
+							# Symlinks are currently not supported on client side
+							create_package_content_file(product_path, links_as_links=False)
 						set_rights(product_path)
 
 				clean_up_products(product_on_depot.productId)

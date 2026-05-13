@@ -280,7 +280,7 @@ class RPCDepotserverMixin(Protocol):
 			raise BackendIOError(f"Product dir '{product_path}' not found")
 
 		logger.notice("Creating package content file '%s'", product_path / f"{productId}.files")
-		package_content_path = create_package_content_file(Path(product_path))
+		package_content_path = create_package_content_file(Path(product_path), links_as_links=False)
 		if os.name == "posix":
 			os.chown(package_content_path, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(package_content_path, 0o660)

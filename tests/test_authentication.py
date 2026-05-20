@@ -33,7 +33,7 @@ from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.saml import check_if_saml_available
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
-from opsiconfd.session import OPSISession
+from opsiconfd.session import OPSISession, _validate_mfa_otp, _validate_username
 from opsiconfd.utils.cryptography import (
 	HashingAlgorithm,
 	create_auth_token,
@@ -94,6 +94,29 @@ def test_login_error(
 	assert res.status_code == expected_status_code
 	assert res.text == expected_text
 	assert res.headers.get("set-cookie", None) is not None
+
+
+def test_validate_username(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	assert _validate_username("admin-user") is True
+	assert _validate_username("user_1") is True
+	assert _validate_username("user.name") is True
+	assert _validate_username("user@domain.tld") is True
+	assert _validate_username("invalid user") is False
+	assert _validate_username("<user>") is False
+
+	res = test_client.post("/auth/login", json={"username": "username!", "password": "secret"})
+	assert res.status_code == 401
+	assert res.json()["message"] == "Invalid username"
+
+
+def test_validate_mfa_otp() -> None:
+	assert _validate_mfa_otp("123456") is True
+	assert _validate_mfa_otp("000000") is True
+	assert _validate_mfa_otp("12345x") is False
+	assert _validate_mfa_otp("1234567") is False
+	assert _validate_mfa_otp("abcdef") is False
+	assert _validate_mfa_otp("") is True
+	assert _validate_mfa_otp(None) is True
 
 
 def test_x_opsi_user_id_header(

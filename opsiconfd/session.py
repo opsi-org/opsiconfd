@@ -86,6 +86,8 @@ MESSAGEBUS_IN_USE_TIMEOUT = 60
 HARDWARE_ADDRESS_RE = re.compile(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$")
 HOST_ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,63}\.((\w+\-+)|(\w+\.))*\w{1,63}\.\w{2,16}\.?$")
 AUTH_TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9@._-]{1,64}$")
+MFA_OTP_RE = re.compile(r"^\d{6}$")
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
 # openSUSE / SLES package manager will send "ZYpp <version> (curl <curl-version>)".
 # Do not keep sessions because they will never send a cookie (session id).
@@ -1311,8 +1313,22 @@ async def _post_failed_authenticate(scope: Scope) -> None:
 	await redis.execute_command(cmd)
 
 
+def _validate_username(username: str) -> bool:
+	return bool(USERNAME_RE.match(username))
+
+
+def _validate_mfa_otp(mfa_otp: str | None) -> bool:
+	if not mfa_otp:
+		return True
+	return bool(MFA_OTP_RE.match(mfa_otp))
+
+
 async def authenticate(*, scope: Scope, username: str, password: str, password_is_token: bool = False, mfa_otp: str | None = None) -> None:
 	try:
+		if not _validate_username(username):
+			raise OpsiServiceAuthenticationError("Invalid username")
+		if not _validate_mfa_otp(mfa_otp):
+			raise OpsiServiceAuthenticationError("Invalid MFA one-time password")
 		await _authenticate(scope=scope, username=username, password=password, password_is_token=password_is_token, mfa_otp=mfa_otp)
 	except OpsiServiceAuthenticationError:
 		await _post_failed_authenticate(scope)

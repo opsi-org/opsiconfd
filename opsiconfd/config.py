@@ -195,6 +195,25 @@ if running_in_docker():
 		pass
 
 
+def mask_secrets(config: dict[str, Any]) -> dict[str, Any]:
+	config = config.copy()
+	for key in list(config):
+		key_normalized = key.lower().replace("-", "_")
+		if (
+			"passphrase" in key_normalized
+			or "password" in key_normalized
+			or "private_key" in key_normalized
+			or "encryption_key" in key_normalized
+		):
+			if isinstance(config[key], list):
+				config[key] = ["********" for _ in config[key]]
+			else:
+				config[key] = "********"
+		elif "url" in key_normalized and isinstance(config[key], str):
+			config[key] = re.sub(r"//.*@", "//********@", str(config[key]))
+	return config
+
+
 def get_server_role() -> str:
 	return opsi_config.get("host", "server-role")
 

@@ -41,7 +41,7 @@ from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.backend.rpc.obj_user import create_auth_token
-from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates, opsi_config
+from opsiconfd.config import FQDN, VAR_ADDON_DIR, config, jinja_templates, mask_secrets, opsi_config
 from opsiconfd.grafana.grafana import GRAFANA_DASHBOARD_UID, async_grafana_session, create_dashboard_user
 from opsiconfd.logging import logger
 from opsiconfd.messagebus.redis import CHANNEL_INFO_SUFFIX, get_websocket_connected_users
@@ -790,17 +790,13 @@ def get_confd_conf(all: bool = False) -> RESTResponse:
 			"node_name",
 			"executor_workers",
 			"log_slow_async_callbacks",
-			"ssl_ca_key_passphrase",
-			"ssl_server_key_passphrase",
-			"database_encryption_keys",
 			"admin_user",
 			"admin_password",
 		]
 	)
 
 	current_config = {key.replace("_", "-"): value for key, value in sorted(config.items().copy().items()) if key not in keys_to_remove}
-
-	return RESTResponse({"config": current_config})
+	return RESTResponse({"config": mask_secrets(current_config)})
 
 
 @admin_interface_router.get("/routes")

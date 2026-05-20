@@ -24,7 +24,7 @@ from opsiconfd import get_version_string
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.check.main import health_check
 from opsiconfd.check.system import get_disk_mountpoints, get_installed_packages
-from opsiconfd.config import config
+from opsiconfd.config import config, mask_secrets
 from opsiconfd.logging import logger
 from opsiconfd.redis import async_get_redis_info, async_redis_client
 from opsiconfd.utils import get_python_info, running_in_docker
@@ -187,11 +187,7 @@ def get_backendmanager_extension_methods() -> dict[str, Any]:
 
 def get_config() -> dict[str, Any]:
 	logger.debug("get_config")
-	conf = config.items().copy()
-	for key in ["ssl_server_key_passphrase", "ssl_ca_key_passphrase", "saml_sp_private_key"]:
-		conf[key] = "********"
-	conf["grafana_internal_url"] = re.sub(r"//.*:.*@", "//user:*****@", conf["grafana_internal_url"])
-	return conf
+	return mask_secrets(config.items())
 
 
 def get_system_info() -> dict:

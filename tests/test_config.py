@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 
 from opsiconfd.config import config as opsiconfd_config
-from opsiconfd.config import ip_address, network_address, str2bool
+from opsiconfd.config import ip_address, mask_secrets, network_address, str2bool
 
 from .utils import (  # noqa: F401
 	OpsiconfdTestClient,
@@ -284,3 +284,25 @@ def test_disabled_features(test_client: OpsiconfdTestClient) -> None:  # noqa: F
 	with get_config({"disabled_features": ["status-page"]}):
 		res = test_client.get("/status")
 		assert res.status_code == 404
+
+
+def test_mask_secrets() -> None:
+	conf = {
+		"ssl_server_key_passphrase": "my_passphrase",
+		"ssl_ca_key_passphrase": "my_ca_passphrase",
+		"saml_sp_private_key": "my_private_key",
+		"grafana_internal_url": "http://user:password@hostname:123/path",
+		"other_config": "other_value",
+		"some_password": "my_password",
+		"other-passphrase-for-test": "my_other_passphrase",
+		"database-encryption-keys": ["0=7be4a050e419cafe9945dcfa15856503c43f3622e521ad7288133cf556458d3a"],
+	}
+	masked_conf = mask_secrets(conf)
+	assert masked_conf["ssl_server_key_passphrase"] == "********"
+	assert masked_conf["ssl_ca_key_passphrase"] == "********"
+	assert masked_conf["saml_sp_private_key"] == "********"
+	assert masked_conf["grafana_internal_url"] == "http://********@hostname:123/path"
+	assert masked_conf["other_config"] == "other_value"
+	assert masked_conf["some_password"] == "********"
+	assert masked_conf["other-passphrase-for-test"] == "********"
+	assert masked_conf["database-encryption-keys"] == ["********"]

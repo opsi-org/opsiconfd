@@ -86,7 +86,7 @@ MESSAGEBUS_IN_USE_TIMEOUT = 60
 HARDWARE_ADDRESS_RE = re.compile(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$")
 HOST_ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,63}\.((\w+\-+)|(\w+\.))*\w{1,63}\.\w{2,16}\.?$")
 AUTH_TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
-USERNAME_RE = re.compile(r"^[a-zA-Z0-9@._-]{1,64}$")
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9@._\-:{}]{1,64}$")
 MFA_OTP_RE = re.compile(r"^\d{6}$")
 # RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
 # openSUSE / SLES package manager will send "ZYpp <version> (curl <curl-version>)".

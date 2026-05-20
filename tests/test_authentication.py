@@ -834,6 +834,7 @@ def test_auth_system_uuid_hardware_address_and_hostkey(
 	rpc = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": opsi_client.id}]}
 
 	res = test_client.post("/rpc", auth=("{system_uuid}" + (opsi_client.systemUUID or ""), opsi_client.opsiHostKey), json=rpc)
+	print(res.text)
 	assert res.status_code == 200
 	test_client.reset_cookies()
 	assert test_client.context

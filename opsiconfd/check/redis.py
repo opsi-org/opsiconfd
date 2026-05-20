@@ -35,7 +35,10 @@ class RedisConnectionSettingsCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		url = urlparse(config.redis_internal_url)
-		if url.scheme == "unix":
+		if not url.username:
+			result.message = "Redis configuration settings are not optimal, authentication is not configured."
+			result.check_status = CheckStatus.WARNING
+		elif url.scheme == "unix":
 			result.message = "Redis configuration settings are optimal, connection is using a Unix socket."
 		elif url.hostname in ("localhost", "ip6-localhost", "ip6-loopback", "127.0.0.1", "::1"):
 			result.message = (

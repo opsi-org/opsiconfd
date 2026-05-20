@@ -79,20 +79,31 @@ def test_check_redis_connection_settings() -> None:
 		mock.patch("opsiconfd.check.common.Check.load_result_from_cache", return_value=None),
 		mock.patch("opsiconfd.check.common.Check.store_result_in_cache", return_value=None),
 	):
-		# Test unix socket
+		# Test missing authentication
+		with get_config({"redis_internal_url": "redis://localhost:6379"}):
+			result = RedisConnectionSettingsCheck().run()
+			assert "authentication is not configured" in result.message
+			assert result.check_status == "warning"
+
 		with get_config({"redis_internal_url": "unix:///tmp/redis.sock"}):
+			result = RedisConnectionSettingsCheck().run()
+			assert "authentication is not configured" in result.message
+			assert result.check_status == "warning"
+
+		# Test unix socket
+		with get_config({"redis_internal_url": "unix://default:secret@/tmp/redis.sock"}):
 			result = RedisConnectionSettingsCheck().run()
 			assert "connection is using a Unix socket" in result.message
 			assert result.check_status == "ok"
 
 		# Test localhost TCP/IP
-		with get_config({"redis_internal_url": "redis://localhost:6379/0"}):
+		with get_config({"redis_internal_url": "redis://default:secret@localhost:6379/0"}):
 			result = RedisConnectionSettingsCheck().run()
 			assert "connection is using a TCP/IP socket" in result.message
 			assert result.check_status == "warning"
 
 		# Test non-localhost TCP/IP
-		with get_config({"redis_internal_url": "redis://192.168.1.1:6379/0"}):
+		with get_config({"redis_internal_url": "redis://default:secret@192.168.1.1:6379/0"}):
 			result = RedisConnectionSettingsCheck().run()
 			assert "Redis configuration settings are optimal" in result.message
 			assert result.check_status == "ok"

@@ -154,10 +154,10 @@ def create_backup(
 	maintenance_address_exceptions: list[str] | None = None,
 	progress: Progress | None = None,
 ) -> dict[str, dict[str, Any]]:
-	with redis_lock("backup-restore", acquire_timeout=10.0, lock_timeout=12 * 3600):
-		if get_server_role() != "configserver":
-			raise RuntimeError("Not a config server")
+	if get_server_role() != "configserver":
+		raise RuntimeError("Not a config server")
 
+	with redis_lock("backup-restore", acquire_timeout=10.0, lock_timeout=12 * 3600):
 		backend = get_unprotected_backend()
 		now = datetime.now(tz=timezone.utc)
 		server_ids = backend.host_getIdents(returnType="str", type="OpsiConfigserver")

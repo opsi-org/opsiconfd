@@ -1314,6 +1314,8 @@ async def _post_failed_authenticate(scope: Scope) -> None:
 
 
 def _validate_username(username: str) -> bool:
+	if not username:
+		return True
 	return bool(USERNAME_RE.match(username))
 
 

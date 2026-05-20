@@ -23,13 +23,16 @@ from rich.prompt import Prompt
 
 from opsiconfd.application import MaintenanceState, NormalState, app
 from opsiconfd.backup import create_backup, read_backup_file_data, restore_backup
-from opsiconfd.config import config
+from opsiconfd.config import config, get_server_role
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.redis import delete_locks
 from opsiconfd.setup.backend import setup_mysql
 
 
 def backup_main() -> None:
+	if get_server_role() != "configserver":
+		raise RuntimeError("Backups can only be created on config servers")
+
 	if config.delete_locks:
 		delete_locks()
 

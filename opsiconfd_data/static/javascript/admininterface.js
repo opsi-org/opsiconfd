@@ -9,6 +9,13 @@ function createUUID() {
 }
 
 
+function encodeHTML(str) {
+	return str.replace(/[\u00A0-\u9999<>\&]/gim, function (i) {
+		return '&#' + i.charCodeAt(0) + ';';
+	});
+}
+
+
 function showNotification(message, group = "", type = "success", seconds = 10) {
 	// type: success / warning / error
 	const notifications = document.getElementById("notifications");
@@ -1060,7 +1067,6 @@ function ValidateIPaddress(ipaddress) {
 	return (false)
 }
 
-
 function printSessionTable(data, htmlId) {
 	if (data.length == 0) {
 		htmlStr = "<p>No sessions found.</p>";
@@ -1078,10 +1084,10 @@ function printSessionTable(data, htmlId) {
 			"</tr>";
 		data.forEach(element => {
 			htmlStr += "<tr>" +
-				"<td class=\"session-td\">" + element.address + "</td>" +
+				"<td class=\"session-td\">" + encodeHTML(element.address) + "</td>" +
 				"<td class=\"session-td\">" + element.session_id + "</td>" +
-				"<td class=\"session-td\">" + element.user_agent + "</td>" +
-				"<td class=\"session-td\">" + element.username + "</td>" +
+				"<td class=\"session-td\">" + encodeHTML(element.user_agent) + "</td>" +
+				"<td class=\"session-td\">" + encodeHTML(element.username) + "</td>" +
 				"<td class=\"session-td\">" + element.authenticated + "</td>" +
 				"<td class=\"session-td\">" + element.auth_methods + "</td>" +
 				"<td class=\"session-td\">" + Math.round(element.validity) + "</td>" +

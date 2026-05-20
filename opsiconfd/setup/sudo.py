@@ -31,8 +31,10 @@ def format_command(cmd: list[str] | str) -> str:
 def setup_sudoers() -> None:
 	logger.info("Setup sudoers")
 	user = config.run_as_user
+	setup_sudo_entries = config.setup_sudo_entries
 	if user == "root":
-		return
+		# No need to setup sudoers for opsiconfd if it runs as root
+		setup_sudo_entries = [x for x in setup_sudo_entries if "opsiconfd" not in x]
 
 	sudoers_conf = Path(SUDOERS_CONF)
 	if not sudoers_conf.exists():
@@ -49,14 +51,18 @@ def setup_sudoers() -> None:
 	add_lines = [
 		START_COMMENT,
 		f"Defaults:{user} !requiretty",
-		f"{user} ALL=NOPASSWD: /usr/bin/opsi-set-rights",
-		f"%{file_admin_group} ALL=NOPASSWD: /usr/bin/opsi-set-rights",
-		f"%{admin_group} ALL=NOPASSWD: /usr/bin/opsiconfd setup *",
 	]
-	dhcpd_control_config = get_dhcpd_control_config()
-	if dhcpd_control_config.enabled and dhcpd_control_config.reload_config_command:
-		cmd = format_command(dhcpd_control_config.reload_config_command)
-		add_lines.append(f"{user} ALL=NOPASSWD: {cmd}")
+	if "set_rights_opsiconfd" in setup_sudo_entries:
+		add_lines.append(f"{user} ALL=NOPASSWD: /usr/bin/opsi-set-rights")
+	if "set_rights_file_admin_group" in setup_sudo_entries:
+		add_lines.append(f"%{file_admin_group} ALL=NOPASSWD: /usr/bin/opsi-set-rights")
+	if "opsiconfd_setup_admin_group" in setup_sudo_entries:
+		add_lines.append(f"%{admin_group} ALL=NOPASSWD: /usr/bin/opsiconfd setup *")
+	if "opsiconfd_dhcpd_reload" in setup_sudo_entries:
+		dhcpd_control_config = get_dhcpd_control_config()
+		if dhcpd_control_config.enabled and dhcpd_control_config.reload_config_command:
+			cmd = format_command(dhcpd_control_config.reload_config_command)
+			add_lines.append(f"{user} ALL=NOPASSWD: {cmd}")
 
 	lines = sudoers_conf.read_text(encoding="utf-8").splitlines()
 	new_lines: list[str] = []

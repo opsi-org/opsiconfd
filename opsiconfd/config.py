@@ -1475,6 +1475,19 @@ class Config:
 			choices=["all"] + SKIP_SETUP_ACTIONS,
 		)
 
+		sudo_entries = ["set_rights_file_admin_group", "set_rights_opsiconfd", "opsiconfd_setup_admin_group", "opsiconfd_dhcpd_reload"]
+		self._parser.add_argument(
+			"--setup-sudo-entries",
+			nargs="*",
+			env_var="OPSICONFD_SETUP_SUDO_ENTRIES",
+			default=sudo_entries,
+			help=self._help(
+				("opsiconfd", "setup"),
+				f"A list of sudo entries to setup (entries: {', '.join(sudo_entries)}).",
+			),
+			choices=sudo_entries,
+		)
+
 		self._parser.add_argument(
 			"--checks",
 			nargs="*",

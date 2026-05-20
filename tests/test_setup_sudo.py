@@ -20,6 +20,7 @@ from opsiconfd.setup.sudo import format_command, setup_sudoers
 from .utils import get_config
 
 SYSTEMCTL = shutil.which("systemctl") or "/usr/bin/systemctl"
+START_COMMENT = "# Auto added by opsiconfd setup"
 
 
 @pytest.mark.parametrize(
@@ -130,3 +131,78 @@ def test_setup_sudoers(
 				or (dhcpd_config_enabled and opsiconfd_dhcpd_reload)
 			):
 				assert sudoers.stat().st_mtime != mtime
+
+
+def test_setup_sudoers_returns_if_sudoers_file_is_missing(tmp_path: Path) -> None:
+	sudoers = tmp_path / "missing-sudoers"
+
+	with patch("opsiconfd.setup.sudo.SUDOERS_CONF", str(sudoers)):
+		setup_sudoers()
+
+	assert not sudoers.exists()
+
+
+@pytest.mark.parametrize(
+	"group_config",
+	(
+		{"groups.admingroup": "invalid group", "groups.fileadmingroup": "opsifileadmins"},
+		{"groups.admingroup": "opsiadmin", "groups.fileadmingroup": "invalid group"},
+	),
+)
+def test_setup_sudoers_returns_if_admin_groups_are_invalid(tmp_path: Path, group_config: dict[str, str]) -> None:
+	sudoers = tmp_path / "sudoers"
+	sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+
+	def get_group(section: str, option: str) -> str:
+		return group_config[f"{section}.{option}"]
+
+	with (
+		patch("opsiconfd.setup.sudo.SUDOERS_CONF", str(sudoers)),
+		patch("opsiconfd.setup.sudo.opsi_config.get", get_group),
+	):
+		setup_sudoers()
+
+	assert sudoers.read_text(encoding="utf-8") == "Defaults env_reset\n"
+
+
+def test_setup_sudoers_filters_opsiconfd_entries_for_root_user(tmp_path: Path) -> None:
+	sudoers = tmp_path / "sudoers"
+	sudoers.write_text("Defaults env_reset\n", encoding="utf-8")
+	setup_sudo_entries = [
+		"set_rights_file_admin_group",
+		"set_rights_opsiconfd",
+		"opsiconfd_setup_admin_group",
+		"opsiconfd_dhcpd_reload",
+	]
+
+	with (
+		patch("opsiconfd.setup.sudo.SUDOERS_CONF", str(sudoers)),
+		get_config({"run_as_user": "root", "setup_sudo_entries": setup_sudo_entries}),
+	):
+		setup_sudoers()
+
+	assert sudoers.read_text(encoding="utf-8") == (
+		f"Defaults env_reset\n{START_COMMENT}\nDefaults:root !requiretty\n%opsifileadmins ALL=NOPASSWD: /usr/bin/opsi-set-rights\n\n"
+	)
+
+
+def test_setup_sudoers_adds_blank_line_after_existing_block_if_needed(tmp_path: Path) -> None:
+	sudoers = tmp_path / "sudoers"
+	sudoers.write_text(
+		"Defaults env_reset\n"
+		f"{START_COMMENT}\n"
+		"Defaults:opsiconfd !requiretty\n"
+		"opsiconfd ALL=NOPASSWD: /usr/bin/opsi-set-rights\n"
+		"#includedir /etc/sudoers.d\n",
+		encoding="utf-8",
+	)
+
+	with (
+		patch("opsiconfd.setup.sudo.SUDOERS_CONF", str(sudoers)),
+		get_config({"setup_sudo_entries": []}),
+	):
+		setup_sudoers()
+
+	assert sudoers.read_text(encoding="utf-8") == (
+		f"Defaults env_reset\n{START_COMMENT}\nDefaults:opsiconfd !requiretty\n\n#includedir /etc/sudoers.d\n"
+	)

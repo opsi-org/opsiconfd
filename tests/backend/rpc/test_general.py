@@ -17,6 +17,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+from opsi.exception import BackendPermissionDeniedError
 from opsi.opsi.licensing import OpsiLicense, OpsiLicensePool, generate_key_pair, get_default_opsi_license_pool
 from opsi.opsi.licensing._licensing import OPSI_CLIENT_INACTIVE_AFTER
 from opsi.opsi.service.model.object import LocalbootProduct, OpsiClient, ProductOnClient, User
@@ -495,7 +496,7 @@ def test_service_getConfig_updateConfig(
 	with (
 		patch("opsiconfd.config.restart_opsiconfd_if_running", restart_opsiconfd_if_running),
 		patch("opsiconfd.config.reload_opsiconfd_if_running", reload_opsiconfd_if_running),
-		get_config({"config-file": str(conf_file)}),
+		get_config({"config-file": str(conf_file), "allow-update-config-via-api": True}),
 	):
 		if expected_exc:
 			with pytest.raises(expected_exc, match=expected_exc_match or ""):
@@ -521,6 +522,15 @@ def test_service_getConfig_updateConfig(
 			assert restart_opsiconfd_if_running_called is True
 		elif on_change == "reload":
 			assert reload_opsiconfd_if_running_called is True
+
+
+def test_service_disallowed_updateConfig(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+
+	with get_config({"allow-update-config-via-api": False}):
+		with pytest.raises(BackendPermissionDeniedError, match="Updating config via API is not allowed"):
+			backend.service_updateConfig({"websocket_open_timeout": 10}, "reload")
 
 
 def test_service_healthCheck(backend: UnprotectedBackend) -> None:  # noqa: F811

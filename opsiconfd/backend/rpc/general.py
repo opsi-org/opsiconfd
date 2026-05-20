@@ -290,6 +290,9 @@ class RPCGeneralMixin(Protocol):
 	@rpc_method
 	def service_updateConfig(self: BackendProtocol, options: dict[str, Any], on_change: str) -> None:
 		self._check_role("admin")
+		if not config.allow_update_config_via_api:
+			raise BackendPermissionDeniedError("Updating config via API is not allowed")
+
 		options = {k.strip().lower().strip("-").replace("-", "_"): v for k, v in options.items()}
 		# Remove options that should not be set via this method
 		options.pop("run_as_user", None)

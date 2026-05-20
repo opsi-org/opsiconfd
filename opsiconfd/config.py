@@ -1804,6 +1804,15 @@ class Config:
 			help=self._help("opsiconfd", "Provide deprecated methods in API."),
 		)
 		self._parser.add_argument(
+			"--allow-update-config-via-api",
+			env_var="OPSICONFD_ALLOW_UPDATE_CONFIG_VIA_API",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help("expert", "Allow updating config via API."),
+		)
+		self._parser.add_argument(
 			"--http-security-headers",
 			env_var="OPSICONFD_HTTP_SECURITY_HEADERS",
 			type=str2bool,

@@ -26,6 +26,8 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationException
 from fastapi.requests import HTTPConnection
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
+from opsi.crypt.hash import PasswordHashAlgorithm, hash_password, verify_password
+from opsi.crypt.hash._hash import _get_password_hash_algorithm
 from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermissionError
 from opsi.logging import secret_filter, set_context
 from opsi.network import ip_address_in_network
@@ -51,13 +53,7 @@ from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_redis_client, ip_address_to_redis_key
 from opsiconfd.utils import asyncio_create_task, timed_lru_cache
-from opsiconfd.utils.cryptography import (
-	HashingAlgorithm,
-	create_password_hash,
-	create_token_hash,
-	get_password_hash_algorithm,
-	verify_password,
-)
+from opsiconfd.utils.cryptography import create_token_hash
 from opsiconfd.utils.modules import module_available
 
 if TYPE_CHECKING:
@@ -1477,7 +1473,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 					logger.debug("No password hash in database for user %s", session.username)
 				else:
 					try:
-						used_database_auth_algorithm = get_password_hash_algorithm(user.passwordHash)
+						used_database_auth_algorithm = _get_password_hash_algorithm(user.passwordHash)
 						if verify_password(session.password, user.passwordHash, algorithm=used_database_auth_algorithm):
 							db_auth_success = True
 							session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_DATABASE)
@@ -1546,7 +1542,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 		raise OpsiServicePermissionError(f"User {session.username!r} not in allowed groups")
 
 	if user:
-		password_hashing_algorithm = HashingAlgorithm(config.database_password_hashing_method)
+		password_hashing_algorithm = PasswordHashAlgorithm(config.database_password_hashing_method)
 		update_db_password_hash = False
 
 		if not user.passwordHash and config.database_password_hash_migration == "database":
@@ -1562,7 +1558,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 			update_db_password_hash = True
 
 		if update_db_password_hash:
-			user.passwordHash = create_password_hash(session.password, algorithm=password_hashing_algorithm)
+			user.passwordHash = hash_password(session.password, algorithm=password_hashing_algorithm)
 			user_updated = True
 
 		if user_updated:

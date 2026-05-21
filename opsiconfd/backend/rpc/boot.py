@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 
 from jinja2 import Template
 from jinja2.exceptions import UndefinedError
+from opsi.crypt.hash import PasswordHashAlgorithm, PasswordHashFormat, hash_password
 from opsi.exception import BackendMissingDataError
 from opsi.opsi.service.model.object import NetbootProduct, OpsiClient, OpsiDepotserver, ProductOnClient, ProductOnDepot
 from opsi.opsi.service.model.type import Architecture, FirmwareType, to_hardware_address, to_host_id, to_ip_address, to_uuid_string
@@ -27,7 +28,6 @@ from opsi.opsi.service.model.type import Architecture, FirmwareType, to_hardware
 from opsiconfd.config import DEFAULT_PRODUCT_GRUB_CFG_TEMPLATE, GRUB_CFG_TEMPLATE, get_configserver_id
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.utils import FileCache
-from opsiconfd.utils.cryptography import HashingAlgorithm, PasswordHashFormat, create_password_hash
 
 from . import rpc_method
 
@@ -104,16 +104,18 @@ class TemplateContextConfigState:
 		return bool(self.value)
 
 	def password_hash(
-		self, method: HashingAlgorithm | str = HashingAlgorithm.SHA512, format: PasswordHashFormat | str = PasswordHashFormat.SHADOW
+		self,
+		method: PasswordHashAlgorithm | str = PasswordHashAlgorithm.SHA512,
+		format: PasswordHashFormat | str = PasswordHashFormat.SHADOW,
 	) -> str | None:
 		value = self.value
 		if not value or isinstance(value, bool):
 			return None
 		value = str(value)
 
-		if not isinstance(method, HashingAlgorithm):
-			method = HashingAlgorithm(method)
-		assert isinstance(method, HashingAlgorithm)
+		if not isinstance(method, PasswordHashAlgorithm):
+			method = PasswordHashAlgorithm(method)
+		assert isinstance(method, PasswordHashAlgorithm)
 
 		if not isinstance(format, PasswordHashFormat):
 			format = PasswordHashFormat(format)
@@ -126,11 +128,11 @@ class TemplateContextConfigState:
 		elif format == PasswordHashFormat.SHADOW:
 			match = SHADOW_HASH_RE.match(value)
 			if match:
-				if match.group(1) == HashingAlgorithm.SHA512.identifier() and method == HashingAlgorithm.SHA512:
+				if match.group(1) == PasswordHashAlgorithm.SHA512.identifier() and method == PasswordHashAlgorithm.SHA512:
 					return value
 				raise ValueError(f"Password is already hashed with method {match.group(1)}, but {method} is requested")
 
-		return create_password_hash(password=value, algorithm=method, format=format)
+		return hash_password(password=value, algorithm=method, format=format)
 
 
 class TemplateContextProductPropertyState(TemplateContextConfigState):

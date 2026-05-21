@@ -15,6 +15,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from opsi.crypt.blowfish import blowfish_decrypt
+from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
 from opsi.exception import BackendMissingDataError
 from opsi.opsi.service.model.object import User
 
@@ -22,7 +23,7 @@ from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, get_random_string
-from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, encrypt
+from opsiconfd.utils.cryptography import encrypt
 
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 
@@ -91,7 +92,7 @@ def migrate_opsi_passwd_file() -> None:
 			backend.user_insertObject(
 				User(
 					id=username,
-					passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method))
+					passwordHash=hash_password(password, algorithm=PasswordHashAlgorithm(config.database_password_hashing_method))
 					if password
 					else None,
 					encryptedPassword=encrypted_password,

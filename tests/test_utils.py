@@ -15,6 +15,7 @@ from unittest import mock
 
 import pytest
 from opsi.crypt.blowfish import blowfish_encrypt
+from opsi.crypt.hash import verify_password
 from opsi.opsi.service.model.object import User
 
 from opsiconfd.config import opsi_config
@@ -30,17 +31,13 @@ from opsiconfd.utils import (
 	timed_lru_cache,
 )
 from opsiconfd.utils.cryptography import (
-	PasswordHashFormat,
 	aes_decrypt_with_password,
 	aes_encrypt_with_password,
 	create_auth_token,
-	create_password_hash,
 	create_token_hash,
 	decrypt,
 	encrypt,
 	get_encryption_key,
-	get_password_hash_algorithm,
-	verify_password,
 )
 from opsiconfd.utils.user import migrate_opsi_passwd_file
 from tests.utils import cleanup_checks, get_opsi_config  # noqa: F401
@@ -294,74 +291,6 @@ def test_encrypt_decrypt() -> None:
 
 		with pytest.raises(ValueError, match="Decryption failed"):
 			decrypt("ENCv1[ALG=AESGCM|KID=2024-12]invalid", ignore_unencrypted=True)
-
-
-@pytest.mark.parametrize("generate_salt", (True, False))
-@pytest.mark.parametrize(
-	"password, algorithm, rounds, format, expected_exception, expected_exception_message",
-	(
-		(r"?z!W!@pmvU;7-|`}P7rb]Xz@VZ", "BCRYPT", 13, "SHADOW", None, None),
-		(r"7ERlz[I|12by1ycIqe?ES6t`2r<F,y", "BCRYPT", None, None, None, None),
-		(r'Eg$l5;]g\&yW)lC9)*WI"0dOI]XV', "BCRYPT", None, None, None, None),
-		("x" * 65, "BCRYPT", None, "SHADOW", ValueError, "Password cannot be longer than 64 bytes"),
-		(r"o~'UaGQ,negIb_nf7_}(SrFC)\"", "SHA512", 5000, "SHADOW", None, None),
-		(r"5&|F{#(OO+y?z`Zg];AL&TIJ;", "SHA512", None, "SHADOW", None, None),
-		(r"c5e9b99b0e4a4d3f8a6722b2e91a8cd4d274a923e56d43f4d2b1187b9b09f6a3", "SHA512", None, "SHADOW", None, None),
-		("x" * 65, "SHA512", None, "SHADOW", ValueError, "Password cannot be longer than 64 bytes"),
-		("secret", "PBKDF2_SHA512", None, "GRUB", None, None),
-		("secret", "PBKDF2_SHA512", None, "SHADOW", ValueError, "PBKDF2_SHA512 only supported with GRUB format"),
-		("secret", "BCRYPT", None, "GRUB", ValueError, "BCRYPT only supported with SHADOW format"),
-		("secret", "SHA512", None, "GRUB", ValueError, "SHA512 only supported with SHADOW format"),
-		("secret", "MD5", None, None, ValueError, "'MD5' is not a valid HashingAlgorithm"),
-		("secret", "ARGON2ID", 4, "SHADOW", None, None),
-		(r"7ERlz[I|12by1ycIqe?ES6t`2r<F,y", "ARGON2ID", None, None, None, None),
-		("secret", "ARGON2ID", 4, "GRUB", ValueError, "ARGON2ID only supported with SHADOW format"),
-	),
-)
-def test_password_hashing(
-	generate_salt: bool,
-	password: str,
-	algorithm: str,
-	rounds: int | None,
-	format: str | None,
-	expected_exception: type[Exception] | None,
-	expected_exception_message: str | None,
-) -> None:
-	kwargs = {"password": password, "algorithm": algorithm, "rounds": rounds, "generate_salt": generate_salt}
-	if format:
-		kwargs["format"] = PasswordHashFormat(format)
-
-	if expected_exception:
-		with pytest.raises(expected_exception, match=expected_exception_message):
-			create_password_hash(**kwargs)  # ty: ignore[invalid-argument-type]
-		return
-
-	hash = create_password_hash(**kwargs)  # ty: ignore[invalid-argument-type]
-	hash2 = create_password_hash(**kwargs)  # ty: ignore[invalid-argument-type]
-	if generate_salt:
-		assert hash != hash2
-	else:
-		assert hash == hash2
-	if algorithm == "PBKDF2_SHA512":
-		assert hash.startswith("grub.pbkdf2.sha512")
-		return
-
-	assert len(hash) <= 128
-	assert hash.startswith("$")
-	parts = hash.split("$")
-	if algorithm == "BCRYPT":
-		assert parts[1] == "2b"
-		assert parts[2] == str(rounds or 12)
-	elif algorithm == "SHA512":
-		assert parts[1] == "6"
-		if rounds:
-			assert parts[2] == f"rounds={rounds}"
-
-	alg = get_password_hash_algorithm(hash)
-	assert alg.name == algorithm
-	assert verify_password(password, hash)
-	assert verify_password(password, hash, algorithm=alg)
-	assert not verify_password("wrong_password", hash)
 
 
 def test_create_token_hash() -> None:

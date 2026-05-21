@@ -23,6 +23,7 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
+from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
 from opsi.exception import OpsiServicePermissionError
 from opsi.network import ip_address_in_network
 from opsi.opsi.licensing import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
@@ -50,7 +51,7 @@ from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 from opsiconfd.session import OPSISession
 from opsiconfd.ssl import get_ca_certs_info, get_server_cert_info
 from opsiconfd.utils import get_manager_process
-from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, encrypt
+from opsiconfd.utils.cryptography import encrypt
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -567,7 +568,7 @@ async def set_internal_user_password(request: Request) -> RESTResponse:
 		except Exception as err:
 			return RESTErrorResponse(message=str(err), http_status=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
-		user.passwordHash = create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method))
+		user.passwordHash = hash_password(password, algorithm=PasswordHashAlgorithm(config.database_password_hashing_method))
 		if user.encryptedPassword:
 			user.encryptedPassword = encrypt(password)
 	else:
@@ -637,7 +638,7 @@ async def create_user(request: Request) -> RESTResponse:
 		groups.append("{readonly}")
 	user = User(
 		id=params.get("user_id"),
-		passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(config.database_password_hashing_method))
+		passwordHash=hash_password(password, algorithm=PasswordHashAlgorithm(config.database_password_hashing_method))
 		if password
 		else None,
 		groups=groups,

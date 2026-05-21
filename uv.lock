@@ -1712,13 +1712,16 @@ wheels = [
 
 [[package]]
 name = "python-opsi"
-version = "4.3.17.0"
+version = "4.3.18.0"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
+    { name = "argon2-cffi" },
+    { name = "bcrypt" },
     { name = "blake3" },
     { name = "colorlog" },
     { name = "configupdater" },
+    { name = "crypt-r", marker = "sys_platform == 'linux'" },
     { name = "cryptography" },
     { name = "distro" },
     { name = "dnspython" },
@@ -1744,9 +1747,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.17.0.tar.gz", hash = "sha256:b2efd5ebb0f7605fe3738a9f18995887614d7a05dc8c40cad085e1f675d7c3bd" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.18.0.tar.gz", hash = "sha256:26e061ebd438b3c50f04fe21f90b2e2b12db6d2caf08316a8c2f480e847d8449" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.17.0-py3-none-any.whl", hash = "sha256:e62a72ab1bae01ba1bd44022d927be2d07f02ec1622789848cbb17123ab69206" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.18.0-py3-none-any.whl", hash = "sha256:24c4548da7f30fd049311bd9368e24d2f521bea0999ca0a61e53f06375744f47" },
 ]
 
 [[package]]

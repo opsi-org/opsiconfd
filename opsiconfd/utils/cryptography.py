@@ -10,9 +10,6 @@ utils
 from __future__ import annotations
 
 import base64
-import binascii
-import hashlib
-import os
 import re
 import secrets
 from enum import StrEnum
@@ -20,22 +17,13 @@ from functools import lru_cache
 from random import randbytes
 from typing import Type, overload
 
-import bcrypt
-import crypt_r
-from argon2 import DEFAULT_HASH_LENGTH as ARGON2_DEFAULT_HASH_LENGTH
-from argon2 import DEFAULT_MEMORY_COST as ARGON2_DEFAULT_MEMORY_COST
-from argon2 import DEFAULT_PARALLELISM as ARGON2_DEFAULT_PARALLELISM
-from argon2 import DEFAULT_RANDOM_SALT_LENGTH as ARGON2_DEFAULT_SALT_LENGTH
-from argon2 import DEFAULT_TIME_COST as ARGON2_DEFAULT_TIME_COST
-from argon2 import PasswordHasher
-from argon2.low_level import Type as Argon2Type
-from argon2.low_level import hash_secret as argon2_hash_secret
 from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import GcmMode
 from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger, secret_filter
@@ -175,159 +163,10 @@ def decrypt(value: str, *, return_type: Type[str] | Type[bytes] = str, ignore_un
 	raise ValueError(f"Unsupported algorithm: {algorithm!r}")
 
 
-class PasswordHashFormat(StrEnum):
-	SHADOW = "SHADOW"
-	GRUB = "GRUB"
-
-	@classmethod
-	def _missing_(cls, value: object) -> PasswordHashFormat:
-		value = str(value).upper()
-		for member in cls:
-			if member.value == value:
-				return member
-		raise ValueError(f"{value!r} is not a valid {cls.__name__}")
-
-
-class HashingAlgorithm(StrEnum):
-	SHA512 = "SHA512"
-	BCRYPT = "BCRYPT"
-	PBKDF2_SHA512 = "PBKDF2_SHA512"
-	ARGON2ID = "ARGON2ID"
-
-	@classmethod
-	def _missing_(cls, value: object) -> HashingAlgorithm:
-		value = str(value).upper().replace("-", "_")
-		for member in cls:
-			if member.value == value:
-				return member
-		raise ValueError(f"{value!r} is not a valid {cls.__name__}")
-
-	def identifier(self) -> str:
-		if self == HashingAlgorithm.ARGON2ID:
-			return "argon2id"
-		if self == HashingAlgorithm.SHA512:
-			return "6"
-		if self == HashingAlgorithm.BCRYPT:
-			return "2b"
-		raise ValueError(f"Unsupported hashing algorithm: {self!r}")
-
-	@classmethod
-	def from_identifier(cls, identifier: str) -> HashingAlgorithm:
-		if identifier == "argon2id":
-			return HashingAlgorithm.ARGON2ID
-		if identifier == "6":
-			return HashingAlgorithm.SHA512
-		if identifier in ("2a", "2b", "2y"):
-			return HashingAlgorithm.BCRYPT
-		raise ValueError(f"Unsupported hashing algorithm {identifier!r}")
-
-
-def create_password_hash(
-	password: str,
-	*,
-	algorithm: HashingAlgorithm = HashingAlgorithm.ARGON2ID,
-	rounds: int | None = None,
-	format: PasswordHashFormat = PasswordHashFormat.SHADOW,
-	generate_salt: bool = True,
-) -> str:
-	"""
-	Encode a password using the specified algorithm and return a hash string.
-	"""
-	encoded_password = password.encode("utf-8")
-	if len(encoded_password) > 64:
-		# Max for bcrypt is 72 bytes
-		raise ValueError("Password cannot be longer than 64 bytes")
-	if not isinstance(algorithm, HashingAlgorithm):
-		algorithm = HashingAlgorithm(algorithm)
-	if rounds is not None:
-		rounds = int(rounds)
-	if not isinstance(format, PasswordHashFormat):
-		format = PasswordHashFormat(format)
-
-	if algorithm == HashingAlgorithm.ARGON2ID:
-		if format != PasswordHashFormat.SHADOW:
-			raise ValueError("ARGON2ID only supported with SHADOW format")
-		return argon2_hash_secret(
-			secret=password.encode("utf-8"),
-			salt=os.urandom(ARGON2_DEFAULT_SALT_LENGTH) if generate_salt else b"................",
-			time_cost=ARGON2_DEFAULT_TIME_COST,
-			memory_cost=ARGON2_DEFAULT_MEMORY_COST,
-			parallelism=ARGON2_DEFAULT_PARALLELISM,
-			hash_len=ARGON2_DEFAULT_HASH_LENGTH,
-			type=Argon2Type.ID,
-		).decode("ascii")
-
-	if algorithm == HashingAlgorithm.SHA512:
-		if format != PasswordHashFormat.SHADOW:
-			raise ValueError("SHA512 only supported with SHADOW format")
-		rounds = rounds or 5000
-		salt = (
-			crypt_r.mksalt(
-				method=crypt_r.METHOD_SHA512,  # ty: ignore[unresolved-attribute]
-				rounds=rounds,
-			)
-			if generate_salt
-			else f"$6$rounds={rounds}$................$"
-		)
-		return crypt_r.crypt(password, salt=salt)
-
-	if algorithm == HashingAlgorithm.BCRYPT:
-		if format != PasswordHashFormat.SHADOW:
-			raise ValueError("BCRYPT only supported with SHADOW format")
-		rounds = rounds or 12
-		salt = bcrypt.gensalt(rounds=rounds) if generate_salt else f"$2b${rounds}$......................$".encode("utf-8")
-		return bcrypt.hashpw(encoded_password, salt).decode("utf-8")
-
-	if algorithm == HashingAlgorithm.PBKDF2_SHA512:
-		if format != PasswordHashFormat.GRUB:
-			raise ValueError("PBKDF2_SHA512 only supported with GRUB format")
-
-		salt = os.urandom(16) if generate_salt else b"................"
-		rounds = rounds or 10_000
-		hash_bytes = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, rounds)
-		return f"grub.pbkdf2.sha512.{rounds}.{binascii.hexlify(salt).decode().upper()}.{binascii.hexlify(hash_bytes).decode().upper()}"
-
-	raise ValueError(f"Only 'SHA512', 'BCRYPT' and 'PBKDF2_SHA512' methods are supported, not {algorithm!r}")
-
-
-def get_password_hash_algorithm(hash: str) -> HashingAlgorithm:
-	"""
-	Get the hashing algorithm used for a given hash string.
-	"""
-	if hash.count("$") < 3:
-		raise ValueError("Invalid shadow hash format")
-
-	identifier = hash.split("$", 2)[1]
-	return HashingAlgorithm.from_identifier(identifier)
-
-
-def verify_password(password: str, hash: str, algorithm: HashingAlgorithm | None = None) -> bool:
-	"""
-	Verify a password against a given hash string.
-	"""
-	if not algorithm:
-		algorithm = get_password_hash_algorithm(hash)
-
-	if algorithm == HashingAlgorithm.ARGON2ID:
-		hasher = PasswordHasher()
-		try:
-			return hasher.verify(hash, password)
-		except Exception:
-			return False
-
-	if algorithm == HashingAlgorithm.SHA512:
-		return crypt_r.crypt(password, hash) == hash
-
-	if algorithm == HashingAlgorithm.BCRYPT:
-		return bcrypt.checkpw(password.encode("utf-8"), hash.encode("utf-8"))
-
-	raise ValueError("Only 'SHA512' and 'BCRYPT' methods are supported")
-
-
 def create_token_hash(token: str) -> str:
 	if len(token) != 64:
 		raise ValueError("Token must be 64 characters long")
-	return create_password_hash(token, algorithm=HashingAlgorithm.SHA512, rounds=1000, generate_salt=False)
+	return hash_password(token, algorithm=PasswordHashAlgorithm.SHA512, rounds=1000, generate_salt=False)
 
 
 def create_auth_token() -> tuple[str, str]:

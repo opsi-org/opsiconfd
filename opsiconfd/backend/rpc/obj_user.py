@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import pyotp
 from opsi.crypt.blowfish import blowfish_encrypt
+from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
 from opsi.exception import BackendMissingDataError
 from opsi.logging import secret_filter
 from opsi.opsi.service.model.object import User
@@ -27,7 +28,7 @@ from opsiconfd.backend.auth import RPCACE
 from opsiconfd.config import get_configserver_id
 from opsiconfd.logging import logger
 from opsiconfd.utils import get_opsi_config, set_system_user_password
-from opsiconfd.utils.cryptography import HashingAlgorithm, create_password_hash, decrypt, encrypt
+from opsiconfd.utils.cryptography import decrypt, encrypt
 
 from . import rpc_method
 
@@ -41,7 +42,7 @@ def create_auth_token() -> tuple[str, str]:
 	"""
 	token = secrets.token_hex(32)
 	secret_filter.add_secrets(token)
-	token_hash = create_password_hash(token, algorithm=HashingAlgorithm.SHA512, rounds=1000)
+	token_hash = hash_password(token, algorithm=PasswordHashAlgorithm.SHA512, rounds=1000)
 	secret_filter.add_secrets(token_hash)
 	return token, token_hash
 

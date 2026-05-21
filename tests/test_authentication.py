@@ -14,6 +14,8 @@ from unittest.mock import patch
 import pyotp
 import pytest
 from fastapi import status
+from opsi.crypt.hash import PasswordHashAlgorithm, hash_password, verify_password
+from opsi.crypt.hash._hash import _get_password_hash_algorithm
 from opsi.exception import OpsiServiceAuthenticationError
 from opsi.logging import LOG_TRACE, use_logging_config
 from opsi.opsi.service.client import ServiceClient, ServiceVerificationFlags
@@ -27,13 +29,7 @@ from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.saml import check_if_saml_available
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, _validate_mfa_otp, _validate_username
-from opsiconfd.utils.cryptography import (
-	HashingAlgorithm,
-	create_auth_token,
-	create_password_hash,
-	get_password_hash_algorithm,
-	verify_password,
-)
+from opsiconfd.utils.cryptography import create_auth_token
 
 from .utils import (  # noqa: F401
 	ADMIN_PASS,
@@ -1171,7 +1167,7 @@ def test_disabled_auth_methods(
 	password = "secret"
 	user = object.User(
 		id="test_user_123",
-		passwordHash=create_password_hash(password),
+		passwordHash=hash_password(password),
 		groups=["{admingroup}"],
 	)
 	backend.user_createObjects([user])
@@ -1241,7 +1237,7 @@ def test_database_password_authentication(
 	password = "securepassword"
 	user = object.User(
 		id="dbpasswordtest",
-		passwordHash=create_password_hash(password, algorithm=HashingAlgorithm(hash_algorithm)),
+		passwordHash=hash_password(password, algorithm=PasswordHashAlgorithm(hash_algorithm)),
 		groups=groups,
 	)
 	print("Creating user with hash algorithm:", hash_algorithm, "and groups:", groups)
@@ -1388,7 +1384,7 @@ def test_migrate_to_database_authentication(
 				user = backend.user_getObjects(id="testuser1")[0]
 				if database_password_hash_migration:
 					assert user.passwordHash
-					assert get_password_hash_algorithm(user.passwordHash) == HashingAlgorithm.ARGON2ID
+					assert _get_password_hash_algorithm(user.passwordHash) == PasswordHashAlgorithm.ARGON2ID
 					assert verify_password("secret123", user.passwordHash)
 				else:
 					assert user.passwordHash is None
@@ -1401,7 +1397,7 @@ def test_migrate_hashing_algorithm(
 ) -> None:
 	user = object.User(
 		id="testuser1",
-		passwordHash=create_password_hash("secret123", algorithm=HashingAlgorithm.SHA512),
+		passwordHash=hash_password("secret123", algorithm=PasswordHashAlgorithm.SHA512),
 		groups=["opsi-admin-group"],
 	)
 	backend.user_createObjects([user])
@@ -1412,7 +1408,7 @@ def test_migrate_hashing_algorithm(
 			assert res.status_code == 200
 			user = backend.user_getObjects(id="testuser1")[0]
 			assert user.passwordHash
-			assert get_password_hash_algorithm(user.passwordHash) == HashingAlgorithm(hashing_method)
+			assert _get_password_hash_algorithm(user.passwordHash) == PasswordHashAlgorithm(hashing_method)
 			assert verify_password("secret123", user.passwordHash)
 			test_client.reset_cookies()
 			time.sleep(1)

@@ -303,6 +303,8 @@ class SessionMiddleware:
 				if not session.is_admin:
 					raise OpsiServicePermissionError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")
 
+				await check_admin_network(session.username, scope["client"][0])
+
 				if (
 					not session.host_id
 					and path.startswith("/depot")
@@ -1032,7 +1034,7 @@ class OPSISession:
 		return obj
 
 	def get_cookie(self) -> str | None:
-		if not self.session_id or not self.persistent:
+		if not self.session_id or not self.last_stored or not self.persistent:
 			return None
 		attrs = "; ".join(SESSION_COOKIE_ATTRIBUTES)
 		if attrs:
@@ -1080,7 +1082,7 @@ class OPSISession:
 	async def refresh(self) -> bool:
 		version = await self.get_version_from_redis()
 		if not version:
-			# Deleted
+			logger.debug("Version %s not found in redis, probably deleted", self.version)
 			return False
 		if version == self.version:
 			logger.debug("Version %s unchanged, cache up-to-date", self.version)
@@ -1127,7 +1129,7 @@ class OPSISession:
 
 		data = self.serialize(list(self._modifications) if modifications_only and await redis.exists(self.redis_key) else None)
 		if data:
-			logger.debug("Store session in redis")
+			logger.debug("Store session in redis (version %s)", self.version)
 			async with redis.pipeline() as pipe:
 				pipe.hset(self.redis_key, mapping=data)  # ty: ignore
 				pipe.expire(self.redis_key, self._redis_expiration_seconds)
@@ -1304,6 +1306,12 @@ async def authenticate_host(scope: Scope) -> None:
 
 
 async def _post_failed_authenticate(scope: Scope) -> None:
+	try:
+		session: OPSISession = scope["session"]
+		await session.delete()
+	except Exception as err:
+		logger.error("Failed to delete session after failed authentication: %s", err, exc_info=True)
+
 	cmd = (
 		f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
 		f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
@@ -1378,12 +1386,11 @@ async def post_authenticate(scope: Scope) -> None:
 	session: OPSISession = scope["session"]
 
 	if not session.username or not session.authenticated:
-		await session.store(wait=True)
 		raise OpsiServicePermissionError("Not authenticated")
 
 	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.username)
 
-	await check_admin_networks(session)
+	await check_session_admin_network(session)
 	await session.store(wait=True)
 
 
@@ -1610,22 +1617,29 @@ async def check_network(client_addr: str) -> None:
 	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
 
 
-async def check_admin_networks(session: OPSISession) -> None:
+async def check_admin_network(username: str, client_addr: str) -> None:
+	if not config.admin_networks:
+		return
+	if await run_in_threadpool(
+		_ip_address_in_networks_or_domains,
+		client_addr,
+		config.admin_networks if isinstance(config.admin_networks, tuple) else tuple(config.admin_networks),
+	):
+		return
+	raise ConnectionRefusedError(f"Admin user '{username}' is not allowed to connect from '{client_addr}'")
+
+
+async def check_session_admin_network(session: OPSISession) -> None:
 	if not session.is_admin or not config.admin_networks:
 		return
 
-	if await run_in_threadpool(
-		_ip_address_in_networks_or_domains,
-		session.client_addr,
-		config.admin_networks if isinstance(config.admin_networks, tuple) else tuple(config.admin_networks),
-	):
+	try:
+		await check_admin_network(session.username, session.client_addr)
 		session.add_auth_methods(AuthenticationMethod.ADMIN_NETWORKS)
-		return
-
-	session.is_admin = False
-	session.authenticated = False
-
-	raise ConnectionRefusedError(f"Admin user '{session.username}' is not allowed to connect from '{session.client_addr}'")
+	except Exception:
+		session.is_admin = False
+		session.authenticated = False
+		raise
 
 
 async def check_blocked(ip_address: str) -> None:

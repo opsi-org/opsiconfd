@@ -3,10 +3,6 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
-"""
-login tests
-"""
-
 import base64
 import threading
 import time
@@ -25,9 +21,6 @@ from opsi.opsi.service.model import object
 
 from opsiconfd import (
 	contextvar_client_session,
-	get_contextvars,
-	set_contextvars,
-	set_contextvars_from_contex,
 )
 from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.ldap import LDAPAuthentication
@@ -62,15 +55,16 @@ from .utils import (  # noqa: F401
 )
 
 
-def test_get_session(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
-	test_client.get("/")
-	cvars = get_contextvars()
-	try:
-		if test_client.context:
-			set_contextvars_from_contex(test_client.context)
-		assert contextvar_client_session.get()
-	finally:
-		set_contextvars(cvars)
+def _get_session_data_from_redis(opsiconfd_config: Config, delete_sessions: bool) -> dict | None:
+	redis_key = f"{opsiconfd_config.redis_key('session')}:*"
+	redis = redis_client()
+	session_keys = list(redis.scan_iter(redis_key, count=1000))
+	session_data = None
+	for key in session_keys:
+		session_data = OPSISession.deserialize(redis.hgetall(key))
+		if delete_sessions:
+			redis.delete(key)
+	return session_data
 
 
 @pytest.mark.parametrize(
@@ -93,7 +87,7 @@ def test_login_error(
 	res = test_client.get("/auth/authenticated", auth=auth_data)
 	assert res.status_code == expected_status_code
 	assert res.text == expected_text
-	assert res.headers.get("set-cookie", None) is not None
+	assert "set-cookie" not in res.headers
 
 
 def test_validate_username(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
@@ -166,11 +160,21 @@ def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # n
 	assert res.headers.get("www-authenticate", None) is None
 
 
-def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+def test_basic_auth(config: Config, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert "opsiconfd-session" in res.headers["set-cookie"]
 	assert str(res.url).rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
+	session_data = _get_session_data_from_redis(config, delete_sessions=True)
+	assert session_data
+	assert session_data["authenticated"]
+	assert session_data["is_admin"]
+
+	res = test_client.get("/", auth=(ADMIN_USER, "wrong"))
+	assert res.status_code == 200
+	assert "set-cookie" not in res.headers
+	session_data = _get_session_data_from_redis(config, delete_sessions=True)
+	assert not session_data
 
 
 @pytest.mark.parametrize(
@@ -183,17 +187,23 @@ def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 		("", False),
 	),
 )
-def test_session_unaware_client(test_client: OpsiconfdTestClient, user_agent: str, expect_session: bool) -> None:  # noqa: F811
+def test_session_unaware_client(config: Config, test_client: OpsiconfdTestClient, user_agent: str, expect_session: bool) -> None:  # noqa: F811
+	_get_session_data_from_redis(config, delete_sessions=True)
+
 	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS), headers={"User-Agent": user_agent})
 	assert res.status_code == 200
+	session_data = _get_session_data_from_redis(config, delete_sessions=True)
+
 	if expect_session:
 		assert "set-cookie" in res.headers
+		assert session_data
 	else:
 		assert "set-cookie" not in res.headers
+		assert session_data is None
 
 
 @pytest.mark.parametrize("base_path", ("/auth", "/session"))  # /session is deprecated
-def test_login_endpoint(test_client: OpsiconfdTestClient, base_path: str) -> None:  # noqa: F811
+def test_login_endpoint(config: Config, test_client: OpsiconfdTestClient, base_path: str) -> None:  # noqa: F811
 	res = test_client.post(f"{base_path}/login", json={"username": ADMIN_USER, "password": "invalid"})
 	assert res.status_code == 401
 	assert "Authentication failed for user" in res.json()["message"]
@@ -207,6 +217,7 @@ def test_login_endpoint(test_client: OpsiconfdTestClient, base_path: str) -> Non
 	res = test_client.post(f"{base_path}/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 	assert res.json()["session_id"]
 	assert res.status_code == 200
+	assert "set-cookie" in res.headers
 
 	res = test_client.get(f"{base_path}/authenticated")
 	assert res.status_code == 200
@@ -221,6 +232,20 @@ def test_login_endpoint(test_client: OpsiconfdTestClient, base_path: str) -> Non
 	assert abs(diff.total_seconds()) < 5
 	diff = datetime.now(timezone.utc) - datetime.strptime(resp["result"][0]["lastLogin"] + " +00:00", "%Y-%m-%d %H:%M:%S %z")
 	assert abs(diff.total_seconds()) < 5
+
+	session_data = _get_session_data_from_redis(config, delete_sessions=False)
+	assert session_data
+	assert session_data["authenticated"]
+	assert session_data["is_admin"]
+
+	# Reuse session and authenticate again with wrong password, which should delete the session
+	res = test_client.post(f"{base_path}/login", json={"username": ADMIN_USER, "password": "wrong"})
+	assert res.status_code == 401
+	assert "Authentication failed for user" in res.json()["message"]
+	assert "opsiconfd-session" in res.headers["set-cookie"]
+	assert "Max-Age=0" in res.headers["set-cookie"]
+	session_data = _get_session_data_from_redis(config, delete_sessions=False)
+	assert not session_data
 
 
 def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
@@ -478,31 +503,34 @@ def test_networks(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 
 
 def test_admin_networks(test_client: OpsiconfdTestClient, config: Config) -> None:  # noqa: F811
-	def get_session_data() -> dict | None:
-		redis_key = f"{config.redis_key('session')}:*"
-		redis = redis_client()
-		session_keys = list(redis.scan_iter(redis_key, count=1000))
-		session_data = None
-		for key in session_keys:
-			session_data = OPSISession.deserialize(redis.hgetall(key))
-			redis.delete(key)
-		return session_data
 
 	test_client.set_client_address("1.2.3.4", 12345)
-	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
+	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["1.2.3.0/24"]}):
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
-		session_data = get_session_data()
+		session_data = _get_session_data_from_redis(config, delete_sessions=False)
 		assert session_data
 		assert session_data["authenticated"]
 		assert session_data["is_admin"]
 
+		# Test that changing the client IP to an unauthorized one does not allow access to admin endpoints
+		test_client.set_client_address("2.2.2.2", 12345)
+		res = test_client.get("/admin")
+		assert res.status_code == 403
+		assert res.text == f"Admin user '{ADMIN_USER}' is not allowed to connect from '2.2.2.2'"
+
+		session_data = _get_session_data_from_redis(config, delete_sessions=True)
+		assert session_data
+		assert session_data["authenticated"]
+		assert session_data["is_admin"]
+
+	test_client.set_client_address("1.2.3.4", 12345)
 	test_client.reset_cookies()
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["10.0.0.0/8"]}):
 		res = test_client.get("/login")
 		assert res.status_code == 403
 		assert res.text == "Permission denied"
-		session_data = get_session_data()
+		session_data = _get_session_data_from_redis(config, delete_sessions=True)
 		if session_data:
 			assert not session_data["authenticated"]
 			assert not session_data["is_admin"]
@@ -510,17 +538,18 @@ def test_admin_networks(test_client: OpsiconfdTestClient, config: Config) -> Non
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 403
 		assert res.text == f"Admin user '{ADMIN_USER}' is not allowed to connect from '1.2.3.4'"
-		session_data = get_session_data()
+		session_data = _get_session_data_from_redis(config, delete_sessions=True)
 		if session_data:
 			assert not session_data["authenticated"]
 			assert not session_data["is_admin"]
 
+	test_client.set_client_address("1.2.3.4", 12345)
 	test_client.reset_cookies()
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["allow.example.corp"]}):
 		with patch("opsiconfd.session.getaddrinfo", mock_getaddrinfo):
 			res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 			assert res.status_code == 200
-			session_data = get_session_data()
+			session_data = _get_session_data_from_redis(config, delete_sessions=True)
 			assert session_data
 			assert session_data["authenticated"]
 			assert session_data["is_admin"]
@@ -1065,7 +1094,7 @@ def test_recover_clients(test_client: OpsiconfdTestClient, backend: UnprotectedB
 
 
 @pytest.mark.parametrize("test_timeout", (True, False))
-def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout: bool) -> None:  # noqa: F811
+def test_authenticated_wait_time(config: Config, test_client: OpsiconfdTestClient, test_timeout: bool) -> None:  # noqa: F811
 	res = test_client.get("/auth/session_id")
 	assert res.status_code == 200
 	session_id = res.json()
@@ -1073,6 +1102,10 @@ def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout:
 	assert session_id in res.headers.get("set-cookie", "")
 	cookie = list(test_client.cookies.jar)[0]
 	assert cookie.value == session_id
+
+	session_data = _get_session_data_from_redis(config, delete_sessions=False)
+	assert session_data
+	assert session_data["authenticated"] is False
 
 	res = test_client.get("/auth/wait_authenticated")
 	assert res.status_code == 401
@@ -1097,15 +1130,27 @@ def test_authenticated_wait_time(test_client: OpsiconfdTestClient, test_timeout:
 	if test_timeout:
 		# /auth/authenticated must have returned False
 		assert authenticated_result is False
+
+		session_data = _get_session_data_from_redis(config, delete_sessions=False)
+		assert session_data
+		assert session_data["authenticated"] is False
 	else:
 		# /auth/authenticated must be bocking
 		assert authenticated_result is None
+
+		session_data = _get_session_data_from_redis(config, delete_sessions=False)
+		assert session_data
+		assert session_data["authenticated"] is False
 
 		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 		assert res.status_code == 200
 		time.sleep(2)
 		# /auth/authenticated must have returned True
 		assert authenticated_result is True
+
+		session_data = _get_session_data_from_redis(config, delete_sessions=False)
+		assert session_data
+		assert session_data["authenticated"] is True
 
 
 def test_disabled_auth_methods(

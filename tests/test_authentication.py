@@ -14,8 +14,7 @@ from unittest.mock import patch
 import pyotp
 import pytest
 from fastapi import status
-from opsi.crypt.hash import PasswordHashAlgorithm, hash_password, verify_password
-from opsi.crypt.hash._hash import _get_password_hash_algorithm
+from opsi.crypt.hash import PasswordHashAlgorithm, get_password_hash_algorithm, hash_password, verify_password
 from opsi.exception import OpsiServiceAuthenticationError
 from opsi.logging import LOG_TRACE, use_logging_config
 from opsi.opsi.service.client import ServiceClient, ServiceVerificationFlags
@@ -1384,7 +1383,7 @@ def test_migrate_to_database_authentication(
 				user = backend.user_getObjects(id="testuser1")[0]
 				if database_password_hash_migration:
 					assert user.passwordHash
-					assert _get_password_hash_algorithm(user.passwordHash) == PasswordHashAlgorithm.ARGON2ID
+					assert get_password_hash_algorithm(user.passwordHash) == PasswordHashAlgorithm.ARGON2ID
 					assert verify_password("secret123", user.passwordHash)
 				else:
 					assert user.passwordHash is None
@@ -1408,7 +1407,7 @@ def test_migrate_hashing_algorithm(
 			assert res.status_code == 200
 			user = backend.user_getObjects(id="testuser1")[0]
 			assert user.passwordHash
-			assert _get_password_hash_algorithm(user.passwordHash) == PasswordHashAlgorithm(hashing_method)
+			assert get_password_hash_algorithm(user.passwordHash) == PasswordHashAlgorithm(hashing_method)
 			assert verify_password("secret123", user.passwordHash)
 			test_client.reset_cookies()
 			time.sleep(1)

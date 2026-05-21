@@ -26,8 +26,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationException
 from fastapi.requests import HTTPConnection
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
-from opsi.crypt.hash import PasswordHashAlgorithm, hash_password, verify_password
-from opsi.crypt.hash._hash import _get_password_hash_algorithm
+from opsi.crypt.hash import PasswordHashAlgorithm, get_password_hash_algorithm, hash_password, verify_password
 from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermissionError
 from opsi.logging import secret_filter, set_context
 from opsi.network import ip_address_in_network
@@ -1473,7 +1472,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 					logger.debug("No password hash in database for user %s", session.username)
 				else:
 					try:
-						used_database_auth_algorithm = _get_password_hash_algorithm(user.passwordHash)
+						used_database_auth_algorithm = get_password_hash_algorithm(user.passwordHash)
 						if verify_password(session.password, user.passwordHash, algorithm=used_database_auth_algorithm):
 							db_auth_success = True
 							session.add_auth_methods(AuthenticationMethod.USERNAME, AuthenticationMethod.PASSWORD_DATABASE)

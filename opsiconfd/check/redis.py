@@ -133,7 +133,7 @@ class RedisCheck(Check):
 		try:
 			redis_client(timeout=5, test_connection=True)
 			result.message = "The connection to the Redis server does work."
-			self.add_partial_checks(RedisTimeseriesCheck(), RedisMemoryUsageCheck())
+			self.add_partial_checks(RedisConnectionSettingsCheck(), RedisTimeseriesCheck(), RedisMemoryUsageCheck())
 		except RedisConnectionError as err:
 			result.check_status = CheckStatus.ERROR
 			result.message = f"Cannot connect to Redis: {err}"

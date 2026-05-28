@@ -15,5 +15,8 @@
 		{
 			"file": ".github/instructions/python-coding-style.instructions.md"
 		}
-	]
+	],
+	"chat.tools.terminal.autoApprove": {
+		"uv": true
+	}
 }

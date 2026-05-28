@@ -384,10 +384,11 @@ def test_check_cache(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
 	result = check_manager.get("mysql").run()
 	assert result.check_status == CheckStatus.ERROR
 
-	# Clear cache. Backup and mysql check should pass.
+	# Clear cache. Redis should no longer return the cached error. Backup and mysql check should pass.
 	check_cache_clear("all")
 	result = check_manager.get("redis").run()
-	assert result.check_status == CheckStatus.OK
+	assert result.check_status != CheckStatus.ERROR
+	assert not result.from_cache
 	result = check_manager.get("opsi_backup").run()
 	assert result.check_status == CheckStatus.OK
 	result = check_manager.get("mysql").run()

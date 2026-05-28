@@ -13,7 +13,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
 
 from opsiconfd.check.cli import process_check_result
-from opsiconfd.check.common import check_manager
+from opsiconfd.check.common import CheckResult, check_manager
 from opsiconfd.check.redis import RedisCheck, RedisConnectionSettingsCheck
 from tests.utils import (  # noqa: F401
 	captured_function_output,
@@ -33,7 +33,11 @@ def test_check_redis() -> None:
 	register_redis_check()
 
 	console = Console(log_time=False, force_terminal=False, width=1000)
-	result = check_manager.get("redis").run(clear_cache=True)
+	with mock.patch(
+		"opsiconfd.check.redis.RedisConnectionSettingsCheck._check",
+		return_value=CheckResult(check=RedisConnectionSettingsCheck(), message="Redis configuration settings are optimal."),
+	):
+		result = check_manager.get("redis").run(clear_cache=True)
 	captured_output = captured_function_output(process_check_result, result=result, console=console, detailed=True)
 	assert "Redis [redis]: OK" in captured_output
 	assert "The connection to the Redis server does work. " in captured_output

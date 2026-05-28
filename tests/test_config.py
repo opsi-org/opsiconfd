@@ -77,6 +77,7 @@ def test_str2bool(value: Any, expected_value: bool) -> None:
 		(["--backend-config-dir", "/test"], "backend_config_dir", "/test"),
 		(["--dispatch-config-file", "/filename"], "dispatch_config_file", "/filename"),
 		(["--extension-config-dir", "/test"], "extension_config_dir", "/test"),
+		(["--run-as-user", "root"], "run_as_user", "root"),
 		(["--networks", "10.10.10.0/24", "10.10.20.0/24"], "networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
 		(["--admin-networks", "10.10.10.0/24", "10.10.20.0/24"], "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
 		(["--symlink-logs"], "symlink_logs", True),
@@ -109,6 +110,7 @@ def test_restore_cmdline_keep_users() -> None:
 		("OPSICONFD_BACKEND_CONFIG_DIR", "/test", "backend_config_dir", "/test"),
 		("OPSICONFD_DISPATCH_CONFIG_FILE", "/filename", "dispatch_config_file", "/filename"),
 		("OPSICONFD_EXTENSION_CONFIG_DIR", "/test", "extension_config_dir", "/test"),
+		("OPSICONFD_RUN_AS_USER", "root", "run_as_user", "root"),
 		("OPSICONFD_ADMIN_NETWORKS", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
 		("OPSICONFD_SYMLINK_LOGS", "yes", "symlink_logs", True),
 		("OPSICONFD_SSL_CA_KEY_PASSPHRASE", "", "ssl_ca_key_passphrase", None),
@@ -143,6 +145,15 @@ def test_config_file(tmp_path: Path, varname: str, value: str, config_name: str,
 		assert getattr(conf, config_name) == expected_value
 
 
+def test_config_file_run_as_user_rejected(tmp_path: Path) -> None:
+	conf_file = tmp_path / "opsiconfd.conf"
+	conf_file.write_text("run-as-user = root", encoding="utf-8")
+
+	with pytest.raises(ValueError, match="run-as-user.*configuration file.*--run-as-user root.*OPSICONFD_RUN_AS_USER"):
+		with get_config(["--config-file", str(conf_file)]):
+			pass
+
+
 def test_help() -> None:
 	text = ""
 
@@ -174,13 +185,27 @@ def test_help() -> None:
 
 def test_update_config_files(tmp_path: Path) -> None:
 	config_file = tmp_path / "opsiconfd.conf"
-	config_file.write_text(("# comment\nlog-level = 1\nmonitoring-debug = yes\n\n"), encoding="utf-8")
+	config_file.write_text(("# comment\nlog-level = 1\nrun-as-user = opsiconfd\nmonitoring-debug = yes\n\n"), encoding="utf-8")
 
 	with get_config(["--config-file", str(config_file)]) as conf:
 		conf._update_config_file()
 
 	data = config_file.read_text(encoding="utf-8")
 	assert data == ("# comment\nlog-level = 1\n\n")
+
+
+def test_set_config_in_config_file_rejects_run_as_user(tmp_path: Path) -> None:
+	config_file = tmp_path / "opsiconfd.conf"
+	config_file.write_text("log-level = 1\n", encoding="utf-8")
+
+	with get_config(["--config-file", str(config_file)]) as conf:
+		with pytest.raises(ValueError, match="run-as-user.*configuration file.*--run-as-user root.*OPSICONFD_RUN_AS_USER"):
+			conf.set_config_in_config_file("run-as-user", "root")
+
+		data = conf.set_config_in_config_file("run-as-user", "opsiconfd")
+
+	assert data == "log-level = 1\n"
+	assert config_file.read_text(encoding="utf-8") == "log-level = 1\n"
 
 
 @pytest.mark.parametrize(

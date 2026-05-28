@@ -50,6 +50,8 @@ if TYPE_CHECKING:
 
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
+DEFAULT_RUN_AS_USER = "opsiconfd"
+RUN_AS_USER_CONFIG_FILE_ARGUMENTS = ("run-as-user", "run_as_user")
 CONFIG_FILE_HEADER = """
 # This file was automatically migrated from an older opsiconfd version
 # For available options see: opsiconfd --help
@@ -729,11 +731,28 @@ class Config:
 
 		return data
 
+	def _remove_default_run_as_user_config_file_entry(self, conf: dict[str, Any]) -> None:
+		for arg in RUN_AS_USER_CONFIG_FILE_ARGUMENTS:
+			if arg not in conf:
+				continue
+
+			value = str(conf[arg]).strip()
+			if value == DEFAULT_RUN_AS_USER:
+				conf.pop(arg)
+				continue
+
+			raise ValueError(
+				f"Configuration option {arg!r} is not allowed in configuration file {self._config.config_file!r} "
+				f"with value {value!r}. Configure it as command line parameter '--run-as-user {value}' "
+				"or environment variable OPSICONFD_RUN_AS_USER instead."
+			)
+
 	def _config_file_contents(self) -> str:
 		with self._config_file_lock:
 			with open(self._config.config_file, "r" if os.path.exists(self._config.config_file) else "a+", encoding="utf-8") as file:
 				with lock_file(file, lock_method=self._file_lock_method):
 					conf = self._parse_config_file(file)
+					self._remove_default_run_as_user_config_file_entry(conf)
 					masked_config_file_arguments: tuple[str, ...] = tuple()
 					if self._sub_command:
 						masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
@@ -745,6 +764,7 @@ class Config:
 				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
 					conf = self._parse_config_file(file)
 					conf[arg] = value
+					self._remove_default_run_as_user_config_file_entry(conf)
 					result = self._generate_config_file(file, conf)
 
 			pid = os.getpid()
@@ -758,6 +778,7 @@ class Config:
 				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
 					print_log("Lock acquired for configuration file update.")
 					conf = self._parse_config_file(file)
+					self._remove_default_run_as_user_config_file_entry(conf)
 					for deprecated in DEPRECATED:
 						conf.pop(deprecated, None)
 					result = self._generate_config_file(file, conf)
@@ -782,7 +803,7 @@ class Config:
 		self._parser.add_argument(
 			"--run-as-user",
 			env_var="OPSICONFD_RUN_AS_USER",
-			default="opsiconfd",
+			default=DEFAULT_RUN_AS_USER,
 			metavar="USER",
 			help=self._help("opsiconfd", "Run service as USER."),
 		)

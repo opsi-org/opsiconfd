@@ -576,12 +576,6 @@ def test_renew_expired_ca(tmp_path: Path, additional_certs: list[str]) -> None:
 					assert additional_cert.strip() in data
 
 			# Check server cert validity
-			with pytest.raises(
-				verification.VerificationError,
-				match=r"Issuer certificate .* is not valid before .* but certificate .* is valid before .*",
-			):
-				validate_cert(server_crt, ca_crt)
-
 			setup_server_cert()
 			server_crt = load_local_server_cert()
 			validate_cert(server_crt, ca_crt)

@@ -36,7 +36,6 @@ if TYPE_CHECKING:
 	pass
 
 API_KEY_NAME = "opsiconfd"
-GRAFANA_CLI = "/usr/sbin/grafana-cli"
 GRAFANA_DB = "/var/lib/grafana/grafana.db"
 GRAFANA_INI = "/etc/grafana/grafana.ini"
 PLUGIN_DIR = "/var/lib/grafana/plugins"
@@ -192,11 +191,7 @@ def grafana_is_local() -> bool:
 	if url.hostname not in ("localhost", "ip6-localhost", "127.0.0.1", "::1"):
 		return False
 
-	for path in (GRAFANA_CLI, GRAFANA_DB):
-		if not os.path.exists(path):
-			return False
-
-	return True
+	return os.path.exists(GRAFANA_DB)
 
 
 class HTTPBearerAuth(AuthBase):
@@ -296,7 +291,7 @@ def setup_grafana() -> None:
 		try:
 			logger.notice("Setup grafana plugin %s (%s)", PLUGIN_ID, plugin_action)
 			for cmd in (
-				["grafana-cli", "plugins", plugin_action, PLUGIN_ID],
+				["grafana", "cli", "plugins", plugin_action, PLUGIN_ID],
 				["chown", "-R", "grafana:grafana", PLUGIN_DIR],
 				["service", "grafana-server", "restart"],
 			):
@@ -304,7 +299,7 @@ def setup_grafana() -> None:
 			# Wait for grafana-server to restart
 			time.sleep(5)
 		except ProcessError as err:
-			logger.warning("Failed to %s grafana plugin %r via grafana-cli: %s", plugin_action, PLUGIN_ID, err)
+			logger.warning("Failed to %s grafana plugin %r via grafana cli: %s", plugin_action, PLUGIN_ID, err)
 
 	if urlparse(config.grafana_internal_url).username is not None:
 		with grafana_admin_session() as (base_url, session):

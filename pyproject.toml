@@ -35,7 +35,8 @@ dependencies = [
 	"python-opsi-legacy>=4.3.6,<4.4",
 	"python3-saml==1.16.0",
 	"qrcode>=8.0",
-	"redis>=7.2",
+	# Tests are failing with redis 8.0
+	"redis>=7.2,<8.0",
 	"rich>=13.0",
 	"six>=1.16",
 	"starlette>=0.46",

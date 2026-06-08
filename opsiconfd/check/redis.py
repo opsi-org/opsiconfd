@@ -35,7 +35,7 @@ class RedisConnectionSettingsCheck(Check):
 			check_status=CheckStatus.OK,
 		)
 		url = urlparse(config.redis_internal_url)
-		if not url.username:
+		if not url.password:
 			result.message = "Redis configuration settings are not optimal, authentication is not configured."
 			result.check_status = CheckStatus.WARNING
 		elif url.scheme == "unix":

@@ -158,7 +158,13 @@ class WorkerInfo:
 			else:
 				continue
 			kwargs[key] = val
-		return WorkerInfo(**kwargs)
+		return WorkerInfo(
+			node_name=str(kwargs.get("node_name", "")),
+			worker_num=int(kwargs.get("worker_num", 0)),
+			create_time=float(kwargs.get("create_time", 0.0)),
+			pid=int(kwargs.get("pid", 0)),
+			app_state=str(kwargs.get("app_state", "")),
+		)
 
 	@property
 	def id(self) -> str:

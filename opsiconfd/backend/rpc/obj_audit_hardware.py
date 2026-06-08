@@ -241,7 +241,7 @@ class RPCAuditHardwareMixin(Protocol):
 		ident_type: IdentType = "str",
 		attributes: list[str] | None = None,
 		filter: dict[str, Any] | None = None,
-	) -> list[dict[str, Any]]:
+	) -> list[AuditHardware | str | dict[str, Any] | list[Any] | tuple[Any, ...]] | list:
 		attributes = attributes or []
 		filter = filter or {}
 		hardware_classes = set()
@@ -268,7 +268,7 @@ class RPCAuditHardwareMixin(Protocol):
 		if return_hardware_ids and attributes and "hardware_id" not in attributes:
 			attributes.append("hardware_id")
 
-		results = []
+		results: list[AuditHardware | str | dict[str, Any] | list[Any] | tuple[Any, ...]] | list = []
 		with self._mysql.session() as session:
 			for hardware_class in hardware_classes:
 				class_filter = {}
@@ -316,7 +316,9 @@ class RPCAuditHardwareMixin(Protocol):
 	@rpc_method(deprecated=True, alternative_method="auditHardware_getObjects", check_acl=False)
 	def auditHardware_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
+		return self._audit_hardware_get(  # ty: ignore[invalid-return-type]
+			ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter
+		)
 
 	@rpc_method(check_acl=False)
 	def auditHardware_getIdents(
@@ -325,7 +327,9 @@ class RPCAuditHardwareMixin(Protocol):
 		**filter: Any,
 	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)
+		return self._audit_hardware_get(  # ty: ignore[invalid-return-type]
+			ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter
+		)
 
 	@rpc_method(check_acl=True)
 	def auditHardware_deleteObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware) -> None:

@@ -1015,7 +1015,7 @@ def test_messagebus_ping(websocket_protocol: str) -> None:
 
 			print("Block pong")
 			# Block ServiceClient sending pongs, server should close websocket after ping timeout
-			client.messagebus._app.sock.pong = lambda *args: None
+			client.messagebus._app.sock.pong = lambda *args: None  # ty: ignore[unresolved-attribute,invalid-assignment]
 			print("sleep start")
 			sleep(7)
 			print("sleep done")

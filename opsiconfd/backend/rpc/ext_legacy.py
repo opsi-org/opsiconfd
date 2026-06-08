@@ -1426,7 +1426,7 @@ class RPCExtLegacyMixin(Protocol):
 			property_classes[prop.propertyId] = prop.__class__
 			property_multi_value[prop.propertyId] = prop.getMultiValue()
 
-		new_properties = {}
+		new_properties: dict[str, list[Any]] = {}
 		for property_id, value in properties.items():
 			property_type = property_classes.get(property_id)
 			if not property_type:
@@ -1443,7 +1443,7 @@ class RPCExtLegacyMixin(Protocol):
 				new_properties[to_product_property_id(property_id)] = new_value
 			elif issubclass(property_type, BoolProductProperty):
 				logger.debug("Property %s is bool.", property_id)
-				new_properties[to_product_property_id(property_id)] = to_bool(value)
+				new_properties[to_product_property_id(property_id)] = [to_bool(value)]
 			else:
 				raise ValueError(f"Property type of {property_type!r} currently unhandled")
 

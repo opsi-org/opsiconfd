@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import datetime
 import os
-import re
 import shutil
 import socket
 import threading
@@ -20,7 +19,6 @@ from contextlib import nullcontext
 from functools import lru_cache
 from ipaddress import ip_address
 from pathlib import Path
-from re import DOTALL, finditer
 from socket import gethostbyaddr
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
@@ -35,7 +33,9 @@ from opsi.crypt.ssl import (
 	create_server_cert,
 	create_server_cert_signing_request,
 	is_self_signed,
-	load_key,
+	read_certs_from_file,
+	read_key_from_file,
+	write_certs_to_file,
 	x509_name_to_dict,
 )
 from opsi.opsi.service.server import DirPermission, FilePermission, PermissionRegistry, set_rights
@@ -239,7 +239,7 @@ def store_cert(cert_file: str | Path, cert: x509.Certificate, keep_others: bool 
 			!= cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)[0].value
 		]
 	certs.append(cert)
-	cert_file.write_text("".join(as_pem(c) for c in certs), encoding="utf-8")
+	write_certs_to_file(certs, cert_file)
 	setup_ssl_file_permissions()
 	_clear_ca_certs_cache()
 
@@ -255,21 +255,14 @@ def load_certs(cert_file: Path | str) -> list[x509.Certificate]:
 		logger.warning("Certificate file '%s' not found", cert_file)
 		return []
 
-	certs = []
-	data = cert_file.read_text(encoding="utf-8")
-	for match in re.finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", data, re.DOTALL):
-		try:
-			certs.append(x509.load_pem_x509_certificate(match.group(1).encode("utf-8")))
-		except ValueError as err:
-			logger.warning(err, exc_info=True)
-	return certs
+	return read_certs_from_file(cert_file)
 
 
 def load_cert(cert_file: Path | str, subject_cn: str | None = None) -> x509.Certificate:
 	"""
 	Load a certificate from a file.
 	If subject_cn is given, only the certificate with the matching common name is returned.
-	IF subject_cn is not given, the first certificate is returned.
+	If subject_cn is not given, the first certificate is returned.
 	"""
 	if not isinstance(cert_file, Path):
 		cert_file = Path(cert_file)
@@ -293,12 +286,12 @@ def load_opsi_ca_key() -> rsa.RSAPrivateKey:
 	Load the OPSI CA key from the configured file.
 	"""
 	try:
-		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase)
+		return read_key_from_file(config.ssl_ca_key, config.ssl_ca_key_passphrase)
 	except RuntimeError:
 		if config.ssl_ca_key_passphrase == CA_KEY_DEFAULT_PASSPHRASE:
 			raise
 		# Wrong passphrase, try to load with default passphrase
-		key = load_key(config.ssl_ca_key, CA_KEY_DEFAULT_PASSPHRASE)
+		key = read_key_from_file(config.ssl_ca_key, CA_KEY_DEFAULT_PASSPHRASE)
 		# Store with configured passphrase
 		store_opsi_ca_key(key)
 		return key
@@ -428,7 +421,7 @@ def load_local_server_key() -> rsa.RSAPrivateKey:
 		passphrases.insert(1, ("default", SERVER_KEY_DEFAULT_PASSPHRASE))
 	for idx, (passphrase_type, passphrase) in enumerate(passphrases):
 		try:
-			key = load_key(config.ssl_server_key, passphrase)
+			key = read_key_from_file(config.ssl_server_key, passphrase)
 			if passphrase_type != "configured":
 				# Store with configured passphrase
 				store_local_server_key(key)
@@ -701,15 +694,9 @@ def get_trusted_certs() -> list[x509.Certificate]:
 	"""
 	Get trusted certificates from the configured file.
 	"""
-	ca_certs = []
-	if os.path.exists(config.ssl_trusted_certs):
-		with open(config.ssl_trusted_certs, "r", encoding="utf-8") as file:
-			for match in finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", file.read(), DOTALL):
-				try:
-					ca_certs.append(x509.load_pem_x509_certificate(match.group(1).encode("ascii")))
-				except Exception as err:
-					logger.error("Failed to load certificate from %r: %s", config.ssl_trusted_certs, err, exc_info=True)
-	return ca_certs
+	if not os.path.exists(config.ssl_trusted_certs):
+		return []
+	return read_certs_from_file(config.ssl_trusted_certs)
 
 
 def validate_cert(cert: x509.Certificate, ca_certs: list[x509.Certificate] | x509.Certificate) -> None:

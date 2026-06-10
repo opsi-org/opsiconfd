@@ -46,12 +46,12 @@ from opsiconfd.ssl import (
 	is_self_signed,
 	load_cert,
 	load_certs,
-	load_key,
 	load_local_server_cert,
 	load_local_server_key,
 	load_opsi_ca_cert,
 	load_opsi_ca_key,
 	opsi_ca_is_self_signed,
+	read_key_from_file,
 	setup_opsi_ca,
 	setup_server_cert,
 	setup_ssl,
@@ -225,12 +225,12 @@ def test_create_ca(tmp_path: Path) -> None:
 				setup_opsi_ca()
 				assert "-----BEGIN CERTIFICATE-----" in ssl_ca_cert.read_text(encoding="utf-8")
 				assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_ca_key.read_text(encoding="utf-8")
-				key = load_key(conf.ssl_ca_key, "secret")
+				key = read_key_from_file(conf.ssl_ca_key, "secret")
 				assert isinstance(key, rsa.RSAPrivateKey)
 				key = load_opsi_ca_key()
 				assert isinstance(key, rsa.RSAPrivateKey)
 				with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
-					load_key(conf.ssl_ca_key, "wrong")
+					read_key_from_file(conf.ssl_ca_key, "wrong")
 				cert = load_opsi_ca_cert()
 				assert isinstance(cert, x509.Certificate)
 				cert = load_cert(conf.ssl_ca_cert)
@@ -300,12 +300,12 @@ def test_ca_key_fallback(tmp_path: Path) -> None:
 
 			new_passphrase = "new-secret"
 			with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
-				load_key(conf.ssl_ca_key, new_passphrase)
+				read_key_from_file(conf.ssl_ca_key, new_passphrase)
 
 			conf.ssl_ca_key_passphrase = new_passphrase
 			# Test fallback, should reencrypt key with the new passphrase
 			load_opsi_ca_key()
-			load_key(ssl_ca_key, new_passphrase)
+			read_key_from_file(ssl_ca_key, new_passphrase)
 
 
 def test_server_key_fallback(tmp_path: Path) -> None:
@@ -336,12 +336,12 @@ def test_server_key_fallback(tmp_path: Path) -> None:
 
 				new_passphrase = "new-server-key-secret"
 				with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
-					load_key(conf.ssl_server_key, new_passphrase)
+					read_key_from_file(conf.ssl_server_key, new_passphrase)
 
 				conf.ssl_server_key_passphrase = new_passphrase
 				# Test fallback, should reencrypt key with the new passphrase
 				load_local_server_key()
-				load_key(conf.ssl_server_key, new_passphrase)
+				read_key_from_file(conf.ssl_server_key, new_passphrase)
 
 
 @pytest.mark.parametrize(
@@ -708,6 +708,7 @@ def test_letsencrypt_certificate_chain(tmp_path: Path) -> None:
 				assert load_local_server_cert() == srv_crt
 
 
+@pytest.mark.filterwarnings("ignore:Parsed a serial number which wasn't positive")
 def test_intermediate_ca(tmp_path: Path) -> None:
 	ssl_ca_cert = tmp_path / "opsi-ca-cert.pem"
 	ssl_ca_key = tmp_path / "opsi-ca-key.pem"
@@ -806,12 +807,12 @@ def test_create_local_server_cert(tmp_path: Path) -> None:
 				setup_server_cert()
 				assert "-----BEGIN CERTIFICATE-----" in ssl_server_cert.read_text(encoding="utf-8")
 				assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" in ssl_server_key.read_text(encoding="utf-8")
-				key = load_key(conf.ssl_server_key, "secret")
+				key = read_key_from_file(conf.ssl_server_key, "secret")
 				assert isinstance(key, rsa.RSAPrivateKey)
 				key = load_local_server_key()
 				assert isinstance(key, rsa.RSAPrivateKey)
 				with pytest.raises(RuntimeError, match=r".*Incorrect password, could not decrypt key.*"):
-					key = load_key(conf.ssl_server_key, "wrong")
+					key = read_key_from_file(conf.ssl_server_key, "wrong")
 
 				cert = load_cert(conf.ssl_server_cert)
 				assert isinstance(cert, x509.Certificate)

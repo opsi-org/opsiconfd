@@ -45,7 +45,7 @@ from opsiconfd import __version__, contextvar_client_session
 
 # deprecated can be used in extension config files
 from opsiconfd.backend.rpc import rpc_method
-from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, WORKBENCH_DIR, config, opsi_config
+from opsiconfd.config import BOOT_DIR, DEPOT_DIR, PACKAGE_SCRIPT_TIMEOUT, WORKBENCH_DIR, config, opsi_config, TMP_DIR
 from opsiconfd.logging import logger
 from opsiconfd.redis import decode_redis_result, redis_client, redis_lock
 from opsiconfd.utils import get_disk_usage, get_file_md5sum
@@ -260,7 +260,7 @@ class RPCDepotserverMixin(Protocol):
 				filename,
 				force=force,
 				property_default_values=propertyDefaultValues or {},
-				temp_dir=Path(tempDir) if tempDir else None,
+				temp_dir=Path(tempDir) if tempDir else Path(TMP_DIR),
 				force_product_id=forceProductId,
 				suppress_package_content_file_generation=suppressPackageContentFileGeneration,
 			)

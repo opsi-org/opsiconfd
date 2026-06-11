@@ -17,6 +17,8 @@ import threading
 import time
 from io import UnsupportedOperation
 
+from opsi.opsi.service.server import PermissionRegistry
+
 from opsiconfd import __version__
 from opsiconfd.config import (
 	GC_THRESHOLDS,
@@ -101,6 +103,10 @@ def opsiconfd_main() -> None:
 		logger.essential("Opsiconfd version %r starting on %r as %r", __version__, get_depotserver_id(), get_server_role())
 		log_config()
 		log_python_info()
+
+		if config.run_as_user:
+			permission_registry = PermissionRegistry()
+			permission_registry.set_opsiconfd_user(config.run_as_user)
 
 		setup(explicit=bool(config.setup))
 

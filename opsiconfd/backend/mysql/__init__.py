@@ -1143,7 +1143,7 @@ class MySQLConnection:
 				col = columns[attr]
 				val = None
 				if isinstance(entry, dict):
-					val = entry.get(attr)  # ty: ignore[invalid-argument-type]
+					val = entry.get(attr)
 				else:
 					val = getattr(entry, attr)
 				if not val:

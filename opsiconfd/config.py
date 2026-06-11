@@ -1698,6 +1698,13 @@ class Config:
 			help=self._help("expert", "Maximum number of anyio threads running in a worker."),
 		)
 		self._parser.add_argument(
+			"--timeout-keep-alive",
+			env_var="OPSICONFD_TIMEOUT_KEEP_ALIVE",
+			type=int,
+			default=5,
+			help=self._help("expert", "Set the timeout for keep-alive connections, in seconds."),
+		)
+		self._parser.add_argument(
 			"--websocket-protocol",
 			env_var="OPSICONFD_WEBSOCKET_PROTOCOL",
 			default="wsproto_opsiconfd",

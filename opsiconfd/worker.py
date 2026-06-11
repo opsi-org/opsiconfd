@@ -98,7 +98,7 @@ def get_uvicorn_config() -> Config:
 		"headers": [],
 		# https://veithen.io/2014/01/01/how-tcp-backlog-works-in-linux.html
 		"backlog": config.socket_backlog,
-		"timeout_keep_alive": 5,
+		"timeout_keep_alive": config.timeout_keep_alive,
 		"ws_per_message_deflate": False,
 		"ws_max_queue": config.websocket_queue_size,
 		"ws_ping_interval": config.websocket_ping_interval,

@@ -1701,7 +1701,7 @@ class Config:
 			"--timeout-keep-alive",
 			env_var="OPSICONFD_TIMEOUT_KEEP_ALIVE",
 			type=int,
-			default=5,
+			default=30,
 			help=self._help("expert", "Set the timeout for keep-alive connections, in seconds."),
 		)
 		self._parser.add_argument(

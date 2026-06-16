@@ -2742,3 +2742,168 @@ def test_product_dependency_delete(
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 0
+
+
+def test_get_product_action_groups_self_dependency_recursion(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	"""
+	Test that a product depending on itself does not cause infinite recursion.
+
+	This test was created to verify that self-referencing dependencies are handled
+	correctly in get_product_action_groups.
+	"""
+	client_id = "test-client-self-dep.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	# Create a product that has a self-dependency
+	product = LocalbootProduct(
+		id="self-dep-product",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=50,
+		setupScript="setup.opsiscript",
+		uninstallScript="uninstall.opsiscript",
+	)
+
+	# Create a dependency where the product depends on itself
+	product_dependency = ProductDependency(
+		productId="self-dep-product",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="self-dep-product",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+
+	product_on_depot = ProductOnDepot(
+		productId="self-dep-product",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product])
+	backend.productDependency_createObjects([product_dependency])
+	backend.productOnDepot_createObjects([product_on_depot])
+
+	# Create a ProductOnClient with setup action
+	product_on_client = ProductOnClient(
+		productId="self-dep-product",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	# This should handle the circular/self-dependency gracefully
+	# The circular dependency is caught by the check in process_dependencies
+	result = backend.get_product_action_groups([product_on_client])  # ty: ignore[invalid-argument-type]
+	assert client_id in result
+	# The product should be present in the result, not filtered out due to the self-dependency
+	assert len(result[client_id]) > 0
+	pocs = [poc for group in result[client_id] for poc in group.product_on_clients]
+	assert any(poc.productId == "self-dep-product" for poc in pocs)
+
+
+def test_get_product_action_groups_circular_dependency_recursion(
+	backend: UnprotectedBackend,  # noqa: F811
+) -> None:
+	"""
+	Test that circular dependencies do not cause infinite recursion.
+
+	This test provokes potential RecursionError when products have circular
+	dependencies (A depends on B, B depends on A).
+	"""
+	client_id = "test-client-circular.opsi.org"
+	depot_id = get_depotserver_id()
+
+	config_state = ConfigState(configId="clientconfig.depot.id", objectId=client_id, values=[depot_id])
+	backend.configState_createObjects([config_state])
+
+	# Create two products
+	product_a = LocalbootProduct(
+		id="circular-prod-a",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=50,
+		setupScript="setup.opsiscript",
+	)
+	product_b = LocalbootProduct(
+		id="circular-prod-b",
+		productVersion="1.0",
+		packageVersion="1",
+		priority=40,
+		setupScript="setup.opsiscript",
+	)
+
+	# Create circular dependencies: A -> B -> A
+	product_dependency_a_to_b = ProductDependency(
+		productId="circular-prod-a",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="circular-prod-b",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+	product_dependency_b_to_a = ProductDependency(
+		productId="circular-prod-b",
+		productVersion="1.0",
+		packageVersion="1",
+		productAction="setup",
+		requiredProductId="circular-prod-a",
+		requiredInstallationStatus="installed",
+		requirementType="before",
+	)
+
+	product_on_depot_a = ProductOnDepot(
+		productId="circular-prod-a",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+	product_on_depot_b = ProductOnDepot(
+		productId="circular-prod-b",
+		productType="localboot",
+		productVersion="1.0",
+		packageVersion="1",
+		depotId=depot_id,
+	)
+
+	backend.host_createOpsiClient(id=client_id)
+	backend.product_createObjects([product_a, product_b])
+	backend.productDependency_createObjects([product_dependency_a_to_b, product_dependency_b_to_a])
+	backend.productOnDepot_createObjects([product_on_depot_a, product_on_depot_b])
+
+	# Create ProductOnClients
+	product_on_client_a = ProductOnClient(
+		productId="circular-prod-a",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+	product_on_client_b = ProductOnClient(
+		productId="circular-prod-b",
+		productType="localboot",
+		clientId=client_id,
+		installationStatus="not_installed",
+		actionRequest="setup",
+	)
+
+	# This should handle circular dependencies gracefully without raising RecursionError
+	result = backend.get_product_action_groups([product_on_client_a, product_on_client_b])  # ty: ignore[invalid-argument-type]
+	assert client_id in result
+	# Both products should be handled
+	pocs = [poc for group in result[client_id] for poc in group.product_on_clients]
+	product_ids = {poc.productId for poc in pocs}
+	assert "circular-prod-a" in product_ids
+	assert "circular-prod-b" in product_ids

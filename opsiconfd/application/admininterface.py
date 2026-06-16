@@ -803,7 +803,7 @@ def get_confd_conf(all: bool = False) -> RESTResponse:
 @admin_interface_router.get("/routes")
 @rest_api
 def get_routes(request: Request) -> RESTResponse:
-	app = request.app
+	app: FastAPI = request.app
 	routes = {}
 	for route in app.routes:
 		if isinstance(route, Mount):

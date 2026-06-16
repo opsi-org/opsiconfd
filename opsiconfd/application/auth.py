@@ -75,10 +75,9 @@ async def logout(request: Request) -> RESTResponse:
 @rest_api
 async def session_id(request: Request) -> RESTResponse:
 	await pre_authenticate(request.scope)
-	session = request.scope.get("session")
-	assert session
-	await session.store()
+	session: OPSISession | None = request.scope.get("session")
 	assert session and session.session_id
+	await session.store(wait=True)
 	return RESTResponse(session.session_id)
 
 
@@ -122,7 +121,9 @@ async def saml_sp_meta_xml() -> Response:
 @auth_router.get("/saml/login")
 async def saml_login(request: Request) -> RedirectResponse:
 	session_id = request.query_params.get("session_id")
+	logger.debug(f"SAML login requested {'with' if session_id else 'without'} session_id")
 	session: OPSISession = await ensure_session(request.scope, session_id=session_id)
+	session.authenticated = False
 	await session.store()
 	relay_state_data = {
 		"session_id": session.session_id,

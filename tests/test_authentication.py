@@ -59,6 +59,7 @@ def _get_session_data_from_redis(opsiconfd_config: Config, delete_sessions: bool
 		session_data = OPSISession.deserialize(redis.hgetall(key))
 		if delete_sessions:
 			redis.delete(key)
+		session_data["_session_id"] = key.decode().split(":")[-1]
 	return session_data
 
 
@@ -1125,6 +1126,7 @@ def test_authenticated_wait_time(config: Config, test_client: OpsiconfdTestClien
 	session_data = _get_session_data_from_redis(config, delete_sessions=False)
 	assert session_data
 	assert session_data["authenticated"] is False
+	assert session_data["_session_id"] == session_id
 
 	res = test_client.get("/auth/wait_authenticated")
 	assert res.status_code == 401

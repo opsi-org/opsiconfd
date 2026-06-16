@@ -283,11 +283,11 @@ def setup_app() -> None:
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 
+	# Define public paths that do not require authentication (startswith match)
 	public_path = [
 		"/auth/login",
 		"/auth/logout",
 		"/auth/saml",
-		"/auth/saml/sp-meta.xml",
 		"/auth/session_id",
 		"/auth/wait_authenticated",
 		"/favicon.ico",

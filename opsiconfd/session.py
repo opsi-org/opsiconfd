@@ -258,8 +258,20 @@ class SessionMiddleware:
 			if not session_id:
 				session_id = self.get_session_id_from_headers(connection.headers)
 
-			do_auth = required_access_role != ACCESS_ROLE_PUBLIC or connection.headers.get("authorization")
-			if session_id or do_auth or path.startswith("/auth"):
+			do_auth = required_access_role != ACCESS_ROLE_PUBLIC or (
+				bool(connection.headers.get("authorization"))
+				and path not in ("/auth/session_id", "/auth/wait_authenticated")
+				and not path.startswith("/saml")
+			)
+			logger.debug(
+				"client=%r - path=%r - required_access_role=%r - session_id=%r - do_auth=%r",
+				scope["client"],
+				path,
+				required_access_role,
+				bool(session_id),
+				do_auth,
+			)
+			if session_id or do_auth:
 				addr = scope["client"]
 				session = scope["session"] = await session_manager.get_session(
 					client_addr=addr[0], headers=connection.headers, session_id=session_id
@@ -1352,12 +1364,12 @@ async def ensure_session(scope: Scope, session_id: str | None = None) -> OPSISes
 	scope["session"] = await session_manager.get_session(
 		client_addr=addr[0], headers=scope["request_headers"], session_id=session_id, create_new=not session_id
 	)
-	scope["session"].authenticated = False
 	return scope["session"]
 
 
 async def pre_authenticate(scope: Scope, session_id: str | None = None) -> None:
 	await ensure_session(scope, session_id=session_id)
+	scope["session"].authenticated = False
 	try:
 		await check_user_agent(scope["session"].user_agent)
 		# Check if client address is blocked

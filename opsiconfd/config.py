@@ -545,7 +545,7 @@ class Config:
 		if not self._config.database_encryption_keys:
 			self._config.database_encryption_keys = []
 
-		for attr in "networks", "admin_networks":
+		for attr in "networks", "admin_networks", "max_sessions_excludes":
 			conf = getattr(self._config, attr)
 			if conf:
 				add = True
@@ -1422,7 +1422,8 @@ class Config:
 			nargs="*",
 			env_var="OPSICONFD_MAX_SESSIONS_EXCLUDES",
 			default=["127.0.0.1", "::1"],
-			help=self._help("expert", "Allow unlimited sessions for these addresses."),
+			type=network_address_or_domain,
+			help=self._help("expert", "Allow unlimited sessions for these network addresses or domain names."),
 		)
 		self._parser.add_argument(
 			"--min-configed-version",

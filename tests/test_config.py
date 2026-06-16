@@ -80,6 +80,11 @@ def test_str2bool(value: Any, expected_value: bool) -> None:
 		(["--run-as-user", "root"], "run_as_user", "root"),
 		(["--networks", "10.10.10.0/24", "10.10.20.0/24"], "networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
 		(["--admin-networks", "10.10.10.0/24", "10.10.20.0/24"], "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
+		(
+			["--max-sessions-excludes", "10.10.10.0/24", "example.org", "127.0.0.1"],
+			"max_sessions_excludes",
+			["10.10.10.0/24", "example.org", "127.0.0.1/32"],
+		),
 		(["--symlink-logs"], "symlink_logs", True),
 	],
 )
@@ -112,6 +117,7 @@ def test_restore_cmdline_keep_users() -> None:
 		("OPSICONFD_EXTENSION_CONFIG_DIR", "/test", "extension_config_dir", "/test"),
 		("OPSICONFD_RUN_AS_USER", "root", "run_as_user", "root"),
 		("OPSICONFD_ADMIN_NETWORKS", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
+		("OPSICONFD_MAX_SESSIONS_EXCLUDES", "[10.10.10.0/24,example.org]", "max_sessions_excludes", ["10.10.10.0/24", "example.org"]),
 		("OPSICONFD_SYMLINK_LOGS", "yes", "symlink_logs", True),
 		("OPSICONFD_SSL_CA_KEY_PASSPHRASE", "", "ssl_ca_key_passphrase", None),
 		("OPSICONFD_SSL_SERVER_KEY_PASSPHRASE", "", "ssl_server_key_passphrase", None),
@@ -133,6 +139,7 @@ def test_environment_vars(varname: str, value: str, config_name: str, expected_v
 		("dispatch-config-file", "/filename", "dispatch_config_file", "/filename"),
 		("extension-config-dir", "/test", "extension_config_dir", "/test"),
 		("admin-networks", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24", "127.0.0.1/32"]),
+		("max-sessions-excludes", "[10.10.10.0/24,example.org]", "max_sessions_excludes", ["10.10.10.0/24", "example.org"]),
 		("symlink-logs", "1", "symlink_logs", True),
 		("symlink-logs", "false", "symlink_logs", False),
 		("symlink-logs", "no", "symlink_logs", False),

@@ -909,7 +909,11 @@ class OPSISession:
 		self._reset_auth_data()
 
 		max_session_per_ip = config.max_session_per_ip
-		if config.max_sessions_excludes and self.client_addr in config.max_sessions_excludes:
+		if config.max_sessions_excludes and await run_in_threadpool(
+			_ip_address_in_networks_or_domains,
+			self.client_addr,
+			config.max_sessions_excludes if isinstance(config.max_sessions_excludes, tuple) else tuple(config.max_sessions_excludes),
+		):
 			logger.debug("Disable max_session_per_ip for address: %s", self.client_addr)
 			max_session_per_ip = 0
 		elif self.client_addr in depot_addresses:

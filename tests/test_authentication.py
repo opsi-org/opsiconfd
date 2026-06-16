@@ -623,6 +623,30 @@ def test_max_sessions_limit(
 		assert res.status_code == 200
 
 
+@pytest.mark.parametrize("max_sessions_excludes", (["1.2.3.4"], ["1.2.3.0/24"], ["allow.example.corp"]))
+def test_max_sessions_excludes_allow_unlimited_sessions(
+	config: Config,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+	max_sessions_excludes: list[str],
+) -> None:
+	test_client.set_client_address("1.2.3.4", 12345)
+	max_session_per_ip = 3
+	over_limit = 5
+	redis_key = f"{config.redis_key('session')}:*"
+	with get_config({"max_session_per_ip": max_session_per_ip, "max_sessions_excludes": max_sessions_excludes}):
+		with patch("opsiconfd.session.getaddrinfo", mock_getaddrinfo):
+			for _ in range(1, max_session_per_ip + 1 + over_limit):
+				res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
+				assert res.status_code == 200
+				test_client.reset_cookies()
+
+	redis = redis_client()
+	session_keys = list(redis.scan_iter(redis_key, count=1000))
+	assert len(session_keys) >= max_session_per_ip + over_limit
+	for key in session_keys:
+		redis.delete(key)
+
+
 def test_max_sessions_not_for_depot(
 	config: Config,  # noqa: F811
 	test_client: OpsiconfdTestClient,  # noqa: F811

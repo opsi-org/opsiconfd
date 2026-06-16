@@ -42,7 +42,6 @@ from opsiconfd.utils import (
 	reload_opsiconfd_if_running,
 	restart_opsiconfd_if_running,
 	running_in_docker,
-	running_under_systemd,
 )
 
 if TYPE_CHECKING:
@@ -164,11 +163,6 @@ except RuntimeError:
 DEFAULT_NODE_NAME = FQDN.split(".", 1)[0]
 
 opsi_config = OpsiConfig()
-
-
-def print_log(message: str) -> None:
-	if running_under_systemd():
-		print(message, file=sys.stderr)
 
 
 def configure_warnings() -> None:
@@ -678,16 +672,7 @@ class Config:
 				return "[" + ", ".join(str(v) for v in val) + "]"
 			return str(val)
 
-		# Get file size before writing
-		file.seek(0, 2)  # Seek to end
-		size_before = file.tell()
-
-		# Get process and thread information
-		pid = os.getpid()
-		thread_name = threading.current_thread().name
-
 		conf = conf.copy()
-		data = ""
 		file.seek(0)
 		data = file.read()
 		re_opt = re.compile(r"^(\s*)([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
@@ -719,16 +704,6 @@ class Config:
 		file.seek(0)
 		file.truncate()
 		file.write(data)
-
-		# Get file size after writing
-		size_after = len(data.encode("utf-8"))
-
-		log_msg = (
-			f"Configuration file '{self._config.config_file}' written by PID {pid} ({thread_name}): "
-			f"size changed from {size_before} to {size_after} bytes"
-		)
-		print_log(log_msg)
-
 		return data
 
 	def _remove_default_run_as_user_config_file_entry(self, conf: dict[str, Any]) -> None:
@@ -767,16 +742,12 @@ class Config:
 					self._remove_default_run_as_user_config_file_entry(conf)
 					result = self._generate_config_file(file, conf)
 
-			pid = os.getpid()
-			print_log(f"Config option '{arg}' set to '{value}' in configuration file '{self._config.config_file}' by PID {pid}.")
 			return result
 
 	def _update_config_file(self) -> str:
-		print_log("Configuration file update. Try to acquire lock for configuration file update...")
 		with self._config_file_lock:
 			with open(self._config.config_file, "a+", encoding="utf-8") as file:
 				with lock_file(file, lock_method=self._file_lock_method, exclusive=True):
-					print_log("Lock acquired for configuration file update.")
 					conf = self._parse_config_file(file)
 					self._remove_default_run_as_user_config_file_entry(conf)
 					for deprecated in DEPRECATED:

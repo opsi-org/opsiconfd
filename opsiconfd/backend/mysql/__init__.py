@@ -433,9 +433,9 @@ class MySQLConnection:
 			server_type = "MariaDB" if "maria" in version_string.lower() else "MySQL"
 			match = re.search(r"^([\d\.]+)", version_string)
 			if match:
-				min_version = "5.6.5"
+				min_version = "5.7.8"
 				if server_type == "MariaDB":
-					min_version = "10.1"
+					min_version = "10.2"
 				if compare_versions(match.group(1), "<", min_version):
 					error = (
 						f"{server_type} server version '{version_string}' to old. Supported versions are MariaDB >= 10.1 and MySQL >= 5.6.5"

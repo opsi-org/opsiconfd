@@ -1414,7 +1414,7 @@ class Config:
 			"--max-session-per-ip",
 			env_var="OPSICONFD_MAX_SESSIONS_PER_IP",
 			type=int,
-			default=30,
+			default=100,
 			help=self._help("opsiconfd", "The maximum number of sessions that can be opened through one ip address."),
 		)
 		self._parser.add_argument(

@@ -1229,7 +1229,7 @@ requires-dist = [
     { name = "pyotp", specifier = ">=2.8" },
     { name = "python-magic", specifier = ">=0.4" },
     { name = "python-multipart", specifier = ">=0.0" },
-    { name = "python-opsi", specifier = ">=4.3.13.4" },
+    { name = "python-opsi", specifier = ">=4.3.22" },
     { name = "python-opsi-legacy", specifier = ">=4.3.6,<4.4" },
     { name = "python3-saml", specifier = "==1.16.0" },
     { name = "qrcode", specifier = ">=8.0" },
@@ -1724,13 +1724,16 @@ wheels = [
 
 [[package]]
 name = "python-opsi"
-version = "4.3.17.0"
+version = "4.3.22.2"
 source = { registry = "https://pypi.uib.gmbh/simple" }
 dependencies = [
     { name = "aiofiles" },
+    { name = "argon2-cffi" },
+    { name = "bcrypt" },
     { name = "blake3" },
     { name = "colorlog" },
     { name = "configupdater" },
+    { name = "crypt-r", marker = "sys_platform == 'linux'" },
     { name = "cryptography" },
     { name = "distro" },
     { name = "dnspython" },
@@ -1741,6 +1744,7 @@ dependencies = [
     { name = "msgspec", marker = "sys_platform != 'win32'" },
     { name = "netifaces" },
     { name = "packaging" },
+    { name = "pexpect", marker = "sys_platform != 'win32'" },
     { name = "psutil" },
     { name = "ptyprocess" },
     { name = "pycryptodome" },
@@ -1756,9 +1760,9 @@ dependencies = [
     { name = "wmi", marker = "sys_platform == 'win32'" },
     { name = "zstandard" },
 ]
-sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.17.0.tar.gz", hash = "sha256:b2efd5ebb0f7605fe3738a9f18995887614d7a05dc8c40cad085e1f675d7c3bd" }
+sdist = { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.22.2.tar.gz", hash = "sha256:b8e8db2248a3cde780da5077f2626ce79020c00e6841395769502d28a0edfb16" }
 wheels = [
-    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.17.0-py3-none-any.whl", hash = "sha256:e62a72ab1bae01ba1bd44022d927be2d07f02ec1622789848cbb17123ab69206" },
+    { url = "https://pypi.uib.gmbh/packages/python_opsi-4.3.22.2-py3-none-any.whl", hash = "sha256:1a455878fe4d65cdf350e1f8b8d38f33305279bc2d998b81ba22c5e60fd350c7" },
 ]
 
 [[package]]

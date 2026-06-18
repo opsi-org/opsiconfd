@@ -78,6 +78,9 @@
 			if (tabName == "rpc-infos") {
 				loadRPCTable("rpc_num", false);
 			}
+			else if (tabName == "audit-log") {
+				loadAuditLogTable();
+			}
 			else if (tabName == "maintenance") {
 				getAppState();
 			}
@@ -171,6 +174,7 @@
 			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
 			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
 			<a href="#rpc-infos" id="tablink-rpc-infos" class="tablink" onclick="openTab('rpc-infos');">RPC-Infos</a>
+			<a href="#audit-log" id="tablink-audit-log" class="tablink" onclick="openTab('audit-log');">Audit Log</a>
 			{% if "rpc-interface" not in disabled_features %}
 			<a href="#rpc-interface" id="tablink-rpc-interface" class="tablink"
 				onclick="openTab('rpc-interface');">RPC-Interface</a>
@@ -363,6 +367,14 @@
 		<div id="tab-rpc-infos" class="tabcontent">
 			<div class="adminpage-box">
 				<div id="rpc-table-div">
+					loading...
+				</div>
+			</div>
+		</div>
+
+		<div id="tab-audit-log" class="tabcontent">
+			<div class="adminpage-box">
+				<div id="audit-log-table-div">
 					loading...
 				</div>
 			</div>

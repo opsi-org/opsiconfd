@@ -153,6 +153,7 @@ class MySQLSession(Session):
 
 class MySQLConnection:
 	_column_to_attribute = {
+		"AUDIT_LOG": {"auditLogId": "id"},
 		"USER": {"userId": "id"},
 		"CONFIG": {"configId": "id"},
 		"HOST": {"hostId": "id"},
@@ -163,6 +164,7 @@ class MySQLConnection:
 		"LICENSE_POOL": {"licensePoolId": "id"},
 	}
 	_attribute_to_column = {
+		"AUDIT_LOG": {"id": "auditLogId"},
 		"USER": {"id": "userId"},
 		"CONFIG": {"id": "configId"},
 		"HOST": {"id": "hostId"},
@@ -182,7 +184,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 21
+	schema_version = 22
 
 	def __init__(self) -> None:
 		self.address = "localhost"
@@ -692,7 +694,7 @@ class MySQLConnection:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
 		for name, param in sig.parameters.items():
-			if name == "values":
+			if name in ("authMethods", "values"):
 				conversions[name] = loads
 			elif name == "groups":
 				conversions[name] = split_values_on_comma
@@ -703,7 +705,7 @@ class MySQLConnection:
 		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
 		for name, param in sig.parameters.items():
-			if name == "values":
+			if name in ("authMethods", "values"):
 				conversions[name] = dumps
 			elif name == "groups":
 				conversions[name] = join_values_with_comma

@@ -1,0 +1,181 @@
+# opsiconfd is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2008-2026 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
+"""
+test opsiconfd.backend.rpc.obj_audit_log
+"""
+
+import pytest
+from opsi.opsi.service.model.object import (
+	AuditLog,
+	AuditLogAuthentication,
+	AuditLogAuthenticationFailureReason,
+	AuditLogAuthenticationLogoutReason,
+	AuditLogEventType,
+)
+
+from opsiconfd.backend.mysql import MySQLSession
+from tests.utils import UnprotectedBackend, backend, clean_mysql, clean_redis  # noqa: F401
+
+
+def test_audit_log_object() -> None:
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+		username="adminuser",
+		authentication={
+			"authMethods": ["password", "totp"],
+			"failureReason": AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+			"futureAttribute": "ignored",
+		},
+	)
+
+	assert isinstance(audit_log.authentication, AuditLogAuthentication)
+	assert audit_log.authentication.authMethods == ["password", "totp"]
+	assert audit_log.to_hash()["authentication"] == {
+		"authMethods": ["password", "totp"],
+		"failureReason": AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+		"logoutReason": None,
+	}
+	assert "futureAttribute" not in audit_log.to_hash()["authentication"]
+
+
+def test_audit_log_accepts_unknown_event_type_for_client_compatibility() -> None:
+	audit_log = AuditLog(eventType="future.event", authentication={"futureAttribute": "ignored"})
+
+	assert audit_log.eventType == AuditLogEventType.UNKNOWN
+	assert audit_log.authentication == AuditLogAuthentication()
+
+
+def test_audit_log_rpc_methods(backend: UnprotectedBackend) -> None:  # noqa: F811
+	assert hasattr(backend, "auditLog_bulkInsertObjects")
+	assert hasattr(backend, "auditLog_insertObject")
+	assert hasattr(backend, "auditLog_getObjects")
+	assert hasattr(backend, "auditLog_getIdents")
+	assert not hasattr(backend, "auditLog_updateObjects")
+	assert not hasattr(backend, "auditLog_deleteObjects")
+
+
+def test_audit_log_create_and_get_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(
+		id=12345,
+		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+		username="adminuser",
+		actorType="user",
+		actorId="adminuser",
+		clientAddress="192.0.2.10",
+		userAgent="test-agent",
+		message="Login failed",
+		authentication=AuditLogAuthentication(
+			authMethods=["password"], failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
+		),
+	)
+
+	backend.auditLog_bulkInsertObjects([audit_log])
+	assert audit_log.id is not None
+	assert audit_log.id != 12345
+
+	audit_logs = backend.auditLog_getObjects(id=audit_log.id)
+	assert len(audit_logs) == 1
+	stored_log = audit_logs[0]
+	assert isinstance(stored_log, AuditLog)
+	assert stored_log.id == audit_log.id
+	assert stored_log.eventType == AuditLogEventType.AUTHENTICATION_LOGIN_FAILED
+	assert stored_log.username == "adminuser"
+	assert stored_log.authentication == AuditLogAuthentication(
+		authMethods=["password"], failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
+	)
+
+	idents = backend.auditLog_getIdents(returnType="dict", eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED)
+	assert idents == [{"id": audit_log.id}]
+
+
+def test_audit_log_insert_object(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+		username="adminuser",
+		authentication=AuditLogAuthentication(
+			authMethods=["password"], failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
+		),
+	)
+
+	backend.auditLog_insertObject(audit_log)  # ty: ignore[invalid-argument-type]
+
+	audit_logs = backend.auditLog_getObjects(id=audit_log.id)
+	assert len(audit_logs) == 1
+	assert audit_logs[0].authentication == AuditLogAuthentication(
+		authMethods=["password"], failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
+	)
+
+
+def test_audit_log_bulk_insert_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend.auditLog_bulkInsertObjects(
+		[
+			{"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, "username": "user1"},
+			{
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGOUT,
+				"username": "user1",
+				"authentication": {"logoutReason": AuditLogAuthenticationLogoutReason.USER_REQUESTED},
+			},
+		]
+	)
+
+	audit_logs = backend.auditLog_getObjects(username="user1")
+	assert [audit_log.eventType for audit_log in audit_logs] == [
+		AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+		AuditLogEventType.AUTHENTICATION_LOGOUT,
+	]
+	assert audit_logs[0].authentication is None
+	assert audit_logs[1].authentication == AuditLogAuthentication(logoutReason=AuditLogAuthenticationLogoutReason.USER_REQUESTED)
+
+
+def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: UnprotectedBackend) -> None:  # noqa: F811
+	insert_counts = {"AUDIT_LOG": 0, "AUDIT_AUTHENTICATION": 0}
+
+	def query_log(*args: object) -> None:
+		statement = str(args[2])
+		for table in insert_counts:
+			if f"INSERT INTO `{table}`" in statement:
+				insert_counts[table] += 1
+
+	audit_logs = [
+		AuditLog(
+			eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+			username=f"user{index}",
+			authentication=AuditLogAuthentication(authMethods=["password"]) if index % 2 else None,
+		)
+		for index in range(1200)
+	]
+
+	old_query_log = MySQLSession.query_log
+	MySQLSession.query_log = query_log
+	try:
+		backend.auditLog_bulkInsertObjects(audit_logs)
+	finally:
+		MySQLSession.query_log = old_query_log
+
+	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_AUTHENTICATION": 2}
+	assert all(audit_log.id for audit_log in audit_logs)
+	assert len(backend.auditLog_getObjects(eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED)) == 1200
+
+
+def test_audit_log_create_requires_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
+	with pytest.raises(ValueError, match="eventType is required"):
+		backend.auditLog_bulkInsertObjects([AuditLog(username="adminuser")])
+
+
+def test_audit_log_bulk_insert_rejects_invalid_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED)
+	audit_log.eventType = AuditLogEventType.UNKNOWN
+
+	with pytest.raises(ValueError, match="Invalid AuditLog eventType"):
+		backend.auditLog_bulkInsertObjects([audit_log])
+
+
+def test_audit_log_bulk_insert_rejects_authentication_for_unknown_event(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, authentication={"authMethods": ["password"]})
+	audit_log.eventType = AuditLogEventType.UNKNOWN
+
+	with pytest.raises(ValueError, match="Invalid AuditLog eventType"):
+		backend.auditLog_bulkInsertObjects([audit_log])

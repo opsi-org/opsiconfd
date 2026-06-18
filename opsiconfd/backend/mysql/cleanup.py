@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from opsiconfd.config import config
 from opsiconfd.logging import logger
 
 if TYPE_CHECKING:
@@ -398,6 +399,18 @@ def cleanup_users(session: Session) -> None:
 		logger.notice("Deleted %d entries from USER", result.rowcount)
 
 
+def remove_old_audit_logs(session: Session) -> None:
+	retention_days = int(config.audit_log_retention_days)
+	result = session.execute(
+		f"""
+			DELETE FROM AUDIT_LOG
+			WHERE created < DATE_SUB(NOW(), INTERVAL {retention_days} DAY)
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Deleted %d entries from AUDIT_LOG older than %d days", result.rowcount, retention_days)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		cleanup_groups(session)
@@ -424,3 +437,4 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		convert_product_property_objects(session)
 		add_missing_version_info_to_product_on_client(session)
 		remove_orphans_clientconfig_depot_id(session)
+		remove_old_audit_logs(session)

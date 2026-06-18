@@ -57,6 +57,7 @@ from .general import RPCGeneralMixin
 from .host_control import RPCHostControlMixin
 from .obj_audit_hardware import RPCAuditHardwareMixin
 from .obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
+from .obj_audit_log import RPCAuditLogMixin
 from .obj_audit_software import RPCAuditSoftwareMixin
 from .obj_audit_software_on_client import RPCAuditSoftwareOnClientMixin
 from .obj_audit_software_to_license_pool import RPCAuditSoftwareToLicensePoolMixin
@@ -117,6 +118,7 @@ class Backend(
 	RPCLicensePoolMixin,
 	RPCSoftwareLicenseToLicensePoolMixin,
 	RPCSoftwareLicenseMixin,
+	RPCAuditLogMixin,
 	RPCAuditSoftwareToLicensePoolMixin,
 	RPCAuditSoftwareMixin,
 	RPCAuditSoftwareOnClientMixin,

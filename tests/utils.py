@@ -224,6 +224,8 @@ def worker_state() -> None:
 
 def delete_mysql_data() -> None:
 	tables = [
+		"AUDIT_AUTHENTICATION",
+		"AUDIT_LOG",
 		"LICENSE_ON_CLIENT",
 		"SOFTWARE_CONFIG",
 		"SOFTWARE_LICENSE_TO_LICENSE_POOL",

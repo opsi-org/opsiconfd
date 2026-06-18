@@ -23,6 +23,7 @@ from cryptography.x509 import CertificateBuilder
 from fastapi import Request
 from onelogin.saml2.metadata import OneLogin_Saml2_Metadata
 from opsi.exception import OpsiServiceAuthenticationError
+from opsi.opsi.service.model.object import AuditLogAuthenticationFailureReason
 from rich import print as rich_print
 from rich.prompt import Prompt
 
@@ -39,7 +40,10 @@ def check_if_saml_available() -> None:
 	if not module_available("sso"):
 		raise RuntimeError("Single Sign On module not licensed. Please check your OPSI licenses.")
 	if "saml" in config.disabled_auth_methods:
-		raise OpsiServiceAuthenticationError("SAML authentication is disabled")
+		raise OpsiServiceAuthenticationError(
+			"SAML authentication is disabled",
+			authentication_failure_reason=AuditLogAuthenticationFailureReason.AUTH_MODULE_NOT_AVAILABLE,
+		)
 	if not config.saml_idp_entity_id:
 		raise ValueError("saml-idp-entity-id not set in config")
 	if not config.saml_idp_sso_url:

@@ -19,15 +19,20 @@ from opsi.exception import OpsiServiceAuthenticationError
 from opsi.logging import LOG_TRACE, use_logging_config
 from opsi.opsi.service.client import ServiceClient, ServiceVerificationFlags
 from opsi.opsi.service.model import object
-
-from opsiconfd import (
-	contextvar_client_session,
+from opsi.opsi.service.model.object import (
+	AuditLog,
+	AuditLogAuthentication,
+	AuditLogAuthenticationFailureReason,
+	AuditLogAuthenticationLogoutReason,
+	AuditLogEventType,
 )
+
+from opsiconfd import contextvar_client_session
 from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.saml import check_if_saml_available
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
-from opsiconfd.session import OPSISession, _validate_mfa_otp, _validate_username
+from opsiconfd.session import OPSISession, _authentication_failure_reason, _validate_mfa_otp, _validate_username
 from opsiconfd.utils.cryptography import create_auth_token
 
 from .utils import (  # noqa: F401
@@ -61,6 +66,15 @@ def _get_session_data_from_redis(opsiconfd_config: Config, delete_sessions: bool
 			redis.delete(key)
 		session_data["_session_id"] = key.decode().split(":")[-1]
 	return session_data
+
+
+def _wait_for_audit_logs(unprotected_backend: UnprotectedBackend, event_type: AuditLogEventType) -> list[AuditLog]:
+	for _attempt in range(20):
+		audit_logs = unprotected_backend.auditLog_getObjects(eventType=event_type)
+		if audit_logs:
+			return audit_logs
+		time.sleep(0.5)
+	raise TimeoutError(f"Timed out waiting for audit log with event type {event_type}")
 
 
 @pytest.mark.parametrize(
@@ -107,6 +121,54 @@ def test_validate_mfa_otp() -> None:
 	assert _validate_mfa_otp("abcdef") is False
 	assert _validate_mfa_otp("") is True
 	assert _validate_mfa_otp(None) is True
+
+
+def test_authentication_failure_reason_uses_exception_attribute() -> None:
+	err = OpsiServiceAuthenticationError(
+		"Incorrect one-time password",
+		authentication_failure_reason=AuditLogAuthenticationFailureReason.INVALID_USERNAME,
+	)
+
+	assert _authentication_failure_reason(err) == AuditLogAuthenticationFailureReason.INVALID_USERNAME
+
+
+def test_authentication_audit_log_login_success(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.set_client_address("192.0.2.11", 12345)
+	with test_client:
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, headers={"User-Agent": "audit-test"})
+	assert res.status_code == 200
+
+	audit_logs = _wait_for_audit_logs(backend, AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED)
+	assert len(audit_logs) == 1
+	audit_log = audit_logs[0]
+	assert audit_log.username == ADMIN_USER
+	assert audit_log.actorType == "user"
+	assert audit_log.actorId == ADMIN_USER
+	assert audit_log.clientAddress == "192.0.2.11"
+	assert audit_log.userAgent == "audit-test"
+	assert audit_log.authentication == AuditLogAuthentication(authMethods=["password_pam", "username"])
+
+
+def test_authentication_audit_log_login_failed(
+	backend: UnprotectedBackend,  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.set_client_address("192.0.2.12", 12345)
+	with test_client:
+		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": "wrong"}, headers={"User-Agent": "audit-test"})
+
+	assert res.status_code == 401
+
+	audit_logs = _wait_for_audit_logs(backend, AuditLogEventType.AUTHENTICATION_LOGIN_FAILED)
+	assert len(audit_logs) == 1
+	audit_log = audit_logs[0]
+	assert audit_log.username == ADMIN_USER
+	assert audit_log.clientAddress == "192.0.2.12"
+	assert audit_log.userAgent == "audit-test"
+	assert audit_log.authentication == AuditLogAuthentication(failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS)
 
 
 def test_x_opsi_user_id_header(
@@ -244,22 +306,24 @@ def test_login_endpoint(config: Config, test_client: OpsiconfdTestClient, base_p
 	assert not session_data
 
 
-def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
+def test_logout_endpoint(config: Config, backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # noqa: F811  # noqa: F811
 	redis = redis_client()
 	client_addr = "192.168.1.1"
 	test_client.set_client_address(client_addr, 12345)
 
-	res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
+	with test_client:
+		res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS), headers={"User-Agent": "audit-logout-test"})
+		assert res.status_code == 200
 
-	keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)])
-	assert len(keys) == 1
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*", count=1000)])
+		assert len(keys) == 1
 
-	sids = list(redis.smembers(f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}"))
-	assert len(sids) == 1
-	assert keys[0] == f"{config.redis_key('session')}:{ip_address_to_redis_key(sids[0].decode('utf-8'))}"
+		sids = list(redis.smembers(f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}"))
+		assert len(sids) == 1
+		assert keys[0] == f"{config.redis_key('session')}:{ip_address_to_redis_key(sids[0].decode('utf-8'))}"
 
-	res = test_client.get("/auth/logout")
+		res = test_client.get("/auth/logout", headers={"User-Agent": "audit-logout-test"})
+
 	assert res.status_code == 200
 	assert "opsiconfd-session" in res.headers["set-cookie"]
 	assert "Max-Age=0" in res.headers["set-cookie"]
@@ -267,6 +331,18 @@ def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> No
 	assert len(keys) == 0
 	sids = list(redis.smembers(f"{config.redis_key('address_to_session')}:{ip_address_to_redis_key(client_addr)}"))
 	assert len(sids) == 0
+
+	audit_logs = _wait_for_audit_logs(backend, AuditLogEventType.AUTHENTICATION_LOGOUT)
+	assert len(audit_logs) == 1
+	audit_log = audit_logs[0]
+	assert audit_log.username == ADMIN_USER
+	assert audit_log.actorType == "user"
+	assert audit_log.actorId == ADMIN_USER
+	assert audit_log.clientAddress == client_addr
+	assert audit_log.userAgent == "audit-logout-test"
+	assert audit_log.authentication == AuditLogAuthentication(
+		authMethods=None, logoutReason=AuditLogAuthenticationLogoutReason.USER_REQUESTED
+	)
 
 
 def test_mfa_totp(test_client: OpsiconfdTestClient) -> None:  # noqa: F811

@@ -31,6 +31,7 @@ from opsiconfd.backend.rpc.general import RPCGeneralMixin
 from opsiconfd.backend.rpc.host_control import RPCHostControlMixin
 from opsiconfd.backend.rpc.obj_audit_hardware import RPCAuditHardwareMixin
 from opsiconfd.backend.rpc.obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
+from opsiconfd.backend.rpc.obj_audit_log import RPCAuditLogMixin
 from opsiconfd.backend.rpc.obj_audit_software import RPCAuditSoftwareMixin
 from opsiconfd.backend.rpc.obj_audit_software_on_client import RPCAuditSoftwareOnClientMixin
 from opsiconfd.backend.rpc.obj_audit_software_to_license_pool import RPCAuditSoftwareToLicensePoolMixin
@@ -81,6 +82,7 @@ class BackendProtocol(
 	RPCLicensePoolMixin,
 	RPCSoftwareLicenseToLicensePoolMixin,
 	RPCSoftwareLicenseMixin,
+	RPCAuditLogMixin,
 	RPCAuditSoftwareToLicensePoolMixin,
 	RPCAuditSoftwareMixin,
 	RPCAuditSoftwareOnClientMixin,

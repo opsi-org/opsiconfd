@@ -473,6 +473,43 @@ async def get_rpc_count() -> RESTResponse:
 	return RESTResponse({"rpc_count": count})
 
 
+def _audit_log_value(value: Any) -> str:
+	if value is None:
+		return ""
+	if isinstance(value, list):
+		return ", ".join(str(item) for item in value)
+	return str(value)
+
+
+@admin_interface_router.get("/audit-log")
+@rest_api
+async def get_audit_log_list() -> RESTResponse:
+	backend = get_unprotected_backend()
+	audit_logs = await backend.async_call("auditLog_getObjects")
+	audit_logs = sorted(audit_logs, key=lambda audit_log: audit_log.id or 0, reverse=True)[:100]
+
+	audit_log_list = []
+	for audit_log in audit_logs:
+		authentication = audit_log.authentication
+		audit_log_list.append(
+			{
+				"id": audit_log.id,
+				"created": _audit_log_value(audit_log.created),
+				"eventType": _audit_log_value(audit_log.eventType),
+				"username": _audit_log_value(audit_log.username),
+				"actorType": _audit_log_value(audit_log.actorType),
+				"actorId": _audit_log_value(audit_log.actorId),
+				"clientAddress": _audit_log_value(audit_log.clientAddress),
+				"userAgent": _audit_log_value(audit_log.userAgent),
+				"authMethods": _audit_log_value(authentication.authMethods if authentication else None),
+				"failureReason": _audit_log_value(authentication.failureReason if authentication else None),
+				"logoutReason": _audit_log_value(authentication.logoutReason if authentication else None),
+				"message": _audit_log_value(audit_log.message),
+			}
+		)
+	return RESTResponse(audit_log_list)
+
+
 @admin_interface_router.get("/session-list")
 @rest_api
 async def get_session_list() -> RESTResponse:

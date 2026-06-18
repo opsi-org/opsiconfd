@@ -67,6 +67,9 @@ test:lint-and-test:
         exit 1
       )
     - echo -e "${TXT_HEAD}Run linters${TXT_CLEAR}"
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv --version
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run ty --version
+    - $DOCKER_COMPOSE exec opsiserver43-dev uv run ruff --version
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run ruff check opsiconfd tests perftest
     - $DOCKER_COMPOSE exec opsiserver43-dev uv run ty check opsiconfd tests perftest
 

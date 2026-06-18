@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureFunction
+from opsi.opsi.service.model.object import AuditLog, AuditLogAuthentication, AuditLogAuthenticationFailureReason, AuditLogEventType
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
 from starlette.requests import Request
@@ -237,6 +238,33 @@ async def test_get_rpc_list(
 		assert rpc.get("error") is False
 		assert rpc.get("params") == 1
 	assert sorted(rpc_nums) == list(range(1, num_rpcs + 1))
+
+
+async def test_get_audit_log_list(admininterface: ModuleType, backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]
+		AuditLog(
+			eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+			username="adminuser",
+			actorType="user",
+			actorId="adminuser",
+			clientAddress="192.0.2.10",
+			authentication=AuditLogAuthentication(
+				authMethods=["username", "password_pam"],
+				failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+			),
+		)
+	)
+
+	audit_log_response = await admininterface.get_audit_log_list()
+	audit_log_list = json.loads(audit_log_response.body)
+	assert len(audit_log_list) == 1
+	assert audit_log_list[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_FAILED
+	assert audit_log_list[0]["username"] == "adminuser"
+	assert audit_log_list[0]["actorType"] == "user"
+	assert audit_log_list[0]["actorId"] == "adminuser"
+	assert audit_log_list[0]["clientAddress"] == "192.0.2.10"
+	assert audit_log_list[0]["authMethods"] == "username, password_pam"
+	assert audit_log_list[0]["failureReason"] == AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
 
 
 @pytest.mark.parametrize(
@@ -520,6 +548,7 @@ def test_get_routes(
 	routes_to_test = {
 		"/": "opsiconfd.application.main.index_head",
 		"/admin/": "opsiconfd.application.admininterface.admin_interface_index",
+		"/admin/audit-log": "opsiconfd.application.admininterface.get_audit_log_list",
 		"/admin/addons": "opsiconfd.application.admininterface.get_addon_list",
 		"/admin/addons/install": "opsiconfd.application.admininterface.install_addon",
 		"/admin/blocked-clients": "opsiconfd.application.admininterface.get_blocked_clients",

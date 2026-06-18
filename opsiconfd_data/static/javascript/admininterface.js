@@ -341,6 +341,15 @@ function loadRPCTable(sortKey, sort) {
 }
 
 
+function loadAuditLogTable() {
+	let req = ajaxRequest("GET", "/admin/audit-log");
+	req.then((result) => {
+		printAuditLogTable(result, "audit-log-table-div");
+		return result;
+	});
+}
+
+
 let confirmOverlayState = {
 	onConfirm: null,
 	onCancel: null
@@ -1325,6 +1334,48 @@ function printRPCTable(data, htmlId) {
 	htmlStr += "</table>";
 	div = document.getElementById(htmlId);
 	div.innerHTML = htmlStr;
+	return htmlStr;
+}
+
+
+function printAuditLogTable(data, htmlId) {
+	if (data == undefined || data.length == 0) {
+		document.getElementById(htmlId).innerHTML = "No audit log entries found.";
+		return "";
+	}
+
+	const columns = [
+		"created",
+		"eventType",
+		"username",
+		"clientAddress",
+		"userAgent",
+		"authMethods",
+		"failureReason",
+		"logoutReason",
+		"message"
+	];
+	let htmlStr = "<table class=\"rpc-table\">";
+	htmlStr += "<tr>";
+	columns.forEach(column => {
+		htmlStr += `<th class="rpc-th">${column}</th>`;
+	});
+	htmlStr += "</tr>";
+
+	data.forEach(entry => {
+		htmlStr += "<tr>";
+		columns.forEach(column => {
+			let value = entry[column];
+			if (value == undefined || value == null) {
+				value = "";
+			}
+			htmlStr += `<td class="rpc-td">${encodeHTML(String(value))}</td>`;
+		});
+		htmlStr += "</tr>";
+	});
+
+	htmlStr += "</table>";
+	document.getElementById(htmlId).innerHTML = htmlStr;
 	return htmlStr;
 }
 

@@ -151,7 +151,6 @@ def test_create_backup(
 	thread.start()
 	try:
 		print("initalized_event =", initalized_event.wait(10))
-
 		with get_config({"add_config_files": []}):
 			backup = create_backup()
 		assert backup["meta"]["version"] == "1"
@@ -201,6 +200,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # noqa
 			assert database in databases
 
 		print("Create backup", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
 		with get_config({"add_config_files": []}):
 			backup = create_backup(config_files=False, redis_data=False)
 

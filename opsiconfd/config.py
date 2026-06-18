@@ -1690,6 +1690,13 @@ class Config:
 			help=self._help("opsiconfd", "The maximum age of the last successful backup in hours."),
 		)
 		self._parser.add_argument(
+			"--audit-log-retention-days",
+			env_var="OPSICONFD_AUDIT_LOG_RETENTION_DAYS",
+			type=int,
+			default=180,
+			help=self._help("opsiconfd", "The number of days audit log entries are kept."),
+		)
+		self._parser.add_argument(
 			"--welcome-page",
 			env_var="OPSICONFD_WELCOME_PAGE",
 			type=str2bool,

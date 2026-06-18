@@ -53,6 +53,7 @@ OBJECT_CLASSES = (
 	"ProductPropertyState",
 	"Group",
 	"ObjectToGroup",
+	"AuditLog",
 	"AuditSoftware",
 	"AuditSoftwareOnClient",
 	"AuditHardware",

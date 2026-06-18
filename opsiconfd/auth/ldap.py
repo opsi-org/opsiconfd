@@ -15,6 +15,7 @@ import ldap3
 from ldap3.core.exceptions import LDAPObjectClassError
 from ldap3.utils.uri import parse_uri
 from opsi.exception import OpsiServiceAuthenticationError
+from opsi.opsi.service.model.object import AuditLogAuthenticationFailureReason
 
 from opsiconfd.utils import ldap3_uri_to_str
 
@@ -88,7 +89,10 @@ class LDAPAuthentication(AuthenticationModule):
 		:raises OpsiServiceAuthenticationError: If authentication fails.
 		"""
 		if "ldap" in config.disabled_auth_methods:
-			raise OpsiServiceAuthenticationError("LDAP authentication is disabled")
+			raise OpsiServiceAuthenticationError(
+				"LDAP authentication is disabled",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.AUTH_MODULE_NOT_AVAILABLE,
+			)
 
 		self._ldap = None
 		try:
@@ -105,7 +109,10 @@ class LDAPAuthentication(AuthenticationModule):
 			# self._ldap.extend.standard.who_am_i()
 		except Exception as err:
 			logger.info("LDAP authentication failed for user '%s'", username, exc_info=True)
-			raise OpsiServiceAuthenticationError(f"LDAP authentication failed for user '{username}': {err}") from err
+			raise OpsiServiceAuthenticationError(
+				f"LDAP authentication failed for user '{username}': {err}",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+			) from err
 
 	def get_groupnames(self, username: str) -> set[str]:
 		groupnames = set()

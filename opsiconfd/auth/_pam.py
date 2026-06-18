@@ -16,6 +16,7 @@ from os import getgrouplist
 from threading import Lock
 
 from opsi.exception import OpsiServiceAuthenticationError
+from opsi.opsi.service.model.object import AuditLogAuthenticationFailureReason
 from opsi.system.info import linux_distro_id_like_contains
 from pam import PamAuthenticator
 
@@ -59,7 +60,10 @@ class PAMAuthentication(AuthenticationModule):
 		:raises OpsiServiceAuthenticationError: If authentication fails.
 		"""
 		if "pam" in config.disabled_auth_methods:
-			raise OpsiServiceAuthenticationError("PAM authentication is disabled")
+			raise OpsiServiceAuthenticationError(
+				"PAM authentication is disabled",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.AUTH_MODULE_NOT_AVAILABLE,
+			)
 
 		logger.confidential("Trying to authenticate user %s with password %s by PAM", username, password)
 		logger.debug("Attempting PAM authentication as user %s (service=%s)...", username, self._pam_service)
@@ -72,7 +76,10 @@ class PAMAuthentication(AuthenticationModule):
 
 			logger.trace("PAM authentication successful.")
 		except Exception as err:
-			raise OpsiServiceAuthenticationError(f"PAM authentication failed for user '{username}': {err}") from err
+			raise OpsiServiceAuthenticationError(
+				f"PAM authentication failed for user '{username}': {err}",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+			) from err
 
 	def get_groupnames(self, username: str) -> set[str]:
 		"""

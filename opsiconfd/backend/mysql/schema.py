@@ -344,6 +344,31 @@ CREATE TABLE IF NOT EXISTS `USER` (
 	PRIMARY KEY (`userId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `AUDIT_LOG` (
+	`auditLogId` bigint unsigned NOT NULL AUTO_INCREMENT,
+	`created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`eventType` varchar(64) NOT NULL,
+	`username` varchar(200) DEFAULT NULL,
+	`actorType` varchar(32) DEFAULT NULL,
+	`actorId` varchar(255) DEFAULT NULL,
+	`clientAddress` varchar(45) DEFAULT NULL,
+	`userAgent` varchar(512) DEFAULT NULL,
+	`message` varchar(1024) DEFAULT NULL,
+	PRIMARY KEY (`auditLogId`),
+	KEY `index_audit_log_created_eventType` (`created`, `eventType`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `AUDIT_AUTHENTICATION` (
+	`auditLogId` bigint unsigned NOT NULL,
+	`authMethods` json DEFAULT NULL,
+	`failureReason` varchar(128) DEFAULT NULL,
+	`logoutReason` varchar(64) DEFAULT NULL,
+	PRIMARY KEY (`auditLogId`),
+	FOREIGN KEY (`auditLogId`)
+		REFERENCES `AUDIT_LOG` (`auditLogId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE IF NOT EXISTS `WINDOWS_SOFTWARE_ID_TO_PRODUCT` (
 	`windowsSoftwareId` varchar(100) NOT NULL,
 	`productId` varchar(255) NOT NULL,
@@ -1440,5 +1465,8 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 				ADD `tokenHash` varchar(128) DEFAULT NULL,
 				ADD `groups` varchar(1024) DEFAULT NULL
 			""")
+
+		# schema_version 22
+		# AUDIT_LOG and AUDIT_AUTHENTICATION added
 
 		# Be sure to update MySQLConnection.schema_version as well when changing this function.

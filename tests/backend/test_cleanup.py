@@ -7,12 +7,13 @@
 cleanup backend
 """
 
-from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
+from opsi.opsi.service.model.object import AuditLog, AuditLogAuthentication, AuditLogEventType, BoolConfig, UnicodeConfig
 
 from opsiconfd.backend.mysql import MySQLConnection
-from opsiconfd.backend.mysql.cleanup import convert_config_objects, remove_orphans_clientconfig_depot_id
+from opsiconfd.backend.mysql.cleanup import convert_config_objects, remove_old_audit_logs, remove_orphans_clientconfig_depot_id
 from opsiconfd.backend.rpc.main import UnprotectedBackend
 from tests.utils import backend  # noqa: F401
+from tests.utils import get_config
 
 
 def test_convert_config_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
@@ -102,3 +103,30 @@ def test_cleanup_clientconfig_depot_id(backend: UnprotectedBackend) -> None:  # 
 	assert len(config_states) == 0
 
 	backend.host_delete(id=client_id)
+
+
+def test_cleanup_old_audit_logs_uses_configured_retention(backend: UnprotectedBackend) -> None:  # noqa: F811
+	old_log = AuditLog(
+		created="2020-01-01 00:00:00",
+		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+		username="old-audit-log-user",
+		authentication=AuditLogAuthentication(failureReason="invalid_credentials"),
+	)
+	recent_log = AuditLog(
+		created="2030-01-01 00:00:00",
+		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+		username="recent-audit-log-user",
+		authentication=AuditLogAuthentication(authMethods=["username"]),
+	)
+	backend.auditLog_createObjects([old_log, recent_log])  # ty: ignore[invalid-argument-type]
+
+	mysql = MySQLConnection()
+	mysql.connect()
+	with get_config({"audit_log_retention_days": 1}):
+		with mysql.session() as session:
+			remove_old_audit_logs(session)
+
+	audit_logs = backend.auditLog_getObjects(username="*-audit-log-user")
+	assert len(audit_logs) == 1
+	assert audit_logs[0].username == "recent-audit-log-user"
+	assert audit_logs[0].authentication == AuditLogAuthentication(authMethods=["username"])

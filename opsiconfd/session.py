@@ -30,8 +30,17 @@ from opsi.crypt.hash import PasswordHashAlgorithm, get_password_hash_algorithm, 
 from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermissionError
 from opsi.logging import secret_filter, set_context
 from opsi.network import ip_address_in_network
-from opsi.opsi.service.model.object import Host, OpsiClient, User
-from opsi.opsi.service.model.object._object import opsi_timestamp
+from opsi.opsi.service.model.object import (
+	AuditLog,
+	AuditLogAuthentication,
+	AuditLogAuthenticationFailureReason,
+	AuditLogAuthenticationLogoutReason,
+	AuditLogEventType,
+	Host,
+	OpsiClient,
+	User,
+	opsi_timestamp,
+)
 from opsi.opsi.service.model.type import to_hardware_address, to_uuid_string
 from opsi.time import unix_timestamp
 from packaging.version import Version
@@ -596,7 +605,10 @@ class SessionManager:
 				session = None
 
 		if session_id and not session and not create_new:
-			raise OpsiServiceAuthenticationError("Session not found")
+			raise OpsiServiceAuthenticationError(
+				"Session not found",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.SESSION_NOT_FOUND,
+			)
 
 		if not session:
 			logger.trace("Creating new session for client %s", client_addr)
@@ -1209,6 +1221,59 @@ def get_peer_cert_common_name(scope: Scope) -> str | None:
 	return None
 
 
+def _authentication_failure_reason(err: Exception | None) -> AuditLogAuthenticationFailureReason:
+	if isinstance(err, OpsiServiceAuthenticationError) and err.authentication_failure_reason:
+		return err.authentication_failure_reason
+	return AuditLogAuthenticationFailureReason.AUTHENTICATION_FAILED
+
+
+def _audit_auth_methods(session: OPSISession) -> list[str] | None:
+	if not session.auth_methods:
+		return None
+	return sorted(str(method) for method in session.auth_methods)
+
+
+async def audit_authentication_event(
+	scope: Scope,
+	event_type: AuditLogEventType,
+	failure_reason: AuditLogAuthenticationFailureReason | None = None,
+	logout_reason: AuditLogAuthenticationLogoutReason | None = None,
+) -> None:
+	try:
+		session: OPSISession | None = scope.get("session")
+		username = session.username if session and session.username else None
+		actor_type = session.user_type if session else None
+		message = None
+		if event_type == AuditLogEventType.AUTHENTICATION_LOGIN_FAILED:
+			message = "Authentication failed"
+			if username:
+				message += f" for user {username!r}"
+		elif event_type == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED:
+			message = f"Authentication succeeded for user {username!r}"
+		elif event_type == AuditLogEventType.AUTHENTICATION_LOGOUT:
+			message = f"User {username!r} logged out"
+
+		audit_log = AuditLog(
+			eventType=event_type,
+			username=username,
+			actorType=actor_type,
+			actorId=session.host_id if session and session.host_id else username,
+			clientAddress=session.client_addr if session else None,
+			userAgent=session.user_agent if session and session.user_agent else None,
+			message=message,
+			authentication=AuditLogAuthentication(
+				authMethods=_audit_auth_methods(session)
+				if session and event_type == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
+				else None,
+				failureReason=failure_reason,
+				logoutReason=logout_reason,
+			),
+		)
+		await get_unprotected_backend().async_call("auditLog_createObjects", auditLogs=[audit_log])
+	except Exception as err:
+		logger.error("Failed to write authentication audit log: %s", err, exc_info=True)
+
+
 async def authenticate_host(scope: Scope) -> None:
 	session: OPSISession = scope["session"]
 	backend = get_unprotected_backend()
@@ -1244,15 +1309,24 @@ async def authenticate_host(scope: Scope) -> None:
 			)
 			hosts = await backend.async_call("host_getObjects", **host_filter)
 		else:
-			raise OpsiServiceAuthenticationError(f"Host not found '{session.username}'")
+			raise OpsiServiceAuthenticationError(
+				f"Host not found '{session.username}'",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.HOST_NOT_FOUND,
+			)
 	if len(hosts) > 1:
-		raise OpsiServiceAuthenticationError(f"More than one matching host object found '{session.username}'")
+		raise OpsiServiceAuthenticationError(
+			f"More than one matching host object found '{session.username}'",
+			authentication_failure_reason=AuditLogAuthenticationFailureReason.MULTIPLE_HOSTS_FOUND,
+		)
 	host = hosts[0]
 	if auth_method:
 		session.add_auth_methods(auth_method)
 
 	if not host.opsiHostKey:
-		raise OpsiServiceAuthenticationError(f"OpsiHostKey missing for host '{host.id}'")
+		raise OpsiServiceAuthenticationError(
+			f"OpsiHostKey missing for host '{host.id}'",
+			authentication_failure_reason=AuditLogAuthenticationFailureReason.HOST_KEY_NOT_FOUND,
+		)
 
 	peer_cert_cn = get_peer_cert_common_name(scope)
 
@@ -1270,9 +1344,15 @@ async def authenticate_host(scope: Scope) -> None:
 	):
 		if module_available("2fa"):
 			if not peer_cert_cn:
-				raise OpsiServiceAuthenticationError(f"Client certificate missing for host '{host.id}'")
+				raise OpsiServiceAuthenticationError(
+					f"Client certificate missing for host '{host.id}'",
+					authentication_failure_reason=AuditLogAuthenticationFailureReason.CLIENT_TLS_CERTIFICATE_CN_REQUIRED,
+				)
 			if peer_cert_cn != host.id:
-				raise OpsiServiceAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'")
+				raise OpsiServiceAuthenticationError(
+					f"Client certificate CN '{peer_cert_cn}' does not match host id '{host.id}'",
+					authentication_failure_reason=AuditLogAuthenticationFailureReason.CLIENT_TLS_CERTIFICATE_CN_MISMATCH,
+				)
 			session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 		else:
 			logger.error("WAN/VPN module not licensed, client certificate authentication disabled")
@@ -1287,7 +1367,10 @@ async def authenticate_host(scope: Scope) -> None:
 		# Update immediately
 		await backend.async_call("host_updateObjectOnAuthenticate", host=host)
 	else:
-		raise OpsiServiceAuthenticationError(f"Authentication of host '{host.id}' failed")
+		raise OpsiServiceAuthenticationError(
+			f"Authentication of host '{host.id}' failed",
+			authentication_failure_reason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+		)
 
 	host_type = host.getType()
 	session.host_id = host.id
@@ -1316,13 +1399,20 @@ async def authenticate_host(scope: Scope) -> None:
 		depot_addresses[session.client_addr] = time.time()
 
 
-async def _post_failed_authenticate(scope: Scope) -> None:
+async def _post_failed_authenticate(scope: Scope, err: Exception | None = None) -> None:
 	try:
 		session: OPSISession = scope["session"]
 		await session.delete()
-	except Exception as err:
-		logger.error("Failed to delete session after failed authentication: %s", err, exc_info=True)
+	except Exception as delete_err:
+		logger.error("Failed to delete session after failed authentication: %s", delete_err, exc_info=True)
 
+	asyncio_create_task(
+		audit_authentication_event(
+			scope=scope,
+			event_type=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+			failure_reason=_authentication_failure_reason(err),
+		)
+	)
 	cmd = (
 		f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
 		f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
@@ -1347,12 +1437,18 @@ def _validate_mfa_otp(mfa_otp: str | None) -> bool:
 async def authenticate(*, scope: Scope, username: str, password: str, password_is_token: bool = False, mfa_otp: str | None = None) -> None:
 	try:
 		if not _validate_username(username):
-			raise OpsiServiceAuthenticationError("Invalid username")
+			raise OpsiServiceAuthenticationError(
+				"Invalid username",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.INVALID_USERNAME,
+			)
 		if not _validate_mfa_otp(mfa_otp):
-			raise OpsiServiceAuthenticationError("Invalid MFA one-time password")
+			raise OpsiServiceAuthenticationError(
+				"Invalid MFA one-time password",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.INVALID_MFA_OTP,
+			)
 		await _authenticate(scope=scope, username=username, password=password, password_is_token=password_is_token, mfa_otp=mfa_otp)
-	except OpsiServiceAuthenticationError:
-		await _post_failed_authenticate(scope)
+	except OpsiServiceAuthenticationError as err:
+		await _post_failed_authenticate(scope, err=err)
 		await asyncio.sleep(0.2)
 		raise
 
@@ -1403,6 +1499,12 @@ async def post_authenticate(scope: Scope) -> None:
 
 	await check_session_admin_network(session)
 	await session.store(wait=True)
+	asyncio_create_task(
+		audit_authentication_event(
+			scope=scope,
+			event_type=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+		)
+	)
 
 
 async def _authenticate(*, scope: Scope, username: str, password: str, password_is_token: bool = False, mfa_otp: str | None = None) -> None:
@@ -1418,7 +1520,10 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 	logger.info("Start authentication of client %s", session.client_addr)
 
 	if not session.password:
-		raise OpsiServiceAuthenticationError("No password specified")
+		raise OpsiServiceAuthenticationError(
+			"No password specified",
+			authentication_failure_reason=AuditLogAuthenticationFailureReason.PASSWORD_REQUIRED,
+		)
 
 	if not password_is_token and (
 		not session.username
@@ -1447,9 +1552,15 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 	peer_cert_cn = get_peer_cert_common_name(scope)
 	if "user" in config.client_cert_auth:
 		if not peer_cert_cn:
-			raise OpsiServiceAuthenticationError(f"Client certificate missing for user '{session.username}'")
+			raise OpsiServiceAuthenticationError(
+				f"Client certificate missing for user '{session.username}'",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.CLIENT_TLS_CERTIFICATE_CN_REQUIRED,
+			)
 		if peer_cert_cn != session.username:
-			raise OpsiServiceAuthenticationError(f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'")
+			raise OpsiServiceAuthenticationError(
+				f"Client certificate CN '{peer_cert_cn}' does not match username '{session.username}'",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.CLIENT_TLS_CERTIFICATE_CN_MISMATCH,
+			)
 		session.add_auth_methods(AuthenticationMethod.TLS_CERTIFICATE)
 
 	backend = get_unprotected_backend()
@@ -1470,7 +1581,10 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 		else:
 			if password_is_token:
 				if not user.tokenHash:
-					raise OpsiServiceAuthenticationError(f"Token authentication failed for user {session.username}")
+					raise OpsiServiceAuthenticationError(
+						f"Token authentication failed for user {session.username}",
+						authentication_failure_reason=AuditLogAuthenticationFailureReason.TOKEN_NOT_FOUND,
+					)
 				try:
 					if verify_password(password, user.tokenHash):
 						db_auth_success = True
@@ -1502,14 +1616,23 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 	if not db_auth_success:
 		auth_module = get_auth_module()
 		if not auth_module:
-			raise OpsiServiceAuthenticationError(f"Authentication failed for user '{session.username}'")
+			raise OpsiServiceAuthenticationError(
+				f"Authentication failed for user '{session.username}'",
+				authentication_failure_reason=AuditLogAuthenticationFailureReason.AUTH_MODULE_NOT_AVAILABLE,
+			)
 
 		logger.debug("Trying to authenticate by user authentication module %s", auth_module)
 		try:
 			await run_in_threadpool(auth_module.authenticate, session.username, session.password or "")
 			session.add_auth_methods(AuthenticationMethod.USERNAME, auth_module.authentication_method)
 		except Exception as err:
-			raise OpsiServiceAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
+			failure_reason = AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
+			if isinstance(err, OpsiServiceAuthenticationError) and err.authentication_failure_reason:
+				failure_reason = err.authentication_failure_reason
+			raise OpsiServiceAuthenticationError(
+				f"Authentication failed for user '{session.username}': {err}",
+				authentication_failure_reason=failure_reason,
+			) from err
 
 	if config.multi_factor_auth != "inactive":
 		# If the password is a token, only check TOTP if the user has it active, even for mandatory TOTP
@@ -1517,12 +1640,21 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 		logger.debug("multi_factor_auth: %r, user_totp_active: %r", config.multi_factor_auth, user_totp_active)
 		if (config.multi_factor_auth == "totp_mandatory" and not password_is_token) or user_totp_active:
 			if not user or not user.otpSecret:
-				raise OpsiServiceAuthenticationError("MFA OTP configuration error")
+				raise OpsiServiceAuthenticationError(
+					"MFA OTP configuration error",
+					authentication_failure_reason=AuditLogAuthenticationFailureReason.MFA_CONFIGURATION_ERROR,
+				)
 			if not mfa_otp:
-				raise OpsiServiceAuthenticationError("MFA one-time password missing")
+				raise OpsiServiceAuthenticationError(
+					"MFA one-time password missing",
+					authentication_failure_reason=AuditLogAuthenticationFailureReason.MFA_REQUIRED,
+				)
 			totp = pyotp.TOTP(user.otpSecret)
 			if not totp.verify(mfa_otp, valid_window=max(0, config.totp_tolerance)):
-				raise OpsiServiceAuthenticationError("Incorrect one-time password")
+				raise OpsiServiceAuthenticationError(
+					"Incorrect one-time password",
+					authentication_failure_reason=AuditLogAuthenticationFailureReason.INCORRECT_MFA_OTP,
+				)
 			session.add_auth_methods(AuthenticationMethod.TOTP)
 			logger.info("OTP MFA successful")
 

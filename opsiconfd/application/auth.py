@@ -17,6 +17,7 @@ from fastapi import APIRouter, FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from opsi.logging import TRACE
+from opsi.opsi.service.model.object import AuditLogAuthenticationLogoutReason, AuditLogEventType
 from opsi.time import unix_timestamp
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
@@ -30,12 +31,14 @@ from opsiconfd.rest import RESTResponse, rest_api
 from opsiconfd.session import (
 	OPSISession,
 	_post_failed_authenticate,
+	audit_authentication_event,
 	authenticate,
 	ensure_session,
 	post_authenticate,
 	post_user_authenticate,
 	pre_authenticate,
 )
+from opsiconfd.utils import asyncio_create_task
 
 logger = get_logger()
 saml_logger = get_logger("opsiconfd.saml")
@@ -67,6 +70,13 @@ async def logout(request: Request) -> RESTResponse:
 	session: OPSISession | None = request.scope.get("session")
 	if session:
 		await session.delete()
+		asyncio_create_task(
+			audit_authentication_event(
+				scope=request.scope,
+				event_type=AuditLogEventType.AUTHENTICATION_LOGOUT,
+				logout_reason=AuditLogAuthenticationLogoutReason.USER_REQUESTED,
+			)
+		)
 	return RESTResponse("session deleted")
 
 
@@ -300,4 +310,12 @@ async def saml_callback_logout(request: Request) -> RedirectResponse:
 	session: OPSISession | None = request.scope.get("session")
 	if session:
 		await session.delete()
+		asyncio_create_task(
+			audit_authentication_event(
+				scope=request.scope,
+				event_type=AuditLogEventType.AUTHENTICATION_LOGOUT,
+				logout_reason=AuditLogAuthenticationLogoutReason.USER_REQUESTED,
+			)
+		)
+
 	return RedirectResponse("/")

@@ -138,6 +138,120 @@ def test_environment_vars(varname: str, value: str, config_name: str, expected_v
 
 
 @pytest.mark.parametrize(
+	"env_vars, config_name, expected_value",
+	[
+		(
+			{"REDIS_HOST": "redis.example.test", "REDIS_PORT": "6380", "REDIS_PROTOCOL": "rediss"},
+			"redis_internal_url",
+			"rediss://redis.example.test:6380",
+		),
+		(
+			{
+				"REDIS_HOST": "redis.example.test",
+				"REDIS_PORT": "6380",
+				"REDIS_USER": "redis-admin",
+				"REDIS_PASSWORD": "secret@redis",
+				"REDIS_DATABASE": "3",
+			},
+			"redis_internal_url",
+			"redis://redis-admin:secret%40redis@redis.example.test:6380?db=3",
+		),
+		(
+			{"REDIS_HOST": "/var/run/redis/redis.sock", "REDIS_DATABASE": "1"},
+			"redis_internal_url",
+			"unix:///var/run/redis/redis.sock?db=1",
+		),
+		({"GRAFANA_HOST": "grafana.example.test"}, "grafana_internal_url", "http://grafana.example.test:3000"),
+		(
+			{
+				"GRAFANA_HOST": "grafana.example.test",
+				"GRAFANA_PORT": "3001",
+				"GRAFANA_PROTOCOL": "https",
+				"GF_SECURITY_ADMIN_USER": "grafana-admin",
+				"GF_SECURITY_ADMIN_PASSWORD": "grafana:secret",
+			},
+			"grafana_internal_url",
+			"https://grafana-admin:grafana%3Asecret@grafana.example.test:3001",
+		),
+		(
+			{
+				"MYSQL_USER": "opsi",
+				"MYSQL_PASSWORD": "mysql:secret",
+				"MYSQL_HOST": "mysql.example.test",
+				"MYSQL_PORT": "3307",
+				"MYSQL_DATABASE": "opsi_db",
+			},
+			"mysql_internal_url",
+			"mysql://opsi:mysql%3Asecret@mysql.example.test:3307/opsi_db",
+		),
+		(
+			{
+				"MYSQL_PROTOCOL": "mariadb",
+				"MYSQL_USER": "opsi",
+				"MYSQL_PASSWORD": "mysql_secret",
+				"MYSQL_HOST": "mysql.example.test",
+				"MYSQL_PORT": "3307",
+				"MYSQL_DATABASE": "opsi_db",
+				"MYSQL_PROPERTIES": "ssl=true&charset=utf8mb4",
+			},
+			"mysql_internal_url",
+			"mariadb://opsi:mysql_secret@mysql.example.test:3307/opsi_db?ssl=true&charset=utf8mb4",
+		),
+		(
+			{
+				"MYSQL_PASSWORD": "mysql_secret",
+				"MYSQL_HOST": "/var/run/mysql/mysql.sock",
+				"MYSQL_PORT": "3307",
+				"MYSQL_DATABASE": "opsi_db",
+				"MYSQL_PROPERTIES": "ssl=true&charset=utf8mb4",
+			},
+			"mysql_internal_url",
+			"mysql://:mysql_secret@localhost/opsi_db?unix_socket=%2Fvar%2Frun%2Fmysql%2Fmysql.sock&ssl=true&charset=utf8mb4",
+		),
+	],
+)
+def test_internal_url_environment_vars(env_vars: dict[str, str], config_name: str, expected_value: str) -> None:
+	with patch.dict(os.environ, env_vars, clear=True):
+		with get_config([], with_env=True) as conf:
+			assert getattr(conf, config_name) == expected_value
+
+
+@pytest.mark.parametrize(
+	"env_vars, config_name, expected_value",
+	[
+		(
+			{"OPSICONFD_REDIS_INTERNAL_URL": "redis://configured", "REDIS_HOST": "redis.example.test"},
+			"redis_internal_url",
+			"redis://configured",
+		),
+		(
+			{"OPSICONFD_GRAFANA_INTERNAL_URL": "http://configured:3000", "GRAFANA_HOST": "grafana.example.test"},
+			"grafana_internal_url",
+			"http://configured:3000",
+		),
+		(
+			{
+				"OPSICONFD_MYSQL_INTERNAL_URL": "mysql://configured/opsi",
+				"MYSQL_USER": "opsi",
+				"MYSQL_PASSWORD": "secret",
+				"MYSQL_HOST": "mysql.example.test",
+				"MYSQL_PORT": "3306",
+				"MYSQL_DATABASE": "opsi",
+			},
+			"mysql_internal_url",
+			"mysql://configured/opsi",
+		),
+	],
+)
+def test_internal_url_environment_vars_do_not_override_opsiconfd_env_vars(
+	env_vars: dict[str, str], config_name: str, expected_value: str
+) -> None:
+	with patch.dict(os.environ, env_vars, clear=True):
+		with get_config([], with_env=True) as conf:
+			assert getattr(conf, config_name) == expected_value
+
+
+@pytest.mark.parametrize(
 	"varname, value, config_name, expected_value",
 	[
 		("backend-config-dir", "/test", "backend_config_dir", "/test"),

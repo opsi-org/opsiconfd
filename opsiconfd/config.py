@@ -21,7 +21,7 @@ from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, Action, ArgumentTypeError
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TextIO
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
 
 import certifi
 import configargparse
@@ -427,10 +427,75 @@ class Config:
 
 		return help_text if self._sub_command in help_type else SUPPRESS
 
+	@staticmethod
+	def _add_internal_url_env_defaults(env_vars: dict[str, str]) -> None:
+		"""Add internal service URLs from Docker-style environment variables."""
+		if not env_vars.get("OPSICONFD_REDIS_INTERNAL_URL") and env_vars.get("REDIS_HOST"):
+			protocol = env_vars.get("REDIS_PROTOCOL") or "redis"
+			if not env_vars.get("REDIS_PROTOCOL") and env_vars["REDIS_HOST"].startswith("/"):
+				protocol = "unix"
+
+			auth = ""
+			if env_vars.get("REDIS_PASSWORD"):
+				username = quote(env_vars.get("REDIS_USER") or "default", safe="")
+				password = quote(env_vars["REDIS_PASSWORD"], safe="")
+				auth = f"{username}:{password}@"
+
+			port = ""
+			if protocol != "unix":
+				port = f":{env_vars.get('REDIS_PORT') or '6379'}"
+
+			properties = ""
+			if env_vars.get("REDIS_DATABASE"):
+				properties = f"?db={env_vars['REDIS_DATABASE']}"
+
+			env_vars["OPSICONFD_REDIS_INTERNAL_URL"] = f"{protocol}://{auth}{env_vars['REDIS_HOST']}{port}{properties}"
+
+		if not env_vars.get("OPSICONFD_MYSQL_INTERNAL_URL") and env_vars.get("MYSQL_HOST"):
+			protocol = env_vars.get("MYSQL_PROTOCOL") or "mysql"
+
+			auth = ""
+			if env_vars.get("MYSQL_PASSWORD"):
+				username = quote(env_vars.get("MYSQL_USER") or "", safe="")
+				password = quote(env_vars["MYSQL_PASSWORD"], safe="")
+				auth = f"{username}:{password}@"
+
+			db = ""
+			if env_vars.get("MYSQL_DATABASE"):
+				db = f"/{env_vars['MYSQL_DATABASE']}"
+
+			properties = {}
+			host = env_vars["MYSQL_HOST"]
+			port = f":{env_vars.get('MYSQL_PORT') or '3306'}"
+			if host.startswith("/"):
+				host = "localhost"
+				port = ""
+				properties["unix_socket"] = [env_vars["MYSQL_HOST"]]
+
+			if env_vars.get("MYSQL_PROPERTIES"):
+				properties.update(parse_qs(env_vars["MYSQL_PROPERTIES"].lstrip("?")))
+			str_properties = f"?{urlencode(properties, doseq=True)}" if properties else ""
+
+			env_vars["OPSICONFD_MYSQL_INTERNAL_URL"] = f"{protocol}://{auth}{host}{port}{db}{str_properties}"
+
+		if not env_vars.get("OPSICONFD_GRAFANA_INTERNAL_URL") and env_vars.get("GRAFANA_HOST"):
+			protocol = env_vars.get("GRAFANA_PROTOCOL") or "http"
+
+			auth = ""
+			if env_vars.get("GF_SECURITY_ADMIN_PASSWORD"):
+				username = quote(env_vars.get("GF_SECURITY_ADMIN_USER") or "", safe="")
+				password = quote(env_vars["GF_SECURITY_ADMIN_PASSWORD"], safe="")
+				auth = f"{username}:{password}@"
+
+			env_vars["OPSICONFD_GRAFANA_INTERNAL_URL"] = (
+				f"{protocol}://{auth}{env_vars['GRAFANA_HOST']}:{env_vars.get('GRAFANA_PORT') or '3000'}"
+			)
+
 	def _parse_args(self, ignore_env: bool = False) -> None:
 		if not self._parser:
 			raise RuntimeError("Parser not initialized")
-		env_vars = {} if ignore_env else os.environ
+		env_vars = {} if ignore_env else dict(os.environ)
+		self._add_internal_url_env_defaults(env_vars)
 		if self._pytest or self._pyinstaller_scan:
 			self._parser.exit_on_error = False
 			self._config, _unknown = self._parser.parse_known_args(
@@ -1547,11 +1612,13 @@ class Config:
 			default=None,
 			help=self._help(
 				"opsiconfd",
-				"MySQL connection url."
+				"MySQL connection URL."
 				"By default the config from /etc/opsi/backends/mysql.conf will be used!\n"
 				"Examples:\n"
 				"mysql://<username>:<password>@mysql-server:3306/opsi?ssl=true\n"
-				"mysql://<username>:<password>@mysql-server\n",
+				"mysql://<username>:<password>@mysql-server\n\n"
+				"The MySQL connection URL can also be built using the following environment variables:\n"
+				"MYSQL_PROTOCOL, MYSQL_USER, MYSQL_PASSWORD, MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_PROPERTIES",
 			),
 		)
 		self._parser.add_argument(
@@ -1560,9 +1627,11 @@ class Config:
 			default="redis://localhost",
 			help=self._help(
 				"opsiconfd",
-				"Redis connection url. Examples:\n"
-				"rediss://<username>:<password>@redis-server:6379/0\n"
-				"unix:///var/run/redis/redis-server.sock",
+				"Redis connection URL. Examples:\n"
+				"rediss://<username>:<password>@redis-server:6379?db=0\n"
+				"unix:///var/run/redis/redis-server.sock\n\n"
+				"The Redis connection URL can also be built using the following environment variables:\n"
+				"REDIS_PROTOCOL, REDIS_USER, REDIS_PASSWORD, REDIS_HOST, REDIS_PORT, REDIS_DATABASE",
 			),
 		)
 		self._parser.add_argument(
@@ -1575,7 +1644,16 @@ class Config:
 			"--grafana-internal-url",
 			env_var="OPSICONFD_GRAFANA_INTERNAL_URL",
 			default="http://localhost:3000",
-			help=self._help("opsiconfd", "Grafana base url for internal use."),
+			help=self._help(
+				"opsiconfd",
+				(
+					"Grafana base URL for internal use. Examples:\n"
+					"http://localhost:3000\n"
+					"https://grafana.acme.com\n\n"
+					"The Grafana connection URL can also be built using the following environment variables:\n"
+					"GRAFANA_PROTOCOL, GF_SECURITY_ADMIN_USER, GF_SECURITY_ADMIN_PASSWORD, GRAFANA_HOST, GRAFANA_PORT"
+				),
+			),
 		)
 		self._parser.add_argument(
 			"--grafana-external-url",

@@ -484,9 +484,10 @@ def _audit_log_value(value: Any) -> str:
 @admin_interface_router.get("/audit-log")
 @rest_api
 async def get_audit_log_list() -> RESTResponse:
+	# TODO: Filtering / sorting / pagination
 	backend = get_unprotected_backend()
 	audit_logs = await backend.async_call("auditLog_getObjects")
-	audit_logs = sorted(audit_logs, key=lambda audit_log: audit_log.id or 0, reverse=True)[:100]
+	audit_logs = sorted(audit_logs, key=lambda audit_log: int(audit_log.id), reverse=True)[:500]
 
 	audit_log_list = []
 	for audit_log in audit_logs:

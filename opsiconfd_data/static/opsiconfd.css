@@ -273,6 +273,7 @@ select {
 }
 
 .rpc-table,
+.audit-log-table,
 .session-table,
 .user-table,
 .host-table,
@@ -292,6 +293,7 @@ select {
 }
 
 .rpc-th,
+.audit-log-th,
 .session-th,
 .user-th,
 .host-th,
@@ -313,6 +315,7 @@ select {
 }
 
 .rpc-td,
+.audit-log-td,
 .session-td,
 .user-td,
 .host-td,
@@ -334,6 +337,7 @@ select {
 }
 
 .rpc-table tr:nth-child(even) td,
+.audit-log-table tr:nth-child(even) td,
 .session-table tr:nth-child(even) td,
 .user-table tr:nth-child(even) td,
 .host-table tr:nth-child(even) td,
@@ -343,6 +347,7 @@ select {
 }
 
 .rpc-table tr:hover td,
+.audit-log-table tr:hover td,
 .session-table tr:hover td,
 .user-table tr:hover td,
 .host-table tr:hover td,

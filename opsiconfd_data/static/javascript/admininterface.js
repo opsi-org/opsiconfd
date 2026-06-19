@@ -1445,9 +1445,9 @@ function renderAuditLogTable(data, htmlId) {
 		"logoutReason",
 		"message"
 	];
-	const table = createTable("rpc-table", "rpc-th", columns.map(column => ({
+	const table = createTable("audit-log-table", "audit-log-th", columns.map(column => ({
 		label: column,
-		cellClassName: "rpc-td",
+		cellClassName: "audit-log-td",
 		render: entry => entry[column]
 	})), data);
 	replaceContent(container, [table]);

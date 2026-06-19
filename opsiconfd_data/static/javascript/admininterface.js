@@ -1,3 +1,5 @@
+"use strict";
+
 function createUUID() {
 	if (typeof crypto.randomUUID === "function") {
 		return crypto.randomUUID();
@@ -10,9 +12,91 @@ function createUUID() {
 
 
 function encodeHTML(str) {
-	return str.replace(/[\u00A0-\u9999<>\&]/gim, function (i) {
+	return String(str).replace(/[\u00A0-\u9999<>\&]/gim, function (i) {
 		return '&#' + i.charCodeAt(0) + ';';
 	});
+}
+
+
+function textOrEmpty(value) {
+	return value == undefined || value == null ? "" : String(value);
+}
+
+
+function createElement(tagName, attributes = {}, children = []) {
+	const element = document.createElement(tagName);
+	Object.entries(attributes).forEach(([name, value]) => {
+		if (value == undefined || value == null || value === false) {
+			return;
+		}
+		if (name === "className") {
+			element.className = value;
+		}
+		else if (name === "dataset") {
+			Object.entries(value).forEach(([key, datasetValue]) => {
+				element.dataset[key] = textOrEmpty(datasetValue);
+			});
+		}
+		else if (name === "style") {
+			Object.assign(element.style, value);
+		}
+		else if (name.startsWith("on") && typeof value === "function") {
+			element.addEventListener(name.substring(2), value);
+		}
+		else if (value === true) {
+			element.setAttribute(name, name);
+		}
+		else {
+			element.setAttribute(name, value);
+		}
+	});
+	children.forEach(child => {
+		if (child == undefined || child == null) {
+			return;
+		}
+		element.appendChild(child instanceof Node ? child : document.createTextNode(String(child)));
+	});
+	return element;
+}
+
+
+function replaceContent(elementOrId, children = []) {
+	const element = typeof elementOrId === "string" ? document.getElementById(elementOrId) : elementOrId;
+	if (!element) {
+		return null;
+	}
+	element.replaceChildren(...children.map(child => child instanceof Node ? child : document.createTextNode(String(child))));
+	return element;
+}
+
+
+function createTable(className, headerClasses, columns, rows) {
+	const table = createElement("table", { className: className });
+	const headerRow = createElement("tr");
+	columns.forEach(column => {
+		headerRow.appendChild(createElement("th", { className: headerClasses }, [column.label]));
+	});
+	table.appendChild(headerRow);
+	rows.forEach(rowData => {
+		const row = createElement("tr");
+		columns.forEach(column => {
+			const cellClassName = typeof column.cellClassName === "function" ? column.cellClassName(rowData) : column.cellClassName;
+			const cell = createElement("td", { className: cellClassName || "" });
+			const content = typeof column.render === "function" ? column.render(rowData) : rowData[column.key];
+			if (Array.isArray(content)) {
+				cell.append(...content.map(child => child instanceof Node ? child : document.createTextNode(String(child))));
+			}
+			else if (content instanceof Node) {
+				cell.appendChild(content);
+			}
+			else {
+				cell.textContent = textOrEmpty(content);
+			}
+			row.appendChild(cell);
+		});
+		table.appendChild(row);
+	});
+	return table;
 }
 
 
@@ -39,7 +123,7 @@ function showNotification(message, group = "", type = "success", seconds = 10) {
 	notifcation.appendChild(close);
 
 	const msg = document.createElement("p");
-	msg.innerHTML = message;
+	msg.textContent = textOrEmpty(message);
 	notifcation.appendChild(msg);
 
 	notifications.appendChild(notifcation);
@@ -75,7 +159,7 @@ function setAppState(type, button) {
 	if (button) {
 		button.classList.add("loading");
 	}
-	params = { "type": type }
+	const params = { "type": type }
 	if (type == "maintenance") {
 		params.auto_add_to_address_exceptions = true;
 		let val = document.getElementById("application-state-maintenance-exceptions").value;
@@ -186,24 +270,24 @@ function restoreBackup() {
 }
 
 
-function unblockAll() {
+function unblockAllClients() {
 	let req = ajaxRequest("POST", "/admin/unblock-all");
 	req.then((result) => {
 		outputToHTML(result, "json-result");
-		outputResult(result, "text-result");
-		loadClientTable()
+		renderUnblockResult(result, "text-result");
+		loadBlockedClientsTable()
 		return result
 	});
 }
 
 
 function unblockClient(ip) {
-	if (ValidateIPaddress(ip)) {
+	if (validateIpAddress(ip)) {
 		let req = ajaxRequest("POST", "/admin/unblock-client", { "client_addr": ip });
 		req.then((result) => {
 			outputToHTML(result, "json-result");
-			outputResult(result, "text-result");
-			loadClientTable()
+			renderUnblockResult(result, "text-result");
+			loadBlockedClientsTable()
 			return result
 		});
 	}
@@ -213,7 +297,7 @@ function unblockClient(ip) {
 function loadRPCCacheInfo() {
 	let req = ajaxRequest("GET", "/redis-interface/load-rpc-cache-info");
 	req.then((result) => {
-		printRPCCacheInfoTable(result.result, "rpc-cache-info-div");
+		renderRPCCacheInfoTable(result.result, "rpc-cache-info-div");
 	});
 }
 
@@ -245,7 +329,7 @@ function getDeprecatedCalls() {
 function loadDepotTable() {
 	let req = ajaxRequest("GET", "/admin/depots");
 	req.then((result) => {
-		printDepotTable(result, "depots-table-div");
+		renderDepotTable(result, "depots-table-div");
 		return result
 	});
 }
@@ -265,10 +349,10 @@ function createDepot() {
 }
 
 
-function loadClientTable() {
+function loadBlockedClientsTable() {
 	let req = ajaxRequest("GET", "/admin/blocked-clients");
 	req.then((result) => {
-		printClientTable(result, "blocked-clients-div");
+		renderClientTable(result, "blocked-clients-div");
 		return result
 	});
 }
@@ -277,7 +361,7 @@ function loadClientTable() {
 function loadLockedProductsTable() {
 	let req = ajaxRequest("GET", "/admin/locked-products-list");
 	req.then((result) => {
-		printLockedProductsTable(result, "locked-products-table-div");
+		renderLockedProductsTable(result, "locked-products-table-div");
 		return result
 	});
 }
@@ -320,7 +404,7 @@ function loadRedisDebugKeys() {
 function loadSessionTable() {
 	let req = ajaxRequest("GET", "/admin/session-list");
 	req.then((result) => {
-		printSessionTable(result, "session-table-div");
+		renderSessionTable(result, "session-table-div");
 		return result
 	});
 }
@@ -329,13 +413,13 @@ function loadRPCTable(sortKey, sort) {
 	let req = ajaxRequest("GET", "/admin/rpc-list");
 	req.then((result) => {
 		if (result.length == 0) {
-			document.getElementById("rpc-table-div").innerHTML = "No rpcs found.";
+			document.getElementById("rpc-table-div").textContent = "No rpcs found.";
 			return null
 		}
 		if (sort) {
 			result = sortRPCTable(result, sortKey);
 		}
-		printRPCTable(result, "rpc-table-div");
+		renderRPCTable(result, "rpc-table-div");
 		return result;
 	});
 }
@@ -344,7 +428,7 @@ function loadRPCTable(sortKey, sort) {
 function loadAuditLogTable() {
 	let req = ajaxRequest("GET", "/admin/audit-log");
 	req.then((result) => {
-		printAuditLogTable(result, "audit-log-table-div");
+		renderAuditLogTable(result, "audit-log-table-div");
 		return result;
 	});
 }
@@ -365,26 +449,26 @@ function initConfirmOverlay() {
 
 	overlay.addEventListener("click", (event) => {
 		if (event.target === overlay) {
-			hideConfirmOverlay("cancel");
+			hideDialogOverlay("cancel");
 		}
 	});
 
 	cancelButton.addEventListener("click", () => {
-		hideConfirmOverlay("cancel");
+		hideDialogOverlay("cancel");
 	});
 
 	confirmButton.addEventListener("click", () => {
-		hideConfirmOverlay("confirm");
+		hideDialogOverlay("confirm");
 	});
 
 	document.addEventListener("keydown", (event) => {
 		if (event.key === "Escape" && overlay.classList.contains("active")) {
-			hideConfirmOverlay("cancel");
+			hideDialogOverlay("cancel");
 		}
 	});
 }
 
-function showDialogOverlay({ title, bodyHtml, confirmLabel = "Confirm", cancelLabel = "Cancel", onConfirm, onCancel }) {
+function showDialogOverlay({ title, message = "", bodyHtml, bodyElement, confirmLabel = "Confirm", cancelLabel = "Cancel", onConfirm, onCancel }) {
 	const overlay = document.getElementById("confirm-overlay");
 	const titleEl = document.getElementById("confirm-overlay-title");
 	const messageEl = document.getElementById("confirm-overlay-message");
@@ -402,8 +486,16 @@ function showDialogOverlay({ title, bodyHtml, confirmLabel = "Confirm", cancelLa
 	};
 
 	titleEl.textContent = title || "Confirm";
-	messageEl.textContent = "";
-	bodyEl.innerHTML = bodyHtml || "";
+	messageEl.textContent = textOrEmpty(message);
+	bodyEl.replaceChildren();
+	if (bodyElement) {
+		bodyEl.appendChild(bodyElement);
+	}
+	else if (bodyHtml) {
+		bodyEl.innerHTML = bodyHtml;
+	}
+	cancelButton.style.display = "";
+	confirmButton.style.display = "";
 	if (cancelLabel) {
 		cancelButton.textContent = cancelLabel;
 	}
@@ -421,7 +513,7 @@ function showDialogOverlay({ title, bodyHtml, confirmLabel = "Confirm", cancelLa
 	overlay.classList.add("active");
 }
 
-function hideConfirmOverlay(action = "cancel") {
+function hideDialogOverlay(action = "cancel") {
 	const overlay = document.getElementById("confirm-overlay");
 	if (!overlay) {
 		return;
@@ -462,7 +554,7 @@ function updateMultiFactorAuth(userId, type) {
 	});
 }
 
-function showPasswordInstructions(userId, errorMessage = null) {
+function showChangePasswordDialog(userId, errorMessage = null) {
 	let html = "";
 	if (errorMessage) {
 		html += `<p style="color:red;">${errorMessage}</p>`;
@@ -493,7 +585,7 @@ function changeInternalUserPassword(userId, password = null, confirmPassword = n
 		if (password !== confirmPassword) {
 			errorMessage = "The provided passwords do not match. Please try again.";
 		}
-		showPasswordInstructions(userId, errorMessage);
+		showChangePasswordDialog(userId, errorMessage);
 	}
 	else {
 		let req = ajaxRequest("POST", "/admin/set-internal-user-password", { "user_id": userId, "password": password });
@@ -502,7 +594,7 @@ function changeInternalUserPassword(userId, password = null, confirmPassword = n
 			loadUserTable();
 		}, (error) => {
 			let errorMessage = `Failed to set user password: ${error.message || error.detail || JSON.stringify(error)}`;
-			showPasswordInstructions(userId, errorMessage);
+			showChangePasswordDialog(userId, errorMessage);
 			showNotification(errorMessage, "user-edit", "error", 10);
 			loadUserTable();
 		});
@@ -533,7 +625,7 @@ function updateUserTokenAuth(userId, enable) {
 }
 
 
-function showNewUserInstructions(userId, admin, readonly, errorMessage = null) {
+function showCreateUserDialog(userId, admin, readonly, errorMessage = null) {
 	let html = "";
 	if (errorMessage) {
 		html += `<p style="color:red;">${errorMessage}</p>`;
@@ -570,7 +662,7 @@ function createUser(userId = null, password = null, confirmPassword = null, admi
 		if (password !== confirmPassword) {
 			errorMessage = "The provided passwords do not match. Please try again.";
 		}
-		showNewUserInstructions(userId, admin, readonly, errorMessage);
+		showCreateUserDialog(userId, admin, readonly, errorMessage);
 	}
 	else {
 		let req = ajaxRequest("POST", "/admin/create-user", { "user_id": userId, "password": password, "admin": admin, "readonly": readonly });
@@ -579,7 +671,7 @@ function createUser(userId = null, password = null, confirmPassword = null, admi
 			loadUserTable();
 		}, (error) => {
 			let errorMessage = `Failed to create user: ${error.message || error.detail || JSON.stringify(error)}`;
-			showNewUserInstructions(userId, admin, readonly, errorMessage);
+			showCreateUserDialog(userId, admin, readonly, errorMessage);
 			showNotification(errorMessage, "user-edit", "error", 10);
 			loadUserTable();
 		});
@@ -635,14 +727,26 @@ function toggleActionMenu(menuId) {
 }
 
 function buildActionMenu(menuId, actions) {
-	let html = `<div class="action-menu" style="position: relative; display: inline-block;">`;
-	html += `<button type="button" class="action-menu-button" onclick="toggleActionMenu('${menuId}')">Actions</button>`;
-	html += `<div id="${menuId}" class="action-menu-items">`;
+	const menu = createElement("div", { className: "action-menu", style: { position: "relative", display: "inline-block" } });
+	const button = createElement("button", { type: "button", className: "action-menu-button", onclick: () => toggleActionMenu(menuId) }, ["Actions"]);
+	const items = createElement("div", { id: menuId, className: "action-menu-items" });
 	actions.forEach(action => {
-		html += `<div class="action-menu-item" role="menuitem" tabindex="0" onclick="${action.onclick}; closeActionMenu('${menuId}');">${action.label}</div>`;
+		const item = createElement("div", { className: "action-menu-item", role: "menuitem", tabindex: "0" }, [action.label]);
+		const runAction = () => {
+			action.onClick();
+			closeActionMenu(menuId);
+		};
+		item.addEventListener("click", runAction);
+		item.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				runAction();
+			}
+		});
+		items.appendChild(item);
 	});
-	html += "</div></div>";
-	return html;
+	menu.append(button, items);
+	return menu;
 }
 
 document.addEventListener("click", (event) => {
@@ -652,83 +756,92 @@ document.addEventListener("click", (event) => {
 });
 
 
-function printUserTable(data, htmlId) {
+function renderUserTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
+	const content = [];
 	if (data.length == 0) {
-		htmlStr = "<p>No users found.</p>";
+		content.push(createElement("p", {}, ["No users found."]));
 	} else {
 		data.sort((a, b) => (a.id > b.id) ? 1 : -1);
-		htmlStr = "<table class=\"user-table\" id=\"user-table\">" +
-			"<tr>" +
-			"<th class='user-th'>User-ID</th>" +
-			"<th class='user-th'>Groups</th>" +
-			"<th class='user-th'>Last login</th>" +
-			"<th class='user-th'>Internal Authentication</th>" +
-			"<th class='user-th'>Token Authentication</th>";
+		const table = createElement("table", { className: "user-table", id: "user-table" });
+		const headerRow = createElement("tr");
+		[
+			"User-ID",
+			"Groups",
+			"Last login",
+			"Internal Authentication",
+			"Token Authentication"
+		].forEach(label => headerRow.appendChild(createElement("th", { className: "user-th" }, [label])));
 		if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
-			htmlStr += "<th class='user-th'>MFA state</th>";
+			headerRow.appendChild(createElement("th", { className: "user-th" }, ["MFA state"]));
 		}
-		htmlStr += "<th class='user-th'>Messagebus</th>";
-		htmlStr += "<th class='user-th'>Actions</th>";
-		htmlStr += "</tr>";
+		headerRow.appendChild(createElement("th", { className: "user-th" }, ["Messagebus"]));
+		headerRow.appendChild(createElement("th", { className: "user-th" }, ["Actions"]));
+		table.appendChild(headerRow);
 		data.forEach(user => {
 			if (!user.mfaState) {
 				user.mfaState = "inactive";
 			}
 			let actions = [];
-			htmlStr += "<tr>" +
-				`<td class="user-td">${user.id}</td>` +
-				`<td class="user-td" style="max-width: 150px">${user.groups.join(", ")}</td>` +
-				`<td class="user-td">${user.lastLogin ? formateDate(new Date(user.lastLogin)) : "never"}</td>` +
-				`<td class="user-td">${user.internal_auth ? "yes" : "no"}</td>` +
-				`<td class="user-td">${user.token_auth ? "yes" : "no"}</td>`;
+			const row = createElement("tr");
+			row.appendChild(createElement("td", { className: "user-td" }, [user.id]));
+			row.appendChild(createElement("td", { className: "user-td", style: { maxWidth: "150px" } }, [(user.groups || []).join(", ")]));
+			row.appendChild(createElement("td", { className: "user-td" }, [user.lastLogin ? formatDate(new Date(user.lastLogin)) : "never"]));
+			row.appendChild(createElement("td", { className: "user-td" }, [user.internal_auth ? "yes" : "no"]));
+			row.appendChild(createElement("td", { className: "user-td" }, [user.token_auth ? "yes" : "no"]));
 			if (databaseAuth) {
-				actions.push({ label: "Change password", onclick: `changeInternalUserPassword('${user.id}')` });
+				actions.push({ label: "Change password", onClick: () => changeInternalUserPassword(user.id) });
 				if (user.token_auth) {
-					actions.push({ label: "Remove Authentication Token", onclick: `updateUserTokenAuth('${user.id}', false)` });
+					actions.push({ label: "Remove Authentication Token", onClick: () => updateUserTokenAuth(user.id, false) });
 				}
-				actions.push({ label: "New Authentication Token", onclick: `updateUserTokenAuth('${user.id}', true)` });
+				actions.push({ label: "New Authentication Token", onClick: () => updateUserTokenAuth(user.id, true) });
 			}
 			if (multiFactorAuth == "totp_optional" || multiFactorAuth == "totp_mandatory") {
 				let cls = "mfa-" + (user.mfaState == "inactive" ? "inactive" : "active");
 				if (multiFactorAuth == "totp_mandatory" && user.mfaState == "inactive") {
 					cls += "-warn";
 				}
-				htmlStr += `<td class="user-td ${cls}">${user.mfaState}</td>`;
-				actions.push({ label: "Generate new secret and activate TOTP", onclick: `updateMultiFactorAuth('${user.id}', 'totp')` });
+				row.appendChild(createElement("td", { className: `user-td ${cls}` }, [user.mfaState]));
+				actions.push({ label: "Generate new secret and activate TOTP", onClick: () => updateMultiFactorAuth(user.id, "totp") });
 				if (multiFactorAuth == "totp_optional" && user.mfaState != "inactive") {
-					actions.push({ label: "Deactivate MFA", onclick: `updateMultiFactorAuth('${user.id}', 'inactive')` });
+					actions.push({ label: "Deactivate MFA", onClick: () => updateMultiFactorAuth(user.id, "inactive") });
 				}
 			}
 			if (databaseAuth) {
-				actions.push({ label: "Delete user", onclick: `deleteUser('${user.id}')` });
+				actions.push({ label: "Delete user", onClick: () => deleteUser(user.id) });
 			}
 			let connected = messagebusConnectedUsers.includes(user.id);
 			let cls = "user-" + (connected ? "connected" : "not-connected");
-			htmlStr += `<td class="user-td ${cls}"id="user-messagebus-state-${user.id}" data-user-id="${user.id}">` +
-				`${connected ? 'connected' : 'not connected'}</td >`;
+			row.appendChild(createElement("td", {
+				className: `user-td ${cls}`,
+				id: `user-messagebus-state-${user.id}`,
+				dataset: { userId: user.id }
+			}, [connected ? "connected" : "not connected"]));
 			if (actions.length > 0) {
 				const menuId = `user-actions-${user.id}`;
-				htmlStr += `<td class="user-td">${buildActionMenu(menuId, actions)}</td>`;
+				row.appendChild(createElement("td", { className: "user-td" }, [buildActionMenu(menuId, actions)]));
 			}
 			else {
-				htmlStr += `<td class="user-td">-</td>`;
+				row.appendChild(createElement("td", { className: "user-td" }, ["-"]));
 			}
-			htmlStr += "</tr>";
+			table.appendChild(row);
 		});
-		htmlStr += "</table>";
+		content.push(table);
 	}
 	if (databaseAuth) {
-		htmlStr += "<button onclick='createUser();'>Create new user</button>";
+		content.push(createElement("button", { onclick: () => createUser() }, ["Create new user"]));
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	container.replaceChildren(...content);
+	return container.innerHTML;
 }
 
 function loadUserTable() {
 	let req = ajaxRequest("GET", "/admin/user-list");
 	req.then((result) => {
-		printUserTable(result, "user-table-div");
+		renderUserTable(result, "user-table-div");
 		return result
 	});
 }
@@ -736,7 +849,7 @@ function loadUserTable() {
 function loadAddons() {
 	let req = ajaxRequest("GET", "/admin/addons");
 	req.then((result) => {
-		printAddonTable(result, "addon-table-div");
+		renderAddonTable(result, "addon-table-div");
 		return result
 	});
 }
@@ -744,7 +857,7 @@ function loadAddons() {
 function loadFailedAddons() {
 	let req = ajaxRequest("GET", "/admin/addons/failed");
 	req.then((result) => {
-		printFailedAddonTable(result, "failed-addon-table-div");
+		renderFailedAddonTable(result, "failed-addon-table-div");
 		return result
 	});
 }
@@ -784,14 +897,14 @@ function installAddon() {
 }
 
 function deleteClientSessions() {
-	body = {
+	const body = {
 		"client_addr": sessionAddr.value
 	};
-	if (ValidateIPaddress(sessionAddr.value)) {
+	if (validateIpAddress(sessionAddr.value)) {
 		let req = ajaxRequest("POST", "/admin/delete-client-sessions", body);
 		req.then((result) => {
 			outputToHTML(result, "json-result");
-			outputResult(result, "text-result");
+			renderUnblockResult(result, "text-result");
 			return result
 
 		}, (error) => {
@@ -801,7 +914,7 @@ function deleteClientSessions() {
 }
 
 
-function loadInfo() {
+function loadServerInfo() {
 	let config_req = ajaxRequest("GET", "/admin/config");
 	config_req.then((result) => {
 		outputToHTML(result, "config-values");
@@ -815,7 +928,7 @@ function loadInfo() {
 }
 
 
-function reload() {
+function reloadConfig() {
 	let req = ajaxRequest("POST", "/admin/reload");
 	req.then((result) => {
 		console.debug(result);
@@ -863,7 +976,7 @@ function onRPCInterfaceMethodSelected() {
 				tr.className = "param";
 				tr.innerHTML = "\
 							<td align=\"left\"><label>" + param + ": </label></td> \
-							<td><input class=\"jsonrpc-param-input\" type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
+							<td><input class=\"jsonrpc-param-input\" type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"updateRequestJSONPreview(this.name,this.value)\" /></td> \
 						";
 				table.appendChild(tr);
 			});
@@ -880,7 +993,7 @@ function onRPCInterfaceMethodSelected() {
 			document.getElementById("jsonrpc-method-doc").innerHTML = doc;
 		}
 	});
-	changeRequestJSON();
+	updateRequestJSONPreview();
 }
 
 
@@ -900,7 +1013,7 @@ function createRequestJSON() {
 	apiJSON.method = method;
 
 	document.getElementById("jsonrpc-request-error").innerHTML = "";
-	for (i = 0; i < inputs.length; i++) {
+	for (let i = 0; i < inputs.length; i++) {
 		let name = null;
 		let value = null;
 		try {
@@ -913,7 +1026,7 @@ function createRequestJSON() {
 			}
 		} catch (e) {
 			console.warn(`${name}: ${e}`);
-			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e}`;
+			document.getElementById("jsonrpc-request-error").textContent = `${name}: ${e}`;
 		}
 	}
 
@@ -922,7 +1035,7 @@ function createRequestJSON() {
 }
 
 
-function changeRequestJSON(name, value) {
+function updateRequestJSONPreview(name, value) {
 	let apiJSON = createRequestJSON();
 	outputToHTML(apiJSON, "jsonrpc-request");
 }
@@ -930,7 +1043,7 @@ function changeRequestJSON(name, value) {
 
 function callJSONRPC() {
 	let inputs = document.getElementById("tab-rpc-interface").getElementsByTagName("input");
-	for (i = 0; i < inputs.length; i++) {
+	for (let i = 0; i < inputs.length; i++) {
 		let name = inputs[i].name.trim();
 		let value = inputs[i].value.trim();
 
@@ -952,7 +1065,7 @@ function callJSONRPC() {
 			let tmp = item.split(";");
 			serverTimings[tmp[0]] = parseFloat(tmp[1].split("=")[1]);
 		})
-		document.getElementById("jsonrpc-response-info").innerHTML = `Request processing: ${serverTimings.request_processing} ms`;
+		document.getElementById("jsonrpc-response-info").textContent = `Request processing: ${serverTimings.request_processing} ms`;
 		outputToHTML(result.data, "jsonrpc-result");
 		return result;
 	}).finally(() => {
@@ -963,19 +1076,19 @@ function callJSONRPC() {
 
 function loadLicensingInfo() {
 	let req = ajaxRequest("GET", "/admin/licensing_info");
-	req.then(() => {
+	req.then((result) => {
 		if (typeof result.module_dates != "undefined" && Object.keys(result.module_dates).length > 0) {
-			generateLiceningInfoTable(result.info, "licensing-info");
-			generateLiceningDatesTable(result.module_dates, result.active_date, "licensing-dates");
+			generateLicensingInfoTable(result.info, "licensing-info");
+			generateLicensingDatesTable(result.module_dates, result.active_date, "licensing-dates");
 		} else {
-			div = document.getElementById("licensing-info").innerHTML = "<p>No licenses available.</p>";
-			div = document.getElementById("licensing-dates").innerHTML = "";
+			replaceContent("licensing-info", [createElement("p", {}, ["No licenses available."])]);
+			replaceContent("licensing-dates");
 		}
 	});
 }
 
 
-function licenseUpload(files) {
+function uploadLicense(files) {
 	var formData = new FormData();
 	for (var i = 0; i < files.length; i++) {
 		formData.append("files", files[i]);
@@ -988,13 +1101,13 @@ function licenseUpload(files) {
 }
 
 
-function outputResult(json, id) {
+function renderUnblockResult(json, id) {
 	if (json == undefined) {
 		return
 	}
 	let text = "";
 	if (json["status"] == 200) {
-		data = json["data"]
+		const data = json["data"]
 		let failedCount = 0;
 		let blockedCount = 0;
 		if (data["redis-keys"] != undefined) {
@@ -1038,7 +1151,7 @@ function outputResult(json, id) {
 		text = "Error while unblocking clients.";
 	}
 	document.getElementById(id).style.visibility = 'visible';
-	document.getElementById(id).innerHTML = text;
+	document.getElementById(id).textContent = text;
 }
 
 
@@ -1067,7 +1180,7 @@ function syntaxHighlight(json) {
 		});
 }
 
-function ValidateIPaddress(ipaddress) {
+function validateIpAddress(ipaddress) {
 	if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
 		.test(ipaddress)) {
 		return (true)
@@ -1076,153 +1189,121 @@ function ValidateIPaddress(ipaddress) {
 	return (false)
 }
 
-function printSessionTable(data, htmlId) {
+function renderSessionTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (data.length == 0) {
-		htmlStr = "<p>No sessions found.</p>";
+		replaceContent(container, [createElement("p", {}, ["No sessions found."])]);
 	} else {
 		data.sort((a, b) => (a.session_id > b.session_id) ? 1 : -1);
-		htmlStr = "<table class=\"session-table\" id=\"session-table\">" +
-			"<tr>" +
-			"<th class='session-th'>Address</th>" +
-			"<th class='session-th'>Session ID</th>" +
-			"<th class='session-th'>User-Agent</th>" +
-			"<th class='session-th'>Username</th>" +
-			"<th class='session-th'>Authenticated</th>" +
-			"<th class='session-th'>Authentication methods</th>" +
-			"<th class='session-th'>Validity</th>" +
-			"</tr>";
-		data.forEach(element => {
-			htmlStr += "<tr>" +
-				"<td class=\"session-td\">" + encodeHTML(element.address) + "</td>" +
-				"<td class=\"session-td\">" + element.session_id + "</td>" +
-				"<td class=\"session-td\">" + encodeHTML(element.user_agent) + "</td>" +
-				"<td class=\"session-td\">" + encodeHTML(element.username) + "</td>" +
-				"<td class=\"session-td\">" + element.authenticated + "</td>" +
-				"<td class=\"session-td\">" + element.auth_methods + "</td>" +
-				"<td class=\"session-td\">" + Math.round(element.validity) + "</td>" +
-				"</tr>";
-		});
-		htmlStr += "</table>";
+		const table = createTable("session-table", "session-th", [
+			{ label: "Address", cellClassName: "session-td", render: row => row.address },
+			{ label: "Session ID", cellClassName: "session-td", render: row => row.session_id },
+			{ label: "User-Agent", cellClassName: "session-td", render: row => row.user_agent },
+			{ label: "Username", cellClassName: "session-td", render: row => row.username },
+			{ label: "Authenticated", cellClassName: "session-td", render: row => row.authenticated },
+			{ label: "Authentication methods", cellClassName: "session-td", render: row => row.auth_methods },
+			{ label: "Validity", cellClassName: "session-td", render: row => Math.round(row.validity) }
+		], data);
+		table.id = "session-table";
+		replaceContent(container, [table]);
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	return container.innerHTML;
 }
 
 
-function printLockedProductsTable(data, htmlId) {
+function renderLockedProductsTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (data == undefined) {
-		htmlStr = "<p>No locked Products found.</p>";
+		replaceContent(container, [createElement("p", {}, ["No locked Products found."])]);
 	}
 	else if (Object.keys(data).length === 0) {
-		htmlStr = "<p>No locked Products found.</p>";
+		replaceContent(container, [createElement("p", {}, ["No locked Products found."])]);
 	} else {
-		htmlStr = "<table class=\"locked-products-table\" id=\"session-table\">" +
-			"<tr>" +
-			"<th class='locked-products-th'>Product</th>" +
-			"<th class='locked-products-th'>Depots</th>"
-		"</tr>";
-		for (var key in data) {
-			htmlStr += "<tr>" +
-				"<td class=\"locked-products-td\" class=\"cell-breakWord \">" + key + "</td>" +
-				"<td class=\"locked-products-td\">"
-			data[key].forEach(element => {
-				htmlStr += element + "<br>"
-			});
-			htmlStr += "</td>"
-			htmlStr += "<td class=\"locked-products-td\"><input type=\"button\" onclick=\"unlockProduct('" + key + "','" + data[key] + "')\" value=\"Unlock\"</td>"
-			htmlStr += "</tr>";
-		}
-		htmlStr += "</table>";
+		const rows = Object.entries(data).map(([product, depots]) => ({ product, depots }));
+		const table = createTable("locked-products-table", "locked-products-th", [
+			{ label: "Product", cellClassName: "locked-products-td", render: row => row.product },
+			{ label: "Depots", cellClassName: "locked-products-td", render: row => row.depots.flatMap(depot => [depot, createElement("br")]) },
+			{ label: "Action", cellClassName: "locked-products-td", render: row => createElement("input", { type: "button", value: "Unlock", onclick: () => unlockProduct(row.product, row.depots.join(",")) }) }
+		], rows);
+		table.id = "locked-products-table";
+		replaceContent(container, [table]);
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	return container.innerHTML;
 }
 
 
-function printAddonTable(data, htmlId) {
+function renderAddonTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (data == undefined) {
-		htmlStr = "<p>No addons loaded.</p>";
+		replaceContent(container, [createElement("p", {}, ["No addons loaded."])]);
 	}
 	else if (data.length == 0) {
-		htmlStr = "<p>No addons loaded.</p>";
+		replaceContent(container, [createElement("p", {}, ["No addons loaded."])]);
 	} else {
-		htmlStr = "<table class=\"addon-table\" id=\"addon-table\">" +
-			"<tr>" +
-			"<th class='addon-th'>Addon ID</th>" +
-			"<th class='addon-th'>Name</th>" +
-			"<th class='addon-th'>Version</th>" +
-			"<th class='addon-th'>Install path</th>" +
-			"</tr>";
-		data.forEach(element => {
-			htmlStr += "<tr>" +
-				"<td class=\"addon-td\"><a href=\"" + element.path + "\" target=\"_blank\">" + element.id + "</a></td>" +
-				"<td class=\"addon-td\">" + element.name + "</td>" +
-				"<td class=\"addon-td\">" + element.version + "</td>" +
-				"<td class=\"addon-td\">" + element.install_path + "</td>" +
-				"</tr>";
-		});
-		htmlStr += "</table>";
+		const table = createTable("addon-table", "addon-th", [
+			{ label: "Addon ID", cellClassName: "addon-td", render: row => createElement("a", { href: row.path, target: "_blank", rel: "noopener noreferrer" }, [row.id]) },
+			{ label: "Name", cellClassName: "addon-td", render: row => row.name },
+			{ label: "Version", cellClassName: "addon-td", render: row => row.version },
+			{ label: "Install path", cellClassName: "addon-td", render: row => row.install_path }
+		], data);
+		table.id = "addon-table";
+		replaceContent(container, [table]);
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	return container.innerHTML;
 }
 
-function printFailedAddonTable(data, htmlId) {
+function renderFailedAddonTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (data == undefined) {
-		htmlStr = "";
+		replaceContent(container);
 	}
 	else if (data.length == 0) {
-		htmlStr = "";
+		replaceContent(container);
 	} else {
-		htmlStr = "<h4>Addons that failed to load:</h4><table class=\"failed-addon-table\" id=\"failed-addon-table\">" +
-			"<tr>" +
-			"<th class='failed-addon-th'>Name</th>" +
-			"<th class='failed-addon-th'>Path</th>" +
-			"<th class='failed-addon-th'>Error</th>" +
-			"</tr>";
-		data.forEach(element => {
-			htmlStr += "<tr>" +
-				"<td class=\"failed-addon-td\">" + element.name + "</td>" +
-				"<td class=\"failed-addon-td\">" + element.addon_path + "</td>" +
-				"<td class=\"error-addon-td\">" + element.error + "</td>" +
-				"</tr>";
-		});
-		htmlStr += "</table>";
+		const table = createTable("failed-addon-table", "failed-addon-th", [
+			{ label: "Name", cellClassName: "failed-addon-td", render: row => row.name },
+			{ label: "Path", cellClassName: "failed-addon-td", render: row => row.addon_path },
+			{ label: "Error", cellClassName: "error-addon-td", render: row => row.error }
+		], data);
+		table.id = "failed-addon-table";
+		replaceContent(container, [createElement("h4", {}, ["Addons that failed to load:"]), table]);
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	return container.innerHTML;
 }
 
 
-function printClientTable(data, htmlId) {
+function renderClientTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (data == undefined) {
 		data = []
 	}
 	if (data.length == 0) {
-		htmlStr = "<p>No clients are blocked by the server.</p>";
+		replaceContent(container, [createElement("p", {}, ["No clients are blocked by the server."])]);
 	} else {
-		htmlStr = "<table class=\"rpc-table\" id=\"blocked-clients-table\">" +
-			"<tr>" +
-			"<th class='rpc-th'>Client</th>" +
-			"<th class='rpc-th'>Action</th>" +
-			"</tr>";
-		data.forEach(element => {
-			htmlStr += "<tr>";
-			htmlStr += "<td class=\"rpc-td\">" + element + "</td>";
-			htmlStr += "<td class=\"rpc-td\"><p onclick='unblockClient(\"" + element +
-				"\")' style=\"cursor: pointer;\">unblock</p></td>";
-			htmlStr += "</tr>";
-
-		});
-		htmlStr += "</table>";
+		const rows = data.map(client => ({ client }));
+		const table = createTable("rpc-table", "rpc-th", [
+			{ label: "Client", cellClassName: "rpc-td", render: row => row.client },
+			{ label: "Action", cellClassName: "rpc-td", render: row => createElement("button", { onclick: () => unblockClient(row.client) }, ["Unblock"]) }
+		], rows);
+		table.id = "blocked-clients-table";
+		replaceContent(container, [table]);
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	return container.innerHTML;
 }
 
 
@@ -1232,115 +1313,124 @@ function toggleTextSecurityVisibility(element) {
 }
 
 
-function printDepotTable(data, htmlId) {
+function renderDepotTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (data == undefined) {
 		data = []
 	}
 	if (data.length == 0) {
-		htmlStr = "<p>No depots.</p>";
+		replaceContent(container, [createElement("p", {}, ["No depots."])]);
 	} else {
-		htmlStr = "<table class=\"host-table\" id=\"depots-table\">" +
-			"<tr>" +
-			"<th class='host-th'>Depot ID</th>" +
-			"<th class='host-th'>Description</th>" +
-			"<th class='host-th'>OPSI host key</th>" +
-			"<th class='host-th'>Is master</th>" +
-			"<th class='host-th'>Messagebus</th>" +
-			"<th class='host-th'>Transfer slots</th>" +
-			"</tr>";
+		const table = createElement("table", { className: "host-table", id: "depots-table" });
+		const headerRow = createElement("tr");
+		["Depot ID", "Description", "OPSI host key", "Is master", "Messagebus", "Transfer slots"].forEach(label => {
+			headerRow.appendChild(createElement("th", { className: "host-th" }, [label]));
+		});
+		table.appendChild(headerRow);
 		data.forEach(depot => {
 			const connected = depot.configserver || messagebusConnectedDepots.includes(depot.id);
 			const cls = "host-" + (connected ? "connected" : "not-connected");
-			htmlStr += "<tr>";
-			htmlStr += "<td class=\"host-td\">" + depot.id + "</td>";
-			htmlStr += "<td class=\"host-td\">" + depot.description + "</td>";
-			htmlStr += "<td class=\"host-td\" style=\"cursor: pointer; text-security: disc; -webkit-text-security: disc;\"";
-			htmlStr += " onclick = 'toggleTextSecurityVisibility(this)' > " + depot.opsiHostKey + "</td > ";
-			htmlStr += `<td class=\"host-td\" style=\"text-align: center\"><input type="checkbox" disabled ${depot.isMasterDepot ? 'checked' : ''}></td>`;
-			htmlStr += `<td id="depot-messagebus-state-${depot.id}" data-depot-id="${depot.id}" data-configserver="${depot.configserver}" class="host-td ${cls}">`
-			htmlStr += connected ? 'connected' : 'not connected';
-			htmlStr += "</td >";
-			htmlStr += `<td class=\"host-td\">${depot.used_product_sync_transfer_slots}/${depot.max_product_sync_transfer_slots}</td>`;
-			htmlStr += "</tr>";
+			const row = createElement("tr");
+			row.appendChild(createElement("td", { className: "host-td" }, [depot.id]));
+			row.appendChild(createElement("td", { className: "host-td" }, [depot.description]));
+			row.appendChild(createElement("td", {
+				className: "host-td",
+				style: { cursor: "pointer", textSecurity: "disc", webkitTextSecurity: "disc" },
+				onclick: event => toggleTextSecurityVisibility(event.currentTarget)
+			}, [depot.opsiHostKey]));
+			row.appendChild(createElement("td", { className: "host-td", style: { textAlign: "center" } }, [
+				createElement("input", { type: "checkbox", disabled: true, checked: depot.isMasterDepot })
+			]));
+			row.appendChild(createElement("td", {
+				id: `depot-messagebus-state-${depot.id}`,
+				className: `host-td ${cls}`,
+				dataset: { depotId: depot.id, configserver: depot.configserver }
+			}, [connected ? "connected" : "not connected"]));
+			row.appendChild(createElement("td", { className: "host-td" }, [`${depot.used_product_sync_transfer_slots}/${depot.max_product_sync_transfer_slots}`]));
+			table.appendChild(row);
 		});
-		htmlStr += "</table>";
+		replaceContent(container, [table]);
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	return container.innerHTML;
 }
 
 
 
-function printRPCCacheInfoTable(data, htmlId) {
+function renderRPCCacheInfoTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (Object.keys(data).length === 0) {
-		htmlStr = "<p>RPC cache is empty.</p>";
+		replaceContent(container, [createElement("p", {}, ["RPC cache is empty."])]);
 	} else {
-		htmlStr = "<table class=\"rpc-cache-table\" id=\"rpc-cache-table\">" +
-			"<tr>" +
-			"<th class='rpc-cache-th'>Cache name</th>" +
-			"<th class='rpc-cache-th'>Num results</th>" +
-			"<th class='rpc-cache-th'>Clear</th>" +
-			"</tr>";
-		Object.keys(data).forEach(cacheName => {
-			htmlStr += "<tr>";
-			htmlStr += "<td class=\"rpc-cache-td\">" + cacheName + "</td>";
-			htmlStr += "<td class=\"rpc-cache-td\">" + data[cacheName] + "</td>";
-			htmlStr += "<td class=\"rpc-cache-td\"><button onclick=\"clearRPCCache('" + cacheName + "\')\">Clear</button></td>";
-			htmlStr += "</tr>";
-
-		});
-		htmlStr += "</table>";
+		const rows = Object.entries(data).map(([cacheName, numResults]) => ({ cacheName, numResults }));
+		const table = createTable("rpc-cache-table", "rpc-cache-th", [
+			{ label: "Cache name", cellClassName: "rpc-cache-td", render: row => row.cacheName },
+			{ label: "Num results", cellClassName: "rpc-cache-td", render: row => row.numResults },
+			{ label: "Clear", cellClassName: "rpc-cache-td", render: row => createElement("button", { onclick: () => clearRPCCache(row.cacheName) }, ["Clear"]) }
+		], rows);
+		table.id = "rpc-cache-table";
+		replaceContent(container, [table]);
 	}
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	return container.innerHTML;
 }
 
-function printRPCTable(data, htmlId) {
-	let htmlStr = "<table class=\"rpc-table\">";
-	htmlStr += "<tr>";
-	keys = Object.keys(data[0]);
-	Object.keys(data[0]).forEach(element => {
-		htmlStr += `<th class="rpc-th" onclick="loadRPCTable('${element}', true)" title="sort" style="cursor: pointer;">${element}</th>`;
+function renderRPCTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
+	const table = createElement("table", { className: "rpc-table" });
+	const headerRow = createElement("tr");
+	const keys = Object.keys(data[0]);
+	keys.forEach(key => {
+		headerRow.appendChild(createElement("th", {
+			className: "rpc-th",
+			title: "sort",
+			style: { cursor: "pointer" },
+			onclick: () => loadRPCTable(key, true)
+		}, [key]));
 	});
-	htmlStr += "</tr>";
+	table.appendChild(headerRow);
 
-	data.forEach((element, idx) => {
-		htmlStr += "<tr>";
-		tdClass = "rpc-td"
+	data.forEach(element => {
+		const row = createElement("tr");
+		let tdClass = "rpc-td";
 		if (element["error"]) {
-			tdClass = "rpc-error-td"
+			tdClass = "rpc-error-td";
 		}
 		else if (element["deprecated"]) {
-			tdClass = "rpc-deprecated-td"
+			tdClass = "rpc-deprecated-td";
 		}
 		keys.forEach(key => {
+			let value = element[key];
 			if (key == "date") {
-				date = formateDate(new Date(element[key]))
-				htmlStr += `<td class="${tdClass}">${date}</td>`;
+				value = formatDate(new Date(element[key]));
 			}
 			else if (key == "duration") {
-				duration = element[key].toFixed(4)
-				htmlStr += `<td class="${tdClass}">${duration}</td>`;
+				value = element[key].toFixed(4);
 			}
-			else {
-				htmlStr += `<td class="${tdClass}">${element[key]}</td>`;
-			}
+			row.appendChild(createElement("td", { className: tdClass }, [value]));
 		});
-		htmlStr += "</tr>";
+		table.appendChild(row);
 	});
 
-	htmlStr += "</table>";
-	div = document.getElementById(htmlId);
-	div.innerHTML = htmlStr;
-	return htmlStr;
+	replaceContent(container, [table]);
+	return container.innerHTML;
 }
 
 
-function printAuditLogTable(data, htmlId) {
+function renderAuditLogTable(data, htmlId) {
+	const container = document.getElementById(htmlId);
+	if (!container) {
+		return "";
+	}
 	if (data == undefined || data.length == 0) {
-		document.getElementById(htmlId).innerHTML = "No audit log entries found.";
+		container.textContent = "No audit log entries found.";
 		return "";
 	}
 
@@ -1355,34 +1445,19 @@ function printAuditLogTable(data, htmlId) {
 		"logoutReason",
 		"message"
 	];
-	let htmlStr = "<table class=\"rpc-table\">";
-	htmlStr += "<tr>";
-	columns.forEach(column => {
-		htmlStr += `<th class="rpc-th">${column}</th>`;
-	});
-	htmlStr += "</tr>";
-
-	data.forEach(entry => {
-		htmlStr += "<tr>";
-		columns.forEach(column => {
-			let value = entry[column];
-			if (value == undefined || value == null) {
-				value = "";
-			}
-			htmlStr += `<td class="rpc-td">${encodeHTML(String(value))}</td>`;
-		});
-		htmlStr += "</tr>";
-	});
-
-	htmlStr += "</table>";
-	document.getElementById(htmlId).innerHTML = htmlStr;
-	return htmlStr;
+	const table = createTable("rpc-table", "rpc-th", columns.map(column => ({
+		label: column,
+		cellClassName: "rpc-td",
+		render: entry => entry[column]
+	})), data);
+	replaceContent(container, [table]);
+	return container.innerHTML;
 }
 
 
 var desc = true;
 function sortRPCTable(data, sortKey) {
-	data = result.sort((a, b) => {
+	data = data.sort((a, b) => {
 		if (sortKey == "method") {
 			var nameA = a[sortKey].toUpperCase();
 			var nameB = b[sortKey].toUpperCase();
@@ -1432,27 +1507,27 @@ function outputToHTML(json, id) {
 	if (json == undefined) {
 		return
 	}
-	jsonStr = JSON.stringify(json, undefined, 2);
+	let jsonStr = JSON.stringify(json, undefined, 2);
 	jsonStr = syntaxHighlight(jsonStr);
 	document.getElementById(id).style.visibility = 'visible'
 	document.getElementById(id).innerHTML = jsonStr;
 }
 
 
-function decode(html) {
+function decodeHTML(html) {
 	var txt = document.createElement('textarea');
 	txt.innerHTML = html;
 	return txt.value;
 }
 
 
-function formateDate(date) {
-	year = date.getFullYear();
-	month = date.getMonth() + 1;
-	dt = date.getDate();
-	hour = date.getHours();
-	minutes = date.getMinutes();
-	seconds = date.getSeconds();
+function formatDate(date) {
+	let year = date.getFullYear();
+	let month = date.getMonth() + 1;
+	let dt = date.getDate();
+	let hour = date.getHours();
+	let minutes = date.getMinutes();
+	let seconds = date.getSeconds();
 
 	if (dt < 10) {
 		dt = '0' + dt;
@@ -1469,8 +1544,7 @@ function formateDate(date) {
 	if (seconds < 10) {
 		seconds = '0' + seconds;
 	}
-	date = year + '-' + month + '-' + dt + ' ' + hour + ':' + minutes + ':' + seconds
-	return date;
+	return year + '-' + month + '-' + dt + ' ' + hour + ':' + minutes + ':' + seconds;
 }
 
 
@@ -1542,7 +1616,7 @@ function messagebusConnect() {
 	messagebusWS.onopen = function () {
 		console.log("Messagebus websocket opened");
 		showNotification("Connected to messagebus", "messagebus", "success", 2);
-		document.getElementById("messagebus-connect-disconnect").innerHTML = "Disconnect";
+		document.getElementById("messagebus-connect-disconnect").textContent = "Disconnect";
 		let dataMessage = {
 			type: "channel_subscription_request",
 			id: createUUID(),
@@ -1585,14 +1659,14 @@ function messagebusConnect() {
 		if (messagebusAutoReconnect) {
 			setTimeout(messagebusConnect, 5000);
 		}
-		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
+		document.getElementById("messagebus-connect-disconnect").textContent = "Connect";
 	};
 	messagebusWS.onerror = function (error) {
 		const err = `Messagebus websocket connection error: ${JSON.stringify(error)}`;
 		console.error(err);
 		//showNotification(err, "messagebus", "error", 5);
 		messagebusWS = null;
-		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
+		document.getElementById("messagebus-connect-disconnect").textContent = "Connect";
 	}
 	messagebusWS.onmessage = function (event) {
 		const message = msgpack.deserialize(event.data);
@@ -1842,7 +1916,7 @@ function updateMessagebusConnectedHosts() {
 	let states = document.querySelectorAll('[id^="depot-messagebus-state-"][data-configserver="false"]');
 	states.forEach(element => {
 		const connected = messagebusConnectedDepots.includes(element.dataset.depotId);
-		element.innerHTML = connected ? 'connected' : 'not connected';
+		element.textContent = connected ? 'connected' : 'not connected';
 		if (connected) {
 			element.classList.remove("host-not-connected");
 			element.classList.add("host-connected");
@@ -1854,12 +1928,12 @@ function updateMessagebusConnectedHosts() {
 	});
 
 	const clients = document.getElementById("messagebus-connected-clients");
-	clients.innerHTML = "";
+	clients.replaceChildren();
 	const clientList = document.createElement("ul");
 	messagebusConnectedClients.sort();
 	messagebusConnectedClients.forEach(clientId => {
 		const client = document.createElement("li");
-		client.innerHTML = clientId;
+		client.textContent = clientId;
 		clientList.appendChild(client);
 	});
 	clients.appendChild(clientList);
@@ -1869,7 +1943,7 @@ function updateMessagebusConnectedUsers() {
 	let states = document.querySelectorAll('[id^="user-messagebus-state-"]');
 	states.forEach(element => {
 		let connected = messagebusConnectedUsers.includes(element.dataset.userId);
-		element.innerHTML = connected ? 'connected' : 'not connected';
+		element.textContent = connected ? 'connected' : 'not connected';
 		if (connected) {
 			element.classList.remove("user-not-connected");
 			element.classList.add("user-connected");
@@ -2172,7 +2246,7 @@ function toggleFullscreenTerminal(elementId, term) {
 function stopTerminal() {
 	if (!mbTerminal) return;
 
-	message = {
+	const message = {
 		type: "terminal_close_request",
 		id: createUUID(),
 		sender: "@",
@@ -2196,45 +2270,47 @@ function changeTerminalFontSize(val) {
 }
 
 
-function generateLiceningInfoTable(info, htmlId) {
-	htmlStr = "<table id=\"licensing-info-table\">";
+function generateLicensingInfoTable(info, htmlId) {
+	const table = createElement("table", { id: "licensing-info-table" });
 	for (const [key, val] of Object.entries(info)) {
-		htmlStr += `<tr><td class="licensing-info-key">${key}</td><td>${val}</td></tr>`;
+		table.appendChild(createElement("tr", {}, [
+			createElement("td", { className: "licensing-info-key" }, [key]),
+			createElement("td", {}, [val])
+		]));
 	}
-	htmlStr += "</table>";
-	div = document.getElementById(htmlId).innerHTML = htmlStr;
+	replaceContent(htmlId, [table]);
 }
 
 
-function generateLiceningDatesTable(dates, activeDate, htmlId) {
-	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
+function generateLicensingDatesTable(dates, activeDate, htmlId) {
+	const table = createElement("table", { id: "licensing-dates-table" });
+	const headerRow = createElement("tr", {}, [createElement("th", {}, ["Module"])]);
 	for (const date of Object.keys(Object.values(dates)[0])) {
-		htmlStr += `<th> ${date}</th>`;
+		headerRow.appendChild(createElement("th", {}, [date]));
 	}
-	htmlStr += "</tr>";
+	table.appendChild(headerRow);
 	for (const [moduleId, dateData] of Object.entries(dates)) {
-		htmlStr += `<tr> <td>${moduleId}</td>`;
+		const row = createElement("tr", {}, [createElement("td", {}, [moduleId])]);
 		for (const [date, moduleData] of Object.entries(dateData)) {
 			let title = "";
 			for (const [k, v] of Object.entries(moduleData)) {
-				title += `${k}: ${v}&#010;`;
+				title += `${k}: ${v}\n`;
 			}
 			const changed = moduleData['changed'] ? 'changed' : '';
 			const active = date == activeDate ? 'active' : 'inactive';
 			const text = moduleData['client_number'] == 999999999 ? 'unlimited' : moduleData['client_number'];
-			htmlStr += `<td title = "${title}" class="${changed} ${moduleData['state']} ${active}" > ${text}</td>`;
+			row.appendChild(createElement("td", { title: title, className: `${changed} ${moduleData['state']} ${active}` }, [text]));
 		}
-		htmlStr += "</tr>";
+		table.appendChild(row);
 	}
-	htmlStr += "</table>";
-	div = document.getElementById(htmlId).innerHTML = htmlStr;
+	replaceContent(htmlId, [table]);
 }
 
 
 function toggleTabMaximize() {
-	tabcontent = document.getElementsByClassName("tabcontent");
+	const tabcontent = document.getElementsByClassName("tabcontent");
 	let buttonText = "Maximize";
-	for (i = 0; i < tabcontent.length; i++) {
+	for (let i = 0; i < tabcontent.length; i++) {
 		if (tabcontent[i].style.display == "none") {
 			continue;
 		}
@@ -2246,11 +2322,11 @@ function toggleTabMaximize() {
 			buttonText = "Normal size";
 		}
 	}
-	buttons = document.getElementsByClassName("tab-maximize");
-	for (i = 0; i < buttons.length; i++) {
-		buttons[i].innerHTML = buttonText;
+	const buttons = document.getElementsByClassName("tab-maximize");
+	for (let i = 0; i < buttons.length; i++) {
+		buttons[i].textContent = buttonText;
 	}
-	if (terminal) terminal.fitAddon.fit();
+	if (mbTerminal) mbTerminal.fitAddon.fit();
 }
 
 

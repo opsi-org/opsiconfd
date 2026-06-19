@@ -1,0 +1,13 @@
+{
+	"name": "opsiconfd-admininterface-tests",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"check:js": "node check-static-js.mjs",
+		"test:js": "node --test admininterface.test.mjs",
+		"test:static": "npm run check:js && npm run test:js"
+	},
+	"devDependencies": {
+		"jsdom": "^29.1.1"
+	}
+}

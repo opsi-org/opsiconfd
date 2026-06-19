@@ -7,7 +7,7 @@ var CONFIGED_DOWNLOAD_LINKS = {
 }
 
 function getOS() {
-	userAgent = window.navigator.userAgent.toLowerCase();
+	const userAgent = window.navigator.userAgent.toLowerCase();
 	console.log(userAgent);
 	if (userAgent.indexOf("windows") != -1) return "Windows";
 	else if (userAgent.indexOf("mac") != -1) return "MacOS";
@@ -19,7 +19,7 @@ function getOS() {
 
 function downloadConfiged() {
 	let os = getOS();
-	url = CONFIGED_DOWNLOAD_LINKS[os];
+	const url = CONFIGED_DOWNLOAD_LINKS[os];
 	window.open(url);
 }
 
@@ -78,11 +78,18 @@ function ajaxRequest(method, url, body, requestInfos = false) {
 		req.setRequestHeader("X-Requested-With", "XMLHttpRequest");
 		req.onload = function () {
 			if (req.status === 0 || (req.status >= 200 && req.status < 400)) {
-				result = req.responseText;
-				result = JSON.parse(result);
+				let result = null;
+				try {
+					result = JSON.parse(req.responseText);
+				}
+				catch (error) {
+					reject({ message: "Invalid JSON response", detail: error.message, responseText: req.responseText });
+					return;
+				}
 				if (requestInfos == true) {
-					serverTiming = req.getResponseHeader("server-timing")
+					const serverTiming = req.getResponseHeader("server-timing")
 					resolve({ "data": result, "requestInfo": { "serverTiming": serverTiming } })
+					return;
 				}
 				resolve(result);
 			} else {
@@ -92,7 +99,7 @@ function ajaxRequest(method, url, body, requestInfos = false) {
 				}
 				if (req.responseText) {
 					try {
-						result = JSON.parse(req.responseText);
+						const result = JSON.parse(req.responseText);
 						console.error(result.message);
 						reject(result);
 					} catch {
@@ -104,6 +111,9 @@ function ajaxRequest(method, url, body, requestInfos = false) {
 					reject(`Error ${req.status}`)
 				}
 			}
+		};
+		req.onerror = function () {
+			reject({ message: `Network error while requesting ${url}` });
 		};
 		if (body instanceof FormData) {
 			req.send(body)

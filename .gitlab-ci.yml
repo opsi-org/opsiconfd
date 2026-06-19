@@ -133,6 +133,11 @@ test:lint-and-test:
     # - echo $BRANCH
     # - $DOCKER_COMPOSE exec opsiserver43-dev uv run cat bencher-results.json
     # - $DOCKER_COMPOSE exec opsiserver43-dev ./bencher run --project opsiconfd --benchmark opsiconfd-perftest --start-point "$BRANCH" --err --adapter json --file bencher-results.json
+
+    - echo -e "${TXT_HEAD}Run admininterface tests${TXT_CLEAR}"
+    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix admininterface-tests ci
+    - $DOCKER_COMPOSE exec opsiserver43-dev npm --prefix admininterface-tests run test:static
+
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     when: always

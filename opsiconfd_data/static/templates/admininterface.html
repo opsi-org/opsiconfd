@@ -75,7 +75,7 @@
 			stopLog();
 			// stopTerminal();
 
-			if (tabName == "rpc-infos") {
+			if (tabName == "rpc-info") {
 				loadRPCTable("rpc_num", false);
 			}
 			else if (tabName == "audit-log") {
@@ -91,7 +91,7 @@
 			else if (tabName == "clients") {
 				getMessagebusConnectedClients();
 				loadSessionTable();
-				loadClientTable();
+				loadBlockedClientsTable();
 				reloadTimer = setInterval(loadSessionTable, 5000);
 			}
 			else if (tabName == "depots") {
@@ -106,7 +106,7 @@
 				loadRPCCacheInfo();
 			}
 			else if (tabName == "info") {
-				loadInfo();
+				loadServerInfo();
 			}
 			else if (tabName == "addons") {
 				loadAddons();
@@ -173,14 +173,14 @@
 			<a href="#users" id="tablink-users" class="tablink" onclick="openTab('users');">Users</a>
 			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
 			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
-			<a href="#rpc-infos" id="tablink-rpc-infos" class="tablink" onclick="openTab('rpc-infos');">RPC-Infos</a>
+			<a href="#rpc-info" id="tablink-rpc-info" class="tablink" onclick="openTab('rpc-info');">RPC Info</a>
 			<a href="#audit-log" id="tablink-audit-log" class="tablink" onclick="openTab('audit-log');">Audit Log</a>
 			{% if "rpc-interface" not in disabled_features %}
-			<a href="#rpc-interface" id="tablink-rpc-interface" class="tablink"
-				onclick="openTab('rpc-interface');">RPC-Interface</a>
+			<a href="#rpc-interface" id="tablink-rpc-interface" class="tablink" onclick="openTab('rpc-interface');">RPC
+				Interface</a>
 			{% endif %}
 			<a href="#redis-interface" id="tablink-redis-interface" class="tablink"
-				onclick="openTab('redis-interface');">Redis-Interface</a>
+				onclick="openTab('redis-interface');">Redis Interface</a>
 			<a href="#addons" id="tablink-addons" class="tablink" onclick="openTab('addons');">Addons</a>
 			<a href="#log-viewer" id="tablink-log-viewer" class="tablink" onclick="openTab('log-viewer');">Log
 				Viewer</a>
@@ -193,9 +193,9 @@
 			<!--
 			<a href="#memory-profiler" id="tablink-memory-profiler" class="tablink" onclick="openTab('memory-profiler');">Memory Profiler</a>
 			-->
-			<a href="/admin/grafana" target="_blank" class="tablink">Grafana</a>
-			<a href="/dav" target="_blank" class="tablink">WebDAV</a>
-			<a href="/public" target="_blank" class="tablink">Public</a>
+			<a href="/admin/grafana" target="_blank" rel="noopener noreferrer" class="tablink">Grafana</a>
+			<a href="/dav" target="_blank" rel="noopener noreferrer" class="tablink">WebDAV</a>
+			<a href="/public" target="_blank" rel="noopener noreferrer" class="tablink">Public</a>
 			<a href="#links" id="tablink-links" class="tablink" onclick="openTab('links');">Links</a>
 			{% if saml_slo %}
 			<a href="/auth/saml/logout" class="tablink">Logout</a>
@@ -265,10 +265,10 @@
 				<label for="restore-backup-server-id-backup">From backup</label>
 				<input type="radio" id="restore-backup-server-id-local" name="restore-backup-server-id-select"
 					value="local" onclick="document.getElementById('restore-backup-server-id').disabled = true;" />
-				<label for="restore-backup-server-id-backup">Keep current</label>
+				<label for="restore-backup-server-id-local">Keep current</label>
 				<input type="radio" id="restore-backup-server-id-other" name="restore-backup-server-id-select"
 					value="other" onclick="document.getElementById('restore-backup-server-id').disabled = false;" />
-				<label for="restore-backup-server-id-backup">Other: </label>
+				<label for="restore-backup-server-id-other">Other: </label>
 				<input type="text" id="restore-backup-server-id" placeholder="hostname.domain.tld" disabled="true"
 					style="width: 200px">
 				<br />
@@ -318,7 +318,7 @@
 					<tr>
 						<td align="left"><label>Unblock all clients:</label></td>
 						<td></td>
-						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button></td>
+						<td><button id="unblock-all-button" onclick="unblockAllClients()">Execute</button></td>
 					</tr>
 					<tr>
 						<td align="left">Unblock address:</td>
@@ -332,10 +332,10 @@
 					</tr>
 				</table>
 			</div>
-			<div id="result">
+			<div id="clients-text-result">
 				<p class="json-result" id="text-result"></p>
 			</div>
-			<div id="result">
+			<div id="clients-json-result">
 				<pre class="json-result" id="json-result"></pre>
 			</div>
 		</div>
@@ -364,7 +364,7 @@
 
 		</div>
 
-		<div id="tab-rpc-infos" class="tabcontent">
+		<div id="tab-rpc-info" class="tabcontent">
 			<div class="adminpage-box">
 				<div id="rpc-table-div">
 					loading...
@@ -414,7 +414,7 @@
 				<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
 			</div>
 			<button id="jsonrpc-execute-button" onclick="callJSONRPC()">Execute</button>
-			<div id="result">
+			<div id="jsonrpc-response-result">
 				<p id="jsonrpc-response-info"></p>
 				<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
 			</div>
@@ -424,9 +424,9 @@
 			<div class="adminpage-box">
 				<h4>Redis</h4>
 				<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
-				<button id="redis-button" onclick="callRedis()">Execute</button>
-				<button id="redis-button" onclick="loadRedisInfo()">Info+</button>
-				<button id="redis-button" onclick="loadRedisDebugKeys()">Debug keys</button>
+				<button id="redis-execute-button" onclick="callRedis()">Execute</button>
+				<button id="redis-info-button" onclick="loadRedisInfo()">Info+</button>
+				<button id="redis-debug-keys-button" onclick="loadRedisDebugKeys()">Debug keys</button>
 			</div>
 			<div class="adminpage-box">
 				<h4>Redis Cache</h4>
@@ -438,9 +438,10 @@
 			<div class="adminpage-box">
 				<h4>Deprecated calls</h4>
 				<br />
-				<button id="clear-calls-button" onclick="getDeprecatedCalls()">Get Deprecated calls</button>
+				<button id="get-deprecated-calls-button" onclick="getDeprecatedCalls()">Get Deprecated calls</button>
 				<br />
-				<button id="clear-calls-button" onclick="clearDeprecatedCalls()">Clear Deprecated calls</button>
+				<button id="clear-deprecated-calls-button" onclick="clearDeprecatedCalls()">Clear Deprecated
+					calls</button>
 			</div>
 			<div id="resultRedis">
 				<pre class="redis-result" id="redis-result"></pre>
@@ -467,8 +468,8 @@
 		<div id="tab-info" class="tabcontent">
 			<h3>opsiconfd info</h3>
 			<div class="adminpage-box">
-				<h5 style="margin: 10px">Number of depot servers: {{num_servers}}</h4>
-					<h5 style="margin: 10px">Number of clients: {{num_clients}}</h4>
+				<h5 style="margin: 10px">Number of depot servers: {{num_servers}}</h5>
+				<h5 style="margin: 10px">Number of clients: {{num_clients}}</h5>
 			</div>
 			{%- for ca_info in ca_infos %}
 			<div class="adminpage-box">
@@ -559,7 +560,7 @@
 			</div>
 
 			<h3 style="margin-top: 25px">opsiconfd config</h3>
-			<button style="margin-top: 5px" id="reload-button" onclick="reload()">Service reload</button>
+			<button style="margin-top: 5px" id="reload-button" onclick="reloadConfig()">Service reload</button>
 			<div class="adminpage-box">
 				<div id="config">
 					<pre class="config-values" id="config-values"></pre>
@@ -675,7 +676,7 @@
 					<input type="checkbox" id="collapse-all" onclick="collapseAll(this.checked);" checked>
 				</div>
 				<div class="log-setting">
-					<label for="collapse-all">Auto scroll:</label>
+					<label for="auto-scroll">Auto scroll:</label>
 					<input type="checkbox" id="auto-scroll" onclick="setAutoScroll(this.checked);" checked>
 				</div>
 				<div class="log-setting">
@@ -696,8 +697,10 @@
 					<label>Host:</label>
 					<select id="terminal-host-select" style="width: 200px;" onchange="terminalHostSelected();"></select>
 					<br />
-					<label>Channel:</label><input type="text" id="terminal-channel" style="width: 300px;"></input>
-					<label>Terminal id:</label><input type="text" id="terminal-id" style="width: 300px;"></input>
+					<label for="terminal-channel">Channel:</label><input type="text" id="terminal-channel"
+						style="width: 300px;">
+					<label for="terminal-id">Terminal id:</label><input type="text" id="terminal-id"
+						style="width: 300px;">
 					<br />
 					<button id="terminal-connect" onclick="messagebusConnectTerminal()"
 						style="margin-right: 25px;">Connect</button>
@@ -785,7 +788,7 @@
 			</div>
 			<div id="license-upload">
 				Upload license files:
-				<input type="file" multiple accept=".opsilic" onchange="licenseUpload(this.files); this.value='';">
+				<input type="file" multiple accept=".opsilic" onchange="uploadLicense(this.files); this.value='';">
 			</div>
 		</div>
 

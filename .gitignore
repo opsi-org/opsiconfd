@@ -6,6 +6,7 @@
 /.venv_state
 __pycache__
 *.egg-info
+node_modules/
 
 .hypothesis
 .coverage

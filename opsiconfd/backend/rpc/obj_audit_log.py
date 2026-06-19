@@ -118,7 +118,6 @@ class RPCAuditLogMixin(Protocol):
 						params=auth_params,
 					)
 
-	@rpc_method(check_acl=False)
 	def auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		self._auditLog_bulkInsertObjects(auditLogs)
 

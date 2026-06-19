@@ -11,6 +11,12 @@ import time
 import uuid
 from asyncio import sleep
 
+from opsi.opsi.service.model.object import (
+	AuditLog,
+	AuditLogAuthentication,
+	AuditLogAuthenticationLogoutReason,
+	AuditLogEventType,
+)
 from opsi.time import unix_timestamp
 from starlette.datastructures import Headers
 
@@ -24,6 +30,9 @@ from .utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
+	clean_mysql,
 	clean_redis,
 	get_config,
 	test_client,
@@ -216,7 +225,44 @@ async def test_session_manager_remove_expired_session() -> None:
 	await manager.stop(wait=True)
 
 
-async def test_session_multi_manager_remove_expired_session() -> None:
+async def test_session_manager_expired_session_audit_log(
+	backend: UnprotectedBackend,  # noqa: F811
+	clean_mysql: None,  # noqa: F811
+) -> None:
+	redis = await async_redis_client()
+	manager = SessionManager(session_check_interval=1)
+	asyncio_create_task(manager.manager_task())
+
+	headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "5"})
+	sess = await manager.get_session("172.10.11.12", headers=headers)
+	sess.username = ADMIN_USER
+	sess.authenticated = True
+	await sess.store()
+
+	# Let session expire and get removed by the manager task
+	await sleep(8)
+	assert sess.session_id not in manager.sessions
+	res = await redis.hgetall(sess.redis_key)
+	assert not res
+
+	await manager.stop(wait=True)
+
+	audit_logs: list[AuditLog] = []
+	for _attempt in range(20):
+		audit_logs = backend.auditLog_getObjects(eventType=AuditLogEventType.AUTHENTICATION_LOGOUT)
+		if audit_logs:
+			break
+		await sleep(0.5)
+
+	assert len(audit_logs) == 1
+	audit_log = audit_logs[0]
+	assert audit_log.username == ADMIN_USER
+	assert audit_log.clientAddress == "172.10.11.12"
+	assert audit_log.userAgent == "test-agent"
+	assert audit_log.authentication == AuditLogAuthentication(
+		authMethods=None, logoutReason=AuditLogAuthenticationLogoutReason.SESSION_EXPIRED
+	)
+
 	redis = await async_redis_client()
 	manager1 = SessionManager(session_check_interval=1)
 	manager2 = SessionManager(session_check_interval=1)

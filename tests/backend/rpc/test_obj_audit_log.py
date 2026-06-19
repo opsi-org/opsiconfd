@@ -72,7 +72,7 @@ def test_audit_log_create_and_get_objects(backend: UnprotectedBackend) -> None: 
 		),
 	)
 
-	backend.auditLog_bulkInsertObjects([audit_log])
+	backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
 	assert audit_log.id is not None
 	assert audit_log.id != 12345
 
@@ -110,7 +110,7 @@ def test_audit_log_insert_object(backend: UnprotectedBackend) -> None:  # noqa: 
 
 
 def test_audit_log_bulk_insert_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
-	backend.auditLog_bulkInsertObjects(
+	backend.auditLog_bulkInsertObjects(  # ty: ignore[invalid-argument-type]
 		[
 			{"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, "username": "user1"},
 			{
@@ -151,7 +151,7 @@ def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: Unprotected
 	old_query_log = MySQLSession.query_log
 	MySQLSession.query_log = query_log
 	try:
-		backend.auditLog_bulkInsertObjects(audit_logs)
+		backend.auditLog_bulkInsertObjects(audit_logs)  # ty: ignore[invalid-argument-type]
 	finally:
 		MySQLSession.query_log = old_query_log
 
@@ -162,7 +162,7 @@ def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: Unprotected
 
 def test_audit_log_create_requires_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
 	with pytest.raises(ValueError, match="eventType is required"):
-		backend.auditLog_bulkInsertObjects([AuditLog(username="adminuser")])
+		backend.auditLog_bulkInsertObjects([AuditLog(username="adminuser")])  # ty: ignore[invalid-argument-type]
 
 
 def test_audit_log_bulk_insert_rejects_invalid_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
@@ -170,7 +170,7 @@ def test_audit_log_bulk_insert_rejects_invalid_event_type(backend: UnprotectedBa
 	audit_log.eventType = AuditLogEventType.UNKNOWN
 
 	with pytest.raises(ValueError, match="Invalid AuditLog eventType"):
-		backend.auditLog_bulkInsertObjects([audit_log])
+		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
 
 
 def test_audit_log_bulk_insert_rejects_authentication_for_unknown_event(backend: UnprotectedBackend) -> None:  # noqa: F811
@@ -178,4 +178,4 @@ def test_audit_log_bulk_insert_rejects_authentication_for_unknown_event(backend:
 	audit_log.eventType = AuditLogEventType.UNKNOWN
 
 	with pytest.raises(ValueError, match="Invalid AuditLog eventType"):
-		backend.auditLog_bulkInsertObjects([audit_log])
+		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]

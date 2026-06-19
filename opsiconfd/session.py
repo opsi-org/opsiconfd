@@ -514,6 +514,14 @@ class SessionManager:
 						if version == session.version:
 							# Not updated by other managers
 							logger.debug("Delete expired session: %s", session.session_id)
+							if session.authenticated:
+								asyncio_create_task(
+									audit_authentication_event(
+										scope={"session": session},
+										event_type=AuditLogEventType.AUTHENTICATION_LOGOUT,
+										logout_reason=AuditLogAuthenticationLogoutReason.SESSION_EXPIRED,
+									)
+								)
 							await session.delete()
 						delete_session_ids.append(session.session_id)
 					elif session.deleted:

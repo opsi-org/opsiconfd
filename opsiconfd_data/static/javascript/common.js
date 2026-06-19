@@ -30,7 +30,7 @@ function login(username, password, mfa_otp = null, redirect = "/admin", session_
 		button.disabled = true;
 	}
 	let ajax = new XMLHttpRequest();
-	ajax.open("POST", "/session/login");
+	ajax.open("POST", "/auth/login");
 	ajax.setRequestHeader("Content-Type", "application/json");
 	ajax.setRequestHeader("x-opsi-session-lifetime", session_lifetime);
 	ajax.onreadystatechange = function () {
@@ -61,7 +61,7 @@ function login(username, password, mfa_otp = null, redirect = "/admin", session_
 
 
 function logout() {
-	let req = ajaxRequest("POST", "/session/logout");
+	let req = ajaxRequest("POST", "/auth/logout");
 	req.then(() => {
 		location.href = "/login";
 	});

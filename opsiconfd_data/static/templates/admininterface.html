@@ -76,7 +76,7 @@
 			// stopTerminal();
 
 			if (tabName == "rpc-info") {
-				loadRPCTable("rpc_num", false);
+				loadRPCTable("rpc_num", true);
 			}
 			else if (tabName == "audit-log") {
 				loadAuditLogTable();
@@ -92,7 +92,7 @@
 				getMessagebusConnectedClients();
 				loadSessionTable();
 				loadBlockedClientsTable();
-				reloadTimer = setInterval(loadSessionTable, 5000);
+				reloadTimer = setInterval(() => loadSessionTable(false), 5000);
 			}
 			else if (tabName == "depots") {
 				getMessagebusConnectedClients();
@@ -173,8 +173,8 @@
 			<a href="#users" id="tablink-users" class="tablink" onclick="openTab('users');">Users</a>
 			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
 			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
-			<a href="#rpc-info" id="tablink-rpc-info" class="tablink" onclick="openTab('rpc-info');">RPC Info</a>
 			<a href="#audit-log" id="tablink-audit-log" class="tablink" onclick="openTab('audit-log');">Audit Log</a>
+			<a href="#rpc-info" id="tablink-rpc-info" class="tablink" onclick="openTab('rpc-info');">RPC Info</a>
 			{% if "rpc-interface" not in disabled_features %}
 			<a href="#rpc-interface" id="tablink-rpc-interface" class="tablink" onclick="openTab('rpc-interface');">RPC
 				Interface</a>
@@ -286,7 +286,6 @@
 			<div class="adminpage-box" id="users" style="overflow: visible;">
 				<h4>Users:</h4>
 				<div id="user-table-div">
-					loading...
 				</div>
 			</div>
 		</div>
@@ -295,7 +294,6 @@
 			<div class="adminpage-box" id="sessions">
 				<h4>Sessions:</h4>
 				<div id="session-table-div">
-					loading...
 				</div>
 			</div>
 
@@ -367,7 +365,6 @@
 		<div id="tab-rpc-info" class="tabcontent">
 			<div class="adminpage-box">
 				<div id="rpc-table-div">
-					loading...
 				</div>
 			</div>
 		</div>
@@ -375,7 +372,6 @@
 		<div id="tab-audit-log" class="tabcontent">
 			<div class="adminpage-box">
 				<div id="audit-log-table-div">
-					loading...
 				</div>
 			</div>
 		</div>

@@ -791,6 +791,54 @@ input.loading {
 	}
 }
 
+
+.table-loading-container {
+	position: relative;
+}
+
+.table-loading-container:has(> .table-loading-overlay) {
+	min-height: 120px;
+}
+
+.table-loading-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(255, 255, 255, 0.65);
+	z-index: 5;
+}
+
+.table-loading-content {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 20px;
+	border-radius: var(--radius-md);
+	background: var(--bg-card);
+	box-shadow: var(--shadow-sm);
+	color: var(--text-muted);
+	font-size: 14px;
+	z-index: 6;
+}
+
+.table-loading-spinner {
+	width: 22px;
+	height: 22px;
+	border: 3px solid var(--opsi-gray-2);
+	border-top-color: var(--opsi-magenta);
+	border-radius: 50%;
+	animation: table-loading-spin 0.8s linear infinite;
+}
+
+@keyframes table-loading-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 @media screen and (max-width: 1090px) {
 	.header {
 		margin-bottom: 24px;

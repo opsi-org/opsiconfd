@@ -70,6 +70,26 @@ function replaceContent(elementOrId, children = []) {
 }
 
 
+function showTableLoading(elementOrId, message = "Loading...") {
+	const element = typeof elementOrId === "string" ? document.getElementById(elementOrId) : elementOrId;
+	if (!element) {
+		return null;
+	}
+	element.classList.add("table-loading-container");
+	if (element.querySelector(":scope > .table-loading-overlay")) {
+		return element;
+	}
+	const overlay = createElement("div", { className: "table-loading-overlay" }, [
+		createElement("div", { className: "table-loading-content" }, [
+			createElement("div", { className: "table-loading-spinner" }),
+			createElement("span", {}, [message])
+		])
+	]);
+	element.appendChild(overlay);
+	return element;
+}
+
+
 function createTable(className, headerClasses, columns, rows) {
 	const table = createElement("table", { className: className });
 	const headerRow = createElement("tr");
@@ -401,7 +421,10 @@ function loadRedisDebugKeys() {
 	});
 }
 
-function loadSessionTable() {
+function loadSessionTable(showLoading = true) {
+	if (showLoading) {
+		showTableLoading("session-table-div");
+	}
 	let req = ajaxRequest("GET", "/admin/session-list");
 	req.then((result) => {
 		renderSessionTable(result, "session-table-div");
@@ -409,15 +432,22 @@ function loadSessionTable() {
 	});
 }
 
-function loadRPCTable(sortKey, sort) {
-	let req = ajaxRequest("GET", "/admin/rpc-list");
+let rpcTableSort = { sortBy: "rpc_num", sortDesc: true };
+
+function loadRPCTable(sortBy, sortDesc) {
+	if (sortBy !== undefined) {
+		rpcTableSort.sortBy = sortBy;
+	}
+	if (sortDesc !== undefined) {
+		rpcTableSort.sortDesc = sortDesc;
+	}
+	const params = new URLSearchParams({ "sort_by": rpcTableSort.sortBy, "sort_desc": rpcTableSort.sortDesc });
+	showTableLoading("rpc-table-div");
+	let req = ajaxRequest("GET", `/admin/rpc-list?${params.toString()}`);
 	req.then((result) => {
 		if (result.length == 0) {
 			document.getElementById("rpc-table-div").textContent = "No rpcs found.";
 			return null
-		}
-		if (sort) {
-			result = sortRPCTable(result, sortKey);
 		}
 		renderRPCTable(result, "rpc-table-div");
 		return result;
@@ -425,8 +455,18 @@ function loadRPCTable(sortKey, sort) {
 }
 
 
-function loadAuditLogTable() {
-	let req = ajaxRequest("GET", "/admin/audit-log");
+let auditLogTableSort = { sortBy: "created", sortDesc: true };
+
+function loadAuditLogTable(sortBy, sortDesc) {
+	if (sortBy !== undefined) {
+		auditLogTableSort.sortBy = sortBy;
+	}
+	if (sortDesc !== undefined) {
+		auditLogTableSort.sortDesc = sortDesc;
+	}
+	const params = new URLSearchParams({ "sort_by": auditLogTableSort.sortBy, "sort_desc": auditLogTableSort.sortDesc });
+	showTableLoading("audit-log-table-div");
+	let req = ajaxRequest("GET", `/admin/audit-log?${params.toString()}`);
 	req.then((result) => {
 		renderAuditLogTable(result, "audit-log-table-div");
 		return result;
@@ -839,6 +879,7 @@ function renderUserTable(data, htmlId) {
 }
 
 function loadUserTable() {
+	showTableLoading("user-table-div");
 	let req = ajaxRequest("GET", "/admin/user-list");
 	req.then((result) => {
 		renderUserTable(result, "user-table-div");
@@ -1379,6 +1420,13 @@ function renderRPCCacheInfoTable(data, htmlId) {
 	return container.innerHTML;
 }
 
+function sortIndicator(active, sortDesc) {
+	if (!active) {
+		return "";
+	}
+	return sortDesc ? " \u25BC" : " \u25B2";
+}
+
 function renderRPCTable(data, htmlId) {
 	const container = document.getElementById(htmlId);
 	if (!container) {
@@ -1388,12 +1436,13 @@ function renderRPCTable(data, htmlId) {
 	const headerRow = createElement("tr");
 	const keys = Object.keys(data[0]);
 	keys.forEach(key => {
+		const active = rpcTableSort.sortBy === key;
 		headerRow.appendChild(createElement("th", {
-			className: "rpc-th",
+			className: active ? "rpc-th sorted" : "rpc-th",
 			title: "sort",
 			style: { cursor: "pointer" },
-			onclick: () => loadRPCTable(key, true)
-		}, [key]));
+			onclick: () => loadRPCTable(key, active ? !rpcTableSort.sortDesc : true)
+		}, [key + sortIndicator(active, rpcTableSort.sortDesc)]));
 	});
 	table.appendChild(headerRow);
 
@@ -1445,61 +1494,27 @@ function renderAuditLogTable(data, htmlId) {
 		"logoutReason",
 		"message"
 	];
-	const table = createTable("audit-log-table", "audit-log-th", columns.map(column => ({
-		label: column,
-		cellClassName: "audit-log-td",
-		render: entry => entry[column]
-	})), data);
+	const table = createElement("table", { className: "audit-log-table" });
+	const headerRow = createElement("tr");
+	columns.forEach(column => {
+		const active = auditLogTableSort.sortBy === column;
+		headerRow.appendChild(createElement("th", {
+			className: active ? "audit-log-th sorted" : "audit-log-th",
+			title: "sort",
+			style: { cursor: "pointer" },
+			onclick: () => loadAuditLogTable(column, active ? !auditLogTableSort.sortDesc : true)
+		}, [column + sortIndicator(active, auditLogTableSort.sortDesc)]));
+	});
+	table.appendChild(headerRow);
+	data.forEach(entry => {
+		const row = createElement("tr");
+		columns.forEach(column => {
+			row.appendChild(createElement("td", { className: "audit-log-td" }, [textOrEmpty(entry[column])]));
+		});
+		table.appendChild(row);
+	});
 	replaceContent(container, [table]);
 	return container.innerHTML;
-}
-
-
-var desc = true;
-function sortRPCTable(data, sortKey) {
-	data = data.sort((a, b) => {
-		if (sortKey == "method") {
-			var nameA = a[sortKey].toUpperCase();
-			var nameB = b[sortKey].toUpperCase();
-			if (nameA < nameB) {
-				return -1;
-			}
-			if (nameA > nameB) {
-				return 1;
-			}
-			return 0;
-		} else if (sortKey == "date") {
-			var dateA = new Date(a[sortKey])
-			var dateB = new Date(b[sortKey])
-			if (dateA < dateB) {
-				return -1;
-			}
-			if (dateA > dateB) {
-				return 1;
-			}
-			return 0;
-		} else if (sortKey == "client") {
-			var numA = Number(a[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
-			var numB = Number(b[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
-			if (numA < numB) {
-				return -1;
-			}
-			if (numA > numB) {
-				return 1;
-			}
-			return 0;
-		} else {
-			return Number(a[sortKey]) - Number(b[sortKey]);
-		}
-	});
-	if (desc) {
-		data = data.reverse();
-		desc = false;
-	} else {
-		desc = true;
-	}
-	return data;
-
 }
 
 

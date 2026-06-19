@@ -14,6 +14,7 @@ import os
 import re
 import signal
 import tempfile
+from collections.abc import Callable
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
 from typing import Any
@@ -439,9 +440,31 @@ async def install_addon(request: Request) -> RESTResponse:
 	return RESTResponse("Addon installed")
 
 
+RPC_LIST_SORT_KEYS = ("rpc_num", "method", "params", "results", "date", "client", "deprecated", "error", "duration")
+RPC_LIST_NUMERIC_SORT_KEYS = {"rpc_num", "params", "results", "duration"}
+
+
+def _rpc_list_sort_key(sort_by: str) -> Callable[[dict[str, Any]], Any]:
+	def key(rpc: dict[str, Any]) -> Any:
+		value = rpc.get(sort_by)
+		if sort_by in RPC_LIST_NUMERIC_SORT_KEYS:
+			return float(value) if value is not None else 0.0
+		if sort_by == "client":
+			try:
+				return tuple(int(part) for part in str(value).split("."))
+			except ValueError:
+				return ()
+		return str(value)
+
+	return key
+
+
 @admin_interface_router.get("/rpc-list")
 @rest_api
-async def get_rpc_list() -> RESTResponse:
+async def get_rpc_list(sort_by: str = "rpc_num", sort_desc: bool = True) -> RESTResponse:
+	if sort_by not in RPC_LIST_SORT_KEYS:
+		sort_by = "rpc_num"
+
 	redis = await async_redis_client()
 	redis_result = await redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, -1)
 
@@ -461,7 +484,7 @@ async def get_rpc_list() -> RESTResponse:
 		}
 		rpc_list.append(rpc)
 
-	rpc_list = sorted(rpc_list, key=itemgetter("rpc_num"), reverse=True)
+	rpc_list = sorted(rpc_list, key=_rpc_list_sort_key(sort_by), reverse=sort_desc)
 	return RESTResponse(rpc_list)
 
 
@@ -481,10 +504,25 @@ def _audit_log_value(value: Any) -> str:
 	return str(value)
 
 
+AUDIT_LOG_SORT_KEYS = (
+	"created",
+	"eventType",
+	"username",
+	"clientAddress",
+	"userAgent",
+	"authMethods",
+	"failureReason",
+	"logoutReason",
+	"message",
+)
+
+
 @admin_interface_router.get("/audit-log")
 @rest_api
-async def get_audit_log_list() -> RESTResponse:
-	# TODO: Filtering / sorting / pagination
+async def get_audit_log_list(sort_by: str = "created", sort_desc: bool = True) -> RESTResponse:
+	if sort_by not in AUDIT_LOG_SORT_KEYS:
+		sort_by = "created"
+
 	backend = get_unprotected_backend()
 	audit_logs = await backend.async_call("auditLog_getObjects")
 	audit_logs = sorted(audit_logs, key=lambda audit_log: int(audit_log.id), reverse=True)[:500]
@@ -508,6 +546,7 @@ async def get_audit_log_list() -> RESTResponse:
 				"message": _audit_log_value(audit_log.message),
 			}
 		)
+	audit_log_list = sorted(audit_log_list, key=lambda entry: entry[sort_by], reverse=sort_desc)
 	return RESTResponse(audit_log_list)
 
 

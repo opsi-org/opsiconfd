@@ -391,6 +391,15 @@
 						<input type="text" id="audit-log-username-filter" placeholder="Filter username..."
 							oninput="onAuditLogUsernameFilterInput();" />
 					</label>
+					<label>
+						Actor type
+						<select id="audit-log-actor-type-filter" onchange="loadAuditLogTable();">
+							<option value="">All actor types</option>
+							<option value="user">user</option>
+							<option value="depot">depot</option>
+							<option value="client">client</option>
+						</select>
+					</label>
 				</div>
 				<div id="audit-log-table-div">
 				</div>

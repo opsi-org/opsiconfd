@@ -479,6 +479,10 @@ function loadAuditLogTable(sortBy, sortDesc) {
 	if (usernameFilter && usernameFilter.value) {
 		params.set("username", usernameFilter.value);
 	}
+	const actorTypeFilter = document.getElementById("audit-log-actor-type-filter");
+	if (actorTypeFilter && actorTypeFilter.value) {
+		params.set("actor_type", actorTypeFilter.value);
+	}
 	showTableLoading("audit-log-table-div");
 	let req = ajaxRequest("GET", `/admin/audit-log?${params.toString()}`);
 	req.then((result) => {

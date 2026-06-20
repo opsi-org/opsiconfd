@@ -288,6 +288,12 @@ async def test_get_audit_log_list_filtering(admininterface: ModuleType, backend:
 				actorType="user",
 				actorId="otheruser",
 			),
+			AuditLog(
+				eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
+				username="depot.example.test",
+				actorType="depot",
+				actorId="depot.example.test",
+			),
 		]
 	)
 
@@ -315,6 +321,22 @@ async def test_get_audit_log_list_filtering(admininterface: ModuleType, backend:
 	response = await admininterface.get_audit_log_list(event_type=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED, username="other")
 	entries = json.loads(response.body)
 	assert len(entries) == 0
+
+	response = await admininterface.get_audit_log_list(actor_type="depot")
+	entries = json.loads(response.body)
+	assert len(entries) == 1
+	assert entries[0]["actorType"] == "depot"
+	assert entries[0]["username"] == "depot.example.test"
+
+	response = await admininterface.get_audit_log_list(actor_type="user")
+	entries = json.loads(response.body)
+	assert len(entries) == 3
+	assert {entry["actorType"] for entry in entries} == {"user"}
+
+	response = await admininterface.get_audit_log_list(actor_type="depot", event_type=AuditLogEventType.AUTHENTICATION_LOGOUT)
+	entries = json.loads(response.body)
+	assert len(entries) == 1
+	assert entries[0]["actorType"] == "depot"
 
 
 @pytest.mark.parametrize(

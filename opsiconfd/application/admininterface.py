@@ -506,11 +506,16 @@ def _audit_log_value(value: Any) -> str:
 
 @admin_interface_router.get("/audit-log")
 @rest_api
-async def get_audit_log_list(sort_by: str = "created", sort_desc: bool = True, event_type: str = "", username: str = "") -> RESTResponse:
+async def get_audit_log_list(
+	sort_by: str = "created", sort_desc: bool = True, event_type: str = "", username: str = "", actor_type: str = ""
+) -> RESTResponse:
 	backend = get_unprotected_backend()
 	audit_logs = (
 		await backend.async_call(
-			"auditLog_getObjects", eventType=event_type or None, username=f"*{username.lower()}*" if username else None
+			"auditLog_getObjects",
+			eventType=event_type or None,
+			username=f"*{username.lower()}*" if username else None,
+			actorType=actor_type or None,
 		)
 	)[:500]
 

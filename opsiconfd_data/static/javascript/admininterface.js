@@ -456,6 +456,12 @@ function loadRPCTable(sortBy, sortDesc) {
 
 
 let auditLogTableSort = { sortBy: "created", sortDesc: true };
+let auditLogUsernameFilterTimer;
+
+function onAuditLogUsernameFilterInput() {
+	clearTimeout(auditLogUsernameFilterTimer);
+	auditLogUsernameFilterTimer = setTimeout(() => loadAuditLogTable(), 300);
+}
 
 function loadAuditLogTable(sortBy, sortDesc) {
 	if (sortBy !== undefined) {
@@ -465,6 +471,14 @@ function loadAuditLogTable(sortBy, sortDesc) {
 		auditLogTableSort.sortDesc = sortDesc;
 	}
 	const params = new URLSearchParams({ "sort_by": auditLogTableSort.sortBy, "sort_desc": auditLogTableSort.sortDesc });
+	const eventTypeFilter = document.getElementById("audit-log-event-type-filter");
+	if (eventTypeFilter && eventTypeFilter.value) {
+		params.set("event_type", eventTypeFilter.value);
+	}
+	const usernameFilter = document.getElementById("audit-log-username-filter");
+	if (usernameFilter && usernameFilter.value) {
+		params.set("username", usernameFilter.value);
+	}
 	showTableLoading("audit-log-table-div");
 	let req = ajaxRequest("GET", `/admin/audit-log?${params.toString()}`);
 	req.then((result) => {

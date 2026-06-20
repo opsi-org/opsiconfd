@@ -231,7 +231,6 @@ def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, Non
 async def async_grafana_session(
 	username: str | None = None, password: str | None = None
 ) -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
-	auth = None
 	headers = None
 	if username is not None:
 		if password is None:
@@ -240,14 +239,14 @@ async def async_grafana_session(
 			headers = {"Authorization": f"Bearer {username}"}
 		else:
 			logger.debug("Using username %s and password for grafana authorization", username)
-			auth = aiohttp.BasicAuth(username, password)
+			headers = {"Authorization": aiohttp.encode_basic_auth(username, password)}
 
 	ssl_context = create_default_context()
 	ssl_context.load_verify_locations(config.ssl_trusted_certs)
 	connector = aiohttp.TCPConnector(ssl=ssl_context, verify_ssl=config.grafana_verify_cert)
 
 	url = urlparse(config.grafana_internal_url)
-	async with aiohttp.ClientSession(connector=connector, auth=auth, headers=headers) as session:
+	async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
 		yield f"{url.scheme}://{url.hostname}:{url.port}", session
 
 

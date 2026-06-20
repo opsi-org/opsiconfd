@@ -504,35 +504,22 @@ def _audit_log_value(value: Any) -> str:
 	return str(value)
 
 
-AUDIT_LOG_SORT_KEYS = (
-	"created",
-	"eventType",
-	"username",
-	"clientAddress",
-	"userAgent",
-	"authMethods",
-	"failureReason",
-	"logoutReason",
-	"message",
-)
-
-
 @admin_interface_router.get("/audit-log")
 @rest_api
-async def get_audit_log_list(sort_by: str = "created", sort_desc: bool = True) -> RESTResponse:
-	if sort_by not in AUDIT_LOG_SORT_KEYS:
-		sort_by = "created"
-
+async def get_audit_log_list(sort_by: str = "created", sort_desc: bool = True, event_type: str = "", username: str = "") -> RESTResponse:
 	backend = get_unprotected_backend()
-	audit_logs = await backend.async_call("auditLog_getObjects")
-	audit_logs = sorted(audit_logs, key=lambda audit_log: int(audit_log.id), reverse=True)[:500]
+	audit_logs = (
+		await backend.async_call(
+			"auditLog_getObjects", eventType=event_type or None, username=f"*{username.lower()}*" if username else None
+		)
+	)[:500]
 
 	audit_log_list = []
 	for audit_log in audit_logs:
 		authentication = audit_log.authentication
 		audit_log_list.append(
 			{
-				"id": audit_log.id,
+				"id": int(audit_log.id),
 				"created": _audit_log_value(audit_log.created),
 				"eventType": _audit_log_value(audit_log.eventType),
 				"username": _audit_log_value(audit_log.username),

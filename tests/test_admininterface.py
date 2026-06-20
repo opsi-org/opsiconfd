@@ -267,6 +267,56 @@ async def test_get_audit_log_list(admininterface: ModuleType, backend: Unprotect
 	assert audit_log_list[0]["failureReason"] == AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
 
 
+async def test_get_audit_log_list_filtering(admininterface: ModuleType, backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]
+		[
+			AuditLog(
+				eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+				username="adminuser",
+				actorType="user",
+				actorId="adminuser",
+			),
+			AuditLog(
+				eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				username="adminuser",
+				actorType="user",
+				actorId="adminuser",
+			),
+			AuditLog(
+				eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
+				username="otheruser",
+				actorType="user",
+				actorId="otheruser",
+			),
+		]
+	)
+
+	response = await admininterface.get_audit_log_list(event_type=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED)
+	entries = json.loads(response.body)
+	assert len(entries) == 1
+	assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
+	assert entries[0]["username"] == "adminuser"
+
+	response = await admininterface.get_audit_log_list(username="other")
+	entries = json.loads(response.body)
+	assert len(entries) == 1
+	assert entries[0]["username"] == "otheruser"
+
+	response = await admininterface.get_audit_log_list(username="USER")
+	entries = json.loads(response.body)
+	assert {entry["username"] for entry in entries} == {"adminuser", "otheruser"}
+
+	response = await admininterface.get_audit_log_list(event_type=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, username="admin")
+	entries = json.loads(response.body)
+	assert len(entries) == 1
+	assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
+	assert entries[0]["username"] == "adminuser"
+
+	response = await admininterface.get_audit_log_list(event_type=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED, username="other")
+	entries = json.loads(response.body)
+	assert len(entries) == 0
+
+
 @pytest.mark.parametrize(
 	"rpc_request_data, expected_response",
 	[

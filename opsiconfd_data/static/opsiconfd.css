@@ -117,15 +117,76 @@ h6 {
 
 .header {
 	display: flex;
-	align-items: center;
-	gap: 24px;
+	align-items: flex-end;
+	gap: 20px;
 	flex-wrap: wrap;
 	width: 92%;
 	max-width: 1600px;
 	margin: 0 auto 28px auto;
-	padding: 18px 0 16px 0;
+	padding: 14px 0 12px 0;
 	border-bottom: 3px solid var(--opsi-magenta);
-	min-height: 72px;
+}
+
+.header #interface-logo {
+	width: 150px;
+}
+
+.header-info {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.header-title {
+	font-size: 20px;
+	margin: 0;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.header-version {
+	color: var(--opsi-magenta);
+	font-size: 15px;
+}
+
+.header-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 10px;
+	margin-left: auto;
+}
+
+.header-meta-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: var(--bg-card);
+	border: 1px solid var(--border-soft);
+	border-radius: var(--radius-md);
+	padding: 3px 10px;
+	font-size: 13px;
+	box-shadow: var(--shadow-sm);
+	max-width: 100%;
+}
+
+.header-meta-label {
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--text-muted);
+}
+
+.header-meta-value {
+	font-family: var(--font-mono);
+	color: var(--opsi-black);
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 h1 {
@@ -796,6 +857,29 @@ input.loading {
 	position: relative;
 }
 
+.audit-log-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	align-items: flex-end;
+	margin-bottom: 16px;
+}
+
+.audit-log-filters label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.audit-log-filters select,
+.audit-log-filters input {
+	width: 260px;
+	padding: 6px 8px;
+	font-size: 14px;
+}
+
 .table-loading-container:has(> .table-loading-overlay) {
 	min-height: 120px;
 }
@@ -848,6 +932,15 @@ input.loading {
 @media screen and (max-width: 650px) {
 	.header {
 		margin-bottom: 24px;
+		gap: 14px;
+	}
+
+	.header #interface-logo {
+		width: 120px;
+	}
+
+	.header-title {
+		font-size: 17px;
 	}
 
 	.content,

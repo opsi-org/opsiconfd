@@ -154,13 +154,17 @@
 
 <body onload="onLoad();">
 	<div class="header">
-		<div>
-			<img id="interface-logo" src="/static/opsi_logo.png" alt="OPSI logo">
-		</div>
-		<div>
-			<div>
-				<h1>opsiconfd {{opsi_version}} running on {{node_name}} ({{username}})</h1>
-			</div>
+		<img id="interface-logo" src="/static/opsi_logo.png" alt="OPSI logo">
+		<h1 class="header-title">opsiconfd <span class="header-version">{{opsi_version}}</span></h1>
+		<div class="header-meta">
+			<span class="header-meta-item">
+				<span class="header-meta-label">Server</span>
+				<span class="header-meta-value">{{node_name}}</span>
+			</span>
+			<span class="header-meta-item">
+				<span class="header-meta-label">User</span>
+				<span class="header-meta-value">{{username}}</span>
+			</span>
 		</div>
 	</div>
 	<div id="notifications"></div>
@@ -371,6 +375,23 @@
 
 		<div id="tab-audit-log" class="tabcontent">
 			<div class="adminpage-box">
+				<div class="audit-log-filters">
+					<label>
+						Event type
+						<select id="audit-log-event-type-filter" onchange="loadAuditLogTable();">
+							<option value="">All event types</option>
+							<option value="authentication.login.succeeded">authentication.login.succeeded</option>
+							<option value="authentication.login.failed">authentication.login.failed</option>
+							<option value="authentication.logout">authentication.logout</option>
+							<option value="unknown">unknown</option>
+						</select>
+					</label>
+					<label>
+						Username
+						<input type="text" id="audit-log-username-filter" placeholder="Filter username..."
+							oninput="onAuditLogUsernameFilterInput();" />
+					</label>
+				</div>
 				<div id="audit-log-table-div">
 				</div>
 			</div>

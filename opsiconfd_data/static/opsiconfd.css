@@ -463,11 +463,6 @@ select {
 	color: #2e7d32;
 }
 
-.addon-th {
-	background-color: var(--opsi-blue);
-	border-bottom-color: var(--opsi-blue-dark);
-}
-
 .failed-addon-th {
 	background-color: var(--opsi-magenta);
 	border-bottom-color: #8e1540;

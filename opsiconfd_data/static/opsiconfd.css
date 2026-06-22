@@ -586,10 +586,10 @@ select {
 
 #log-container {
 	width: 100%;
-	height: 100%;
-	margin-top: 10px;
+	height: calc(100% - 50px);
+	margin: 10px;
 	overflow: scroll;
-	/*line-height: 0.9;*/
+	line-height: 1.0;
 	background-color: black;
 	color: white;
 }
@@ -634,12 +634,11 @@ select {
 	width: 5em;
 	user-select: none;
 	overflow: hidden;
-	max-height: 1.0em;
+	height: 1.2em;
 }
 
 .log-record-collapse {
 	display: inline-block;
-	margin-top: -0.2em;
 	padding-left: 5px;
 	width: 1em;
 }
@@ -661,7 +660,7 @@ select {
 
 .log-line-multiline-collapsed>*>.log-record-message {
 	display: inline-flex;
-	height: 1.1em;
+	height: 1.2em;
 	overflow: hidden;
 }
 
@@ -1342,7 +1341,7 @@ div#login_error {
 
 .action-menu-items {
 	display: none;
-	position: absolute;
+	position: fixed;
 	background: var(--bg-card);
 	border: 1px solid var(--border-soft);
 	border-radius: var(--radius-sm);

@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import msgspec
-from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
+from fastapi import APIRouter, Body, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
@@ -40,6 +40,7 @@ from opsiconfd.application import AppState
 from opsiconfd.application.memoryprofiler import memory_profiler_router
 from opsiconfd.application.metrics import create_grafana_datasource
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
+from opsiconfd.backend.mysql import OrderBy
 from opsiconfd.backend.rpc.depot import TransferSlotType
 from opsiconfd.backend.rpc.obj_host import auto_fill_depotserver_urls
 from opsiconfd.backend.rpc.obj_user import create_auth_token
@@ -504,20 +505,20 @@ def _audit_log_value(value: Any) -> str:
 	return str(value)
 
 
-@admin_interface_router.get("/audit-log")
+@admin_interface_router.post("/audit-log")
 @rest_api
 async def get_audit_log_list(
-	sort_by: str = "created", sort_desc: bool = True, event_type: str = "", username: str = "", actor_type: str = ""
+	filter: dict[str, Any] | None = None,
+	orderBy: OrderBy | None = None,
+	limit: int | None = Body(default=None),
 ) -> RESTResponse:
 	backend = get_unprotected_backend()
-	audit_logs = (
-		await backend.async_call(
-			"auditLog_getObjects",
-			eventType=event_type or None,
-			username=f"*{username.lower()}*" if username else None,
-			actorType=actor_type or None,
-		)
-	)[:500]
+	audit_logs = await backend.async_call(
+		"auditLog_getObjects",
+		filter=filter,
+		orderBy=orderBy,
+		limit=limit,
+	)
 
 	audit_log_list = []
 	for audit_log in audit_logs:
@@ -538,7 +539,6 @@ async def get_audit_log_list(
 				"message": _audit_log_value(audit_log.message),
 			}
 		)
-	audit_log_list = sorted(audit_log_list, key=lambda entry: entry[sort_by], reverse=sort_desc)
 	return RESTResponse(audit_log_list)
 
 

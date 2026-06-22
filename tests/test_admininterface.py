@@ -297,46 +297,120 @@ async def test_get_audit_log_list_filtering(admininterface: ModuleType, backend:
 		]
 	)
 
-	response = await admininterface.get_audit_log_list(event_type=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED)
+	response = await admininterface.get_audit_log_list(filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED})
 	entries = json.loads(response.body)
 	assert len(entries) == 1
 	assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
 	assert entries[0]["username"] == "adminuser"
 
-	response = await admininterface.get_audit_log_list(username="other")
+	response = await admininterface.get_audit_log_list(filter={"username": "*other*"})
 	entries = json.loads(response.body)
 	assert len(entries) == 1
 	assert entries[0]["username"] == "otheruser"
 
-	response = await admininterface.get_audit_log_list(username="USER")
+	response = await admininterface.get_audit_log_list(filter={"username": "*user*"})
 	entries = json.loads(response.body)
 	assert {entry["username"] for entry in entries} == {"adminuser", "otheruser"}
 
-	response = await admininterface.get_audit_log_list(event_type=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, username="admin")
+	response = await admininterface.get_audit_log_list(
+		filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, "username": "*admin*"}
+	)
 	entries = json.loads(response.body)
 	assert len(entries) == 1
 	assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
 	assert entries[0]["username"] == "adminuser"
 
-	response = await admininterface.get_audit_log_list(event_type=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED, username="other")
+	response = await admininterface.get_audit_log_list(
+		filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_FAILED, "username": "*other*"}
+	)
 	entries = json.loads(response.body)
 	assert len(entries) == 0
 
-	response = await admininterface.get_audit_log_list(actor_type="depot")
+	response = await admininterface.get_audit_log_list(filter={"actorType": "depot"})
 	entries = json.loads(response.body)
 	assert len(entries) == 1
 	assert entries[0]["actorType"] == "depot"
 	assert entries[0]["username"] == "depot.example.test"
 
-	response = await admininterface.get_audit_log_list(actor_type="user")
+	response = await admininterface.get_audit_log_list(filter={"actorType": "user"})
 	entries = json.loads(response.body)
 	assert len(entries) == 3
 	assert {entry["actorType"] for entry in entries} == {"user"}
 
-	response = await admininterface.get_audit_log_list(actor_type="depot", event_type=AuditLogEventType.AUTHENTICATION_LOGOUT)
+	response = await admininterface.get_audit_log_list(filter={"actorType": "depot", "eventType": AuditLogEventType.AUTHENTICATION_LOGOUT})
 	entries = json.loads(response.body)
 	assert len(entries) == 1
 	assert entries[0]["actorType"] == "depot"
+
+
+async def test_get_audit_log_list_uses_database_sorting_and_limit(admininterface: ModuleType) -> None:
+	class Backend:
+		method = ""
+		kwargs: dict[str, Any] = {}
+
+		async def async_call(self, method: str, **kwargs: Any) -> list:
+			self.method = method
+			self.kwargs = kwargs
+			return []
+
+	recording_backend = Backend()
+	with patch.object(admininterface, "get_unprotected_backend", lambda: recording_backend):
+		response = await admininterface.get_audit_log_list(
+			filter={
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "*admin*",
+				"actorType": "user",
+			},
+			orderBy={"authMethods": "asc"},
+			limit=500,
+		)
+
+	assert json.loads(response.body) == []
+	assert recording_backend.method == "auditLog_getObjects"
+	assert recording_backend.kwargs == {
+		"filter": {
+			"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+			"username": "*admin*",
+			"actorType": "user",
+		},
+		"orderBy": {"authMethods": "asc"},
+		"limit": 500,
+	}
+
+
+def test_get_audit_log_list_post_uses_body_sorting_and_limit(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	class Backend:
+		method = ""
+		kwargs: dict[str, Any] = {}
+
+		async def async_call(self, method: str, **kwargs: Any) -> list:
+			self.method = method
+			self.kwargs = kwargs
+			return []
+
+	recording_backend = Backend()
+	with patch.object(admininterface, "get_unprotected_backend", lambda: recording_backend):
+		response = test_client.post(
+			"/admin/audit-log",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			headers={"Content-Type": "application/json"},
+			content=json.dumps(
+				{
+					"filter": {"username": "*admin*"},
+					"orderBy": {"created": "asc"},
+					"limit": 500,
+				}
+			),
+		)
+
+	assert response.status_code == 200
+	assert response.json() == []
+	assert recording_backend.method == "auditLog_getObjects"
+	assert recording_backend.kwargs == {
+		"filter": {"username": "*admin*"},
+		"orderBy": {"created": "asc"},
+		"limit": 500,
+	}
 
 
 @pytest.mark.parametrize(

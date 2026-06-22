@@ -70,7 +70,7 @@ def _get_session_data_from_redis(opsiconfd_config: Config, delete_sessions: bool
 
 def _wait_for_audit_logs(unprotected_backend: UnprotectedBackend, event_type: AuditLogEventType) -> list[AuditLog]:
 	for _attempt in range(20):
-		audit_logs = unprotected_backend.auditLog_getObjects(eventType=event_type)
+		audit_logs = unprotected_backend.auditLog_getObjects(filter={"eventType": event_type})
 		if audit_logs:
 			return audit_logs
 		time.sleep(0.5)

@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 	from ..rpc.protocol import IdentType
 
 MAX_ALLOWED_PACKET = 16_000_000
+OrderBy = dict[str, Literal["asc", "desc"]]
 
 
 @dataclass(slots=True)
@@ -834,6 +835,38 @@ class MySQLConnection:
 				break
 		return allowed_client_ids
 
+	@staticmethod
+	def _check_attribute_permissions(attr: str, ace: list[RPCACE]) -> None:
+		allowed_attributes: set[str] = set()
+		denied_attributes: set[str] = set()
+		for _ace in ace:
+			allowed_attributes.update(_ace.allowed_attributes or [])
+			denied_attributes.update(_ace.denied_attributes or [])
+
+		if (allowed_attributes and attr not in allowed_attributes) or (denied_attributes and attr in denied_attributes):
+			raise OpsiServicePermissionError(f"No permission for attribute {attr}")
+
+	def _get_order_by(self, columns: dict[str, ColumnInfo], ace: list[RPCACE], order_by: OrderBy | None) -> str:
+		if not order_by:
+			return ""
+
+		order = []
+		for attr, direction in order_by.items():
+			if attr not in columns:
+				raise ValueError(f"Invalid order by attribute {attr!r} used, possible attributes are: {', '.join(columns)}")
+
+			self._check_attribute_permissions(attr, ace)
+			if not isinstance(direction, str):
+				raise ValueError(f"Invalid order direction {direction!r} for attribute {attr!r}")
+			direction = direction.lower()
+			if direction not in ("asc", "desc"):
+				raise ValueError(f"Invalid order direction {direction!r} for attribute {attr!r}")
+
+			col = columns[attr]
+			order.append(f"`{col.table}`.`{col.column}` {direction.upper()}")
+
+		return "ORDER BY " + ", ".join(order)
+
 	@overload
 	def get_objects(
 		self,
@@ -845,6 +878,8 @@ class MySQLConnection:
 		ident_type: IdentType = "str",
 		attributes: list[str] | tuple[str, ...] | None = None,
 		filter: dict[str, Any] | None = None,
+		order_by: OrderBy | None = None,
+		limit: int | None = None,
 	) -> list[BaseObjectT] | list:  # list for empty list
 		...
 
@@ -859,6 +894,8 @@ class MySQLConnection:
 		ident_type: IdentType = "str",
 		attributes: list[str] | tuple[str, ...] | None = None,
 		filter: dict[str, Any] | None = None,
+		order_by: OrderBy | None = None,
+		limit: int | None = None,
 	) -> list[dict] | list:  # list for empty list
 		...
 
@@ -872,9 +909,13 @@ class MySQLConnection:
 		ident_type: IdentType = "str",
 		attributes: list[str] | tuple[str, ...] | None = None,
 		filter: dict[str, Any] | None = None,
+		order_by: OrderBy | None = None,
+		limit: int | None = None,
 	) -> list[dict] | list[BaseObjectT] | list:  # list for empty list
 		if not self.connected:
 			raise RuntimeError("Not connected to MySQL server")
+		if limit is not None and (not isinstance(limit, int) or isinstance(limit, bool) or limit < 0):
+			raise ValueError(f"Invalid limit {limit!r}")
 		ace = ace or []
 		aggregates = aggregates or {}
 		if not table.lstrip().upper().startswith("FROM"):
@@ -910,9 +951,14 @@ class MySQLConnection:
 			group_by = "GROUP BY " + ", ".join(
 				[f"`{tables[0]}`.`{col.column}`" for attr, col in columns.items() if attr in ident_attributes]
 			)
+		order = self._get_order_by(columns=columns, ace=ace, order_by=order_by)
+		limit_query = ""
+		if limit is not None:
+			params["limit"] = limit
+			limit_query = "LIMIT :limit"
 
 		with self.session() as session:
-			query = f"{query} {where} {group_by}"
+			query = f"{query} {where} {group_by} {order} {limit_query}"
 			result = session.execute(query, params=params).fetchall()
 
 			with server_timing("database_result_processing"):

@@ -470,21 +470,26 @@ function loadAuditLogTable(sortBy, sortDesc) {
 	if (sortDesc !== undefined) {
 		auditLogTableSort.sortDesc = sortDesc;
 	}
-	const params = new URLSearchParams({ "sort_by": auditLogTableSort.sortBy, "sort_desc": auditLogTableSort.sortDesc });
+	const filter = {};
 	const eventTypeFilter = document.getElementById("audit-log-event-type-filter");
 	if (eventTypeFilter && eventTypeFilter.value) {
-		params.set("event_type", eventTypeFilter.value);
+		filter.eventType = eventTypeFilter.value;
 	}
 	const usernameFilter = document.getElementById("audit-log-username-filter");
 	if (usernameFilter && usernameFilter.value) {
-		params.set("username", usernameFilter.value);
+		filter.username = `*${usernameFilter.value.toLowerCase()}*`;
 	}
 	const actorTypeFilter = document.getElementById("audit-log-actor-type-filter");
 	if (actorTypeFilter && actorTypeFilter.value) {
-		params.set("actor_type", actorTypeFilter.value);
+		filter.actorType = actorTypeFilter.value;
 	}
+	const requestBody = {
+		filter: filter,
+		orderBy: { [auditLogTableSort.sortBy]: auditLogTableSort.sortDesc ? "desc" : "asc" },
+		limit: 500,
+	};
 	showTableLoading("audit-log-table-div");
-	let req = ajaxRequest("GET", `/admin/audit-log?${params.toString()}`);
+	let req = ajaxRequest("POST", "/admin/audit-log", requestBody);
 	req.then((result) => {
 		renderAuditLogTable(result, "audit-log-table-div");
 		return result;
@@ -763,6 +768,7 @@ function deleteUser(userId, confirmed = false) {
 function closeAllActionMenus() {
 	document.querySelectorAll(".action-menu-items").forEach(element => {
 		element.style.display = "none";
+		element.style.visibility = "";
 	});
 }
 
@@ -774,19 +780,48 @@ function closeActionMenu(menuId) {
 	menu.style.display = "none";
 }
 
-function toggleActionMenu(menuId) {
+function positionActionMenu(menu, button) {
+	const buttonRect = button.getBoundingClientRect();
+	menu.style.visibility = "hidden";
+	menu.style.display = "block";
+
+	const menuRect = menu.getBoundingClientRect();
+	const margin = 8;
+	const belowTop = buttonRect.bottom + 4;
+	const aboveTop = buttonRect.top - menuRect.height - 4;
+	let top = belowTop;
+	if (belowTop + menuRect.height > window.innerHeight - margin && aboveTop >= margin) {
+		top = aboveTop;
+	}
+	top = Math.max(margin, Math.min(top, window.innerHeight - menuRect.height - margin));
+
+	let left = buttonRect.right - menuRect.width;
+	left = Math.max(margin, Math.min(left, window.innerWidth - menuRect.width - margin));
+
+	menu.style.top = `${top}px`;
+	menu.style.left = `${left}px`;
+	menu.style.visibility = "visible";
+}
+
+function toggleActionMenu(menuId, button) {
 	const menu = document.getElementById(menuId);
 	if (!menu) {
 		return;
 	}
 	const isOpen = menu.style.display === "block";
 	closeAllActionMenus();
-	menu.style.display = isOpen ? "none" : "block";
+	if (!isOpen && button) {
+		positionActionMenu(menu, button);
+	}
 }
 
 function buildActionMenu(menuId, actions) {
+	const existingMenu = document.getElementById(menuId);
+	if (existingMenu) {
+		existingMenu.remove();
+	}
 	const menu = createElement("div", { className: "action-menu", style: { position: "relative", display: "inline-block" } });
-	const button = createElement("button", { type: "button", className: "action-menu-button", onclick: () => toggleActionMenu(menuId) }, ["Actions"]);
+	const button = createElement("button", { type: "button", className: "action-menu-button", onclick: event => toggleActionMenu(menuId, event.currentTarget) }, ["Actions"]);
 	const items = createElement("div", { id: menuId, className: "action-menu-items" });
 	actions.forEach(action => {
 		const item = createElement("div", { className: "action-menu-item", role: "menuitem", tabindex: "0" }, [action.label]);
@@ -803,7 +838,8 @@ function buildActionMenu(menuId, actions) {
 		});
 		items.appendChild(item);
 	});
-	menu.append(button, items);
+	menu.appendChild(button);
+	document.body.appendChild(items);
 	return menu;
 }
 
@@ -813,12 +849,16 @@ document.addEventListener("click", (event) => {
 	}
 });
 
+window.addEventListener("resize", closeAllActionMenus);
+window.addEventListener("scroll", closeAllActionMenus, true);
+
 
 function renderUserTable(data, htmlId) {
 	const container = document.getElementById(htmlId);
 	if (!container) {
 		return "";
 	}
+	document.querySelectorAll('.action-menu-items[id^="user-actions-"]').forEach(element => element.remove());
 	const content = [];
 	if (data.length == 0) {
 		content.push(createElement("p", {}, ["No users found."]));

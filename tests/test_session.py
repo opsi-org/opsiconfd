@@ -249,7 +249,7 @@ async def test_session_manager_expired_session_audit_log(
 
 	audit_logs: list[AuditLog] = []
 	for _attempt in range(20):
-		audit_logs = backend.auditLog_getObjects(eventType=AuditLogEventType.AUTHENTICATION_LOGOUT)
+		audit_logs = backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGOUT})
 		if audit_logs:
 			break
 		await sleep(0.5)

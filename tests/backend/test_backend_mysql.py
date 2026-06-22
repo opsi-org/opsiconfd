@@ -16,6 +16,7 @@ from typing import Any, Generator
 from unittest.mock import patch
 
 import pytest
+from opsi.opsi.service.model.object import OpsiClient
 
 from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
@@ -429,6 +430,74 @@ def test_get_columns() -> None:
 					assert info.select == f"IF(`HOST`.`hostId`='{client_id}',`HOST`.`{info.column}`,NULL)"
 			else:
 				assert info.select is None
+
+
+def test_get_objects_orders_by_multiple_attributes_and_limits() -> None:
+	class MockResult:
+		def fetchall(self) -> list:
+			return []
+
+	class MockSession:
+		query = ""
+		params: dict[str, Any] = {}
+
+		def execute(self, query: str, params: dict[str, Any] | None = None) -> MockResult:
+			self.query = query
+			self.params = params or {}
+			return MockResult()
+
+	mysql = MySQLConnection()
+	mysql.connected = True
+	mysql.tables = {
+		"HOST": {
+			"hostId": {},
+			"type": {},
+			"description": {},
+			"created": {},
+		}
+	}
+	mock_session = MockSession()
+
+	@contextmanager
+	def session() -> Generator[MockSession, None, None]:
+		yield mock_session
+
+	with patch.object(mysql, "session", session):
+		objects = mysql.get_objects(
+			table="HOST",
+			object_type=OpsiClient,
+			attributes=["id"],
+			order_by={"description": "asc", "created": "desc"},
+			limit=25,
+		)
+
+	assert objects == []
+	assert "ORDER BY `HOST`.`description` ASC, `HOST`.`created` DESC LIMIT :limit" in mock_session.query
+	assert mock_session.params == {"limit": 25}
+
+
+@pytest.mark.parametrize(
+	"order_by, limit, error",
+	(
+		({"invalid": "asc"}, None, "Invalid order by attribute"),
+		({"description": "down"}, None, "Invalid order direction"),
+		(None, -1, "Invalid limit"),
+		(None, True, "Invalid limit"),
+	),
+)
+def test_get_objects_rejects_invalid_order_by_and_limit(order_by: Any, limit: Any, error: str) -> None:
+	mysql = MySQLConnection()
+	mysql.connected = True
+	mysql.tables = {
+		"HOST": {
+			"hostId": {},
+			"type": {},
+			"description": {},
+		}
+	}
+
+	with pytest.raises(ValueError, match=error):
+		mysql.get_objects(table="HOST", object_type=OpsiClient, order_by=order_by, limit=limit)
 
 
 def test_config_unique_hardware_addresses(backend: UnprotectedBackend) -> None:  # noqa: F811

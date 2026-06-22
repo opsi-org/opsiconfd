@@ -119,6 +119,7 @@ function ajaxRequest(method, url, body, requestInfos = false) {
 			req.send(body)
 		}
 		else if (body) {
+			req.setRequestHeader("Content-Type", "application/json");
 			req.send(JSON.stringify(body))
 		}
 		else {

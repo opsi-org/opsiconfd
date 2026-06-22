@@ -126,7 +126,7 @@ def test_cleanup_old_audit_logs_uses_configured_retention(backend: UnprotectedBa
 		with mysql.session() as session:
 			remove_old_audit_logs(session)
 
-	audit_logs = backend.auditLog_getObjects(username="*-audit-log-user")
+	audit_logs = backend.auditLog_getObjects(filter={"username": "*-audit-log-user"})
 	assert len(audit_logs) == 1
 	assert audit_logs[0].username == "recent-audit-log-user"
 	assert audit_logs[0].authentication == AuditLogAuthentication(authMethods=["username"])

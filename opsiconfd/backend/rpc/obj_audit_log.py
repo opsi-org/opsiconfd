@@ -18,7 +18,10 @@ from opsi.opsi.service.model.type import to_list
 from . import rpc_method
 
 if TYPE_CHECKING:
+	from ..mysql import OrderBy
 	from .protocol import BackendProtocol, IdentType
+
+AUDIT_LOG_AUTHENTICATION_ATTRIBUTES = {"authMethods", "failureReason", "logoutReason"}
 
 
 class RPCAuditLogMixin(Protocol):
@@ -163,11 +166,25 @@ class RPCAuditLogMixin(Protocol):
 	def _auditLog_getObjects(
 		self: BackendProtocol,
 		ace: list[Any] | None = None,
-		attributes: list[str] | None = None,
 		withAuthentication: bool = True,
+		attributes: list[str] | None = None,
 		filter: dict[str, Any] | None = None,
+		orderBy: OrderBy | None = None,
+		limit: int | None = None,
 	) -> list[AuditLog]:
-		audit_logs = self._mysql.get_objects(table="AUDIT_LOG", ace=ace, object_type=AuditLog, attributes=attributes, filter=filter)
+		table = "AUDIT_LOG"
+		if withAuthentication and orderBy and AUDIT_LOG_AUTHENTICATION_ATTRIBUTES.intersection(orderBy):
+			table = "AUDIT_LOG LEFT JOIN AUDIT_AUTHENTICATION USING(auditLogId)"
+
+		audit_logs = self._mysql.get_objects(
+			table=table,
+			ace=ace,
+			object_type=AuditLog,
+			attributes=attributes,
+			filter=filter,
+			order_by=orderBy,
+			limit=limit,
+		)
 		if not withAuthentication or not audit_logs:
 			return audit_logs
 
@@ -196,12 +213,21 @@ class RPCAuditLogMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def auditLog_getObjects(
 		self: BackendProtocol,
-		attributes: list[str] | None = None,
 		withAuthentication: bool = True,
-		**filter: Any,
+		attributes: list[str] | None = None,
+		filter: dict[str, Any] | None = None,
+		orderBy: OrderBy | None = None,
+		limit: int | None = None,
 	) -> list[AuditLog]:
 		ace = self._get_ace("auditLog_getObjects")
-		return self._auditLog_getObjects(ace=ace, attributes=attributes, withAuthentication=withAuthentication, filter=filter)
+		return self._auditLog_getObjects(
+			ace=ace,
+			withAuthentication=withAuthentication,
+			attributes=attributes,
+			filter=filter,
+			orderBy=orderBy,
+			limit=limit,
+		)
 
 	@rpc_method(check_acl=False)
 	def auditLog_getIdents(

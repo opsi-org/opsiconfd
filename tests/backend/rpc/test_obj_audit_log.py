@@ -76,7 +76,7 @@ def test_audit_log_create_and_get_objects(backend: UnprotectedBackend) -> None: 
 	assert audit_log.id is not None
 	assert audit_log.id != 12345
 
-	audit_logs = backend.auditLog_getObjects(id=audit_log.id)
+	audit_logs = backend.auditLog_getObjects(filter={"id": audit_log.id})
 	assert len(audit_logs) == 1
 	stored_log = audit_logs[0]
 	assert isinstance(stored_log, AuditLog)
@@ -102,7 +102,7 @@ def test_audit_log_insert_object(backend: UnprotectedBackend) -> None:  # noqa: 
 
 	backend.auditLog_insertObject(audit_log)  # ty: ignore[invalid-argument-type]
 
-	audit_logs = backend.auditLog_getObjects(id=audit_log.id)
+	audit_logs = backend.auditLog_getObjects(filter={"id": audit_log.id})
 	assert len(audit_logs) == 1
 	assert audit_logs[0].authentication == AuditLogAuthentication(
 		authMethods=["password"], failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
@@ -121,7 +121,7 @@ def test_audit_log_bulk_insert_objects(backend: UnprotectedBackend) -> None:  # 
 		]
 	)
 
-	audit_logs = backend.auditLog_getObjects(username="user1")
+	audit_logs = backend.auditLog_getObjects(filter={"username": "user1"})
 	assert [audit_log.eventType for audit_log in audit_logs] == [
 		AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
 		AuditLogEventType.AUTHENTICATION_LOGOUT,
@@ -157,7 +157,61 @@ def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: Unprotected
 
 	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_AUTHENTICATION": 2}
 	assert all(audit_log.id for audit_log in audit_logs)
-	assert len(backend.auditLog_getObjects(eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED)) == 1200
+	assert len(backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED})) == 1200
+
+
+def test_audit_log_get_objects_orders_and_limits(backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend.auditLog_bulkInsertObjects(  # ty: ignore[invalid-argument-type]
+		[
+			{
+				"created": "2026-01-01 00:00:00",
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "order-limit-user-1",
+			},
+			{
+				"created": "2026-01-02 00:00:00",
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "order-limit-user-2",
+			},
+			{
+				"created": "2026-01-03 00:00:00",
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "order-limit-user-3",
+			},
+		]
+	)
+
+	audit_logs = backend.auditLog_getObjects(
+		filter={"username": "order-limit-user-*"},
+		orderBy={"created": "desc"},
+		limit=2,
+	)
+
+	assert [audit_log.username for audit_log in audit_logs] == ["order-limit-user-3", "order-limit-user-2"]
+
+
+def test_audit_log_get_objects_orders_by_authentication_attribute(backend: UnprotectedBackend) -> None:  # noqa: F811
+	backend.auditLog_bulkInsertObjects(  # ty: ignore[invalid-argument-type]
+		[
+			{
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "auth-order-user-password",
+				"authentication": {"authMethods": ["password"]},
+			},
+			{
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "auth-order-user-saml",
+				"authentication": {"authMethods": ["saml"]},
+			},
+		]
+	)
+
+	audit_logs = backend.auditLog_getObjects(
+		filter={"username": "auth-order-user-*"},
+		orderBy={"authMethods": "desc"},
+	)
+
+	assert [audit_log.username for audit_log in audit_logs] == ["auth-order-user-saml", "auth-order-user-password"]
 
 
 def test_audit_log_create_requires_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811

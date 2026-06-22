@@ -162,6 +162,15 @@ async def saml_logout(request: Request) -> RedirectResponse:
 	session: OPSISession | None = request.scope.get("session")
 	redirect_url = "/"
 	if session:
+		await session.delete()
+		asyncio_create_task(
+			audit_authentication_event(
+				scope=request.scope,
+				event_type=AuditLogEventType.AUTHENTICATION_LOGOUT,
+				logout_reason=AuditLogAuthenticationLogoutReason.USER_REQUESTED,
+			)
+		)
+
 		request_data = await saml_auth_request_data(request)
 		if saml_logger.isEnabledFor(TRACE):
 			saml_logger.trace("SAML Logout Request data: %s", request_data)

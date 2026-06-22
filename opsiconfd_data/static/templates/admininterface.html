@@ -165,6 +165,11 @@
 				<span class="header-meta-label">User</span>
 				<span class="header-meta-value">{{username}}</span>
 			</span>
+			{% if saml_slo %}
+			<a href="/auth/saml/logout" class="header-logout-button">Logout</a>
+			{% else %}
+			<a href="#" class="header-logout-button" onclick="logout()">Logout</a>
+			{% endif %}
 		</div>
 	</div>
 	<div id="notifications"></div>
@@ -201,11 +206,6 @@
 			<a href="/dav" target="_blank" rel="noopener noreferrer" class="tablink">WebDAV</a>
 			<a href="/public" target="_blank" rel="noopener noreferrer" class="tablink">Public</a>
 			<a href="#links" id="tablink-links" class="tablink" onclick="openTab('links');">Links</a>
-			{% if saml_slo %}
-			<a href="/auth/saml/logout" class="tablink">Logout</a>
-			{% else %}
-			<a href="#" class="tablink" onclick="logout()">Logout</a>
-			{% endif %}
 		</div>
 
 		<div id="tab-maintenance" class="tabcontent">
@@ -822,8 +822,8 @@
 			<ul>
 				{% if "webgui" in addons|map(attribute="id") %}
 				<li>
-					Open the web based management interface <a href="/addons/webgui" target="_blank"
-						rel="noopener noreferrer">opsiweb</a>.
+					Open the web-based management interface <a href="/addons/webgui" target="_blank"
+						rel="noopener noreferrer">OPSI WebGUI</a>.
 				</li>
 				{% endif %}
 				<li>
@@ -831,12 +831,12 @@
 						onclick="downloadConfiged()">opsi-configed</a>.
 				</li>
 				<li>
-					Open the <a href="https://docs.opsi.org" target="_blank" rel="noopener noreferrer">opsi
+					Browse the <a href="https://docs.opsi.org" target="_blank" rel="noopener noreferrer">OPSI
 						documentation</a>.
 				</li>
 				<li>
-					Visit the <a href="https://forum.opsi.org/index.php" target="_blank" rel="noopener noreferrer">opsi
-						forum</a>.
+					Join the discussion in the <a href="https://forum.opsi.org/index.php" target="_blank"
+						rel="noopener noreferrer">OPSI forum</a>.
 				</li>
 			</ul>
 		</div>

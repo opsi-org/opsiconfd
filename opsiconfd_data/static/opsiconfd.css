@@ -189,6 +189,31 @@ h6 {
 	white-space: nowrap;
 }
 
+a.header-logout-button:link,
+a.header-logout-button:visited,
+a.header-logout-button:active {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: var(--opsi-magenta);
+	color: #fff;
+	border: 1px solid var(--opsi-magenta);
+	border-radius: var(--radius-md);
+	padding: 4px 14px;
+	font-size: 13px;
+	font-weight: 700;
+	text-decoration: none;
+	box-shadow: var(--shadow-sm);
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+a.header-logout-button:hover,
+a.header-logout-button:focus {
+	background: #fff;
+	color: var(--opsi-magenta);
+}
+
 h1 {
 	font-size: 20px;
 	margin: 0;

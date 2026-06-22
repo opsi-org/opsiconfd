@@ -56,10 +56,26 @@ p {
 	font-size: 15px;
 }
 
-#logo,
-#interface-logo {
+#welcome-image {
+	height: 40px;
+	width: auto;
+}
+
+#interface-login-image {
+	display: block;
+	margin: 0 auto 8px auto;
 	width: 200px;
 	height: auto;
+}
+
+#interface-header-image {
+	height: 40px;
+	width: auto;
+}
+
+.wsgidav-image {
+	height: 40px;
+	width: auto;
 }
 
 a:link,
@@ -125,10 +141,6 @@ h6 {
 	margin: 0 auto 28px auto;
 	padding: 14px 0 12px 0;
 	border-bottom: 3px solid var(--opsi-magenta);
-}
-
-.header #interface-logo {
-	width: 150px;
 }
 
 .header-info {
@@ -954,10 +966,6 @@ input.loading {
 		gap: 14px;
 	}
 
-	.header #interface-logo {
-		width: 120px;
-	}
-
 	.header-title {
 		font-size: 17px;
 	}
@@ -1184,11 +1192,6 @@ div.login-form {
 	padding: 40px 38px 44px 38px;
 	background-color: var(--bg-card);
 	box-shadow: var(--shadow-md);
-}
-
-div.login-form #interface-logo {
-	display: block;
-	margin: 0 auto 8px auto;
 }
 
 div.login-form h1 {

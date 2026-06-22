@@ -23,6 +23,7 @@ from starlette.datastructures import Headers
 from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
+from opsiconfd.audit_log import audit_log_event_enabled
 from opsiconfd.config import FQDN
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 
@@ -240,107 +241,124 @@ async def test_get_rpc_list(
 	assert sorted(rpc_nums) == list(range(1, num_rpcs + 1))
 
 
-async def test_get_audit_log_list(admininterface: ModuleType, backend: UnprotectedBackend) -> None:  # noqa: F811
-	backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]
-		AuditLog(
-			eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
-			username="adminuser",
-			actorType="user",
-			actorId="adminuser",
-			clientAddress="192.0.2.10",
-			authentication=AuditLogAuthentication(
-				authMethods=["username", "password_pam"],
-				failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
-			),
-		)
-	)
-
-	audit_log_response = await admininterface.get_audit_log_list()
-	audit_log_list = json.loads(audit_log_response.body)
-	assert len(audit_log_list) == 1
-	assert audit_log_list[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_FAILED
-	assert audit_log_list[0]["username"] == "adminuser"
-	assert audit_log_list[0]["actorType"] == "user"
-	assert audit_log_list[0]["actorId"] == "adminuser"
-	assert audit_log_list[0]["clientAddress"] == "192.0.2.10"
-	assert audit_log_list[0]["authMethods"] == "username, password_pam"
-	assert audit_log_list[0]["failureReason"] == AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
-
-
-async def test_get_audit_log_list_filtering(admininterface: ModuleType, backend: UnprotectedBackend) -> None:  # noqa: F811
-	backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]
-		[
+def test_get_audit_log_list(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811
+	with patch("opsiconfd.audit_log.audit_log_event_enabled", return_value=False), test_client:
+		backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]
 			AuditLog(
 				eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
 				username="adminuser",
 				actorType="user",
 				actorId="adminuser",
-			),
-			AuditLog(
-				eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
-				username="adminuser",
-				actorType="user",
-				actorId="adminuser",
-			),
-			AuditLog(
-				eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
-				username="otheruser",
-				actorType="user",
-				actorId="otheruser",
-			),
-			AuditLog(
-				eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
-				username="depot.example.test",
-				actorType="depot",
-				actorId="depot.example.test",
-			),
-		]
-	)
+				clientAddress="192.0.2.10",
+				authentication=AuditLogAuthentication(
+					authMethods=["username", "password_pam"],
+					failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
+				),
+			)
+		)
 
-	response = await admininterface.get_audit_log_list(filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED})
-	entries = json.loads(response.body)
-	assert len(entries) == 1
-	assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
-	assert entries[0]["username"] == "adminuser"
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS))
+		assert response.status_code == 200
+		audit_log_list = response.json()
 
-	response = await admininterface.get_audit_log_list(filter={"username": "*other*"})
-	entries = json.loads(response.body)
-	assert len(entries) == 1
-	assert entries[0]["username"] == "otheruser"
+		assert len(audit_log_list) == 1
+		assert audit_log_list[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_FAILED
+		assert audit_log_list[0]["username"] == "adminuser"
+		assert audit_log_list[0]["actorType"] == "user"
+		assert audit_log_list[0]["actorId"] == "adminuser"
+		assert audit_log_list[0]["clientAddress"] == "192.0.2.10"
+		assert audit_log_list[0]["authMethods"] == "username, password_pam"
+		assert audit_log_list[0]["failureReason"] == AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS
 
-	response = await admininterface.get_audit_log_list(filter={"username": "*user*"})
-	entries = json.loads(response.body)
-	assert {entry["username"] for entry in entries} == {"adminuser", "otheruser"}
 
-	response = await admininterface.get_audit_log_list(
-		filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, "username": "*admin*"}
-	)
-	entries = json.loads(response.body)
-	assert len(entries) == 1
-	assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
-	assert entries[0]["username"] == "adminuser"
+def test_get_audit_log_list_filtering(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # noqa: F811
+	with patch("opsiconfd.audit_log.audit_log_event_enabled", return_value=False), test_client:
+		backend.auditLog_createObjects(  # ty: ignore[invalid-argument-type]
+			[
+				AuditLog(
+					eventType=AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+					username="adminuser",
+					actorType="user",
+					actorId="adminuser",
+				),
+				AuditLog(
+					eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+					username="adminuser",
+					actorType="user",
+					actorId="adminuser",
+				),
+				AuditLog(
+					eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
+					username="otheruser",
+					actorType="user",
+					actorId="otheruser",
+				),
+				AuditLog(
+					eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
+					username="depot.example.test",
+					actorType="depot",
+					actorId="depot.example.test",
+				),
+			]
+		)
 
-	response = await admininterface.get_audit_log_list(
-		filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_FAILED, "username": "*other*"}
-	)
-	entries = json.loads(response.body)
-	assert len(entries) == 0
+		response = test_client.post(
+			"/admin/audit-log",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			json={"filter": {"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED}},
+		)
+		assert response.status_code == 200
+		entries = response.json()
+		assert len(entries) == 1
+		assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
+		assert entries[0]["username"] == "adminuser"
 
-	response = await admininterface.get_audit_log_list(filter={"actorType": "depot"})
-	entries = json.loads(response.body)
-	assert len(entries) == 1
-	assert entries[0]["actorType"] == "depot"
-	assert entries[0]["username"] == "depot.example.test"
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"username": "*other*"}})
+		entries = response.json()
+		assert len(entries) == 1
+		assert entries[0]["username"] == "otheruser"
 
-	response = await admininterface.get_audit_log_list(filter={"actorType": "user"})
-	entries = json.loads(response.body)
-	assert len(entries) == 3
-	assert {entry["actorType"] for entry in entries} == {"user"}
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"username": "*user*"}})
+		entries = response.json()
+		assert {entry["username"] for entry in entries} == {"adminuser", "otheruser"}
 
-	response = await admininterface.get_audit_log_list(filter={"actorType": "depot", "eventType": AuditLogEventType.AUTHENTICATION_LOGOUT})
-	entries = json.loads(response.body)
-	assert len(entries) == 1
-	assert entries[0]["actorType"] == "depot"
+		response = test_client.post(
+			"/admin/audit-log",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			json={"filter": {"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED, "username": "*admin*"}},
+		)
+		entries = response.json()
+		assert len(entries) == 1
+		assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
+		assert entries[0]["username"] == "adminuser"
+
+		response = test_client.post(
+			"/admin/audit-log",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			json={"filter": {"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_FAILED, "username": "*other*"}},
+		)
+		entries = response.json()
+		assert len(entries) == 0
+
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"actorType": "depot"}})
+		entries = response.json()
+		assert len(entries) == 1
+		assert entries[0]["actorType"] == "depot"
+		assert entries[0]["username"] == "depot.example.test"
+
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"actorType": "user"}})
+		entries = response.json()
+		assert len(entries) == 3
+		assert {entry["actorType"] for entry in entries} == {"user"}
+
+		response = test_client.post(
+			"/admin/audit-log",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			json={"filter": {"actorType": "depot", "eventType": AuditLogEventType.AUTHENTICATION_LOGOUT}},
+		)
+		entries = response.json()
+		assert len(entries) == 1
+		assert entries[0]["actorType"] == "depot"
 
 
 async def test_get_audit_log_list_uses_database_sorting_and_limit(admininterface: ModuleType) -> None:
@@ -379,6 +397,8 @@ async def test_get_audit_log_list_uses_database_sorting_and_limit(admininterface
 
 
 def test_get_audit_log_list_post_uses_body_sorting_and_limit(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	audit_log_event_enabled.cache_clear()
+
 	class Backend:
 		method = ""
 		kwargs: dict[str, Any] = {}

@@ -437,6 +437,9 @@ class ProtectedBackend(Backend):
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
 
+		if not session.authenticated:
+			raise BackendPermissionDeniedError("Not authenticated")
+
 		user_type = session.user_type
 		if not user_type:
 			raise BackendPermissionDeniedError("Invalid user type")

@@ -18,19 +18,21 @@ from opsi.crypt.hash import PasswordHashAlgorithm, get_password_hash_algorithm, 
 from opsi.exception import OpsiServiceAuthenticationError
 from opsi.logging import LOG_TRACE, use_logging_config
 from opsi.opsi.service.client import ServiceClient, ServiceVerificationFlags
-from opsi.opsi.service.model import object
 from opsi.opsi.service.model.object import (
 	AuditLog,
 	AuditLogAuthentication,
 	AuditLogAuthenticationFailureReason,
 	AuditLogAuthenticationLogoutReason,
 	AuditLogEventType,
+	OpsiClient,
+	User,
 )
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.auth._pam import PAMAuthentication
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.saml import check_if_saml_available
+from opsiconfd.config import get_depotserver_id
 from opsiconfd.redis import ip_address_to_redis_key, redis_client
 from opsiconfd.session import OPSISession, _authentication_failure_reason, _validate_mfa_otp, _validate_username
 from opsiconfd.utils.cryptography import create_auth_token
@@ -152,20 +154,31 @@ def test_authentication_audit_log_login_success(
 	assert audit_log.authentication == AuditLogAuthentication(authMethods=["password_pam", "username"])
 
 
+@pytest.mark.parametrize("actor_type", ["depot", "client", "user"])
 def test_authentication_audit_log_login_failed(
 	backend: UnprotectedBackend,  # noqa: F811
 	test_client: OpsiconfdTestClient,  # noqa: F811
+	actor_type: Literal["depot", "client", "user"],
 ) -> None:
+	username = ADMIN_USER
+	if actor_type == "client":
+		username = "client1.opsi.test"
+		opsi_client = OpsiClient(id=username)
+		backend.host_createObjects([opsi_client])
+	elif actor_type == "depot":
+		username = get_depotserver_id()
+
 	test_client.set_client_address("192.0.2.12", 12345)
 	with test_client:
-		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": "wrong"}, headers={"User-Agent": "audit-test"})
+		res = test_client.post("/auth/login", json={"username": username, "password": "wrong"}, headers={"User-Agent": "audit-test"})
 
 	assert res.status_code == 401
 
 	audit_logs = _wait_for_audit_logs(backend, AuditLogEventType.AUTHENTICATION_LOGIN_FAILED)
 	assert len(audit_logs) == 1
 	audit_log = audit_logs[0]
-	assert audit_log.username == ADMIN_USER
+	assert audit_log.actorType == actor_type
+	assert audit_log.username == username
 	assert audit_log.clientAddress == "192.0.2.12"
 	assert audit_log.userAgent == "audit-test"
 	assert audit_log.authentication == AuditLogAuthentication(failureReason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS)
@@ -947,7 +960,7 @@ def test_auth_system_uuid_hardware_address_and_hostkey(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
-	opsi_client = object.OpsiClient(
+	opsi_client = OpsiClient(
 		id="onlyhostkey.opsi.test",
 		opsiHostKey="f020dcde5108508cd947c5e229d9ec04",
 		systemUUID="69bdfe1a-55df-4392-95ab-85715cd0e77e",
@@ -1010,7 +1023,7 @@ def test_auth_only_hostkey(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
-	opsi_client = object.OpsiClient(id="onlyhostkey.opsi.test", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
+	opsi_client = OpsiClient(id="onlyhostkey.opsi.test", opsiHostKey="f020dcde5108508cd947c5e229d9ec04")
 	assert opsi_client.opsiHostKey
 	backend.host_createObjects([opsi_client])
 
@@ -1122,7 +1135,7 @@ def test_client_certificate(
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
 	client_cert_file = tmp_path / "client-cert.pem"
-	opsi_client = object.OpsiClient(id="client1.opsi.test", opsiHostKey="cde58508cc5e229d9ec04d94710f020d")
+	opsi_client = OpsiClient(id="client1.opsi.test", opsiHostKey="cde58508cc5e229d9ec04d94710f020d")
 	backend.host_createObjects([opsi_client])
 	sess = OPSISession("localhost")
 	sess.is_admin = True
@@ -1266,7 +1279,7 @@ def test_disabled_auth_methods(
 			check_if_saml_available()
 
 	password = "secret"
-	user = object.User(
+	user = User(
 		id="test_user_123",
 		passwordHash=hash_password(password),
 		groups=["{admingroup}"],
@@ -1336,7 +1349,7 @@ def test_database_password_authentication(
 	groups: list[str],
 ) -> None:
 	password = "securepassword"
-	user = object.User(
+	user = User(
 		id="dbpasswordtest",
 		passwordHash=hash_password(password, algorithm=PasswordHashAlgorithm(hash_algorithm)),
 		groups=groups,
@@ -1420,7 +1433,7 @@ def test_database_token_authentication(
 	expected_status: int,
 ) -> None:
 	token, token_hash = create_auth_token()
-	user = object.User(
+	user = User(
 		id="dbtokentest",
 		mfaState=mfa_state,
 		tokenHash=token_hash,
@@ -1496,7 +1509,7 @@ def test_migrate_hashing_algorithm(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 	backend: UnprotectedBackend,  # noqa: F811
 ) -> None:
-	user = object.User(
+	user = User(
 		id="testuser1",
 		passwordHash=hash_password("secret123", algorithm=PasswordHashAlgorithm.SHA512),
 		groups=["opsi-admin-group"],

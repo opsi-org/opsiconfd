@@ -886,8 +886,6 @@ class OPSISession:
 
 	@property
 	def user_type(self) -> Literal["user", "depot", "client"] | None:
-		if not self.authenticated:
-			return None
 		if not self.host_id:
 			return "user"
 		if self.host_type in ("OpsiConfigserver", "OpsiDepotserver"):
@@ -1090,9 +1088,8 @@ class OPSISession:
 		# Keep current set-cookie header if already set
 		if cookie and "set-cookie" not in headers:
 			headers["set-cookie"] = cookie
-		user_type = self.user_type
-		if user_type and self.username:
-			headers["X-opsi-user-id"] = f"{user_type}:{self.username}"
+		if self.authenticated and self.user_type and self.username:
+			headers["X-opsi-user-id"] = f"{self.user_type}:{self.username}"
 
 	async def update_last_used(self) -> None:
 		self.last_used = int(unix_timestamp())
@@ -1279,6 +1276,10 @@ async def authenticate_host(scope: Scope) -> None:
 			authentication_failure_reason=AuditLogAuthenticationFailureReason.MULTIPLE_HOSTS_FOUND,
 		)
 	host = hosts[0]
+	host_type = host.getType()
+	session.host_id = host.id
+	session.host_type = host_type
+
 	if auth_method:
 		session.add_auth_methods(auth_method)
 
@@ -1332,19 +1333,16 @@ async def authenticate_host(scope: Scope) -> None:
 			authentication_failure_reason=AuditLogAuthenticationFailureReason.INVALID_CREDENTIALS,
 		)
 
-	host_type = host.getType()
-	session.host_id = host.id
-	session.host_type = host_type
 	session.authenticated = True
 	session.is_read_only = False
-	session.is_admin = host_type in ("OpsiConfigserver", "OpsiDepotserver")
+	session.is_admin = session.host_type in ("OpsiConfigserver", "OpsiDepotserver")
 	if session.username != host.id:
 		session.username = host.id
 		if not scope.get("response-headers"):
 			scope["response-headers"] = {}
 		scope["response-headers"]["x-opsi-new-host-id"] = session.username
 
-	if host_type == "OpsiClient":
+	if session.host_type == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
 		host.setLastSeen(opsi_timestamp())
 		if config.update_ip and session.client_addr not in (None, "127.0.0.1", "::1", host.ipAddress):
@@ -1354,7 +1352,7 @@ async def authenticate_host(scope: Scope) -> None:
 			host.ipAddress = None
 		await backend.async_call("host_updateObjectOnAuthenticate", host=host)
 
-	elif host_type in ("OpsiConfigserver", "OpsiDepotserver"):
+	elif session.host_type in ("OpsiConfigserver", "OpsiDepotserver"):
 		logger.debug("Storing depot server address: %s", session.client_addr)
 		depot_addresses[session.client_addr] = time.time()
 

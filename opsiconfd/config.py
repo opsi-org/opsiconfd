@@ -29,6 +29,7 @@ import DNS
 import psutil
 from opsi.logging import secret_filter
 from opsi.network import ip_address_in_network
+from opsi.opsi.service.model.object import AuditLogEventType
 from opsi.opsi.service.model.type import to_domain
 from opsi.opsi.service.server import OpsiConfig
 from opsi.system.certificate_store._linux import get_system_ca_cert_info
@@ -639,6 +640,10 @@ class Config:
 
 	def reload(self) -> None:
 		self._parse_args()
+
+		from opsiconfd.audit_log import audit_log_event_enabled
+
+		audit_log_event_enabled.cache_clear()
 
 	def items(self) -> dict[str, Any]:
 		return self._config.__dict__
@@ -1688,6 +1693,18 @@ class Config:
 			type=int,
 			default=24,
 			help=self._help("opsiconfd", "The maximum age of the last successful backup in hours."),
+		)
+		audit_log_events = [a.value for a in AuditLogEventType if a != AuditLogEventType.UNKNOWN]
+		self._parser.add_argument(
+			"--audit-log-events",
+			nargs="*",
+			env_var="OPSICONFD_AUDIT_LOG_EVENTS",
+			default=audit_log_events,
+			help=self._help(
+				"opsiconfd",
+				f"A list of audit log events to capture (possible options are: {', '.join(audit_log_events)}).",
+			),
+			choices=audit_log_events,
 		)
 		self._parser.add_argument(
 			"--audit-log-retention-days",

@@ -31,8 +31,6 @@ from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermission
 from opsi.logging import secret_filter, set_context
 from opsi.network import ip_address_in_network
 from opsi.opsi.service.model.object import (
-	AuditLog,
-	AuditLogAuthentication,
 	AuditLogAuthenticationFailureReason,
 	AuditLogAuthenticationLogoutReason,
 	AuditLogEventType,
@@ -53,6 +51,7 @@ from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import MaintenanceState
 from opsiconfd.application import app as opsiconfd_app
+from opsiconfd.audit_log import audit_authentication_event
 from opsiconfd.auth.const import AuthenticationMethod
 from opsiconfd.auth.module import AuthenticationModule
 from opsiconfd.auth.user import create_user_roles
@@ -119,6 +118,12 @@ def is_session_unaware_user_agent(user_agent: str) -> bool:
 		if user_agent_l.startswith(ua.lower()):
 			return True
 	return False
+
+
+def _authentication_failure_reason(err: Exception | None) -> AuditLogAuthenticationFailureReason:
+	if isinstance(err, OpsiServiceAuthenticationError) and err.authentication_failure_reason:
+		return err.authentication_failure_reason
+	return AuditLogAuthenticationFailureReason.AUTHENTICATION_FAILED
 
 
 @dataclass
@@ -1227,59 +1232,6 @@ def get_peer_cert_common_name(scope: Scope) -> str | None:
 		if value[0][0] == "commonName":
 			return value[0][1]
 	return None
-
-
-def _authentication_failure_reason(err: Exception | None) -> AuditLogAuthenticationFailureReason:
-	if isinstance(err, OpsiServiceAuthenticationError) and err.authentication_failure_reason:
-		return err.authentication_failure_reason
-	return AuditLogAuthenticationFailureReason.AUTHENTICATION_FAILED
-
-
-def _audit_auth_methods(session: OPSISession) -> list[str] | None:
-	if not session.auth_methods:
-		return None
-	return sorted(str(method) for method in session.auth_methods)
-
-
-async def audit_authentication_event(
-	scope: Scope,
-	event_type: AuditLogEventType,
-	failure_reason: AuditLogAuthenticationFailureReason | None = None,
-	logout_reason: AuditLogAuthenticationLogoutReason | None = None,
-) -> None:
-	try:
-		session: OPSISession | None = scope.get("session")
-		username = session.username if session and session.username else None
-		actor_type = session.user_type if session else None
-		message = None
-		if event_type == AuditLogEventType.AUTHENTICATION_LOGIN_FAILED:
-			message = "Authentication failed"
-			if username:
-				message += f" for user {username!r}"
-		elif event_type == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED:
-			message = f"Authentication succeeded for user {username!r}"
-		elif event_type == AuditLogEventType.AUTHENTICATION_LOGOUT:
-			message = f"User {username!r} logged out"
-
-		audit_log = AuditLog(
-			eventType=event_type,
-			username=username,
-			actorType=actor_type,
-			actorId=session.host_id if session and session.host_id else username,
-			clientAddress=session.client_addr if session else None,
-			userAgent=session.user_agent if session and session.user_agent else None,
-			message=message,
-			authentication=AuditLogAuthentication(
-				authMethods=_audit_auth_methods(session)
-				if session and event_type == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
-				else None,
-				failureReason=failure_reason,
-				logoutReason=logout_reason,
-			),
-		)
-		await get_unprotected_backend().async_call("auditLog_createObjects", auditLogs=[audit_log])
-	except Exception as err:
-		logger.error("Failed to write authentication audit log: %s", err, exc_info=True)
 
 
 async def authenticate_host(scope: Scope) -> None:

@@ -887,7 +887,7 @@ function renderUserTable(data, htmlId) {
 			const row = createElement("tr");
 			row.appendChild(createElement("td", { className: "user-td" }, [user.id]));
 			row.appendChild(createElement("td", { className: "user-td", style: { maxWidth: "150px" } }, [(user.groups || []).join(", ")]));
-			row.appendChild(createElement("td", { className: "user-td" }, [user.lastLogin ? formatDate(new Date(user.lastLogin)) : "never"]));
+			row.appendChild(createElement("td", { className: "user-td" }, [user.lastLogin ? formatDate(parseUTCDate(user.lastLogin)) : "never"]));
 			row.appendChild(createElement("td", { className: "user-td" }, [user.internal_auth ? "yes" : "no"]));
 			row.appendChild(createElement("td", { className: "user-td" }, [user.token_auth ? "yes" : "no"]));
 			if (databaseAuth) {
@@ -1516,7 +1516,7 @@ function renderRPCTable(data, htmlId) {
 		keys.forEach(key => {
 			let value = element[key];
 			if (key == "date") {
-				value = formatDate(new Date(element[key]));
+				value = formatDate(parseUTCDate(element[key]));
 			}
 			else if (key == "duration") {
 				value = element[key].toFixed(4);
@@ -1567,7 +1567,11 @@ function renderAuditLogTable(data, htmlId) {
 	data.forEach(entry => {
 		const row = createElement("tr");
 		columns.forEach(column => {
-			row.appendChild(createElement("td", { className: "audit-log-td" }, [textOrEmpty(entry[column])]));
+			let value = entry[column];
+			if (column == "created" && value) {
+				value = formatDate(parseUTCDate(value));
+			}
+			row.appendChild(createElement("td", { className: "audit-log-td" }, [textOrEmpty(value)]));
 		});
 		table.appendChild(row);
 	});
@@ -1591,6 +1595,23 @@ function decodeHTML(html) {
 	var txt = document.createElement('textarea');
 	txt.innerHTML = html;
 	return txt.value;
+}
+
+
+// Dates from the API are UTC. Parse them as UTC so formatDate can render them in local time.
+function parseUTCDate(value) {
+	if (value === undefined || value === null || value === "") {
+		return null;
+	}
+	if (typeof value === "number") {
+		return new Date(value * 1000);
+	}
+	let str = String(value).trim().replace(" ", "T");
+	// Append 'Z' if the string has a time component but no timezone information.
+	if (str.includes("T") && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(str)) {
+		str += "Z";
+	}
+	return new Date(str);
 }
 
 

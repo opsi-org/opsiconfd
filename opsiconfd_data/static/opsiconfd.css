@@ -1349,6 +1349,7 @@ div#login_error {
 
 .action-menu-button {
 	padding: 5px 12px;
+	margin: 0;
 	font-size: 12px;
 	background-color: var(--opsi-gray-dark);
 	border-color: var(--opsi-gray-dark);

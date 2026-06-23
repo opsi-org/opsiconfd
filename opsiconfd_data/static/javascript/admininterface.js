@@ -626,7 +626,7 @@ function loadAuditLogTable(sortBy, sortDesc) {
 	}
 	const hostIdFilter = document.getElementById("audit-log-host-id-filter");
 	if (hostIdFilter && hostIdFilter.value) {
-		filter.hostId = `${hostIdFilter.value.toLowerCase()}*`;
+		filter.hostId = `*${hostIdFilter.value.toLowerCase()}*`;
 	}
 	const actorTypes = getSelectedAuditLogActorTypes();
 	if (actorTypes.length > 0) {

@@ -32,10 +32,15 @@ from opsi.opsi.messagebus import (
 	GeneralErrorMessage,
 	Message,
 	MessageType,
+	TerminalCloseEventMessage,
+	TerminalOpenEventMessage,
+	TerminalOpenRequestMessage,
 	TraceRequestMessage,
 	TraceResponseMessage,
 	messagebus_timestamp,
 )
+from opsi.opsi.service.model.object import AuditLogEventType
+from opsi.opsi.service.model.type import to_host_id
 from starlette.concurrency import run_in_threadpool
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import HTTP_401_UNAUTHORIZED, WS_1000_NORMAL_CLOSURE, WS_1011_INTERNAL_ERROR
@@ -44,6 +49,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from uvicorn.protocols.utils import ClientDisconnected
 from wsproto.utilities import LocalProtocolError
 
+from opsiconfd.audit_log import audit_terminal_event
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config, get_configserver_id, get_server_role
 from opsiconfd.logging import get_logger
@@ -151,6 +157,7 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		self._manager_task: Task | None = None
 		self._message_decoder = msgspec.msgpack.Decoder()
 		self._backend: UnprotectedBackend = get_unprotected_backend()
+		self._terminal_id_to_host_type_and_id: dict[str, tuple[str, str]] = {}
 
 	@property
 	def _user_channel(self) -> str:
@@ -182,6 +189,30 @@ class MessagebusWebsocket(WebSocketEndpoint):
 		except (ClientDisconnected, LocalProtocolError, WebSocketDisconnect) as err:
 			# Websocket propably closed
 			logger.debug("Failed to send message to websocket: %s", err)
+
+		if isinstance(message, (TerminalCloseEventMessage, TerminalOpenEventMessage)):
+			try:
+				host_type, host_id = self._terminal_id_to_host_type_and_id.get(message.terminal_id, (None, None))
+				if host_type and host_id:
+					if isinstance(message, TerminalOpenEventMessage):
+						event_type = (
+							AuditLogEventType.SERVER_TERMINAL_OPEN if host_type == "server" else AuditLogEventType.CLIENT_TERMINAL_OPEN
+						)
+					else:
+						event_type = (
+							AuditLogEventType.SERVER_TERMINAL_CLOSE if host_type == "server" else AuditLogEventType.CLIENT_TERMINAL_CLOSE
+						)
+						self._terminal_id_to_host_type_and_id.pop(message.terminal_id, None)
+					create_task(
+						audit_terminal_event(
+							session=self.scope["session"],
+							event_type=event_type,
+							host_id=host_id,
+							terminal_id=message.terminal_id,
+						)
+					)
+			except Exception as err:
+				logger.error("Failed to track terminal event for audit log: %s", err, exc_info=True)
 
 	async def manager_task(self, websocket: WebSocket) -> None:
 		try:
@@ -435,9 +466,8 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			if not self._check_channel_access(message.channel, "write") or not self._check_channel_access(message.back_channel, "write"):
 				raise RuntimeError(f"Read access to channel {message.channel!r} denied")
 
-			if not _check_message_type_access(
-				message.type, self.scope["session"].is_admin, message.channel.startswith("service:"), self._backend
-			):
+			is_service_channel = message.channel.startswith("service:")
+			if not _check_message_type_access(message.type, self.scope["session"].is_admin, is_service_channel, self._backend):
 				raise RuntimeError(f"Access to message type {message.type!r} denied - check permission, config and license")
 
 			logger.debug("Message from websocket: %r", message)
@@ -446,7 +476,15 @@ class MessagebusWebsocket(WebSocketEndpoint):
 			if isinstance(message, ChannelSubscriptionRequestMessage):
 				await self._process_channel_subscription_message(websocket, message)
 			else:
-				if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+				if isinstance(message, TerminalOpenRequestMessage):
+					try:
+						host_id = to_host_id(message.channel.removesuffix(":terminal").rsplit(":", 1)[-1])
+						host_type = "server" if is_service_channel else "client"
+						self._terminal_id_to_host_type_and_id[message.terminal_id] = (host_type, host_id)
+					except Exception as err:
+						logger.error("Failed to get host id / type for terminal open request: %s", err, exc_info=True)
+
+				elif isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 					message.trace = message.trace or {}
 					message.trace["broker_ws_receive"] = receive_messagebus_timestamp
 

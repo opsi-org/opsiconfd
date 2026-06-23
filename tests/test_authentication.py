@@ -139,7 +139,7 @@ def test_authentication_audit_log_login_success(
 	test_client: OpsiconfdTestClient,  # noqa: F811
 ) -> None:
 	test_client.set_client_address("192.0.2.11", 12345)
-	with test_client:
+	with get_config({"audit_log_enabled": True}), test_client:
 		res = test_client.post("/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, headers={"User-Agent": "audit-test"})
 	assert res.status_code == 200
 
@@ -169,7 +169,7 @@ def test_authentication_audit_log_login_failed(
 		username = get_depotserver_id()
 
 	test_client.set_client_address("192.0.2.12", 12345)
-	with test_client:
+	with get_config({"audit_log_enabled": True}), test_client:
 		res = test_client.post("/auth/login", json={"username": username, "password": "wrong"}, headers={"User-Agent": "audit-test"})
 
 	assert res.status_code == 401
@@ -324,7 +324,7 @@ def test_logout_endpoint(config: Config, backend: UnprotectedBackend, test_clien
 	client_addr = "192.168.1.1"
 	test_client.set_client_address(client_addr, 12345)
 
-	with test_client:
+	with get_config({"audit_log_enabled": True}), test_client:
 		res = test_client.get("/auth/authenticated", auth=(ADMIN_USER, ADMIN_PASS), headers={"User-Agent": "audit-logout-test"})
 		assert res.status_code == 200
 

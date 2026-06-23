@@ -155,10 +155,16 @@ def get_config(values: dict[str, Any] | list[str], with_env: bool = False) -> Ge
 		else:
 			_config._set_args(values)
 			_config._parse_args()
+		from opsiconfd.audit_log import audit_log_event_enabled
+
+		audit_log_event_enabled.cache_clear()
 		yield _config
 	finally:
 		_config._config.__dict__ = conf
 		_config._args = args
+		from opsiconfd.audit_log import audit_log_event_enabled
+
+		audit_log_event_enabled.cache_clear()
 		if not with_env:
 			os.environ.update(environ)
 

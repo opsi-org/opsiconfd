@@ -33,10 +33,9 @@ def get_unprotected_backend():
 
 @lru_cache(maxsize=128)
 def audit_log_event_enabled(event_type: AuditLogEventType) -> bool:
-
-	if not module_available("audit_log"):
+	if not config.audit_log_enabled or not config.audit_log_events:
 		return False
-	if not config.audit_log_events:
+	if not module_available("audit_log"):
 		return False
 	return event_type.value in config.audit_log_events
 
@@ -109,7 +108,9 @@ async def audit_terminal_event(
 	try:
 		username = session.username
 		action = "opened" if event_type in (AuditLogEventType.CLIENT_TERMINAL_OPEN, AuditLogEventType.SERVER_TERMINAL_OPEN) else "closed"
-		target_type = "client" if event_type in (AuditLogEventType.CLIENT_TERMINAL_OPEN, AuditLogEventType.CLIENT_TERMINAL_CLOSE) else "server"
+		target_type = (
+			"client" if event_type in (AuditLogEventType.CLIENT_TERMINAL_OPEN, AuditLogEventType.CLIENT_TERMINAL_CLOSE) else "server"
+		)
 		audit_log = AuditLog(
 			eventType=event_type,
 			username=username,

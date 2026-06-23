@@ -1694,6 +1694,18 @@ class Config:
 			default=24,
 			help=self._help("opsiconfd", "The maximum age of the last successful backup in hours."),
 		)
+		self._parser.add_argument(
+			"--audit-log-enabled",
+			env_var="OPSICONFD_AUDIT_LOG_ENABLED",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._help(
+				"opsiconfd",
+				"Enable audit log.",
+			),
+		)
 		audit_log_events = [a.value for a in AuditLogEventType if a != AuditLogEventType.UNKNOWN]
 		self._parser.add_argument(
 			"--audit-log-events",

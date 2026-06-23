@@ -229,23 +229,24 @@ async def test_session_manager_expired_session_audit_log(
 	backend: UnprotectedBackend,  # noqa: F811
 	clean_mysql: None,  # noqa: F811
 ) -> None:
-	redis = await async_redis_client()
-	manager = SessionManager(session_check_interval=1)
-	asyncio_create_task(manager.manager_task())
+	with get_config({"audit_log_enabled": True}):
+		redis = await async_redis_client()
+		manager = SessionManager(session_check_interval=1)
+		asyncio_create_task(manager.manager_task())
 
-	headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "5"})
-	sess = await manager.get_session("172.10.11.12", headers=headers)
-	sess.username = ADMIN_USER
-	sess.authenticated = True
-	await sess.store()
+		headers = Headers({"User-Agent": "test-agent", "x-opsi-session-lifetime": "5"})
+		sess = await manager.get_session("172.10.11.12", headers=headers)
+		sess.username = ADMIN_USER
+		sess.authenticated = True
+		await sess.store()
 
-	# Let session expire and get removed by the manager task
-	await sleep(8)
-	assert sess.session_id not in manager.sessions
-	res = await redis.hgetall(sess.redis_key)
-	assert not res
+		# Let session expire and get removed by the manager task
+		await sleep(8)
+		assert sess.session_id not in manager.sessions
+		res = await redis.hgetall(sess.redis_key)
+		assert not res
 
-	await manager.stop(wait=True)
+		await manager.stop(wait=True)
 
 	audit_logs: list[AuditLog] = []
 	for _attempt in range(20):

@@ -8,7 +8,6 @@ test opsiconfd.backend.rpc.obj_product
 """
 
 from pprint import pprint
-from unittest.mock import patch
 
 import pytest
 from opsi.opsi.service.model.object import (
@@ -60,7 +59,7 @@ def test_product_on_client_update_objects_audits_explicit_action_request(backend
 	old_query_log = MySQLSession.query_log
 	MySQLSession.query_log = query_log
 	try:
-		with patch("opsiconfd.backend.rpc.obj_product_on_client.audit_log_event_enabled", return_value=True):
+		with get_config({"audit_log_enabled": True}):
 			backend.productOnClient_updateObjects(product_on_clients)
 	finally:
 		MySQLSession.query_log = old_query_log
@@ -86,7 +85,7 @@ def test_product_on_client_update_objects_does_not_audit_omitted_action_request(
 	client = OpsiClient(id="test-audit-omitted-action-request-client.opsi.test")
 	backend.host_createObjects([client])
 
-	with patch("opsiconfd.backend.rpc.obj_product_on_client.audit_log_event_enabled", return_value=True):
+	with get_config({"audit_log_enabled": True}):
 		backend.productOnClient_updateObjects(
 			ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client.id)
 		)
@@ -98,7 +97,7 @@ def test_product_on_client_update_objects_audits_explicit_none_action_request(ba
 	client = OpsiClient(id="test-audit-none-action-request-client.opsi.test")
 	backend.host_createObjects([client])
 
-	with patch("opsiconfd.backend.rpc.obj_product_on_client.audit_log_event_enabled", return_value=True):
+	with get_config({"audit_log_enabled": True}):
 		backend.productOnClient_updateObjects(
 			ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client.id, actionRequest="none")
 		)

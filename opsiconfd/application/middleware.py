@@ -69,9 +69,9 @@ class BaseMiddleware:
 
 		self.default_headers = (
 			(b"Server", f"opsiconfd {__version__} (uvicorn)".encode("utf-8")),
-			(b"X-opsi-server-role", get_server_role().encode("utf-8")),
-			(b"X-opsi-worker-id", Worker.get_instance().id.encode("utf-8")),
-			(b"X-opsi-auth-methods", (",".join(auth_methods)).encode("utf-8")),
+			(b"x-opsi-server-role", get_server_role().encode("utf-8")),
+			(b"x-opsi-worker-id", Worker.get_instance().id.encode("utf-8")),
+			(b"x-opsi-auth-methods", (",".join(auth_methods)).encode("utf-8")),
 		)
 
 	@staticmethod
@@ -158,11 +158,11 @@ class BaseMiddleware:
 				headers.append("Access-Control-Allow-Methods", "*")
 				headers.append(
 					"Access-Control-Allow-Headers",
-					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime,X-Requested-With",
+					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,x-opsi-session-lifetime,X-Requested-With",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
 				headers.append(
-					"Access-Control-Expose-Headers", "X-Total-Count,X-opsi-user-id,X-opsi-server-role,x-opsi-worker-id,x-opsi-auth-methods"
+					"Access-Control-Expose-Headers", "X-Total-Count,x-opsi-user-id,x-opsi-server-role,x-opsi-worker-id,x-opsi-auth-methods"
 				)
 				if config.http_security_headers:
 					headers.append("Strict-Transport-Security", "max-age=600; includeSubDomains")

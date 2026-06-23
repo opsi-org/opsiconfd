@@ -1089,7 +1089,7 @@ class OPSISession:
 		if cookie and "set-cookie" not in headers:
 			headers["set-cookie"] = cookie
 		if self.authenticated and self.user_type and self.username:
-			headers["X-opsi-user-id"] = f"{self.user_type}:{self.username}"
+			headers["x-opsi-user-id"] = f"{self.user_type}:{self.username}"
 
 	async def update_last_used(self) -> None:
 		self.last_used = int(unix_timestamp())

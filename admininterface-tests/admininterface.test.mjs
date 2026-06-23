@@ -16,6 +16,20 @@ function loadAdmininterface() {
 		<div id="user-table-div"></div>
 		<div id="depots-table-div"></div>
 		<div id="rpc-cache-info-div"></div>
+		<div id="audit-log-event-type-filter">
+			<button type="button" id="audit-log-event-type-filter-button"></button>
+			<div id="audit-log-event-type-filter-menu" class="multi-select-dropdown-menu">
+				<label><input class="audit-log-event-type-checkbox" type="checkbox" value="authentication.login.failed">authentication.login.failed</label>
+				<label><input class="audit-log-event-type-checkbox" type="checkbox" value="authentication.logout">authentication.logout</label>
+			</div>
+		</div>
+		<div id="audit-log-actor-type-filter">
+			<button type="button" id="audit-log-actor-type-filter-button"></button>
+			<div id="audit-log-actor-type-filter-menu" class="multi-select-dropdown-menu">
+				<label><input class="audit-log-actor-type-checkbox" type="checkbox" value="user">user</label>
+				<label><input class="audit-log-actor-type-checkbox" type="checkbox" value="depot">depot</label>
+			</div>
+		</div>
 		<div id="audit-log-table-div"></div>
 	</body></html>`, {
 		runScripts: "outside-only",
@@ -46,6 +60,13 @@ function loadAdmininterface() {
 			renderDepotTable,
 			renderRPCCacheInfoTable,
 			renderAuditLogTable,
+			initAuditLogEventTypeFilter,
+			initAuditLogActorTypeFilter,
+			onAuditLogEventTypeFilterChanged,
+			onAuditLogActorTypeFilterChanged,
+			toggleAuditLogEventTypeFilter,
+			toggleAuditLogActorTypeFilter,
+			loadAuditLogTable,
 			setMessagebusConnectedDepots: value => { messagebusConnectedDepots = value; }
 		});
 	`);
@@ -146,4 +167,60 @@ test("renderAuditLogTable renders values as text", () => {
 	assert.match(container.textContent, /<admin>/);
 	assert.match(container.textContent, /<img src=x>/);
 	assert.equal(container.querySelectorAll("img").length, 0);
+});
+
+test("audit log event type dropdown sends selected checkbox values", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+	const eventTypeCheckboxes = window.document.querySelectorAll(".audit-log-event-type-checkbox");
+	eventTypeCheckboxes[0].checked = true;
+	eventTypeCheckboxes[1].checked = true;
+	const actorTypeCheckboxes = window.document.querySelectorAll(".audit-log-actor-type-checkbox");
+	actorTypeCheckboxes[0].checked = true;
+	actorTypeCheckboxes[1].checked = true;
+
+	window.initAuditLogEventTypeFilter();
+	window.initAuditLogActorTypeFilter();
+	window.onAuditLogEventTypeFilterChanged();
+	window.__ajaxRequests = [];
+	window.onAuditLogActorTypeFilterChanged();
+
+	assert.equal(window.document.getElementById("audit-log-event-type-filter-button").textContent, "2 event types selected");
+	assert.equal(window.document.getElementById("audit-log-actor-type-filter-button").textContent, "2 actor types selected");
+	assert.equal(window.__ajaxRequests[0][0], "POST");
+	assert.equal(window.__ajaxRequests[0][1], "/admin/audit-log");
+	assert.deepEqual(Array.from(window.__ajaxRequests[0][2].filter.eventType), ["authentication.login.failed", "authentication.logout"]);
+	assert.deepEqual(Array.from(window.__ajaxRequests[0][2].filter.actorType), ["user", "depot"]);
+});
+
+test("audit log event type dropdown is positioned relative to the viewport", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+	const button = window.document.getElementById("audit-log-event-type-filter-button");
+	const menu = window.document.getElementById("audit-log-event-type-filter-menu");
+	button.getBoundingClientRect = () => ({ top: 20, right: 300, bottom: 50, left: 40, width: 260, height: 30 });
+	menu.getBoundingClientRect = () => ({ width: 260, height: 120 });
+
+	window.toggleAuditLogEventTypeFilter({ stopPropagation() { } });
+
+	assert.equal(menu.style.display, "block");
+	assert.equal(menu.style.width, "260px");
+	assert.equal(menu.style.top, "54px");
+	assert.equal(menu.style.left, "40px");
+	assert.equal(button.getAttribute("aria-expanded"), "true");
+});
+
+test("audit log dropdown stays open when its menu is scrolled", () => {
+	const dom = loadAdmininterface();
+	const { window } = dom;
+	const button = window.document.getElementById("audit-log-event-type-filter-button");
+	const menu = window.document.getElementById("audit-log-event-type-filter-menu");
+	button.getBoundingClientRect = () => ({ top: 20, right: 300, bottom: 50, left: 40, width: 260, height: 30 });
+	menu.getBoundingClientRect = () => ({ width: 260, height: 120 });
+
+	window.toggleAuditLogEventTypeFilter({ stopPropagation() { } });
+	menu.dispatchEvent(new window.Event("scroll"));
+
+	assert.equal(menu.style.display, "block");
+	assert.equal(button.getAttribute("aria-expanded"), "true");
 });

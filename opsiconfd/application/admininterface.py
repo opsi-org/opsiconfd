@@ -28,7 +28,7 @@ from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
 from opsi.exception import OpsiServicePermissionError
 from opsi.network import ip_address_in_network
 from opsi.opsi.licensing import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
-from opsi.opsi.service.model.object import AuditLog, OpsiDepotserver, User
+from opsi.opsi.service.model.object import AuditLog, AuditLogEventType, OpsiDepotserver, User
 from opsi.system.info import linux_distro_id_like_contains
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
@@ -142,6 +142,7 @@ async def admin_interface_index(request: Request) -> Response:
 		"num_servers": get_num_servers(),
 		"num_clients": get_num_clients(),
 		"disabled_features": config.disabled_features,
+		"audit_log_event_types": [event_type.value for event_type in AuditLogEventType],
 		"addons": [
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 			for addon in AddonManager().addons

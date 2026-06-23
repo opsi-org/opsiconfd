@@ -463,6 +463,145 @@ function onAuditLogUsernameFilterInput() {
 	auditLogUsernameFilterTimer = setTimeout(() => loadAuditLogTable(), 300);
 }
 
+function getSelectedAuditLogFilterValues(filterId) {
+	return Array.from(document.querySelectorAll(`#${filterId}-menu input[type=checkbox]:checked`)).map(
+		checkbox => checkbox.value
+	);
+}
+
+function updateAuditLogFilterButton(filterId, allLabel, selectedLabel) {
+	const button = document.getElementById(`${filterId}-button`);
+	if (!button) {
+		return;
+	}
+	const values = getSelectedAuditLogFilterValues(filterId);
+	if (values.length == 0) {
+		button.textContent = allLabel;
+		button.removeAttribute("title");
+	}
+	else if (values.length == 1) {
+		button.textContent = values[0];
+		button.title = values[0];
+	}
+	else {
+		button.textContent = `${values.length} ${selectedLabel} selected`;
+		button.title = values.join(", ");
+	}
+}
+
+function closeAuditLogFilter(filterId) {
+	const menu = document.getElementById(`${filterId}-menu`);
+	const button = document.getElementById(`${filterId}-button`);
+	if (menu) {
+		menu.style.display = "none";
+		menu.style.visibility = "";
+	}
+	if (button) {
+		button.setAttribute("aria-expanded", "false");
+	}
+}
+
+function closeAllAuditLogFilters(exceptFilterId = null) {
+	["audit-log-event-type-filter", "audit-log-actor-type-filter"].forEach(filterId => {
+		if (filterId != exceptFilterId) {
+			closeAuditLogFilter(filterId);
+		}
+	});
+}
+
+function closeAuditLogFiltersOnScroll(event) {
+	if (event.target instanceof Element && event.target.closest(".multi-select-dropdown-menu")) {
+		return;
+	}
+	closeAllAuditLogFilters();
+}
+
+function positionAuditLogFilter(menu, button) {
+	const buttonRect = button.getBoundingClientRect();
+	menu.style.visibility = "hidden";
+	menu.style.display = "block";
+	menu.style.width = `${buttonRect.width}px`;
+
+	const menuRect = menu.getBoundingClientRect();
+	const margin = 8;
+	const belowTop = buttonRect.bottom + 4;
+	const aboveTop = buttonRect.top - menuRect.height - 4;
+	let top = belowTop;
+	if (belowTop + menuRect.height > window.innerHeight - margin && aboveTop >= margin) {
+		top = aboveTop;
+	}
+	top = Math.max(margin, Math.min(top, window.innerHeight - menuRect.height - margin));
+
+	let left = buttonRect.left;
+	left = Math.max(margin, Math.min(left, window.innerWidth - menuRect.width - margin));
+
+	menu.style.top = `${top}px`;
+	menu.style.left = `${left}px`;
+	menu.style.visibility = "visible";
+}
+
+function toggleAuditLogFilter(filterId, event) {
+	if (event) {
+		event.stopPropagation();
+	}
+	const menu = document.getElementById(`${filterId}-menu`);
+	const button = document.getElementById(`${filterId}-button`);
+	if (!menu || !button) {
+		return;
+	}
+	const isOpen = menu.style.display === "block";
+	if (isOpen) {
+		closeAuditLogFilter(filterId);
+	}
+	else {
+		closeAllAuditLogFilters(filterId);
+		positionAuditLogFilter(menu, button);
+		button.setAttribute("aria-expanded", "true");
+	}
+}
+
+function initAuditLogFilter(filterId, allLabel, selectedLabel) {
+	updateAuditLogFilterButton(filterId, allLabel, selectedLabel);
+	const dropdown = document.getElementById(filterId);
+	if (dropdown) {
+		dropdown.addEventListener("click", event => event.stopPropagation());
+	}
+}
+
+function getSelectedAuditLogEventTypes() {
+	return getSelectedAuditLogFilterValues("audit-log-event-type-filter");
+}
+
+function getSelectedAuditLogActorTypes() {
+	return getSelectedAuditLogFilterValues("audit-log-actor-type-filter");
+}
+
+function toggleAuditLogEventTypeFilter(event) {
+	toggleAuditLogFilter("audit-log-event-type-filter", event);
+}
+
+function toggleAuditLogActorTypeFilter(event) {
+	toggleAuditLogFilter("audit-log-actor-type-filter", event);
+}
+
+function onAuditLogEventTypeFilterChanged() {
+	updateAuditLogFilterButton("audit-log-event-type-filter", "All event types", "event types");
+	loadAuditLogTable();
+}
+
+function initAuditLogEventTypeFilter() {
+	initAuditLogFilter("audit-log-event-type-filter", "All event types", "event types");
+}
+
+function onAuditLogActorTypeFilterChanged() {
+	updateAuditLogFilterButton("audit-log-actor-type-filter", "All actor types", "actor types");
+	loadAuditLogTable();
+}
+
+function initAuditLogActorTypeFilter() {
+	initAuditLogFilter("audit-log-actor-type-filter", "All actor types", "actor types");
+}
+
 function loadAuditLogTable(sortBy, sortDesc) {
 	if (sortBy !== undefined) {
 		auditLogTableSort.sortBy = sortBy;
@@ -471,17 +610,17 @@ function loadAuditLogTable(sortBy, sortDesc) {
 		auditLogTableSort.sortDesc = sortDesc;
 	}
 	const filter = {};
-	const eventTypeFilter = document.getElementById("audit-log-event-type-filter");
-	if (eventTypeFilter && eventTypeFilter.value) {
-		filter.eventType = eventTypeFilter.value;
+	const eventTypes = getSelectedAuditLogEventTypes();
+	if (eventTypes.length > 0) {
+		filter.eventType = eventTypes;
 	}
 	const usernameFilter = document.getElementById("audit-log-username-filter");
 	if (usernameFilter && usernameFilter.value) {
 		filter.username = `*${usernameFilter.value.toLowerCase()}*`;
 	}
-	const actorTypeFilter = document.getElementById("audit-log-actor-type-filter");
-	if (actorTypeFilter && actorTypeFilter.value) {
-		filter.actorType = actorTypeFilter.value;
+	const actorTypes = getSelectedAuditLogActorTypes();
+	if (actorTypes.length > 0) {
+		filter.actorType = actorTypes;
 	}
 	const requestBody = {
 		filter: filter,
@@ -847,10 +986,26 @@ document.addEventListener("click", (event) => {
 	if (!event.target.closest(".action-menu")) {
 		closeAllActionMenus();
 	}
+	if (!event.target.closest("#audit-log-event-type-filter")) {
+		closeAuditLogFilter("audit-log-event-type-filter");
+	}
+	if (!event.target.closest("#audit-log-actor-type-filter")) {
+		closeAuditLogFilter("audit-log-actor-type-filter");
+	}
+});
+
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape") {
+		closeAuditLogFilter("audit-log-event-type-filter");
+		closeAuditLogFilter("audit-log-actor-type-filter");
+	}
 });
 
 window.addEventListener("resize", closeAllActionMenus);
 window.addEventListener("scroll", closeAllActionMenus, true);
+window.addEventListener("resize", () => closeAuditLogFilter("audit-log-event-type-filter"));
+window.addEventListener("resize", () => closeAuditLogFilter("audit-log-actor-type-filter"));
+window.addEventListener("scroll", closeAuditLogFiltersOnScroll, true);
 
 
 function renderUserTable(data, htmlId) {

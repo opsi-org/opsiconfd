@@ -31,6 +31,8 @@
 				messagebusConnect();
 			}
 			initConfirmOverlay();
+			initAuditLogEventTypeFilter();
+			initAuditLogActorTypeFilter();
 
 			let input = document.getElementById("redis-cmd");
 
@@ -376,35 +378,48 @@
 		<div id="tab-audit-log" class="tabcontent">
 			<div class="adminpage-box">
 				<div class="audit-log-filters">
-					<label>
-						Event type
-						<select id="audit-log-event-type-filter" onchange="loadAuditLogTable();">
-							<option value="">All event types</option>
-							<option value="authentication.login.succeeded">authentication.login.succeeded</option>
-							<option value="authentication.login.failed">authentication.login.failed</option>
-							<option value="authentication.logout">authentication.logout</option>
-							<option value="client.product.action_request">client.product.action_request</option>
-							<option value="client.terminal.open">client.terminal.open</option>
-							<option value="client.terminal.close">client.terminal.close</option>
-							<option value="server.terminal.open">server.terminal.open</option>
-							<option value="server.terminal.close">server.terminal.close</option>
-							<option value="unknown">unknown</option>
-						</select>
-					</label>
+					<div class="audit-log-filter-field">
+						<span>Event type</span>
+						<div class="multi-select-dropdown" id="audit-log-event-type-filter">
+							<button type="button" id="audit-log-event-type-filter-button"
+								class="multi-select-dropdown-button" aria-haspopup="listbox" aria-expanded="false"
+								onclick="toggleAuditLogEventTypeFilter(event);">All
+								event types</button>
+							<div id="audit-log-event-type-filter-menu" class="multi-select-dropdown-menu" role="listbox"
+								aria-multiselectable="true">
+								{% for event_type in audit_log_event_types %}
+								<label class="multi-select-dropdown-item"><input class="audit-log-event-type-checkbox"
+										type="checkbox" value="{{event_type}}"
+										onchange="onAuditLogEventTypeFilterChanged();">{{event_type}}</label>
+								{% endfor %}
+							</div>
+						</div>
+					</div>
 					<label>
 						Username
 						<input type="text" id="audit-log-username-filter" placeholder="Filter username..."
 							oninput="onAuditLogUsernameFilterInput();" />
 					</label>
-					<label>
-						Actor type
-						<select id="audit-log-actor-type-filter" onchange="loadAuditLogTable();">
-							<option value="">All actor types</option>
-							<option value="user">user</option>
-							<option value="depot">depot</option>
-							<option value="client">client</option>
-						</select>
-					</label>
+					<div class="audit-log-filter-field">
+						<span>Actor type</span>
+						<div class="multi-select-dropdown" id="audit-log-actor-type-filter">
+							<button type="button" id="audit-log-actor-type-filter-button"
+								class="multi-select-dropdown-button" aria-haspopup="listbox" aria-expanded="false"
+								onclick="toggleAuditLogActorTypeFilter(event);">All actor types</button>
+							<div id="audit-log-actor-type-filter-menu" class="multi-select-dropdown-menu" role="listbox"
+								aria-multiselectable="true">
+								<label class="multi-select-dropdown-item"><input class="audit-log-actor-type-checkbox"
+										type="checkbox" value="user"
+										onchange="onAuditLogActorTypeFilterChanged();">user</label>
+								<label class="multi-select-dropdown-item"><input class="audit-log-actor-type-checkbox"
+										type="checkbox" value="depot"
+										onchange="onAuditLogActorTypeFilterChanged();">depot</label>
+								<label class="multi-select-dropdown-item"><input class="audit-log-actor-type-checkbox"
+										type="checkbox" value="client"
+										onchange="onAuditLogActorTypeFilterChanged();">client</label>
+							</div>
+						</div>
+					</div>
 				</div>
 				<div id="audit-log-table-div">
 				</div>

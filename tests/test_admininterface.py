@@ -313,6 +313,26 @@ def test_get_audit_log_list_filtering(test_client: OpsiconfdTestClient, backend:
 		assert entries[0]["eventType"] == AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED
 		assert entries[0]["username"] == "adminuser"
 
+		response = test_client.post(
+			"/admin/audit-log",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			json={
+				"filter": {
+					"eventType": [
+						AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+						AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+					]
+				}
+			},
+		)
+		assert response.status_code == 200
+		entries = response.json()
+		assert len(entries) == 2
+		assert {entry["eventType"] for entry in entries} == {
+			AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+			AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+		}
+
 		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"username": "*other*"}})
 		entries = response.json()
 		assert len(entries) == 1
@@ -350,6 +370,11 @@ def test_get_audit_log_list_filtering(test_client: OpsiconfdTestClient, backend:
 		entries = response.json()
 		assert len(entries) == 3
 		assert {entry["actorType"] for entry in entries} == {"user"}
+
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"actorType": ["user", "depot"]}})
+		entries = response.json()
+		assert len(entries) == 4
+		assert {entry["actorType"] for entry in entries} == {"user", "depot"}
 
 		response = test_client.post(
 			"/admin/audit-log",
@@ -431,6 +456,16 @@ def test_get_audit_log_list_post_uses_body_sorting_and_limit(admininterface: Mod
 		"orderBy": {"created": "asc"},
 		"limit": 500,
 	}
+
+
+def test_admin_interface_renders_audit_log_event_type_filter_from_enum(test_client: OpsiconfdTestClient) -> None:  # noqa: F811
+	response = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+
+	html = response.text
+	assert html.count('class="audit-log-event-type-checkbox"') == len(AuditLogEventType)
+	for event_type in AuditLogEventType:
+		assert f'value="{event_type.value}"' in html
 
 
 @pytest.mark.parametrize(

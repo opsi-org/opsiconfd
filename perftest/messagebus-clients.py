@@ -83,7 +83,7 @@ class MessagebusClient:
 		try:
 			self.session = aiohttp.ClientSession(
 				connector=aiohttp.TCPConnector(ssl=False),
-				auth=aiohttp.BasicAuth(login=self.test_manager.args.username, password=self.test_manager.args.password),
+				headers={"Authorization": aiohttp.encode_basic_auth(self.test_manager.args.username, self.test_manager.args.password)},
 			)
 			self.websocket = await self.session.ws_connect(url=self.test_manager.args.messagebus_url, params={"compression": "lz4"})
 

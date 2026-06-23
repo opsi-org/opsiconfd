@@ -26,7 +26,8 @@ import uuid
 import zlib
 from asyncio import sleep
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, AsyncGenerator, Optional, Type, Union
+from types import FrameType
+from typing import Any, AsyncGenerator, Callable, Type
 from urllib.parse import urlparse
 
 import aiohttp
@@ -36,6 +37,10 @@ from msgspec import json, msgpack
 from opsi.opsi.messagebus import JSONRPCRequestMessage, JSONRPCResponseMessage
 
 executor = ProcessPoolExecutor(max_workers=25)
+
+
+async def run_in_process_executor(func: Callable[..., Any], *args: Any) -> Any:
+	return await asyncio.wrap_future(executor.submit(func, *args))
 
 
 class Perftest:
@@ -48,7 +53,7 @@ class Perftest:
 		iterations: int = 1,
 		compression: str | None = None,
 		print_responses: bool = False,
-		jsonrpc_methods: Optional[list[str]] = None,
+		jsonrpc_methods: list[str] | None = None,
 		write_results: str | None = None,
 		bencher_results: str | None = None,
 		bencher_measure: str | None = None,
@@ -107,10 +112,14 @@ class Perftest:
 			return perft
 
 	async def run(self) -> None:
-		loop = asyncio.get_event_loop()
+		loop = asyncio.get_running_loop()
 		signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+
+		def handle_signal(sig: int, _frame: FrameType | None) -> None:
+			loop.create_task(self.signal_handler(sig))
+
 		for sig in signals:
-			loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(self.signal_handler(sig)))
+			signal.signal(sig, handle_signal)
 
 		for test_case in self.test_cases:
 			await test_case.run()
@@ -329,8 +338,8 @@ class TestCase:
 class Client:
 	def __init__(self, test_case: TestCase) -> None:
 		self.test_case = test_case
-		self._session: Optional[aiohttp.ClientSession] = None
-		self._messagebus_ws: Optional[aiohttp.ClientWebSocketResponse] = None
+		self._session: aiohttp.ClientSession | None = None
+		self._messagebus_ws: aiohttp.ClientWebSocketResponse | None = None
 		self.http_client_id = str(uuid.uuid4())
 
 	@property
@@ -364,7 +373,7 @@ class Client:
 		if not self._session:
 			self._session = aiohttp.ClientSession(
 				connector=aiohttp.TCPConnector(ssl=False),
-				auth=aiohttp.BasicAuth(login=self.perftest.username, password=self.perftest.password),
+				headers={"Authorization": aiohttp.encode_basic_auth(self.perftest.username, self.perftest.password)},
 				cookie_jar=aiohttp.CookieJar(unsafe=True),
 			)
 		return self._session
@@ -399,7 +408,7 @@ class Client:
 
 	async def websocket(
 		self, path: str, params: dict[str, str] | None = None, data: Any = None, send_data_count: int = 1
-	) -> tuple[Optional[str], float, int, int, float]:
+	) -> tuple[str | None, float, int, int, float]:
 		url = f"{self.perftest.base_url}/{path.lstrip('/')}"
 		bytes_sent = 0
 		if data:
@@ -442,8 +451,8 @@ class Client:
 		return (error, end - start, bytes_sent, bytes_received, (end - start) / send_data_count)
 
 	async def webdav(
-		self, method: str, filename: str, data: Union[AsyncGenerator, bytes, str, None] = None
-	) -> tuple[Optional[str], float, int, int, float]:
+		self, method: str, filename: str, data: AsyncGenerator | bytes | str | None = None
+	) -> tuple[str | None, float, int, int, float]:
 		url = f"{self.perftest.base_url}/repository/{filename}"
 		bytes_sent = 0
 		if data:
@@ -491,21 +500,21 @@ class Client:
 
 		if self.test_case.encoding == "json":
 			headers["content-type"] = "application/json"
-			data = await asyncio.get_event_loop().run_in_executor(executor, json.encode, request)
+			data = await run_in_process_executor(json.encode, request)
 		elif self.test_case.encoding == "msgpack":
 			headers["content-type"] = "application/msgpack"
-			data = await asyncio.get_event_loop().run_in_executor(executor, msgpack.encode, request)
+			data = await run_in_process_executor(msgpack.encode, request)
 		else:
 			raise ValueError(f"Invalid encoding: {self.test_case.encoding}")
 
 		request_data_len = len(data)
 		if self.test_case.compression:
 			if self.test_case.compression == "lz4":
-				data = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.compress, data, 0)
+				data = await run_in_process_executor(lz4.frame.compress, data, 0)
 			elif self.test_case.compression == "deflate":
-				data = await asyncio.get_event_loop().run_in_executor(executor, zlib.compress, data)
+				data = await run_in_process_executor(zlib.compress, data)
 			elif self.test_case.compression == "gzip":
-				data = await asyncio.get_event_loop().run_in_executor(executor, gzip.compress, data)
+				data = await run_in_process_executor(gzip.compress, data)
 			else:
 				raise ValueError(f"Invalid compression: {self.test_case.compression}")
 			headers["content-encoding"] = self.test_case.compression
@@ -517,15 +526,15 @@ class Client:
 		async with self.session.post(url=f"{self.perftest.base_url}/rpc", data=data, headers=headers) as http_response:
 			body = await http_response.read()
 			if "lz4" in http_response.headers.get("content-encoding", ""):
-				body = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.decompress, body)
+				body = await run_in_process_executor(lz4.frame.decompress, body)
 			error = None
 			if http_response.status != 200:
 				error = f"{http_response.status} - {body!r}"
 			else:
 				if http_response.headers.get("content-type") == "application/msgpack":
-					response = await asyncio.get_event_loop().run_in_executor(executor, msgpack.decode, body)
+					response = await run_in_process_executor(msgpack.decode, body)
 				else:
-					response = await asyncio.get_event_loop().run_in_executor(executor, json.decode, body)
+					response = await run_in_process_executor(json.decode, body)
 				error = getattr(response, "error", None) or None
 
 		if self.perftest.print_responses or error:
@@ -536,7 +545,7 @@ class Client:
 
 		return response, error, request_data_len, len(body or "")
 
-	async def jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:
+	async def jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[str | None, float, int, int, float]:
 		params = params or []
 		request = self.jsonrpc_request(method, params)
 		start = time.perf_counter()
@@ -544,7 +553,7 @@ class Client:
 		end = time.perf_counter()
 		return (error, end - start, request_data_len, response_data_len, end - start)
 
-	async def messagebus_jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:
+	async def messagebus_jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[str | None, float, int, int, float]:
 		params = params or []
 		req = self.jsonrpc_request(method, params)
 		messagebus_ws = await self.messagebus_ws()
@@ -555,9 +564,9 @@ class Client:
 
 		if self.test_case.compression:
 			if self.test_case.compression == "lz4":
-				data = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.compress, data, 0)
+				data = await run_in_process_executor(lz4.frame.compress, data, 0)
 			elif self.test_case.compression == "gzip":
-				data = await asyncio.get_event_loop().run_in_executor(executor, gzip.compress, data)
+				data = await run_in_process_executor(gzip.compress, data)
 			else:
 				raise ValueError(f"Invalid compression: {self.test_case.compression}")
 
@@ -569,9 +578,9 @@ class Client:
 
 		if self.test_case.compression:
 			if self.test_case.compression == "lz4":
-				data = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.decompress, data)
+				data = await run_in_process_executor(lz4.frame.decompress, data)
 			elif self.test_case.compression == "gzip":
-				data = await asyncio.get_event_loop().run_in_executor(executor, gzip.decompress, data)
+				data = await run_in_process_executor(gzip.decompress, data)
 
 		res = JSONRPCResponseMessage.from_msgpack(data)
 		if res.ref_id != msg.id:

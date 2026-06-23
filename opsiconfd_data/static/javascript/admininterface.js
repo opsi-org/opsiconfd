@@ -1550,6 +1550,9 @@ function renderAuditLogTable(data, htmlId) {
 		"authMethods",
 		"failureReason",
 		"logoutReason",
+		"productId",
+		"clientId",
+		"actionRequest",
 		"message"
 	];
 	const table = createElement("table", { className: "audit-log-table" });

@@ -8,9 +8,12 @@ test opsiconfd.backend.rpc.obj_product
 """
 
 from pprint import pprint
+from unittest.mock import patch
 
 import pytest
 from opsi.opsi.service.model.object import (
+	AuditLogClientProductActionRequest,
+	AuditLogEventType,
 	ConfigState,
 	LocalbootProduct,
 	OpsiClient,
@@ -20,11 +23,14 @@ from opsi.opsi.service.model.object import (
 	ProductOnDepot,
 )
 
+from opsiconfd.backend.mysql import MySQLSession
 from opsiconfd.config import get_depotserver_id
 from tests.utils import (  # noqa: F401
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
 	clean_mysql,
 	clean_redis,
 	get_config,
@@ -32,6 +38,75 @@ from tests.utils import (  # noqa: F401
 )
 
 from .test_obj_product_on_depot import create_test_pods
+
+
+def test_product_on_client_update_objects_audits_explicit_action_request(backend: UnprotectedBackend) -> None:  # noqa: F811
+	client1 = OpsiClient(id="test-audit-action-request-client-1.opsi.test")
+	client2 = OpsiClient(id="test-audit-action-request-client-2.opsi.test")
+	backend.host_createObjects([client1, client2])
+	product_on_clients = [
+		ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client1.id, actionRequest="setup"),
+		ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client2.id, actionRequest="uninstall"),
+	]
+	insert_counts = {"AUDIT_LOG": 0, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
+
+	def query_log(*args: object) -> None:
+		statement = str(args[2])
+		for table in insert_counts:
+			if f"INSERT INTO `{table}`" in statement:
+				insert_counts[table] += 1
+
+	old_query_log = MySQLSession.query_log
+	MySQLSession.query_log = query_log
+	try:
+		with patch("opsiconfd.backend.rpc.obj_product_on_client.audit_log_event_enabled", return_value=True):
+			backend.productOnClient_updateObjects(product_on_clients)
+	finally:
+		MySQLSession.query_log = old_query_log
+
+	assert insert_counts == {"AUDIT_LOG": 1, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 1}
+	audit_logs = backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})
+	assert len(audit_logs) == 2
+	assert sorted(
+		(
+			audit_log.clientProductActionRequest.productId,
+			audit_log.clientProductActionRequest.clientId,
+			audit_log.clientProductActionRequest.actionRequest,
+		)
+		for audit_log in audit_logs
+		if audit_log.clientProductActionRequest
+	) == [
+		("test-audit-product", client1.id, "setup"),
+		("test-audit-product", client2.id, "uninstall"),
+	]
+
+
+def test_product_on_client_update_objects_does_not_audit_omitted_action_request(backend: UnprotectedBackend) -> None:  # noqa: F811
+	client = OpsiClient(id="test-audit-omitted-action-request-client.opsi.test")
+	backend.host_createObjects([client])
+
+	with patch("opsiconfd.backend.rpc.obj_product_on_client.audit_log_event_enabled", return_value=True):
+		backend.productOnClient_updateObjects(
+			ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client.id)
+		)
+
+	assert backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST}) == []
+
+
+def test_product_on_client_update_objects_audits_explicit_none_action_request(backend: UnprotectedBackend) -> None:  # noqa: F811
+	client = OpsiClient(id="test-audit-none-action-request-client.opsi.test")
+	backend.host_createObjects([client])
+
+	with patch("opsiconfd.backend.rpc.obj_product_on_client.audit_log_event_enabled", return_value=True):
+		backend.productOnClient_updateObjects(
+			ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client.id, actionRequest="none")
+		)
+
+	audit_logs = backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})
+	assert len(audit_logs) == 1
+	assert audit_logs[0].clientProductActionRequest == AuditLogClientProductActionRequest(
+		productId="test-audit-product", clientId=client.id, actionRequest="none"
+	)
 
 
 def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811

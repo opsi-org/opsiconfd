@@ -400,7 +400,7 @@ def test_update_database() -> None:
 			with mysql.session() as session:
 				assert session.execute("SELECT DATABASE()").fetchone()[0] == database
 				res = session.execute(GET_CONSTRAINTS, params={"database": database}).fetchall()
-				assert len(res) == 83
+				assert len(res) == 84
 		finally:
 			with mysql.session() as session:
 				session.execute(f"DROP DATABASE IF EXISTS `{database}`")

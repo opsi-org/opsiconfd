@@ -911,6 +911,11 @@ input.loading {
 	font-size: 14px;
 }
 
+#audit-log-table-div {
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
 .table-loading-container:has(> .table-loading-overlay) {
 	min-height: 120px;
 }

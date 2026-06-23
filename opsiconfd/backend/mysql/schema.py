@@ -369,6 +369,17 @@ CREATE TABLE IF NOT EXISTS `AUDIT_AUTHENTICATION` (
 		ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `AUDIT_CLIENT_PRODUCT_ACTION_REQUEST` (
+	`auditLogId` bigint unsigned NOT NULL,
+	`productId` varchar(255) NOT NULL,
+	`clientId` varchar(255) NOT NULL,
+	`actionRequest` varchar(16) NOT NULL,
+	PRIMARY KEY (`auditLogId`),
+	FOREIGN KEY (`auditLogId`)
+		REFERENCES `AUDIT_LOG` (`auditLogId`)
+		ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE IF NOT EXISTS `WINDOWS_SOFTWARE_ID_TO_PRODUCT` (
 	`windowsSoftwareId` varchar(100) NOT NULL,
 	`productId` varchar(255) NOT NULL,
@@ -1468,5 +1479,8 @@ def update_database(mysql: MySQLConnection, force: bool = False) -> None:
 
 		# schema_version 22
 		# AUDIT_LOG and AUDIT_AUTHENTICATION added
+
+		# schema_version 23
+		# AUDIT_CLIENT_PRODUCT_ACTION_REQUEST added
 
 		# Be sure to update MySQLConnection.schema_version as well when changing this function.

@@ -155,6 +155,7 @@ class MySQLSession(Session):
 class MySQLConnection:
 	_column_to_attribute = {
 		"AUDIT_LOG": {"auditLogId": "id"},
+		"AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": {"auditLogId": "id"},
 		"USER": {"userId": "id"},
 		"CONFIG": {"configId": "id"},
 		"HOST": {"hostId": "id"},
@@ -166,6 +167,7 @@ class MySQLConnection:
 	}
 	_attribute_to_column = {
 		"AUDIT_LOG": {"id": "auditLogId"},
+		"AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": {"id": "auditLogId"},
 		"USER": {"id": "userId"},
 		"CONFIG": {"id": "configId"},
 		"HOST": {"id": "hostId"},
@@ -185,7 +187,7 @@ class MySQLConnection:
 	}
 	record_separator = "␞"
 
-	schema_version = 22
+	schema_version = 23
 
 	def __init__(self) -> None:
 		self.address = "localhost"

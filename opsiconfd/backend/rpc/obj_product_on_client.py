@@ -12,10 +12,13 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsi.opsi.service.model.object import ProductOnClient
-from opsi.opsi.service.model.type import to_object_class, to_object_class_list
+from opsi.opsi.service.model.object import AuditLog, AuditLogClientProductActionRequest, AuditLogEventType, ProductOnClient
+from opsi.opsi.service.model.type import to_list, to_object_class, to_object_class_list
 
+from opsiconfd import contextvar_client_session
+from opsiconfd.audit_log import audit_log_event_enabled
 from opsiconfd.config import config
+from opsiconfd.logging import logger
 
 from . import rpc_method
 
@@ -24,6 +27,49 @@ if TYPE_CHECKING:
 
 
 class RPCProductOnClientMixin(Protocol):
+	def _productOnClient_action_request_supplied(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> bool:
+		if isinstance(productOnClient, dict):
+			return productOnClient.get("actionRequest") is not None
+		return productOnClient.actionRequest is not None
+
+	def _productOnClient_to_objects_with_action_request_audit_candidates(
+		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
+	) -> tuple[list[ProductOnClient], list[ProductOnClient]]:
+		raw_product_on_clients = to_list(productOnClients)
+		action_request_supplied = [
+			self._productOnClient_action_request_supplied(product_on_client) for product_on_client in raw_product_on_clients
+		]
+		product_on_clients = to_object_class_list(raw_product_on_clients, ProductOnClient)
+		return product_on_clients, [poc for poc, supplied in zip(product_on_clients, action_request_supplied) if supplied]
+
+	def _productOnClient_audit_action_request_set(self: BackendProtocol, productOnClients: list[ProductOnClient]) -> None:
+		if not productOnClients or not audit_log_event_enabled(AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST):
+			return
+
+		session = contextvar_client_session.get()
+		username = session.username if session else None
+		audit_logs = [
+			AuditLog(
+				eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
+				username=username,
+				actorType=session.user_type if session else None,
+				actorId=username,
+				clientAddress=session.client_addr if session else None,
+				userAgent=session.user_agent if session and session.user_agent else None,
+				message=f"Action request {(product_on_client.actionRequest or 'none')!r} set for product {product_on_client.productId!r} on client {product_on_client.clientId!r}",
+				clientProductActionRequest=AuditLogClientProductActionRequest(
+					productId=product_on_client.productId,
+					clientId=product_on_client.clientId,
+					actionRequest=product_on_client.actionRequest or "none",
+				),
+			)
+			for product_on_client in productOnClients
+		]
+		try:
+			self.auditLog_bulkInsertObjects(audit_logs)
+		except Exception as err:
+			logger.error("Failed to write ProductOnClient actionRequest audit log: %s", err, exc_info=True)
+
 	def productOnClient_bulkInsertObjects(self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient]) -> None:
 		self._mysql.bulk_insert_objects(table="PRODUCT_ON_CLIENT", objs=productOnClients)  # ty: ignore[invalid-argument-type]
 
@@ -32,8 +78,13 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_insertObject")
 		productOnClient = to_object_class(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
+
 		if not self.events_enabled:
 			return
+
+		if self._productOnClient_action_request_supplied(productOnClient):
+			self._productOnClient_audit_action_request_set([productOnClient])
+
 		data = {
 			"productId": productOnClient.productId,
 			"productType": productOnClient.productType,
@@ -49,8 +100,13 @@ class RPCProductOnClientMixin(Protocol):
 		ace = self._get_ace("productOnClient_updateObject")
 		productOnClient = to_object_class(productOnClient, ProductOnClient)
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=False, set_null=False)
+
 		if not self.events_enabled:
 			return
+
+		if self._productOnClient_action_request_supplied(productOnClient):
+			self._productOnClient_audit_action_request_set([productOnClient])
+
 		data = {
 			"productId": productOnClient.productId,
 			"productType": productOnClient.productType,
@@ -67,14 +123,19 @@ class RPCProductOnClientMixin(Protocol):
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
 		ace = self._get_ace("productOnClient_createObjects")
-		productOnClients = to_object_class_list(productOnClients, ProductOnClient)
+		productOnClients, audit_candidates = self._productOnClient_to_objects_with_action_request_audit_candidates(productOnClients)
 		with self._mysql.session() as session:
 			for productOnClient in productOnClients:
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session
 				)
+
 		if not self.events_enabled:
 			return
+
+		if audit_candidates:
+			self._productOnClient_audit_action_request_set(audit_candidates)
+
 		for productOnClient in productOnClients:
 			data = {
 				"productId": productOnClient.productId,
@@ -92,14 +153,19 @@ class RPCProductOnClientMixin(Protocol):
 		self: BackendProtocol, productOnClients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
 		ace = self._get_ace("productOnClient_updateObjects")
-		productOnClients = to_object_class_list(productOnClients, ProductOnClient)
+		productOnClients, audit_candidates = self._productOnClient_to_objects_with_action_request_audit_candidates(productOnClients)
 		with self._mysql.session() as session:
 			for productOnClient in productOnClients:
 				self._mysql.insert_object(
 					table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session
 				)
+
 		if not self.events_enabled:
 			return
+
+		if audit_candidates:
+			self._productOnClient_audit_action_request_set(audit_candidates)
+
 		for productOnClient in productOnClients:
 			data = {
 				"productId": productOnClient.productId,
@@ -151,9 +217,12 @@ class RPCProductOnClientMixin(Protocol):
 			return
 		ace = self._get_ace("productOnClient_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, obj=productOnClients, ace=ace)
+
 		if not self.events_enabled:
 			return
+
 		productOnClients = to_object_class_list(productOnClients, ProductOnClient)
+
 		for productOnClient in productOnClients:
 			data = {
 				"productId": productOnClient.productId,

@@ -13,6 +13,7 @@ from opsi.opsi.service.model.object import (
 	AuditLogAuthentication,
 	AuditLogAuthenticationFailureReason,
 	AuditLogAuthenticationLogoutReason,
+	AuditLogClientProductActionRequest,
 	AuditLogEventType,
 )
 
@@ -39,6 +40,29 @@ def test_audit_log_object() -> None:
 		"logoutReason": None,
 	}
 	assert "futureAttribute" not in audit_log.to_hash()["authentication"]
+
+
+def test_audit_log_client_product_action_request_object() -> None:
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
+		clientProductActionRequest={
+			"productId": "test-product",
+			"clientId": "test-client.opsi.test",
+			"actionRequest": "setup",
+			"futureAttribute": "ignored",
+		},
+	)
+
+	assert isinstance(audit_log.clientProductActionRequest, AuditLogClientProductActionRequest)
+	assert audit_log.clientProductActionRequest.productId == "test-product"
+	assert audit_log.clientProductActionRequest.clientId == "test-client.opsi.test"
+	assert audit_log.clientProductActionRequest.actionRequest == "setup"
+	assert audit_log.to_hash()["clientProductActionRequest"] == {
+		"productId": "test-product",
+		"clientId": "test-client.opsi.test",
+		"actionRequest": "setup",
+	}
+	assert "futureAttribute" not in audit_log.to_hash()["clientProductActionRequest"]
 
 
 def test_audit_log_accepts_unknown_event_type_for_client_compatibility() -> None:
@@ -130,8 +154,30 @@ def test_audit_log_bulk_insert_objects(backend: UnprotectedBackend) -> None:  # 
 	assert audit_logs[1].authentication == AuditLogAuthentication(logoutReason=AuditLogAuthenticationLogoutReason.USER_REQUESTED)
 
 
+def test_audit_log_client_product_action_request_create_and_get_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
+		username="adminuser",
+		clientProductActionRequest=AuditLogClientProductActionRequest(
+			productId="test-product",
+			clientId="test-client.opsi.test",
+			actionRequest="setup",
+		),
+	)
+
+	backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
+
+	audit_logs = backend.auditLog_getObjects(filter={"id": audit_log.id})
+	assert len(audit_logs) == 1
+	assert audit_logs[0].clientProductActionRequest == AuditLogClientProductActionRequest(
+		productId="test-product",
+		clientId="test-client.opsi.test",
+		actionRequest="setup",
+	)
+
+
 def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: UnprotectedBackend) -> None:  # noqa: F811
-	insert_counts = {"AUDIT_LOG": 0, "AUDIT_AUTHENTICATION": 0}
+	insert_counts = {"AUDIT_LOG": 0, "AUDIT_AUTHENTICATION": 0, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
 
 	def query_log(*args: object) -> None:
 		statement = str(args[2])
@@ -155,9 +201,43 @@ def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: Unprotected
 	finally:
 		MySQLSession.query_log = old_query_log
 
-	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_AUTHENTICATION": 2}
+	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_AUTHENTICATION": 2, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
 	assert all(audit_log.id for audit_log in audit_logs)
 	assert len(backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED})) == 1200
+
+
+def test_audit_log_bulk_insert_client_product_action_request_uses_multirow_insert(backend: UnprotectedBackend) -> None:  # noqa: F811
+	insert_counts = {"AUDIT_LOG": 0, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
+
+	def query_log(*args: object) -> None:
+		statement = str(args[2])
+		for table in insert_counts:
+			if f"INSERT INTO `{table}`" in statement:
+				insert_counts[table] += 1
+
+	audit_logs = [
+		AuditLog(
+			eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
+			username="adminuser",
+			clientProductActionRequest=AuditLogClientProductActionRequest(
+				productId="test-product",
+				clientId=f"test-client-{index}.opsi.test",
+				actionRequest="setup",
+			),
+		)
+		for index in range(1200)
+	]
+
+	old_query_log = MySQLSession.query_log
+	MySQLSession.query_log = query_log
+	try:
+		backend.auditLog_bulkInsertObjects(audit_logs)  # ty: ignore[invalid-argument-type]
+	finally:
+		MySQLSession.query_log = old_query_log
+
+	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 2}
+	assert all(audit_log.id for audit_log in audit_logs)
+	assert len(backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})) == 1200
 
 
 def test_audit_log_get_objects_orders_and_limits(backend: UnprotectedBackend) -> None:  # noqa: F811
@@ -232,4 +312,21 @@ def test_audit_log_bulk_insert_rejects_authentication_for_unknown_event(backend:
 	audit_log.eventType = AuditLogEventType.UNKNOWN
 
 	with pytest.raises(ValueError, match="Invalid AuditLog eventType"):
+		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
+
+
+def test_audit_log_rejects_client_product_action_request_for_wrong_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+		clientProductActionRequest={"productId": "test-product", "clientId": "test-client.opsi.test", "actionRequest": "setup"},
+	)
+
+	with pytest.raises(ValueError, match="clientProductActionRequest is not allowed"):
+		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
+
+
+def test_audit_log_requires_client_product_action_request_for_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST)
+
+	with pytest.raises(ValueError, match="clientProductActionRequest is required"):
 		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]

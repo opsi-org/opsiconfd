@@ -466,8 +466,9 @@ async def get_rpc_list(sort_by: str = "rpc_num", sort_desc: bool = True) -> REST
 	if sort_by not in RPC_LIST_SORT_KEYS:
 		sort_by = "rpc_num"
 
+	limit = 500
 	redis = await async_redis_client()
-	redis_result = await redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, -1)
+	redis_result = await redis.lrange(f"{config.redis_key('stats')}:rpcs", start=0, end=limit - 1)
 
 	rpc_list = []
 	for value in redis_result:
@@ -523,6 +524,7 @@ async def get_audit_log_list(
 	audit_log_list = []
 	for audit_log in audit_logs:
 		authentication = audit_log.authentication
+		client_product_action_request = audit_log.clientProductActionRequest
 		audit_log_list.append(
 			{
 				"id": int(audit_log.id),
@@ -536,6 +538,9 @@ async def get_audit_log_list(
 				"authMethods": _audit_log_value(authentication.authMethods if authentication else None),
 				"failureReason": _audit_log_value(authentication.failureReason if authentication else None),
 				"logoutReason": _audit_log_value(authentication.logoutReason if authentication else None),
+				"productId": _audit_log_value(client_product_action_request.productId if client_product_action_request else None),
+				"clientId": _audit_log_value(client_product_action_request.clientId if client_product_action_request else None),
+				"actionRequest": _audit_log_value(client_product_action_request.actionRequest if client_product_action_request else None),
 				"message": _audit_log_value(audit_log.message),
 			}
 		)

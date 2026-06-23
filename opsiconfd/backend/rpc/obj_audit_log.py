@@ -22,6 +22,11 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
 AUDIT_LOG_AUTHENTICATION_ATTRIBUTES = {"authMethods", "failureReason", "logoutReason"}
+AUTHENTICATION_EVENT_TYPES = {
+	AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+	AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
+	AuditLogEventType.AUTHENTICATION_LOGOUT,
+}
 
 
 class RPCAuditLogMixin(Protocol):
@@ -35,16 +40,12 @@ class RPCAuditLogMixin(Protocol):
 			raise ValueError("AuditLog eventType is required")
 		if not isinstance(auditLog.eventType, AuditLogEventType) or auditLog.eventType == AuditLogEventType.UNKNOWN:
 			raise ValueError(f"Invalid AuditLog eventType: {auditLog.eventType!r}")
-		if auditLog.authentication and (
-			not isinstance(auditLog.eventType, AuditLogEventType)
-			or auditLog.eventType
-			not in (
-				AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
-				AuditLogEventType.AUTHENTICATION_LOGIN_FAILED,
-				AuditLogEventType.AUTHENTICATION_LOGOUT,
-			)
-		):
+		if auditLog.authentication and auditLog.eventType not in AUTHENTICATION_EVENT_TYPES:
 			raise ValueError(f"AuditLog authentication is not allowed for eventType: {auditLog.eventType!r}")
+		if auditLog.clientProductActionRequest and auditLog.eventType != AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST:
+			raise ValueError(f"AuditLog clientProductActionRequest is not allowed for eventType: {auditLog.eventType!r}")
+		if auditLog.eventType == AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST and not auditLog.clientProductActionRequest:
+			raise ValueError(f"AuditLog clientProductActionRequest is required for eventType: {auditLog.eventType!r}")
 
 	def _auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		audit_logs = [self._auditLog_to_object(audit_log) for audit_log in auditLogs]
@@ -121,6 +122,32 @@ class RPCAuditLogMixin(Protocol):
 						params=auth_params,
 					)
 
+				client_product_values = []
+				client_product_params: dict[str, Any] = {}
+				for index, audit_log in enumerate(chunk):
+					client_product_action_request = audit_log.clientProductActionRequest
+					if not client_product_action_request:
+						continue
+					client_product_values.append(f"(:auditLogId_{index}, :productId_{index}, :clientId_{index}, :actionRequest_{index})")
+					client_product_params.update(
+						{
+							f"auditLogId_{index}": audit_log.id,
+							f"productId_{index}": client_product_action_request.productId,
+							f"clientId_{index}": client_product_action_request.clientId,
+							f"actionRequest_{index}": client_product_action_request.actionRequest,
+						}
+					)
+
+				if client_product_values:
+					session.execute(
+						"""
+						INSERT INTO `AUDIT_CLIENT_PRODUCT_ACTION_REQUEST` (`auditLogId`, `productId`, `clientId`, `actionRequest`)
+						VALUES
+							"""
+						+ ",".join(client_product_values),
+						params=client_product_params,
+					)
+
 	def auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		self._auditLog_bulkInsertObjects(auditLogs)
 
@@ -138,27 +165,44 @@ class RPCAuditLogMixin(Protocol):
 					audit_log.setId(inserted_id)
 				if not audit_log.id:
 					raise RuntimeError("Failed to determine auditLogId after insert")
-				if not audit_log.authentication:
-					continue
+				if audit_log.authentication:
+					session.execute(
+						"""
+						INSERT INTO `AUDIT_AUTHENTICATION` (`auditLogId`, `authMethods`, `failureReason`, `logoutReason`)
+						VALUES (:auditLogId, :authMethods, :failureReason, :logoutReason)
+						ON DUPLICATE KEY UPDATE
+							`authMethods` = :authMethods,
+							`failureReason` = :failureReason,
+							`logoutReason` = :logoutReason
+						""",
+						params={
+							"auditLogId": audit_log.id,
+							"authMethods": dumps(audit_log.authentication.authMethods)
+							if audit_log.authentication.authMethods is not None
+							else None,
+							"failureReason": audit_log.authentication.failureReason,
+							"logoutReason": audit_log.authentication.logoutReason,
+						},
+					)
 
-				session.execute(
-					"""
-					INSERT INTO `AUDIT_AUTHENTICATION` (`auditLogId`, `authMethods`, `failureReason`, `logoutReason`)
-					VALUES (:auditLogId, :authMethods, :failureReason, :logoutReason)
-					ON DUPLICATE KEY UPDATE
-						`authMethods` = :authMethods,
-						`failureReason` = :failureReason,
-						`logoutReason` = :logoutReason
-					""",
-					params={
-						"auditLogId": audit_log.id,
-						"authMethods": dumps(audit_log.authentication.authMethods)
-						if audit_log.authentication.authMethods is not None
-						else None,
-						"failureReason": audit_log.authentication.failureReason,
-						"logoutReason": audit_log.authentication.logoutReason,
-					},
-				)
+				client_product_action_request = audit_log.clientProductActionRequest
+				if client_product_action_request:
+					session.execute(
+						"""
+						INSERT INTO `AUDIT_CLIENT_PRODUCT_ACTION_REQUEST` (`auditLogId`, `productId`, `clientId`, `actionRequest`)
+						VALUES (:auditLogId, :productId, :clientId, :actionRequest)
+						ON DUPLICATE KEY UPDATE
+							`productId` = :productId,
+							`clientId` = :clientId,
+							`actionRequest` = :actionRequest
+						""",
+						params={
+							"auditLogId": audit_log.id,
+							"productId": client_product_action_request.productId,
+							"clientId": client_product_action_request.clientId,
+							"actionRequest": client_product_action_request.actionRequest,
+						},
+					)
 
 	def auditLog_insertObject(self: BackendProtocol, auditLog: dict | AuditLog) -> None:
 		self.auditLog_createObjects(auditLog)
@@ -167,6 +211,7 @@ class RPCAuditLogMixin(Protocol):
 		self: BackendProtocol,
 		ace: list[Any] | None = None,
 		withAuthentication: bool = True,
+		withClientProductActionRequest: bool = True,
 		attributes: list[str] | None = None,
 		filter: dict[str, Any] | None = None,
 		orderBy: OrderBy | None = None,
@@ -185,35 +230,53 @@ class RPCAuditLogMixin(Protocol):
 			order_by=orderBy,
 			limit=limit,
 		)
-		if not withAuthentication or not audit_logs:
+		if not audit_logs:
 			return audit_logs
 
 		audit_log_by_id = {audit_log.id: audit_log for audit_log in audit_logs if audit_log.id is not None}
 		if not audit_log_by_id:
 			return audit_logs
 
+		ids = list(audit_log_by_id)
 		with self._mysql.session() as session:
-			rows = session.execute(
-				"SELECT `auditLogId`, `authMethods`, `failureReason`, `logoutReason` FROM `AUDIT_AUTHENTICATION` WHERE `auditLogId` IN :ids",
-				params={"ids": list(audit_log_by_id)},
-			).fetchall()
+			if withAuthentication:
+				rows = session.execute(
+					"SELECT `auditLogId`, `authMethods`, `failureReason`, `logoutReason` FROM `AUDIT_AUTHENTICATION` WHERE `auditLogId` IN :ids",
+					params={"ids": ids},
+				).fetchall()
 
-		for row in rows:
-			row_dict = dict(row)
-			auth_methods = row_dict["authMethods"]
-			audit_log_by_id[str(row_dict["auditLogId"])].setAuthentication(
-				{
-					"authMethods": loads(auth_methods) if auth_methods is not None else None,
-					"failureReason": row_dict["failureReason"],
-					"logoutReason": row_dict["logoutReason"],
-				}
-			)
+				for row in rows:
+					row_dict = dict(row)
+					auth_methods = row_dict["authMethods"]
+					audit_log_by_id[str(row_dict["auditLogId"])].setAuthentication(
+						{
+							"authMethods": loads(auth_methods) if auth_methods is not None else None,
+							"failureReason": row_dict["failureReason"],
+							"logoutReason": row_dict["logoutReason"],
+						}
+					)
+
+			if withClientProductActionRequest:
+				rows = session.execute(
+					"SELECT `auditLogId`, `productId`, `clientId`, `actionRequest` FROM `AUDIT_CLIENT_PRODUCT_ACTION_REQUEST` WHERE `auditLogId` IN :ids",
+					params={"ids": ids},
+				).fetchall()
+				for row in rows:
+					row_dict = dict(row)
+					audit_log_by_id[str(row_dict["auditLogId"])].setClientProductActionRequest(
+						{
+							"productId": row_dict["productId"],
+							"clientId": row_dict["clientId"],
+							"actionRequest": row_dict["actionRequest"],
+						}
+					)
 		return audit_logs
 
 	@rpc_method(check_acl=False)
 	def auditLog_getObjects(
 		self: BackendProtocol,
 		withAuthentication: bool = True,
+		withClientProductActionRequest: bool = True,
 		attributes: list[str] | None = None,
 		filter: dict[str, Any] | None = None,
 		orderBy: OrderBy | None = None,
@@ -223,6 +286,7 @@ class RPCAuditLogMixin(Protocol):
 		return self._auditLog_getObjects(
 			ace=ace,
 			withAuthentication=withAuthentication,
+			withClientProductActionRequest=withClientProductActionRequest,
 			attributes=attributes,
 			filter=filter,
 			orderBy=orderBy,

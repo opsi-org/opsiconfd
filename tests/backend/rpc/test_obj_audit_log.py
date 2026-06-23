@@ -13,8 +13,8 @@ from opsi.opsi.service.model.object import (
 	AuditLogAuthentication,
 	AuditLogAuthenticationFailureReason,
 	AuditLogAuthenticationLogoutReason,
-	AuditLogClientProductActionRequest,
 	AuditLogEventType,
+	AuditLogProductActionRequest,
 )
 
 from opsiconfd.backend.mysql import MySQLSession
@@ -45,24 +45,23 @@ def test_audit_log_object() -> None:
 def test_audit_log_client_product_action_request_object() -> None:
 	audit_log = AuditLog(
 		eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
-		clientProductActionRequest={
+		hostId="test-client.opsi.test",
+		productActionRequest={
 			"productId": "test-product",
-			"clientId": "test-client.opsi.test",
 			"actionRequest": "setup",
 			"futureAttribute": "ignored",
 		},
 	)
 
-	assert isinstance(audit_log.clientProductActionRequest, AuditLogClientProductActionRequest)
-	assert audit_log.clientProductActionRequest.productId == "test-product"
-	assert audit_log.clientProductActionRequest.clientId == "test-client.opsi.test"
-	assert audit_log.clientProductActionRequest.actionRequest == "setup"
-	assert audit_log.to_hash()["clientProductActionRequest"] == {
+	assert isinstance(audit_log.productActionRequest, AuditLogProductActionRequest)
+	assert audit_log.hostId == "test-client.opsi.test"
+	assert audit_log.productActionRequest.productId == "test-product"
+	assert audit_log.productActionRequest.actionRequest == "setup"
+	assert audit_log.to_hash()["productActionRequest"] == {
 		"productId": "test-product",
-		"clientId": "test-client.opsi.test",
 		"actionRequest": "setup",
 	}
-	assert "futureAttribute" not in audit_log.to_hash()["clientProductActionRequest"]
+	assert "futureAttribute" not in audit_log.to_hash()["productActionRequest"]
 
 
 def test_audit_log_accepts_unknown_event_type_for_client_compatibility() -> None:
@@ -158,9 +157,9 @@ def test_audit_log_client_product_action_request_create_and_get_objects(backend:
 	audit_log = AuditLog(
 		eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
 		username="adminuser",
-		clientProductActionRequest=AuditLogClientProductActionRequest(
+		hostId="test-client.opsi.test",
+		productActionRequest=AuditLogProductActionRequest(
 			productId="test-product",
-			clientId="test-client.opsi.test",
 			actionRequest="setup",
 		),
 	)
@@ -169,15 +168,16 @@ def test_audit_log_client_product_action_request_create_and_get_objects(backend:
 
 	audit_logs = backend.auditLog_getObjects(filter={"id": audit_log.id})
 	assert len(audit_logs) == 1
-	assert audit_logs[0].clientProductActionRequest == AuditLogClientProductActionRequest(
+	assert isinstance(audit_logs[0], AuditLog)
+	assert audit_logs[0].hostId == "test-client.opsi.test"
+	assert audit_logs[0].productActionRequest == AuditLogProductActionRequest(
 		productId="test-product",
-		clientId="test-client.opsi.test",
 		actionRequest="setup",
 	)
 
 
 def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: UnprotectedBackend) -> None:  # noqa: F811
-	insert_counts = {"AUDIT_LOG": 0, "AUDIT_AUTHENTICATION": 0, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
+	insert_counts = {"AUDIT_LOG": 0, "AUDIT_AUTHENTICATION": 0, "AUDIT_PRODUCT_ACTION_REQUEST": 0}
 
 	def query_log(*args: object) -> None:
 		statement = str(args[2])
@@ -201,13 +201,13 @@ def test_audit_log_bulk_insert_objects_uses_multirow_insert(backend: Unprotected
 	finally:
 		MySQLSession.query_log = old_query_log
 
-	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_AUTHENTICATION": 2, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
+	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_AUTHENTICATION": 2, "AUDIT_PRODUCT_ACTION_REQUEST": 0}
 	assert all(audit_log.id for audit_log in audit_logs)
 	assert len(backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED})) == 1200
 
 
 def test_audit_log_bulk_insert_client_product_action_request_uses_multirow_insert(backend: UnprotectedBackend) -> None:  # noqa: F811
-	insert_counts = {"AUDIT_LOG": 0, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
+	insert_counts = {"AUDIT_LOG": 0, "AUDIT_PRODUCT_ACTION_REQUEST": 0}
 
 	def query_log(*args: object) -> None:
 		statement = str(args[2])
@@ -219,9 +219,9 @@ def test_audit_log_bulk_insert_client_product_action_request_uses_multirow_inser
 		AuditLog(
 			eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
 			username="adminuser",
-			clientProductActionRequest=AuditLogClientProductActionRequest(
+			hostId=f"test-client-{index}.opsi.test",
+			productActionRequest=AuditLogProductActionRequest(
 				productId="test-product",
-				clientId=f"test-client-{index}.opsi.test",
 				actionRequest="setup",
 			),
 		)
@@ -235,7 +235,7 @@ def test_audit_log_bulk_insert_client_product_action_request_uses_multirow_inser
 	finally:
 		MySQLSession.query_log = old_query_log
 
-	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 2}
+	assert insert_counts == {"AUDIT_LOG": 2, "AUDIT_PRODUCT_ACTION_REQUEST": 2}
 	assert all(audit_log.id for audit_log in audit_logs)
 	assert len(backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})) == 1200
 
@@ -318,15 +318,15 @@ def test_audit_log_bulk_insert_rejects_authentication_for_unknown_event(backend:
 def test_audit_log_rejects_client_product_action_request_for_wrong_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
 	audit_log = AuditLog(
 		eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
-		clientProductActionRequest={"productId": "test-product", "clientId": "test-client.opsi.test", "actionRequest": "setup"},
+		productActionRequest={"productId": "test-product", "actionRequest": "setup"},
 	)
 
-	with pytest.raises(ValueError, match="clientProductActionRequest is not allowed"):
+	with pytest.raises(ValueError, match="productActionRequest is not allowed"):
 		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
 
 
 def test_audit_log_requires_client_product_action_request_for_event_type(backend: UnprotectedBackend) -> None:  # noqa: F811
 	audit_log = AuditLog(eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST)
 
-	with pytest.raises(ValueError, match="clientProductActionRequest is required"):
+	with pytest.raises(ValueError, match="productActionRequest is required"):
 		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]

@@ -42,10 +42,13 @@ class RPCAuditLogMixin(Protocol):
 			raise ValueError(f"Invalid AuditLog eventType: {auditLog.eventType!r}")
 		if auditLog.authentication and auditLog.eventType not in AUTHENTICATION_EVENT_TYPES:
 			raise ValueError(f"AuditLog authentication is not allowed for eventType: {auditLog.eventType!r}")
-		if auditLog.clientProductActionRequest and auditLog.eventType != AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST:
-			raise ValueError(f"AuditLog clientProductActionRequest is not allowed for eventType: {auditLog.eventType!r}")
-		if auditLog.eventType == AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST and not auditLog.clientProductActionRequest:
-			raise ValueError(f"AuditLog clientProductActionRequest is required for eventType: {auditLog.eventType!r}")
+		if auditLog.productActionRequest and auditLog.eventType != AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST:
+			raise ValueError(f"AuditLog productActionRequest is not allowed for eventType: {auditLog.eventType!r}")
+		if auditLog.eventType == AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST:
+			if not auditLog.productActionRequest:
+				raise ValueError(f"AuditLog productActionRequest is required for eventType: {auditLog.eventType!r}")
+			if not auditLog.hostId:
+				raise ValueError(f"AuditLog hostId is required for eventType: {auditLog.eventType!r}")
 
 	def _auditLog_bulkInsertObjects(self: BackendProtocol, auditLogs: list[dict] | list[AuditLog]) -> None:
 		audit_logs = [self._auditLog_to_object(audit_log) for audit_log in auditLogs]
@@ -62,28 +65,29 @@ class RPCAuditLogMixin(Protocol):
 				chunk = audit_logs[offset : offset + chunk_size]
 				values = []
 				params: dict[str, Any] = {}
-				for index, audit_log in enumerate(chunk):
+				for idx, audit_log in enumerate(chunk):
 					values.append(
-						"(COALESCE(:created_{0}, CURRENT_TIMESTAMP), :eventType_{0}, :username_{0}, :actorType_{0}, "
-						":actorId_{0}, :clientAddress_{0}, :userAgent_{0}, :message_{0})".format(index)
+						f"(COALESCE(:created_{idx}, CURRENT_TIMESTAMP), :eventType_{idx}, :username_{idx}, :actorType_{idx}, :actorId_{idx}, "
+						f":clientAddress_{idx}, :userAgent_{idx}, :hostId_{idx}, :message_{idx})"
 					)
 					params.update(
 						{
-							f"created_{index}": audit_log.created,
-							f"eventType_{index}": audit_log.eventType,
-							f"username_{index}": audit_log.username,
-							f"actorType_{index}": audit_log.actorType,
-							f"actorId_{index}": audit_log.actorId,
-							f"clientAddress_{index}": audit_log.clientAddress,
-							f"userAgent_{index}": audit_log.userAgent,
-							f"message_{index}": audit_log.message,
+							f"created_{idx}": audit_log.created,
+							f"eventType_{idx}": audit_log.eventType,
+							f"username_{idx}": audit_log.username,
+							f"actorType_{idx}": audit_log.actorType,
+							f"actorId_{idx}": audit_log.actorId,
+							f"clientAddress_{idx}": audit_log.clientAddress,
+							f"userAgent_{idx}": audit_log.userAgent,
+							f"hostId_{idx}": audit_log.hostId,
+							f"message_{idx}": audit_log.message,
 						}
 					)
 
 				result = session.execute(
 					"""
 					INSERT INTO `AUDIT_LOG`
-						(`created`, `eventType`, `username`, `actorType`, `actorId`, `clientAddress`, `userAgent`, `message`)
+						(`created`, `eventType`, `username`, `actorType`, `actorId`, `clientAddress`, `userAgent`, `hostId`, `message`)
 					VALUES
 						"""
 					+ ",".join(values),
@@ -92,23 +96,23 @@ class RPCAuditLogMixin(Protocol):
 				first_audit_log_id = result.lastrowid  # ty: ignore[unresolved-attribute]
 				if not first_audit_log_id:
 					raise RuntimeError("Failed to determine first auditLogId after bulk insert")
-				for index, audit_log in enumerate(chunk):
-					audit_log.setId(first_audit_log_id + index)
+				for idx, audit_log in enumerate(chunk):
+					audit_log.setId(first_audit_log_id + idx)
 
 				auth_values = []
 				auth_params: dict[str, Any] = {}
-				for index, audit_log in enumerate(chunk):
+				for idx, audit_log in enumerate(chunk):
 					if not audit_log.authentication:
 						continue
-					auth_values.append(f"(:auditLogId_{index}, :authMethods_{index}, :failureReason_{index}, :logoutReason_{index})")
+					auth_values.append(f"(:auditLogId_{idx}, :authMethods_{idx}, :failureReason_{idx}, :logoutReason_{idx})")
 					auth_params.update(
 						{
-							f"auditLogId_{index}": audit_log.id,
-							f"authMethods_{index}": dumps(audit_log.authentication.authMethods)
+							f"auditLogId_{idx}": audit_log.id,
+							f"authMethods_{idx}": dumps(audit_log.authentication.authMethods)
 							if audit_log.authentication.authMethods is not None
 							else None,
-							f"failureReason_{index}": audit_log.authentication.failureReason,
-							f"logoutReason_{index}": audit_log.authentication.logoutReason,
+							f"failureReason_{idx}": audit_log.authentication.failureReason,
+							f"logoutReason_{idx}": audit_log.authentication.logoutReason,
 						}
 					)
 
@@ -124,24 +128,23 @@ class RPCAuditLogMixin(Protocol):
 
 				client_product_values = []
 				client_product_params: dict[str, Any] = {}
-				for index, audit_log in enumerate(chunk):
-					client_product_action_request = audit_log.clientProductActionRequest
-					if not client_product_action_request:
+				for idx, audit_log in enumerate(chunk):
+					product_action_request = audit_log.productActionRequest
+					if not product_action_request:
 						continue
-					client_product_values.append(f"(:auditLogId_{index}, :productId_{index}, :clientId_{index}, :actionRequest_{index})")
+					client_product_values.append(f"(:auditLogId_{idx}, :productId_{idx}, :actionRequest_{idx})")
 					client_product_params.update(
 						{
-							f"auditLogId_{index}": audit_log.id,
-							f"productId_{index}": client_product_action_request.productId,
-							f"clientId_{index}": client_product_action_request.clientId,
-							f"actionRequest_{index}": client_product_action_request.actionRequest,
+							f"auditLogId_{idx}": audit_log.id,
+							f"productId_{idx}": product_action_request.productId,
+							f"actionRequest_{idx}": product_action_request.actionRequest,
 						}
 					)
 
 				if client_product_values:
 					session.execute(
 						"""
-						INSERT INTO `AUDIT_CLIENT_PRODUCT_ACTION_REQUEST` (`auditLogId`, `productId`, `clientId`, `actionRequest`)
+						INSERT INTO `AUDIT_PRODUCT_ACTION_REQUEST` (`auditLogId`, `productId`, `actionRequest`)
 						VALUES
 							"""
 						+ ",".join(client_product_values),
@@ -185,11 +188,11 @@ class RPCAuditLogMixin(Protocol):
 						},
 					)
 
-				client_product_action_request = audit_log.clientProductActionRequest
+				client_product_action_request = audit_log.productActionRequest
 				if client_product_action_request:
 					session.execute(
 						"""
-						INSERT INTO `AUDIT_CLIENT_PRODUCT_ACTION_REQUEST` (`auditLogId`, `productId`, `clientId`, `actionRequest`)
+						INSERT INTO `AUDIT_PRODUCT_ACTION_REQUEST` (`auditLogId`, `productId`, `clientId`, `actionRequest`)
 						VALUES (:auditLogId, :productId, :clientId, :actionRequest)
 						ON DUPLICATE KEY UPDATE
 							`productId` = :productId,
@@ -258,15 +261,14 @@ class RPCAuditLogMixin(Protocol):
 
 			if withClientProductActionRequest:
 				rows = session.execute(
-					"SELECT `auditLogId`, `productId`, `clientId`, `actionRequest` FROM `AUDIT_CLIENT_PRODUCT_ACTION_REQUEST` WHERE `auditLogId` IN :ids",
+					"SELECT `auditLogId`, `productId`, `actionRequest` FROM `AUDIT_PRODUCT_ACTION_REQUEST` WHERE `auditLogId` IN :ids",
 					params={"ids": ids},
 				).fetchall()
 				for row in rows:
 					row_dict = dict(row)
-					audit_log_by_id[str(row_dict["auditLogId"])].setClientProductActionRequest(
+					audit_log_by_id[str(row_dict["auditLogId"])].setProductActionRequest(
 						{
 							"productId": row_dict["productId"],
-							"clientId": row_dict["clientId"],
 							"actionRequest": row_dict["actionRequest"],
 						}
 					)

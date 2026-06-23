@@ -1547,11 +1547,11 @@ function renderAuditLogTable(data, htmlId) {
 		"username",
 		"clientAddress",
 		"userAgent",
+		"hostId",
 		"authMethods",
 		"failureReason",
 		"logoutReason",
 		"productId",
-		"clientId",
 		"actionRequest",
 		"message"
 	];

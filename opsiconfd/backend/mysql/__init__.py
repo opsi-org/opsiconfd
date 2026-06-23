@@ -155,7 +155,7 @@ class MySQLSession(Session):
 class MySQLConnection:
 	_column_to_attribute = {
 		"AUDIT_LOG": {"auditLogId": "id"},
-		"AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": {"auditLogId": "id"},
+		"AUDIT_PRODUCT_ACTION_REQUEST": {"auditLogId": "id"},
 		"USER": {"userId": "id"},
 		"CONFIG": {"configId": "id"},
 		"HOST": {"hostId": "id"},
@@ -167,7 +167,7 @@ class MySQLConnection:
 	}
 	_attribute_to_column = {
 		"AUDIT_LOG": {"id": "auditLogId"},
-		"AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": {"id": "auditLogId"},
+		"AUDIT_PRODUCT_ACTION_REQUEST": {"id": "auditLogId"},
 		"USER": {"id": "userId"},
 		"CONFIG": {"id": "configId"},
 		"HOST": {"id": "hostId"},

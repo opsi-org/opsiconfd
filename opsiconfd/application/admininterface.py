@@ -28,7 +28,7 @@ from opsi.crypt.hash import PasswordHashAlgorithm, hash_password
 from opsi.exception import OpsiServicePermissionError
 from opsi.network import ip_address_in_network
 from opsi.opsi.licensing import OPSI_MODULE_STATE_UNLICENSED, OpsiLicenseFile
-from opsi.opsi.service.model.object import OpsiDepotserver, User
+from opsi.opsi.service.model.object import AuditLog, OpsiDepotserver, User
 from opsi.system.info import linux_distro_id_like_contains
 from redis import ResponseError
 from starlette.concurrency import run_in_threadpool
@@ -514,7 +514,7 @@ async def get_audit_log_list(
 	limit: int | None = Body(default=None),
 ) -> RESTResponse:
 	backend = get_unprotected_backend()
-	audit_logs = await backend.async_call(
+	audit_logs: list[AuditLog] = await backend.async_call(
 		"auditLog_getObjects",
 		filter=filter,
 		orderBy=orderBy,
@@ -524,10 +524,10 @@ async def get_audit_log_list(
 	audit_log_list = []
 	for audit_log in audit_logs:
 		authentication = audit_log.authentication
-		client_product_action_request = audit_log.clientProductActionRequest
+		product_action_request = audit_log.productActionRequest
 		audit_log_list.append(
 			{
-				"id": int(audit_log.id),
+				"id": int(audit_log.id or "0"),
 				"created": _audit_log_value(audit_log.created),
 				"eventType": _audit_log_value(audit_log.eventType),
 				"username": _audit_log_value(audit_log.username),
@@ -535,12 +535,12 @@ async def get_audit_log_list(
 				"actorId": _audit_log_value(audit_log.actorId),
 				"clientAddress": _audit_log_value(audit_log.clientAddress),
 				"userAgent": _audit_log_value(audit_log.userAgent),
+				"hostId": _audit_log_value(audit_log.hostId),
 				"authMethods": _audit_log_value(authentication.authMethods if authentication else None),
 				"failureReason": _audit_log_value(authentication.failureReason if authentication else None),
 				"logoutReason": _audit_log_value(authentication.logoutReason if authentication else None),
-				"productId": _audit_log_value(client_product_action_request.productId if client_product_action_request else None),
-				"clientId": _audit_log_value(client_product_action_request.clientId if client_product_action_request else None),
-				"actionRequest": _audit_log_value(client_product_action_request.actionRequest if client_product_action_request else None),
+				"productId": _audit_log_value(product_action_request.productId if product_action_request else None),
+				"actionRequest": _audit_log_value(product_action_request.actionRequest if product_action_request else None),
 				"message": _audit_log_value(audit_log.message),
 			}
 		)

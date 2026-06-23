@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol
 
-from opsi.opsi.service.model.object import AuditLog, AuditLogClientProductActionRequest, AuditLogEventType, ProductOnClient
+from opsi.opsi.service.model.object import AuditLog, AuditLogEventType, AuditLogProductActionRequest, ProductOnClient
 from opsi.opsi.service.model.type import to_list, to_object_class, to_object_class_list
 
 from opsiconfd import contextvar_client_session
@@ -56,10 +56,10 @@ class RPCProductOnClientMixin(Protocol):
 				actorId=username,
 				clientAddress=session.client_addr if session else None,
 				userAgent=session.user_agent if session and session.user_agent else None,
+				hostId=product_on_client.clientId,
 				message=f"Action request {(product_on_client.actionRequest or 'none')!r} set for product {product_on_client.productId!r} on client {product_on_client.clientId!r}",
-				clientProductActionRequest=AuditLogClientProductActionRequest(
+				productActionRequest=AuditLogProductActionRequest(
 					productId=product_on_client.productId,
-					clientId=product_on_client.clientId,
 					actionRequest=product_on_client.actionRequest or "none",
 				),
 			)

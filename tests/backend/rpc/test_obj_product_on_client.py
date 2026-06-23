@@ -12,8 +12,8 @@ from unittest.mock import patch
 
 import pytest
 from opsi.opsi.service.model.object import (
-	AuditLogClientProductActionRequest,
 	AuditLogEventType,
+	AuditLogProductActionRequest,
 	ConfigState,
 	LocalbootProduct,
 	OpsiClient,
@@ -48,7 +48,7 @@ def test_product_on_client_update_objects_audits_explicit_action_request(backend
 		ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client1.id, actionRequest="setup"),
 		ProductOnClient(productId="test-audit-product", productType="LocalbootProduct", clientId=client2.id, actionRequest="uninstall"),
 	]
-	insert_counts = {"AUDIT_LOG": 0, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 0}
+	insert_counts = {"AUDIT_LOG": 0, "AUDIT_PRODUCT_ACTION_REQUEST": 0}
 
 	def query_log(*args: object) -> None:
 		statement = str(args[2])
@@ -64,7 +64,7 @@ def test_product_on_client_update_objects_audits_explicit_action_request(backend
 	finally:
 		MySQLSession.query_log = old_query_log
 
-	assert insert_counts == {"AUDIT_LOG": 1, "AUDIT_CLIENT_PRODUCT_ACTION_REQUEST": 1}
+	assert insert_counts == {"AUDIT_LOG": 1, "AUDIT_PRODUCT_ACTION_REQUEST": 1}
 	audit_logs = backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})
 	assert len(audit_logs) == 2
 	assert sorted(
@@ -104,9 +104,8 @@ def test_product_on_client_update_objects_audits_explicit_none_action_request(ba
 
 	audit_logs = backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})
 	assert len(audit_logs) == 1
-	assert audit_logs[0].clientProductActionRequest == AuditLogClientProductActionRequest(
-		productId="test-audit-product", clientId=client.id, actionRequest="none"
-	)
+	assert audit_logs[0].hostId == client.id
+	assert audit_logs[0].productActionRequest == AuditLogProductActionRequest(productId="test-audit-product", actionRequest="none")
 
 
 def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # noqa: F811

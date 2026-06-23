@@ -39,6 +39,7 @@ from .utils import (  # noqa: F401
 	clean_redis,
 	config,
 	create_client_via_jsonrpc,
+	database_connection,
 	depot_jsonrpc,
 	get_config,
 	products_jsonrpc,
@@ -280,24 +281,28 @@ def test_get_audit_log_list_filtering(test_client: OpsiconfdTestClient, backend:
 					username="adminuser",
 					actorType="user",
 					actorId="adminuser",
+					hostId="client-one.example.test",
 				),
 				AuditLog(
 					eventType=AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
 					username="adminuser",
 					actorType="user",
 					actorId="adminuser",
+					hostId="client-two.example.test",
 				),
 				AuditLog(
 					eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
 					username="otheruser",
 					actorType="user",
 					actorId="otheruser",
+					hostId="client-three.example.test",
 				),
 				AuditLog(
 					eventType=AuditLogEventType.AUTHENTICATION_LOGOUT,
 					username="depot.example.test",
 					actorType="depot",
 					actorId="depot.example.test",
+					hostId="depot.example.test",
 				),
 			]
 		)
@@ -341,6 +346,15 @@ def test_get_audit_log_list_filtering(test_client: OpsiconfdTestClient, backend:
 		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"username": "*user*"}})
 		entries = response.json()
 		assert {entry["username"] for entry in entries} == {"adminuser", "otheruser"}
+
+		response = test_client.post("/admin/audit-log", auth=(ADMIN_USER, ADMIN_PASS), json={"filter": {"hostId": "client-*"}})
+		entries = response.json()
+		assert len(entries) == 3
+		assert {entry["hostId"] for entry in entries} == {
+			"client-one.example.test",
+			"client-two.example.test",
+			"client-three.example.test",
+		}
 
 		response = test_client.post(
 			"/admin/audit-log",

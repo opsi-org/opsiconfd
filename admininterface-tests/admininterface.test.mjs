@@ -30,6 +30,7 @@ function loadAdmininterface() {
 				<label><input class="audit-log-actor-type-checkbox" type="checkbox" value="depot">depot</label>
 			</div>
 		</div>
+		<input id="audit-log-host-id-filter" type="text">
 		<div id="audit-log-table-div"></div>
 	</body></html>`, {
 		runScripts: "outside-only",
@@ -178,6 +179,7 @@ test("audit log event type dropdown sends selected checkbox values", () => {
 	const actorTypeCheckboxes = window.document.querySelectorAll(".audit-log-actor-type-checkbox");
 	actorTypeCheckboxes[0].checked = true;
 	actorTypeCheckboxes[1].checked = true;
+	window.document.getElementById("audit-log-host-id-filter").value = "Client-One";
 
 	window.initAuditLogEventTypeFilter();
 	window.initAuditLogActorTypeFilter();
@@ -191,6 +193,7 @@ test("audit log event type dropdown sends selected checkbox values", () => {
 	assert.equal(window.__ajaxRequests[0][1], "/admin/audit-log");
 	assert.deepEqual(Array.from(window.__ajaxRequests[0][2].filter.eventType), ["authentication.login.failed", "authentication.logout"]);
 	assert.deepEqual(Array.from(window.__ajaxRequests[0][2].filter.actorType), ["user", "depot"]);
+	assert.equal(window.__ajaxRequests[0][2].filter.hostId, "client-one*");
 });
 
 test("audit log event type dropdown is positioned relative to the viewport", () => {

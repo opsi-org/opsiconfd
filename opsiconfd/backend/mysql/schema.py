@@ -356,7 +356,11 @@ CREATE TABLE IF NOT EXISTS `AUDIT_LOG` (
 	`hostId` varchar(255) DEFAULT NULL,
 	`message` varchar(1024) DEFAULT NULL,
 	PRIMARY KEY (`auditLogId`),
-	KEY `index_audit_log_created_eventType` (`created`, `eventType`)
+	KEY `index_audit_log_created` (`created`),
+	KEY `index_audit_log_eventType` (`eventType`),
+	KEY `index_audit_log_actorType` (`actorType`),
+	KEY `index_audit_log_hostId` (`hostId`),
+	KEY `index_audit_log_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `AUDIT_AUTHENTICATION` (

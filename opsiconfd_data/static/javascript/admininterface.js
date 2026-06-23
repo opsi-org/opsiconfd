@@ -457,10 +457,16 @@ function loadRPCTable(sortBy, sortDesc) {
 
 let auditLogTableSort = { sortBy: "created", sortDesc: true };
 let auditLogUsernameFilterTimer;
+let auditLogHostIdFilterTimer;
 
 function onAuditLogUsernameFilterInput() {
 	clearTimeout(auditLogUsernameFilterTimer);
 	auditLogUsernameFilterTimer = setTimeout(() => loadAuditLogTable(), 300);
+}
+
+function onAuditLogHostIdFilterInput() {
+	clearTimeout(auditLogHostIdFilterTimer);
+	auditLogHostIdFilterTimer = setTimeout(() => loadAuditLogTable(), 300);
 }
 
 function getSelectedAuditLogFilterValues(filterId) {
@@ -617,6 +623,10 @@ function loadAuditLogTable(sortBy, sortDesc) {
 	const usernameFilter = document.getElementById("audit-log-username-filter");
 	if (usernameFilter && usernameFilter.value) {
 		filter.username = `*${usernameFilter.value.toLowerCase()}*`;
+	}
+	const hostIdFilter = document.getElementById("audit-log-host-id-filter");
+	if (hostIdFilter && hostIdFilter.value) {
+		filter.hostId = `${hostIdFilter.value.toLowerCase()}*`;
 	}
 	const actorTypes = getSelectedAuditLogActorTypes();
 	if (actorTypes.length > 0) {

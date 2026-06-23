@@ -193,7 +193,7 @@ test("audit log event type dropdown sends selected checkbox values", () => {
 	assert.equal(window.__ajaxRequests[0][1], "/admin/audit-log");
 	assert.deepEqual(Array.from(window.__ajaxRequests[0][2].filter.eventType), ["authentication.login.failed", "authentication.logout"]);
 	assert.deepEqual(Array.from(window.__ajaxRequests[0][2].filter.actorType), ["user", "depot"]);
-	assert.equal(window.__ajaxRequests[0][2].filter.hostId, "client-one*");
+	assert.equal(window.__ajaxRequests[0][2].filter.hostId, "*client-one*");
 });
 
 test("audit log event type dropdown is positioned relative to the viewport", () => {

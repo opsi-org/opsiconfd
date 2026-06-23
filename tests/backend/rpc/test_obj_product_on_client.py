@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import pytest
 from opsi.opsi.service.model.object import (
+	AuditLog,
 	AuditLogEventType,
 	AuditLogProductActionRequest,
 	ConfigState,
@@ -65,16 +66,16 @@ def test_product_on_client_update_objects_audits_explicit_action_request(backend
 		MySQLSession.query_log = old_query_log
 
 	assert insert_counts == {"AUDIT_LOG": 1, "AUDIT_PRODUCT_ACTION_REQUEST": 1}
-	audit_logs = backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})
+	audit_logs: list[AuditLog] = backend.auditLog_getObjects(filter={"eventType": AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST})
 	assert len(audit_logs) == 2
 	assert sorted(
 		(
-			audit_log.clientProductActionRequest.productId,
-			audit_log.clientProductActionRequest.clientId,
-			audit_log.clientProductActionRequest.actionRequest,
+			audit_log.productActionRequest.productId,
+			audit_log.hostId,
+			audit_log.productActionRequest.actionRequest,
 		)
 		for audit_log in audit_logs
-		if audit_log.clientProductActionRequest
+		if audit_log.productActionRequest
 	) == [
 		("test-audit-product", client1.id, "setup"),
 		("test-audit-product", client2.id, "uninstall"),

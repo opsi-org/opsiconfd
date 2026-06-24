@@ -405,7 +405,7 @@ class SessionMiddleware:
 			error = str(err)
 
 		headers = headers or {}
-		headers["x-opsi-error"] = str(error)[:64]
+		headers["X-opsi-error"] = str(error)[:64]
 
 		if scope["type"] == "websocket":
 			if connection.headers.get("upgrade") == "websocket":
@@ -715,7 +715,7 @@ class OPSISession:
 			return
 		self._headers = value
 		self._user_agent = self._headers.get("user-agent") or ""
-		x_opsi_session_lifetime = self._headers.get("x-opsi-session-lifetime")
+		x_opsi_session_lifetime = self._headers.get("X-opsi-session-lifetime")
 		if x_opsi_session_lifetime:
 			try:
 				session_lifetime = int(x_opsi_session_lifetime)
@@ -726,7 +726,7 @@ class OPSISession:
 				else:
 					logger.warning("Not accepting session lifetime %d from client", session_lifetime)
 			except ValueError:
-				logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
+				logger.warning("Invalid X-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
 
 	@property
 	def redis_key(self) -> str:
@@ -1089,7 +1089,7 @@ class OPSISession:
 		if cookie and "set-cookie" not in headers:
 			headers["set-cookie"] = cookie
 		if self.authenticated and self.user_type and self.username:
-			headers["x-opsi-user-id"] = f"{self.user_type}:{self.username}"
+			headers["X-opsi-user-id"] = f"{self.user_type}:{self.username}"
 
 	async def update_last_used(self) -> None:
 		self.last_used = int(unix_timestamp())
@@ -1340,7 +1340,7 @@ async def authenticate_host(scope: Scope) -> None:
 		session.username = host.id
 		if not scope.get("response-headers"):
 			scope["response-headers"] = {}
-		scope["response-headers"]["x-opsi-new-host-id"] = session.username
+		scope["response-headers"]["X-opsi-new-host-id"] = session.username
 
 	if session.host_type == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
@@ -1498,7 +1498,7 @@ async def _authenticate(*, scope: Scope, username: str, password: str, password_
 
 	if config.multi_factor_auth in ("totp_mandatory", "totp_optional"):
 		if not mfa_otp:
-			mfa_otp = scope["request_headers"].get("x-opsi-mfa-otp")
+			mfa_otp = scope["request_headers"].get("X-opsi-mfa-otp")
 		if not mfa_otp and not password_is_token:
 			match = re.search(r"^(.+)(\d{6})$", session.password)
 			if match:

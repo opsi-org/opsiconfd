@@ -1468,7 +1468,7 @@ function renderSessionTable(data, htmlId) {
 			{ label: "User-Agent", cellClassName: "session-td", render: row => row.user_agent },
 			{ label: "Username", cellClassName: "session-td", render: row => row.username },
 			{ label: "Authenticated", cellClassName: "session-td", render: row => row.authenticated },
-			{ label: "Authentication methods", cellClassName: "session-td", render: row => row.auth_methods },
+			{ label: "Authentication methods", cellClassName: "session-td", render: row => row.auth_methods.join(", ") },
 			{ label: "Validity", cellClassName: "session-td", render: row => Math.round(row.validity) }
 		], data);
 		table.id = "session-table";

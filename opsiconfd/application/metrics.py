@@ -164,8 +164,10 @@ async def create_grafana_datasource() -> None:
 	json = GRAFANA_DATASOURCE_TEMPLATE
 	json["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
 	async with async_grafana_admin_session() as (base_url, session):
+		operation = "create"
 		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
 		if resp.status == 200:
+			operation = "update"
 			_id = (await resp.json())["id"]
 			logger.debug("Updating grafana datasource: %s", _id)
 			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
@@ -174,16 +176,20 @@ async def create_grafana_datasource() -> None:
 			resp = await session.post(f"{base_url}/api/datasources", json=json)
 
 		if resp.status == 200:
-			logger.debug("Grafana datasource created: %s - %s", resp.status, await resp.text())
-			json = {"folderId": 0, "overwrite": True, "dashboard": await grafana_dashboard_config()}
-			logger.debug("Creating grafana dashboard")
-			resp = await session.post(f"{base_url}/api/dashboards/db", json=json)
-			if resp.status == 200:
-				logger.debug("Grafana dashboard created: %s - %s", resp.status, await resp.text())
-			else:
-				logger.error("Failed to create grafana dashboard: %s - %s", resp.status, await resp.text())
+			logger.debug("Grafana datasource %s: %s - %s", operation, resp.status, await resp.text())
 		else:
-			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
+			logger.error("Failed to %s grafana datasource: %s - %s", operation, resp.status, await resp.text())
+			if operation == "create":
+				return
+
+		logger.debug("Creating grafana dashboard")
+		resp = await session.post(
+			f"{base_url}/api/dashboards/db", json={"folderId": 0, "overwrite": True, "dashboard": await grafana_dashboard_config()}
+		)
+		if resp.status == 200:
+			logger.debug("Grafana dashboard created: %s - %s", resp.status, await resp.text())
+		else:
+			logger.error("Failed to create grafana dashboard: %s - %s", resp.status, await resp.text())
 
 
 @grafana_metrics_router.get("/search")

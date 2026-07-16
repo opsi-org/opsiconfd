@@ -423,16 +423,17 @@ class RPCHostMixin(Protocol):
 						except ValueError:
 							# Not an ip address
 							hostnames.add(address)
-			for san in sans or []:
-				try:
-					ip_addresses.add(ip_address(san).compressed)
-				except ValueError:
-					# Not an ip address
-					hostnames.add(san)
 			try:
 				ip_addresses.add(socket.gethostbyname(host.id))
 			except socket.error as err:
 				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
+
+		for san in sans or []:
+			try:
+				ip_addresses.add(ip_address(san).compressed)
+			except ValueError:
+				# Not an ip address
+				hostnames.add(san)
 
 		domain = get_domain()
 		cert, key = create_server_cert(

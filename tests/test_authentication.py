@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pyotp
 import pytest
+from cryptography import x509
 from fastapi import status
 from opsi.crypt.hash import PasswordHashAlgorithm, get_password_hash_algorithm, hash_password, verify_password
 from opsi.crypt.ssl import read_certs_from_file
@@ -1150,7 +1151,9 @@ def test_client_certificate(
 			certs = read_certs_from_file(client_cert_file)
 			assert len(certs) == 1
 			print(certs[0])
-			assert san in f"{certs[0].subject}"
+			san_extension = certs[0].extensions.get_extension_for_class(x509.SubjectAlternativeName)
+			cert_sans = [str(value) for value in san_extension.value.get_values_for_type(x509.DNSName)]
+			assert san in cert_sans
 
 			with use_logging_config(stderr_level=LOG_TRACE):
 				with ServiceClient(

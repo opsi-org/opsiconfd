@@ -781,8 +781,7 @@ def fetch_server_cert(backend: ServiceClient | Backend, server_id: str | None = 
 	"""
 	Fetch a new server certificate from the OPSI service.
 	"""
-	sans = config.ssl_server_cert_sans
-	pem = backend.host_getTLSCertificate(server_id or get_depotserver_id(), sans=sans)  # ty: ignore[unresolved-attribute]
+	pem = backend.host_getTLSCertificate(server_id or get_depotserver_id(), sans=config.ssl_server_cert_sans)  # ty: ignore[unresolved-attribute]
 	pem_bytes = pem.encode("utf-8")
 	srv_crt = x509.load_pem_x509_certificate(pem_bytes)
 	srv_key = serialization.load_pem_private_key(pem_bytes, password=None)

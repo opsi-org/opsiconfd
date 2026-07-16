@@ -393,7 +393,7 @@ class RPCHostMixin(Protocol):
 		self.host_createObjects([OpsiConfigserver.fromHash(_hash)])
 
 	@rpc_method(check_acl=False)
-	def host_getTLSCertificate(self: BackendProtocol, hostId: str) -> str:
+	def host_getTLSCertificate(self: BackendProtocol, hostId: str, sans: list[str] | None = None) -> str:
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
@@ -423,6 +423,12 @@ class RPCHostMixin(Protocol):
 						except ValueError:
 							# Not an ip address
 							hostnames.add(address)
+			for san in sans or []:
+				try:
+					ip_addresses.add(ip_address(san).compressed)
+				except ValueError:
+					# Not an ip address
+					hostnames.add(san)
 			try:
 				ip_addresses.add(socket.gethostbyname(host.id))
 			except socket.error as err:

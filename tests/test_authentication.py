@@ -1148,9 +1148,9 @@ def test_client_certificate(
 			pem = backend.host_getTLSCertificate(opsi_client.id, sans=[san])
 			client_cert_file.write_text(pem, encoding="utf-8")
 			certs = read_certs_from_file(client_cert_file)
-			assert len(certs) == 2
-			print(certs[1])
-			assert san in f"{certs[1].subject}"
+			assert len(certs) == 1
+			print(certs[0])
+			assert san in f"{certs[0].subject}"
 
 			with use_logging_config(stderr_level=LOG_TRACE):
 				with ServiceClient(

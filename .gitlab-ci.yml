@@ -167,6 +167,9 @@ build:linux-x64:
     - opsi-dev-cli self upgrade
     - rm -rf .venv
     - uv self update
+    - uv python install
+    # PBS release 20260718 added hardening flags to sysconfig CFLAGS which GCC 6 on deb9 does not support
+    - find "$(uv python dir)" -name "_sysconfigdata_*.py" -exec sed -i 's/-fstack-clash-protection//g' {} +
     - uv sync --frozen
     - uv run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src
@@ -184,7 +187,7 @@ build:linux-x64:
 build:linux-x64-debug:
   stage: build
   when: manual
-  tags:
+  tags:build
     - docker-x64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"
@@ -196,6 +199,9 @@ build:linux-x64-debug:
     - opsi-dev-cli self upgrade
     - rm -rf .venv
     - uv self update
+    - uv python install
+    # PBS release 20260718 added hardening flags to sysconfig CFLAGS which GCC 6 on deb9 does not support
+    - find "$(uv python dir)" -name "_sysconfigdata_*.py" -exec sed -i 's/-fstack-clash-protection//g' {} +
     - wget https://github.com/astral-sh/python-build-standalone/releases/download/20250702/cpython-3.13.5+20250702-x86_64-unknown-linux-gnu-debug-full.tar.zst -O- | zstd -d | tar -xf -
     - export CFLAGS='-g -O0'
     - export CXXFLAGS='-g -O0'
@@ -230,6 +236,9 @@ build:linux-arm64:
     - opsi-dev-cli self upgrade
     - rm -rf .venv
     - uv self update
+    - uv python install
+    # PBS release 20260718 added hardening flags to sysconfig CFLAGS which GCC 6 on deb9 does not support
+    - find "$(uv python dir)" -name "_sysconfigdata_*.py" -exec sed -i 's/-fstack-clash-protection//g' {} +
     - uv sync --frozen
     - uv run opsi-dev-cli -l debug pyinstaller build
     - mv opsiconfd opsiconfd.src

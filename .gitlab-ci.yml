@@ -187,7 +187,7 @@ build:linux-x64:
 build:linux-x64-debug:
   stage: build
   when: manual
-  tags: build
+  tags:
     - docker-x64
   script:
     - export UV_PYTHON_PREFERENCE="only-managed"

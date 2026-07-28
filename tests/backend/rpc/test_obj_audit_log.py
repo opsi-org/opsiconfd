@@ -292,6 +292,50 @@ def test_audit_log_get_objects_orders_and_limits(backend: UnprotectedBackend) ->
 	assert [audit_log.username for audit_log in audit_logs] == ["order-limit-user-3", "order-limit-user-2"]
 
 
+@pytest.mark.parametrize(
+	("created_filter", "expected_usernames"),
+	[
+		("<2026-01-02 00:00:00", ["comparison-user-1"]),
+		("<=2026-01-02 00:00:00", ["comparison-user-1", "comparison-user-2"]),
+		("=2026-01-02 00:00:00", ["comparison-user-2"]),
+		("2026-01-02 00:00:00", ["comparison-user-2"]),
+		(">=2026-01-02 00:00:00", ["comparison-user-2", "comparison-user-3"]),
+		(">2026-01-02 00:00:00", ["comparison-user-3"]),
+	],
+)
+def test_audit_log_get_objects_filter_comparison_operators(
+	backend: UnprotectedBackend,  # noqa: F811
+	created_filter: str,
+	expected_usernames: list[str],
+) -> None:
+	backend.auditLog_bulkInsertObjects(  # ty: ignore[invalid-argument-type]
+		[
+			{
+				"created": "2026-01-01 00:00:00",
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "comparison-user-1",
+			},
+			{
+				"created": "2026-01-02 00:00:00",
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "comparison-user-2",
+			},
+			{
+				"created": "2026-01-03 00:00:00",
+				"eventType": AuditLogEventType.AUTHENTICATION_LOGIN_SUCCEEDED,
+				"username": "comparison-user-3",
+			},
+		]
+	)
+
+	audit_logs = backend.auditLog_getObjects(
+		filter={"username": "comparison-user-*", "created": created_filter},
+		orderBy={"created": "asc"},
+	)
+
+	assert [audit_log.username for audit_log in audit_logs] == expected_usernames
+
+
 def test_audit_log_get_objects_orders_by_authentication_attribute(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.auditLog_bulkInsertObjects(  # ty: ignore[invalid-argument-type]
 		[

@@ -671,7 +671,10 @@ class MySQLConnection:
 						if "*" in val:
 							operator = "LIKE"
 							val = val.replace("*", "%").replace("_", r"\_")
-						elif val.startswith(("<", ">")):
+						elif val.startswith(("<=", ">=")):
+							operator = val[:2]
+							val = val[2:]
+						elif val.startswith(("<", ">", "=")):
 							operator = val[0]
 							val = val[1:]
 					param = f"p{len(params) + 1}"

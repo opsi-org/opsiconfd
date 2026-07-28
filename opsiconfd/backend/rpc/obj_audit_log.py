@@ -288,9 +288,15 @@ class RPCAuditLogMixin(Protocol):
 				Conditions on different attributes are AND-combined.
 				A value can be a single value or a list of values, which are OR-combined.
 				String values may contain wildcards (`*` matches any sequence of characters)
-				or start with a comparison operator (`<` or `>`), e.g. `{"created": ">2026-01-01"}`.
+				or start with a comparison operator (`<`, `<=`, `=`, `>=` or `>`),
+				e.g. `{"created": ">=2026-01-01"}`. Without an operator `=` is used.
 				Attributes with the value `None` are ignored, unknown attributes raise a `ValueError`.
-			orderBy: Attributes to sort the result by, also accepts authentication detail attributes.
+			orderBy: Mapping of attribute names to a sort direction (`"asc"` or `"desc"`, case-insensitive),
+				e.g. `{"created": "desc", "username": "asc"}`.
+				Entries are sorted by the attributes in the given order.
+				Accepts `AUDIT_LOG` attributes and authentication detail attributes
+				(`authMethods`, `failureReason`, `logoutReason`).
+				Unknown attributes or invalid directions raise a `ValueError`.
 			limit: Maximum number of entries to return.
 
 		Returns:
@@ -380,9 +386,15 @@ class RPCAuditLogMixin(Protocol):
 				Conditions on different attributes are AND-combined.
 				A value can be a single value or a list of values, which are OR-combined.
 				String values may contain wildcards (`*` matches any sequence of characters)
-				or start with a comparison operator (`<` or `>`), e.g. `{"created": ">2026-01-01"}`.
+				or start with a comparison operator (`<`, `<=`, `=`, `>=` or `>`),
+				e.g. `{"created": ">=2026-01-01"}`. Without an operator `=` is used.
 				Attributes with the value `None` are ignored, unknown attributes raise a `ValueError`.
-			orderBy: Attributes to sort the result by, also accepts authentication detail attributes.
+			orderBy: Mapping of attribute names to a sort direction (`"asc"` or `"desc"`, case-insensitive),
+				e.g. `{"created": "desc", "username": "asc"}`.
+				Entries are sorted by the attributes in the given order.
+				Accepts `AUDIT_LOG` attributes and authentication detail attributes
+				(`authMethods`, `failureReason`, `logoutReason`).
+				Unknown attributes or invalid directions raise a `ValueError`.
 			limit: Maximum number of entries to return.
 
 		Returns:
@@ -411,7 +423,8 @@ class RPCAuditLogMixin(Protocol):
 				Conditions on different attributes are AND-combined.
 				A value can be a single value or a list of values, which are OR-combined.
 				String values may contain wildcards (`*` matches any sequence of characters)
-				or start with a comparison operator (`<` or `>`), e.g. `created=">2026-01-01"`.
+				or start with a comparison operator (`<`, `<=`, `=`, `>=` or `>`),
+				e.g. `created=">=2026-01-01"`. Without an operator `=` is used.
 				Attributes with the value `None` are ignored, unknown attributes raise a `ValueError`.
 
 		Returns:

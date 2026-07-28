@@ -7,6 +7,8 @@
 test opsiconfd.backend.rpc.obj_audit_log
 """
 
+from unittest.mock import patch
+
 import pytest
 from opsi.opsi.service.model.object import (
 	AuditLog,
@@ -17,8 +19,20 @@ from opsi.opsi.service.model.object import (
 	AuditLogProductActionRequest,
 )
 
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLSession
-from tests.utils import UnprotectedBackend, backend, clean_mysql, clean_redis  # noqa: F401
+from tests.utils import (  # noqa: F401
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	UnprotectedBackend,
+	backend,
+	clean_mysql,
+	clean_redis,
+	default_acl,
+	get_config,
+	test_client,
+)
 
 
 def test_audit_log_object() -> None:
@@ -396,3 +410,28 @@ def test_audit_log_requires_client_product_action_request_for_event_type(backend
 
 	with pytest.raises(ValueError, match="productActionRequest is required"):
 		backend.auditLog_bulkInsertObjects([audit_log])  # ty: ignore[invalid-argument-type]
+
+
+def test_audit_log_get_objects_requires_admin(
+	default_acl: dict[str, list[RPCACE]],  # noqa: F811
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	"""With the default ACL, auditLog_getObjects must be callable for admin users but not for non-admin users."""
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "auditLog_getObjects", "params": []}
+
+	# An admin user is allowed to call auditLog_getObjects
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	# A non-admin user must not be allowed to call auditLog_getObjects
+	test_client.reset_cookies()
+	test_client.auth = ("nonadminuser", "password")
+	with (
+		# Allow all groups to connect, so that the permission check is done by the ACL
+		get_config({"auth_allowed_groups": []}),
+		patch("opsiconfd.auth._pam.PAMAuthentication.authenticate", return_value=True),
+		patch("opsiconfd.auth._pam.PAMAuthentication.get_groupnames", return_value={"nonadmingroup"}),
+	):
+		res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "OpsiServicePermissionError"

@@ -132,6 +132,28 @@ def test_audit_log_insert_object(backend: UnprotectedBackend) -> None:  # noqa: 
 	)
 
 
+def test_audit_log_insert_object_client_product_action_request(backend: UnprotectedBackend) -> None:  # noqa: F811
+	audit_log = AuditLog(
+		eventType=AuditLogEventType.CLIENT_PRODUCT_ACTION_REQUEST,
+		username="adminuser",
+		hostId="test-client.opsi.test",
+		productActionRequest=AuditLogProductActionRequest(
+			productId="test-product",
+			actionRequest="setup",
+		),
+	)
+
+	backend.auditLog_insertObject(audit_log)  # ty: ignore[invalid-argument-type]
+
+	audit_logs = backend.auditLog_getObjects(filter={"id": audit_log.id})
+	assert len(audit_logs) == 1
+	assert audit_logs[0].hostId == "test-client.opsi.test"
+	assert audit_logs[0].productActionRequest == AuditLogProductActionRequest(
+		productId="test-product",
+		actionRequest="setup",
+	)
+
+
 def test_audit_log_bulk_insert_objects(backend: UnprotectedBackend) -> None:  # noqa: F811
 	backend.auditLog_bulkInsertObjects(  # ty: ignore[invalid-argument-type]
 		[

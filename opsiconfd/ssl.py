@@ -119,6 +119,30 @@ def get_domain() -> str:
 	return ".".join(FQDN.split(".")[1:])
 
 
+def hostname_permitted_by_ca(hostname: str) -> bool:
+	"""
+	Check if a hostname is permitted by the CA name constraints (`ssl-ca-permitted-domains`).
+
+	If `ssl-ca-permitted-domains` is not set, all hostnames are permitted.
+	A domain constraint matches the domain itself and all of its subdomains.
+
+	Args:
+		hostname: The hostname to check.
+
+	Returns:
+		`True` if the hostname is permitted, `False` otherwise.
+	"""
+	if not config.ssl_ca_permitted_domains:
+		return True
+	for domain in config.ssl_ca_permitted_domains:
+		# The leading "." is stripped when creating the CA name constraints,
+		# therefore a constraint matches the domain itself and all subdomains.
+		domain = domain.lstrip(".")
+		if hostname == domain or hostname.endswith(f".{domain}"):
+			return True
+	return False
+
+
 def setup_ssl_file_permissions() -> None:
 	"""
 	Set the permissions for the SSL files.

@@ -43,6 +43,7 @@ from opsiconfd.ssl import (
 	get_server_cert_info,
 	get_server_cn,
 	get_trusted_certs,
+	hostname_permitted_by_ca,
 	is_self_signed,
 	load_cert,
 	load_certs,
@@ -283,6 +284,25 @@ def test_create_ca_permitted_domains(tmp_path: Path) -> None:
 		assert name_constraints.critical
 		assert name_constraints.value.permitted_subtrees[0].value == ssl_ca_permitted_domains[0]
 		assert name_constraints.value.permitted_subtrees[1].value == ssl_ca_permitted_domains[1]
+
+
+@pytest.mark.parametrize(
+	"permitted_domains, hostname, expected",
+	(
+		([], "host.other.tld", True),
+		(["mycompany.tld"], "mycompany.tld", True),
+		(["mycompany.tld"], "host.mycompany.tld", True),
+		(["mycompany.tld"], "host.sub.mycompany.tld", True),
+		(["mycompany.tld"], "hostmycompany.tld", False),
+		(["mycompany.tld"], "host.other.tld", False),
+		# "localhost" is always added to the permitted domains
+		(["mycompany.tld"], "localhost", True),
+		(["mycompany1.tld", "mycompany2.tld"], "host.mycompany2.tld", True),
+	),
+)
+def test_hostname_permitted_by_ca(permitted_domains: list[str], hostname: str, expected: bool) -> None:
+	with get_config({"ssl_ca_permitted_domains": permitted_domains}):
+		assert hostname_permitted_by_ca(hostname) is expected
 
 
 def test_ca_key_fallback(tmp_path: Path) -> None:

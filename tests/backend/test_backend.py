@@ -136,5 +136,44 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 
+def test_opsiconfd_backend_host_get_tls_certificate_permitted_domains(
+	test_client: OpsiconfdTestClient,  # noqa: F811
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	host_id = "test-client3-cert.opsi.org"
+	host_key = "d5924e45807dec1856aa768a25913c50"
+	ip_address = "192.168.1.3"
+	with (
+		create_client_via_jsonrpc(test_client, "", host_id, host_key, ip_address=ip_address),
+		get_config({"ssl_ca_permitted_domains": ["opsi.org"]}),
+	):
+		rpc = {
+			"id": 1,
+			"method": "host_getTLSCertificate",
+			"params": [host_id, ["san.opsi.org", "san.other.tld", "10.10.10.10"]],
+		}
+		res = test_client.post("/rpc", json=rpc)
+		res.raise_for_status()
+		res_dict = res.json()
+		assert not res_dict["error"]
+
+		pem_bytes = res_dict["result"].encode("utf-8")
+		cert = x509.load_pem_x509_certificate(pem_bytes)
+
+		san_extension = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+		dns_names = san_extension.value.get_values_for_type(x509.DNSName)
+		cert_ips = [str(addr) for addr in san_extension.value.get_values_for_type(x509.IPAddress)]
+
+		# Hostnames matching the permitted domains must be kept
+		assert host_id in dns_names
+		assert "san.opsi.org" in dns_names
+		assert "localhost" in dns_names
+		# Hostnames not matching the permitted domains must be filtered out
+		assert "san.other.tld" not in dns_names
+		# IP addresses are not affected by the CA name constraints
+		assert ip_address in cert_ips
+		assert "10.10.10.10" in cert_ips
+
+
 def test_backend_replicator_instance(backend: UnprotectedBackend) -> None:  # noqa: F811
 	BackendReplicator(readBackend=backend, writeBackend=backend, cleanupFirst=False)  # ty: ignore[invalid-argument-type]

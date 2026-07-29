@@ -37,6 +37,7 @@ from opsiconfd.ssl import (
 	as_pem,
 	create_server_cert,
 	get_domain,
+	hostname_permitted_by_ca,
 	load_opsi_ca_cert,
 	load_opsi_ca_key,
 )
@@ -434,6 +435,12 @@ class RPCHostMixin(Protocol):
 			except ValueError:
 				# Not an ip address
 				hostnames.add(san)
+
+		# The CA name constraints only apply to DNS names, not to IP addresses
+		for hostname in list(hostnames):
+			if not hostname_permitted_by_ca(hostname):
+				logger.warning("Hostname %r is not permitted by the CA name constraints (ssl-ca-permitted-domains), skipping", hostname)
+				hostnames.discard(hostname)
 
 		domain = get_domain()
 		cert, key = create_server_cert(

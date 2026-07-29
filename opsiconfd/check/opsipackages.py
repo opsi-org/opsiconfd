@@ -205,7 +205,7 @@ class OpsiProductsOnClientsCheck(Check):
 		client_ids = {
 			host.id
 			for host in backend.host_getObjects(attributes=["id", "lastSeen"], type="OpsiClient")
-			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen)).days < 90 and host.id in enabled_hosts
+			if host.lastSeen and (now - datetime.fromisoformat(host.lastSeen).replace(tzinfo=UTC)).days < 90 and host.id in enabled_hosts
 		}
 		if not client_ids:
 			return result

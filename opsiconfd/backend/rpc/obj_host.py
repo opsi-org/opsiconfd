@@ -437,7 +437,7 @@ class RPCHostMixin(Protocol):
 				hostnames.add(san)
 
 		# The CA name constraints only apply to DNS names, not to IP addresses
-		for hostname in list(hostnames):
+		for hostname in hostnames.copy():
 			if not hostname_permitted_by_ca(hostname):
 				logger.warning("Hostname %r is not permitted by the CA name constraints (ssl-ca-permitted-domains), skipping", hostname)
 				hostnames.discard(hostname)
